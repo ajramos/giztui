@@ -1,0 +1,47 @@
+{
+  "credentials": "~/.config/gmail-tui/credentials.json",
+  "token": "~/.config/gmail-tui/token.json",
+  "ollama_endpoint": "http://localhost:11434",
+  "ollama_model": "llama2",
+  "ollama_timeout": "30s",
+  "summarize_prompt": "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
+  "reply_prompt": "Redacta una respuesta profesional y amable al siguiente correo:\n\n{{body}}",
+  "label_prompt": "Sugiere una etiqueta adecuada para el siguiente correo considerando las ya existentes: {{labels}}.\n\nCorreo:\n{{body}}",
+  "layout": {
+    "auto_resize": true,
+    "wide_breakpoint": {
+      "width": 120,
+      "height": 30
+    },
+    "medium_breakpoint": {
+      "width": 80,
+      "height": 25
+    },
+    "narrow_breakpoint": {
+      "width": 60,
+      "height": 20
+    },
+    "default_layout": "auto",
+    "show_borders": true,
+    "show_titles": true,
+    "compact_mode": false,
+    "color_scheme": "default"
+  },
+  "keys": {
+    "summarize": "y",
+    "generate_reply": "g",
+    "suggest_label": "o",
+    "reply": "r",
+    "compose": "n",
+    "refresh": "R",
+    "search": "s",
+    "unread": "u",
+    "toggle_read": "t",
+    "trash": "d",
+    "archive": "a",
+    "drafts": "D",
+    "attachments": "A",
+    "manage_labels": "l",
+    "quit": "q"
+  }
+}

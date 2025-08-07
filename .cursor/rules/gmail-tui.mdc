@@ -1,0 +1,144 @@
+---
+alwaysApply: true
+---
+# Gmail TUI Project Rules
+
+## Language and Documentation
+- **All code, comments, and documentation must be in English**
+- Use clear, descriptive variable and function names
+- Write comprehensive comments for complex logic
+- Follow Go naming conventions (camelCase for variables, PascalCase for exported functions)
+
+## Project Structure
+- Follow the established directory structure:
+  - `cmd/gmail-tui/` - Main application entry point
+  - `internal/` - Private application code
+    - `config/` - Configuration management
+    - `gmail/` - Gmail API client
+    - `llm/` - Local LLM integration (Ollama)
+    - `tui/` - Terminal UI components
+  - `pkg/` - Public packages
+    - `auth/` - OAuth2 authentication
+    - `utils/` - Utility functions
+  - `docs/` - Documentation
+  - `examples/` - Usage examples
+
+## Code Style
+- Use Go 1.21+ features
+- Follow Go best practices and idioms
+- Use proper error handling with wrapped errors
+- Implement proper logging for debugging
+- Use context for cancellation and timeouts
+- Prefer composition over inheritance
+
+## Gmail API Integration
+- Use OAuth2 for authentication
+- Implement proper token caching and refresh
+- Handle API rate limits gracefully
+- Use appropriate Gmail API scopes
+- Implement proper error handling for API calls
+
+## TUI Development
+- Use `tview` library for terminal UI
+- Implement keyboard shortcuts for all actions
+- Provide clear visual feedback for user actions
+- Handle terminal resizing gracefully
+- Use colors and formatting for better UX
+
+## LLM Integration
+- Support Ollama for local LLM inference
+- Implement configurable prompt templates
+- Handle LLM timeouts and errors gracefully
+- Provide fallback when LLM is unavailable
+- Use structured prompts for consistent results
+
+## Configuration
+- Support JSON configuration files
+- Allow command-line flag overrides
+- Provide sensible defaults
+- Validate configuration on startup
+- Support hot-reloading where appropriate
+
+## Testing
+- Write unit tests for all packages
+- Use table-driven tests where appropriate
+- Mock external dependencies
+- Test error conditions
+- Aim for good test coverage
+
+## Error Handling
+- Use wrapped errors with context
+- Provide user-friendly error messages
+- Log detailed errors for debugging
+- Handle network failures gracefully
+- Implement retry logic where appropriate
+
+## Security
+- Never log sensitive information
+- Use secure file permissions for credentials
+- Validate all user inputs
+- Sanitize data before display
+- Follow OAuth2 security best practices
+
+## Performance
+- Use goroutines for concurrent operations
+- Implement proper connection pooling
+- Cache frequently accessed data
+- Minimize API calls
+- Use efficient data structures
+
+## Documentation
+- Write clear README with setup instructions
+- Document all public APIs
+- Provide usage examples
+- Include troubleshooting guide
+- Keep documentation up to date
+
+## Dependencies
+- Use Go modules for dependency management
+- Keep dependencies up to date
+- Minimize external dependencies
+- Prefer standard library when possible
+- Document why external dependencies are needed
+
+## Git and Version Control
+- Use meaningful commit messages
+- Follow conventional commit format
+- Keep commits focused and atomic
+- Use feature branches for development
+- Write clear PR descriptions
+
+## Build and Deployment
+- Use Makefile for common tasks
+- Support cross-platform builds
+- Provide Docker support if needed
+- Use GitHub Actions for CI/CD
+- Create release artifacts
+
+## User Experience
+- Provide clear keyboard shortcuts
+- Show loading indicators for long operations
+- Implement undo/redo where possible
+- Provide helpful error messages
+- Support accessibility features
+
+## Internationalization
+- Use English as the primary language
+- Structure code to support future i18n
+- Use constants for user-facing strings
+- Consider timezone handling
+- Support different date formats
+
+## Monitoring and Logging
+- Use structured logging
+- Include request IDs for tracing
+- Log performance metrics
+- Monitor error rates
+- Provide health check endpoints
+
+## Code Review Guidelines
+- Review for security vulnerabilities
+- Check for proper error handling
+- Ensure good test coverage
+- Verify documentation updates
+- Consider performance implications

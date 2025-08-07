@@ -1,0 +1,34 @@
+# Gmail TUI Dark Theme
+# Based on Dracula color scheme
+
+gmailTUI:
+  body:
+    fgColor: "#f8f8f2"          # Color de texto principal
+    bgColor: "#282a36"          # Color de fondo principal
+    logoColor: "#bd93f9"        # Color del logo
+
+  frame:
+    border:
+      fgColor: "#44475a"        # Color de bordes normales
+      focusColor: "#6272a4"     # Color de bordes con foco
+    
+    title:
+      fgColor: "#f8f8f2"        # Color del título
+      bgColor: "#282a36"        # Fondo del título
+      highlightColor: "#f1fa8c" # Color de resaltado
+      counterColor: "#50fa7b"   # Color del contador
+      filterColor: "#8be9fd"    # Color del filtro
+
+  table:
+    fgColor: "#f8f8f2"          # Color de texto de tabla
+    bgColor: "#282a36"          # Fondo de tabla
+    headerFgColor: "#50fa7b"    # Color de headers
+    headerBgColor: "#282a36"    # Fondo de headers
+
+  # Colores específicos para emails
+  email:
+    unreadColor: "#ffb86c"      # Naranja para no leídos
+    readColor: "#6272a4"        # Gris para leídos
+    importantColor: "#ff5555"   # Rojo para importantes
+    sentColor: "#50fa7b"        # Verde para enviados
+    draftColor: "#f1fa8c"       # Amarillo para borradores

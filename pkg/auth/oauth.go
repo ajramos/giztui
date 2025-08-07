@@ -1,0 +1,233 @@
+package auth
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/option"
+)
+
+// OAuth2Config holds OAuth2 configuration
+type OAuth2Config struct {
+	CredentialsPath string
+	TokenPath       string
+	Scopes          []string
+}
+
+// NewOAuth2Config creates a new OAuth2 configuration
+func NewOAuth2Config(credentialsPath string, tokenPath string, scopes ...string) *OAuth2Config {
+	return &OAuth2Config{
+		CredentialsPath: credentialsPath,
+		TokenPath:       tokenPath,
+		Scopes:          scopes,
+	}
+}
+
+// LoadCredentials loads OAuth2 credentials from file
+func (c *OAuth2Config) LoadCredentials() (*oauth2.Config, error) {
+	data, err := os.ReadFile(c.CredentialsPath)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el archivo de credenciales: %w", err)
+	}
+
+	config, err := google.ConfigFromJSON(data, c.Scopes...)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo parsear el archivo de credenciales: %w", err)
+	}
+
+	return config, nil
+}
+
+// LoadToken loads cached token from file
+func (c *OAuth2Config) LoadToken(config *oauth2.Config) (*oauth2.Token, error) {
+	f, err := os.Open(c.TokenPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	token := &oauth2.Token{}
+	err = json.NewDecoder(f).Decode(token)
+	return token, err
+}
+
+// SaveToken saves token to file
+func (c *OAuth2Config) SaveToken(token *oauth2.Token) error {
+	// Ensure directory exists
+	dir := filepath.Dir(c.TokenPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(c.TokenPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("no se pudo guardar el token: %w", err)
+	}
+	defer f.Close()
+
+	return json.NewEncoder(f).Encode(token)
+}
+
+// GetToken retrieves a token, refreshing if necessary
+func (c *OAuth2Config) GetToken(ctx context.Context) (*oauth2.Token, error) {
+	config, err := c.LoadCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to load cached token
+	token, err := c.LoadToken(config)
+	if err != nil {
+		// Token not found, need to authenticate
+		token, err = c.authenticate(ctx, config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Refresh token if needed
+	if !token.Valid() {
+		token, err = c.refreshToken(ctx, config, token)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Save refreshed token
+	if err := c.SaveToken(token); err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+// authenticate performs OAuth2 authentication with local server
+func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) (*oauth2.Token, error) {
+	// Create a local server to capture the authorization code
+	codeChan := make(chan string, 1)
+	errorChan := make(chan error, 1)
+	
+	// Start local server
+	server := &http.Server{
+		Addr: ":8080",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			code := r.URL.Query().Get("code")
+			if code != "" {
+				// Send success response
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`
+					<html>
+						<body>
+							<h2>Autorización exitosa</h2>
+							<p>Puedes cerrar esta ventana y volver a la aplicación.</p>
+						</body>
+					</html>
+				`))
+				codeChan <- code
+			} else {
+				// Send error response
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`
+					<html>
+						<body>
+							<h2>Error de autorización</h2>
+							<p>No se recibió el código de autorización.</p>
+						</body>
+					</html>
+				`))
+				errorChan <- fmt.Errorf("no se recibió código de autorización")
+			}
+		}),
+	}
+	
+	// Start server in goroutine
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errorChan <- err
+		}
+	}()
+	
+	// Create OAuth2 config with local redirect URI
+	localConfig := &oauth2.Config{
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		RedirectURL:  "http://localhost:8080",
+		Scopes:       config.Scopes,
+		Endpoint:     config.Endpoint,
+	}
+	
+	authURL := localConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	fmt.Printf("\n[bold]Autorización requerida[reset]\n")
+	fmt.Printf("1. Ve a este enlace: [blue]%s[reset]\n", authURL)
+	fmt.Printf("2. Autoriza la aplicación\n")
+	fmt.Printf("3. Serás redirigido automáticamente\n")
+	fmt.Printf("\nEsperando autorización...\n")
+	
+	// Wait for authorization code
+	var authCode string
+	select {
+	case authCode = <-codeChan:
+		// Success
+	case err := <-errorChan:
+		server.Shutdown(ctx)
+		return nil, fmt.Errorf("error en el servidor local: %w", err)
+	case <-time.After(5 * time.Minute):
+		server.Shutdown(ctx)
+		return nil, fmt.Errorf("tiempo de espera agotado")
+	}
+	
+	// Shutdown server
+	server.Shutdown(ctx)
+	
+	// Exchange code for token
+	token, err := localConfig.Exchange(ctx, authCode)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo intercambiar el código por token: %w", err)
+	}
+
+	fmt.Printf("[green]¡Autorización exitosa![reset]\n")
+	return token, nil
+}
+
+// refreshToken refreshes an expired token
+func (c *OAuth2Config) refreshToken(ctx context.Context, config *oauth2.Config, token *oauth2.Token) (*oauth2.Token, error) {
+	tokenSource := config.TokenSource(ctx, token)
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo refrescar el token: %w", err)
+	}
+
+	return newToken, nil
+}
+
+// NewGmailService creates a new Gmail service using OAuth2
+func NewGmailService(ctx context.Context, credentialsPath, tokenPath string, scopes ...string) (*gmail.Service, error) {
+	oauthConfig := NewOAuth2Config(credentialsPath, tokenPath, scopes...)
+
+	token, err := oauthConfig.GetToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := oauthConfig.LoadCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := config.Client(ctx, token)
+
+	service, err := gmail.NewService(ctx, option.WithHTTPClient(httpClient))
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo crear el servicio de Gmail: %w", err)
+	}
+
+	return service, nil
+}

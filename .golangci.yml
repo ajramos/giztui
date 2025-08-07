@@ -1,0 +1,152 @@
+run:
+  timeout: 5m
+  go: "1.21"
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - misspell
+    - gosec
+    - prealloc
+    - gocritic
+    - revive
+    - gocyclo
+    - dupl
+    - goconst
+    - gomnd
+    - gocognit
+    - lll
+    - nakedret
+    - unparam
+    - unconvert
+    - unexportedreturn
+    - varcheck
+    - whitespace
+    - wsl
+    - goerr113
+    - noctx
+    - paralleltest
+    - testpackage
+    - thelper
+    - tparallel
+    - exhaustive
+    - forbidigo
+    - gochecknoinits
+    - gochecknoglobals
+    - godot
+    - godox
+    - gofumpt
+    - goheader
+    - gomodguard
+    - goprintffuncname
+    - nolintlint
+    - predeclared
+    - rowserrcheck
+    - structcheck
+    - stylecheck
+    - tagliatelle
+    - typecheck
+    - wrapcheck
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  gomnd:
+    checks: argument,case,condition,operation,return,assign
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - commentFormatting
+      - hugeParam
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+  gosec:
+    excludes:
+      - G101 # Look for hardcoded credentials
+      - G102 # Bind to all interfaces
+      - G104 # Errors unhandled.
+      - G107 # Url provided to HTTP request as taint input
+      - G201 # SQL query construction using format string
+      - G202 # SQL query construction using string concatenation
+      - G204 # Audit use of command execution
+      - G301 # Poor file permissions used when creating a directory
+      - G302 # Poor file permissions used when creating a file
+      - G303 # Poor file permissions used when writing to a file
+      - G304 # File path provided as taint input
+      - G305 # File traversal when extracting zip/tar archive
+      - G306 # Poor file permissions used when writing to a new file
+      - G307 # Poor file permissions used when creating a file with os.Create
+      - G401 # Detect the usage of DES, RC4, MD5 or SHA1
+      - G402 # Look for bad TLS connection settings
+      - G403 # Ensure minimum RSA key length of 2048 bits
+      - G404 # Use of weak random number generator (math/rand instead of crypto/rand)
+      - G501 # Import blocklist: crypto/md5
+      - G502 # Import blocklist: crypto/des
+      - G503 # Import blocklist: crypto/rc4
+      - G504 # Import blocklist: net/http/cgi
+      - G505 # Import blocklist: crypto/sha1
+  govet:
+    check-shadowing: true
+  lll:
+    line-length: 140
+  misspell:
+    locale: US
+  nolintlint:
+    allow-unused: false
+    require-explanation: false
+    require-specific: false
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
+  unparam:
+    check-exported: false
+  whitespace:
+    multi-if: false
+    multi-func: false
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - gocyclo
+        - gocognit
+        - dupl
+        - goconst
+        - lll
+        - paralleltest
+        - testpackage
+        - thelper
+        - tparallel
+    - path: internal/llm/
+      linters:
+        - gosec
+    - path: pkg/auth/
+      linters:
+        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0
