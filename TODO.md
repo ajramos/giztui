@@ -12,7 +12,7 @@
 - [ ] **Batch archive emails** - Archive multiple emails at once
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
-- [ ] **Trash email** - Move emails to trash
+- [x] **Trash email** - Move emails to trash
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 
 ### Email Composition
