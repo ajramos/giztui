@@ -42,6 +42,37 @@
 - [ ] **Update calendar event** - Modify existing calendar events
 - [ ] **Delete calendar event** - Remove calendar events
 
+## 🎨 UX Improvements
+
+### Command System Enhancements
+- [x] **Command autocompletion** - Auto-complete commands as you type (e.g., :la → labels)
+- [x] **Command bar border** - Add visual border to command bar for better UX
+- [x] **Command bar focus** - Automatically focus command bar when activated
+- [x] **Command suggestions** - Show suggestions in brackets when typing commands
+- [ ] **Command history search** - Search through command history
+- [ ] **Command aliases** - Support custom command aliases
+- [ ] **Command help** - Show help for specific commands
+- [ ] **Command validation** - Validate commands before execution
+
+### Interface Improvements
+- [x] **Vertical layout** - Stacked layout with list, content, commands, and status
+- [ ] **Keyboard shortcuts display** - Show available shortcuts in status bar
+- [ ] **Progress indicators** - Show loading progress for long operations
+- [ ] **Error handling** - Better error messages and recovery
+- [ ] **Confirmation dialogs** - Confirm destructive actions
+- [ ] **Undo functionality** - Undo last action
+- [ ] **Search highlighting** - Highlight search terms in results
+- [ ] **Message threading** - Show message threads and conversations
+
+### Navigation Enhancements
+- [ ] **Quick navigation** - Jump to specific messages or labels
+- [ ] **Bookmarks** - Bookmark important messages
+- [ ] **Recent messages** - Quick access to recently viewed messages
+- [ ] **Message filtering** - Filter messages by various criteria
+- [ ] **Sort options** - Sort messages by date, sender, subject, etc.
+- [ ] **Bulk operations** - Select multiple messages for bulk actions
+- [ ] **Keyboard navigation** - Improve keyboard navigation efficiency
+
 ## 🎨 Theme System
 
 ### Theme Functionality

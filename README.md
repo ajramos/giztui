@@ -172,6 +172,32 @@ The application uses a unified configuration directory structure:
 | `f` | Toggle fullscreen text view |
 | `t` | Toggle focus between list and text |
 
+### 🧭 Command Mode (k9s-style)
+
+- Press `:` to open the command bar
+- The command bar now has a border, takes focus automatically, and supports suggestions
+- Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`)
+- Suggestions are shown in brackets while typing
+
+Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
+
+### 🏷️ Labels Management (Contextual)
+
+- Press `l` on a selected message to open the contextual labels view
+- Shows only actionable labels; names are human-friendly (e.g., "Social DoiT")
+- Status:
+  - `✅` applied to message
+  - `○` not applied
+- Toggle labels with `Enter` (non-blocking, UI updates instantly)
+- `n`: create label, `r`: refresh, `ESC`: back
+- Special handling: only `STARRED` is shown; colored star variants are hidden
+
+### 📐 Vertical Layout
+
+- Messages list on top, message content below, command bar and status at bottom
+- Proportions optimized for readability
+- Smart focus: app avoids stealing focus while loading in background
+
 ## 📱 Layout System
 
 The application features an **adaptive layout system** that automatically adjusts to your terminal size:

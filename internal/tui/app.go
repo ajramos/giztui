@@ -47,6 +47,7 @@ type App struct {
 	cmdBuffer       string   // Current command buffer
 	cmdHistory      []string // Command history
 	cmdHistoryIndex int      // Current position in history
+	cmdSuggestion   string   // Current command suggestion
 	// Layout management
 	currentLayout    LayoutType
 	screenWidth      int
@@ -478,7 +479,8 @@ func (a *App) bindKeys() {
 			go a.showAttachments()
 			return nil
 		case 'l':
-			go a.manageLabels()
+			// Open contextual labels view immediately
+			a.manageLabels()
 			return nil
 		}
 
@@ -529,6 +531,10 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 		a.executeCommand(a.cmdBuffer)
 		a.hideCommandBar()
 		return nil
+	case tcell.KeyTab:
+		// Auto-complete command
+		a.completeCommand()
+		return nil
 	case tcell.KeyBackspace, tcell.KeyDelete:
 		// Delete last character
 		if len(a.cmdBuffer) > 0 {
@@ -575,9 +581,84 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 // updateCommandBar updates the command bar display
 func (a *App) updateCommandBar() {
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
-		cmdBar.SetText(fmt.Sprintf(":%s", a.cmdBuffer))
+		// Generate suggestion based on current buffer
+		suggestion := a.generateCommandSuggestion(a.cmdBuffer)
+		a.cmdSuggestion = suggestion
+
+		// Display command with suggestion
+		displayText := fmt.Sprintf(":%s", a.cmdBuffer)
+		if suggestion != "" && suggestion != a.cmdBuffer {
+			displayText += fmt.Sprintf(" [%s]", suggestion)
+		}
+
+		cmdBar.SetText(displayText)
 		cmdBar.SetTextColor(tcell.ColorYellow)
 		cmdBar.SetBackgroundColor(tcell.ColorBlack)
+	}
+}
+
+// generateCommandSuggestion generates a suggestion based on the current command buffer
+func (a *App) generateCommandSuggestion(buffer string) string {
+	if buffer == "" {
+		return ""
+	}
+
+	// Available commands
+	commands := map[string][]string{
+		"l":       {"labels", "list"},
+		"la":      {"labels"},
+		"lab":     {"labels"},
+		"labe":    {"labels"},
+		"label":   {"labels"},
+		"labels":  {"labels"},
+		"s":       {"search"},
+		"se":      {"search"},
+		"sea":     {"search"},
+		"sear":    {"search"},
+		"searc":   {"search"},
+		"search":  {"search"},
+		"i":       {"inbox"},
+		"in":      {"inbox"},
+		"inb":     {"inbox"},
+		"inbo":    {"inbox"},
+		"inbox":   {"inbox"},
+		"c":       {"compose"},
+		"co":      {"compose"},
+		"com":     {"compose"},
+		"comp":    {"compose"},
+		"compo":   {"compose"},
+		"compos":  {"compose"},
+		"compose": {"compose"},
+		"h":       {"help"},
+		"he":      {"help"},
+		"hel":     {"help"},
+		"help":    {"help"},
+		"q":       {"quit"},
+		"qu":      {"quit"},
+		"qui":     {"quit"},
+		"quit":    {"quit"},
+	}
+
+	// Check for exact matches first
+	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
+		return suggestions[0]
+	}
+
+	// Check for partial matches
+	for cmd, suggestions := range commands {
+		if strings.HasPrefix(cmd, buffer) && cmd != buffer {
+			return suggestions[0]
+		}
+	}
+
+	return ""
+}
+
+// completeCommand completes the current command with the suggestion
+func (a *App) completeCommand() {
+	if a.cmdSuggestion != "" && a.cmdSuggestion != a.cmdBuffer {
+		a.cmdBuffer = a.cmdSuggestion
+		a.updateCommandBar()
 	}
 }
 
@@ -685,8 +766,10 @@ func (a *App) reloadMessages() {
 		list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 	}
 
-	// Set focus back to list
-	a.SetFocus(a.views["list"])
+	// Set focus back to list only if we're on the main page
+	if pageName, _ := a.Pages.GetFrontPage(); pageName == "main" {
+		a.SetFocus(a.views["list"])
+	}
 }
 
 // showMessage displays a message in the text view
@@ -1137,6 +1220,13 @@ func (a *App) trashSelected() {
 }
 
 func (a *App) manageLabels() {
+	// Get the current message ID
+	messageID := a.getCurrentMessageID()
+	if messageID == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+
 	// Load all available labels
 	labels, err := a.Client.ListLabels()
 	if err != nil {
@@ -1144,16 +1234,42 @@ func (a *App) manageLabels() {
 		return
 	}
 
-	// Create labels view (resource view like k9s)
-	a.showLabelsView(labels)
+	// Get the current message to see which labels it has
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+
+	// Create contextual labels view for the selected message
+	a.showMessageLabelsView(labels, message)
 }
 
-// showLabelsView displays a resource view of labels (k9s style)
-func (a *App) showLabelsView(labels []*gmailapi.Label) {
+// showMessageLabelsView displays labels for a specific message
+func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.Message) {
 	// Create labels list view
 	labelsList := tview.NewList()
 	labelsList.SetBorder(true)
-	labelsList.SetTitle(" 🏷️  Labels ")
+	labelsList.SetTitle(" 🏷️  Message Labels ")
+
+	// Get current message labels
+	currentLabels := make(map[string]bool)
+	if message.LabelIds != nil {
+		for _, labelID := range message.LabelIds {
+			currentLabels[labelID] = true
+		}
+	}
+
+	// Extract subject for display
+	subject := "Unknown subject"
+	if message.Payload != nil && message.Payload.Headers != nil {
+		for _, header := range message.Payload.Headers {
+			if header.Name == "Subject" {
+				subject = header.Value
+				break
+			}
+		}
+	}
 
 	// Populate labels (skip system labels)
 	for _, label := range labels {
@@ -1163,17 +1279,47 @@ func (a *App) showLabelsView(labels []*gmailapi.Label) {
 			label.Id == "SENT" ||
 			label.Id == "DRAFT" ||
 			label.Id == "SPAM" ||
-			label.Id == "TRASH" {
+			label.Id == "TRASH" ||
+			label.Id == "CHAT" ||
+			(strings.HasSuffix(label.Id, "_STARRED") && label.Id != "STARRED") {
 			continue
 		}
 
-		// Create display text with label info
-		displayText := fmt.Sprintf("🏷️  %s", label.Name)
-		secondaryText := fmt.Sprintf("ID: %s", label.Id)
+		// Store label info for the callback (avoid capturing loop vars directly)
+		labelID := label.Id
+		labelName := label.Name
 
-		labelsList.AddItem(displayText, secondaryText, 0, func() {
-			// When a label is selected, show messages with that label
-			a.showMessagesWithLabel(label.Id, label.Name)
+		// Determine current applied state
+		isApplied := currentLabels[labelID]
+
+		// Create display text with label info and status (no secondary text)
+		var displayText string
+		if isApplied {
+			displayText = fmt.Sprintf("✅ %s", labelName)
+		} else {
+			displayText = fmt.Sprintf("○ %s", labelName)
+		}
+
+		labelsList.AddItem(displayText, "", 0, func() {
+			// Capture current index and state at click time
+			index := labelsList.GetCurrentItem()
+			currentlyApplied := currentLabels[labelID]
+			// Async toggle
+			a.toggleLabelForMessage(message.Id, labelID, labelName, currentlyApplied, func(newApplied bool, err error) {
+				if err != nil {
+					return
+				}
+				// Update local state map
+				currentLabels[labelID] = newApplied
+				// Update UI immediately
+				newText := fmt.Sprintf("○ %s", labelName)
+				if newApplied {
+					newText = fmt.Sprintf("✅ %s", labelName)
+				}
+				a.QueueUpdateDraw(func() {
+					labelsList.SetItemText(index, newText, "")
+				})
+			})
 		})
 	}
 
@@ -1181,6 +1327,11 @@ func (a *App) showLabelsView(labels []*gmailapi.Label) {
 	labelsList.AddItem("➕ Create new label", "Press Enter to create", 0, func() {
 		a.createNewLabelFromView()
 	})
+
+	// Ensure first item is selected to enable immediate arrow navigation
+	if labelsList.GetItemCount() > 0 {
+		labelsList.SetCurrentItem(0)
+	}
 
 	// Set up key bindings for the labels view
 	labelsList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -1190,14 +1341,17 @@ func (a *App) showLabelsView(labels []*gmailapi.Label) {
 			a.Pages.SwitchToPage("main")
 			a.restoreFocusAfterModal()
 			return nil
-		case 'n':
-			// Create new label
-			a.createNewLabelFromView()
-			return nil
-		case 'd':
-			// Delete selected label (if implemented)
-			a.deleteSelectedLabel(labelsList)
-			return nil
+		case tcell.KeyRune:
+			if event.Rune() == 'n' {
+				// Create new label
+				a.createNewLabelFromView()
+				return nil
+			}
+			if event.Rune() == 'r' {
+				// Refresh labels view
+				go a.manageLabels()
+				return nil
+			}
 		}
 		return event
 	})
@@ -1205,15 +1359,15 @@ func (a *App) showLabelsView(labels []*gmailapi.Label) {
 	// Create the labels view page
 	labelsView := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// Title
+	// Title with message subject
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetText("🏷️  Labels Management")
+	title.SetText(fmt.Sprintf("🏷️  Labels for: %s", subject))
 	title.SetTextColor(tcell.ColorYellow)
 	title.SetBorder(true)
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	instructions.SetText("Enter: View messages with label | n: Create new label | d: Delete label | ESC: Back")
+	instructions.SetText("Enter: Toggle label | n: Create new label | r: Refresh | ESC: Back")
 	instructions.SetTextColor(tcell.ColorGray)
 
 	labelsView.AddItem(title, 3, 0, false)
@@ -1221,9 +1375,32 @@ func (a *App) showLabelsView(labels []*gmailapi.Label) {
 	labelsView.AddItem(instructions, 2, 0, false)
 
 	// Add labels view to pages
-	a.Pages.AddPage("labels", labelsView, true, true)
-	a.Pages.SwitchToPage("labels")
+	a.Pages.AddPage("messageLabels", labelsView, true, true)
+	a.Pages.SwitchToPage("messageLabels")
 	a.SetFocus(labelsList)
+}
+
+// toggleLabelForMessage toggles a label asynchronously and invokes onDone when finished
+func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurrentlyApplied bool, onDone func(newApplied bool, err error)) {
+	go func() {
+		if isCurrentlyApplied {
+			if err := a.Client.RemoveLabel(messageID, labelID); err != nil {
+				a.showError(fmt.Sprintf("❌ Error removing label %s: %v", labelName, err))
+				onDone(isCurrentlyApplied, err)
+				return
+			}
+			a.showStatusMessage(fmt.Sprintf("🏷️  Removed label: %s", labelName))
+			onDone(false, nil)
+			return
+		}
+		if err := a.Client.ApplyLabel(messageID, labelID); err != nil {
+			a.showError(fmt.Sprintf("❌ Error applying label %s: %v", labelName, err))
+			onDone(isCurrentlyApplied, err)
+			return
+		}
+		a.showStatusMessage(fmt.Sprintf("🏷️  Applied label: %s", labelName))
+		onDone(true, nil)
+	}()
 }
 
 // showMessagesWithLabel shows messages that have a specific label
@@ -1477,7 +1654,12 @@ func (a *App) createCommandBar() tview.Primitive {
 	cmdBar := tview.NewTextView()
 	cmdBar.SetDynamicColors(true)
 	cmdBar.SetTextAlign(tview.AlignLeft)
-	cmdBar.SetBorder(false)
+	cmdBar.SetBorder(true)
+	cmdBar.SetBorderColor(tcell.ColorBlue)
+	cmdBar.SetBorderAttributes(tcell.AttrBold)
+	cmdBar.SetTitle(" 💻 Command ")
+	cmdBar.SetTitleColor(tcell.ColorYellow)
+	cmdBar.SetTitleAlign(tview.AlignCenter)
 	cmdBar.SetText("")
 	cmdBar.SetBackgroundColor(tcell.ColorBlack)
 	cmdBar.SetTextColor(tcell.ColorYellow)
@@ -1492,12 +1674,14 @@ func (a *App) createCommandBar() tview.Primitive {
 func (a *App) showCommandBar() {
 	a.cmdMode = true
 	a.cmdBuffer = ""
+	a.cmdSuggestion = ""
 
 	// Update command bar display
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
-		cmdBar.SetText(fmt.Sprintf(":%s", a.cmdBuffer))
+		cmdBar.SetText(":")
 		cmdBar.SetTextColor(tcell.ColorYellow)
 		cmdBar.SetBackgroundColor(tcell.ColorBlack)
+		cmdBar.SetBorderColor(tcell.ColorYellow) // Highlight border when active
 	}
 
 	// Set focus to command bar
@@ -1508,10 +1692,12 @@ func (a *App) showCommandBar() {
 func (a *App) hideCommandBar() {
 	a.cmdMode = false
 	a.cmdBuffer = ""
+	a.cmdSuggestion = ""
 
 	// Clear command bar display
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")
+		cmdBar.SetBorderColor(tcell.ColorBlue) // Restore normal border color
 	}
 
 	// Restore focus to previous view

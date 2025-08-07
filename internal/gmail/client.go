@@ -74,9 +74,47 @@ func (c *Client) GetMessageWithContent(id string) (*Message, error) {
 	message.From = extractHeader(msg, "From")
 	message.To = extractHeader(msg, "To")
 	message.Date = extractDate(msg)
-	message.Labels = extractLabels(msg)
+	// Map label IDs to human-friendly names and filter system labels to align with labels UI
+	message.Labels = c.humanReadableLabels(extractLabels(msg))
 
 	return message, nil
+}
+
+// humanReadableLabels converts label IDs to names and filters out non-actionable system labels
+func (c *Client) humanReadableLabels(labelIDs []string) []string {
+	if len(labelIDs) == 0 {
+		return []string{}
+	}
+
+	// Build ID->Name map once per call (fast enough and simple)
+	labels, err := c.ListLabels()
+	if err != nil {
+		// If we cannot load labels, return the raw IDs as a fallback
+		return labelIDs
+	}
+	idToName := make(map[string]string, len(labels))
+	for _, l := range labels {
+		idToName[l.Id] = l.Name
+	}
+
+	var out []string
+	for _, id := range labelIDs {
+		// Filter out non-actionable/system labels not shown in labels UI
+		if strings.HasPrefix(id, "CATEGORY_") || id == "INBOX" || id == "CHAT" || id == "SENT" || id == "TRASH" || id == "SPAM" {
+			continue
+		}
+		// Keep UNREAD, IMPORTANT, STARRED. Exclude colored star variants
+		if (strings.HasSuffix(id, "_STAR") || strings.HasSuffix(id, "_STARRED")) && id != "STARRED" {
+			continue
+		}
+
+		if name, ok := idToName[id]; ok && name != "" {
+			out = append(out, name)
+		} else {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // SearchMessages searches for messages using Gmail query syntax
