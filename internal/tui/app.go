@@ -34,11 +34,12 @@ type App struct {
 	// Email renderer
 	emailRenderer *render.EmailRenderer
 	// State management
-	ids         []string
-	draftMode   bool
-	draftIDs    []string
-	showHelp    bool
-	currentView string
+	ids          []string
+	draftMode    bool
+	draftIDs     []string
+	showHelp     bool
+	currentView  string
+	currentFocus string // Track current focus: "list" or "text"
 	// Layout management
 	currentLayout LayoutType
 	screenWidth   int
@@ -156,6 +157,7 @@ func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
 		draftIDs:      []string{},
 		showHelp:      false,
 		currentView:   "messages",
+		currentFocus:  "list",
 		currentLayout: LayoutMedium,
 		screenWidth:   80,
 		screenHeight:  25,
@@ -236,6 +238,9 @@ func (a *App) initViews() {
 	// Add search view
 	searchView := a.createSearchView()
 	a.Pages.AddPage("search", searchView, true, false)
+
+	// Initialize focus indicators
+	a.updateFocusIndicators("list")
 }
 
 // createMainLayout creates the main application layout
@@ -254,6 +259,7 @@ func (a *App) createMainLayout() tview.Primitive {
 
 	// Add status bar at the bottom
 	statusBar := a.createStatusBar()
+	a.views["status"] = statusBar // Store status bar as a view
 	layout.AddItem(statusBar, 1, 0, false)
 
 	return layout
@@ -267,6 +273,22 @@ func (a *App) createStatusBar() tview.Primitive {
 		SetText("Gmail TUI | Press ? for help | Press q to quit")
 
 	return status
+}
+
+// showStatusMessage displays a message in the status bar
+func (a *App) showStatusMessage(msg string) {
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(fmt.Sprintf("Gmail TUI | %s | Press ? for help | Press q to quit", msg))
+		// Clear the message after 3 seconds
+		go func() {
+			time.Sleep(3 * time.Second)
+			a.QueueUpdateDraw(func() {
+				if status, ok := a.views["status"].(*tview.TextView); ok {
+					status.SetText("Gmail TUI | Press ? for help | Press q to quit")
+				}
+			})
+		}()
+	}
 }
 
 // createHelpView creates the help view
@@ -797,20 +819,46 @@ func (a *App) toggleMarkReadUnread() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// Get the currently selected item
-	list, ok := a.views["list"].(*tview.List)
-	if !ok {
-		a.showError("❌ Could not access message list")
+	var messageID string
+	var selectedIndex int = -1
+
+	// Get the current message ID based on focus
+	if a.currentFocus == "list" {
+		// Get from list view
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+
+		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "text" {
+		// Get from text view - we need to find the currently displayed message
+		// Since we don't store the current message ID, we'll need to get it from the list
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+
+		messageID = a.ids[selectedIndex]
+	} else {
+		a.showError("❌ Unknown focus state")
 		return
 	}
 
-	selectedIndex := list.GetCurrentItem()
-	if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-		a.showError("❌ No message selected")
-		return
-	}
-
-	messageID := a.ids[selectedIndex]
 	if messageID == "" {
 		a.showError("❌ Invalid message ID")
 		return
@@ -838,7 +886,7 @@ func (a *App) toggleMarkReadUnread() {
 		// Mark as read
 		err2 = a.Client.MarkAsRead(messageID)
 		if err2 == nil {
-			a.showInfo("✅ Message marked as read")
+			a.showStatusMessage("✅ Message marked as read")
 		} else {
 			a.showError(fmt.Sprintf("❌ Error marking as read: %v", err2))
 			return
@@ -847,7 +895,7 @@ func (a *App) toggleMarkReadUnread() {
 		// Mark as unread
 		err2 = a.Client.MarkAsUnread(messageID)
 		if err2 == nil {
-			a.showInfo("✅ Message marked as unread")
+			a.showStatusMessage("✅ Message marked as unread")
 		} else {
 			a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err2))
 			return
@@ -855,7 +903,9 @@ func (a *App) toggleMarkReadUnread() {
 	}
 
 	// Update the UI to reflect the change
-	a.updateMessageDisplay(selectedIndex, !isUnread)
+	if selectedIndex >= 0 {
+		a.updateMessageDisplay(selectedIndex, !isUnread)
+	}
 }
 
 // updateMessageDisplay updates the display of a specific message in the list
@@ -956,7 +1006,36 @@ func (a *App) toggleFocus() {
 
 	if currentFocus == a.views["list"] {
 		a.SetFocus(a.views["text"])
+		a.currentFocus = "text"
+		// Update visual focus indicators
+		a.updateFocusIndicators("text")
 	} else {
 		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		// Update visual focus indicators
+		a.updateFocusIndicators("list")
+	}
+}
+
+// updateFocusIndicators updates the visual indicators for the focused view
+func (a *App) updateFocusIndicators(focusedView string) {
+	// Reset all borders to default
+	if list, ok := a.views["list"].(*tview.List); ok {
+		list.SetBorderColor(tcell.ColorGray)
+	}
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetBorderColor(tcell.ColorGray)
+	}
+
+	// Set focused view border to bright color
+	switch focusedView {
+	case "list":
+		if list, ok := a.views["list"].(*tview.List); ok {
+			list.SetBorderColor(tcell.ColorYellow)
+		}
+	case "text":
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			text.SetBorderColor(tcell.ColorYellow)
+		}
 	}
 }
