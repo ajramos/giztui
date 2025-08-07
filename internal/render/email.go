@@ -159,14 +159,17 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	dateWidth := 8
 	// Remaining for subject
 	subjectWidth := maxWidth - senderWidth - dateWidth - 6 // account for separators and spaces
+	if subjectWidth < 10 {
+		subjectWidth = 10
+	}
 
 	senderText := er.fitWidth(senderName, senderWidth)
 	subjectText := er.fitWidth(subject, subjectWidth)
-	// Fecha al principio, ancho fijo, alineación izquierda
+	// Fecha al final con alineación a la izquierda
 	dateText := er.fitWidth(date, dateWidth)
 
-	// Create formatted string with fixed columns: Date | Sender | Subject
-	formatted := fmt.Sprintf("%s | %s | %s", dateText, senderText, subjectText)
+	// Create formatted string with fixed columns: Sender | Subject | Date
+	formatted := fmt.Sprintf("%s | %s | %s", senderText, subjectText, dateText)
 
 	// Devolvemos color neutro para simplificar (sin estilos)
 	textColor := tcell.ColorWhite
