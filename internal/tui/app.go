@@ -36,6 +36,7 @@ type App struct {
 	emailRenderer *render.EmailRenderer
 	// State management
 	ids           []string
+	messagesMeta  []*gmailapi.Message
 	draftMode     bool
 	draftIDs      []string
 	showHelp      bool
@@ -162,6 +163,7 @@ func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
 		actions:          NewKeyActions(),
 		emailRenderer:    render.NewEmailRenderer(),
 		ids:              []string{},
+		messagesMeta:     []*gmailapi.Message{},
 		draftMode:        false,
 		draftIDs:         []string{},
 		showHelp:         false,
@@ -184,13 +186,75 @@ func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
 	// Initialize components
 	app.initComponents()
 
+	// Apply theme to renderer (best-effort)
+	app.applyTheme()
+
 	// Set up key bindings
 	app.bindKeys()
 
 	// Initialize views
 	app.initViews()
 
+	// Recalcular en resize de forma segura (sin llamadas de red)
+	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+		w, h := screen.Size()
+		if w != app.screenWidth || h != app.screenHeight {
+			app.screenWidth, app.screenHeight = w, h
+			app.reformatListItems()
+		}
+		return false
+	})
+
 	return app
+}
+
+// applyTheme loads theme colors and updates the email renderer
+func (a *App) applyTheme() {
+	// Try to load theme from skins directory; fallback to defaults
+	loader := config.NewThemeLoader("skins")
+	if theme, err := loader.LoadThemeFromFile("gmail-dark.yaml"); err == nil {
+		a.emailRenderer.UpdateFromConfig(theme)
+		// Aplicar a estilos globales
+		tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
+		tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
+		tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
+		tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+		return
+	}
+	def := config.DefaultColors()
+	a.emailRenderer.UpdateFromConfig(def)
+	tview.Styles.PrimitiveBackgroundColor = def.Body.BgColor.Color()
+	tview.Styles.PrimaryTextColor = def.Body.FgColor.Color()
+	tview.Styles.BorderColor = def.Frame.Border.FgColor.Color()
+	tview.Styles.FocusColor = def.Frame.Border.FocusColor.Color()
+}
+
+// reformatListItems recalculates list item strings for current screen width
+func (a *App) reformatListItems() {
+	list, ok := a.views["list"].(*tview.List)
+	if !ok || len(a.ids) == 0 {
+		return
+	}
+	for i := range a.ids {
+		if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
+			continue
+		}
+		msg := a.messagesMeta[i]
+		text, _ := a.emailRenderer.FormatEmailList(msg, a.screenWidth)
+		unread := false
+		for _, l := range msg.LabelIds {
+			if l == "UNREAD" {
+				unread = true
+				break
+			}
+		}
+		if unread {
+			text = "● " + text
+		} else {
+			text = "○ " + text
+		}
+		list.SetItemText(i, text, "")
+	}
 }
 
 // NewPages creates a new Pages instance
@@ -216,7 +280,7 @@ func NewCmdBuff() *CmdBuff {
 // initComponents initializes the main UI components
 func (a *App) initComponents() {
 	// Create main list component
-	list := tview.NewList().ShowSecondaryText(true)
+	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(true).
 		SetBorderColor(tcell.ColorBlue).
 		SetBorderAttributes(tcell.AttrBold).
@@ -683,6 +747,7 @@ func (a *App) reloadMessages() {
 		list.Clear()
 	}
 	a.ids = []string{}
+	a.messagesMeta = []*gmailapi.Message{}
 
 	// Show loading message
 	if list, ok := a.views["list"].(*tview.List); ok {
@@ -711,11 +776,8 @@ func (a *App) reloadMessages() {
 		return
 	}
 
-	// Get screen width for proper formatting
-	screenWidth := 80
-	if a.screenWidth > 0 {
-		screenWidth = a.screenWidth
-	}
+	// Usar ancho disponible actual del list (simple, sin watchers)
+	screenWidth := a.getFormatWidth()
 
 	// Process messages using the email renderer
 	for i, msg := range messages {
@@ -752,6 +814,9 @@ func (a *App) reloadMessages() {
 			// Add item with color using the standard method
 			list.AddItem(formattedText, "", 0, nil)
 		}
+
+		// cache meta for resize re-rendering
+		a.messagesMeta = append(a.messagesMeta, message)
 
 		// Update title periodically
 		if (i+1)%10 == 0 {
@@ -797,17 +862,14 @@ func (a *App) showMessage(id string) {
 
 		var content strings.Builder
 
-		// Clean Gmail-style header with blue color
-		content.WriteString(fmt.Sprintf("Subject: %s\n", message.Subject))
-		content.WriteString(fmt.Sprintf("From: %s\n", message.From))
-		content.WriteString(fmt.Sprintf("Date: %s\n", message.Date.Format("Mon, Jan 2, 2006 at 3:04 PM")))
-
-		// Show labels if any
-		if len(message.Labels) > 0 {
-			content.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(message.Labels, ", ")))
-		}
-
-		content.WriteString("\n")
+		// Styled header according to theme
+		header := a.emailRenderer.FormatHeaderStyled(
+			message.Subject,
+			message.From,
+			message.Date,
+			message.Labels,
+		)
+		content.WriteString(header)
 
 		// Message content
 		if message.PlainText != "" {
@@ -819,6 +881,7 @@ func (a *App) showMessage(id string) {
 		// Update UI in main thread
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
 				text.SetText(content.String())
 				// Scroll to the top of the text
 				text.ScrollToBeginning()
@@ -841,6 +904,7 @@ func (a *App) performSearch(query string) {
 		list.Clear()
 	}
 	a.ids = []string{}
+	a.messagesMeta = []*gmailapi.Message{}
 
 	if list, ok := a.views["list"].(*tview.List); ok {
 		list.SetTitle(fmt.Sprintf(" 🔍 Searching: %s ", query))
@@ -868,99 +932,30 @@ func (a *App) performSearch(query string) {
 	// Display search results
 	for i, msg := range messages {
 		a.ids = append(a.ids, msg.Id)
-
-		message, err := a.Client.GetMessageWithContent(msg.Id)
+		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
 			if list, ok := a.views["list"].(*tview.List); ok {
 				list.AddItem(fmt.Sprintf("⚠️  Error loading message %d", i+1), "Failed to load", 0, nil)
 			}
 			continue
 		}
-
-		subject := message.Subject
-		if subject == "" {
-			subject = "(No subject)"
-		}
-
-		from := message.From
-		if from == "" {
-			from = "(No sender)"
-		} else {
-			// Try to extract just the name part if it's in "Name <email@domain.com>" format
-			if strings.Contains(from, "<") && strings.Contains(from, ">") {
-				parts := strings.Split(from, "<")
-				if len(parts) > 0 {
-					name := strings.TrimSpace(parts[0])
-					if name != "" {
-						from = name
-					}
-				}
-			}
-		}
-
-		// Check if unread
+		text, _ := a.emailRenderer.FormatEmailList(meta, a.getFormatWidth())
 		unread := false
-		for _, label := range message.Labels {
-			if label == "UNREAD" {
+		for _, l := range meta.LabelIds {
+			if l == "UNREAD" {
 				unread = true
 				break
 			}
 		}
-
-		// Format like Gmail: Sender | Subject | Date
-		// Truncate sender name if too long (handle UTF-8 properly)
-		senderName := from
-		if len([]rune(senderName)) > 20 {
-			runes := []rune(senderName)
-			senderName = string(runes[:17]) + "..."
-		}
-
-		// Truncate subject if too long (handle UTF-8 properly)
-		displaySubject := subject
-		if len([]rune(displaySubject)) > 40 {
-			runes := []rune(displaySubject)
-			displaySubject = string(runes[:37]) + "..."
-		}
-
-		// Format date like Gmail (relative time)
-		dateStr := "unknown"
-		if !message.Date.IsZero() {
-			dateStr = formatRelativeTime(message.Date)
-		}
-
-		// Create main text: Sender | Subject | Date
-		// Use fixed width for sender name to ensure alignment
-		senderWidth := 20
-		subjectWidth := 40
-
-		if len([]rune(senderName)) > senderWidth {
-			runes := []rune(senderName)
-			senderName = string(runes[:senderWidth-3]) + "..."
-		}
-
-		// Pad subject to fixed width
-		if len([]rune(displaySubject)) > subjectWidth {
-			runes := []rune(displaySubject)
-			displaySubject = string(runes[:subjectWidth-3]) + "..."
-		}
-
-		// Create main text with fixed widths and date right-aligned
-		// Use a table-like format with proper spacing
-		mainText := fmt.Sprintf("%-*s | %-*s | %s",
-			senderWidth, senderName,
-			subjectWidth, displaySubject,
-			dateStr)
-
-		// Add unread indicator
 		if unread {
-			mainText = "● " + mainText
+			text = "● " + text
 		} else {
-			mainText = "○ " + mainText
+			text = "○ " + text
 		}
-
 		if list, ok := a.views["list"].(*tview.List); ok {
-			list.AddItem(mainText, "", 0, nil)
+			list.AddItem(text, "", 0, nil)
 		}
+		a.messagesMeta = append(a.messagesMeta, meta)
 	}
 
 	if list, ok := a.views["list"].(*tview.List); ok {
@@ -1107,11 +1102,8 @@ func (a *App) updateMessageDisplay(index int, isUnread bool) {
 		return
 	}
 
-	// Get screen width for proper formatting
-	screenWidth := 80
-	if a.screenWidth > 0 {
-		screenWidth = a.screenWidth
-	}
+	// Determine current list width (fallback to 80)
+	screenWidth := a.getListWidth()
 
 	// Use the email renderer to format the message
 	formattedText, _ := a.emailRenderer.FormatEmailList(message, screenWidth)
@@ -1203,8 +1195,11 @@ func (a *App) trashSelected() {
 
 	// Remove the message from the list
 	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-		// Remove from IDs slice
+		// Remove from slices: ids and cached meta
 		a.ids = append(a.ids[:selectedIndex], a.ids[selectedIndex+1:]...)
+		if selectedIndex < len(a.messagesMeta) {
+			a.messagesMeta = append(a.messagesMeta[:selectedIndex], a.messagesMeta[selectedIndex+1:]...)
+		}
 
 		// Update the UI
 		a.QueueUpdateDraw(func() {
@@ -1929,4 +1924,34 @@ func (a *App) addToHistory(cmd string) {
 		a.cmdHistory = a.cmdHistory[1:]
 	}
 	a.cmdHistoryIndex = len(a.cmdHistory)
+}
+
+// getListWidth returns current inner width of the list view or a sensible fallback
+func (a *App) getListWidth() int {
+	if list, ok := a.views["list"].(*tview.List); ok {
+		_, _, w, _ := list.GetInnerRect()
+		if w > 0 {
+			return w
+		}
+	}
+	if a.screenWidth > 0 {
+		return a.screenWidth
+	}
+	return 80
+}
+
+// getFormatWidth devuelve el ancho disponible para el texto de las filas
+func (a *App) getFormatWidth() int {
+	if list, ok := a.views["list"].(*tview.List); ok {
+		_, _, w, _ := list.GetInnerRect()
+		if w > 10 {
+			// Reservamos 2 para el prefijo ●/○
+			return w - 2
+		}
+	}
+	// Fallback conservador
+	if a.screenWidth > 0 {
+		return a.screenWidth - 2
+	}
+	return 78
 }

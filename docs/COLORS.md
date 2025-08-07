@@ -263,3 +263,4 @@ Los colores se aplican dinámicamente según el estado del email:
 ---
 
 **¡El sistema de colores de Gmail TUI proporciona una experiencia visual rica y personalizable!** 🎨
+

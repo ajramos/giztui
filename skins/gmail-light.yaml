@@ -32,3 +32,4 @@ gmailTUI:
     importantColor: "#e74c3c"   # Rojo para importantes
     sentColor: "#27ae60"        # Verde para enviados
     draftColor: "#f39c12"       # Amarillo para borradores
+

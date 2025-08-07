@@ -1,0 +1,772 @@
+---
+description: when adding new commands and features
+alwaysApply: false
+---
+# 🎯 Guía Maestra del Sistema de Comandos TUI tipo k9s
+
+**Fecha de análisis:** 7 de agosto de 2025  
+**Basado en:** Análisis exhaustivo del sistema de comandos de k9s
+
+---
+
+## 📋 Contexto y Objetivos
+
+Esta guía explica el sofisticado sistema de comandos de k9s activado con la tecla `:`, incluyendo parsing, auto-completado, sugerencias y ejecución. Proporciona un blueprint completo para implementar un sistema similar en cualquier TUI.
+
+## 🏗️ Arquitectura del Sistema de Comandos
+
+### 1. **Flujo de Activación**
+
+```
+Usuario presiona ':'
+     ↓
+bindKeys() mapea KeyColon → activateCmd()
+     ↓
+App.activateCmd() activa prompt
+     ↓  
+Prompt.SetModel(cmdBuff) configura buffer
+     ↓
+Interfaz muestra línea de comandos
+     ↓
+Usuario tipea comando + args
+     ↓
+Interpreter.grok() parsea entrada
+     ↓
+Command.run() ejecuta comando
+```
+
+### 2. **Componentes Principales**
+
+```
+Sistema de Comandos k9s
+├── 🔤 Activación de Tecla (internal/ui/key.go)
+│   ├── KeyColon = 58 (':')
+│   └── Mapeo en bindKeys()
+├── 📝 Buffer de Comandos (internal/model/)
+│   ├── CmdBuff - Buffer básico de texto
+│   ├── FishBuff - Buffer con auto-sugerencias  
+│   └── SuggestionFunc - Función de autocompletado
+├── 🎯 Prompt UI (internal/ui/prompt.go)
+│   ├── TextView con input capture
+│   ├── Manejo de teclado
+│   └── Visualización de sugerencias
+├── 🧠 Intérprete (internal/view/cmd/interpreter.go)
+│   ├── Parsing de línea de comandos
+│   ├── Separación comando/argumentos
+│   └── Validación de sintaxis
+├── 📚 Registro de Comandos (internal/view/cmd/types.go)
+│   ├── Comandos especiales (quit, help, cow)
+│   ├── Comandos de navegación (ns, ctx, dir)
+│   └── Comandos avanzados (xray, rbac, alias)
+└── ⚡ Ejecutor (internal/view/command.go)
+    ├── Ruteo de comandos
+    ├── Manejo de argumentos
+    └── Ejecución de acciones
+```
+
+## ⌨️ Activación y Mapeo de Teclas
+
+### **Definición de la Tecla Colon**
+
+```go
+// internal/ui/key.go
+const (
+    KeyColon = 58  // Carácter ASCII ':'
+)
+
+func initKeys() {
+    tcell.KeyNames[KeyColon] = ":"
+}
+```
+
+### **Binding en la Aplicación**
+
+```go
+// internal/ui/app.go
+func (a *App) bindKeys() {
+    a.actions = NewKeyActionsFromMap(KeyMap{
+        KeyColon:       NewKeyAction("Cmd", a.activateCmd, false),
+        tcell.KeyCtrlR: NewKeyAction("Redraw", a.redrawCmd, false),
+        tcell.KeyCtrlP: NewKeyAction("Persist", a.saveCmd, false),
+        // ... más bindings
+    })
+}
+
+// Función que activa el modo comando
+func (a *App) activateCmd(evt *tcell.EventKey) *tcell.EventKey {
+    if a.InCmdMode() {
+        return evt  // Ya está en modo comando
+    }
+    a.ResetPrompt(a.cmdBuff)  // Configurar prompt
+    a.cmdBuff.ClearText(true) // Limpiar buffer
+    return nil
+}
+```
+
+## 📝 Sistema de Buffer de Comandos
+
+### **Buffer Básico (CmdBuff)**
+
+```go
+// internal/model/cmd_buff.go
+type CmdBuff struct {
+    buff       []rune              // Buffer de caracteres
+    suggestion string              // Sugerencia actual
+    listeners  map[BuffWatcher]struct{} // Observadores
+    hotKey     rune                // Tecla de activación
+    kind       BufferKind          // Tipo de buffer
+    active     bool                // Estado activo
+    cancel     context.CancelFunc  // Cancelación para delays
+    mx         sync.RWMutex        // Mutex para concurrencia
+}
+
+// Métodos principales
+func (c *CmdBuff) Add(r rune)           // Añadir carácter
+func (c *CmdBuff) Delete()              // Borrar último carácter  
+func (c *CmdBuff) SetActive(b bool)     // Activar/desactivar
+func (c *CmdBuff) GetText() string      // Obtener texto actual
+func (c *CmdBuff) ClearText(fire bool)  // Limpiar buffer
+```
+
+### **Buffer con Sugerencias (FishBuff)**
+
+```go
+// internal/model/fish_buff.go
+type FishBuff struct {
+    *CmdBuff                      // Hereda funcionalidad básica
+    
+    suggestionFn    SuggestionFunc // Función de sugerencias
+    suggestions     []string       // Lista de sugerencias
+    suggestionIndex int           // Índice actual de sugerencia
+}
+
+// Navegación de sugerencias
+func (f *FishBuff) NextSuggestion() (string, bool)     // ↓ siguiente
+func (f *FishBuff) PrevSuggestion() (string, bool)     // ↑ anterior  
+func (f *FishBuff) CurrentSuggestion() (string, bool)  // actual
+func (f *FishBuff) ClearSuggestions()                  // limpiar
+
+// Función de sugerencias personalizable
+type SuggestionFunc func(text string) sort.StringSlice
+```
+
+### **Implementación de Sugerencias**
+
+```go
+// Ejemplo: Sugerencias para namespaces y contextos
+func (c *Command) setupSuggestions() {
+    c.app.CmdBuff().SetSuggestionFn(func(text string) sort.StringSlice {
+        var suggests []string
+        
+        // Analizar comando actual
+        p := cmd.NewInterpreter(text)
+        
+        switch {
+        case p.IsNamespaceCmd():
+            // Sugerir namespaces disponibles
+            suggests = c.getNamespaceSuggestions(text)
+            
+        case p.IsContextCmd():
+            // Sugerir contextos disponibles  
+            suggests = c.getContextSuggestions(text)
+            
+        case p.IsResourceCmd():
+            // Sugerir tipos de recursos
+            suggests = c.getResourceSuggestions(text)
+            
+        default:
+            // Sugerencias de comandos básicos
+            suggests = c.getBasicCommandSuggestions(text)
+        }
+        
+        return sort.StringSlice(suggests)
+    })
+}
+```
+
+## 🎯 Interfaz del Prompt
+
+### **Componente Prompt**
+
+```go
+// internal/ui/prompt.go
+type Prompt struct {
+    *tview.TextView               // Componente base de tview
+    
+    app      *App                // Referencia a la aplicación
+    model    PromptModel         // Modelo de datos del prompt
+    styles   *config.Styles      // Estilos de la aplicación
+    noIcons  bool               // Sin iconos
+    spacer   int                // Espaciado
+    mx       sync.RWMutex       // Mutex
+}
+
+// Interfaces requeridas
+type PromptModel interface {
+    GetText() string
+    SetText(string, string)
+    ClearText(bool)
+    SetActive(bool)
+    AddListener(BuffWatcher)
+    RemoveListener(BuffWatcher)
+}
+
+type Suggester interface {
+    NextSuggestion() (string, bool)
+    PrevSuggestion() (string, bool)  
+    CurrentSuggestion() (string, bool)
+    ClearSuggestions()
+}
+```
+
+### **Manejo de Teclado en Prompt**
+
+```go
+func (p *Prompt) keyboard(evt *tcell.EventKey) *tcell.EventKey {
+    m, ok := p.model.(Suggester)
+    if !ok {
+        return evt
+    }
+
+    switch evt.Key() {
+    case tcell.KeyBackspace, tcell.KeyDelete:
+        p.model.Delete()                    // Borrar carácter
+        
+    case tcell.KeyRune:
+        p.model.Add(evt.Rune())            // Añadir carácter
+        
+    case tcell.KeyEscape:
+        p.model.ClearText(true)            // Cancelar comando
+        p.model.SetActive(false)
+        
+    case tcell.KeyEnter:
+        p.model.SetText(p.model.GetText(), "") // Ejecutar comando
+        p.model.SetActive(false)
+        
+    case tcell.KeyUp:
+        if s, ok := m.NextSuggestion(); ok {   // ↑ siguiente sugerencia
+            p.model.SetText(p.model.GetText(), s)
+        }
+        
+    case tcell.KeyDown:
+        if s, ok := m.PrevSuggestion(); ok {   // ↓ anterior sugerencia  
+            p.model.SetText(p.model.GetText(), s)
+        }
+        
+    case tcell.KeyTab, tcell.KeyRight:
+        if s, ok := m.CurrentSuggestion(); ok { // → autocompletar
+            p.model.SetText(p.model.GetText()+s, "")
+            m.ClearSuggestions()
+        }
+    }
+    
+    return nil
+}
+```
+
+## 🧠 Sistema Intérprete de Comandos
+
+### **Estructura del Intérprete**
+
+```go
+// internal/view/cmd/interpreter.go
+type Interpreter struct {
+    line string    // Línea completa de comando
+    cmd  string    // Comando principal  
+    args args      // Argumentos parseados
+}
+
+// Parsing principal
+func (c *Interpreter) grok() {
+    ff := strings.Fields(c.line)  // Dividir por espacios
+    if len(ff) == 0 {
+        return
+    }
+    c.cmd = strings.ToLower(ff[0])     // Comando en minúsculas
+    c.args = newArgs(c, ff[1:])        // Parsear argumentos
+}
+```
+
+### **Parsing de Argumentos**
+
+```go
+// internal/view/cmd/args.go
+const (
+    nsKey      = "ns"       // Namespace: -n default
+    filterKey  = "filter"   // Filtro: /pattern
+    fuzzyKey   = "fuzzy"    // Fuzzy: -f pattern
+    labelKey   = "labels"   // Labels: key=value
+    contextKey = "context"  // Context: @context-name
+)
+
+func newArgs(p *Interpreter, aa []string) args {
+    arguments := make(args, len(aa))
+    
+    for i := 0; i < len(aa); i++ {
+        a := strings.TrimSpace(aa[i])
+        
+        switch {
+        case strings.Index(a, "-f") == 0:      // Fuzzy search
+            arguments[fuzzyKey] = a[2:]
+            
+        case strings.Index(a, "/") == 0:       // Filter
+            arguments[filterKey] = a[1:]
+            
+        case strings.Contains(a, "="):         // Labels  
+            arguments[labelKey] = a
+            
+        case strings.Index(a, "@") == 0:       // Context
+            arguments[contextKey] = a[1:]
+            
+        default:                               // Namespace o recurso
+            arguments[nsKey] = strings.ToLower(a)
+        }
+    }
+    
+    return arguments
+}
+```
+
+## 📚 Registro de Comandos
+
+### **Comandos Disponibles**
+
+```go
+// internal/view/cmd/types.go
+var (
+    // Comandos de contexto
+    contextCmd = sets.New("ctx", "context", "contexts")
+    
+    // Comandos de namespace  
+    namespaceCmd = sets.New("ns", "namespace", "namespaces")
+    
+    // Comandos de directorio
+    dirCmd = sets.New("dir", "dirs", "d", "ls")
+    
+    // Comandos de salida
+    bailCmd = sets.New("q", "q!", "qa", "Q", "quit", "exit")
+    
+    // Comandos de ayuda
+    helpCmd = sets.New("?", "h", "help")
+    
+    // Comandos de alias
+    aliasCmd = sets.New("a", "alias", "aliases")
+    
+    // Comandos de X-Ray
+    xrayCmd = sets.New("x", "xr", "xray")
+)
+
+// Comandos especiales
+const (
+    cowCmd = "cow"    // Easter egg
+    canCmd = "can"    // RBAC check
+)
+```
+
+### **Detección de Comandos**
+
+```go
+// Métodos de verificación en Interpreter
+func (c *Interpreter) IsContextCmd() bool    { return contextCmd.Has(c.cmd) }
+func (c *Interpreter) IsNamespaceCmd() bool  { return namespaceCmd.Has(c.cmd) }
+func (c *Interpreter) IsDirCmd() bool        { return dirCmd.Has(c.cmd) }
+func (c *Interpreter) IsBailCmd() bool       { return bailCmd.Has(c.cmd) }
+func (c *Interpreter) IsHelpCmd() bool       { return helpCmd.Has(c.cmd) }
+func (c *Interpreter) IsAliasCmd() bool      { return aliasCmd.Has(c.cmd) }
+func (c *Interpreter) IsXrayCmd() bool       { return xrayCmd.Has(c.cmd) }
+func (c *Interpreter) IsRBACCmd() bool       { return c.cmd == canCmd }
+func (c *Interpreter) IsCowCmd() bool        { return c.cmd == cowCmd }
+```
+
+## ⚡ Ejecución de Comandos
+
+### **Router Principal**
+
+```go
+// internal/view/command.go  
+func (c *Command) run(p *cmd.Interpreter, target string, pushCmd, clearStack bool) error {
+    // 1. Verificar comandos especiales
+    if c.specialCmd(p, pushCmd) {
+        return nil
+    }
+    
+    // 2. Buscar vistas por comando
+    if v := c.app.Command().Lookup(p.Cmd()); v != nil {
+        return c.app.inject(v, pushCmd)
+    }
+    
+    // 3. Buscar aliases
+    if v := c.app.Config.Aliases().Lookup(p.Cmd()); v != nil {
+        return c.aliasCmd(v, pushCmd) 
+    }
+    
+    // 4. Comando no encontrado
+    return fmt.Errorf("Command `%s` not found", p.Cmd())
+}
+```
+
+### **Comandos Especiales**
+
+```go
+func (c *Command) specialCmd(p *cmd.Interpreter, pushCmd bool) bool {
+    switch {
+    case p.IsCowCmd():
+        if msg, ok := p.CowArg(); ok {
+            c.app.cowCmd(msg)          // Easter egg
+        }
+        
+    case p.IsBailCmd():
+        c.app.BailOut(0)               // Salir de la app
+        
+    case p.IsHelpCmd():
+        _ = c.app.helpCmd(nil)         // Mostrar ayuda
+        
+    case p.IsContextCmd():
+        return c.contextCmd(p, pushCmd) // Cambiar contexto
+        
+    case p.IsNamespaceCmd():
+        return c.namespaceCmd(p)       // Cambiar namespace
+        
+    case p.IsRBACCmd():
+        if cat, sub, ok := p.RBACArgs(); ok {
+            // Verificar permisos RBAC
+            c.app.inject(NewPolicy(c.app, cat, sub), true)
+        }
+        
+    case p.IsXrayCmd():
+        return c.xrayCmd(p, pushCmd)   // Vista X-Ray
+        
+    default:
+        return false                   // No es comando especial
+    }
+    
+    return true
+}
+```
+
+## 🎨 Ejemplos de Comandos
+
+### **Comandos Básicos**
+
+```bash
+# Navegación de recursos
+:pods                    # Ver pods
+:services                # Ver servicios  
+:deployments            # Ver deployments
+:nodes                  # Ver nodos
+
+# Navegación con namespace
+:pods -n kube-system    # Pods en namespace específico
+:svc default           # Servicios en namespace default
+
+# Filtros y búsquedas
+:pods /nginx           # Filtrar pods que contengan "nginx"
+:pods -f web           # Búsqueda fuzzy por "web"
+:pods app=frontend     # Filtrar por labels
+
+# Contextos y namespaces
+:ctx                   # Listar contextos
+:ctx production        # Cambiar a contexto "production"
+:ns                    # Listar namespaces
+:ns kube-system       # Cambiar a namespace "kube-system"
+```
+
+### **Comandos Avanzados**
+
+```bash
+# X-Ray (análisis de recursos)
+:xray deployments nginx -n default    # Analizar deployment específico
+
+# RBAC (verificar permisos)
+:can u:admin create pods             # ¿Puede usuario admin crear pods?
+:can g:developers get secrets        # ¿Puede grupo developers ver secrets?
+:can s:my-sa delete nodes            # ¿Puede service account borrar nodos?
+
+# Aliases
+:alias                               # Listar aliases
+:alias k=kubectl                     # Crear alias
+
+# Directorio
+:dir /tmp                           # Cambiar directorio de trabajo
+```
+
+## 🔧 Implementación en Tu TUI
+
+### **1. Estructura Base**
+
+```go
+// cmd/command_system.go
+package cmd
+
+// Sistema de comandos para tu TUI
+type CommandSystem struct {
+    app         *App
+    interpreter *Interpreter
+    buffer      *FishBuff
+    commands    map[string]CommandHandler
+    suggestions SuggestionProvider
+}
+
+type CommandHandler interface {
+    Execute(args []string) error
+    Description() string
+    Aliases() []string
+}
+
+type SuggestionProvider interface {
+    GetSuggestions(text string) []string
+}
+```
+
+### **2. Registro de Comandos**
+
+```go
+// Ejemplo para Gmail TUI
+func (cs *CommandSystem) registerCommands() {
+    cs.commands = map[string]CommandHandler{
+        "inbox":     &InboxCommand{},
+        "sent":      &SentCommand{},
+        "drafts":    &DraftsCommand{},
+        "compose":   &ComposeCommand{},
+        "search":    &SearchCommand{},
+        "labels":    &LabelsCommand{},
+        "archive":   &ArchiveCommand{},
+        "delete":    &DeleteCommand{},
+        "mark":      &MarkCommand{},
+        "quit":      &QuitCommand{},
+        "help":      &HelpCommand{},
+    }
+}
+
+// Comando específico
+type InboxCommand struct{}
+
+func (c *InboxCommand) Execute(args []string) error {
+    // Lógica para mostrar inbox
+    // Manejar filtros: :inbox /unread, :inbox from:john@example.com
+    return nil
+}
+
+func (c *InboxCommand) Description() string {
+    return "Show inbox emails"
+}
+
+func (c *InboxCommand) Aliases() []string {
+    return []string{"i", "mail"}
+}
+```
+
+### **3. Sugerencias Inteligentes**
+
+```go
+type GmailSuggestionProvider struct {
+    client *GmailClient
+}
+
+func (gsp *GmailSuggestionProvider) GetSuggestions(text string) []string {
+    parts := strings.Fields(text)
+    if len(parts) == 0 {
+        return []string{"inbox", "sent", "drafts", "compose", "search"}
+    }
+    
+    cmd := parts[0]
+    switch cmd {
+    case "search":
+        return []string{"from:", "to:", "subject:", "has:attachment", "is:unread"}
+        
+    case "labels":
+        return gsp.client.GetAvailableLabels()
+        
+    case "inbox", "sent":
+        return []string{"/unread", "/important", "/starred"}
+        
+    default:
+        return []string{}
+    }
+}
+```
+
+### **4. Parser de Argumentos**
+
+```go
+type EmailCommandArgs struct {
+    Filter     string            // /pattern
+    Labels     map[string]string // key=value
+    Sender     string            // from:email
+    Recipient  string            // to:email
+    Subject    string            // subject:text
+    Flags      []string          // is:unread, has:attachment
+}
+
+func parseEmailCommand(line string) (*EmailCommandArgs, error) {
+    args := &EmailCommandArgs{
+        Labels: make(map[string]string),
+    }
+    
+    parts := strings.Fields(line)[1:] // Saltar comando
+    
+    for _, part := range parts {
+        switch {
+        case strings.HasPrefix(part, "/"):
+            args.Filter = part[1:]
+            
+        case strings.HasPrefix(part, "from:"):
+            args.Sender = strings.TrimPrefix(part, "from:")
+            
+        case strings.HasPrefix(part, "to:"):
+            args.Recipient = strings.TrimPrefix(part, "to:")
+            
+        case strings.HasPrefix(part, "subject:"):
+            args.Subject = strings.TrimPrefix(part, "subject:")
+            
+        case strings.HasPrefix(part, "is:") || strings.HasPrefix(part, "has:"):
+            args.Flags = append(args.Flags, part)
+            
+        case strings.Contains(part, "="):
+            kv := strings.SplitN(part, "=", 2)
+            if len(kv) == 2 {
+                args.Labels[kv[0]] = kv[1]
+            }
+        }
+    }
+    
+    return args, nil
+}
+```
+
+## ✨ Características Avanzadas
+
+### **1. Historial de Comandos**
+
+```go
+type CommandHistory struct {
+    commands []string
+    index    int
+    maxSize  int
+}
+
+func (ch *CommandHistory) Add(cmd string) {
+    if len(ch.commands) >= ch.maxSize {
+        ch.commands = ch.commands[1:]
+    }
+    ch.commands = append(ch.commands, cmd)
+    ch.index = len(ch.commands)
+}
+
+func (ch *CommandHistory) Previous() string {
+    if ch.index > 0 {
+        ch.index--
+        return ch.commands[ch.index]
+    }
+    return ""
+}
+
+func (ch *CommandHistory) Next() string {
+    if ch.index < len(ch.commands)-1 {
+        ch.index++
+        return ch.commands[ch.index]
+    }
+    return ""
+}
+```
+
+### **2. Validación en Tiempo Real**
+
+```go
+func (cs *CommandSystem) validateCommand(text string) error {
+    if text == "" {
+        return nil
+    }
+    
+    parts := strings.Fields(text)
+    cmd := parts[0]
+    
+    // Verificar si el comando existe
+    if _, exists := cs.commands[cmd]; !exists {
+        return fmt.Errorf("Unknown command: %s", cmd)
+    }
+    
+    // Validar argumentos específicos del comando
+    return cs.commands[cmd].Validate(parts[1:])
+}
+```
+
+### **3. Shortcuts y Aliases**
+
+```go
+type AliasManager struct {
+    aliases map[string]string
+}
+
+func (am *AliasManager) Resolve(cmd string) string {
+    if expansion, exists := am.aliases[cmd]; exists {
+        return expansion
+    }
+    return cmd
+}
+
+// Aliases predefinidos para Gmail TUI
+func (am *AliasManager) loadDefaults() {
+    am.aliases = map[string]string{
+        "i":    "inbox",
+        "s":    "sent", 
+        "d":    "drafts",
+        "c":    "compose",
+        "q":    "quit",
+        "h":    "help",
+        "?":    "help",
+        "arch": "archive",
+        "del":  "delete",
+    }
+}
+```
+
+## 🎯 Resultado Visual
+
+```
+┌─ Gmail TUI ─────────────────────────────────────────────────────────┐
+│ 📧 Inbox (142 unread)                                     [Ctrl+?]  │
+├─────────────────────────────────────────────────────────────────────┤
+│ ●  John Doe        Meeting tomorrow           📎  2h ago            │
+│    Jane Smith      Project update                 1h ago            │
+│ ●  Boss            URGENT: Review needed      ⭐  30m ago           │
+├─────────────────────────────────────────────────────────────────────┤
+│ Command: :search from:john@example.com is:unread ┃ from:john@...    │
+│          Suggestions: from:, to:, subject:, has:attachment          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 🎓 Lecciones Clave
+
+### **✅ Principios de Diseño**
+
+1. **Activación Intuitiva**: Tecla `:` universalmente reconocida
+2. **Parser Robusto**: Manejo de espacios, quotes, argumentos complejos  
+3. **Sugerencias Inteligentes**: Contextuales y útiles
+4. **Feedback Inmediato**: Validación en tiempo real
+5. **Extensibilidad**: Fácil añadir nuevos comandos
+6. **Consistencia**: Sintaxis uniforme entre comandos
+
+### **⚡ Performance**
+
+- **Debouncing**: Evitar calls excesivas durante tipeo
+- **Caching**: Guardar sugerencias calculadas
+- **Async**: Operaciones no bloquear UI
+- **Lazy Loading**: Cargar sugerencias bajo demanda
+
+### **🎨 UX Excellence**
+
+- **Auto-completado**: Tab para completar sugerencias
+- **Historial**: ↑/↓ para navegar comandos anteriores
+- **Shortcuts**: Aliases para comandos frecuentes  
+- **Help contextual**: `?` para ayuda específica
+- **Escape fácil**: ESC para cancelar comando
+
+---
+
+## 🎯 Conclusión
+
+El sistema de comandos de k9s es un ejemplo perfecto de cómo crear una interfaz de línea de comandos sofisticada pero intuitiva. Con parsing robusto, sugerencias inteligentes y feedback inmediato, proporciona una experiencia de usuario excepcional.
+
+**¡Implementa este sistema en tu TUI para ofrecer el mismo nivel de profesionalismo!** 🚀⌨️
+

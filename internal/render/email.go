@@ -7,6 +7,7 @@ import (
 
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/derailed/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	googleGmail "google.golang.org/api/gmail/v1"
 )
 
@@ -118,19 +119,21 @@ func (ec *EmailColorer) isSent(message *googleGmail.Message) bool {
 
 // EmailRenderer handles email rendering and formatting
 type EmailRenderer struct {
-	colorer *EmailColorer
+	colorer      *EmailColorer
+	headerKeyTag string // e.g., "[#50fa7b]"
 }
 
 // NewEmailRenderer creates a new email renderer
 func NewEmailRenderer() *EmailRenderer {
 	return &EmailRenderer{
-		colorer: NewEmailColorer(),
+		colorer:      NewEmailColorer(),
+		headerKeyTag: "[yellow]",
 	}
 }
 
 // FormatEmailList formats an email for list display
 func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth int) (string, tcell.Color) {
-	colorer := er.colorer.ColorerFunc()
+	// colorer no usado en la versión simple
 
 	// Extract sender name
 	senderName := er.extractSenderName(er.getHeader(message, "From"))
@@ -147,32 +150,45 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	// Format date
 	date := er.formatRelativeTime(er.getDate(message))
 
-	// Truncate fields to fit
-	senderWidth := 20
-	subjectWidth := maxWidth - senderWidth - 15 // Leave space for date and separators
+	// Fixed widths with padding for alignment
+	// Keep a minimum width for usability
+	if maxWidth < 40 {
+		maxWidth = 40
+	}
+	senderWidth := 22
+	dateWidth := 8
+	// Remaining for subject
+	subjectWidth := maxWidth - senderWidth - dateWidth - 6 // account for separators and spaces
 
-	senderText := er.truncateString(senderName, senderWidth)
-	subjectText := er.truncateString(subject, subjectWidth)
+	senderText := er.fitWidth(senderName, senderWidth)
+	subjectText := er.fitWidth(subject, subjectWidth)
+	// Fecha al principio, ancho fijo, alineación izquierda
+	dateText := er.fitWidth(date, dateWidth)
 
-	// Create formatted string
-	formatted := fmt.Sprintf("%s | %s | %s", senderText, subjectText, date)
+	// Create formatted string with fixed columns: Date | Sender | Subject
+	formatted := fmt.Sprintf("%s | %s | %s", dateText, senderText, subjectText)
 
-	// Determine color based on unread status
-	textColor := colorer(message, "SUBJECT")
+	// Devolvemos color neutro para simplificar (sin estilos)
+	textColor := tcell.ColorWhite
 
 	return formatted, textColor
 }
 
 // FormatEmailHeader formats email header for display
 func (er *EmailRenderer) FormatEmailHeader(message *googleGmail.Message) string {
-	// Format header
+	// Backward-compatible simple header
 	header := fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
 		er.getHeader(message, "Subject"),
 		er.getHeader(message, "From"),
 		er.formatDate(er.getDate(message)),
 		strings.Join(message.LabelIds, ", "))
-
 	return header
+}
+
+// FormatHeaderStyled: versión simple sin colores/markup
+func (er *EmailRenderer) FormatHeaderStyled(subject, from string, date time.Time, labels []string) string {
+	return fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s\n\n",
+		subject, from, er.formatDate(date), strings.Join(labels, ", "))
 }
 
 // Helper methods
@@ -186,21 +202,25 @@ func (er *EmailRenderer) getHeader(message *googleGmail.Message, name string) st
 }
 
 func (er *EmailRenderer) getDate(message *googleGmail.Message) time.Time {
-	dateStr := er.getHeader(message, "Date")
-	if dateStr == "" {
-		return time.Now()
+	// Prefer Gmail internal epoch if presente
+	if message.InternalDate > 0 {
+		return time.UnixMilli(message.InternalDate)
 	}
-
-	// Try to parse the date
-	date, err := time.Parse(time.RFC1123Z, dateStr)
-	if err != nil {
-		// Try alternative formats
-		date, err = time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", dateStr)
-		if err != nil {
-			return time.Now()
+	dateStr := er.getHeader(message, "Date")
+	if dateStr != "" {
+		// Try multiple formats
+		if t, err := time.Parse(time.RFC1123Z, dateStr); err == nil {
+			return t
+		}
+		if t, err := time.Parse(time.RFC1123, dateStr); err == nil {
+			return t
+		}
+		if t, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", dateStr); err == nil {
+			return t
 		}
 	}
-	return date
+	// Fallback: use serverReceived time now to avoid zeros
+	return time.Now()
 }
 
 func (er *EmailRenderer) extractSenderName(from string) string {
@@ -230,6 +250,36 @@ func (er *EmailRenderer) truncateString(s string, maxLen int) string {
 	}
 
 	return string(runes[:maxLen-3]) + "..."
+}
+
+// fitWidth truncates and pads on the right to fit a fixed width
+func (er *EmailRenderer) fitWidth(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	// Truncate by display width with ellipsis
+	s = runewidth.Truncate(s, width, "...")
+	// Pad on the right to exact width
+	pad := width - runewidth.StringWidth(s)
+	if pad > 0 {
+		s += strings.Repeat(" ", pad)
+	}
+	return s
+}
+
+// rightFit truncates and right-aligns/pads to width
+func (er *EmailRenderer) rightFit(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	// Truncate from the left by display width
+	s = runewidth.TruncateLeft(s, width, "")
+	// Pad on the left
+	pad := width - runewidth.StringWidth(s)
+	if pad > 0 {
+		s = strings.Repeat(" ", pad) + s
+	}
+	return s
 }
 
 func (er *EmailRenderer) formatRelativeTime(date time.Time) string {

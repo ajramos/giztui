@@ -37,7 +37,10 @@ type Message struct {
 // ListMessages returns messages from the inbox
 func (c *Client) ListMessages(maxResults int64) ([]*gmail.Message, error) {
 	user := "me"
-	call := c.Service.Users.Messages.List(user)
+	// Align with Gmail Web Inbox: only INBOX and exclude sent, drafts, chat, spam, trash
+	call := c.Service.Users.Messages.List(user).
+		LabelIds("INBOX").
+		Q("-in:sent -in:draft -in:chat -in:spam -in:trash")
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}

@@ -140,3 +140,4 @@ func main() {
 	fmt.Println("  3. Create your own custom themes")
 	fmt.Println("  4. Check the documentation: docs/COLORS.md")
 }
+
