@@ -605,6 +605,12 @@ func (a *App) showMessage(id string) {
 		text.SetText("Loading message...")
 		text.ScrollToBeginning()
 	}
+
+	// Automatically switch focus to text view when viewing a message
+	a.SetFocus(a.views["text"])
+	a.currentFocus = "text"
+	a.updateFocusIndicators("text")
+
 	a.Draw()
 
 	// Load message content in background
