@@ -1,0 +1,210 @@
+---
+description: use this rule when we are implementing new features
+alwaysApply: false
+---
+# Feature Implementation Pattern - Gmail TUI
+
+## Overview
+This document outlines the established pattern for implementing new features in the Gmail TUI project, based on successful implementations like toggle read/unread and trash functionality.
+
+## Implementation Pattern
+
+### 1. **Feature Analysis**
+- [ ] Review existing MCP server reference for feature parity
+- [ ] Check if Gmail API client method already exists in `internal/gmail/client.go`
+- [ ] Identify UI integration points in `internal/tui/app.go`
+- [ ] Update TODO.md with specific requirements
+
+### 2. **Gmail Client Layer** (if needed)
+```go
+// Example pattern in internal/gmail/client.go
+func (c *Client) FeatureName(messageID string) error {
+    user := "me"
+    // Gmail API call
+    _, err := c.Service.Users.Messages.Feature(user, messageID).Do()
+    if err != nil {
+        return fmt.Errorf("no se pudo realizar la acción: %w", err)
+    }
+    return nil
+}
+```
+
+### 3. **TUI Integration Pattern**
+```go
+func (a *App) featureSelected() {
+    var messageID string
+    var selectedIndex int = -1
+
+    // Get the current message ID based on focus
+    if a.currentFocus == "list" {
+        // Get from list view
+        list, ok := a.views["list"].(*tview.List)
+        if !ok {
+            a.showError("❌ Could not access message list")
+            return
+        }
+
+        selectedIndex = list.GetCurrentItem()
+        if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+            a.showError("❌ No message selected")
+            return
+        }
+
+        messageID = a.ids[selectedIndex]
+    } else if a.currentFocus == "text" {
+        // Get from text view - we need to find the currently displayed message
+        list, ok := a.views["list"].(*tview.List)
+        if !ok {
+            a.showError("❌ Could not access message list")
+            return
+        }
+
+        selectedIndex = list.GetCurrentItem()
+        if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+            a.showError("❌ No message selected")
+            return
+        }
+
+        messageID = a.ids[selectedIndex]
+    } else {
+        a.showError("❌ Unknown focus state")
+        return
+    }
+
+    if messageID == "" {
+        a.showError("❌ Invalid message ID")
+        return
+    }
+
+    // Get the current message for context
+    message, err := a.Client.GetMessage(messageID)
+    if err != nil {
+        a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+        return
+    }
+
+    // Extract subject for confirmation
+    subject := ""
+    for _, header := range message.Payload.Headers {
+        if strings.EqualFold(header.Name, "Subject") {
+            subject = header.Value
+            break
+        }
+    }
+    if subject == "" {
+        subject = "(No subject)"
+    }
+
+    // Perform the action
+    err = a.Client.FeatureName(messageID)
+    if err != nil {
+        a.showError(fmt.Sprintf("❌ Error performing action: %v", err))
+        return
+    }
+
+    // Show success message
+    a.showStatusMessage(fmt.Sprintf("✅ Action completed: %s", subject))
+
+    // Update UI if needed
+    if selectedIndex >= 0 {
+        finalIndex := selectedIndex
+        a.QueueUpdateDraw(func() {
+            a.updateUIAfterAction(finalIndex)
+        })
+    }
+}
+```
+
+### 4. **Key Implementation Principles**
+
+#### **Thread Safety**
+- ✅ Use `QueueUpdateDraw` for UI updates from background operations
+- ✅ Avoid mutex locks in UI methods to prevent deadlocks
+- ✅ Handle errors gracefully with user-friendly messages
+
+#### **Focus Management**
+- ✅ Support both list and text view focus
+- ✅ Use `a.currentFocus` to determine context
+- ✅ Always get message ID from the list view
+
+#### **User Feedback**
+- ✅ Show status messages in the status bar using `showStatusMessage`
+- ✅ Display error messages using `showError`
+- ✅ Include subject in confirmation messages
+- ✅ Auto-clear status messages after 3 seconds
+
+#### **UI Updates**
+- ✅ Update immediately after action completion
+- ✅ Handle edge cases (empty lists, invalid indices)
+- ✅ Update list titles and counts
+- ✅ Remove items from list if they're no longer relevant
+
+### 5. **Testing Checklist**
+- [ ] Test from list view focus
+- [ ] Test from text view focus
+- [ ] Test with no message selected
+- [ ] Test with invalid message ID
+- [ ] Test error conditions (network issues, API errors)
+- [ ] Test UI updates and refresh
+- [ ] Test status message display
+- [ ] Test edge cases (empty inbox, last message)
+
+### 6. **Commit Pattern**
+```bash
+git add internal/tui/app.go
+git commit -m "Implement [Feature Name] functionality
+
+- Add [Feature Name] method with focus-aware selection
+- Support action from both list and text views
+- Add status bar messages for user feedback
+- Update UI immediately after action completion
+- Handle error conditions gracefully
+- Follow established thread-safe patterns"
+```
+
+### 7. **TODO Update Pattern**
+```markdown
+- [x] **[Feature Name]** - Brief description of functionality
+```
+
+## Examples of Successful Implementations
+
+### Toggle Read/Unread
+- ✅ Works from both list and text views
+- ✅ Immediate UI update with ●/○ indicators
+- ✅ Status messages in bar
+- ✅ Thread-safe implementation
+
+### Trash Email
+- ✅ Works from both list and text views
+- ✅ Removes message from list immediately
+- ✅ Shows confirmation with subject
+- ✅ Updates message count
+
+## Common Pitfalls to Avoid
+
+### ❌ **Don't:**
+- Use mutex locks in UI methods
+- Forget to handle focus states
+- Skip error handling
+- Forget to update UI immediately
+- Use blocking operations in UI thread
+
+### ✅ **Do:**
+- Use `QueueUpdateDraw` for UI updates
+- Handle both focus states
+- Provide clear error messages
+- Update UI immediately after actions
+- Test from both list and text views
+- Include subject in confirmation messages
+
+## File Structure
+```
+internal/
+├── gmail/
+│   └── client.go          # Gmail API client methods
+└── tui/
+    └── app.go             # UI integration and user interaction
+```
+
+This pattern ensures consistent, reliable, and user-friendly feature implementations across the Gmail TUI project.

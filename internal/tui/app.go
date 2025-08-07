@@ -816,9 +816,6 @@ func (a *App) listUnreadMessages() {
 }
 
 func (a *App) toggleMarkReadUnread() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	var messageID string
 	var selectedIndex int = -1
 
@@ -904,7 +901,11 @@ func (a *App) toggleMarkReadUnread() {
 
 	// Update the UI to reflect the change
 	if selectedIndex >= 0 {
-		a.updateMessageDisplay(selectedIndex, !isUnread)
+		finalIndex := selectedIndex
+		finalIsUnread := !isUnread
+		a.QueueUpdateDraw(func() {
+			a.updateMessageDisplay(finalIndex, finalIsUnread)
+		})
 	}
 }
 
@@ -947,7 +948,111 @@ func (a *App) updateMessageDisplay(index int, isUnread bool) {
 }
 
 func (a *App) trashSelected() {
-	a.showInfo("Trash functionality not yet implemented")
+	var messageID string
+	var selectedIndex int = -1
+
+	// Get the current message ID based on focus
+	if a.currentFocus == "list" {
+		// Get from list view
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+
+		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "text" {
+		// Get from text view - we need to find the currently displayed message
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+
+		messageID = a.ids[selectedIndex]
+	} else {
+		a.showError("❌ Unknown focus state")
+		return
+	}
+
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
+
+	// Get the current message to show confirmation info
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+
+	// Extract subject for confirmation
+	subject := ""
+	for _, header := range message.Payload.Headers {
+		if strings.EqualFold(header.Name, "Subject") {
+			subject = header.Value
+			break
+		}
+	}
+	if subject == "" {
+		subject = "(No subject)"
+	}
+
+	// Move message to trash
+	err = a.Client.TrashMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
+		return
+	}
+
+	// Show success message
+	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
+
+	// Remove the message from the current list and update UI
+	if selectedIndex >= 0 {
+		finalIndex := selectedIndex
+		a.QueueUpdateDraw(func() {
+			a.removeMessageFromList(finalIndex)
+		})
+	}
+}
+
+// removeMessageFromList removes a message from the list and updates the UI
+func (a *App) removeMessageFromList(index int) {
+	list, ok := a.views["list"].(*tview.List)
+	if !ok {
+		return
+	}
+
+	// Remove the item from the list
+	list.RemoveItem(index)
+
+	// Remove the ID from our internal list
+	if index < len(a.ids) {
+		a.ids = append(a.ids[:index], a.ids[index+1:]...)
+	}
+
+	// Update the title to reflect the new count
+	list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+
+	// If we removed the last item, show a message
+	if len(a.ids) == 0 {
+		list.SetTitle(" 📧 No messages ")
+		a.showInfo("📧 No messages in your inbox")
+	}
 }
 
 func (a *App) archiveSelected() {
