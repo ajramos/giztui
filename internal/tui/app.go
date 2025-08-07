@@ -1620,7 +1620,81 @@ func (a *App) restoreFocusAfterModal() {
 
 // archiveSelected archives the selected message
 func (a *App) archiveSelected() {
-	a.showInfo("Archive functionality not yet implemented")
+	var messageID string
+	var selectedIndex int = -1
+
+	// Determine current selection based on focus
+	if a.currentFocus == "list" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "text" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else {
+		a.showError("❌ Unknown focus state")
+		return
+	}
+
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
+
+	// Fetch message to get subject for confirmation/status
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+	subject := "Unknown subject"
+	if message.Payload != nil && message.Payload.Headers != nil {
+		for _, header := range message.Payload.Headers {
+			if header.Name == "Subject" {
+				subject = header.Value
+				break
+			}
+		}
+	}
+
+	// Archive: remove INBOX label
+	if err := a.Client.ArchiveMessage(messageID); err != nil {
+		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
+		return
+	}
+
+	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
+
+	// Remove from current list (since we show only INBOX)
+	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
+		a.ids = append(a.ids[:selectedIndex], a.ids[selectedIndex+1:]...)
+		if selectedIndex < len(a.messagesMeta) {
+			a.messagesMeta = append(a.messagesMeta[:selectedIndex], a.messagesMeta[selectedIndex+1:]...)
+		}
+		a.QueueUpdateDraw(func() {
+			if list, ok := a.views["list"].(*tview.List); ok {
+				list.RemoveItem(selectedIndex)
+				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			}
+		})
+	}
 }
 
 // replySelected replies to the selected message
