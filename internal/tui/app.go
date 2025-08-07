@@ -1314,6 +1314,8 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 				a.QueueUpdateDraw(func() {
 					labelsList.SetItemText(index, newText, "")
 				})
+				// Update cached meta for main list (for UNREAD/star, etc.)
+				a.updateCachedMessageLabels(message.Id, labelID, newApplied)
 			})
 		})
 	}
@@ -1335,6 +1337,8 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 			// Return to main view
 			a.Pages.SwitchToPage("main")
 			a.restoreFocusAfterModal()
+			// Refresh currently displayed message content to reflect new labels
+			go a.refreshMessageContent(message.Id)
 			return nil
 		case tcell.KeyRune:
 			if event.Rune() == 'n' {
@@ -1954,4 +1958,70 @@ func (a *App) getFormatWidth() int {
 		return a.screenWidth - 2
 	}
 	return 78
+}
+
+// refreshMessageContent reloads the message and updates the text view without changing focus
+func (a *App) refreshMessageContent(id string) {
+	if id == "" {
+		return
+	}
+	go func() {
+		m, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			return
+		}
+		var content strings.Builder
+		header := a.emailRenderer.FormatHeaderStyled(m.Subject, m.From, m.Date, m.Labels)
+		content.WriteString(header)
+		if m.PlainText != "" {
+			content.WriteString(m.PlainText)
+		} else {
+			content.WriteString("No text content available")
+		}
+		a.QueueUpdateDraw(func() {
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.SetText(content.String())
+				text.ScrollToBeginning()
+			}
+		})
+	}()
+}
+
+// updateCachedMessageLabels updates the cached labels for a message ID
+func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool) {
+	// Find index
+	var idx = -1
+	for i, id := range a.ids {
+		if id == messageID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 || idx >= len(a.messagesMeta) || a.messagesMeta[idx] == nil {
+		return
+	}
+	msg := a.messagesMeta[idx]
+	if applied {
+		// add if not exists
+		exists := false
+		for _, l := range msg.LabelIds {
+			if l == labelID {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			msg.LabelIds = append(msg.LabelIds, labelID)
+		}
+	} else {
+		// remove
+		out := msg.LabelIds[:0]
+		for _, l := range msg.LabelIds {
+			if l != labelID {
+				out = append(out, l)
+			}
+		}
+		msg.LabelIds = out
+	}
 }
