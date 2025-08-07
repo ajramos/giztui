@@ -436,7 +436,8 @@ func (a *App) generateHelpText() string {
 	help.WriteString("n         ✏️  Compose new message\n")
 	help.WriteString("t         👁️  Toggle read/unread\n")
 	help.WriteString("d         🗑️  Move to trash\n")
-	help.WriteString("a         �� Archive message\n\n")
+	help.WriteString("a         �� Archive message\n")
+	help.WriteString("m         📦 Move message\n\n")
 
 	if a.LLM != nil {
 		help.WriteString("🤖 AI Features\n")
@@ -545,6 +546,9 @@ func (a *App) bindKeys() {
 		case 'l':
 			// Open contextual labels view immediately
 			a.manageLabels()
+			return nil
+		case 'm':
+			go a.moveSelected()
 			return nil
 		}
 
@@ -2098,4 +2102,121 @@ func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool)
 		}
 		msg.LabelIds = out
 	}
+}
+
+// moveSelected opens the labels picker to choose a destination label, applies it, then archives the message
+func (a *App) moveSelected() {
+	// Get the current message ID
+	messageID := a.getCurrentMessageID()
+	if messageID == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+
+	// Load available labels and message metadata
+	labels, err := a.Client.ListLabels()
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error loading labels: %v", err))
+		return
+	}
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+
+	a.showMoveLabelsView(labels, message)
+}
+
+// showMoveLabelsView lets user choose a label to apply and then archives the message (move semantics)
+func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Message) {
+	picker := tview.NewList().ShowSecondaryText(false)
+	picker.SetBorder(true)
+	picker.SetTitle(" 📦 Move to label ")
+
+	// Build list of candidate labels (same filters as labels view)
+	for _, label := range labels {
+		if strings.HasPrefix(label.Id, "CATEGORY_") ||
+			label.Id == "INBOX" || label.Id == "SENT" || label.Id == "DRAFT" ||
+			label.Id == "SPAM" || label.Id == "TRASH" || label.Id == "CHAT" ||
+			(strings.HasSuffix(label.Id, "_STARRED") && label.Id != "STARRED") {
+			continue
+		}
+		// Store values for closure
+		labelID := label.Id
+		labelName := label.Name
+		picker.AddItem(labelName, "", 0, func() {
+			go func() {
+				// Apply label if not already present
+				has := false
+				for _, l := range message.LabelIds {
+					if l == labelID {
+						has = true
+						break
+					}
+				}
+				if !has {
+					if err := a.Client.ApplyLabel(message.Id, labelID); err != nil {
+						a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
+						return
+					}
+					// Update cache
+					a.updateCachedMessageLabels(message.Id, labelID, true)
+				}
+				// Archive (remove INBOX)
+				if err := a.Client.ArchiveMessage(message.Id); err != nil {
+					a.showError(fmt.Sprintf("❌ Error archiving: %v", err))
+					return
+				}
+				a.showStatusMessage(fmt.Sprintf("📦 Moved to: %s", labelName))
+
+				// Remove from current list since we show INBOX only
+				a.QueueUpdateDraw(func() {
+					// Find index
+					idx := -1
+					for i, id := range a.ids {
+						if id == message.Id {
+							idx = i
+							break
+						}
+					}
+					if idx >= 0 {
+						a.ids = append(a.ids[:idx], a.ids[idx+1:]...)
+						if idx < len(a.messagesMeta) {
+							a.messagesMeta = append(a.messagesMeta[:idx], a.messagesMeta[idx+1:]...)
+						}
+						if list, ok := a.views["list"].(*tview.List); ok {
+							list.RemoveItem(idx)
+							list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+						}
+					}
+					// Return to main
+					a.Pages.SwitchToPage("main")
+					a.restoreFocusAfterModal()
+				})
+			}()
+		})
+	}
+
+	// Basic keys
+	picker.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			a.Pages.SwitchToPage("main")
+			a.restoreFocusAfterModal()
+			return nil
+		}
+		return event
+	})
+
+	// Container view
+	v := tview.NewFlex().SetDirection(tview.FlexRow)
+	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	title.SetBorder(true)
+	title.SetText("Select destination label and press Enter. ESC to cancel")
+	v.AddItem(title, 3, 0, false)
+	v.AddItem(picker, 0, 1, true)
+
+	a.Pages.AddPage("moveLabels", v, true, true)
+	a.Pages.SwitchToPage("moveLabels")
+	a.SetFocus(picker)
 }
