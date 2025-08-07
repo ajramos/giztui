@@ -1199,22 +1199,37 @@ func (a *App) trashSelected() {
 	// Show success message
 	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
 
-	// Remove the message from the list
+	// Remove the message from the list and adjust selection
 	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-		// Remove from slices: ids and cached meta
+		// Remove from slices
 		a.ids = append(a.ids[:selectedIndex], a.ids[selectedIndex+1:]...)
 		if selectedIndex < len(a.messagesMeta) {
 			a.messagesMeta = append(a.messagesMeta[:selectedIndex], a.messagesMeta[selectedIndex+1:]...)
 		}
 
-		// Update the UI
 		a.QueueUpdateDraw(func() {
 			if list, ok := a.views["list"].(*tview.List); ok {
 				// Remove the item from the list
 				list.RemoveItem(selectedIndex)
 
+				// Choose next selection index
+				next := selectedIndex
+				if next >= list.GetItemCount() {
+					next = list.GetItemCount() - 1
+				}
+				if next >= 0 {
+					list.SetCurrentItem(next)
+				}
+
 				// Update the title with new count
 				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			}
+			// Clear message content if the deleted item was being viewed
+			if a.currentFocus == "text" {
+				if text, ok := a.views["text"].(*tview.TextView); ok {
+					text.SetText("Message removed")
+					text.ScrollToBeginning()
+				}
 			}
 		})
 	}
