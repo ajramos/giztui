@@ -794,7 +794,106 @@ func (a *App) listUnreadMessages() {
 }
 
 func (a *App) toggleMarkReadUnread() {
-	a.showInfo("Toggle read/unread functionality not yet implemented")
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Get the currently selected item
+	list, ok := a.views["list"].(*tview.List)
+	if !ok {
+		a.showError("❌ Could not access message list")
+		return
+	}
+
+	selectedIndex := list.GetCurrentItem()
+	if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+		a.showError("❌ No message selected")
+		return
+	}
+
+	messageID := a.ids[selectedIndex]
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
+
+	// Get the current message to check its read status
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+
+	// Check if message is currently unread
+	isUnread := false
+	for _, labelID := range message.LabelIds {
+		if labelID == "UNREAD" {
+			isUnread = true
+			break
+		}
+	}
+
+	// Toggle the read status
+	var err2 error
+	if isUnread {
+		// Mark as read
+		err2 = a.Client.MarkAsRead(messageID)
+		if err2 == nil {
+			a.showInfo("✅ Message marked as read")
+		} else {
+			a.showError(fmt.Sprintf("❌ Error marking as read: %v", err2))
+			return
+		}
+	} else {
+		// Mark as unread
+		err2 = a.Client.MarkAsUnread(messageID)
+		if err2 == nil {
+			a.showInfo("✅ Message marked as unread")
+		} else {
+			a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err2))
+			return
+		}
+	}
+
+	// Update the UI to reflect the change
+	a.updateMessageDisplay(selectedIndex, !isUnread)
+}
+
+// updateMessageDisplay updates the display of a specific message in the list
+func (a *App) updateMessageDisplay(index int, isUnread bool) {
+	list, ok := a.views["list"].(*tview.List)
+	if !ok {
+		return
+	}
+
+	// Get the current message
+	if index < 0 || index >= len(a.ids) {
+		return
+	}
+
+	messageID := a.ids[index]
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		return
+	}
+
+	// Get screen width for proper formatting
+	screenWidth := 80
+	if a.screenWidth > 0 {
+		screenWidth = a.screenWidth
+	}
+
+	// Use the email renderer to format the message
+	formattedText, _ := a.emailRenderer.FormatEmailList(message, screenWidth)
+
+	// Add unread indicator
+	if isUnread {
+		formattedText = "● " + formattedText
+	} else {
+		formattedText = "○ " + formattedText
+	}
+
+	// Update the item in the list
+	list.SetItemText(index, formattedText, "")
 }
 
 func (a *App) trashSelected() {
