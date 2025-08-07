@@ -3,20 +3,21 @@
 ## 🎯 Feature Parity with MCP Server
 
 ### Email Management
-- [ ] **List emails** - Implement email listing with pagination and filtering
+- [ ] **Query emails** - Search and query emails with Gmail search syntax
 - [ ] **Get email by ID** - Retrieve specific email content and metadata
-- [ ] **Search emails** - Implement Gmail search functionality with query support
+- [ ] **Bulk get emails** - Get multiple emails by their IDs
 - [ ] **Get unread emails** - List unread emails with count and preview
 - [ ] **Mark email as read** - Mark individual emails as read
 - [ ] **Archive email** - Move emails to archive (remove from inbox)
 - [ ] **Batch archive emails** - Archive multiple emails at once
+- [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [ ] **Trash email** - Move emails to trash
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
-- [ ] **Send email** - Send emails directly via Gmail
+- [ ] **Send email** - Send emails directly via Gmail (with CC/BCC support)
 - [ ] **Reply to email** - Reply to existing email threads
 - [ ] **Forward email** - Forward emails to other recipients
 - [ ] **Delete draft** - Remove draft emails
@@ -29,14 +30,14 @@
 
 ### Labels and Organization
 - [ ] **List labels** - Show all available Gmail labels
-- [ ] **Create label** - Create new custom labels
+- [ ] **Create label** - Create new custom labels with visibility options
 - [ ] **Apply label** - Apply labels to emails
 - [ ] **Remove label** - Remove labels from emails
 - [ ] **Delete label** - Delete custom labels
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
-- [ ] **Get calendar events** - Retrieve events from specific calendars
+- [ ] **Get calendar events** - Retrieve events from specific calendars with time range
 - [ ] **Create calendar event** - Create new calendar events with Google Meet
 - [ ] **Update calendar event** - Modify existing calendar events
 - [ ] **Delete calendar event** - Remove calendar events
@@ -134,19 +135,19 @@
 ## Priority Levels
 
 ### High Priority (P0)
-- Email listing and basic navigation
+- Email listing and basic navigation (query_emails, get_email_by_id)
 - Theme system functionality
 - Basic help system
 - Core testing infrastructure
 
 ### Medium Priority (P1)
-- Email composition and sending
-- Calendar integration
+- Email composition and sending (create_draft, send_email, reply_email)
+- Calendar integration (list_calendars, get_calendar_events)
 - Advanced help features
 - Performance optimization
 
 ### Low Priority (P2)
-- Advanced features (batch operations, etc.)
+- Advanced features (batch operations, labels, attachments)
 - Custom theme creation
 - Advanced testing scenarios
 - Documentation polish
@@ -159,3 +160,4 @@
 - Keep user experience in mind throughout development
 - Document as you go
 - Regular code reviews and refactoring
+- Ensure complete feature parity with MCP server reference
