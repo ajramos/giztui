@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -548,7 +549,8 @@ func (a *App) bindKeys() {
 			a.manageLabels()
 			return nil
 		case 'm':
-			go a.moveSelected()
+			// Open move view immediately (synchronous) to avoid extra key press
+			a.moveSelected()
 			return nil
 		}
 
@@ -1270,19 +1272,11 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 		}
 	}
 
-	// Populate labels (skip system labels)
-	for _, label := range labels {
+	// Partition applied vs not-applied and sort each group; applied first
+	applied, notApplied := a.partitionAndSortLabels(labels, currentLabels)
+	for _, label := range append(applied, notApplied...) {
 		// Skip system labels that start with CATEGORY_ or are special
-		if strings.HasPrefix(label.Id, "CATEGORY_") ||
-			label.Id == "INBOX" ||
-			label.Id == "SENT" ||
-			label.Id == "DRAFT" ||
-			label.Id == "SPAM" ||
-			label.Id == "TRASH" ||
-			label.Id == "CHAT" ||
-			(strings.HasSuffix(label.Id, "_STARRED") && label.Id != "STARRED") {
-			continue
-		}
+		// (already filtered in helper)
 
 		// Store label info for the callback (avoid capturing loop vars directly)
 		labelID := label.Id
@@ -2134,14 +2128,13 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 	picker.SetBorder(true)
 	picker.SetTitle(" 📦 Move to label ")
 
-	// Build list of candidate labels (same filters as labels view)
-	for _, label := range labels {
-		if strings.HasPrefix(label.Id, "CATEGORY_") ||
-			label.Id == "INBOX" || label.Id == "SENT" || label.Id == "DRAFT" ||
-			label.Id == "SPAM" || label.Id == "TRASH" || label.Id == "CHAT" ||
-			(strings.HasSuffix(label.Id, "_STARRED") && label.Id != "STARRED") {
-			continue
-		}
+	// Build list of candidate labels with applied first
+	curr := make(map[string]bool)
+	for _, l := range message.LabelIds {
+		curr[l] = true
+	}
+	applied, notApplied := a.partitionAndSortLabels(labels, curr)
+	for _, label := range append(applied, notApplied...) {
 		// Store values for closure
 		labelID := label.Id
 		labelName := label.Name
@@ -2218,5 +2211,40 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 
 	a.Pages.AddPage("moveLabels", v, true, true)
 	a.Pages.SwitchToPage("moveLabels")
+	if picker.GetItemCount() > 0 {
+		picker.SetCurrentItem(0)
+	}
 	a.SetFocus(picker)
+}
+
+// filterAndSortLabels filters out system labels and returns a name-sorted slice
+func (a *App) filterAndSortLabels(labels []*gmailapi.Label) []*gmailapi.Label {
+	filtered := make([]*gmailapi.Label, 0, len(labels))
+	for _, l := range labels {
+		if strings.HasPrefix(l.Id, "CATEGORY_") || l.Id == "INBOX" || l.Id == "SENT" || l.Id == "DRAFT" ||
+			l.Id == "SPAM" || l.Id == "TRASH" || l.Id == "CHAT" || (strings.HasSuffix(l.Id, "_STARRED") && l.Id != "STARRED") {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		return strings.ToLower(filtered[i].Name) < strings.ToLower(filtered[j].Name)
+	})
+	return filtered
+}
+
+// partitionAndSortLabels returns two sorted slices: labels applied to current and the rest
+func (a *App) partitionAndSortLabels(labels []*gmailapi.Label, current map[string]bool) ([]*gmailapi.Label, []*gmailapi.Label) {
+	filtered := a.filterAndSortLabels(labels)
+	applied := make([]*gmailapi.Label, 0)
+	notApplied := make([]*gmailapi.Label, 0)
+	for _, l := range filtered {
+		if current[l.Id] {
+			applied = append(applied, l)
+		} else {
+			notApplied = append(notApplied, l)
+		}
+	}
+	// Already sorted by name from filterAndSortLabels; preserve order
+	return applied, notApplied
 }
