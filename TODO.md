@@ -7,7 +7,7 @@
 - [ ] **Get email by ID** - Retrieve specific email content and metadata
 - [ ] **Bulk get emails** - Get multiple emails by their IDs
 - [ ] **Get unread emails** - List unread emails with count and preview
-- [ ] **Mark email as read** - Mark individual emails as read
+- [x] **Mark email as read** - Mark individual emails as read
 - [ ] **Archive email** - Move emails to archive (remove from inbox)
 - [ ] **Batch archive emails** - Archive multiple emails at once
 - [ ] **List archived emails** - Show archived emails
