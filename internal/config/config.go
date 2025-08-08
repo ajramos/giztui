@@ -15,6 +15,14 @@ type Config struct {
 	OllamaModel    string `json:"ollama_model"`
 	OllamaTimeout  string `json:"ollama_timeout"`
 
+	// Generic LLM configuration
+	LLMEnabled  bool   `json:"llm_enabled"`
+	LLMProvider string `json:"llm_provider"` // ollama, openai, anthropic, custom
+	LLMModel    string `json:"llm_model"`
+	LLMEndpoint string `json:"llm_endpoint"`
+	LLMAPIKey   string `json:"llm_api_key"`
+	LLMTimeout  string `json:"llm_timeout"`
+
 	// Prompt templates for LLM interactions
 	SummarizePrompt string `json:"summarize_prompt"`
 	ReplyPrompt     string `json:"reply_prompt"`
@@ -76,6 +84,11 @@ type KeyBindings struct {
 func DefaultConfig() *Config {
 	return &Config{
 		OllamaTimeout:   "30s",
+		LLMEnabled:      true,
+		LLMProvider:     "ollama",
+		LLMModel:        "llama3.2:latest",
+		LLMEndpoint:     "http://localhost:11434/api/generate",
+		LLMTimeout:      "20s",
 		SummarizePrompt: "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
 		ReplyPrompt:     "Redacta una respuesta profesional y amable al siguiente correo:\n\n{{body}}",
 		LabelPrompt:     "Sugiere una etiqueta adecuada para el siguiente correo considerando las ya existentes: {{labels}}.\n\nCorreo:\n{{body}}",
@@ -195,4 +208,14 @@ func (c *Config) GetOllamaTimeout() time.Duration {
 	}
 
 	return 30 * time.Second
+}
+
+// GetLLMTimeout returns parsed timeout for generic LLM
+func (c *Config) GetLLMTimeout() time.Duration {
+	if c.LLMTimeout != "" {
+		if d, err := time.ParseDuration(c.LLMTimeout); err == nil {
+			return d
+		}
+	}
+	return 20 * time.Second
 }

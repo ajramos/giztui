@@ -131,8 +131,8 @@ The application uses a unified configuration directory structure:
 # Specify custom credentials
 ./gmail-tui --credentials ~/path/to/credentials.json
 
-# Configure Ollama
-./gmail-tui --ollama-endpoint http://localhost:11434/api/generate --ollama-model llama3
+# Configure LLM (Ollama example)
+./gmail-tui --config ~/.config/gmail-tui/config.json
 
 # Use custom configuration file
 ./gmail-tui --config ~/custom-config.json
@@ -156,13 +156,30 @@ The application uses a unified configuration directory structure:
 | `l` | Manage labels |
 | `q` | Quit |
 
-### AI Features (requires Ollama)
+### AI Features (LLM)
 
 | Key | Action |
 |-----|--------|
 | `y` | Summarize message |
 | `g` | Generate reply |
 | `o` | Suggest label |
+
+#### LLM Configuration
+
+You can use a pluggable LLM provider (Ollama by default). Configure in `~/.config/gmail-tui/config.json`:
+
+```json
+{
+  "llm_enabled": true,
+  "llm_provider": "ollama",          // ollama|openai|anthropic|custom (ollama supported now)
+  "llm_model": "llama3.1:8b",
+  "llm_endpoint": "http://localhost:11434/api/generate",
+  "llm_api_key": "",
+  "llm_timeout": "20s"
+}
+```
+
+Ollama specific legacy fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) are still supported for backward compatibility.
 
 ### Layout Controls
 

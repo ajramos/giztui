@@ -23,7 +23,7 @@ type App struct {
 	Pages   *Pages
 	Config  *config.Config
 	Client  *gmail.Client
-	LLM     *llm.Client
+	LLM     llm.Provider
 	Keys    config.KeyBindings
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -56,6 +56,11 @@ type App struct {
 	screenHeight     int
 	currentMessageID string // Added for label command execution
 	nextPageToken    string // Gmail pagination
+	// AI Summary pane
+	aiSummaryView    *tview.TextView
+	aiSummaryVisible bool
+	aiSummaryCache   map[string]string // messageID -> summary
+	aiInFlight       map[string]bool   // messageID -> generating
 }
 
 // Pages manages the application pages and navigation
@@ -148,14 +153,14 @@ func NewKeyActions() *KeyActions {
 }
 
 // NewApp creates a new TUI application following k9s patterns
-func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
+func NewApp(client *gmail.Client, llmClient *llm.Client, cfg *config.Config) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	app := &App{
 		Application:      tview.NewApplication(),
 		Config:           cfg,
 		Client:           client,
-		LLM:              llm,
+		LLM:              llmClient,
 		Keys:             cfg.Keys,
 		ctx:              ctx,
 		cancel:           cancel,
@@ -181,6 +186,8 @@ func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
 		screenHeight:     25,
 		currentMessageID: "", // Initialize currentMessageID
 		nextPageToken:    "",
+		aiSummaryCache:   make(map[string]string),
+		aiInFlight:       make(map[string]bool),
 	}
 
 	// Initialize pages
@@ -300,9 +307,19 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 
+	// Create AI Summary view (hidden by default)
+	ai := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
+	ai.SetBorder(true).
+		SetBorderColor(tcell.ColorYellow).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 🤖 AI Summary ").
+		SetTitleColor(tcell.ColorYellow).
+		SetTitleAlign(tview.AlignCenter)
+
 	// Store components
 	a.views["list"] = list
 	a.views["text"] = text
+	a.aiSummaryView = ai
 }
 
 // initViews initializes the main views
@@ -336,8 +353,13 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Add list of messages (takes 40% of available height)
 	mainFlex.AddItem(a.views["list"], 0, 40, true)
 
+	// Message content row: split into content | AI summary (hidden initially)
+	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
+	contentSplit.AddItem(a.views["text"], 0, 1, false)
+	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
+	a.views["contentSplit"] = contentSplit
 	// Add message content (takes 40% of available height)
-	mainFlex.AddItem(a.views["text"], 0, 40, false)
+	mainFlex.AddItem(contentSplit, 0, 40, false)
 
 	// Add command bar (hidden by default, appears when : is pressed)
 	cmdBar := a.createCommandBar()
@@ -578,7 +600,7 @@ func (a *App) bindKeys() {
 		if a.LLM != nil {
 			switch event.Rune() {
 			case 'y':
-				go a.summarizeSelected()
+				a.toggleAISummary()
 				return nil
 			case 'g':
 				go a.generateReply()
@@ -934,6 +956,7 @@ func (a *App) showMessage(id string) {
 	a.SetFocus(a.views["text"])
 	a.currentFocus = "text"
 	a.updateFocusIndicators("text")
+	a.currentMessageID = id
 
 	a.Draw()
 
@@ -969,6 +992,50 @@ func (a *App) showMessage(id string) {
 				text.SetDynamicColors(true)
 				text.SetText(content.String())
 				// Scroll to the top of the text
+				text.ScrollToBeginning()
+			}
+			// If AI pane is visible, refresh summary for this message
+			if a.aiSummaryVisible {
+				a.generateOrShowSummary(id)
+			}
+		})
+	}()
+}
+
+// showMessageWithoutFocus loads the message content but does not change focus
+func (a *App) showMessageWithoutFocus(id string) {
+	// Show loading message
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetText("Loading message...")
+		text.ScrollToBeginning()
+	}
+	a.currentMessageID = id
+
+	go func() {
+		message, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			a.showError(fmt.Sprintf("❌ Error loading message: %v", err))
+			return
+		}
+
+		var content strings.Builder
+		header := a.emailRenderer.FormatHeaderStyled(
+			message.Subject,
+			message.From,
+			message.Date,
+			message.Labels,
+		)
+		content.WriteString(header)
+		if message.PlainText != "" {
+			content.WriteString(message.PlainText)
+		} else {
+			content.WriteString("No text content available")
+		}
+
+		a.QueueUpdateDraw(func() {
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.SetText(content.String())
 				text.ScrollToBeginning()
 			}
 		})
@@ -1683,6 +1750,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 			text.SetBorderColor(tcell.ColorYellow)
 		}
 	}
+
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetBorderColor(tcell.ColorGray)
+	}
 }
 
 // toggleFocus switches focus between list and text view
@@ -1692,12 +1763,24 @@ func (a *App) toggleFocus() {
 	if currentFocus == a.views["list"] {
 		a.SetFocus(a.views["text"])
 		a.currentFocus = "text"
-		// Update visual focus indicators
 		a.updateFocusIndicators("text")
+	} else if currentFocus == a.views["text"] {
+		if a.aiSummaryVisible {
+			a.SetFocus(a.aiSummaryView)
+			a.currentFocus = "summary"
+			a.updateFocusIndicators("summary")
+		} else {
+			a.SetFocus(a.views["list"])
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+		}
+	} else if a.aiSummaryVisible && currentFocus == a.aiSummaryView {
+		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
 	} else {
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
-		// Update visual focus indicators
 		a.updateFocusIndicators("list")
 	}
 }
@@ -1801,7 +1884,43 @@ func (a *App) showAttachments() {
 
 // summarizeSelected summarizes the selected message using LLM
 func (a *App) summarizeSelected() {
-	a.showInfo("Summarize functionality not yet implemented")
+	if a.LLM == nil {
+		a.showStatusMessage("LLM disabled")
+		return
+	}
+	messageID := a.getCurrentMessageID()
+	if messageID == "" {
+		a.showError("No message selected")
+		return
+	}
+	// Load content
+	m, err := a.Client.GetMessageWithContent(messageID)
+	if err != nil {
+		a.showError("Failed to load message")
+		return
+	}
+	body := m.PlainText
+	if len([]rune(body)) > 8000 {
+		body = string([]rune(body)[:8000])
+	}
+	// Show immediate status
+	a.QueueUpdateDraw(func() { a.setStatusPersistent("🧠 Summarizing…") })
+	go func() {
+		resp, err := a.LLM.Generate("Summarize in 3 bullet points (keep language).\n\n" + body)
+		if err != nil {
+			a.QueueUpdateDraw(func() { a.showStatusMessage("⚠️ LLM error") })
+			return
+		}
+		a.QueueUpdateDraw(func() {
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				prev := text.GetText(true)
+				text.SetDynamicColors(true)
+				text.SetText("— AI Summary —\n" + resp + "\n\n" + prev)
+				text.ScrollToBeginning()
+			}
+			a.showStatusMessage("✅ Summary ready")
+		})
+	}()
 }
 
 // generateReply generates a reply using LLM
@@ -2341,4 +2460,114 @@ func (a *App) partitionAndSortLabels(labels []*gmailapi.Label, current map[strin
 	}
 	// Already sorted by name from filterAndSortLabels; preserve order
 	return applied, notApplied
+}
+
+// toggleAISummary shows/hides the AI summary pane and triggers generation if needed
+func (a *App) toggleAISummary() {
+	// If pane is visible and we're currently in the summary, hide it
+	if a.aiSummaryVisible && a.currentFocus == "summary" {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.ResizeItem(a.aiSummaryView, 0, 0)
+		}
+		a.aiSummaryVisible = false
+		a.SetFocus(a.views["text"])
+		a.currentFocus = "text"
+		a.updateFocusIndicators("text")
+		a.showStatusMessage("🙈 AI summary hidden")
+		return
+	}
+
+	// Ensure we have a message ID
+	mid := a.getCurrentMessageID()
+	if mid == "" && len(a.ids) > 0 {
+		// Force display of selected message
+		if list, ok := a.views["list"].(*tview.List); ok {
+			idx := list.GetCurrentItem()
+			if idx >= 0 && idx < len(a.ids) {
+				mid = a.ids[idx]
+				go a.showMessage(mid)
+			}
+		}
+	}
+	if mid == "" {
+		a.showError("No message selected")
+		return
+	}
+
+	// Ensure message content is loaded without stealing focus (do this first)
+	if mid != "" {
+		a.showMessageWithoutFocus(mid)
+	}
+
+	// Show pane (50/50) and focus immediately (we are on the UI thread)
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.aiSummaryView, 0, 1)
+	}
+	a.aiSummaryVisible = true
+	a.SetFocus(a.aiSummaryView)
+	a.currentFocus = "summary"
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+	}
+	a.updateFocusIndicators("summary")
+
+	// Populate pane
+	a.generateOrShowSummary(mid)
+}
+
+// generateOrShowSummary shows cached summary or triggers generation if missing
+func (a *App) generateOrShowSummary(messageID string) {
+	if a.aiSummaryView == nil {
+		return
+	}
+	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
+		a.aiSummaryView.SetText(sum)
+		a.aiSummaryView.ScrollToBeginning()
+		a.setStatusPersistent("🤖 Summary loaded from cache")
+		return
+	}
+	if a.aiInFlight[messageID] {
+		a.aiSummaryView.SetText("🧠 Summarizing…")
+		a.aiSummaryView.ScrollToBeginning()
+		a.setStatusPersistent("🧠 Summarizing…")
+		return
+	}
+	// Start generation
+	a.aiSummaryView.SetText("🧠 Summarizing…")
+	a.aiSummaryView.ScrollToBeginning()
+	a.setStatusPersistent("🧠 Summarizing…")
+	a.aiInFlight[messageID] = true
+	go func(id string) {
+		m, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.aiSummaryView.SetText("⚠️ Error loading message")
+				a.showStatusMessage("⚠️ Error loading message")
+			})
+			delete(a.aiInFlight, id)
+			return
+		}
+		if a.LLM == nil {
+			a.QueueUpdateDraw(func() { a.aiSummaryView.SetText("⚠️ LLM disabled"); a.showStatusMessage("⚠️ LLM disabled") })
+			delete(a.aiInFlight, id)
+			return
+		}
+		body := m.PlainText
+		if len([]rune(body)) > 8000 {
+			body = string([]rune(body)[:8000])
+		}
+		resp, err := a.LLM.Generate("Summarize in 3 bullet points (keep language).\n\n" + body)
+		if err != nil {
+			a.QueueUpdateDraw(func() { a.aiSummaryView.SetText("⚠️ LLM error"); a.showStatusMessage("⚠️ LLM error") })
+			delete(a.aiInFlight, id)
+			return
+		}
+		a.aiSummaryCache[id] = resp
+		delete(a.aiInFlight, id)
+		a.QueueUpdateDraw(func() {
+			a.aiSummaryView.SetText(resp)
+			a.aiSummaryView.ScrollToBeginning()
+			a.showStatusMessage("✅ Summary ready")
+		})
+	}(messageID)
 }

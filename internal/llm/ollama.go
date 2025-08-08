@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+// Provider defines a generic LLM interface
+type Provider interface {
+	Name() string
+	Generate(prompt string) (string, error)
+}
+
 // Client represents an Ollama client for local LLM interactions
 type Client struct {
 	Endpoint string
@@ -75,6 +81,9 @@ func (c *Client) Generate(prompt string) (string, error) {
 
 	return strings.TrimSpace(response.Response), nil
 }
+
+// Name returns provider name
+func (c *Client) Name() string { return "ollama" }
 
 // SummarizeEmail generates a summary of an email
 func (c *Client) SummarizeEmail(body string) (string, error) {

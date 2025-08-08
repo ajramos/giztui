@@ -90,12 +90,21 @@ func main() {
 	// Create Gmail client
 	gmailClient := gmail.NewClient(service)
 
-	// Initialize LLM client if configured
-	var llmClient *llm.Client
-	endpoint := cfg.OllamaEndpoint
-	model := cfg.OllamaModel
-	timeout := cfg.GetOllamaTimeout()
-
+	// Initialize LLM provider if enabled
+	var llmProvider llm.Provider
+	endpoint := cfg.LLMEndpoint
+	model := cfg.LLMModel
+	timeout := cfg.GetLLMTimeout()
+	providerName := cfg.LLMProvider
+	if endpoint == "" && cfg.OllamaEndpoint != "" {
+		endpoint = cfg.OllamaEndpoint
+	}
+	if model == "" && cfg.OllamaModel != "" {
+		model = cfg.OllamaModel
+	}
+	if cfg.OllamaTimeout != "" {
+		timeout = cfg.GetOllamaTimeout()
+	}
 	if *ollamaEndpointFlag != "" {
 		endpoint = *ollamaEndpointFlag
 	}
@@ -105,16 +114,16 @@ func main() {
 	if *ollamaTimeoutFlag != 0 {
 		timeout = *ollamaTimeoutFlag
 	}
-
-	if endpoint != "" && model != "" {
-		llmClient = llm.NewClient(endpoint, model, timeout)
-		llmClient.SummarizeTemplate = cfg.SummarizePrompt
-		llmClient.ReplyTemplate = cfg.ReplyPrompt
-		llmClient.LabelTemplate = cfg.LabelPrompt
+	if providerName == "" {
+		providerName = "ollama"
+	}
+	if cfg.LLMEnabled && endpoint != "" && model != "" {
+		llmProvider = llm.NewProviderFromConfig(providerName, endpoint, model, timeout, cfg.LLMAPIKey)
 	}
 
 	// Create and run TUI
-	app := tui.NewApp(gmailClient, llmClient, cfg)
+	// Note: tui.NewApp currently expects *llm.Client, but we adapted it to accept llm.Provider
+	app := tui.NewApp(gmailClient, llmProvider.(*llm.Client), cfg)
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error ejecutando la aplicación: %v\n", err)
 		os.Exit(1)
