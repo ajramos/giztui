@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -61,6 +62,8 @@ type App struct {
 	aiSummaryVisible bool
 	aiSummaryCache   map[string]string // messageID -> summary
 	aiInFlight       map[string]bool   // messageID -> generating
+	// AI label suggestion cache
+	aiLabelsCache map[string][]string // messageID -> suggestions
 }
 
 // Pages manages the application pages and navigation
@@ -188,6 +191,7 @@ func NewApp(client *gmail.Client, llmClient *llm.Client, cfg *config.Config) *Ap
 		nextPageToken:    "",
 		aiSummaryCache:   make(map[string]string),
 		aiInFlight:       make(map[string]bool),
+		aiLabelsCache:    make(map[string][]string),
 	}
 
 	// Initialize pages
@@ -587,6 +591,9 @@ func (a *App) bindKeys() {
 		case 'm':
 			// Open move view immediately (synchronous) to avoid extra key press
 			a.moveSelected()
+			return nil
+		case 'o':
+			go a.suggestLabel()
 			return nil
 		}
 
@@ -1933,7 +1940,233 @@ func (a *App) generateReply() {
 
 // suggestLabel suggests a label using LLM
 func (a *App) suggestLabel() {
-	a.showInfo("Suggest label functionality not yet implemented")
+	if a.LLM == nil {
+		a.showStatusMessage("⚠️ LLM disabled")
+		return
+	}
+	messageID := a.getCurrentMessageID()
+	if messageID == "" {
+		a.showError("No message selected")
+		return
+	}
+	// If cached suggestions exist, show picker immediately
+	if cached, ok := a.aiLabelsCache[messageID]; ok && len(cached) > 0 {
+		a.showLabelSuggestions(messageID, cached)
+		return
+	}
+	a.setStatusPersistent("🏷️ Suggesting labels…")
+	go func() {
+		// Load message content
+		m, err := a.Client.GetMessageWithContent(messageID)
+		if err != nil {
+			a.showError("❌ Error loading message")
+			return
+		}
+		// Load available labels
+		labels, err := a.Client.ListLabels()
+		if err != nil || len(labels) == 0 {
+			a.showError("❌ Error loading labels")
+			return
+		}
+		// Build allowed label names and a lookup map
+		allowed := make([]string, 0, len(labels))
+		nameToID := make(map[string]string, len(labels))
+		for _, l := range labels {
+			if strings.HasPrefix(l.Id, "CATEGORY_") || l.Id == "INBOX" || l.Id == "SENT" || l.Id == "DRAFT" || l.Id == "SPAM" || l.Id == "TRASH" || l.Id == "CHAT" || (strings.HasSuffix(l.Id, "_STARRED") && l.Id != "STARRED") {
+				continue
+			}
+			allowed = append(allowed, l.Name)
+			nameToID[l.Name] = l.Id
+		}
+		sort.Slice(allowed, func(i, j int) bool { return strings.ToLower(allowed[i]) < strings.ToLower(allowed[j]) })
+		// Prompt: request JSON array of existing names
+		body := m.PlainText
+		if len([]rune(body)) > 6000 {
+			body = string([]rune(body)[:6000])
+		}
+		prompt := "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: " + strings.Join(allowed, ", ") + "\n\nEmail:\n" + body
+		resp, err := a.LLM.Generate(prompt)
+		if err != nil {
+			a.showStatusMessage("⚠️ LLM error")
+			return
+		}
+		// Parse JSON array
+		var arr []string
+		if err := json.Unmarshal([]byte(strings.TrimSpace(resp)), &arr); err != nil {
+			// fallback: try comma split
+			parts := strings.Split(resp, ",")
+			for _, p := range parts {
+				if s := strings.TrimSpace(strings.Trim(p, "\"[]")); s != "" {
+					arr = append(arr, s)
+				}
+			}
+		}
+		// Filter to allowed and unique
+		uniq := make([]string, 0, 3)
+		seen := make(map[string]struct{})
+		for _, s := range arr {
+			if _, ok := nameToID[s]; !ok {
+				continue
+			}
+			if _, ok := seen[s]; ok {
+				continue
+			}
+			seen[s] = struct{}{}
+			uniq = append(uniq, s)
+			if len(uniq) == 3 {
+				break
+			}
+		}
+		if len(uniq) == 0 {
+			a.showStatusMessage("ℹ️ No label suggestion")
+			return
+		}
+		a.aiLabelsCache[messageID] = uniq
+		a.QueueUpdateDraw(func() { a.showLabelSuggestions(messageID, uniq); a.showStatusMessage("✅ Suggestions ready") })
+	}()
+}
+
+// showLabelSuggestions displays a picker to apply one or all suggested labels
+func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
+	picker := tview.NewList().ShowSecondaryText(false)
+	picker.SetBorder(true)
+	picker.SetTitle(" 🏷️ Apply suggested label(s) ")
+
+	// Load labels for ID lookup
+	labels, err := a.Client.ListLabels()
+	if err != nil {
+		a.showError("❌ Error loading labels")
+		return
+	}
+	nameToID := make(map[string]string, len(labels))
+	for _, l := range labels {
+		nameToID[l.Name] = l.Id
+	}
+
+	// Apply one
+	for _, name := range suggestions {
+		labelName := name
+		picker.AddItem(labelName, "Enter to apply", 0, func() {
+			if id, ok := nameToID[labelName]; ok {
+				go func() {
+					if err := a.Client.ApplyLabel(messageID, id); err != nil {
+						a.showError("❌ Error applying label")
+						return
+					}
+					a.updateCachedMessageLabels(messageID, id, true)
+					a.showStatusMessage("✅ Applied: " + labelName)
+					a.Pages.SwitchToPage("main")
+					a.restoreFocusAfterModal()
+				}()
+			}
+		})
+	}
+	// Apply all (with emoji)
+	picker.AddItem("✅ Apply all", "Apply all suggested labels", 0, func() {
+		go func() {
+			for _, name := range suggestions {
+				if id, ok := nameToID[name]; ok {
+					_ = a.Client.ApplyLabel(messageID, id)
+					a.updateCachedMessageLabels(messageID, id, true)
+				}
+			}
+			a.showStatusMessage("✅ Applied all suggestions")
+			a.Pages.SwitchToPage("main")
+			a.restoreFocusAfterModal()
+		}()
+	})
+
+	// Pick from all available labels (no creation)
+	picker.AddItem("🗂️  Pick from all labels", "Open full label list to apply", 0, func() {
+		a.showAllLabelsPicker(messageID)
+	})
+
+	// Add custom label (create if missing) and apply
+	picker.AddItem("➕ Add custom label", "Create or pick a label and apply", 0, func() {
+		input := tview.NewInputField().
+			SetLabel("Label name: ").
+			SetFieldWidth(30)
+		modal := tview.NewFlex().SetDirection(tview.FlexRow)
+		title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+		title.SetBorder(true)
+		title.SetText("Enter a label name | Enter=apply, ESC=cancel")
+		modal.AddItem(title, 3, 0, false)
+		modal.AddItem(input, 3, 0, true)
+
+		input.SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEscape {
+				a.Pages.SwitchToPage("aiLabelSuggestions")
+				a.SetFocus(picker)
+				return
+			}
+			if key == tcell.KeyEnter {
+				name := strings.TrimSpace(input.GetText())
+				if name == "" {
+					return
+				}
+				go func() {
+					// Resolve or create label
+					id, ok := nameToID[name]
+					if !ok {
+						// Try to find case-insensitive match
+						for n, i := range nameToID {
+							if strings.EqualFold(n, name) {
+								id = i
+								ok = true
+								break
+							}
+						}
+					}
+					if !ok {
+						// Create new label
+						created, err := a.Client.CreateLabel(name)
+						if err != nil {
+							a.showError("❌ Error creating label")
+							return
+						}
+						id = created.Id
+						nameToID[name] = id
+					}
+					// Apply
+					if err := a.Client.ApplyLabel(messageID, id); err != nil {
+						a.showError("❌ Error applying label")
+						return
+					}
+					a.updateCachedMessageLabels(messageID, id, true)
+					a.showStatusMessage("✅ Applied: " + name)
+					// Return to main
+					a.QueueUpdateDraw(func() { a.Pages.SwitchToPage("main"); a.restoreFocusAfterModal() })
+				}()
+			}
+		})
+
+		a.Pages.AddPage("aiLabelAddCustom", modal, true, true)
+		a.Pages.SwitchToPage("aiLabelAddCustom")
+		a.SetFocus(input)
+	})
+
+	picker.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.Pages.SwitchToPage("main")
+			a.restoreFocusAfterModal()
+			return nil
+		}
+		return e
+	})
+
+	// Show page
+	v := tview.NewFlex().SetDirection(tview.FlexRow)
+	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	title.SetBorder(true)
+	title.SetText("Select label to apply | Enter=apply, ESC=back")
+	v.AddItem(title, 3, 0, false)
+	v.AddItem(picker, 0, 1, true)
+	a.Pages.AddPage("aiLabelSuggestions", v, true, true)
+	a.Pages.SwitchToPage("aiLabelSuggestions")
+	if picker.GetItemCount() > 0 {
+		picker.SetCurrentItem(0)
+	}
+	a.SetFocus(picker)
 }
 
 // createCommandBar creates the command bar component (k9s style)
@@ -2276,6 +2509,60 @@ func (a *App) refreshMessageContent(id string) {
 	}()
 }
 
+// refreshMessageContentWithOverride reloads message and overrides labels shown with provided names
+func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []string) {
+	if id == "" {
+		return
+	}
+	go func() {
+		m, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			return
+		}
+		// Merge override labels
+		if len(labelsOverride) > 0 {
+			// Build set for merge
+			seen := make(map[string]struct{}, len(m.Labels)+len(labelsOverride))
+			merged := make([]string, 0, len(m.Labels)+len(labelsOverride))
+			for _, l := range m.Labels {
+				if _, ok := seen[l]; !ok {
+					seen[l] = struct{}{}
+					merged = append(merged, l)
+				}
+			}
+			for _, l := range labelsOverride {
+				if _, ok := seen[l]; !ok {
+					seen[l] = struct{}{}
+					merged = append(merged, l)
+				}
+			}
+			m.Labels = merged
+		}
+
+		var content strings.Builder
+		header := a.emailRenderer.FormatHeaderStyled(
+			m.Subject,
+			m.From,
+			m.Date,
+			m.Labels,
+		)
+		content.WriteString(header)
+		if m.PlainText != "" {
+			content.WriteString(m.PlainText)
+		} else {
+			content.WriteString("No text content available")
+		}
+
+		a.QueueUpdateDraw(func() {
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.SetText(content.String())
+				text.ScrollToBeginning()
+			}
+		})
+	}()
+}
+
 // updateCachedMessageLabels updates the cached labels for a message ID
 func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool) {
 	// Find index
@@ -2573,4 +2860,91 @@ func (a *App) generateOrShowSummary(messageID string) {
 			a.showStatusMessage("✅ Summary ready")
 		})
 	}(messageID)
+}
+
+// showAllLabelsPicker shows a list of all actionable labels to apply one to the message
+func (a *App) showAllLabelsPicker(messageID string) {
+	labels, err := a.Client.ListLabels()
+	if err != nil {
+		a.showError("❌ Error loading labels")
+		return
+	}
+	// Get current message labels to mark applied ones
+	msg, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError("❌ Error loading message")
+		return
+	}
+	current := make(map[string]bool, len(msg.LabelIds))
+	for _, lid := range msg.LabelIds {
+		current[lid] = true
+	}
+	// Build sorted actionable labels with applied first
+	applied, notApplied := a.partitionAndSortLabels(labels, current)
+	all := append(applied, notApplied...)
+
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(true)
+	list.SetTitle(" 🗂️  All Labels ")
+
+	// Map name -> id
+	nameToID := make(map[string]string, len(all))
+	for _, l := range all {
+		nameToID[l.Name] = l.Id
+	}
+
+	for _, l := range all {
+		lbl := l.Name
+		icon := "○ "
+		if current[l.Id] {
+			icon = "✅ "
+		}
+		display := icon + lbl
+		list.AddItem(display, "", 0, func() {
+			if id, ok := nameToID[lbl]; ok {
+				a.applyLabelAndRefresh(messageID, id, lbl)
+				a.showStatusMessage("✅ Applied: " + lbl)
+				a.Pages.SwitchToPage("main")
+				a.restoreFocusAfterModal()
+			}
+		})
+	}
+
+	list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.Pages.SwitchToPage("aiLabelSuggestions")
+			return nil
+		}
+		return e
+	})
+
+	v := tview.NewFlex().SetDirection(tview.FlexRow)
+	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	title.SetBorder(true)
+	title.SetText("Select a label to apply | Enter=apply, ESC=back")
+	v.AddItem(title, 3, 0, false)
+	v.AddItem(list, 0, 1, true)
+	a.Pages.AddPage("aiAllLabels", v, true, true)
+	a.Pages.SwitchToPage("aiAllLabels")
+	if list.GetItemCount() > 0 {
+		list.SetCurrentItem(0)
+	}
+	a.SetFocus(list)
+}
+
+// applyLabelAndRefresh aplica una etiqueta usando el mismo mecanismo que en la vista de 'l'
+// y refresca el contenido del mensaje cuando termina
+func (a *App) applyLabelAndRefresh(messageID, labelID, labelName string) {
+	// Asumimos que queremos aplicar (no togglear a quitar), por lo que pasamos isCurrentlyApplied=false
+	a.toggleLabelForMessage(messageID, labelID, labelName, false, func(newApplied bool, err error) {
+		if err != nil {
+			return
+		}
+		if newApplied {
+			// Mantener cache de metadatos coherente
+			a.updateCachedMessageLabels(messageID, labelID, true)
+			// Refrescar contenido desde servidor (evita desincronización)
+			a.refreshMessageContent(messageID)
+		}
+	})
 }
