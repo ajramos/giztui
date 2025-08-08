@@ -1738,6 +1738,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		text.SetBorderColor(tcell.ColorGray)
 	}
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetBorderColor(tcell.ColorGray)
+	}
 
 	// Set focused view border to bright color
 	switch focusedView {
@@ -1749,10 +1752,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			text.SetBorderColor(tcell.ColorYellow)
 		}
-	}
-
-	if a.aiSummaryView != nil {
-		a.aiSummaryView.SetBorderColor(tcell.ColorGray)
+	case "summary":
+		if a.aiSummaryView != nil {
+			a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+		}
 	}
 }
 
