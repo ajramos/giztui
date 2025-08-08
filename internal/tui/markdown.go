@@ -1,66 +1,68 @@
 package tui
 
 import (
-	"bytes"
-	"fmt"
 	"strings"
+	"unicode"
 
-	htmmd "github.com/JohannesKaufmann/html-to-markdown"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/charmbracelet/glamour"
 	"github.com/derailed/tview"
+	html2text "github.com/jaytaylor/html2text"
 )
 
-// convertHTMLToMarkdown converts HTML to Markdown with sane defaults
-func convertHTMLToMarkdown(html string) string {
+// convertHTMLToText converts HTML to plain text optimized for terminal readability
+func convertHTMLToText(html string, width int) string {
 	if strings.TrimSpace(html) == "" {
 		return ""
 	}
-	conv := htmmd.NewConverter("", true, nil)
-	// Normalize <br> to newlines
-	conv.AddRules(htmmd.Rule{
-		Filter: []string{"br"},
-		Replacement: func(content string, sele *goquery.Selection, opt *htmmd.Options) *string {
-			s := "\n"
-			return &s
-		},
-	})
-	md, err := conv.ConvertString(html)
+	// Use library defaults for stable, legible plain text output
+	txt, err := html2text.FromString(html)
 	if err != nil {
 		return html
 	}
-	return md
+	return txt
 }
 
-// renderMarkdownToANSI renders Markdown to ANSI using Glamour
-func renderMarkdownToANSI(md string) string {
-	if strings.TrimSpace(md) == "" {
-		return ""
+// sanitizeForTerminal replaces or removes glyphs that often render as tofu (�) in terminals
+func sanitizeForTerminal(s string) string {
+	if s == "" {
+		return s
 	}
-	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(0),
-	)
-	if err != nil {
-		return md
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '\u00A0': // NBSP
+			b.WriteRune(' ')
+		case '\u200B', '\u200C', '\u200D', '\uFEFF':
+			// zero-width and BOM → drop
+		case '\u2013', '\u2014':
+			b.WriteRune('-')
+		case '\u2022', '\u2043', '\u25AA', '\u25CF', '\u25E6':
+			b.WriteString("- ")
+		case '\u2018', '\u2019':
+			b.WriteRune('\'')
+		case '\u201C', '\u201D':
+			b.WriteRune('"')
+		case '\u2026':
+			b.WriteString("...")
+		default:
+			// Skip control chars except newline/tab
+			if unicode.IsControl(r) && r != '\n' && r != '\t' {
+				continue
+			}
+			// Many emoji and special symbols fall in So; drop them to avoid tofu
+			if unicode.Is(unicode.So, r) {
+				continue
+			}
+			b.WriteRune(r)
+		}
 	}
-	out, err := r.Render(md)
-	if err != nil {
-		return md
-	}
+	// Collapse excessive blank lines (simple pass)
+	out := b.String()
+	out = strings.ReplaceAll(out, "\r\n", "\n")
+	out = strings.ReplaceAll(out, "\r", "\n")
+	out = strings.ReplaceAll(out, "\n\n\n", "\n\n")
 	return out
-}
-
-// ansiToTview converts ANSI string to tview markup string off the UI thread
-func ansiToTview(ansi string) string {
-	if ansi == "" {
-		return ""
-	}
-	var buf bytes.Buffer
-	w := tview.ANSIWriter(&buf, "", "")
-	fmt.Fprint(w, ansi)
-	return buf.String()
 }
 
 // renderMessageContent builds header + body (Markdown or plain text)
@@ -69,22 +71,26 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	var b strings.Builder
 	rawHeader := a.emailRenderer.FormatHeaderStyled(m.Subject, m.From, m.Date, m.Labels)
 	if preferMD && m.HTML != "" {
-		// Escape header to avoid tview markup issues, then append ANSI-rendered markdown
+		// Escape header to avoid tview markup issues
 		b.WriteString(tview.Escape(rawHeader))
-		md := convertHTMLToMarkdown(m.HTML)
-		ansi := renderMarkdownToANSI(md)
-		// Convert ANSI to tview markup off-UI thread for faster SetText
-		markup := ansiToTview(ansi)
+		// Use HTML→text rendering for stability and readability
+		width := a.screenWidth
+		if width <= 0 {
+			width = 100
+		}
+		txt := convertHTMLToText(m.HTML, width)
+		txt = sanitizeForTerminal(txt)
 		// Cap very large outputs to avoid sluggish UI
 		const maxLen = 200_000
-		if len(markup) > maxLen {
-			markup = markup[:maxLen] + "\n[grey](truncated)[-]"
+		if len(txt) > maxLen {
+			txt = txt[:maxLen] + "\n(truncated)"
 		}
-		b.WriteString(markup)
+		// Escape to ensure consistent rendering inside tview
+		b.WriteString(tview.Escape("\n" + txt))
 		return b.String(), false
 	}
 	// Plain text path: escape everything to avoid accidental markup parsing
-	body := m.PlainText
+	body := sanitizeForTerminal(m.PlainText)
 	if body == "" {
 		body = "No text content available"
 	}
@@ -107,16 +113,12 @@ func (a *App) toggleMarkdown() {
 		}
 		prefer := a.markdownTogglePer[mid]
 		go func(msg *gmail.Message) {
-			rendered, isANSI := a.renderMessageContent(msg)
+			rendered, _ := a.renderMessageContent(msg)
 			a.QueueUpdateDraw(func() {
 				if text, ok := a.views["text"].(*tview.TextView); ok {
 					text.SetDynamicColors(true)
 					text.Clear()
-					if isANSI {
-						fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
-					} else {
-						text.SetText(rendered)
-					}
+					text.SetText(rendered)
 					text.ScrollToBeginning()
 				}
 				if prefer {

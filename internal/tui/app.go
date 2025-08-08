@@ -608,35 +608,92 @@ func (a *App) trashSelected() {
 	// Show success message
 	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
 
-	// Remove the message from the list and adjust selection
+	// Remove the message from the list and adjust selection (UI thread)
 	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-		// Remove from slices
-		a.ids = append(a.ids[:selectedIndex], a.ids[selectedIndex+1:]...)
-		if selectedIndex < len(a.messagesMeta) {
-			a.messagesMeta = append(a.messagesMeta[:selectedIndex], a.messagesMeta[selectedIndex+1:]...)
-		}
-
 		a.QueueUpdateDraw(func() {
-			if list, ok := a.views["list"].(*tview.List); ok {
-				// Remove the item from the list
-				list.RemoveItem(selectedIndex)
-
-				// Choose next selection index
-				next := selectedIndex
-				if next >= list.GetItemCount() {
-					next = list.GetItemCount() - 1
-				}
-				if next >= 0 {
-					list.SetCurrentItem(next)
-				}
-
-				// Update the title with new count
-				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			list, ok := a.views["list"].(*tview.List)
+			if !ok {
+				return
 			}
-			// Clear message content if the deleted item was being viewed
-			if a.currentFocus == "text" {
-				if text, ok := a.views["text"].(*tview.TextView); ok {
-					text.SetText("Message removed")
+			count := list.GetItemCount()
+			if count == 0 {
+				return
+			}
+
+			// Determine index to remove; fix selection if it's invalid
+			removeIndex := list.GetCurrentItem()
+			if removeIndex < 0 || removeIndex >= count {
+				removeIndex = 0
+			}
+
+			// Compute next selection relative to the current list before removal
+			next := -1
+			if count > 1 {
+				next = removeIndex
+				if next >= count-1 {
+					next = count - 2
+				}
+				if next < 0 {
+					next = 0
+				}
+				// Ensure list has a valid current item before removal to avoid internal -1 usage
+				list.SetCurrentItem(removeIndex)
+			}
+
+			// Remove visually with safe pre-selection to avoid tview RemoveItem bug when removing current index 0
+			if count == 1 {
+				// Update caches
+				if removeIndex >= 0 && removeIndex < len(a.ids) {
+					a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+				}
+				if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+					a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+				}
+				list.Clear()
+				next = -1
+			} else {
+				// Choose a pre-selection different from the removal index
+				preSelect := removeIndex - 1
+				if removeIndex == 0 {
+					preSelect = 1
+				}
+				if preSelect < 0 {
+					preSelect = 0
+				}
+				if preSelect >= count {
+					preSelect = count - 1
+				}
+				list.SetCurrentItem(preSelect)
+
+				// Update caches prior to visual removal
+				if removeIndex >= 0 && removeIndex < len(a.ids) {
+					a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+				}
+				if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+					a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+				}
+
+				// Now remove the visual item
+				if removeIndex >= 0 && removeIndex < list.GetItemCount() {
+					list.RemoveItem(removeIndex)
+				}
+
+				// Determine next selection post-removal
+				next = list.GetCurrentItem()
+				if next < 0 && list.GetItemCount() > 0 {
+					next = 0
+				}
+			}
+
+			// Update title after caches changed
+			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+
+			// Update message content pane
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				if next >= 0 && next < len(a.ids) {
+					go a.showMessageWithoutFocus(a.ids[next])
+				} else {
+					text.SetText("No messages")
 					text.ScrollToBeginning()
 				}
 			}

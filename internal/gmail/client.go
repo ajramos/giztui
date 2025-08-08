@@ -1,6 +1,7 @@
 package gmail
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/html/charset"
 	"google.golang.org/api/gmail/v1"
 )
 
@@ -464,16 +466,36 @@ func extractTextFromPart(part *gmail.MessagePart) string {
 		if err != nil {
 			return ""
 		}
-
-		// Check if it's quoted-printable encoded
-		if part.MimeType == "text/plain" {
-			// Try to decode quoted-printable
-			decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(string(data))))
-			if err == nil {
-				return string(decoded)
+		// Decode quoted-printable if declared
+		isQP := false
+		charsetLabel := ""
+		for _, h := range part.Headers {
+			if strings.EqualFold(h.Name, "Content-Transfer-Encoding") && strings.Contains(strings.ToLower(h.Value), "quoted-printable") {
+				isQP = true
 			}
-			return string(data)
+			if strings.EqualFold(h.Name, "Content-Type") {
+				// naive charset extraction
+				lower := strings.ToLower(h.Value)
+				if idx := strings.Index(lower, "charset="); idx != -1 {
+					charsetLabel = strings.Trim(strings.TrimSpace(lower[idx+8:]), ";\" ")
+				}
+			}
 		}
+		var raw []byte = data
+		if isQP {
+			decoded, err := io.ReadAll(quotedprintable.NewReader(bytes.NewReader(data)))
+			if err == nil {
+				raw = decoded
+			}
+		}
+		if charsetLabel != "" && !strings.EqualFold(charsetLabel, "utf-8") && !strings.EqualFold(charsetLabel, "utf8") {
+			if r, err := charset.NewReaderLabel(charsetLabel, bytes.NewReader(raw)); err == nil {
+				if b, err2 := io.ReadAll(r); err2 == nil {
+					return string(b)
+				}
+			}
+		}
+		return string(raw)
 	}
 
 	// Recursively check parts
@@ -505,12 +527,33 @@ func extractHTMLFromPart(part *gmail.MessagePart) string {
 		if err != nil {
 			return ""
 		}
-		// Try to decode quoted-printable just in case
-		decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(string(data))))
-		if err == nil {
-			return string(decoded)
+		isQP := false
+		charsetLabel := ""
+		for _, h := range part.Headers {
+			if strings.EqualFold(h.Name, "Content-Transfer-Encoding") && strings.Contains(strings.ToLower(h.Value), "quoted-printable") {
+				isQP = true
+			}
+			if strings.EqualFold(h.Name, "Content-Type") {
+				lower := strings.ToLower(h.Value)
+				if idx := strings.Index(lower, "charset="); idx != -1 {
+					charsetLabel = strings.Trim(strings.TrimSpace(lower[idx+8:]), ";\" ")
+				}
+			}
 		}
-		return string(data)
+		var raw []byte = data
+		if isQP {
+			if decoded, err := io.ReadAll(quotedprintable.NewReader(bytes.NewReader(data))); err == nil {
+				raw = decoded
+			}
+		}
+		if charsetLabel != "" && !strings.EqualFold(charsetLabel, "utf-8") && !strings.EqualFold(charsetLabel, "utf8") {
+			if r, err := charset.NewReaderLabel(charsetLabel, bytes.NewReader(raw)); err == nil {
+				if b, err2 := io.ReadAll(r); err2 == nil {
+					return string(b)
+				}
+			}
+		}
+		return string(raw)
 	}
 
 	// Recursively check parts

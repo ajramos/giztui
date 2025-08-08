@@ -470,19 +470,70 @@ func (a *App) archiveSelected() {
         messageID = a.ids[selectedIndex]
     } else { a.showError("❌ Unknown focus state"); return }
     if messageID == "" { a.showError("❌ Invalid message ID"); return }
+
     message, err := a.Client.GetMessage(messageID)
     if err != nil { a.showError(fmt.Sprintf("❌ Error getting message: %v", err)); return }
     subject := "Unknown subject"
     if message.Payload != nil && message.Payload.Headers != nil {
         for _, header := range message.Payload.Headers { if header.Name == "Subject" { subject = header.Value; break } }
     }
+
     if err := a.Client.ArchiveMessage(messageID); err != nil { a.showError(fmt.Sprintf("❌ Error archiving message: %v", err)); return }
     a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
-    if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-        a.ids = append(a.ids[:selectedIndex], a.ids[selectedIndex+1:]...)
-        if selectedIndex < len(a.messagesMeta) { a.messagesMeta = append(a.messagesMeta[:selectedIndex], a.messagesMeta[selectedIndex+1:]...) }
-        a.QueueUpdateDraw(func() { if list, ok := a.views["list"].(*tview.List); ok { list.RemoveItem(selectedIndex); list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids))) } })
-    }
+
+    // Safe UI removal (preselect another index before removing)
+    a.QueueUpdateDraw(func() {
+        list, ok := a.views["list"].(*tview.List)
+        if !ok { return }
+        count := list.GetItemCount()
+        if count == 0 { return }
+
+        // Determine index to remove; prefer current selection
+        removeIndex := list.GetCurrentItem()
+        if removeIndex < 0 || removeIndex >= count { removeIndex = 0 }
+
+        // Compute pre-selection different from the removed index
+        var next = -1
+        if count > 1 {
+            pre := removeIndex - 1
+            if removeIndex == 0 { pre = 1 }
+            if pre < 0 { pre = 0 }
+            if pre >= count { pre = count - 1 }
+            list.SetCurrentItem(pre)
+            next = pre
+        }
+
+        // Update caches using removeIndex
+        if removeIndex >= 0 && removeIndex < len(a.ids) {
+            a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+        }
+        if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+            a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+        }
+
+        // Visual removal
+        if count == 1 {
+            list.Clear()
+            next = -1
+        } else {
+            if removeIndex >= 0 && removeIndex < list.GetItemCount() {
+                list.RemoveItem(removeIndex)
+            }
+            // next already set to pre; clamp to new count
+            if next >= 0 && next < list.GetItemCount() { list.SetCurrentItem(next) }
+        }
+
+        // Update title and content
+        list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+        if text, ok := a.views["text"].(*tview.TextView); ok {
+            if next >= 0 && next < len(a.ids) {
+                go a.showMessageWithoutFocus(a.ids[next])
+            } else {
+                text.SetText("No messages")
+                text.ScrollToBeginning()
+            }
+        }
+    })
 }
 
 // replySelected replies to the selected message (placeholder)

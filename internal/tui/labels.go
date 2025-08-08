@@ -515,24 +515,77 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 				}
 				a.showStatusMessage(fmt.Sprintf("📦 Moved to: %s", labelName))
 
-				// Remove from current list since we show INBOX only
+				// Remove from current list (safe removal pattern) since we show INBOX only
 				a.QueueUpdateDraw(func() {
-					// Find index
-					idx := -1
+					list, ok := a.views["list"].(*tview.List)
+					if !ok {
+						a.Pages.SwitchToPage("main")
+						a.restoreFocusAfterModal()
+						return
+					}
+					count := list.GetItemCount()
+					if count == 0 {
+						a.Pages.SwitchToPage("main")
+						a.restoreFocusAfterModal()
+						return
+					}
+					// Determine index of the moved message
+					removeIndex := -1
 					for i, id := range a.ids {
 						if id == message.Id {
-							idx = i
+							removeIndex = i
 							break
 						}
 					}
-					if idx >= 0 {
-						a.ids = append(a.ids[:idx], a.ids[idx+1:]...)
-						if idx < len(a.messagesMeta) {
-							a.messagesMeta = append(a.messagesMeta[:idx], a.messagesMeta[idx+1:]...)
+					if removeIndex < 0 || removeIndex >= count {
+						removeIndex = list.GetCurrentItem()
+						if removeIndex < 0 || removeIndex >= count {
+							removeIndex = 0
 						}
-						if list, ok := a.views["list"].(*tview.List); ok {
-							list.RemoveItem(idx)
-							list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+					}
+					// Preselect a different index to avoid tview internal -1 during removal
+					var next = -1
+					if count > 1 {
+						pre := removeIndex - 1
+						if removeIndex == 0 {
+							pre = 1
+						}
+						if pre < 0 {
+							pre = 0
+						}
+						if pre >= count {
+							pre = count - 1
+						}
+						list.SetCurrentItem(pre)
+						next = pre
+					}
+					// Update caches using removeIndex
+					if removeIndex >= 0 && removeIndex < len(a.ids) {
+						a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+					}
+					if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+						a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+					}
+					// Visual removal
+					if count == 1 {
+						list.Clear()
+						next = -1
+					} else {
+						if removeIndex >= 0 && removeIndex < list.GetItemCount() {
+							list.RemoveItem(removeIndex)
+						}
+						if next >= 0 && next < list.GetItemCount() {
+							list.SetCurrentItem(next)
+						}
+					}
+					list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+					// Update message content pane similar to trash/archive
+					if text, ok := a.views["text"].(*tview.TextView); ok {
+						if next >= 0 && next < len(a.ids) {
+							go a.showMessageWithoutFocus(a.ids[next])
+						} else {
+							text.SetText("No messages")
+							text.ScrollToBeginning()
 						}
 					}
 					// Return to main
