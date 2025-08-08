@@ -55,6 +55,7 @@ type App struct {
 	screenWidth      int
 	screenHeight     int
 	currentMessageID string // Added for label command execution
+	nextPageToken    string // Gmail pagination
 }
 
 // Pages manages the application pages and navigation
@@ -179,6 +180,7 @@ func NewApp(client *gmail.Client, llm *llm.Client, cfg *config.Config) *App {
 		screenWidth:      80,
 		screenHeight:     25,
 		currentMessageID: "", // Initialize currentMessageID
+		nextPageToken:    "",
 	}
 
 	// Initialize pages
@@ -375,6 +377,13 @@ func (a *App) showStatusMessage(msg string) {
 	}
 }
 
+// setStatusPersistent sets the status bar text without auto-clearing
+func (a *App) setStatusPersistent(msg string) {
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(fmt.Sprintf("Gmail TUI | %s | Press ? for help | Press q to quit", msg))
+	}
+}
+
 // createHelpView creates the help view
 func (a *App) createHelpView() tview.Primitive {
 	help := tview.NewTextView().
@@ -517,6 +526,11 @@ func (a *App) bindKeys() {
 			}
 			return nil
 		case 'n':
+			// If list has focus and Shift not pressed, load next page of messages; otherwise compose
+			if a.currentFocus == "list" && (event.Modifiers()&tcell.ModShift) == 0 {
+				go a.loadMoreMessages()
+				return nil
+			}
 			go a.composeMessage(false)
 			return nil
 		case 's':
@@ -579,11 +593,16 @@ func (a *App) bindKeys() {
 		return event
 	})
 
-	// Handle Enter key for viewing messages
+	// Handle Enter key for viewing messages and show position in status
 	if list, ok := a.views["list"].(*tview.List); ok {
 		list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 			if index < len(a.ids) {
 				go a.showMessage(a.ids[index])
+			}
+		})
+		list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+			if index >= 0 && index < len(a.ids) {
+				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", index+1, len(a.ids)))
 			}
 		})
 	}
@@ -767,17 +786,20 @@ func (a *App) reloadMessages() {
 		return
 	}
 
-	messages, err := a.Client.ListMessages(50)
+	messages, next, err := a.Client.ListMessagesPage(50, "")
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error loading messages: %v", err))
 		return
 	}
+	a.nextPageToken = next
 
 	// Show success message if no messages
 	if len(messages) == 0 {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			list.SetTitle(" 📧 No messages found ")
-		}
+		a.QueueUpdateDraw(func() {
+			if list, ok := a.views["list"].(*tview.List); ok {
+				list.SetTitle(" 📧 No messages found ")
+			}
+		})
 		a.showInfo("📧 No messages found in your inbox")
 		return
 	}
@@ -833,14 +855,71 @@ func (a *App) reloadMessages() {
 		}
 	}
 
-	if list, ok := a.views["list"].(*tview.List); ok {
-		list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-	}
+	a.QueueUpdateDraw(func() {
+		if list, ok := a.views["list"].(*tview.List); ok {
+			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			// Also update status with current selection
+			idx := list.GetCurrentItem()
+			if idx >= 0 && len(a.ids) > 0 {
+				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", idx+1, len(a.ids)))
+			}
+		}
+	})
 
 	// Set focus back to list only if we're on the main page
 	if pageName, _ := a.Pages.GetFrontPage(); pageName == "main" {
 		a.SetFocus(a.views["list"])
 	}
+}
+
+// loadMoreMessages fetches the next page of inbox and appends to list
+func (a *App) loadMoreMessages() {
+	if a.nextPageToken == "" {
+		a.showStatusMessage("No more messages")
+		return
+	}
+	a.setStatusPersistent("Loading next 50 messages…")
+	messages, next, err := a.Client.ListMessagesPage(50, a.nextPageToken)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
+		return
+	}
+	// Append
+	screenWidth := a.getFormatWidth()
+	for _, msg := range messages {
+		a.ids = append(a.ids, msg.Id)
+		meta, err := a.Client.GetMessage(msg.Id)
+		if err != nil {
+			continue
+		}
+		a.messagesMeta = append(a.messagesMeta, meta)
+		text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+		unread := false
+		for _, l := range meta.LabelIds {
+			if l == "UNREAD" {
+				unread = true
+				break
+			}
+		}
+		if unread {
+			text = "● " + text
+		} else {
+			text = "○ " + text
+		}
+		if list, ok := a.views["list"].(*tview.List); ok {
+			list.AddItem(text, "", 0, nil)
+		}
+	}
+	a.nextPageToken = next
+	a.QueueUpdateDraw(func() {
+		if list, ok := a.views["list"].(*tview.List); ok {
+			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			idx := list.GetCurrentItem()
+			if idx >= 0 && len(a.ids) > 0 {
+				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", idx+1, len(a.ids)))
+			}
+		}
+	})
 }
 
 // showMessage displays a message in the text view

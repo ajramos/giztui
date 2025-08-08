@@ -34,8 +34,14 @@ type Message struct {
 	Labels    []string
 }
 
-// ListMessages returns messages from the inbox
+// ListMessages returns first page of inbox messages (backward-compatible)
 func (c *Client) ListMessages(maxResults int64) ([]*gmail.Message, error) {
+	msgs, _, err := c.ListMessagesPage(maxResults, "")
+	return msgs, err
+}
+
+// ListMessagesPage returns a page of inbox messages and the nextPageToken
+func (c *Client) ListMessagesPage(maxResults int64, pageToken string) ([]*gmail.Message, string, error) {
 	user := "me"
 	// Align with Gmail Web Inbox: only INBOX and exclude sent, drafts, chat, spam, trash
 	call := c.Service.Users.Messages.List(user).
@@ -44,13 +50,16 @@ func (c *Client) ListMessages(maxResults int64) ([]*gmail.Message, error) {
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}
+	if pageToken != "" {
+		call = call.PageToken(pageToken)
+	}
 
 	res, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron listar los mensajes: %w", err)
+		return nil, "", fmt.Errorf("no se pudieron listar los mensajes: %w", err)
 	}
 
-	return res.Messages, nil
+	return res.Messages, res.NextPageToken, nil
 }
 
 // GetMessage retrieves a specific message by ID
