@@ -4,16 +4,17 @@
 
 ### Email Management
 - [ ] **Query emails** - Search and query emails with Gmail search syntax
-- [ ] **Get email by ID** - Retrieve specific email content and metadata
-- [ ] **Bulk get emails** - Get multiple emails by their IDs
 - [ ] **Get unread emails** - List unread emails with count and preview
 - [x] **Mark email as read** - Mark individual emails as read
-- [ ] **Archive email** - Move emails to archive (remove from inbox)
+- [x] **Archive email** - Move emails to archive (remove from inbox)
 - [ ] **Batch archive emails** - Archive multiple emails at once
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [x] **Trash email** - Move emails to trash
 - [ ] **Delete email permanently** - Permanently delete emails from trash
+- [x] **Move email to folder** - Add a label and archive the email
+- [ ] **Batch move email to folder** - Add a label and archive multiple emails
+
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
@@ -29,11 +30,13 @@
 - [ ] **List attachments** - Show attachments for specific emails
 
 ### Labels and Organization
-- [ ] **List labels** - Show all available Gmail labels
-- [ ] **Create label** - Create new custom labels with visibility options
-- [ ] **Apply label** - Apply labels to emails
-- [ ] **Remove label** - Remove labels from emails
+- [X] **List labels** - Show all available Gmail labels
+- [X] **Create label** - Create new custom labels with visibility options
+- [X] **Apply label** - Apply labels to emails
+- [X] **Remove label** - Remove labels from emails
 - [ ] **Delete label** - Delete custom labels
+- [ ] **Local Search label** - Fuzzy search labels
+- [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
@@ -41,6 +44,12 @@
 - [ ] **Create calendar event** - Create new calendar events with Google Meet
 - [ ] **Update calendar event** - Modify existing calendar events
 - [ ] **Delete calendar event** - Remove calendar events
+
+## 🎨 AI Capabilities
+- [x] **Email summaritzation** - Creates a summary of the email 
+- [x] **Label assignation suggestion** - Given a email provides the label selection
+- [ ] **Reply draft suggestion** - Given a email provides a draft of the reply
+
 
 ## 🎨 UX Improvements
 
@@ -63,6 +72,7 @@
 - [ ] **Undo functionality** - Undo last action
 - [ ] **Search highlighting** - Highlight search terms in results
 - [ ] **Message threading** - Show message threads and conversations
+- [ ] **Message headers (From, To, Subject, Date, Labels)** - Use different text color for these texts
 
 ### Navigation Enhancements
 - [ ] **Quick navigation** - Jump to specific messages or labels
@@ -72,6 +82,10 @@
 - [ ] **Sort options** - Sort messages by date, sender, subject, etc.
 - [ ] **Bulk operations** - Select multiple messages for bulk actions
 - [ ] **Keyboard navigation** - Improve keyboard navigation efficiency
+
+### Message rendering
+- [ ] Markdown rendering for HTML messages.
+
 
 ## 🎨 Theme System
 
@@ -160,28 +174,6 @@
 - [ ] **Installation guide** - Create detailed installation instructions
 - [ ] **User manual** - Create user manual
 - [ ] **Developer guide** - Create developer documentation
-
----
-
-## Priority Levels
-
-### High Priority (P0)
-- Email listing and basic navigation (query_emails, get_email_by_id)
-- Theme system functionality
-- Basic help system
-- Core testing infrastructure
-
-### Medium Priority (P1)
-- Email composition and sending (create_draft, send_email, reply_email)
-- Calendar integration (list_calendars, get_calendar_events)
-- Advanced help features
-- Performance optimization
-
-### Low Priority (P2)
-- Advanced features (batch operations, labels, attachments)
-- Custom theme creation
-- Advanced testing scenarios
-- Documentation polish
 
 ---
 

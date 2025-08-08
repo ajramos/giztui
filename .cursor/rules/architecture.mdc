@@ -1,0 +1,58 @@
+---
+alwaysApply: true
+---
+
+Title: Gmail TUI Architecture & Module Boundaries
+
+Summary
+- Objective: Keep `package tui` modular and maintainable by splitting responsibilities into focused files.
+- Scope: Only internal TUI architecture. Other packages (`internal/gmail`, `internal/llm`, `internal/render`, `internal/config`) stay as-is.
+
+Directory & Files (tui/)
+- app.go: Application wiring only (App struct, NewApp, Pages/Stack/CmdBuff types). No feature logic.
+- layout.go: UI layout creation and focus indicators (initComponents, initViews, createMainLayout, updateFocusIndicators).
+- keys.go: Global key bindings and input routing (bindKeys, toggleFocus, handleCommandInput).
+- status.go: Status/flash helpers (showStatusMessage, setStatusPersistent, showError, showInfo, NewFlash).
+- messages.go: Message list & content logic (reloadMessages, loadMoreMessages, showMessage*, refreshMessageContent*, getCurrentMessageID, list formatting helpers).
+- labels.go: Label management (manageLabels, showMessageLabelsView, toggleLabelForMessage, moveSelected, showMoveLabelsView, partition/sort helpers, caches updates).
+- ai.go: LLM features (toggleAISummary, generateOrShowSummary, suggestLabel, showLabelSuggestions, showAllLabelsPicker, showCustomLabelInput, applyLabelAndRefresh).
+- markdown.go: Markdown rendering & toggle (convertHTMLToMarkdown, renderMarkdownToANSI, ansiToTview, renderMessageContent, toggleMarkdown internals & caches).
+- logging.go: Logger setup/teardown (stdout by default; file under ~/.config/gmail-tui/gmail-tui.log when available).
+- commands.go: Command bar (showCommandBar, hideCommandBar, executeCommand*, command suggestions & history).
+
+Rules & Constraints
+- UI thread safety: All UI mutations must happen via a.QueueUpdateDraw(...) (never update tview components directly from goroutines).
+- Networking: No network calls in input handlers; do them in goroutines and surface results via QueueUpdateDraw.
+- Caching: Use App-level caches (messagesMeta, ids, messageCache, aiSummaryCache, aiLabelsCache, markdownCache). Avoid RMW races; prefer compute off-thread + main-thread updates.
+- Key handling: keys.go must not implement feature logic. It only routes to functions in messages.go/labels.go/ai.go/markdown.go.
+- Logging: Use a.logger exclusively. logging.go owns initialization/teardown. Do not import log directly elsewhere.
+- Errors & status: Use status.go helpers. Avoid writing transient info inside the message content view.
+- Import hygiene: Each file imports only what it needs. Do not create circular imports inside tui.
+
+Naming & Style
+- English only for code and comments. Follow Go conventions.
+- Functions: verbs (DoX, ShowX, ToggleX), variables: full words, descriptive.
+- Keep public surface minimal inside tui (prefer unexported functions).
+
+Concurrency Patterns
+- fetch → process → a.QueueUpdateDraw(func(){ apply })
+- For heavy transforms (e.g., Markdown → ANSI), precompute off the UI thread, then SetText once.
+- Never block input handler; if needed, spawn goroutine and return.
+
+Feature Placement Guide
+- Message list/content → messages.go
+- Labels (UI + apply/remove) → labels.go
+- AI (summary, suggest labels) → ai.go
+- Markdown toggle/render → markdown.go
+- Command bar & execution → commands.go
+- Status/flash → status.go
+- Layout & focus → layout.go
+
+Testing & Safety
+- After edits in tui/, ensure go build succeeds.
+- Prefer small, incremental edits with local run verification.
+- Add logs behind a.debug when diagnosing issues; trim once stable.
+
+Change Discipline
+- Do not add new responsibilities into app.go; extend the appropriate file/module.
+- If a function grows too large, split into private helpers within the same file first.

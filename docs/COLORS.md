@@ -1,113 +1,113 @@
-# Sistema de Colores de Gmail TUI
+# Gmail TUI Color System
 
-Gmail TUI implementa un sistema de colores dinámico inspirado en k9s que permite personalizar completamente la apariencia visual de la aplicación.
+Gmail TUI implements a dynamic, k9s-inspired color system that allows full customization of the application's visual appearance.
 
-## 🎨 Arquitectura del Sistema de Colores
+## 🎨 Color System Architecture
 
-### Niveles de Configuración
+### Configuration Layers
 
-1. **Archivos YAML de Temas** (`skins/`)
-   - Definición de colores en formato YAML
-   - Temas predefinidos (dark, light)
-   - Personalización completa
+1. **Theme YAML files** (`skins/`)
+   - Colors defined in YAML
+   - Predefined themes (dark, light)
+   - Full customization
 
-2. **Configuración de Aplicación**
-   - Carga dinámica de temas
-   - Aplicación global de colores
-   - Actualización en tiempo real
+2. **Application Configuration**
+   - Dynamic theme loading
+   - Global color application
+   - Real-time updates (future work)
 
-3. **Renderizadores Específicos**
-   - Colores dinámicos por estado de email
-   - Funciones de coloreado personalizables
-   - Lógica de estado integrada
+3. **Feature-specific Renderers**
+   - Dynamic colors based on email state
+   - Pluggable color functions
+   - Built-in state logic
 
-## 📁 Estructura de Archivos
+## 📁 File Structure
 
 ```
 gmail-tui/
 ├── skins/
-│   ├── gmail-dark.yaml     # Tema oscuro (Dracula)
-│   └── gmail-light.yaml    # Tema claro
+│   ├── gmail-dark.yaml     # Dark (Dracula-inspired)
+│   └── gmail-light.yaml    # Light
 ├── internal/
 │   ├── config/
-│   │   └── colors.go       # Sistema de colores base
+│   │   └── colors.go       # Base color system
 │   └── render/
-│       └── email.go        # Renderizador de emails
+│       └── email.go        # Email renderer
 └── docs/
-    └── COLORS.md           # Esta documentación
+    └── COLORS.md          # This documentation
 ```
 
-## 🎯 Colores por Estado de Email
+## 🎯 Email State Colors
 
-### Estados Principales
+### Primary States
 
-| Estado | Color | Descripción |
-|--------|-------|-------------|
-| **No Leído** | `#ffb86c` (Naranja) | Emails nuevos sin leer |
-| **Leído** | `#6272a4` (Gris) | Emails ya leídos |
-| **Importante** | `#ff5555` (Rojo) | Emails marcados como importantes |
-| **Enviado** | `#50fa7b` (Verde) | Emails enviados por el usuario |
-| **Borrador** | `#f1fa8c` (Amarillo) | Borradores guardados |
+| State | Color | Description |
+|-------|-------|-------------|
+| **Unread** | `#ffb86c` (Orange) | New unread emails |
+| **Read** | `#6272a4` (Gray) | Already read emails |
+| **Important** | `#ff5555` (Red) | Marked as important |
+| **Sent** | `#50fa7b` (Green) | Sent by the user |
+| **Draft** | `#f1fa8c` (Yellow) | Saved drafts |
 
-### Estados Secundarios
+### Secondary States
 
-| Estado | Color | Descripción |
-|--------|-------|-------------|
-| **Remitente (No Leído)** | `#ffb86c` | Nombre del remitente destacado |
-| **Remitente (Importante)** | `#ff5555` | Remitente de email importante |
-| **Asunto (No Leído)** | `#ffffff` | Asunto en blanco brillante |
-| **Asunto (Leído)** | `#6272a4` | Asunto en gris |
+| State | Color | Description |
+|-------|-------|-------------|
+| **From (Unread)** | `#ffb86c` | Highlight sender for unread |
+| **From (Important)** | `#ff5555` | Sender of important email |
+| **Subject (Unread)** | `#ffffff` | Bright white subject |
+| **Subject (Read)** | `#6272a4` | Gray subject |
 
-## 📝 Formato de Archivos de Tema
+## 📝 Theme File Format
 
-### Estructura YAML
+### YAML Structure
 
 ```yaml
 gmailTUI:
   body:
-    fgColor: "#f8f8f2"          # Texto principal
-    bgColor: "#282a36"          # Fondo principal
+    fgColor: "#f8f8f2"          # Main text
+    bgColor: "#282a36"          # Main background
     logoColor: "#bd93f9"        # Logo
 
   frame:
     border:
-      fgColor: "#44475a"        # Bordes normales
-      focusColor: "#6272a4"     # Bordes con foco
+      fgColor: "#44475a"        # Normal borders
+      focusColor: "#6272a4"     # Focused borders
     
     title:
-      fgColor: "#f8f8f2"        # Título
-      bgColor: "#282a36"        # Fondo del título
-      highlightColor: "#f1fa8c" # Resaltado
-      counterColor: "#50fa7b"   # Contador
-      filterColor: "#8be9fd"    # Filtro
+      fgColor: "#f8f8f2"        # Title
+      bgColor: "#282a36"        # Title background
+      highlightColor: "#f1fa8c" # Highlight
+      counterColor: "#50fa7b"   # Counter
+      filterColor: "#8be9fd"    # Filter
 
   table:
-    fgColor: "#f8f8f2"          # Texto de tabla
-    bgColor: "#282a36"          # Fondo de tabla
+    fgColor: "#f8f8f2"          # Table text
+    bgColor: "#282a36"          # Table background
     headerFgColor: "#50fa7b"    # Headers
-    headerBgColor: "#282a36"    # Fondo de headers
+    headerBgColor: "#282a36"    # Header background
 
   email:
-    unreadColor: "#ffb86c"      # No leídos
-    readColor: "#6272a4"        # Leídos
-    importantColor: "#ff5555"   # Importantes
-    sentColor: "#50fa7b"        # Enviados
-    draftColor: "#f1fa8c"       # Borradores
+    unreadColor: "#ffb86c"      # Unread
+    readColor: "#6272a4"        # Read
+    importantColor: "#ff5555"   # Important
+    sentColor: "#50fa7b"        # Sent
+    draftColor: "#f1fa8c"       # Drafts
 ```
 
-### Formatos de Color Soportados
+### Supported Color Formats
 
 - **Hexadecimal**: `#ff5555`
-- **Nombres de color**: `red`, `blue`, `green`
-- **ANSI**: `1`, `2`, `3` (códigos ANSI)
-- **Default**: `default` (color por defecto del terminal)
+- **Color names**: `red`, `blue`, `green`
+- **ANSI codes**: `1`, `2`, `3`
+- **Default**: `default` (terminal default color)
 
-## 🔧 Implementación Técnica
+## 🔧 Technical Implementation
 
-### Renderizador de Emails
+### Email Renderer
 
 ```go
-// EmailColorer maneja los colores de emails
+// EmailColorer handles email colors
 type EmailColorer struct {
     UnreadColor    tcell.Color
     ReadColor      tcell.Color
@@ -116,151 +116,142 @@ type EmailColorer struct {
     DraftColor     tcell.Color
 }
 
-// ColorerFunc devuelve función de coloreo para emails
+// ColorerFunc returns a color function for emails
 func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.Color {
     return func(message *googleGmail.Message, column string) tcell.Color {
         switch strings.ToUpper(column) {
         case "STATUS":
             if ec.isUnread(message) {
-                return ec.UnreadColor  // 🔵 Azul para no leído
+                return ec.UnreadColor
             }
-            return ec.ReadColor        // ⚪ Gris para leído
-            
+            return ec.ReadColor
         case "FROM":
             if ec.isImportant(message) {
-                return ec.ImportantColor  // 🔴 Rojo para importante
+                return ec.ImportantColor
             }
             if ec.isUnread(message) {
-                return ec.UnreadColor     // 🟠 Naranja para no leído
+                return ec.UnreadColor
             }
             return tcell.ColorWhite
-            
         case "SUBJECT":
             if ec.isDraft(message) {
-                return ec.DraftColor      // 🟡 Amarillo para borrador
+                return ec.DraftColor
             }
             if ec.isSent(message) {
-                return ec.SentColor       // 🟢 Verde para enviado
+                return ec.SentColor
             }
             if ec.isUnread(message) {
-                return tcell.ColorWhite   // ⚪ Blanco brillante
+                return tcell.ColorWhite
             }
-            return ec.ReadColor           // ⚫ Gris para leído
+            return ec.ReadColor
         }
         return tcell.ColorWhite
     }
 }
 ```
 
-### Detección de Estados
+### State Detection
 
 ```go
 // Helper methods to determine email state
 func (ec *EmailColorer) isUnread(message *googleGmail.Message) bool {
-    // Check if message has UNREAD label
     for _, labelId := range message.LabelIds {
-        if labelId == "UNREAD" {
-            return true
-        }
+        if labelId == "UNREAD" { return true }
     }
     return false
 }
 
 func (ec *EmailColorer) isImportant(message *googleGmail.Message) bool {
-    // Check for important labels
     importantLabels := []string{"IMPORTANT", "PRIORITY", "URGENT"}
     for _, labelId := range message.LabelIds {
         for _, important := range importantLabels {
-            if strings.Contains(strings.ToUpper(labelId), important) {
-                return true
-            }
+            if strings.Contains(strings.ToUpper(labelId), important) { return true }
         }
     }
     return false
 }
 ```
 
-## 🎨 Temas Predefinidos
+## 🎨 Predefined Themes
 
-### Tema Oscuro (Dracula)
+### Dark (Dracula)
 
-Basado en la paleta de colores Dracula, proporciona una experiencia visual cómoda para uso nocturno.
+Inspired by the Dracula palette, optimized for low-light use.
 
-**Características:**
-- Fondo oscuro (`#282a36`)
-- Texto claro (`#f8f8f2`)
-- Acentos en púrpura (`#bd93f9`)
-- Colores semánticos para estados
+**Highlights:**
+- Dark background (`#282a36`)
+- Light text (`#f8f8f2`)
+- Purple accents (`#bd93f9`)
+- Semantic colors by state
 
-### Tema Claro
+### Light
 
-Diseñado para uso diurno y entornos con mucha luz.
+Designed for daylight and bright environments.
 
-**Características:**
-- Fondo claro (`#ecf0f1`)
-- Texto oscuro (`#2c3e50`)
-- Acentos en azul (`#3498db`)
-- Contraste optimizado
+**Highlights:**
+- Light background (`#ecf0f1`)
+- Dark text (`#2c3e50`)
+- Blue accents (`#3498db`)
+- Optimized contrast
 
-## 🚀 Uso Avanzado
+## 🚀 Advanced Usage
 
-### Crear un Tema Personalizado
+### Create a Custom Theme
 
-1. **Copiar un tema existente**:
+1. **Copy an existing theme**:
    ```bash
    cp skins/gmail-dark.yaml skins/my-theme.yaml
    ```
 
-2. **Modificar colores**:
+2. **Edit colors**:
    ```yaml
    gmailTUI:
      email:
-       unreadColor: "#ff6b6b"      # Tu color personalizado
-       readColor: "#4ecdc4"        # Otro color
+       unreadColor: "#ff6b6b"
+       readColor: "#4ecdc4"
    ```
 
-3. **Aplicar el tema**:
+3. **Apply the theme**:
    ```go
-   // En tu código
    colors := config.LoadColorsFromFile("skins/my-theme.yaml")
    app.emailRenderer.UpdateFromConfig(colors)
    ```
 
-### Colores Dinámicos
+### Dynamic Colors
 
-Los colores se aplican dinámicamente según el estado del email:
+Colors are applied dynamically based on email state:
 
-- **No leído**: Naranja brillante
-- **Importante**: Rojo de advertencia
-- **Borrador**: Amarillo de atención
-- **Enviado**: Verde de confirmación
-- **Leído**: Gris discreto
+- **Unread**: Attention-grabbing orange
+- **Important**: Warning red
+- **Draft**: Caution yellow
+- **Sent**: Confirmation green
+- **Read**: Subtle gray
 
-## 🔍 Beneficios del Sistema
+## 🔍 Benefits
 
-### Para Usuarios
+### For Users
 
-✅ **Información visual instantánea** - Estados claros sin leer texto  
-✅ **Personalización completa** - Temas adaptados a preferencias  
-✅ **Accesibilidad mejorada** - Contraste optimizado  
-✅ **Experiencia consistente** - Mismos colores en toda la app  
+✅ **Instant visual cues** — Clear states without reading text  
+✅ **Full customization** — Themes tailored to preferences  
+✅ **Improved accessibility** — Optimized contrast  
+✅ **Consistent experience** — Same colors across the app  
 
-### Para Desarrolladores
+### For Developers
 
-✅ **Arquitectura modular** - Fácil extensión  
-✅ **Configuración externa** - Sin recompilación  
-✅ **Reutilización de código** - Patrones establecidos  
-✅ **Testing simplificado** - Colores predecibles  
+✅ **Modular architecture** — Easy to extend  
+✅ **External configuration** — No recompilation  
+✅ **Code reuse** — Established patterns  
+✅ **Simplified testing** — Predictable colors  
 
-## 📋 Próximas Mejoras
+## 📋 Next Improvements
 
-- [ ] **Temas automáticos** - Detección de preferencia del sistema
-- [ ] **Transiciones suaves** - Animaciones entre temas
-- [ ] **Paletas personalizadas** - Generador de temas
-- [ ] **Exportación/Importación** - Compartir temas
-- [ ] **Modo alto contraste** - Accesibilidad avanzada
+- [ ] **Automatic themes** — Detect system preference
+- [ ] **Smooth transitions** — Animated theme switching
+- [ ] **Custom palettes** — Theme generator
+- [ ] **Export/Import** — Share themes
+- [ ] **High-contrast mode** — Advanced accessibility
 
 ---
 
-**¡El sistema de colores de Gmail TUI proporciona una experiencia visual rica y personalizable!** 🎨
+**The Gmail TUI color system delivers a rich and customizable visual experience.** 🎨
 

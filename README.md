@@ -5,26 +5,25 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 ## ✨ Features
 
 ### 📬 Core Gmail Functionality
-- ✅ View inbox, drafts, and labels
-- ✅ Read, reply, compose, and archive emails
+- ✅ View inbox and labels
+- ✅ Read emails
 - ✅ Mark as read/unread
-- ✅ Delete and move to trash
-- ✅ View attachments
+- ✅ Archive and move to trash
 - ✅ Manage labels (add, remove, create)
-- ✅ Refresh mailboxes
+- ✅ Load more messages (when list is focused)
 - ✅ Basic search and navigation support
+- 🚧 WIP: Compose, Reply, Drafts, Attachments
 
 ### 🧠 AI Features with Local LLM
 - ✅ **Summarize emails** - Generate concise email summaries
-- ✅ **Generate replies** - Create professional automatic responses
 - ✅ **Recommend labels** - Suggest appropriate labels for emails
 - ✅ **Configurable prompts** - All prompts are customizable
+- 🧪 **Generate replies** - Experimental (placeholder implementation)
 
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
 - ✅ **Multiple layout modes** - Wide, medium, narrow, and mobile layouts
 - ✅ **Real-time resizing** - Layout changes as you resize your terminal
-- ✅ **Layout information** - Press 'l' to see current layout details
 - ✅ **Fullscreen mode** - Press 'f' for fullscreen text view
 - ✅ **Focus switching** - Press 't' to toggle between list and text focus
 
@@ -143,17 +142,22 @@ The application uses a unified configuration directory structure:
 | Key | Action |
 |-----|--------|
 | `Enter` | View selected message |
-| `r` | Reply |
-| `n` | Compose new message |
-| `R` | Refresh messages |
+| `r` | Refresh (in drafts mode, reload drafts) |
+| `n` | Load more when list is focused; otherwise compose new (WIP) |
+| `R` | Reply (WIP) |
 | `s` | Search |
 | `u` | Show unread |
 | `t` | Toggle read/unread |
 | `d` | Move to trash |
 | `a` | Archive |
-| `D` | View drafts |
-| `A` | View attachments |
+| `D` | View drafts (experimental) |
+| `A` | View attachments (WIP) |
 | `l` | Manage labels |
+| `m` | Move message (choose label) |
+| `M` | Toggle Markdown rendering |
+| `y` | Toggle AI summary |
+| `g` | Generate reply (experimental) |
+| `o` | Suggest label |
 | `q` | Quit |
 
 ### AI Features (LLM)
@@ -161,7 +165,7 @@ The application uses a unified configuration directory structure:
 | Key | Action |
 |-----|--------|
 | `y` | Summarize message |
-| `g` | Generate reply |
+| `g` | Generate reply (experimental) |
 | `o` | Suggest label |
 
 #### LLM Configuration
@@ -185,7 +189,6 @@ Ollama specific legacy fields (`ollama_endpoint`, `ollama_model`, `ollama_timeou
 
 | Key | Action |
 |-----|--------|
-| `l` | Show layout information |
 | `f` | Toggle fullscreen text view |
 | `t` | Toggle focus between list and text |
 
@@ -258,7 +261,16 @@ You can customize the layout behavior in your `config.json`:
 ### Layout Features
 
 - **🔄 Auto-resize**: Layout automatically changes when you resize your terminal
-- **📊 Layout info**: Press 'l' to see current layout and screen information
 - **🔍 Fullscreen mode**: Press 'f' to view text content in fullscreen
 - **🎯 Smart focus**: Press 't' to switch focus between list and text areas
 - **⚡ Performance**: Optimized rendering for each layout type
+
+## 🎨 Themes and Color System
+
+- Skins are stored in `skins/` (`gmail-dark.yaml`, `gmail-light.yaml`, `custom-example.yaml`).
+- See the detailed documentation in `docs/COLORS.md`.
+- Email list rendering colors are driven by message state (unread, important, sent, draft) and are configurable.
+
+## 🗺️ Project Status & Roadmap
+
+- For up-to-date feature status and planned work, see `TODO.md`.

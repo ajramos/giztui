@@ -82,6 +82,7 @@ func (c *Client) GetMessageWithContent(id string) (*Message, error) {
 
 	message := &Message{Message: msg}
 	message.PlainText = ExtractPlainText(msg)
+	message.HTML = ExtractHTML(msg)
 	message.Subject = extractHeader(msg, "Subject")
 	message.From = extractHeader(msg, "From")
 	message.To = extractHeader(msg, "To")
@@ -479,6 +480,43 @@ func extractTextFromPart(part *gmail.MessagePart) string {
 	for _, p := range part.Parts {
 		if text := extractTextFromPart(p); text != "" {
 			return text
+		}
+	}
+
+	return ""
+}
+
+// ExtractHTML extracts HTML content from a Gmail message
+func ExtractHTML(msg *gmail.Message) string {
+	if msg.Payload == nil {
+		return ""
+	}
+	return extractHTMLFromPart(msg.Payload)
+}
+
+func extractHTMLFromPart(part *gmail.MessagePart) string {
+	if part == nil {
+		return ""
+	}
+
+	// If this part has html content
+	if part.Body != nil && part.Body.Data != "" && strings.EqualFold(part.MimeType, "text/html") {
+		data, err := base64.URLEncoding.DecodeString(part.Body.Data)
+		if err != nil {
+			return ""
+		}
+		// Try to decode quoted-printable just in case
+		decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(string(data))))
+		if err == nil {
+			return string(decoded)
+		}
+		return string(data)
+	}
+
+	// Recursively check parts
+	for _, p := range part.Parts {
+		if html := extractHTMLFromPart(p); html != "" {
+			return html
 		}
 	}
 
