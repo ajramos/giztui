@@ -96,7 +96,7 @@ func (a *App) manageLabels() {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
 		a.labelsVisible = false
-		a.SetFocus(a.views["text"])
+		a.SetFocus(a.views["textContainer"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
 		a.showStatusMessage("🙈 Labels ocultas")
@@ -338,7 +338,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				if l, ok := a.views["list"].(*tview.Table); ok {
 					l.SetInputCapture(nil)
 				}
-				a.SetFocus(a.views["text"])
+				a.SetFocus(a.views["textContainer"])
 				a.currentFocus = "text"
 				a.updateFocusIndicators("text")
 				return nil

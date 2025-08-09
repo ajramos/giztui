@@ -69,10 +69,16 @@ func sanitizeForTerminal(s string) string {
 func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	preferMD := a.markdownEnabled && a.markdownTogglePer[m.Id]
 	var b strings.Builder
-	rawHeader := a.emailRenderer.FormatHeaderStyled(m.Subject, m.From, m.Date, m.Labels)
+	// Update header TextView separately (tview markup)
+	if hv, ok := a.views["header"].(*tview.TextView); ok {
+		hv.SetDynamicColors(true)
+		// Set plain header text and rely on TextView color (green) for the whole block
+		hv.SetText(a.emailRenderer.FormatHeaderPlain(m.Subject, m.From, m.Date, m.Labels))
+	}
+	// Legacy combined text path for backward compatibility
 	if preferMD && m.HTML != "" {
-		// Escape header to avoid tview markup issues
-		b.WriteString(tview.Escape(rawHeader))
+		// Compose header as ANSI (green) and prepend before body
+		// Header is already set in its own view; no need to prepend here
 		// Use HTML→text rendering for stability and readability
 		width := a.screenWidth
 		if width <= 0 {
@@ -85,16 +91,17 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 		if len(txt) > maxLen {
 			txt = txt[:maxLen] + "\n(truncated)"
 		}
-		// Escape to ensure consistent rendering inside tview
-		b.WriteString(tview.Escape("\n" + txt))
-		return b.String(), false
+		// For ANSIWriter path, do NOT escape; return isANSI=true so writer parses ANSI
+		b.WriteString("\n" + txt)
+		return b.String(), true
 	}
 	// Plain text path: escape everything to avoid accidental markup parsing
 	body := sanitizeForTerminal(m.PlainText)
 	if body == "" {
 		body = "No text content available"
 	}
-	return tview.Escape(rawHeader + body), false
+	// rawHeader already contains [green] ... [-]\n\n
+	return tview.Escape(body), false
 }
 
 // toggleMarkdown toggles markdown view for current selected message and re-renders from cache

@@ -16,7 +16,7 @@ func (a *App) toggleAISummary() {
 			split.ResizeItem(a.aiSummaryView, 0, 0)
 		}
 		a.aiSummaryVisible = false
-		a.SetFocus(a.views["text"])
+		a.SetFocus(a.views["textContainer"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
 		a.showStatusMessage("🙈 AI summary hidden")

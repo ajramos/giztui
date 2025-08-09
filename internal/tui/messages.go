@@ -245,7 +245,7 @@ func (a *App) showMessage(id string) {
 	}
 
 	// Automatically switch focus to text view when viewing a message
-	a.SetFocus(a.views["text"])
+	a.SetFocus(a.views["textContainer"])
 	a.currentFocus = "text"
 	a.updateFocusIndicators("text")
 	a.currentMessageID = id

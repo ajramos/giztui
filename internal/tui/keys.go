@@ -244,7 +244,7 @@ func (a *App) toggleFocus() {
 	currentFocus := a.GetFocus()
 
 	if currentFocus == a.views["list"] {
-		a.SetFocus(a.views["text"])
+		a.SetFocus(a.views["textContainer"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
 	} else if currentFocus == a.views["text"] {

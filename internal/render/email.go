@@ -190,7 +190,23 @@ func (er *EmailRenderer) FormatEmailHeader(message *googleGmail.Message) string 
 
 // FormatHeaderStyled: simple header without colors/markup
 func (er *EmailRenderer) FormatHeaderStyled(subject, from string, date time.Time, labels []string) string {
-	return fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s\n\n",
+	// Plain styled header (tview markup): everything in green, values escaped by caller if needed
+	header := fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
+		subject, from, er.formatDate(date), strings.Join(labels, ", "))
+	return "[green]" + header + "[-]\n\n"
+}
+
+// FormatHeaderANSI returns the email header formatted using ANSI escape codes (green block)
+func (er *EmailRenderer) FormatHeaderANSI(subject, from string, date time.Time, labels []string) string {
+	header := fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
+		subject, from, er.formatDate(date), strings.Join(labels, ", "))
+	// \x1b[32m → green; \x1b[0m → reset
+	return "\x1b[32m" + header + "\x1b[0m\n\n"
+}
+
+// FormatHeaderPlain returns a plain header without markup/tags
+func (er *EmailRenderer) FormatHeaderPlain(subject, from string, date time.Time, labels []string) string {
+	return fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
 		subject, from, er.formatDate(date), strings.Join(labels, ", "))
 }
 

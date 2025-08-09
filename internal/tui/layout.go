@@ -18,14 +18,24 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 
-	// Create main text view
+		// Create header view (colored) and main text view inside a column container
+	header := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
+	header.SetBorder(false)
+	header.SetTextColor(tcell.ColorGreen)
+
 	text := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
-	text.SetBorder(true).
-		SetBorderColor(tcell.ColorGreen).
+	text.SetBorder(false)
+
+	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	textContainer.SetBorder(true).
+		SetBorderColor(tcell.ColorYellow).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
+	// Fixed height for header
+	textContainer.AddItem(header, 4, 0, false)
+	textContainer.AddItem(text, 0, 1, false)
 
 	// Create AI Summary view (hidden by default)
 	ai := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
@@ -39,6 +49,8 @@ func (a *App) initComponents() {
 	// Store components
 	a.views["list"] = list
 	a.views["text"] = text
+	a.views["header"] = header
+	a.views["textContainer"] = textContainer
 	a.aiSummaryView = ai
 
 	// Labels contextual panel container (hidden by default)
@@ -85,7 +97,7 @@ func (a *App) createMainLayout() tview.Primitive {
 
 	// Message content row: split into content | AI summary (hidden initially)
 	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
-	contentSplit.AddItem(a.views["text"], 0, 1, false)
+	contentSplit.AddItem(a.views["textContainer"], 0, 1, false)
 	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
 	contentSplit.AddItem(a.labelsView, 0, 0, false)    // hidden by default
 	a.views["contentSplit"] = contentSplit

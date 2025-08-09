@@ -7,14 +7,18 @@
 - [ ] **Get unread emails** - List unread emails with count and preview
 - [x] **Mark email as read** - Mark individual emails as read
 - [x] **Archive email** - Move emails to archive (remove from inbox)
-- [ ] **Batch archive emails** - Archive multiple emails at once
+- [x] **Batch archive emails** - Archive multiple emails at once
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [x] **Trash email** - Move emails to trash
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 - [x] **Move email to folder** - Add a label and archive the email
-- [ ] **Batch move email to folder** - Add a label and archive multiple emails
+- [x] **Batch move email to folder** - Add a label and archive multiple emails
 - [ ] **Open email in browser** - Given a email open it in the browser
+- [ ] **Move email to Spam** - Move to Spam
+- [ ] **Move email to Inbox** - Move to Inbox
+- [ ] **Order by From** - Order by from
+- [ ] **Order by From** - Order by date
 
 
 
@@ -123,6 +127,7 @@
 - [ ] **Contextual help** - Show context-specific help
 - [ ] **Help search** - Add search functionality to help system
 - [ ] **Help formatting** - Ensure help text is properly formatted
+- [ ] **Mantain a in-app log system** - A list of performed actions
 
 ## 🧪 Testing
 
