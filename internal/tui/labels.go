@@ -383,6 +383,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 // expandLabelsBrowse shows full list with search inside the side panel
 func (a *App) expandLabelsBrowse(messageID string) {
+	a.expandLabelsBrowseWithMode(messageID, false)
+}
+
+// expandLabelsBrowseWithMode shows full list with search inside the side panel.
+// If moveMode is true, selecting a label will move the message (apply + archive)
+// and then close the panel.
+func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	a.labelsExpanded = true
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
@@ -411,21 +418,127 @@ func (a *App) expandLabelsBrowse(messageID string) {
 			name := it.name
 			applied := it.applied
 			list.AddItem(display, "Enter: toggle", 0, func() {
-				a.toggleLabelForMessage(messageID, id, name, applied, func(newApplied bool, err error) {
-					if err == nil {
-						// Update local model then rerender
-						for i := range all {
-							if all[i].id == id {
-								all[i].applied = newApplied
+				if !moveMode {
+					a.toggleLabelForMessage(messageID, id, name, applied, func(newApplied bool, err error) {
+						if err == nil {
+							// Update local model then rerender
+							for i := range all {
+								if all[i].id == id {
+									all[i].applied = newApplied
+									break
+								}
+							}
+							a.updateCachedMessageLabels(messageID, id, newApplied)
+							a.updateMessageCacheLabels(messageID, name, newApplied)
+							reload(strings.TrimSpace(input.GetText()))
+							a.refreshMessageContent(messageID)
+						}
+					})
+					return
+				}
+				// Move mode: apply if needed then archive, update UI and close panel
+				go func() {
+					// Ensure label applied
+					if !applied {
+						if err := a.Client.ApplyLabel(messageID, id); err != nil {
+							a.showError("❌ Error applying label")
+							return
+						}
+						a.updateCachedMessageLabels(messageID, id, true)
+						a.updateMessageCacheLabels(messageID, name, true)
+					}
+					// Archive (remove INBOX)
+					if err := a.Client.ArchiveMessage(messageID); err != nil {
+						a.showError("❌ Error archiving")
+						return
+					}
+					// Remove from current list (safe removal pattern)
+					a.QueueUpdateDraw(func() {
+						listView, ok := a.views["list"].(*tview.List)
+						if !ok {
+							return
+						}
+						count := listView.GetItemCount()
+						if count == 0 {
+							return
+						}
+						// Hide panel fully before adjusting selection
+						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+							split.ResizeItem(a.labelsView, 0, 0)
+						}
+						a.labelsVisible = false
+						a.labelsExpanded = false
+						// Determine index of the moved message
+						removeIndex := -1
+						for i, mid := range a.ids {
+							if mid == messageID {
+								removeIndex = i
 								break
 							}
 						}
-						a.updateCachedMessageLabels(messageID, id, newApplied)
-						a.updateMessageCacheLabels(messageID, name, newApplied)
-						reload(strings.TrimSpace(input.GetText()))
-						a.refreshMessageContent(messageID)
-					}
-				})
+						if removeIndex < 0 {
+							removeIndex = listView.GetCurrentItem()
+							if removeIndex < 0 || removeIndex >= count {
+								removeIndex = 0
+							}
+						}
+						// Preselect a different index to avoid tview internal -1 during removal
+						var next = -1
+						if count > 1 {
+							pre := removeIndex - 1
+							if removeIndex == 0 {
+								pre = 1
+							}
+							if pre < 0 {
+								pre = 0
+							}
+							if pre >= count {
+								pre = count - 1
+							}
+							listView.SetCurrentItem(pre)
+							next = pre
+						}
+						// Update caches using removeIndex
+						if removeIndex >= 0 && removeIndex < len(a.ids) {
+							a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+						}
+						if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+							a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+						}
+						// Visual removal
+						if count == 1 {
+							listView.Clear()
+							next = -1
+						} else {
+							if removeIndex >= 0 && removeIndex < listView.GetItemCount() {
+								listView.RemoveItem(removeIndex)
+							}
+							if next >= 0 && next < listView.GetItemCount() {
+								listView.SetCurrentItem(next)
+							}
+						}
+						listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+						// Update message content pane
+						if text, ok := a.views["text"].(*tview.TextView); ok {
+							if next >= 0 && next < len(a.ids) {
+								go a.showMessageWithoutFocus(a.ids[next])
+							} else {
+								text.SetText("No messages")
+								text.ScrollToBeginning()
+							}
+						}
+						// Close panel and restore focus to list
+						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+							split.ResizeItem(a.labelsView, 0, 0)
+						}
+						a.labelsVisible = false
+						a.labelsExpanded = false
+						a.SetFocus(a.views["list"])
+						a.currentFocus = "list"
+						a.updateFocusIndicators("list")
+						a.showStatusMessage("📦 Moved to: " + name)
+					})
+				}()
 			})
 		}
 	}
@@ -454,9 +567,21 @@ func (a *App) expandLabelsBrowse(messageID string) {
 		a.QueueUpdateDraw(func() {
 			input.SetDoneFunc(func(key tcell.Key) {
 				if key == tcell.KeyEscape {
-					// back to quick view
-					a.labelsExpanded = false
-					a.populateLabelsQuickView(messageID)
+					if moveMode {
+						// Close the panel completely
+						a.labelsExpanded = false
+						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+							split.ResizeItem(a.labelsView, 0, 0)
+						}
+						a.labelsVisible = false
+						a.SetFocus(a.views["list"])
+						a.currentFocus = "list"
+						a.updateFocusIndicators("list")
+					} else {
+						// back to quick view
+						a.labelsExpanded = false
+						a.populateLabelsQuickView(messageID)
+					}
 					return
 				}
 			})
@@ -474,7 +599,11 @@ func (a *App) expandLabelsBrowse(messageID string) {
 
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
 			container.SetBorder(true)
-			container.SetTitle(" 🏷️ › 🔎 Browse all labels… ")
+			titleText := " 🏷️ › 🔎 Browse all labels… "
+			if moveMode {
+				titleText = " 📦 Move message to… "
+			}
+			container.SetTitle(titleText)
 			container.SetTitleColor(tcell.ColorYellow)
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
@@ -482,7 +611,11 @@ func (a *App) expandLabelsBrowse(messageID string) {
 			footer := tview.NewTextView().
 				SetDynamicColors(true).
 				SetTextAlign(tview.AlignRight)
-			footer.SetText("ESC to back  ")
+			if moveMode {
+				footer.SetText("ESC to cancel  ")
+			} else {
+				footer.SetText("ESC to back  ")
+			}
 			footer.SetTextColor(tcell.ColorGray)
 			container.AddItem(footer, 1, 0, false)
 
@@ -491,11 +624,21 @@ func (a *App) expandLabelsBrowse(messageID string) {
 				a.labelsView = container
 				split.AddItem(a.labelsView, 0, 1, true)
 			}
-			// ESC desde la lista también vuelve a la vista rápida
+			// ESC handling in list: back to quick view or close panel in move mode
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyEscape {
 					a.labelsExpanded = false
-					a.populateLabelsQuickView(messageID)
+					if moveMode {
+						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+							split.ResizeItem(a.labelsView, 0, 0)
+						}
+						a.labelsVisible = false
+						a.SetFocus(a.views["list"])
+						a.currentFocus = "list"
+						a.updateFocusIndicators("list")
+					} else {
+						a.populateLabelsQuickView(messageID)
+					}
 					return nil
 				}
 				return e
@@ -506,6 +649,24 @@ func (a *App) expandLabelsBrowse(messageID string) {
 			a.updateFocusIndicators("labels")
 		})
 	}()
+}
+
+// openMovePanel opens the side panel directly in browse-all mode to move the message
+func (a *App) openMovePanel() {
+	messageID := a.getCurrentMessageID()
+	if messageID == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	// Ensure panel is visible
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.labelsVisible = true
+	a.currentFocus = "labels"
+	a.updateFocusIndicators("labels")
+	// Open browse in move mode
+	a.expandLabelsBrowseWithMode(messageID, true)
 }
 
 // addCustomLabelInline prompts for a name and applies/creates it

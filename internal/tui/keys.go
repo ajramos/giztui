@@ -79,7 +79,8 @@ func (a *App) bindKeys() {
 			a.manageLabels()
 			return nil
 		case 'm':
-			a.moveSelected()
+			// Open move panel directly in browse-all mode
+			a.openMovePanel()
 			return nil
 		case 'M':
 			a.toggleMarkdown()

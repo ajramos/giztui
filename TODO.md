@@ -34,8 +34,10 @@
 - [X] **Create label** - Create new custom labels with visibility options
 - [X] **Apply label** - Apply labels to emails
 - [X] **Remove label** - Remove labels from emails
+- [X] **Contextual labels panel** - Side panel with quick toggle and live refresh
+- [X] **Browse all labels with search** - Full picker with incremental filter and ESC back
 - [ ] **Delete label** - Delete custom labels
-- [ ] **Local Search label** - Fuzzy search labels
+- [x] **Local Search label** - Fuzzy search labels (server-side is done; local fuzzy TBD)
 - [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
 
 ### Calendar Integration
@@ -81,7 +83,7 @@
 - [ ] **Message filtering** - Filter messages by various criteria
 - [ ] **Sort options** - Sort messages by date, sender, subject, etc.
 - [ ] **Bulk operations** - Select multiple messages for bulk actions
-- [ ] **Keyboard navigation** - Improve keyboard navigation efficiency
+- [X] **Keyboard navigation** - Tab cycles panes; arrows respect focused pane
 
 ### Message rendering
 - [ ] Markdown rendering for HTML messages.

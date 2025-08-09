@@ -152,7 +152,7 @@ The application uses a unified configuration directory structure:
 | `a` | Archive |
 | `D` | View drafts (experimental) |
 | `A` | View attachments (WIP) |
-| `l` | Manage labels |
+| `l` | Manage labels (contextual panel) |
 | `m` | Move message (choose label) |
 | `M` | Toggle Markdown rendering |
 | `y` | Toggle AI summary |
@@ -203,14 +203,31 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 
 ### 🏷️ Labels Management (Contextual)
 
-- Press `l` on a selected message to open the contextual labels view
-- Shows only actionable labels; names are human-friendly (e.g., "Social DoiT")
+- Press `l` to open a side panel with labels for the current message. The panel follows the selected message.
 - Status:
   - `✅` applied to message
   - `○` not applied
-- Toggle labels with `Enter` (non-blocking, UI updates instantly)
-- `n`: create label, `r`: refresh, `ESC`: back
-- Special handling: only `STARRED` is shown; colored star variants are hidden
+- Actions:
+  - `Enter`: toggle label (applies immediately and refreshes message content)
+  - `n`: create label, `r`: refresh
+  - `ESC`: close panel
+- Browse all labels:
+  - From the panel select “🔎 Browse all labels…” to expand a full picker with search
+  - Type to filter; `Enter` toggles; `ESC` returns to the quick panel
+- Focus rules:
+  - Tab cycles: text → labels → summary → list
+  - Arrow keys act on the currently focused pane only
+  - The app does not steal focus while background work runs
+
+### 📦 Move Message (Contextual)
+
+- Press `m` to open the side panel directly in "Browse all labels" mode
+- Type to filter labels, `Enter` on a label will:
+  - Apply the label (if not already applied)
+  - Archive the message (move semantics)
+  - Update the list and content in place
+  - Close the panel automatically
+- `ESC` closes the panel (no intermediate quick view)
 
 ### 📐 Vertical Layout
 
