@@ -581,6 +581,19 @@ func (a *App) trashSelected() {
 		}
 
 		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "summary" {
+		// From AI summary: operate on the selected row in the table
+		list, ok := a.views["list"].(*tview.Table)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex, _ = list.GetSelection()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
 	} else {
 		a.showError("❌ Unknown focus state")
 		return
@@ -703,9 +716,15 @@ func (a *App) trashSelected() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				if next >= 0 && next < len(a.ids) {
 					go a.showMessageWithoutFocus(a.ids[next])
+					if a.aiSummaryVisible {
+						go a.generateOrShowSummary(a.ids[next])
+					}
 				} else {
 					text.SetText("No messages")
 					text.ScrollToBeginning()
+					if a.aiSummaryVisible && a.aiSummaryView != nil {
+						a.aiSummaryView.SetText("")
+					}
 				}
 			}
 		})

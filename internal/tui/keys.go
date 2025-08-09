@@ -233,6 +233,9 @@ func (a *App) bindKeys() {
 				if a.labelsVisible {
 					go a.populateLabelsQuickView(id)
 				}
+				if a.aiSummaryVisible {
+					go a.generateOrShowSummary(id)
+				}
 				a.currentMessageID = id
 			}
 		})
