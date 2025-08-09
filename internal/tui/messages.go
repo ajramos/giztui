@@ -137,12 +137,20 @@ func (a *App) reloadMessages() {
 			if idx >= 0 && len(a.ids) > 0 {
 				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", idx+1, len(a.ids)))
 			}
+			// Ensure a sane initial selection (0) so dependent features work on first run
+			if list.GetItemCount() > 0 && idx < 0 {
+				list.SetCurrentItem(0)
+			}
 		}
 	})
 
-	// Set focus back to list only if we're on the main page
+	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
 	if pageName, _ := a.Pages.GetFrontPage(); pageName == "main" {
-		a.SetFocus(a.views["list"])
+		if a.currentFocus == "" || a.currentFocus == "list" {
+			a.SetFocus(a.views["list"])
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+		}
 	}
 }
 
@@ -454,86 +462,129 @@ func (a *App) getFormatWidth() int {
 
 // archiveSelected archives the selected message
 func (a *App) archiveSelected() {
-    var messageID string
-    var selectedIndex int = -1
-    if a.currentFocus == "list" {
-        list, ok := a.views["list"].(*tview.List)
-        if !ok { a.showError("❌ Could not access message list"); return }
-        selectedIndex = list.GetCurrentItem()
-        if selectedIndex < 0 || selectedIndex >= len(a.ids) { a.showError("❌ No message selected"); return }
-        messageID = a.ids[selectedIndex]
-    } else if a.currentFocus == "text" {
-        list, ok := a.views["list"].(*tview.List)
-        if !ok { a.showError("❌ Could not access message list"); return }
-        selectedIndex = list.GetCurrentItem()
-        if selectedIndex < 0 || selectedIndex >= len(a.ids) { a.showError("❌ No message selected"); return }
-        messageID = a.ids[selectedIndex]
-    } else { a.showError("❌ Unknown focus state"); return }
-    if messageID == "" { a.showError("❌ Invalid message ID"); return }
+	var messageID string
+	var selectedIndex int = -1
+	if a.currentFocus == "list" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "text" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else {
+		a.showError("❌ Unknown focus state")
+		return
+	}
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
 
-    message, err := a.Client.GetMessage(messageID)
-    if err != nil { a.showError(fmt.Sprintf("❌ Error getting message: %v", err)); return }
-    subject := "Unknown subject"
-    if message.Payload != nil && message.Payload.Headers != nil {
-        for _, header := range message.Payload.Headers { if header.Name == "Subject" { subject = header.Value; break } }
-    }
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+	subject := "Unknown subject"
+	if message.Payload != nil && message.Payload.Headers != nil {
+		for _, header := range message.Payload.Headers {
+			if header.Name == "Subject" {
+				subject = header.Value
+				break
+			}
+		}
+	}
 
-    if err := a.Client.ArchiveMessage(messageID); err != nil { a.showError(fmt.Sprintf("❌ Error archiving message: %v", err)); return }
-    a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
+	if err := a.Client.ArchiveMessage(messageID); err != nil {
+		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
+		return
+	}
+	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
 
-    // Safe UI removal (preselect another index before removing)
-    a.QueueUpdateDraw(func() {
-        list, ok := a.views["list"].(*tview.List)
-        if !ok { return }
-        count := list.GetItemCount()
-        if count == 0 { return }
+	// Safe UI removal (preselect another index before removing)
+	a.QueueUpdateDraw(func() {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			return
+		}
+		count := list.GetItemCount()
+		if count == 0 {
+			return
+		}
 
-        // Determine index to remove; prefer current selection
-        removeIndex := list.GetCurrentItem()
-        if removeIndex < 0 || removeIndex >= count { removeIndex = 0 }
+		// Determine index to remove; prefer current selection
+		removeIndex := list.GetCurrentItem()
+		if removeIndex < 0 || removeIndex >= count {
+			removeIndex = 0
+		}
 
-        // Compute pre-selection different from the removed index
-        var next = -1
-        if count > 1 {
-            pre := removeIndex - 1
-            if removeIndex == 0 { pre = 1 }
-            if pre < 0 { pre = 0 }
-            if pre >= count { pre = count - 1 }
-            list.SetCurrentItem(pre)
-            next = pre
-        }
+		// Compute pre-selection different from the removed index
+		var next = -1
+		if count > 1 {
+			pre := removeIndex - 1
+			if removeIndex == 0 {
+				pre = 1
+			}
+			if pre < 0 {
+				pre = 0
+			}
+			if pre >= count {
+				pre = count - 1
+			}
+			list.SetCurrentItem(pre)
+			next = pre
+		}
 
-        // Update caches using removeIndex
-        if removeIndex >= 0 && removeIndex < len(a.ids) {
-            a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
-        }
-        if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
-            a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
-        }
+		// Update caches using removeIndex
+		if removeIndex >= 0 && removeIndex < len(a.ids) {
+			a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+		}
+		if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
+			a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
+		}
 
-        // Visual removal
-        if count == 1 {
-            list.Clear()
-            next = -1
-        } else {
-            if removeIndex >= 0 && removeIndex < list.GetItemCount() {
-                list.RemoveItem(removeIndex)
-            }
-            // next already set to pre; clamp to new count
-            if next >= 0 && next < list.GetItemCount() { list.SetCurrentItem(next) }
-        }
+		// Visual removal
+		if count == 1 {
+			list.Clear()
+			next = -1
+		} else {
+			if removeIndex >= 0 && removeIndex < list.GetItemCount() {
+				list.RemoveItem(removeIndex)
+			}
+			// next already set to pre; clamp to new count
+			if next >= 0 && next < list.GetItemCount() {
+				list.SetCurrentItem(next)
+			}
+		}
 
-        // Update title and content
-        list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-        if text, ok := a.views["text"].(*tview.TextView); ok {
-            if next >= 0 && next < len(a.ids) {
-                go a.showMessageWithoutFocus(a.ids[next])
-            } else {
-                text.SetText("No messages")
-                text.ScrollToBeginning()
-            }
-        }
-    })
+		// Update title and content
+		list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			if next >= 0 && next < len(a.ids) {
+				go a.showMessageWithoutFocus(a.ids[next])
+			} else {
+				text.SetText("No messages")
+				text.ScrollToBeginning()
+			}
+		}
+	})
 }
 
 // replySelected replies to the selected message (placeholder)
@@ -544,31 +595,65 @@ func (a *App) showAttachments() { a.showInfo("Attachments functionality not yet 
 
 // toggleMarkReadUnread toggles UNREAD label on selected message
 func (a *App) toggleMarkReadUnread() {
-    var messageID string
-    var selectedIndex int = -1
-    if a.currentFocus == "list" {
-        list, ok := a.views["list"].(*tview.List)
-        if !ok { a.showError("❌ Could not access message list"); return }
-        selectedIndex = list.GetCurrentItem()
-        if selectedIndex < 0 || selectedIndex >= len(a.ids) { a.showError("❌ No message selected"); return }
-        messageID = a.ids[selectedIndex]
-    } else if a.currentFocus == "text" {
-        list, ok := a.views["list"].(*tview.List)
-        if !ok { a.showError("❌ Could not access message list"); return }
-        selectedIndex = list.GetCurrentItem()
-        if selectedIndex < 0 || selectedIndex >= len(a.ids) { a.showError("❌ No message selected"); return }
-        messageID = a.ids[selectedIndex]
-    } else { a.showError("❌ Unknown focus state"); return }
-    if messageID == "" { a.showError("❌ Invalid message ID"); return }
-    message, err := a.Client.GetMessage(messageID)
-    if err != nil { a.showError(fmt.Sprintf("❌ Error getting message: %v", err)); return }
-    isUnread := false
-    for _, l := range message.LabelIds { if l == "UNREAD" { isUnread = true; break } }
-    if isUnread {
-        if err := a.Client.MarkAsRead(messageID); err != nil { a.showError(fmt.Sprintf("❌ Error marking as read: %v", err)) } else { a.showStatusMessage("✅ Message marked as read") }
-    } else {
-        if err := a.Client.MarkAsUnread(messageID); err != nil { a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err)) } else { a.showStatusMessage("✅ Message marked as unread") }
-    }
+	var messageID string
+	var selectedIndex int = -1
+	if a.currentFocus == "list" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else if a.currentFocus == "text" {
+		list, ok := a.views["list"].(*tview.List)
+		if !ok {
+			a.showError("❌ Could not access message list")
+			return
+		}
+		selectedIndex = list.GetCurrentItem()
+		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
+			a.showError("❌ No message selected")
+			return
+		}
+		messageID = a.ids[selectedIndex]
+	} else {
+		a.showError("❌ Unknown focus state")
+		return
+	}
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
+	message, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		return
+	}
+	isUnread := false
+	for _, l := range message.LabelIds {
+		if l == "UNREAD" {
+			isUnread = true
+			break
+		}
+	}
+	if isUnread {
+		if err := a.Client.MarkAsRead(messageID); err != nil {
+			a.showError(fmt.Sprintf("❌ Error marking as read: %v", err))
+		} else {
+			a.showStatusMessage("✅ Message marked as read")
+		}
+	} else {
+		if err := a.Client.MarkAsUnread(messageID); err != nil {
+			a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err))
+		} else {
+			a.showStatusMessage("✅ Message marked as unread")
+		}
+	}
 }
 
 // listUnreadMessages placeholder
@@ -578,4 +663,6 @@ func (a *App) listUnreadMessages() { a.showInfo("Unread messages functionality n
 func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemented") }
 
 // composeMessage placeholder
-func (a *App) composeMessage(draft bool) { a.showInfo("Compose message functionality not yet implemented") }
+func (a *App) composeMessage(draft bool) {
+	a.showInfo("Compose message functionality not yet implemented")
+}

@@ -90,33 +90,42 @@ func (a *App) executeLabelRemove(args []string) {
 
 // manageLabels opens the labels management view for the currently selected message
 func (a *App) manageLabels() {
-	// Get the current message ID
+	// Toggle contextual panel like AI Summary
+	if a.labelsVisible {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+		a.labelsVisible = false
+		a.SetFocus(a.views["text"])
+		a.currentFocus = "text"
+		a.updateFocusIndicators("text")
+		a.showStatusMessage("🙈 Labels ocultas")
+		return
+	}
+
 	messageID := a.getCurrentMessageID()
 	if messageID == "" {
 		a.showError("❌ No message selected")
 		return
 	}
 
-	// Load all available labels
-	labels, err := a.Client.ListLabels()
-	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error loading labels: %v", err))
-		return
-	}
+	// Ensure message content is shown without stealing focus
+	a.showMessageWithoutFocus(messageID)
 
-	// Get the current message to see which labels it has
-	message, err := a.Client.GetMessage(messageID)
-	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
-		return
+	// Show panel and load quick view
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.labelsView, 0, 1)
 	}
-
-	// Create contextual labels view for the selected message
-	a.showMessageLabelsView(labels, message)
+	a.labelsVisible = true
+	a.labelsExpanded = false
+	a.currentFocus = "labels"
+	a.updateFocusIndicators("labels")
+	a.populateLabelsQuickView(messageID)
 }
 
 // showMessageLabelsView displays labels for a specific message
 func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.Message) {
+	// Backwards-compat modal; keep for command bar or future use
 	// Create labels list view
 	labelsList := tview.NewList()
 	labelsList.SetBorder(true)
@@ -241,6 +250,337 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	a.Pages.AddPage("messageLabels", labelsView, true, true)
 	a.Pages.SwitchToPage("messageLabels")
 	a.SetFocus(labelsList)
+}
+
+// populateLabelsQuickView renders current labels + quick actions in the side panel
+func (a *App) populateLabelsQuickView(messageID string) {
+	go func() {
+		msg, err := a.Client.GetMessage(messageID)
+		if err != nil {
+			a.showError("❌ Error loading message")
+			return
+		}
+		labels, err := a.Client.ListLabels()
+		if err != nil {
+			a.showError("❌ Error loading labels")
+			return
+		}
+		// Build quick view UI off-thread then apply
+		current := make(map[string]bool)
+		for _, lid := range msg.LabelIds {
+			current[lid] = true
+		}
+		applied, notApplied := a.partitionAndSortLabels(labels, current)
+
+		body := tview.NewList().ShowSecondaryText(false)
+		body.SetBorder(false)
+		// Current labels first (checked)
+		for _, l := range applied {
+			name := l.Name
+			lid := l.Id
+			body.AddItem("✅ "+name, "Enter: toggle off", 0, func() {
+				a.toggleLabelForMessage(messageID, lid, name, true, func(newApplied bool, err error) {
+					if err == nil {
+						a.updateCachedMessageLabels(messageID, lid, newApplied)
+						a.updateMessageCacheLabels(messageID, name, newApplied)
+						a.populateLabelsQuickView(messageID)
+						a.refreshMessageContent(messageID)
+					}
+				})
+			})
+		}
+		// Quick actions: first N from notApplied
+		maxQuick := 6
+		for i, l := range notApplied {
+			if i >= maxQuick {
+				break
+			}
+			name := l.Name
+			lid := l.Id
+			body.AddItem("○ "+name, "Enter: apply", 0, func() {
+				a.toggleLabelForMessage(messageID, lid, name, false, func(newApplied bool, err error) {
+					if err == nil {
+						a.updateCachedMessageLabels(messageID, lid, newApplied)
+						a.updateMessageCacheLabels(messageID, name, newApplied)
+						a.populateLabelsQuickView(messageID)
+						a.refreshMessageContent(messageID)
+					}
+				})
+			})
+		}
+		// Actions
+		body.AddItem("🔍 Browse all labels…", "Expand panel", 0, func() {
+			a.expandLabelsBrowse(messageID)
+		})
+		body.AddItem("➕ Add custom label…", "Create or apply", 0, func() {
+			a.addCustomLabelInline(messageID)
+		})
+
+		// Capture ESC in quick view to close panel
+		body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			if e.Key() == tcell.KeyEscape {
+				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+					split.ResizeItem(a.labelsView, 0, 0)
+				}
+				a.labelsVisible = false
+				// Restore list navigation
+				if l, ok := a.views["list"].(*tview.List); ok {
+					l.SetInputCapture(nil)
+				}
+				a.SetFocus(a.views["text"])
+				a.currentFocus = "text"
+				a.updateFocusIndicators("text")
+				return nil
+			}
+			// Keep focus anchored in labels list when using Up/Down
+			if e.Key() == tcell.KeyUp || e.Key() == tcell.KeyDown {
+				a.currentFocus = "labels"
+				a.updateFocusIndicators("labels")
+				return e
+			}
+			return e
+		})
+
+		container := tview.NewFlex().SetDirection(tview.FlexRow)
+		container.SetBorder(true)
+		container.SetTitle(" 🏷️ Labels ")
+		container.SetTitleColor(tcell.ColorYellow)
+		container.AddItem(body, 0, 1, true)
+
+		a.QueueUpdateDraw(func() {
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				// replace labelsView item with new container
+				split.RemoveItem(a.labelsView)
+				a.labelsView = container
+				split.AddItem(a.labelsView, 0, 1, false)
+			}
+			// While labels son visibles, solo tragamos flechas en la lista
+			// cuando el foco actual está en labels. Si el usuario cambia con
+			// Tab a la lista, las flechas deben funcionar normalmente.
+			if l, ok := a.views["list"].(*tview.List); ok {
+				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+					if a.labelsVisible && a.currentFocus == "labels" {
+						switch ev.Key() {
+						case tcell.KeyUp, tcell.KeyDown, tcell.KeyPgUp, tcell.KeyPgDn, tcell.KeyHome, tcell.KeyEnd:
+							return nil
+						}
+					}
+					return ev
+				})
+			}
+			// Solo forzar foco si ya estamos en labels (toggle inicial)
+			if a.currentFocus == "labels" {
+				a.SetFocus(body)
+				a.updateFocusIndicators("labels")
+				// Preselect first label item for proper arrow navigation
+				if body.GetItemCount() > 0 {
+					body.SetCurrentItem(0)
+				}
+			}
+		})
+	}()
+}
+
+// expandLabelsBrowse shows full list with search inside the side panel
+func (a *App) expandLabelsBrowse(messageID string) {
+	a.labelsExpanded = true
+	input := tview.NewInputField().
+		SetLabel("🔍 Search: ").
+		SetFieldWidth(30)
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(false)
+
+	// Loader
+	type labelItem struct {
+		id, name string
+		applied  bool
+	}
+	var all []labelItem
+	var reload func(filter string)
+	reload = func(filter string) {
+		list.Clear()
+		for _, it := range all {
+			if filter != "" && !strings.Contains(strings.ToLower(it.name), strings.ToLower(filter)) {
+				continue
+			}
+			display := "○ " + it.name
+			if it.applied {
+				display = "✅ " + it.name
+			}
+			id := it.id
+			name := it.name
+			applied := it.applied
+			list.AddItem(display, "Enter: toggle", 0, func() {
+				a.toggleLabelForMessage(messageID, id, name, applied, func(newApplied bool, err error) {
+					if err == nil {
+						// Update local model then rerender
+						for i := range all {
+							if all[i].id == id {
+								all[i].applied = newApplied
+								break
+							}
+						}
+						a.updateCachedMessageLabels(messageID, id, newApplied)
+						a.updateMessageCacheLabels(messageID, name, newApplied)
+						reload(strings.TrimSpace(input.GetText()))
+						a.refreshMessageContent(messageID)
+					}
+				})
+			})
+		}
+	}
+
+	go func() {
+		msg, err := a.Client.GetMessage(messageID)
+		if err != nil {
+			a.showError("❌ Error loading message")
+			return
+		}
+		labels, err := a.Client.ListLabels()
+		if err != nil {
+			a.showError("❌ Error loading labels")
+			return
+		}
+		current := make(map[string]bool)
+		for _, lid := range msg.LabelIds {
+			current[lid] = true
+		}
+		filtered := a.filterAndSortLabels(labels)
+		all = make([]labelItem, 0, len(filtered))
+		for _, l := range filtered {
+			all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
+		}
+
+		a.QueueUpdateDraw(func() {
+			input.SetDoneFunc(func(key tcell.Key) {
+				if key == tcell.KeyEscape {
+					// back to quick view
+					a.labelsExpanded = false
+					a.populateLabelsQuickView(messageID)
+					return
+				}
+			})
+			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
+			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyUp || e.Key() == tcell.KeyDown {
+					// Redirect arrow keys to the list when in the search field
+					a.SetFocus(list)
+					a.currentFocus = "labels"
+					a.updateFocusIndicators("labels")
+					return e
+				}
+				return e
+			})
+
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			container.SetBorder(true)
+			container.SetTitle(" 🏷️ › 🔎 Browse all labels… ")
+			container.SetTitleColor(tcell.ColorYellow)
+			container.AddItem(input, 3, 0, true)
+			container.AddItem(list, 0, 1, true)
+			// Footer hint (bottom-right)
+			footer := tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignRight)
+			footer.SetText("ESC to back  ")
+			footer.SetTextColor(tcell.ColorGray)
+			container.AddItem(footer, 1, 0, false)
+
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				split.RemoveItem(a.labelsView)
+				a.labelsView = container
+				split.AddItem(a.labelsView, 0, 1, true)
+			}
+			// ESC desde la lista también vuelve a la vista rápida
+			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyEscape {
+					a.labelsExpanded = false
+					a.populateLabelsQuickView(messageID)
+					return nil
+				}
+				return e
+			})
+			reload("")
+			a.SetFocus(input)
+			a.currentFocus = "labels"
+			a.updateFocusIndicators("labels")
+		})
+	}()
+}
+
+// addCustomLabelInline prompts for a name and applies/creates it
+func (a *App) addCustomLabelInline(messageID string) {
+	input := tview.NewInputField().
+		SetLabel("Label name: ").
+		SetFieldWidth(30)
+	modal := tview.NewFlex().SetDirection(tview.FlexRow)
+	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	title.SetBorder(true)
+	title.SetText("Enter a label name | Enter=apply, ESC=cancel")
+	modal.AddItem(title, 3, 0, false)
+	modal.AddItem(input, 3, 0, true)
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.populateLabelsQuickView(messageID)
+			return
+		}
+		if key == tcell.KeyEnter {
+			name := strings.TrimSpace(input.GetText())
+			if name == "" {
+				return
+			}
+			go func() {
+				// Reuse label list to find existing
+				labels, err := a.Client.ListLabels()
+				if err != nil {
+					a.showError("❌ Error loading labels")
+					return
+				}
+				nameToID := make(map[string]string)
+				for _, l := range labels {
+					nameToID[l.Name] = l.Id
+				}
+				id, ok := nameToID[name]
+				if !ok {
+					// case-insensitive match
+					for n, i := range nameToID {
+						if strings.EqualFold(n, name) {
+							id = i
+							ok = true
+							break
+						}
+					}
+				}
+				if !ok {
+					created, err := a.Client.CreateLabel(name)
+					if err != nil {
+						a.showError("❌ Error creating label")
+						return
+					}
+					id = created.Id
+				}
+				if err := a.Client.ApplyLabel(messageID, id); err != nil {
+					a.showError("❌ Error applying label")
+					return
+				}
+				a.updateCachedMessageLabels(messageID, id, true)
+				a.showStatusMessage("✅ Applied: " + name)
+				a.QueueUpdateDraw(func() { a.populateLabelsQuickView(messageID); a.refreshMessageContent(messageID) })
+			}()
+		}
+	})
+
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.RemoveItem(a.labelsView)
+			a.labelsView = modal
+			split.AddItem(a.labelsView, 0, 1, true)
+		}
+		a.SetFocus(input)
+		a.currentFocus = "labels"
+		a.updateFocusIndicators("text")
+	})
 }
 
 // toggleLabelForMessage toggles a label asynchronously and invokes onDone when finished
@@ -447,6 +787,35 @@ func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool)
 			}
 		}
 		msg.LabelIds = out
+	}
+}
+
+// updateMessageCacheLabels updates the cached full message labels (names) so the
+// rendered header reflects changes without requiring a refetch.
+func (a *App) updateMessageCacheLabels(messageID, labelName string, applied bool) {
+	if m, ok := a.messageCache[messageID]; ok && m != nil {
+		if applied {
+			// Add if missing (case-insensitive)
+			exists := false
+			for _, ln := range m.Labels {
+				if strings.EqualFold(ln, labelName) {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				m.Labels = append(m.Labels, labelName)
+			}
+		} else {
+			// Remove if present
+			out := m.Labels[:0]
+			for _, ln := range m.Labels {
+				if !strings.EqualFold(ln, labelName) {
+					out = append(out, ln)
+				}
+			}
+			m.Labels = out
+		}
 	}
 }
 

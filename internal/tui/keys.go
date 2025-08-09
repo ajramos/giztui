@@ -15,7 +15,15 @@ func (a *App) bindKeys() {
 			return a.handleCommandInput(event)
 		}
 
+		// If focus is on an input field (e.g., label search), don't intercept runes
+		switch a.GetFocus().(type) {
+		case *tview.InputField:
+			return event
+		}
+
 		// Only intercept specific keys, let navigation keys pass through
+		// Ensure arrow keys navigate the currently focused pane, not the list always
+		// tview handles arrow keys per focused primitive, so we avoid overriding them here.
 		switch event.Rune() {
 		case ':':
 			a.showCommandBar()
@@ -67,6 +75,7 @@ func (a *App) bindKeys() {
 			go a.showAttachments()
 			return nil
 		case 'l':
+			// Toggle contextual labels panel
 			a.manageLabels()
 			return nil
 		case 'm':
@@ -114,6 +123,15 @@ func (a *App) bindKeys() {
 		list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 			if index >= 0 && index < len(a.ids) {
 				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", index+1, len(a.ids)))
+				id := a.ids[index]
+				// Update message content without changing focus
+				go a.showMessageWithoutFocus(id)
+				// If labels pane is visible, refresh its content for the new message
+				if a.labelsVisible {
+					// No cambiar foco: solo refrescar contenido de labels
+					go a.populateLabelsQuickView(id)
+				}
+				a.currentMessageID = id
 			}
 		})
 	}
@@ -128,6 +146,21 @@ func (a *App) toggleFocus() {
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
 	} else if currentFocus == a.views["text"] {
+		// Cycle: text -> labels (if visible) -> summary (if visible) -> list
+		if a.labelsVisible {
+			a.SetFocus(a.labelsView)
+			a.currentFocus = "labels"
+			a.updateFocusIndicators("labels")
+		} else if a.aiSummaryVisible {
+			a.SetFocus(a.aiSummaryView)
+			a.currentFocus = "summary"
+			a.updateFocusIndicators("summary")
+		} else {
+			a.SetFocus(a.views["list"])
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+		}
+	} else if a.labelsVisible && currentFocus == a.labelsView {
 		if a.aiSummaryVisible {
 			a.SetFocus(a.aiSummaryView)
 			a.currentFocus = "summary"

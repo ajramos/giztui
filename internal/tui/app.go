@@ -77,6 +77,11 @@ type App struct {
 	debug   bool
 	logger  *log.Logger
 	logFile *os.File
+
+    // Labels contextual panel
+    labelsView     *tview.Flex
+    labelsVisible  bool
+    labelsExpanded bool
 }
 
 // Pages manages the application pages and navigation

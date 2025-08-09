@@ -40,6 +40,16 @@ func (a *App) initComponents() {
 	a.views["list"] = list
 	a.views["text"] = text
 	a.aiSummaryView = ai
+
+	// Labels contextual panel container (hidden by default)
+	labelsFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	labelsFlex.SetBorder(true).
+		SetBorderColor(tcell.ColorGray).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 🏷️ Labels ").
+		SetTitleColor(tcell.ColorYellow).
+		SetTitleAlign(tview.AlignCenter)
+	a.labelsView = labelsFlex
 }
 
 // initViews initializes the main views
@@ -77,6 +87,7 @@ func (a *App) createMainLayout() tview.Primitive {
 	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
 	contentSplit.AddItem(a.views["text"], 0, 1, false)
 	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
+	contentSplit.AddItem(a.labelsView, 0, 0, false)    // hidden by default
 	a.views["contentSplit"] = contentSplit
 	// Add message content (takes 40% of available height)
 	mainFlex.AddItem(contentSplit, 0, 40, false)
@@ -105,6 +116,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBorderColor(tcell.ColorGray)
 	}
+	if a.labelsView != nil {
+		a.labelsView.SetBorderColor(tcell.ColorGray)
+	}
 
 	// Set focused view border to bright color
 	switch focusedView {
@@ -119,6 +133,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	case "summary":
 		if a.aiSummaryView != nil {
 			a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+		}
+	case "labels":
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(tcell.ColorYellow)
 		}
 	}
 }
