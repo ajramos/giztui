@@ -28,7 +28,7 @@ func (a *App) initComponents() {
 
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	textContainer.SetBorder(true).
-		SetBorderColor(tcell.ColorYellow).
+		SetBorderColor(tcell.ColorGray).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(tcell.ColorYellow).
@@ -82,6 +82,11 @@ func (a *App) initViews() {
 
 	// Initialize focus indicators
 	a.updateFocusIndicators("list")
+	// Allow scrolling the text view when focused
+	if tv, ok := a.views["text"].(*tview.TextView); ok {
+		tv.SetChangedFunc(func() {}) // ensure internal init
+		tv.SetScrollable(true)
+	}
 }
 
 // createMainLayout creates the main application layout
@@ -131,6 +136,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if a.labelsView != nil {
 		a.labelsView.SetBorderColor(tcell.ColorGray)
 	}
+	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
+		tc.SetBorderColor(tcell.ColorGray)
+	}
 
 	// Set focused view border to bright color
 	switch focusedView {
@@ -139,8 +147,8 @@ func (a *App) updateFocusIndicators(focusedView string) {
 			list.SetBorderColor(tcell.ColorYellow)
 		}
 	case "text":
-		if text, ok := a.views["text"].(*tview.TextView); ok {
-			text.SetBorderColor(tcell.ColorYellow)
+		if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
+			tc.SetBorderColor(tcell.ColorYellow)
 		}
 	case "summary":
 		if a.aiSummaryView != nil {
@@ -158,7 +166,7 @@ func (a *App) createStatusBar() tview.Primitive {
 	status := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft).
-		SetText("Gmail TUI | Press ? for help | Press q to quit")
+		SetText("GizTUI | Press ? for help | Press q to quit")
 
 	return status
 }

@@ -377,8 +377,8 @@ func (a *App) Run() error {
 	} else {
 		// Show welcome message and load messages
 		if text, ok := a.views["text"].(*tview.TextView); ok {
-			text.SetText("Welcome to Gmail TUI!\n\n" +
-				"Loading your messages...\n\n" +
+			text.SetText("👋 Welcome to GizTUI!\n\n" +
+				"Your terminal for Gmail\n\n" +
 				"Press '?' for help or 'q' to quit")
 		}
 		// Load messages in background
