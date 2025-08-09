@@ -26,24 +26,25 @@ func (a *App) bindKeys() {
 		// tview handles arrow keys per focused primitive, so we avoid overriding them here.
 		switch event.Rune() {
 		case ' ':
-			if list, ok := a.views["list"].(*tview.List); ok {
+			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
 					a.bulkMode = true
-					idx := list.GetCurrentItem()
-					if idx >= 0 && idx < len(a.ids) {
+					r, _ := list.GetSelection()
+					if r >= 0 && r < len(a.ids) {
 						if a.selected == nil {
 							a.selected = make(map[string]bool)
 						}
-						a.selected[a.ids[idx]] = true
+						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
 					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite))
 					return nil
 				}
 				// toggle selection
-				idx := list.GetCurrentItem()
-				if idx >= 0 && idx < len(a.ids) {
-					mid := a.ids[idx]
+				r, _ := list.GetSelection()
+				if r >= 0 && r < len(a.ids) {
+					mid := a.ids[r]
 					if a.selected[mid] {
 						delete(a.selected, mid)
 					} else {
@@ -56,30 +57,32 @@ func (a *App) bindKeys() {
 			}
 		case 'b':
 			// Toggle bulk mode with 'b'
-			if list, ok := a.views["list"].(*tview.List); ok {
+			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
 					a.bulkMode = true
-					idx := list.GetCurrentItem()
-					if idx >= 0 && idx < len(a.ids) {
+					r, _ := list.GetSelection()
+					if r >= 0 && r < len(a.ids) {
 						if a.selected == nil {
 							a.selected = make(map[string]bool)
 						}
-						a.selected[a.ids[idx]] = true
+						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
 					a.setStatusPersistent("Bulk mode — space/b=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite))
 				} else {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
 					a.setStatusPersistent("")
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 				}
 				return nil
 			}
 		case '*':
 			if a.bulkMode {
-				if list, ok := a.views["list"].(*tview.List); ok {
-					count := list.GetItemCount()
+				if list, ok := a.views["list"].(*tview.Table); ok {
+					count := list.GetRowCount()
 					if count == 0 {
 						return nil
 					}
@@ -184,6 +187,9 @@ func (a *App) bindKeys() {
 				a.selected = make(map[string]bool)
 				a.reformatListItems()
 				a.setStatusPersistent("")
+				if list, ok := a.views["list"].(*tview.Table); ok {
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				}
 				return nil
 			}
 		}
@@ -213,21 +219,18 @@ func (a *App) bindKeys() {
 	})
 
 	// Enter key behavior on list; keep UI-only here
-	if list, ok := a.views["list"].(*tview.List); ok {
-		list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-			if index < len(a.ids) {
-				go a.showMessage(a.ids[index])
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		table.SetSelectedFunc(func(row, column int) {
+			if row < len(a.ids) {
+				go a.showMessage(a.ids[row])
 			}
 		})
-		list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-			if index >= 0 && index < len(a.ids) {
-				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", index+1, len(a.ids)))
-				id := a.ids[index]
-				// Update message content without changing focus
+		table.SetSelectionChangedFunc(func(row, column int) {
+			if row >= 0 && row < len(a.ids) {
+				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", row+1, len(a.ids)))
+				id := a.ids[row]
 				go a.showMessageWithoutFocus(id)
-				// If labels pane is visible, refresh its content for the new message
 				if a.labelsVisible {
-					// No cambiar foco: solo refrescar contenido de labels
 					go a.populateLabelsQuickView(id)
 				}
 				a.currentMessageID = id

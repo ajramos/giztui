@@ -435,13 +435,13 @@ func (a *App) performSearch(query string) {
 		return
 	}
 
-	if list, ok := a.views["list"].(*tview.List); ok {
+	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.Clear()
 	}
 	a.ids = []string{}
 	a.messagesMeta = []*gmailapi.Message{}
 
-	if list, ok := a.views["list"].(*tview.List); ok {
+	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetTitle(fmt.Sprintf(" 🔍 Searching: %s ", query))
 	}
 	a.Draw()
@@ -450,14 +450,14 @@ func (a *App) performSearch(query string) {
 	messages, err := a.Client.SearchMessages(query, 50)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Search error: %v", err))
-		if list, ok := a.views["list"].(*tview.List); ok {
+		if list, ok := a.views["list"].(*tview.Table); ok {
 			list.SetTitle(" ❌ Search failed ")
 		}
 		return
 	}
 
 	if len(messages) == 0 {
-		if list, ok := a.views["list"].(*tview.List); ok {
+		if list, ok := a.views["list"].(*tview.Table); ok {
 			list.SetTitle(fmt.Sprintf(" 🔍 No results for: %s ", query))
 		}
 		a.showInfo(fmt.Sprintf("🔍 No messages found for query: %s", query))
@@ -487,14 +487,15 @@ func (a *App) performSearch(query string) {
 		} else {
 			text = "○ " + text
 		}
-		if list, ok := a.views["list"].(*tview.List); ok {
-			list.AddItem(text, "", 0, nil)
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			row := table.GetRowCount()
+			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
 		}
 		a.messagesMeta = append(a.messagesMeta, meta)
 	}
 
-	if list, ok := a.views["list"].(*tview.List); ok {
-		list.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) for: %s ", len(a.ids), query))
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) for: %s ", len(a.ids), query))
 	}
 	a.SetFocus(a.views["list"])
 }
@@ -512,7 +513,7 @@ func (a *App) performSearch(query string) {
 
 // updateMessageDisplay updates the display of a specific message in the list
 func (a *App) updateMessageDisplay(index int, isUnread bool) {
-	list, ok := a.views["list"].(*tview.List)
+	table, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		return
 	}
@@ -541,8 +542,8 @@ func (a *App) updateMessageDisplay(index int, isUnread bool) {
 		formattedText = "○ " + formattedText
 	}
 
-	// Update the item in the list
-	list.SetItemText(index, formattedText, "")
+	// Update the item in the table
+	table.SetCell(index, 0, tview.NewTableCell(formattedText).SetExpansion(1))
 }
 
 func (a *App) trashSelected() {
@@ -551,14 +552,14 @@ func (a *App) trashSelected() {
 
 	// Get the current message ID based on focus
 	if a.currentFocus == "list" {
-		// Get from list view
-		list, ok := a.views["list"].(*tview.List)
+		// Get from list view (Table)
+		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
 			return
 		}
 
-		selectedIndex = list.GetCurrentItem()
+		selectedIndex, _ = list.GetSelection()
 		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
 			a.showError("❌ No message selected")
 			return
@@ -566,15 +567,14 @@ func (a *App) trashSelected() {
 
 		messageID = a.ids[selectedIndex]
 	} else if a.currentFocus == "text" {
-		// Get from text view - we need to find the currently displayed message
-		// Since we don't store the current message ID, we'll need to get it from the list
-		list, ok := a.views["list"].(*tview.List)
+		// Get from text view - read selection from Table
+		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
 			return
 		}
 
-		selectedIndex = list.GetCurrentItem()
+		selectedIndex, _ = list.GetSelection()
 		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
 			a.showError("❌ No message selected")
 			return
@@ -622,17 +622,17 @@ func (a *App) trashSelected() {
 	// Remove the message from the list and adjust selection (UI thread)
 	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
 		a.QueueUpdateDraw(func() {
-			list, ok := a.views["list"].(*tview.List)
+			list, ok := a.views["list"].(*tview.Table)
 			if !ok {
 				return
 			}
-			count := list.GetItemCount()
+			count := list.GetRowCount()
 			if count == 0 {
 				return
 			}
 
 			// Determine index to remove; fix selection if it's invalid
-			removeIndex := list.GetCurrentItem()
+			removeIndex, _ := list.GetSelection()
 			if removeIndex < 0 || removeIndex >= count {
 				removeIndex = 0
 			}
@@ -647,8 +647,8 @@ func (a *App) trashSelected() {
 				if next < 0 {
 					next = 0
 				}
-				// Ensure list has a valid current item before removal to avoid internal -1 usage
-				list.SetCurrentItem(removeIndex)
+				// Ensure table has a valid current selection before removal
+				list.Select(removeIndex, 0)
 			}
 
 			// Remove visually with safe pre-selection to avoid tview RemoveItem bug when removing current index 0
@@ -674,7 +674,7 @@ func (a *App) trashSelected() {
 				if preSelect >= count {
 					preSelect = count - 1
 				}
-				list.SetCurrentItem(preSelect)
+				list.Select(preSelect, 0)
 
 				// Update caches prior to visual removal
 				if removeIndex >= 0 && removeIndex < len(a.ids) {
@@ -685,13 +685,13 @@ func (a *App) trashSelected() {
 				}
 
 				// Now remove the visual item
-				if removeIndex >= 0 && removeIndex < list.GetItemCount() {
-					list.RemoveItem(removeIndex)
+				if removeIndex >= 0 && removeIndex < list.GetRowCount() {
+					list.RemoveRow(removeIndex)
 				}
 
 				// Determine next selection post-removal
-				next = list.GetCurrentItem()
-				if next < 0 && list.GetItemCount() > 0 {
+				next, _ = list.GetSelection()
+				if next < 0 && list.GetRowCount() > 0 {
 					next = 0
 				}
 			}

@@ -329,9 +329,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
 					a.setStatusPersistent("")
+					if l, ok := a.views["list"].(*tview.List); ok {
+						l.SetSelectedTextColor(tcell.ColorWhite)
+						l.SetSelectedBackgroundColor(tcell.ColorBlue)
+					}
 				}
 				// Restore list navigation
-				if l, ok := a.views["list"].(*tview.List); ok {
+				if l, ok := a.views["list"].(*tview.Table); ok {
 					l.SetInputCapture(nil)
 				}
 				a.SetFocus(a.views["text"])
@@ -465,7 +469,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					// Actualizar UI y cerrar panel
 					a.QueueUpdateDraw(func() {
-						listView, ok := a.views["list"].(*tview.List)
+						listView, ok := a.views["list"].(*tview.Table)
 						if !ok {
 							return
 						}
@@ -486,21 +490,21 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								if i < len(a.messagesMeta) {
 									a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 								}
-								if i < listView.GetItemCount() {
-									listView.RemoveItem(i)
+								if i < listView.GetRowCount() {
+									listView.RemoveRow(i)
 								}
 								continue
 							}
 							i++
 						}
 						// Ajustar selección y contenido
-						cur := listView.GetCurrentItem()
-						if cur >= listView.GetItemCount() {
-							cur = listView.GetItemCount() - 1
+						cur, _ := listView.GetSelection()
+						if cur >= listView.GetRowCount() {
+							cur = listView.GetRowCount() - 1
 						}
 						listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 						if cur >= 0 && cur < len(a.ids) {
-							listView.SetCurrentItem(cur)
+							listView.Select(cur, 0)
 							go a.showMessageWithoutFocus(a.ids[cur])
 						} else if tv, ok := a.views["text"].(*tview.TextView); ok {
 							tv.SetText("No messages")

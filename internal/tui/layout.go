@@ -9,8 +9,8 @@ import (
 
 // initComponents initializes the main UI components
 func (a *App) initComponents() {
-	// Create main list component
-	list := tview.NewList().ShowSecondaryText(false)
+	// Create main list component as Table to support per-row colors
+	list := tview.NewTable().SetSelectable(true, false)
 	list.SetBorder(true).
 		SetBorderColor(tcell.ColorBlue).
 		SetBorderAttributes(tcell.AttrBold).
@@ -107,7 +107,7 @@ func (a *App) createMainLayout() tview.Primitive {
 // updateFocusIndicators updates the visual indicators for the focused view
 func (a *App) updateFocusIndicators(focusedView string) {
 	// Reset all borders to default
-	if list, ok := a.views["list"].(*tview.List); ok {
+	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetBorderColor(tcell.ColorGray)
 	}
 	if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -123,7 +123,7 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	// Set focused view border to bright color
 	switch focusedView {
 	case "list":
-		if list, ok := a.views["list"].(*tview.List); ok {
+		if list, ok := a.views["list"].(*tview.Table); ok {
 			list.SetBorderColor(tcell.ColorYellow)
 		}
 	case "text":

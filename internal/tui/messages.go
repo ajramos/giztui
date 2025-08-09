@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 // reformatListItems recalculates list item strings for current screen width
 func (a *App) reformatListItems() {
-	list, ok := a.views["list"].(*tview.List)
+	table, ok := a.views["list"].(*tview.Table)
 	if !ok || len(a.ids) == 0 {
 		return
 	}
@@ -20,32 +21,63 @@ func (a *App) reformatListItems() {
 		}
 		msg := a.messagesMeta[i]
 		text, _ := a.emailRenderer.FormatEmailList(msg, a.screenWidth)
+
+		// Label flags
 		unread := false
+		starred := false
+		yellowStar := false
+		important := false
 		for _, l := range msg.LabelIds {
-			if l == "UNREAD" {
+			switch l {
+			case "UNREAD":
 				unread = true
-				break
+			case "STARRED":
+				starred = true
+			case "YELLOW_STAR":
+				yellowStar = true
+			case "IMPORTANT":
+				important = true
 			}
 		}
-		// Prefixes: unread marker always, selection checkbox only in bulk mode
+
+		// Determine base color by priority (as tcell.Color for Table)
+		var textColor tcell.Color = tcell.ColorWhite
+		if yellowStar {
+			textColor = tcell.ColorYellow
+		} else if starred {
+			textColor = tcell.ColorGreen
+		} else if important {
+			textColor = tcell.ColorRed
+		} else if !unread { // read
+			textColor = tcell.ColorGray
+		}
+
+		// Build prefixes
+		var prefix string
 		if a.bulkMode {
-			sel := "☐ "
 			if a.selected != nil && a.selected[a.ids[i]] {
-				sel = "☑ "
-			}
-			if unread {
-				text = sel + "● " + text
+				prefix = "☑ "
 			} else {
-				text = sel + "○ " + text
-			}
-		} else {
-			if unread {
-				text = "● " + text
-			} else {
-				text = "○ " + text
+				prefix = "☐ "
 			}
 		}
-		list.SetItemText(i, text, "")
+		if unread {
+			prefix += "● "
+		} else {
+			prefix += "○ "
+		}
+
+		// Build cell with explicit colors
+		final := prefix + text
+		cell := tview.NewTableCell(final).
+			SetExpansion(1).
+			SetAlign(tview.AlignLeft)
+		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
+			cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+		} else {
+			cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		}
+		table.SetCell(i, 0, cell)
 	}
 }
 
@@ -55,15 +87,15 @@ func (a *App) reloadMessages() {
 	defer a.mu.Unlock()
 
 	a.draftMode = false
-	if list, ok := a.views["list"].(*tview.List); ok {
-		list.Clear()
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		table.Clear()
 	}
 	a.ids = []string{}
 	a.messagesMeta = []*gmailapi.Message{}
 
 	// Show loading message
-	if list, ok := a.views["list"].(*tview.List); ok {
-		list.SetTitle(" 🔄 Loading messages... ")
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		table.SetTitle(" 🔄 Loading messages... ")
 	}
 	a.Draw()
 
@@ -83,8 +115,8 @@ func (a *App) reloadMessages() {
 	// Show success message if no messages
 	if len(messages) == 0 {
 		a.QueueUpdateDraw(func() {
-			if list, ok := a.views["list"].(*tview.List); ok {
-				list.SetTitle(" 📧 No messages found ")
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				table.SetTitle(" 📧 No messages found ")
 			}
 		})
 		a.showInfo("📧 No messages found in your inbox")
@@ -101,8 +133,8 @@ func (a *App) reloadMessages() {
 		// Get only metadata, not full content
 		message, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
-			if list, ok := a.views["list"].(*tview.List); ok {
-				list.AddItem(fmt.Sprintf("⚠️  Error loading message %d", i+1), "Failed to load", 0, nil)
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				table.SetCell(i, 0, tview.NewTableCell(fmt.Sprintf("⚠️  Error loading message %d", i+1)))
 			}
 			continue
 		}
@@ -125,9 +157,8 @@ func (a *App) reloadMessages() {
 			formattedText = "○ " + formattedText
 		}
 
-		if list, ok := a.views["list"].(*tview.List); ok {
-			// Add item with color using the standard method
-			list.AddItem(formattedText, "", 0, nil)
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.SetCell(i, 0, tview.NewTableCell(formattedText).SetExpansion(1))
 		}
 
 		// cache meta for resize re-rendering
@@ -135,26 +166,24 @@ func (a *App) reloadMessages() {
 
 		// Update title periodically
 		if (i+1)%10 == 0 {
-			if list, ok := a.views["list"].(*tview.List); ok {
-				list.SetTitle(fmt.Sprintf(" 🔄 Loading... (%d/%d) ", i+1, len(messages)))
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				table.SetTitle(fmt.Sprintf(" 🔄 Loading... (%d/%d) ", i+1, len(messages)))
 			}
 			a.Draw()
 		}
 	}
 
 	a.QueueUpdateDraw(func() {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-			// Also update status with current selection
-			idx := list.GetCurrentItem()
-			if idx >= 0 && len(a.ids) > 0 {
-				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", idx+1, len(a.ids)))
-			}
-			// Ensure a sane initial selection (0) so dependent features work on first run
-			if list.GetItemCount() > 0 && idx < 0 {
-				list.SetCurrentItem(0)
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+			// Ensure a sane initial selection
+			r, _ := table.GetSelection()
+			if table.GetRowCount() > 0 && r < 0 {
+				table.Select(0, 0)
 			}
 		}
+		// Apply per-row colors after initial load
+		a.reformatListItems()
 	})
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
@@ -188,32 +217,19 @@ func (a *App) loadMoreMessages() {
 			continue
 		}
 		a.messagesMeta = append(a.messagesMeta, meta)
-		text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
-		unread := false
-		for _, l := range meta.LabelIds {
-			if l == "UNREAD" {
-				unread = true
-				break
-			}
-		}
-		if unread {
-			text = "● " + text
-		} else {
-			text = "○ " + text
-		}
-		if list, ok := a.views["list"].(*tview.List); ok {
-			list.AddItem(text, "", 0, nil)
+		// Set placeholder cell; colors will be applied by reformatListItems below
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			row := table.GetRowCount()
+			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
 		}
 	}
 	a.nextPageToken = next
 	a.QueueUpdateDraw(func() {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-			idx := list.GetCurrentItem()
-			if idx >= 0 && len(a.ids) > 0 {
-				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", idx+1, len(a.ids)))
-			}
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		}
+		a.reformatListItems()
 	})
 }
 
@@ -427,11 +443,10 @@ func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []stri
 
 // getCurrentMessageID gets the ID of the currently selected message
 func (a *App) getCurrentMessageID() string {
-	// Independientemente del foco actual, usamos el índice seleccionado de la lista
-	if list, ok := a.views["list"].(*tview.List); ok {
-		selectedIndex := list.GetCurrentItem()
-		if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-			return a.ids[selectedIndex]
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.ids) {
+			return a.ids[row]
 		}
 	}
 	return ""
@@ -439,7 +454,7 @@ func (a *App) getCurrentMessageID() string {
 
 // getListWidth returns current inner width of the list view or a sensible fallback
 func (a *App) getListWidth() int {
-	if list, ok := a.views["list"].(*tview.List); ok {
+	if list, ok := a.views["list"].(*tview.Table); ok {
 		_, _, w, _ := list.GetInnerRect()
 		if w > 0 {
 			return w
@@ -453,7 +468,7 @@ func (a *App) getListWidth() int {
 
 // getFormatWidth devuelve el ancho disponible para el texto de las filas
 func (a *App) getFormatWidth() int {
-	if list, ok := a.views["list"].(*tview.List); ok {
+	if list, ok := a.views["list"].(*tview.Table); ok {
 		_, _, w, _ := list.GetInnerRect()
 		if w > 10 {
 			return w - 2
@@ -470,24 +485,24 @@ func (a *App) archiveSelected() {
 	var messageID string
 	var selectedIndex int = -1
 	if a.currentFocus == "list" {
-		list, ok := a.views["list"].(*tview.List)
+		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
 			return
 		}
-		selectedIndex = list.GetCurrentItem()
+		selectedIndex, _ = list.GetSelection()
 		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
 			a.showError("❌ No message selected")
 			return
 		}
 		messageID = a.ids[selectedIndex]
 	} else if a.currentFocus == "text" {
-		list, ok := a.views["list"].(*tview.List)
+		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
 			return
 		}
-		selectedIndex = list.GetCurrentItem()
+		selectedIndex, _ = list.GetSelection()
 		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
 			a.showError("❌ No message selected")
 			return
@@ -525,17 +540,17 @@ func (a *App) archiveSelected() {
 
 	// Safe UI removal (preselect another index before removing)
 	a.QueueUpdateDraw(func() {
-		list, ok := a.views["list"].(*tview.List)
+		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			return
 		}
-		count := list.GetItemCount()
+		count := list.GetRowCount()
 		if count == 0 {
 			return
 		}
 
 		// Determine index to remove; prefer current selection
-		removeIndex := list.GetCurrentItem()
+		removeIndex, _ := list.GetSelection()
 		if removeIndex < 0 || removeIndex >= count {
 			removeIndex = 0
 		}
@@ -553,7 +568,7 @@ func (a *App) archiveSelected() {
 			if pre >= count {
 				pre = count - 1
 			}
-			list.SetCurrentItem(pre)
+			list.Select(pre, 0)
 			next = pre
 		}
 
@@ -570,12 +585,12 @@ func (a *App) archiveSelected() {
 			list.Clear()
 			next = -1
 		} else {
-			if removeIndex >= 0 && removeIndex < list.GetItemCount() {
-				list.RemoveItem(removeIndex)
+			if removeIndex >= 0 && removeIndex < list.GetRowCount() {
+				list.RemoveRow(removeIndex)
 			}
 			// next already set to pre; clamp to new count
-			if next >= 0 && next < list.GetItemCount() {
-				list.SetCurrentItem(next)
+			if next >= 0 && next < list.GetRowCount() {
+				list.Select(next, 0)
 			}
 		}
 
@@ -614,7 +629,7 @@ func (a *App) archiveSelectedBulk() {
 		}
 		a.QueueUpdateDraw(func() {
 			// Remove all archived from current list
-			if list, ok := a.views["list"].(*tview.List); ok {
+			if list, ok := a.views["list"].(*tview.Table); ok {
 				// Build a set for quick lookup
 				rm := make(map[string]struct{}, len(ids))
 				for _, id := range ids {
@@ -628,8 +643,8 @@ func (a *App) archiveSelectedBulk() {
 						if i < len(a.messagesMeta) {
 							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 						}
-						if i < list.GetItemCount() {
-							list.RemoveItem(i)
+						if i < list.GetRowCount() {
+							list.RemoveRow(i)
 						}
 						continue
 					}
@@ -637,17 +652,17 @@ func (a *App) archiveSelectedBulk() {
 				}
 				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 				// Adjust selection and content
-				cur := list.GetCurrentItem()
-				if cur >= list.GetItemCount() {
-					cur = list.GetItemCount() - 1
+				cur, _ := list.GetSelection()
+				if cur >= list.GetRowCount() {
+					cur = list.GetRowCount() - 1
 				}
 				if cur >= 0 {
-					list.SetCurrentItem(cur)
+					list.Select(cur, 0)
 					if cur < len(a.ids) {
 						go a.showMessageWithoutFocus(a.ids[cur])
 					}
 				}
-				if list.GetItemCount() == 0 {
+				if list.GetRowCount() == 0 {
 					if tv, ok := a.views["text"].(*tview.TextView); ok {
 						tv.SetText("No messages")
 						tv.ScrollToBeginning()
@@ -740,12 +755,12 @@ func (a *App) showAttachments() { a.showInfo("Attachments functionality not yet 
 // toggleMarkReadUnread toggles UNREAD label on selected message
 func (a *App) toggleMarkReadUnread() {
 	// Use current list selection regardless of focus
-	list, ok := a.views["list"].(*tview.List)
+	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("❌ Could not access message list")
 		return
 	}
-	idx := list.GetCurrentItem()
+	idx, _ := list.GetSelection()
 	if idx < 0 || idx >= len(a.ids) {
 		a.showError("❌ No message selected")
 		return
