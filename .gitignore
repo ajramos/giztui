@@ -66,3 +66,6 @@ tmp/
 
 # Local configuration files
 config.local.json
+
+# Github inspiration references
+reference/
