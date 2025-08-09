@@ -427,19 +427,11 @@ func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []stri
 
 // getCurrentMessageID gets the ID of the currently selected message
 func (a *App) getCurrentMessageID() string {
-	if a.currentFocus == "list" {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			selectedIndex := list.GetCurrentItem()
-			if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-				return a.ids[selectedIndex]
-			}
-		}
-	} else if a.currentFocus == "text" {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			selectedIndex := list.GetCurrentItem()
-			if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-				return a.ids[selectedIndex]
-			}
+	// Independientemente del foco actual, usamos el índice seleccionado de la lista
+	if list, ok := a.views["list"].(*tview.List); ok {
+		selectedIndex := list.GetCurrentItem()
+		if selectedIndex >= 0 && selectedIndex < len(a.ids) {
+			return a.ids[selectedIndex]
 		}
 	}
 	return ""
@@ -747,65 +739,67 @@ func (a *App) showAttachments() { a.showInfo("Attachments functionality not yet 
 
 // toggleMarkReadUnread toggles UNREAD label on selected message
 func (a *App) toggleMarkReadUnread() {
-	var messageID string
-	var selectedIndex int = -1
-	if a.currentFocus == "list" {
-		list, ok := a.views["list"].(*tview.List)
-		if !ok {
-			a.showError("❌ Could not access message list")
-			return
-		}
-		selectedIndex = list.GetCurrentItem()
-		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-			a.showError("❌ No message selected")
-			return
-		}
-		messageID = a.ids[selectedIndex]
-	} else if a.currentFocus == "text" {
-		list, ok := a.views["list"].(*tview.List)
-		if !ok {
-			a.showError("❌ Could not access message list")
-			return
-		}
-		selectedIndex = list.GetCurrentItem()
-		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-			a.showError("❌ No message selected")
-			return
-		}
-		messageID = a.ids[selectedIndex]
-	} else {
-		a.showError("❌ Unknown focus state")
+	// Use current list selection regardless of focus
+	list, ok := a.views["list"].(*tview.List)
+	if !ok {
+		a.showError("❌ Could not access message list")
 		return
 	}
+	idx := list.GetCurrentItem()
+	if idx < 0 || idx >= len(a.ids) {
+		a.showError("❌ No message selected")
+		return
+	}
+	messageID := a.ids[idx]
 	if messageID == "" {
 		a.showError("❌ Invalid message ID")
 		return
 	}
-	message, err := a.Client.GetMessage(messageID)
-	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
-		return
-	}
+	// Determine unread state from cache if possible to avoid extra roundtrip
 	isUnread := false
-	for _, l := range message.LabelIds {
-		if l == "UNREAD" {
-			isUnread = true
-			break
-		}
-	}
-	if isUnread {
-		if err := a.Client.MarkAsRead(messageID); err != nil {
-			a.showError(fmt.Sprintf("❌ Error marking as read: %v", err))
-		} else {
-			a.showStatusMessage("✅ Message marked as read")
+	if idx < len(a.messagesMeta) && a.messagesMeta[idx] != nil {
+		for _, l := range a.messagesMeta[idx].LabelIds {
+			if l == "UNREAD" {
+				isUnread = true
+				break
+			}
 		}
 	} else {
-		if err := a.Client.MarkAsUnread(messageID); err != nil {
-			a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err))
-		} else {
-			a.showStatusMessage("✅ Message marked as unread")
+		// Fallback to fetching
+		message, err := a.Client.GetMessage(messageID)
+		if err == nil {
+			for _, l := range message.LabelIds {
+				if l == "UNREAD" {
+					isUnread = true
+					break
+				}
+			}
 		}
 	}
+	go func(markUnread bool) {
+		if markUnread {
+			if err := a.Client.MarkAsUnread(messageID); err != nil {
+				a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err))
+				return
+			}
+			a.showStatusMessage("✅ Message marked as unread")
+			// Update caches/UI on main thread
+			a.QueueUpdateDraw(func() {
+				a.updateCachedMessageLabels(messageID, "UNREAD", true)
+				a.reformatListItems()
+			})
+		} else {
+			if err := a.Client.MarkAsRead(messageID); err != nil {
+				a.showError(fmt.Sprintf("❌ Error marking as read: %v", err))
+				return
+			}
+			a.showStatusMessage("✅ Message marked as read")
+			a.QueueUpdateDraw(func() {
+				a.updateCachedMessageLabels(messageID, "UNREAD", false)
+				a.reformatListItems()
+			})
+		}
+	}(!isUnread)
 }
 
 // listUnreadMessages placeholder
