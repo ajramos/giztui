@@ -14,6 +14,8 @@
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 - [x] **Move email to folder** - Add a label and archive the email
 - [ ] **Batch move email to folder** - Add a label and archive multiple emails
+- [ ] **Open email in browser** - Given a email open it in the browser
+
 
 
 ### Email Composition
@@ -75,6 +77,8 @@
 - [ ] **Search highlighting** - Highlight search terms in results
 - [ ] **Message threading** - Show message threads and conversations
 - [ ] **Message headers (From, To, Subject, Date, Labels)** - Use different text color for these texts
+- [ ] **Visualization of important labels as emojis in the message lists** Each label should have an emoji
+- [ ] **Configuration for labels adding icons** Icons for each Label.
 
 ### Navigation Enhancements
 - [ ] **Quick navigation** - Jump to specific messages or labels

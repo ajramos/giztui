@@ -188,7 +188,7 @@ func (er *EmailRenderer) FormatEmailHeader(message *googleGmail.Message) string 
 	return header
 }
 
-// FormatHeaderStyled: versión simple sin colores/markup
+// FormatHeaderStyled: simple header without colors/markup
 func (er *EmailRenderer) FormatHeaderStyled(subject, from string, date time.Time, labels []string) string {
 	return fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s\n\n",
 		subject, from, er.formatDate(date), strings.Join(labels, ", "))

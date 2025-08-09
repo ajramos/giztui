@@ -27,10 +27,23 @@ func (a *App) reformatListItems() {
 				break
 			}
 		}
-		if unread {
-			text = "● " + text
+		// Prefixes: unread marker always, selection checkbox only in bulk mode
+		if a.bulkMode {
+			sel := "☐ "
+			if a.selected != nil && a.selected[a.ids[i]] {
+				sel = "☑ "
+			}
+			if unread {
+				text = sel + "● " + text
+			} else {
+				text = sel + "○ " + text
+			}
 		} else {
-			text = "○ " + text
+			if unread {
+				text = "● " + text
+			} else {
+				text = "○ " + text
+			}
 		}
 		list.SetItemText(i, text, "")
 	}
@@ -585,6 +598,145 @@ func (a *App) archiveSelected() {
 			}
 		}
 	})
+}
+
+// archiveSelectedBulk archives all selected messages
+func (a *App) archiveSelectedBulk() {
+	if len(a.selected) == 0 {
+		return
+	}
+	// Snapshot selection
+	ids := make([]string, 0, len(a.selected))
+	for id := range a.selected {
+		ids = append(ids, id)
+	}
+	a.setStatusPersistent(fmt.Sprintf("Archiving %d message(s)…", len(ids)))
+	go func() {
+		failed := 0
+		for _, id := range ids {
+			if err := a.Client.ArchiveMessage(id); err != nil {
+				failed++
+				continue
+			}
+			// Remove from UI list on main thread after loop
+		}
+		a.QueueUpdateDraw(func() {
+			// Remove all archived from current list
+			if list, ok := a.views["list"].(*tview.List); ok {
+				// Build a set for quick lookup
+				rm := make(map[string]struct{}, len(ids))
+				for _, id := range ids {
+					rm[id] = struct{}{}
+				}
+				// Walk ids and remove those that are in rm
+				i := 0
+				for i < len(a.ids) {
+					if _, ok := rm[a.ids[i]]; ok {
+						a.ids = append(a.ids[:i], a.ids[i+1:]...)
+						if i < len(a.messagesMeta) {
+							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
+						}
+						if i < list.GetItemCount() {
+							list.RemoveItem(i)
+						}
+						continue
+					}
+					i++
+				}
+				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+				// Adjust selection and content
+				cur := list.GetCurrentItem()
+				if cur >= list.GetItemCount() {
+					cur = list.GetItemCount() - 1
+				}
+				if cur >= 0 {
+					list.SetCurrentItem(cur)
+					if cur < len(a.ids) {
+						go a.showMessageWithoutFocus(a.ids[cur])
+					}
+				}
+				if list.GetItemCount() == 0 {
+					if tv, ok := a.views["text"].(*tview.TextView); ok {
+						tv.SetText("No messages")
+						tv.ScrollToBeginning()
+					}
+				}
+			}
+			a.selected = make(map[string]bool)
+			a.bulkMode = false
+			if failed == 0 {
+				a.showStatusMessage("✅ Archived")
+			} else {
+				a.showStatusMessage(fmt.Sprintf("✅ Archived with %d failure(s)", failed))
+			}
+		})
+	}()
+}
+
+// trashSelectedBulk moves all selected messages to trash
+func (a *App) trashSelectedBulk() {
+	if len(a.selected) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(a.selected))
+	for id := range a.selected {
+		ids = append(ids, id)
+	}
+	a.setStatusPersistent(fmt.Sprintf("Trashing %d message(s)…", len(ids)))
+	go func() {
+		failed := 0
+		for _, id := range ids {
+			if err := a.Client.TrashMessage(id); err != nil {
+				failed++
+			}
+		}
+		a.QueueUpdateDraw(func() {
+			if list, ok := a.views["list"].(*tview.List); ok {
+				rm := make(map[string]struct{}, len(ids))
+				for _, id := range ids {
+					rm[id] = struct{}{}
+				}
+				i := 0
+				for i < len(a.ids) {
+					if _, ok := rm[a.ids[i]]; ok {
+						a.ids = append(a.ids[:i], a.ids[i+1:]...)
+						if i < len(a.messagesMeta) {
+							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
+						}
+						if i < list.GetItemCount() {
+							list.RemoveItem(i)
+						}
+						continue
+					}
+					i++
+				}
+				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+				cur := list.GetCurrentItem()
+				if cur >= list.GetItemCount() {
+					cur = list.GetItemCount() - 1
+				}
+				if cur >= 0 {
+					list.SetCurrentItem(cur)
+					if cur < len(a.ids) {
+						go a.showMessageWithoutFocus(a.ids[cur])
+					}
+				}
+				if list.GetItemCount() == 0 {
+					if tv, ok := a.views["text"].(*tview.TextView); ok {
+						tv.SetText("No messages")
+						tv.ScrollToBeginning()
+					}
+				}
+			}
+			a.selected = make(map[string]bool)
+			a.bulkMode = false
+			if failed == 0 {
+				a.showStatusMessage("✅ Trashed")
+			} else {
+				a.showStatusMessage(fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
+			}
+		})
+	}()
 }
 
 // replySelected replies to the selected message (placeholder)

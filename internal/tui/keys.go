@@ -25,6 +25,82 @@ func (a *App) bindKeys() {
 		// Ensure arrow keys navigate the currently focused pane, not the list always
 		// tview handles arrow keys per focused primitive, so we avoid overriding them here.
 		switch event.Rune() {
+		case ' ':
+			if list, ok := a.views["list"].(*tview.List); ok {
+				if !a.bulkMode {
+					a.bulkMode = true
+					idx := list.GetCurrentItem()
+					if idx >= 0 && idx < len(a.ids) {
+						if a.selected == nil {
+							a.selected = make(map[string]bool)
+						}
+						a.selected[a.ids[idx]] = true
+					}
+					a.reformatListItems()
+					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+					return nil
+				}
+				// toggle selection
+				idx := list.GetCurrentItem()
+				if idx >= 0 && idx < len(a.ids) {
+					mid := a.ids[idx]
+					if a.selected[mid] {
+						delete(a.selected, mid)
+					} else {
+						a.selected[mid] = true
+					}
+					a.reformatListItems()
+					a.setStatusPersistent(fmt.Sprintf("Selected: %d", len(a.selected)))
+				}
+				return nil
+			}
+		case 'b':
+			// Toggle bulk mode with 'b'
+			if list, ok := a.views["list"].(*tview.List); ok {
+				if !a.bulkMode {
+					a.bulkMode = true
+					idx := list.GetCurrentItem()
+					if idx >= 0 && idx < len(a.ids) {
+						if a.selected == nil {
+							a.selected = make(map[string]bool)
+						}
+						a.selected[a.ids[idx]] = true
+					}
+					a.reformatListItems()
+					a.setStatusPersistent("Bulk mode — space/b=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+				} else {
+					a.bulkMode = false
+					a.selected = make(map[string]bool)
+					a.reformatListItems()
+					a.setStatusPersistent("")
+				}
+				return nil
+			}
+		case '*':
+			if a.bulkMode {
+				if list, ok := a.views["list"].(*tview.List); ok {
+					count := list.GetItemCount()
+					if count == 0 {
+						return nil
+					}
+					sel := 0
+					for i := 0; i < count && i < len(a.ids); i++ {
+						if a.selected[a.ids[i]] {
+							sel++
+						}
+					}
+					if sel*2 >= count {
+						a.selected = make(map[string]bool)
+					} else {
+						for i := 0; i < count && i < len(a.ids); i++ {
+							a.selected[a.ids[i]] = true
+						}
+					}
+					a.reformatListItems()
+					a.setStatusPersistent(fmt.Sprintf("Selected: %d", len(a.selected)))
+				}
+				return nil
+			}
 		case ':':
 			a.showCommandBar()
 			return nil
@@ -60,9 +136,17 @@ func (a *App) bindKeys() {
 			go a.toggleMarkReadUnread()
 			return nil
 		case 'd':
+			if a.bulkMode && len(a.selected) > 0 {
+				go a.trashSelectedBulk()
+				return nil
+			}
 			go a.trashSelected()
 			return nil
 		case 'a':
+			if a.bulkMode && len(a.selected) > 0 {
+				go a.archiveSelectedBulk()
+				return nil
+			}
 			go a.archiveSelected()
 			return nil
 		case 'R':
@@ -79,8 +163,11 @@ func (a *App) bindKeys() {
 			a.manageLabels()
 			return nil
 		case 'm':
-			// Open move panel directly in browse-all mode
-			a.openMovePanel()
+			if a.bulkMode && len(a.selected) > 0 {
+				a.openMovePanelBulk()
+			} else {
+				a.openMovePanel()
+			}
 			return nil
 		case 'M':
 			a.toggleMarkdown()
@@ -88,6 +175,17 @@ func (a *App) bindKeys() {
 		case 'o':
 			go a.suggestLabel()
 			return nil
+		}
+
+		// ESC exits bulk mode
+		if event.Key() == tcell.KeyEscape {
+			if a.bulkMode {
+				a.bulkMode = false
+				a.selected = make(map[string]bool)
+				a.reformatListItems()
+				a.setStatusPersistent("")
+				return nil
+			}
 		}
 
 		// Focus toggle

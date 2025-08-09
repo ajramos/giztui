@@ -323,6 +323,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					split.ResizeItem(a.labelsView, 0, 0)
 				}
 				a.labelsVisible = false
+				// Salir también de bulk si estaba activo
+				if a.bulkMode {
+					a.bulkMode = false
+					a.selected = make(map[string]bool)
+					a.reformatListItems()
+					a.setStatusPersistent("")
+				}
 				// Restore list navigation
 				if l, ok := a.views["list"].(*tview.List); ok {
 					l.SetInputCapture(nil)
@@ -436,107 +443,82 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					})
 					return
 				}
-				// Move mode: apply if needed then archive, update UI and close panel
+				// Move mode: aplicar etiqueta y archivar para todos los seleccionados (o el actual)
 				go func() {
-					// Ensure label applied
-					if !applied {
-						if err := a.Client.ApplyLabel(messageID, id); err != nil {
-							a.showError("❌ Error applying label")
-							return
+					// Construir conjunto de mensajes a mover
+					idsToMove := []string{messageID}
+					if a.bulkMode && len(a.selected) > 0 {
+						idsToMove = idsToMove[:0]
+						for sid := range a.selected {
+							idsToMove = append(idsToMove, sid)
 						}
-						a.updateCachedMessageLabels(messageID, id, true)
-						a.updateMessageCacheLabels(messageID, name, true)
 					}
-					// Archive (remove INBOX)
-					if err := a.Client.ArchiveMessage(messageID); err != nil {
-						a.showError("❌ Error archiving")
-						return
+					// Aplicar etiqueta y archivar (Gmail ignora duplicados en ApplyLabel)
+					failed := 0
+					for _, mid := range idsToMove {
+						if err := a.Client.ApplyLabel(mid, id); err != nil {
+							failed++
+						}
+						if err := a.Client.ArchiveMessage(mid); err != nil {
+							failed++
+						}
 					}
-					// Remove from current list (safe removal pattern)
+					// Actualizar UI y cerrar panel
 					a.QueueUpdateDraw(func() {
 						listView, ok := a.views["list"].(*tview.List)
 						if !ok {
 							return
 						}
-						count := listView.GetItemCount()
-						if count == 0 {
-							return
-						}
-						// Hide panel fully before adjusting selection
 						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
 						a.labelsVisible = false
 						a.labelsExpanded = false
-						// Determine index of the moved message
-						removeIndex := -1
-						for i, mid := range a.ids {
-							if mid == messageID {
-								removeIndex = i
-								break
-							}
+						// Eliminar todos los movidos de la lista/ids/meta
+						rm := make(map[string]struct{}, len(idsToMove))
+						for _, mid := range idsToMove {
+							rm[mid] = struct{}{}
 						}
-						if removeIndex < 0 {
-							removeIndex = listView.GetCurrentItem()
-							if removeIndex < 0 || removeIndex >= count {
-								removeIndex = 0
+						i := 0
+						for i < len(a.ids) {
+							if _, ok := rm[a.ids[i]]; ok {
+								a.ids = append(a.ids[:i], a.ids[i+1:]...)
+								if i < len(a.messagesMeta) {
+									a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
+								}
+								if i < listView.GetItemCount() {
+									listView.RemoveItem(i)
+								}
+								continue
 							}
+							i++
 						}
-						// Preselect a different index to avoid tview internal -1 during removal
-						var next = -1
-						if count > 1 {
-							pre := removeIndex - 1
-							if removeIndex == 0 {
-								pre = 1
-							}
-							if pre < 0 {
-								pre = 0
-							}
-							if pre >= count {
-								pre = count - 1
-							}
-							listView.SetCurrentItem(pre)
-							next = pre
-						}
-						// Update caches using removeIndex
-						if removeIndex >= 0 && removeIndex < len(a.ids) {
-							a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
-						}
-						if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
-							a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
-						}
-						// Visual removal
-						if count == 1 {
-							listView.Clear()
-							next = -1
-						} else {
-							if removeIndex >= 0 && removeIndex < listView.GetItemCount() {
-								listView.RemoveItem(removeIndex)
-							}
-							if next >= 0 && next < listView.GetItemCount() {
-								listView.SetCurrentItem(next)
-							}
+						// Ajustar selección y contenido
+						cur := listView.GetCurrentItem()
+						if cur >= listView.GetItemCount() {
+							cur = listView.GetItemCount() - 1
 						}
 						listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-						// Update message content pane
-						if text, ok := a.views["text"].(*tview.TextView); ok {
-							if next >= 0 && next < len(a.ids) {
-								go a.showMessageWithoutFocus(a.ids[next])
-							} else {
-								text.SetText("No messages")
-								text.ScrollToBeginning()
-							}
+						if cur >= 0 && cur < len(a.ids) {
+							listView.SetCurrentItem(cur)
+							go a.showMessageWithoutFocus(a.ids[cur])
+						} else if tv, ok := a.views["text"].(*tview.TextView); ok {
+							tv.SetText("No messages")
+							tv.ScrollToBeginning()
 						}
-						// Close panel and restore focus to list
-						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-							split.ResizeItem(a.labelsView, 0, 0)
-						}
-						a.labelsVisible = false
-						a.labelsExpanded = false
+						// Salir de bulk y quitar checkboxes
+						a.selected = make(map[string]bool)
+						a.bulkMode = false
+						a.reformatListItems()
+						a.setStatusPersistent("")
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
-						a.showStatusMessage("📦 Moved to: " + name)
+						if len(idsToMove) <= 1 && failed == 0 {
+							a.showStatusMessage("📦 Moved to: " + name)
+						} else {
+							a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+						}
 					})
 				}()
 			})
@@ -574,12 +556,24 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
 						a.labelsVisible = false
+						if a.bulkMode {
+							a.bulkMode = false
+							a.selected = make(map[string]bool)
+							a.reformatListItems()
+							a.setStatusPersistent("")
+						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
 					} else {
 						// back to quick view
 						a.labelsExpanded = false
+						if a.bulkMode {
+							a.bulkMode = false
+							a.selected = make(map[string]bool)
+							a.reformatListItems()
+							a.setStatusPersistent("")
+						}
 						a.populateLabelsQuickView(messageID)
 					}
 					return
@@ -601,7 +595,15 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			container.SetBorder(true)
 			titleText := " 🏷️ › 🔎 Browse all labels… "
 			if moveMode {
-				titleText = " 📦 Move message to… "
+				count := 1
+				if a.bulkMode && len(a.selected) > 0 {
+					count = len(a.selected)
+				}
+				if count == 1 {
+					titleText = " 📦 Move message to… "
+				} else {
+					titleText = fmt.Sprintf(" 📦 Move %d messages to… ", count)
+				}
 			}
 			container.SetTitle(titleText)
 			container.SetTitleColor(tcell.ColorYellow)
@@ -633,10 +635,22 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
 						a.labelsVisible = false
+						if a.bulkMode {
+							a.bulkMode = false
+							a.selected = make(map[string]bool)
+							a.reformatListItems()
+							a.setStatusPersistent("")
+						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
 					} else {
+						if a.bulkMode {
+							a.bulkMode = false
+							a.selected = make(map[string]bool)
+							a.reformatListItems()
+							a.setStatusPersistent("")
+						}
 						a.populateLabelsQuickView(messageID)
 					}
 					return nil
@@ -667,6 +681,32 @@ func (a *App) openMovePanel() {
 	a.updateFocusIndicators("labels")
 	// Open browse in move mode
 	a.expandLabelsBrowseWithMode(messageID, true)
+}
+
+// openMovePanelBulk opens the move panel in bulk mode with pluralized title
+func (a *App) openMovePanelBulk() {
+	// If nothing selected fallback to single
+	if len(a.selected) == 0 {
+		a.openMovePanel()
+		return
+	}
+	// Ensure panel visible
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.labelsVisible = true
+	a.currentFocus = "labels"
+	a.updateFocusIndicators("labels")
+	// Use any selected message to populate current labels; choose the current focus message if selected, else any
+	mid := a.getCurrentMessageID()
+	if mid == "" || !a.selected[mid] {
+		for id := range a.selected {
+			mid = id
+			break
+		}
+	}
+	// Reuse browse with moveMode; title inside will be adjusted by len(a.selected) later if needed
+	a.expandLabelsBrowseWithMode(mid, true)
 }
 
 // addCustomLabelInline prompts for a name and applies/creates it

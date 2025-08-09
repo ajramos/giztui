@@ -78,10 +78,14 @@ type App struct {
 	logger  *log.Logger
 	logFile *os.File
 
-    // Labels contextual panel
-    labelsView     *tview.Flex
-    labelsVisible  bool
-    labelsExpanded bool
+	// Labels contextual panel
+	labelsView     *tview.Flex
+	labelsVisible  bool
+	labelsExpanded bool
+
+	// Bulk selection
+	selected map[string]bool // messageID -> selected
+	bulkMode bool
 }
 
 // Pages manages the application pages and navigation
@@ -217,6 +221,8 @@ func NewApp(client *gmail.Client, llmClient *llm.Client, cfg *config.Config) *Ap
 		debug:             true,
 		logger:            log.New(os.Stdout, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds),
 		logFile:           nil,
+		selected:          make(map[string]bool),
+		bulkMode:          false,
 	}
 
 	// Initialize file logger (logging.go)
