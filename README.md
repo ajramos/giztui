@@ -185,6 +185,26 @@ You can use a pluggable LLM provider (Ollama by default). Configure in `~/.confi
 
 Ollama specific legacy fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) are still supported for backward compatibility.
 
+#### Prompt templates
+
+Prompts for AI features are configurable via `~/.config/gmail-tui/config.json`.
+
+- `summarize_prompt`: Used when pressing `y` to summarize the current email. Supports the placeholder `{{body}}` which is replaced with the email plain text.
+- `label_prompt`: Used when pressing `o` to suggest labels. Supports placeholders `{{labels}}` (comma-separated list of allowed labels) and `{{body}}` (email plain text).
+
+Example configuration snippet:
+
+```json
+{
+  "summarize_prompt": "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
+  "label_prompt": "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
+}
+```
+
+Notes:
+- If a prompt is empty or missing, a sensible default will be used.
+- Changes to `config.json` are picked up on application start. Please restart the app after editing the configuration.
+
 ### Layout Controls
 
 | Key | Action |

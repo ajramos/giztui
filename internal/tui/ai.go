@@ -96,7 +96,13 @@ func (a *App) generateOrShowSummary(messageID string) {
 		if len([]rune(body)) > 8000 {
 			body = string([]rune(body)[:8000])
 		}
-		resp, err := a.LLM.Generate("Summarize in 3 bullet points (keep language).\n\n" + body)
+		// Build prompt from configuration template, with a sensible fallback
+		template := strings.TrimSpace(a.Config.SummarizePrompt)
+		if template == "" {
+			template = "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo."
+		}
+		prompt := strings.ReplaceAll(template, "{{body}}", body)
+		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
 			a.QueueUpdateDraw(func() { a.aiSummaryView.SetText("⚠️ LLM error"); a.showStatusMessage("⚠️ LLM error") })
 			delete(a.aiInFlight, id)
@@ -153,7 +159,13 @@ func (a *App) suggestLabel() {
 		if len([]rune(body)) > 6000 {
 			body = string([]rune(body)[:6000])
 		}
-		prompt := "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: " + strings.Join(allowed, ", ") + "\n\nEmail:\n" + body
+		// Build prompt from configuration template, with a sensible fallback
+		template := strings.TrimSpace(a.Config.LabelPrompt)
+		if template == "" {
+			template = "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
+		}
+		tmpl := strings.ReplaceAll(template, "{{labels}}", strings.Join(allowed, ", "))
+		prompt := strings.ReplaceAll(tmpl, "{{body}}", body)
 		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
 			a.showStatusMessage("⚠️ LLM error")
