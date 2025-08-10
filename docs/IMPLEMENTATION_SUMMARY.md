@@ -251,3 +251,54 @@ go run examples/theme_demo.go
 
 The Gmail TUI color system is fully implemented and functional. 🎨✨
 
+---
+
+# Implementation Notes: Welcome Screen Improvements
+
+## 🎯 Achieved Goal
+
+Implemented a structured, actionable Welcome screen consistent with the TUI architecture. Removed inline text from `app.go`, added loading/setup states, and displayed the authenticated account email.
+
+## 🏗️ Implemented Architecture
+
+- New module: `internal/tui/welcome.go`
+  - `createWelcomeView(loading bool, accountEmail string) tview.Primitive`
+  - `showWelcomeScreen(loading bool, accountEmail string)`
+  - `buildWelcomeText(loading bool, accountEmail string, dots int) string`
+- `internal/tui/app.go`
+  - Replaced direct `TextView` writes with `showWelcomeScreen(...)` in `Run()`.
+  - Added lifecycle flags: `uiReady`, `welcomeAnimating`, `welcomeEmail` to avoid deadlocks and duplicate animations, and to show the account email when fetched.
+  - First render is applied directly if UI loop not started; subsequent updates via `QueueUpdateDraw`.
+  - Continues loading inbox via `go a.reloadMessages()`.
+- `internal/gmail/client.go`
+  - `ActiveAccountEmail(ctx)` implemented using `Users.GetProfile("me")` with simple caching.
+
+## 📱 UX Behavior
+
+- Loading state (client present):
+  - Title, short description, quick actions `[? Help] [s Search] [u Unread] [: Commands]`.
+  - Animated dots for “⏳ Loading inbox…”.
+  - Asynchronously fetch and display `Account: user@example.com`.
+- Setup state (no client):
+  - Compact steps showing credentials path from `config.DefaultCredentialPaths()`.
+- Errors: surfaced via status helpers; welcome remains stable.
+
+## 🧵 Thread Safety
+
+- UI updates after the loop starts are wrapped in `a.QueueUpdateDraw(...)`.
+- The initial paint avoids `QueueUpdateDraw` to prevent a deadlock before `Run()` starts the loop.
+- Spinner guarded by `welcomeAnimating`.
+
+## 🎨 Visual
+
+- Themed tview markup with correct color tag closures `[-:-:-]`.
+- Emojis and concise layout consistent with the rest of the TUI.
+
+## ✅ Tests Performed
+
+- Build: `go build ./...` succeeded.
+- Manual:
+  - With credentials: Welcome shows loading + account email; list loads and replaces welcome.
+  - Without credentials: Setup guide renders; app responsive.
+  - Shortcuts at welcome: `?`, `s`, `u`, `:` work.
+
