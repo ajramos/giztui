@@ -205,14 +205,15 @@ func (a *App) bindKeys() {
 			}
 		}
 
+		// Advanced search (Ctrl+F) global binding
+		if (event.Key() == tcell.KeyCtrlF) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'f') {
+			a.openAdvancedSearchForm()
+			return nil
+		}
+
 		// Focus toggle
 		if event.Key() == tcell.KeyTab {
 			a.toggleFocus()
-			return nil
-		}
-		// Advanced search (Ctrl+F)
-		if (event.Modifiers()&tcell.ModCtrl) != 0 && (event.Rune() == 'f' || event.Key() == tcell.KeyCtrlF) {
-			a.openAdvancedSearchForm()
 			return nil
 		}
 

@@ -294,18 +294,22 @@ func (a *App) openSearchOverlay(mode string) {
 		title = "🔎 Local Filter"
 	}
 
+	ph := "e.g., from:user@domain.com subject:\"report\" is:unread label:work"
+	if mode == "local" {
+		ph = "Type words to match (space-separated)"
+	}
 	input := tview.NewInputField().
 		SetLabel("").
 		SetFieldWidth(0).
-		SetPlaceholder("e.g., from:user@domain.com subject:report is:unread or plain text for local")
+		SetPlaceholder(ph)
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
 	help.SetTextColor(tcell.ColorGray)
 	if mode == "remote" {
-		help.SetText("Pulsa Ctrl+F para búsqueda avanzada | Enter=buscar, Ctrl-T=cambiar, ESC=cancelar")
+		help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 	} else {
-		help.SetText("Pulsa Ctrl+F para búsqueda avanzada | Enter=aplicar, Ctrl-T=cambiar, ESC=limpiar")
+		help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
 	}
 
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -372,22 +376,30 @@ func (a *App) openSearchOverlay(mode string) {
 		}
 	})
 	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		if ev.Modifiers() == tcell.ModCtrl && ev.Rune() == 't' {
+		// Ctrl+T: toggle remote/local (support both KeyCtrlT and modifier+rune)
+		if ev.Key() == tcell.KeyCtrlT || ((ev.Modifiers()&tcell.ModCtrl) != 0 && ev.Rune() == 't') {
 			if curMode == "remote" {
 				curMode = "local"
 				box.SetTitle("🔎 Local Filter")
-				help.SetText("Tokens: from: subject: label: is:unread|starred|important text… | Enter=apply, Ctrl-T=switch, ESC=clear")
+				help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
+				input.SetPlaceholder("Type words to match (space-separated)")
 				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 					sp.SetTitle("🔎 Local Filter")
 				}
 			} else {
 				curMode = "remote"
 				box.SetTitle("🔍 Gmail Search")
-				help.SetText("Operators: from: to: subject: label: has:attachment is:unread older_than:7d newer_than:1d | Enter=search, Ctrl-T=switch, ESC=cancel")
+				help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
+				input.SetPlaceholder("e.g., from:user@domain.com subject:\"report\" is:unread label:work")
 				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 					sp.SetTitle("🔍 Gmail Search")
 				}
 			}
+			return nil
+		}
+		// Ctrl+F: open advanced search form
+		if ev.Key() == tcell.KeyCtrlF || ((ev.Modifiers()&tcell.ModCtrl) != 0 && ev.Rune() == 'f') {
+			a.openAdvancedSearchForm()
 			return nil
 		}
 		if ev.Key() == tcell.KeyTab {
@@ -445,33 +457,43 @@ func (a *App) openSearchOverlay(mode string) {
 
 // openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
 func (a *App) openAdvancedSearchForm() {
-	// Build form fields
-	form := tview.NewForm().
-		AddInputField("From", "", 0, nil, nil).
-		AddInputField("To", "", 0, nil, nil).
-		AddInputField("Subject", "", 0, nil, nil).
-		AddInputField("Label", "", 0, nil, nil).
-		AddCheckbox("Unread", false, nil).
-		AddCheckbox("Starred", false, nil).
-		AddCheckbox("Important", false, nil).
-		AddInputField("Has: attachment (yes/no)", "", 0, nil, nil).
-		AddInputField("Older than (e.g., 7d)", "", 0, nil, nil).
-		AddInputField("Newer than (e.g., 1d)", "", 0, nil, nil)
+	// Build form fields similar to Gmail advanced search
+	form := tview.NewForm()
+	form.AddInputField("From", "", 0, nil, nil)
+	form.AddInputField("To", "", 0, nil, nil)
+	form.AddInputField("Subject", "", 0, nil, nil)
+	form.AddInputField("Has the words", "", 0, nil, nil)
+	form.AddInputField("Doesn't have", "", 0, nil, nil)
+	// Size comparator/value/unit
+	cmpOptions := []string{"greater than", "less than"}
+	unitOptions := []string{"MB", "KB"}
+	var cmpIdx, unitIdx int
+	var sizeValue string
+	form.AddDropDown("Size", cmpOptions, 0, func(option string, index int) { cmpIdx = index })
+	form.AddInputField("Size value", "", 6, nil, func(text string) { sizeValue = text })
+	form.AddDropDown("Size unit", unitOptions, 0, func(option string, index int) { unitIdx = index })
+	// Date within value/unit
+	dateUnits := []string{"day", "week", "month", "year"}
+	var dateVal string
+	var dateUnitIdx int
+	form.AddInputField("Date within", "", 6, nil, func(text string) { dateVal = text })
+	form.AddDropDown("Date unit", dateUnits, 0, func(option string, index int) { dateUnitIdx = index })
+	// Scope
+	scopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
+	var scopeIdx int
+	form.AddDropDown("Search", scopes, 0, func(option string, index int) { scopeIdx = index })
+	// Attachment
+	var hasAttachment bool
+	form.AddCheckbox("Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
+
 	form.SetButtonsAlign(tview.AlignRight)
 	form.AddButton("Search", func() {
-		// Collect values
 		from := form.GetFormItemByLabel("From").(*tview.InputField).GetText()
 		to := form.GetFormItemByLabel("To").(*tview.InputField).GetText()
 		subject := form.GetFormItemByLabel("Subject").(*tview.InputField).GetText()
-		label := form.GetFormItemByLabel("Label").(*tview.InputField).GetText()
-		unread := form.GetFormItemByLabel("Unread").(*tview.Checkbox).IsChecked()
-		starred := form.GetFormItemByLabel("Starred").(*tview.Checkbox).IsChecked()
-		important := form.GetFormItemByLabel("Important").(*tview.Checkbox).IsChecked()
-		hasAttach := strings.TrimSpace(form.GetFormItemByLabel("Has: attachment (yes/no)").(*tview.InputField).GetText())
-		older := strings.TrimSpace(form.GetFormItemByLabel("Older than (e.g., 7d)").(*tview.InputField).GetText())
-		newer := strings.TrimSpace(form.GetFormItemByLabel("Newer than (e.g., 1d)").(*tview.InputField).GetText())
+		hasWords := form.GetFormItemByLabel("Has the words").(*tview.InputField).GetText()
+		notWords := form.GetFormItemByLabel("Doesn't have").(*tview.InputField).GetText()
 
-		// Build Gmail query
 		parts := []string{}
 		if from != "" {
 			parts = append(parts, fmt.Sprintf("from:%s", from))
@@ -482,30 +504,52 @@ func (a *App) openAdvancedSearchForm() {
 		if subject != "" {
 			parts = append(parts, fmt.Sprintf("subject:%q", subject))
 		}
-		if label != "" {
-			parts = append(parts, fmt.Sprintf("label:%s", label))
+		if hasWords != "" {
+			parts = append(parts, hasWords)
 		}
-		if unread {
-			parts = append(parts, "is:unread")
+		if notWords != "" {
+			parts = append(parts, fmt.Sprintf("-%s", notWords))
 		}
-		if starred {
+		// Size
+		if strings.TrimSpace(sizeValue) != "" {
+			suffix := "m"
+			if unitIdx == 1 {
+				suffix = "k"
+			}
+			if cmpIdx == 0 {
+				parts = append(parts, fmt.Sprintf("larger:%s%s", sizeValue, suffix))
+			} else {
+				parts = append(parts, fmt.Sprintf("smaller:%s%s", sizeValue, suffix))
+			}
+		}
+		// Date within -> newer_than
+		if strings.TrimSpace(dateVal) != "" {
+			du := []string{"d", "w", "m", "y"}[dateUnitIdx]
+			parts = append(parts, fmt.Sprintf("newer_than:%s%s", dateVal, du))
+		}
+		// Scope
+		switch scopes[scopeIdx] {
+		case "Inbox":
+			parts = append(parts, "in:inbox")
+		case "Sent":
+			parts = append(parts, "in:sent")
+		case "Drafts":
+			parts = append(parts, "in:draft")
+		case "Spam":
+			parts = append(parts, "in:spam")
+		case "Trash":
+			parts = append(parts, "in:trash")
+		case "Starred":
 			parts = append(parts, "is:starred")
-		}
-		if important {
+		case "Important":
 			parts = append(parts, "is:important")
 		}
-		if strings.EqualFold(hasAttach, "yes") || strings.EqualFold(hasAttach, "y") || strings.EqualFold(hasAttach, "true") {
+		if hasAttachment {
 			parts = append(parts, "has:attachment")
 		}
-		if older != "" {
-			parts = append(parts, fmt.Sprintf("older_than:%s", older))
-		}
-		if newer != "" {
-			parts = append(parts, fmt.Sprintf("newer_than:%s", newer))
-		}
+
 		q := strings.Join(parts, " ")
 
-		// Close panel and run search
 		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 			lc.Clear()
 			lc.AddItem(a.views["searchPanel"], 0, 0, false)
@@ -527,6 +571,20 @@ func (a *App) openAdvancedSearchForm() {
 		a.SetFocus(a.views["list"])
 	})
 	form.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		if ev.Key() == tcell.KeyEscape {
+			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+				lc.Clear()
+				lc.AddItem(a.views["searchPanel"], 0, 0, false)
+				lc.AddItem(a.views["list"], 0, 1, true)
+			}
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+			return nil
+		}
+		return ev
+	})
 
 	// Mount form into searchPanel area splitting list (top form, bottom list)
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
