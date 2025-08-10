@@ -612,34 +612,67 @@ func (a *App) openAdvancedSearchForm() {
 
 // applyLocalFilter filters current in-memory messages based on a simple expression
 func (a *App) applyLocalFilter(expr string) {
-	a.searchMode = "local"
-	a.localFilter = expr
+	// Compute matches off the UI thread
 	tokens := strings.Fields(strings.ToLower(expr))
-	if table, ok := a.views["list"].(*tview.Table); ok {
-		table.Clear()
-		count := 0
-		for _, m := range a.messagesMeta {
-			if m == nil {
-				continue
-			}
-			text, _ := a.emailRenderer.FormatEmailList(m, a.getFormatWidth())
-			content := strings.ToLower(text)
-			match := true
-			for _, t := range tokens {
-				if !strings.Contains(content, t) {
-					match = false
-					break
+	filteredIDs := make([]string, 0, len(a.ids))
+	filteredMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
+	rows := make([]string, 0, len(a.messagesMeta))
+
+	for i, m := range a.messagesMeta {
+		if m == nil {
+			continue
+		}
+		// Build a rich searchable string: Subject, From, To, Snippet
+		var subject, from, to string
+		if m.Payload != nil {
+			for _, h := range m.Payload.Headers {
+				switch strings.ToLower(h.Name) {
+				case "subject":
+					subject = h.Value
+				case "from":
+					from = h.Value
+				case "to":
+					to = h.Value
 				}
 			}
-			if !match {
-				continue
-			}
-			table.SetCell(count, 0, tview.NewTableCell(text).SetExpansion(1))
-			count++
 		}
-		table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", count, expr))
-		a.reformatListItems()
+		content := strings.ToLower(subject + " " + from + " " + to + " " + m.Snippet)
+		match := true
+		for _, t := range tokens {
+			if !strings.Contains(content, t) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		filteredIDs = append(filteredIDs, a.ids[i])
+		filteredMeta = append(filteredMeta, m)
+		// Render the row text for display using the renderer
+		line, _ := a.emailRenderer.FormatEmailList(m, a.getFormatWidth())
+		rows = append(rows, line)
 	}
+
+	// Apply results on UI thread
+	a.QueueUpdateDraw(func() {
+		a.searchMode = "local"
+		a.localFilter = expr
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+			for i, text := range rows {
+				table.SetCell(i, 0, tview.NewTableCell(text).SetExpansion(1))
+			}
+			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
+			if table.GetRowCount() > 0 {
+				table.Select(0, 0)
+			}
+		}
+		// Replace current view with filtered content to keep actions consistent
+		a.ids = filteredIDs
+		a.messagesMeta = filteredMeta
+		a.reformatListItems()
+	})
 }
 
 // showMessage displays a message in the text view
