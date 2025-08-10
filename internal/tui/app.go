@@ -706,10 +706,15 @@ func (a *App) trashSelected() {
 					list.RemoveRow(removeIndex)
 				}
 
-				// Determine next selection post-removal
-				next, _ = list.GetSelection()
-				if next < 0 && list.GetRowCount() > 0 {
+				// Determine next selection post-removal: keep the same visual position if possible
+				newCount := list.GetRowCount()
+				if next >= 0 && next < newCount {
+					list.Select(next, 0)
+				} else if newCount > 0 {
 					next = 0
+					list.Select(0, 0)
+				} else {
+					next = -1
 				}
 			}
 
