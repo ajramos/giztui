@@ -85,6 +85,143 @@ func (a *App) reformatListItems() {
 	}
 }
 
+// baseRemoveByID removes a message from the local base snapshot if present
+func (a *App) baseRemoveByID(messageID string) {
+	if a.searchMode != "local" || a.baseIDs == nil {
+		return
+	}
+	idx := -1
+	for i, id := range a.baseIDs {
+		if id == messageID {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		a.baseIDs = append(a.baseIDs[:idx], a.baseIDs[idx+1:]...)
+		if idx < len(a.baseMessagesMeta) {
+			a.baseMessagesMeta = append(a.baseMessagesMeta[:idx], a.baseMessagesMeta[idx+1:]...)
+		}
+	}
+}
+
+// baseRemoveByIDs removes multiple messages from the local base snapshot
+func (a *App) baseRemoveByIDs(ids []string) {
+	if a.searchMode != "local" || a.baseIDs == nil || len(ids) == 0 {
+		return
+	}
+	rm := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		rm[id] = struct{}{}
+	}
+	// rebuild slices
+	newIDs := a.baseIDs[:0]
+	newMeta := a.baseMessagesMeta[:0]
+	for i, id := range a.baseIDs {
+		if _, ok := rm[id]; ok {
+			continue
+		}
+		newIDs = append(newIDs, id)
+		if i < len(a.baseMessagesMeta) {
+			newMeta = append(newMeta, a.baseMessagesMeta[i])
+		}
+	}
+	a.baseIDs = append([]string(nil), newIDs...)
+	a.baseMessagesMeta = append([]*gmailapi.Message(nil), newMeta...)
+}
+
+// captureLocalBaseSnapshot stores the current inbox view as base for local filtering
+func (a *App) captureLocalBaseSnapshot() {
+	// Record current selection by message ID to restore later
+	var selID string
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.ids) {
+			selID = a.ids[row]
+		}
+	}
+	// Copy slices to avoid aliasing
+	a.baseIDs = append([]string(nil), a.ids...)
+	a.baseMessagesMeta = append([]*gmailapi.Message(nil), a.messagesMeta...)
+	a.baseNextPageToken = a.nextPageToken
+	a.baseSelectionID = selID
+}
+
+// restoreLocalBaseSnapshot restores the base view after exiting local filter
+func (a *App) restoreLocalBaseSnapshot() {
+	ids := append([]string(nil), a.baseIDs...)
+	metas := append([]*gmailapi.Message(nil), a.baseMessagesMeta...)
+	next := a.baseNextPageToken
+	selID := a.baseSelectionID
+
+	a.QueueUpdateDraw(func() {
+		a.searchMode = ""
+		a.currentQuery = ""
+		a.localFilter = ""
+		a.nextPageToken = next
+		a.ids = ids
+		a.messagesMeta = metas
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+			for i := range a.ids {
+				if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
+					continue
+				}
+				msg := a.messagesMeta[i]
+				line, _ := a.emailRenderer.FormatEmailList(msg, a.getFormatWidth())
+				// Prefix unread state for consistency
+				unread := false
+				for _, l := range msg.LabelIds {
+					if l == "UNREAD" {
+						unread = true
+						break
+					}
+				}
+				prefix := "○ "
+				if unread {
+					prefix = "● "
+				}
+				table.SetCell(i, 0, tview.NewTableCell(prefix+line).SetExpansion(1))
+			}
+			// Try to restore selection by ID
+			selectIdx := 0
+			if selID != "" {
+				for i, id := range a.ids {
+					if id == selID {
+						selectIdx = i
+						break
+					}
+				}
+			}
+			if table.GetRowCount() > 0 {
+				if selectIdx < 0 || selectIdx >= table.GetRowCount() {
+					selectIdx = 0
+				}
+				table.Select(selectIdx, 0)
+			}
+			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+		}
+		a.reformatListItems()
+	})
+}
+
+// exitSearch handles ESC from search contexts
+func (a *App) exitSearch() {
+	if a.searchMode == "local" {
+		a.restoreLocalBaseSnapshot()
+		return
+	}
+	if a.searchMode == "remote" {
+		// Remote search returns to inbox (fresh from server)
+		a.searchMode = ""
+		a.currentQuery = ""
+		a.localFilter = ""
+		a.nextPageToken = ""
+		go a.reloadMessages()
+		return
+	}
+}
+
 // reloadMessages loads messages from the inbox
 func (a *App) reloadMessages() {
 	a.mu.Lock()
@@ -347,6 +484,8 @@ func (a *App) openSearchOverlay(mode string) {
 			if curMode == "remote" {
 				go a.performSearch(query)
 			} else {
+				// Before applying local filter, capture base snapshot
+				a.captureLocalBaseSnapshot()
 				a.localFilter = query
 				go a.applyLocalFilter(query)
 			}
@@ -367,6 +506,10 @@ func (a *App) openSearchOverlay(mode string) {
 						a.updateFocusIndicators("list")
 						a.SetFocus(a.views["list"])
 						delete(a.views, "searchInput")
+						// If exiting overlay from a local filter, restore base view immediately
+						if a.searchMode == "local" {
+							go a.exitSearch()
+						}
 						return
 					}
 				}
@@ -380,6 +523,10 @@ func (a *App) openSearchOverlay(mode string) {
 			a.updateFocusIndicators("list")
 			a.SetFocus(a.views["list"])
 			delete(a.views, "searchInput")
+			// If leaving overlay and a local filter was active, restore base
+			if a.searchMode == "local" {
+				go a.exitSearch()
+			}
 		}
 	})
 	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
@@ -1232,8 +1379,7 @@ func (a *App) archiveSelected() {
 			removeIndex = 0
 		}
 
-		// Compute pre-selection different from the removed index
-		var next = -1
+		// Preselect a different index to avoid removal-on-selected glitches
 		if count > 1 {
 			pre := removeIndex - 1
 			if removeIndex == 0 {
@@ -1246,7 +1392,6 @@ func (a *App) archiveSelected() {
 				pre = count - 1
 			}
 			list.Select(pre, 0)
-			next = pre
 		}
 
 		// Update caches using removeIndex
@@ -1260,24 +1405,31 @@ func (a *App) archiveSelected() {
 		// Visual removal
 		if count == 1 {
 			list.Clear()
-			next = -1
+			// No selection remains
 		} else {
 			if removeIndex >= 0 && removeIndex < list.GetRowCount() {
 				list.RemoveRow(removeIndex)
 			}
-			// next already set to pre; clamp to new count
-			if next >= 0 && next < list.GetRowCount() {
-				list.Select(next, 0)
+			// Keep the same visual position when possible (select the row that shifted into removeIndex)
+			desired := removeIndex
+			newCount := list.GetRowCount()
+			if desired >= newCount {
+				desired = newCount - 1
+			}
+			if desired >= 0 && desired < newCount {
+				list.Select(desired, 0)
 			}
 		}
 
 		// Update title and content
 		list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		if text, ok := a.views["text"].(*tview.TextView); ok {
-			if next >= 0 && next < len(a.ids) {
-				go a.showMessageWithoutFocus(a.ids[next])
+			// Reflect the newly selected row (if any)
+			cur, _ := list.GetSelection()
+			if cur >= 0 && cur < len(a.ids) {
+				go a.showMessageWithoutFocus(a.ids[cur])
 				if a.aiSummaryVisible {
-					go a.generateOrShowSummary(a.ids[next])
+					go a.generateOrShowSummary(a.ids[cur])
 				}
 			} else {
 				text.SetText("No messages")
@@ -1286,6 +1438,10 @@ func (a *App) archiveSelected() {
 					a.aiSummaryView.SetText("")
 				}
 			}
+		}
+		// Propagate removal to base snapshot if in local filter
+		if messageID != "" {
+			a.baseRemoveByID(messageID)
 		}
 	})
 }
@@ -1358,6 +1514,8 @@ func (a *App) archiveSelectedBulk() {
 					}
 				}
 			}
+			// Propagate to base snapshot if in local filter
+			a.baseRemoveByIDs(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
@@ -1437,6 +1595,8 @@ func (a *App) trashSelectedBulk() {
 					}
 				}
 			}
+			// Propagate to base snapshot if in local filter
+			a.baseRemoveByIDs(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false

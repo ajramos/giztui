@@ -499,6 +499,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							}
 							i++
 						}
+						// Also propagate removals to base snapshot in local filter mode
+						a.baseRemoveByIDs(idsToMove)
 						// Ajustar selección y contenido
 						cur, _ := listView.GetSelection()
 						if cur >= listView.GetRowCount() {
@@ -654,6 +656,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 										}
 										i++
 									}
+									// Also propagate removals to base snapshot in local filter mode
+									a.baseRemoveByIDs(idsToMove)
 									cur, _ := listView.GetSelection()
 									if cur >= listView.GetRowCount() {
 										cur = listView.GetRowCount() - 1
@@ -1081,6 +1085,8 @@ func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool)
 				exists = true
 				break
 			}
+			// Mirror to base snapshot if in local filter
+			a.updateBaseCachedMessageLabels(messageID, labelID, applied)
 		}
 		if !exists {
 			msg.LabelIds = append(msg.LabelIds, labelID)
@@ -1125,6 +1131,10 @@ func (a *App) updateMessageCacheLabels(messageID, labelName string, applied bool
 		}
 	}
 }
+
+// Also reflect label updates into base snapshot message cache when in local filter
+// (header rendering relies on names; base snapshot keeps only meta IDs, so we
+// update via updateBaseCachedMessageLabels which operates on LabelIds).
 
 // moveSelected opens the labels picker to choose a destination label, applies it, then archives the message
 func (a *App) moveSelected() {
@@ -1242,6 +1252,8 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
 						a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
 					}
+					// Propagate to base snapshot if in local filter
+					a.baseRemoveByID(message.Id)
 					// Visual removal
 					if count == 1 {
 						list.Clear()

@@ -154,6 +154,7 @@ The application uses a unified configuration directory structure:
 | `n` | Load more when list is focused; otherwise compose new (WIP) |
 | `R` | Reply (WIP) |
 | `s` | Search |
+| `/` | Local filter |
 | `u` | Show unread |
 | `t` | Toggle read/unread |
 | `d` | Move to trash |
@@ -298,6 +299,18 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
   - Update the list and content in place
   - Close the panel automatically
 - `ESC` closes the panel (no intermediate quick view)
+
+### 🔎 Search & Filter UX
+
+- Local filter (`/`):
+  - Applies an in-memory filter over the current inbox page.
+  - Actions while filtered (archive, trash, move, label) propagate to the underlying inbox snapshot.
+  - Press `ESC` to exit the filter instantly without network calls, restoring the original list with your changes reflected.
+  - After removing an item (archive/trash/move), the selection stays on the same visual position.
+
+- Remote search (`s`):
+  - Runs a Gmail query and shows a new result list.
+  - Press `ESC` to return to the inbox; the inbox is reloaded from the server (source of truth).
 
 ### 📐 Vertical Layout
 

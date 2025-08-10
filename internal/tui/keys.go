@@ -201,13 +201,9 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
-			// If a search (remote/local) is active and overlay is not focused, reset to inbox
+			// If a search is active and overlay is not focused, delegate to exitSearch
 			if a.searchMode != "" {
-				a.searchMode = ""
-				a.currentQuery = ""
-				a.localFilter = ""
-				a.nextPageToken = ""
-				go a.reloadMessages()
+				go a.exitSearch()
 				return nil
 			}
 		}
@@ -218,16 +214,16 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-        // Focus toggle
+		// Focus toggle
 		if event.Key() == tcell.KeyTab {
 			a.toggleFocus()
 			return nil
 		}
-        // If a picker/list or advanced search form field has focus, do not handle runes globally
-        switch a.GetFocus().(type) {
-        case *tview.InputField, *tview.List:
-            return event
-        }
+		// If a picker/list or advanced search form field has focus, do not handle runes globally
+		switch a.GetFocus().(type) {
+		case *tview.InputField, *tview.List:
+			return event
+		}
 
 		// LLM features
 		if a.LLM != nil {

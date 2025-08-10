@@ -63,6 +63,11 @@ type App struct {
 	currentQuery  string
 	localFilter   string
 	searchHistory []string
+	// Local filter base snapshot (used only while searchMode=="local")
+	baseIDs           []string
+	baseMessagesMeta  []*gmailapi.Message
+	baseNextPageToken string
+	baseSelectionID   string
 	// AI Summary pane
 	aiSummaryView    *tview.TextView
 	aiSummaryVisible bool
@@ -226,6 +231,10 @@ func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *A
 		currentQuery:      "",
 		localFilter:       "",
 		searchHistory:     make([]string, 0, 10),
+		baseIDs:           nil,
+		baseMessagesMeta:  nil,
+		baseNextPageToken: "",
+		baseSelectionID:   "",
 		aiSummaryCache:    make(map[string]string),
 		aiInFlight:        make(map[string]bool),
 		aiLabelsCache:     make(map[string][]string),
@@ -568,6 +577,45 @@ func (a *App) updateMessageDisplay(index int, isUnread bool) {
 	table.SetCell(index, 0, tview.NewTableCell(formattedText).SetExpansion(1))
 }
 
+// updateBaseCachedMessageLabels mirrors updateCachedMessageLabels but for the base snapshot (local filter)
+func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied bool) {
+	if a.searchMode != "local" || a.baseIDs == nil {
+		return
+	}
+	// Find index in baseIDs
+	idx := -1
+	for i, id := range a.baseIDs {
+		if id == messageID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 || idx >= len(a.baseMessagesMeta) || a.baseMessagesMeta[idx] == nil {
+		return
+	}
+	msg := a.baseMessagesMeta[idx]
+	if applied {
+		exists := false
+		for _, l := range msg.LabelIds {
+			if l == labelID {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			msg.LabelIds = append(msg.LabelIds, labelID)
+		}
+	} else {
+		out := msg.LabelIds[:0]
+		for _, l := range msg.LabelIds {
+			if l != labelID {
+				out = append(out, l)
+			}
+		}
+		msg.LabelIds = out
+	}
+}
+
 func (a *App) trashSelected() {
 	var messageID string
 	var selectedIndex int = -1
@@ -753,6 +801,10 @@ func (a *App) trashSelected() {
 						a.aiSummaryView.SetText("")
 					}
 				}
+			}
+			// Also propagate to base snapshot if in local filter
+			if messageID != "" {
+				a.baseRemoveByID(messageID)
 			}
 		})
 	}
