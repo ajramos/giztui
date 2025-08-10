@@ -1,6 +1,6 @@
 # Gmail TUI Makefile
 
-.PHONY: help build run test clean lint fmt vet coverage install deps
+.PHONY: help build run test clean lint fmt vet coverage install deps theme-demo
 
 # Variables
 BINARY_NAME=gmail-tui
@@ -78,6 +78,11 @@ dev: ## Development mode (build and run)
 	@echo "$(GREEN)Development mode...$(NC)"
 	@make build
 	@make run
+
+# Examples / Demos
+theme-demo: deps ## Run the theme system demo (preview and validate skins)
+	@echo "$(GREEN)Running theme demo...$(NC)"
+	go run ./examples/theme_demo.go
 
 # Specific testing commands
 test-unit: ## Run unit tests

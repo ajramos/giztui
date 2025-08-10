@@ -11,7 +11,7 @@ import (
 
 func main() {
 	fmt.Println("🎨 Gmail TUI Theme System Demo")
-	fmt.Println("==============================\n")
+	fmt.Println("==============================")
 
 	// Create theme loader
 	skinsDir := "skins"
@@ -140,4 +140,3 @@ func main() {
 	fmt.Println("  3. Create your own custom themes")
 	fmt.Println("  4. Check the documentation: docs/COLORS.md")
 }
-
