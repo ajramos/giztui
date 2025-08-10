@@ -350,24 +350,28 @@ func (a *App) openSearchOverlay(mode string) {
 			delete(a.views, "searchInput")
 		}
 		if key == tcell.KeyEscape {
+			// If simple overlay is visible, hide it; else, restore list
 			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
-				lc.Clear()
 				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
-					sp.SetBorder(false)
-					sp.SetTitle("")
+					// Heuristic: if searchPanel currently has a title, consider it visible
+					if sp.GetTitle() != "" {
+						lc.Clear()
+						sp.SetBorder(false)
+						sp.SetTitle("")
+						lc.AddItem(a.views["searchPanel"], 0, 0, false)
+						lc.AddItem(a.views["list"], 0, 1, true)
+						a.currentFocus = "list"
+						a.updateFocusIndicators("list")
+						a.SetFocus(a.views["list"])
+						delete(a.views, "searchInput")
+						return
+					}
 				}
+				lc.Clear()
 				lc.AddItem(a.views["searchPanel"], 0, 0, false)
 				lc.AddItem(a.views["list"], 0, 1, true)
 			} else {
 				a.Pages.RemovePage("searchOverlay")
-			}
-			// If we were in remote search, ESC resets to inbox
-			if a.searchMode != "" {
-				go a.reloadMessages()
-				a.searchMode = ""
-				a.currentQuery = ""
-				a.localFilter = ""
-				a.nextPageToken = ""
 			}
 			a.currentFocus = "list"
 			a.updateFocusIndicators("list")
@@ -436,6 +440,8 @@ func (a *App) openSearchOverlay(mode string) {
 		topSpacer := tview.NewBox()
 		bottomSpacer := tview.NewBox()
 		sp.Clear()
+		// Ensure container does not intercept ESC here; let input handle hiding
+		sp.SetInputCapture(nil)
 		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle(title).SetTitleColor(tcell.ColorYellow)
 		sp.AddItem(topSpacer, 0, 1, false)
 		sp.AddItem(input, 1, 0, true)
@@ -462,26 +468,29 @@ func (a *App) openAdvancedSearchForm() {
 	form.AddInputField("From", "", 0, nil, nil)
 	form.AddInputField("To", "", 0, nil, nil)
 	form.AddInputField("Subject", "", 0, nil, nil)
+	form.AddInputField("Label", "", 0, nil, nil)
 	form.AddInputField("Has the words", "", 0, nil, nil)
 	form.AddInputField("Doesn't have", "", 0, nil, nil)
-	// Size comparator/value/unit
+	// Size comparator/value/unit in one row using a horizontal Flex container
 	cmpOptions := []string{"greater than", "less than"}
 	unitOptions := []string{"MB", "KB"}
 	var cmpIdx, unitIdx int
 	var sizeValue string
-	form.AddDropDown("Size", cmpOptions, 0, func(option string, index int) { cmpIdx = index })
-	form.AddInputField("Size value", "", 6, nil, func(text string) { sizeValue = text })
-	form.AddDropDown("Size unit", unitOptions, 0, func(option string, index int) { unitIdx = index })
+	// tview.Form no soporta items arbitrarios; añadimos como 3 campos consecutivos con etiquetas cortas
+	form.AddFormItem(tview.NewDropDown().SetLabel("Size ").SetOptions(cmpOptions, func(_ string, idx int) { cmpIdx = idx }))
+	form.AddInputField("Value ", "", 6, nil, func(text string) { sizeValue = text })
+	form.AddFormItem(tview.NewDropDown().SetLabel("Unit ").SetOptions(unitOptions, func(_ string, idx int) { unitIdx = idx }))
 	// Date within value/unit
 	dateUnits := []string{"day", "week", "month", "year"}
 	var dateVal string
 	var dateUnitIdx int
-	form.AddInputField("Date within", "", 6, nil, func(text string) { dateVal = text })
-	form.AddDropDown("Date unit", dateUnits, 0, func(option string, index int) { dateUnitIdx = index })
+	form.AddInputField("Date within ", "", 6, nil, func(text string) { dateVal = text })
+	form.AddFormItem(tview.NewDropDown().SetLabel("Date unit ").SetOptions(dateUnits, func(_ string, idx int) { dateUnitIdx = idx }))
 	// Scope
 	scopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
 	var scopeIdx int
-	form.AddDropDown("Search", scopes, 0, func(option string, index int) { scopeIdx = index })
+	ddScope := tview.NewDropDown().SetLabel("Search ").SetOptions(scopes, func(_ string, idx int) { scopeIdx = idx })
+	form.AddFormItem(ddScope)
 	// Attachment
 	var hasAttachment bool
 	form.AddCheckbox("Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
@@ -552,6 +561,7 @@ func (a *App) openAdvancedSearchForm() {
 
 		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 			lc.Clear()
+			// Hide search panel and restore list to full height
 			lc.AddItem(a.views["searchPanel"], 0, 0, false)
 			lc.AddItem(a.views["list"], 0, 1, true)
 		}
@@ -570,31 +580,68 @@ func (a *App) openAdvancedSearchForm() {
 		a.updateFocusIndicators("list")
 		a.SetFocus(a.views["list"])
 	})
-	form.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+	form.SetBorder(false) // inner form without its own title; container shows the title
 	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		// When a dropdown is open, intercept ESC/TAB to close it first
+		idx, _ := form.GetFocusedItemIndex()
+		if idx >= 0 {
+			if _, ok := form.GetFormItem(idx).(*tview.DropDown); ok {
+				if ev.Key() == tcell.KeyEscape {
+					// Return to simple search overlay instead of main list
+					if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+						sp.Clear()
+					}
+					if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+						lc.Clear()
+						lc.AddItem(a.views["searchPanel"], 0, 1, true)
+						lc.AddItem(a.views["list"], 0, 3, true)
+					}
+					a.openSearchOverlay("remote")
+					return nil
+				}
+				if ev.Key() == tcell.KeyTab {
+					return ev
+				}
+			}
+		}
 		if ev.Key() == tcell.KeyEscape {
+			// Return to simple search overlay instead of main list
+			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+				sp.Clear()
+			}
 			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 				lc.Clear()
-				lc.AddItem(a.views["searchPanel"], 0, 0, false)
-				lc.AddItem(a.views["list"], 0, 1, true)
+				// Restore simple search overlay at 25% and list below
+				lc.AddItem(a.views["searchPanel"], 0, 1, true)
+				lc.AddItem(a.views["list"], 0, 3, true)
 			}
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-			a.SetFocus(a.views["list"])
+			// Reopen simple search in remote mode by default
+			a.openSearchOverlay("remote")
 			return nil
 		}
 		return ev
 	})
 
-	// Mount form into searchPanel area splitting list (top form, bottom list)
+	// Mount form into searchPanel area; expand to 50% and hide list for spacious layout
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 		sp.Clear()
 		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
 		sp.AddItem(form, 0, 1, true)
 		if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
 			lc.Clear()
+			// Allocate 50% to form, hide list (weight 0)
 			lc.AddItem(a.views["searchPanel"], 0, 1, true)
-			lc.AddItem(a.views["list"], 0, 3, false)
+			lc.AddItem(a.views["list"], 0, 0, false)
+		}
+		// Allow ESC at container level to return to simple search overlay
+		if sp2, ok3 := a.views["searchPanel"].(*tview.Flex); ok3 {
+			sp2.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+				if ev.Key() == tcell.KeyEscape {
+					a.openSearchOverlay("remote")
+					return nil
+				}
+				return ev
+			})
 		}
 		a.currentFocus = "search"
 		a.updateFocusIndicators("search")

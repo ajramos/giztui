@@ -128,6 +128,8 @@ func (a *App) createMainLayout() tview.Primitive {
 	a.views["status"] = statusBar // Store status bar as a view
 	mainFlex.AddItem(statusBar, 1, 0, false)
 
+	// Store reference for dynamic resize (e.g., advanced search)
+	a.views["mainFlex"] = mainFlex
 	return mainFlex
 }
 
