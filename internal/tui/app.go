@@ -96,6 +96,7 @@ type App struct {
 	// UI lifecycle flags
 	uiReady          bool // true after first draw
 	welcomeAnimating bool // avoid multiple spinner goroutines
+	welcomeEmail     string
 }
 
 // Pages manages the application pages and navigation
@@ -385,9 +386,21 @@ func (a *App) Run() error {
 		// Welcome screen in setup mode (no credentials)
 		a.showWelcomeScreen(false, "")
 	} else {
-		// Welcome screen in loading mode with best-effort account email
-		email := a.getActiveAccountEmail()
-		a.showWelcomeScreen(true, email)
+		// Welcome screen in loading mode with best-effort account email (fetch async)
+		a.showWelcomeScreen(true, "")
+		go func() {
+			if a.Client != nil {
+				if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
+					a.welcomeEmail = email
+					a.QueueUpdateDraw(func() {
+						// Re-render welcome with account email if still loading
+						if text, ok := a.views["text"].(*tview.TextView); ok {
+							text.SetText(a.buildWelcomeText(true, a.welcomeEmail, 0))
+						}
+					})
+				}
+			}
+		}()
 		// Load messages in background
 		go a.reloadMessages()
 	}
@@ -399,9 +412,8 @@ func (a *App) Run() error {
 // getActiveAccountEmail returns the current account email if available.
 // For now, we do not have a reliable accessor from the Gmail client, so we
 // return an empty string as a safe default.
-func (a *App) getActiveAccountEmail() string {
-	return ""
-}
+// getActiveAccountEmail remains as a compatibility stub if needed elsewhere.
+func (a *App) getActiveAccountEmail() string { return "" }
 
 // (moved to keys.go) bindKeys
 

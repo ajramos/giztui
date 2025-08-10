@@ -1,6 +1,7 @@
 package gmail
 
 import (
+    "context"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -17,11 +18,29 @@ import (
 // Client wraps the gmail.Service and provides convenience methods
 type Client struct {
 	Service *gmail.Service
+    profileEmail string
 }
 
 // NewClient creates a new Gmail client
 func NewClient(service *gmail.Service) *Client {
 	return &Client{Service: service}
+}
+
+// ActiveAccountEmail returns the authenticated user's email address.
+// Uses Gmail Users.GetProfile("me"). The value is cached for subsequent calls.
+func (c *Client) ActiveAccountEmail(ctx context.Context) (string, error) {
+    if c == nil || c.Service == nil {
+        return "", fmt.Errorf("gmail client not initialized")
+    }
+    if c.profileEmail != "" {
+        return c.profileEmail, nil
+    }
+    prof, err := c.Service.Users.GetProfile("me").Context(ctx).Do()
+    if err != nil || prof == nil {
+        return "", err
+    }
+    c.profileEmail = prof.EmailAddress
+    return c.profileEmail, nil
 }
 
 // Message represents a Gmail message with extracted content

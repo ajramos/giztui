@@ -31,10 +31,15 @@ func (a *App) createWelcomeView(loading bool, accountEmail string) tview.Primiti
 func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 	// If UI loop not yet running, avoid QueueUpdate* which would deadlock.
 	apply := func(dots int) {
+		// Prefer the most up-to-date email while loading
+		effEmail := accountEmail
+		if loading && a.welcomeEmail != "" {
+			effEmail = a.welcomeEmail
+		}
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			text.SetDynamicColors(true)
 			text.Clear()
-			text.SetText(a.buildWelcomeText(loading, accountEmail, dots))
+			text.SetText(a.buildWelcomeText(loading, effEmail, dots))
 			text.ScrollToBeginning()
 		}
 		a.currentFocus = "text"
@@ -87,19 +92,21 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) string {
 	var b strings.Builder
 
-	// Title
-	b.WriteString("[yellow::b]📨 GizTUI — Your terminal for Gmail[-]\n\n")
+	// Title (avoid unmatched closing tags)
+	b.WriteString("[yellow::b]📨 GizTUI — Your terminal for Gmail[-:-:-]\n\n")
 
 	// Subtitle / description
 	b.WriteString("Explore your Gmail inbox with a k9s-like experience.\n\n")
 
 	// Account line (if available)
 	if strings.TrimSpace(accountEmail) != "" {
-		b.WriteString(fmt.Sprintf("[green::b]Account:[-] %s\n\n", accountEmail))
+		b.WriteString("[green::b]Account:[-:-:-] ")
+		b.WriteString(accountEmail)
+		b.WriteString("\n\n")
 	}
 
 	// Quick actions (chips)
-	b.WriteString("[white::b]Quick actions:[-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
+	b.WriteString("[white::b]Quick actions:[-:-:-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
 
 	if loading {
 		// Loading state with dots
