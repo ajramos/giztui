@@ -15,9 +15,16 @@ func (a *App) bindKeys() {
 			return a.handleCommandInput(event)
 		}
 
-		// If focus is on an input field (e.g., label search), don't intercept runes
+		// If focus is on form widgets (advanced/simple search), don't intercept
 		switch a.GetFocus().(type) {
 		case *tview.InputField:
+			return event
+		case *tview.DropDown:
+			return event
+		case *tview.Form:
+			return event
+		case *tview.List:
+			// When a modal/list picker is open, do not intercept global keys
 			return event
 		}
 
@@ -211,11 +218,16 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// Focus toggle
+        // Focus toggle
 		if event.Key() == tcell.KeyTab {
 			a.toggleFocus()
 			return nil
 		}
+        // If a picker/list or advanced search form field has focus, do not handle runes globally
+        switch a.GetFocus().(type) {
+        case *tview.InputField, *tview.List:
+            return event
+        }
 
 		// LLM features
 		if a.LLM != nil {

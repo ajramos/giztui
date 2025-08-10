@@ -1,26 +1,36 @@
 # TODO List - Gmail TUI Project
 
-## 🎯 Feature Parity with MCP Server
+## 🎯 Roadmap
+
+## Priorities
+- Fix search:
+    - Label/Folder picker does not work
+    - Has attachment does not work
+    - Search within a date (see gmail specs)
+    - Email size
+- Better email visualization (maybe using llm??)
+- Improve status bar experience
+- Improve welcome page
+- Improve legend
+- See what happens with my self emailed emails
+
 
 ### Email Management
 - [ ] **Query emails** - Search and query emails with Gmail search syntax
 - [ ] **Get unread emails** - List unread emails with count and preview
-- [x] **Mark email as read** - Mark individual emails as read
-- [x] **Archive email** - Move emails to archive (remove from inbox)
-- [x] **Batch archive emails** - Archive multiple emails at once
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
-- [x] **Trash email** - Move emails to trash
 - [ ] **Delete email permanently** - Permanently delete emails from trash
-- [x] **Move email to folder** - Add a label and archive the email
-- [x] **Batch move email to folder** - Add a label and archive multiple emails
 - [ ] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
-- [ ] **Order by From** - Order by from
-- [ ] **Order by From** - Order by date
-
-
+- [ ] **Search by date** - Search by date
+- [x] **Mark email as read** - Mark individual emails as read
+- [x] **Archive email** - Move emails to archive (remove from inbox)
+- [x] **Batch archive emails** - Archive multiple emails at once
+- [x] **Trash email** - Move emails to trash
+- [x] **Move email to folder** - Add a label and archive the email
+- [x] **Batch move email to folder** - Add a label and archive multiple emails
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
@@ -36,15 +46,15 @@
 - [ ] **List attachments** - Show attachments for specific emails
 
 ### Labels and Organization
-- [X] **List labels** - Show all available Gmail labels
-- [X] **Create label** - Create new custom labels with visibility options
-- [X] **Apply label** - Apply labels to emails
-- [X] **Remove label** - Remove labels from emails
-- [X] **Contextual labels panel** - Side panel with quick toggle and live refresh
-- [X] **Browse all labels with search** - Full picker with incremental filter and ESC back
+- [ ] **Create label** - Create new custom labels with visibility options
 - [ ] **Delete label** - Delete custom labels
-- [x] **Local Search label** - Fuzzy search labels (server-side is done; local fuzzy TBD)
 - [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
+- [x] **List labels** - Show all available Gmail labels
+- [x] **Apply label** - Apply labels to emails
+- [x] **Remove label** - Remove labels from emails
+- [x] **Contextual labels panel** - Side panel with quick toggle and live refresh
+- [x] **Browse all labels with search** - Full picker with incremental filter and ESC back
+- [x] **Local Search label** - Fuzzy search labels (server-side is done; local fuzzy TBD)
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
@@ -54,25 +64,25 @@
 - [ ] **Delete calendar event** - Remove calendar events
 
 ## 🎨 AI Capabilities
+- [ ] **Reply draft suggestion** - Given a email provides a draft of the reply
 - [x] **Email summaritzation** - Creates a summary of the email 
 - [x] **Label assignation suggestion** - Given a email provides the label selection
-- [ ] **Reply draft suggestion** - Given a email provides a draft of the reply
 
 
 ## 🎨 UX Improvements
 
 ### Command System Enhancements
-- [x] **Command autocompletion** - Auto-complete commands as you type (e.g., :la → labels)
-- [x] **Command bar border** - Add visual border to command bar for better UX
-- [x] **Command bar focus** - Automatically focus command bar when activated
-- [x] **Command suggestions** - Show suggestions in brackets when typing commands
 - [ ] **Command history search** - Search through command history
 - [ ] **Command aliases** - Support custom command aliases
 - [ ] **Command help** - Show help for specific commands
 - [ ] **Command validation** - Validate commands before execution
+- [ ] **Configurable key bindings** - Be able to setup in the configuration file your key bindings
+- [x] **Command autocompletion** - Auto-complete commands as you type (e.g., :la → labels)
+- [x] **Command bar border** - Add visual border to command bar for better UX
+- [x] **Command bar focus** - Automatically focus command bar when activated
+- [x] **Command suggestions** - Show suggestions in brackets when typing commands
 
 ### Interface Improvements
-- [x] **Vertical layout** - Stacked layout with list, content, commands, and status
 - [ ] **Keyboard shortcuts display** - Show available shortcuts in status bar
 - [ ] **Progress indicators** - Show loading progress for long operations
 - [ ] **Error handling** - Better error messages and recovery
@@ -80,9 +90,10 @@
 - [ ] **Undo functionality** - Undo last action
 - [ ] **Search highlighting** - Highlight search terms in results
 - [ ] **Message threading** - Show message threads and conversations
-- [ ] **Message headers (From, To, Subject, Date, Labels)** - Use different text color for these texts
-- [ ] **Visualization of important labels as emojis in the message lists** Each label should have an emoji
 - [ ] **Configuration for labels adding icons** Icons for each Label.
+- [x] **Vertical layout** - Stacked layout with list, content, commands, and status
+- [x] **Message headers (From, To, Subject, Date, Labels)** - Use different text color for these texts
+- [x] **Visualization of important labels as colors in the message lists** Each label should have a a color
 
 ### Navigation Enhancements
 - [ ] **Quick navigation** - Jump to specific messages or labels
@@ -90,11 +101,12 @@
 - [ ] **Recent messages** - Quick access to recently viewed messages
 - [ ] **Message filtering** - Filter messages by various criteria
 - [ ] **Sort options** - Sort messages by date, sender, subject, etc.
-- [ ] **Bulk operations** - Select multiple messages for bulk actions
-- [X] **Keyboard navigation** - Tab cycles panes; arrows respect focused pane
+- [x] **Bulk operations** - Select multiple messages for bulk actions
+- [x] **Keyboard navigation** - Tab cycles panes; arrows respect focused pane
 
 ### Message rendering
 - [ ] Markdown rendering for HTML messages.
+- [ ] Remove hyperlinks and add them at the end as references.
 
 
 ## 🎨 Theme System

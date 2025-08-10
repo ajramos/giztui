@@ -451,7 +451,8 @@ func (a *App) performSearch(query string) {
 	})
 
 	// Build effective query
-	q := strings.TrimSpace(query)
+	originalQuery := strings.TrimSpace(query)
+	q := originalQuery
 	if !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
 		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
@@ -495,7 +496,8 @@ func (a *App) performSearch(query string) {
 			for i, text := range rows {
 				table.SetCell(i, 0, tview.NewTableCell(text).SetExpansion(1))
 			}
-			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(ids), q))
+			// Show the user's original query in the title
+			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(ids), originalQuery))
 			if table.GetRowCount() > 0 {
 				table.Select(0, 0)
 			}

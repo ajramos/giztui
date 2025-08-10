@@ -329,9 +329,8 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
 					a.setStatusPersistent("")
-					if l, ok := a.views["list"].(*tview.List); ok {
-						l.SetSelectedTextColor(tcell.ColorWhite)
-						l.SetSelectedBackgroundColor(tcell.ColorBlue)
+					if tbl, ok := a.views["list"].(*tview.Table); ok {
+						tbl.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					}
 				}
 				// Restore list navigation
@@ -368,7 +367,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			// While labels son visibles, solo tragamos flechas en la lista
 			// cuando el foco actual está en labels. Si el usuario cambia con
 			// Tab a la lista, las flechas deben funcionar normalmente.
-			if l, ok := a.views["list"].(*tview.List); ok {
+			if l, ok := a.views["list"].(*tview.Table); ok {
 				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 					if a.labelsVisible && a.currentFocus == "labels" {
 						switch ev.Key() {

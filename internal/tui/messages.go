@@ -2,7 +2,10 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+
+	// "time"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/derailed/tcell/v2"
@@ -463,45 +466,168 @@ func (a *App) openSearchOverlay(mode string) {
 
 // openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
 func (a *App) openAdvancedSearchForm() {
-	// Build form fields similar to Gmail advanced search
+	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
-	form.AddInputField("From", "", 0, nil, nil)
-	form.AddInputField("To", "", 0, nil, nil)
-	form.AddInputField("Subject", "", 0, nil, nil)
-	form.AddInputField("Label", "", 0, nil, nil)
-	form.AddInputField("Has the words", "", 0, nil, nil)
-	form.AddInputField("Doesn't have", "", 0, nil, nil)
-	// Size comparator/value/unit in one row using a horizontal Flex container
-	cmpOptions := []string{"greater than", "less than"}
-	unitOptions := []string{"MB", "KB"}
-	var cmpIdx, unitIdx int
-	var sizeValue string
-	// tview.Form no soporta items arbitrarios; añadimos como 3 campos consecutivos con etiquetas cortas
-	form.AddFormItem(tview.NewDropDown().SetLabel("Size ").SetOptions(cmpOptions, func(_ string, idx int) { cmpIdx = idx }))
-	form.AddInputField("Value ", "", 6, nil, func(text string) { sizeValue = text })
-	form.AddFormItem(tview.NewDropDown().SetLabel("Unit ").SetOptions(unitOptions, func(_ string, idx int) { unitIdx = idx }))
-	// Date within value/unit
-	dateUnits := []string{"day", "week", "month", "year"}
-	var dateVal string
-	var dateUnitIdx int
-	form.AddInputField("Date within ", "", 6, nil, func(text string) { dateVal = text })
-	form.AddFormItem(tview.NewDropDown().SetLabel("Date unit ").SetOptions(dateUnits, func(_ string, idx int) { dateUnitIdx = idx }))
+	form.AddFormItem(tview.NewInputField().SetLabel("From").SetPlaceholder("user@example.com"))
+	form.AddFormItem(tview.NewInputField().SetLabel("To").SetPlaceholder("person@example.com"))
+	form.AddFormItem(tview.NewInputField().SetLabel("Subject").SetPlaceholder("exact words or phrase"))
+	form.AddFormItem(tview.NewInputField().SetLabel("Has the words").SetPlaceholder("words here"))
+	form.AddFormItem(tview.NewInputField().SetLabel("Doesn't have").SetPlaceholder("exclude words"))
+	// Size single expression, e.g. "<2MB" or ">500KB"
+	sizeExprField := tview.NewInputField().SetLabel("Size").SetPlaceholder("e.g., <2MB or >500KB")
+	form.AddFormItem(sizeExprField)
+	// Date within single token, e.g. "2d", "3w", "1m", "4h", "6y"
+	dateWithinField := tview.NewInputField().SetLabel("Date within").SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y")
+	form.AddFormItem(dateWithinField)
 	// Scope
-	scopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
-	var scopeIdx int
-	ddScope := tview.NewDropDown().SetLabel("Search ").SetOptions(scopes, func(_ string, idx int) { scopeIdx = idx })
-	form.AddFormItem(ddScope)
+	baseScopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
+	scopes := append([]string{}, baseScopes...)
+	scopeVal := "All Mail"
+	scopeField := tview.NewInputField().
+		SetLabel("Search").
+		SetText(scopeVal).
+		SetPlaceholder("Press Enter to pick scope/label")
+	// Prevent manual typing; we use a picker for consistency with Browse all labels
+	scopeField.SetAcceptanceFunc(func(textToCheck string, lastChar rune) bool { return false })
+	form.AddFormItem(scopeField)
 	// Attachment
 	var hasAttachment bool
 	form.AddCheckbox("Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
 
-	form.SetButtonsAlign(tview.AlignRight)
-	form.AddButton("Search", func() {
+	// Load labels asynchronously to build picker options
+	go func() {
+		labels, err := a.Client.ListLabels()
+		if err != nil || labels == nil {
+			return
+		}
+		names := make([]string, 0, len(labels))
+		for _, l := range labels {
+			// Hide system categories we already map
+			if l.Type == "system" {
+				continue
+			}
+			names = append(names, l.Name)
+		}
+		if len(names) == 0 {
+			return
+		}
+		a.QueueUpdateDraw(func() {
+			sort.Strings(names)
+			scopes = append(baseScopes, names...)
+		})
+	}()
+
+	// Picker dentro del panel (mismo patrón que expandLabelsBrowseWithMode)
+	openScopePicker := func() {
+		sp, ok := a.views["searchPanel"].(*tview.Flex)
+		if !ok {
+			return
+		}
+
+		filter := tview.NewInputField().
+			SetLabel("🔎 Filter: ").
+			SetFieldWidth(30).
+			SetPlaceholder("type to filter; Enter=select, ESC=back")
+		list := tview.NewList().ShowSecondaryText(false)
+		list.SetBorder(false)
+		list.SetSelectedTextColor(tcell.ColorBlack)
+		list.SetSelectedBackgroundColor(tcell.ColorWhite)
+
+		// Cargar lista
+		var update func()
+		update = func() {
+			txt := strings.ToLower(strings.TrimSpace(filter.GetText()))
+			list.Clear()
+			for _, s := range scopes {
+				if txt == "" || strings.Contains(strings.ToLower(s), txt) {
+					list.AddItem(s, "", 0, nil)
+				}
+			}
+			if list.GetItemCount() > 0 {
+				list.SetCurrentItem(0)
+			}
+		}
+		filter.SetChangedFunc(func(_ string) { update() })
+		update()
+
+		// Selección
+		list.SetSelectedFunc(func(index int, mainText, _ string, _ rune) {
+			if mainText != "" {
+				scopeVal = mainText
+				scopeField.SetText(scopeVal)
+			}
+			sp.Clear()
+			sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+			sp.AddItem(form, 0, 1, true)
+			a.SetFocus(scopeField)
+		})
+		// ESC desde filtro
+		filter.SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEscape {
+				sp.Clear()
+				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+				sp.AddItem(form, 0, 1, true)
+				a.SetFocus(scopeField)
+			}
+			if key == tcell.KeyEnter && list.GetItemCount() > 0 {
+				main, _ := list.GetItemText(list.GetCurrentItem())
+				scopeVal = main
+				scopeField.SetText(scopeVal)
+				sp.Clear()
+				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+				sp.AddItem(form, 0, 1, true)
+				a.SetFocus(scopeField)
+			}
+		})
+		// Flechas desde filtro → lista
+		filter.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			switch e.Key() {
+			case tcell.KeyDown, tcell.KeyUp, tcell.KeyPgDn, tcell.KeyPgUp, tcell.KeyHome, tcell.KeyEnd:
+				a.SetFocus(list)
+				return e
+			}
+			return e
+		})
+		// ESC desde lista
+		list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			if e.Key() == tcell.KeyEscape {
+				sp.Clear()
+				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+				sp.AddItem(form, 0, 1, true)
+				a.SetFocus(scopeField)
+				return nil
+			}
+			return e
+		})
+
+		// Pintar dentro del panel
+		a.QueueUpdateDraw(func() {
+			sp.Clear()
+			sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Pick scope or label").SetTitleColor(tcell.ColorYellow)
+			sp.AddItem(filter, 3, 0, true)
+			sp.AddItem(list, 0, 1, true)
+			a.SetFocus(filter)
+			a.currentFocus = "search"
+			a.updateFocusIndicators("search")
+		})
+	}
+	scopeField.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			openScopePicker()
+		}
+	})
+	// Do not intercept Enter here; DoneFunc above will handle opening the picker
+	scopeField.SetInputCapture(nil)
+
+	// Build submit function shared by button and Ctrl+Enter
+	submit := func() {
 		from := form.GetFormItemByLabel("From").(*tview.InputField).GetText()
 		to := form.GetFormItemByLabel("To").(*tview.InputField).GetText()
 		subject := form.GetFormItemByLabel("Subject").(*tview.InputField).GetText()
 		hasWords := form.GetFormItemByLabel("Has the words").(*tview.InputField).GetText()
 		notWords := form.GetFormItemByLabel("Doesn't have").(*tview.InputField).GetText()
+		sizeExpr := form.GetFormItemByLabel("Size").(*tview.InputField).GetText()
+		dateWithinExpr := form.GetFormItemByLabel("Date within").(*tview.InputField).GetText()
 
 		parts := []string{}
 		if from != "" {
@@ -519,39 +645,81 @@ func (a *App) openAdvancedSearchForm() {
 		if notWords != "" {
 			parts = append(parts, fmt.Sprintf("-%s", notWords))
 		}
-		// Size
-		if strings.TrimSpace(sizeValue) != "" {
-			suffix := "m"
-			if unitIdx == 1 {
+		// Size (parse <NMB or >NKB)
+		if expr := strings.TrimSpace(sizeExpr); expr != "" {
+			op := expr[0]
+			rest := strings.TrimSpace(expr[1:])
+			// split number and unit
+			num := ""
+			unit := ""
+			for i := 0; i < len(rest); i++ {
+				if rest[i] >= '0' && rest[i] <= '9' {
+					num += string(rest[i])
+				} else {
+					unit = strings.TrimSpace(rest[i:])
+					break
+				}
+			}
+			u := strings.ToLower(unit)
+			suffix := ""
+			if strings.HasPrefix(u, "mb") || u == "m" {
+				suffix = "m"
+			} else if strings.HasPrefix(u, "kb") || u == "k" {
 				suffix = "k"
 			}
-			if cmpIdx == 0 {
-				parts = append(parts, fmt.Sprintf("larger:%s%s", sizeValue, suffix))
-			} else {
-				parts = append(parts, fmt.Sprintf("smaller:%s%s", sizeValue, suffix))
+			if num != "" && suffix != "" {
+				if op == '>' {
+					parts = append(parts, fmt.Sprintf("larger:%s%s", num, suffix))
+				} else if op == '<' {
+					parts = append(parts, fmt.Sprintf("smaller:%s%s", num, suffix))
+				}
 			}
 		}
-		// Date within -> newer_than
-		if strings.TrimSpace(dateVal) != "" {
-			du := []string{"d", "w", "m", "y"}[dateUnitIdx]
-			parts = append(parts, fmt.Sprintf("newer_than:%s%s", dateVal, du))
+		// Date within -> newer_than:N(unit)
+		if tok := strings.TrimSpace(dateWithinExpr); tok != "" {
+			// token like 2d, 3w, 1m, 4h, 6y
+			n := ""
+			unit := ""
+			for i := 0; i < len(tok); i++ {
+				if tok[i] >= '0' && tok[i] <= '9' {
+					n += string(tok[i])
+				} else {
+					unit = strings.ToLower(strings.TrimSpace(tok[i:]))
+					break
+				}
+			}
+			if n != "" && unit != "" {
+				// Allow d,w,m,y,h (Gmail may ignore h/w in some cases)
+				switch unit[0] {
+				case 'd', 'w', 'm', 'y', 'h':
+					parts = append(parts, fmt.Sprintf("newer_than:%s%s", n, string(unit[0])))
+				}
+			}
 		}
-		// Scope
-		switch scopes[scopeIdx] {
-		case "Inbox":
-			parts = append(parts, "in:inbox")
-		case "Sent":
-			parts = append(parts, "in:sent")
-		case "Drafts":
-			parts = append(parts, "in:draft")
-		case "Spam":
-			parts = append(parts, "in:spam")
-		case "Trash":
-			parts = append(parts, "in:trash")
-		case "Starred":
-			parts = append(parts, "is:starred")
-		case "Important":
-			parts = append(parts, "is:important")
+		// Scope (union fixed folders + labels) using scopeVal
+		if scopeVal != "" {
+			sel := scopeVal
+			switch sel {
+			case "All Mail":
+				// no-op
+			case "Inbox":
+				parts = append(parts, "in:inbox")
+			case "Sent":
+				parts = append(parts, "in:sent")
+			case "Drafts":
+				parts = append(parts, "in:draft")
+			case "Spam":
+				parts = append(parts, "in:spam")
+			case "Trash":
+				parts = append(parts, "in:trash")
+			case "Starred":
+				parts = append(parts, "is:starred")
+			case "Important":
+				parts = append(parts, "is:important")
+			default:
+				// Assume label name
+				parts = append(parts, fmt.Sprintf("label:%q", sel))
+			}
 		}
 		if hasAttachment {
 			parts = append(parts, "has:attachment")
@@ -569,7 +737,9 @@ func (a *App) openAdvancedSearchForm() {
 		a.updateFocusIndicators("list")
 		a.SetFocus(a.views["list"])
 		go a.performSearch(q)
-	})
+	}
+	form.SetButtonsAlign(tview.AlignRight)
+	form.AddButton("Search", submit)
 	form.AddButton("Cancel", func() {
 		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 			lc.Clear()
@@ -582,7 +752,7 @@ func (a *App) openAdvancedSearchForm() {
 	})
 	form.SetBorder(false) // inner form without its own title; container shows the title
 	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		// When a dropdown is open, intercept ESC/TAB to close it first
+		// When a dropdown is open, intercept keys (ESC/tab/enter)
 		idx, _ := form.GetFocusedItemIndex()
 		if idx >= 0 {
 			if _, ok := form.GetFormItem(idx).(*tview.DropDown); ok {
@@ -599,10 +769,16 @@ func (a *App) openAdvancedSearchForm() {
 					a.openSearchOverlay("remote")
 					return nil
 				}
+				// Let Enter select option; do not submit here
 				if ev.Key() == tcell.KeyTab {
 					return ev
 				}
 			}
+		}
+		// Submit only with Ctrl+Enter (or Ctrl+S)
+		if (ev.Key() == tcell.KeyEnter && (ev.Modifiers()&tcell.ModCtrl) != 0) || (ev.Rune() == 's' && (ev.Modifiers()&tcell.ModCtrl) != 0) {
+			submit()
+			return nil
 		}
 		if ev.Key() == tcell.KeyEscape {
 			// Return to simple search overlay instead of main list
@@ -1182,8 +1358,14 @@ func (a *App) archiveSelectedBulk() {
 					}
 				}
 			}
+			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
+			a.reformatListItems()
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+			}
+			a.setStatusPersistent("")
 			if failed == 0 {
 				a.showStatusMessage("✅ Archived")
 			} else {
@@ -1211,7 +1393,7 @@ func (a *App) trashSelectedBulk() {
 			}
 		}
 		a.QueueUpdateDraw(func() {
-			if list, ok := a.views["list"].(*tview.List); ok {
+			if list, ok := a.views["list"].(*tview.Table); ok {
 				rm := make(map[string]struct{}, len(ids))
 				for _, id := range ids {
 					rm[id] = struct{}{}
@@ -1223,33 +1405,46 @@ func (a *App) trashSelectedBulk() {
 						if i < len(a.messagesMeta) {
 							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 						}
-						if i < list.GetItemCount() {
-							list.RemoveItem(i)
+						if i < list.GetRowCount() {
+							list.RemoveRow(i)
 						}
 						continue
 					}
 					i++
 				}
 				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-				cur := list.GetCurrentItem()
-				if cur >= list.GetItemCount() {
-					cur = list.GetItemCount() - 1
+				// Adjust selection and content
+				cur, _ := list.GetSelection()
+				if cur >= list.GetRowCount() {
+					cur = list.GetRowCount() - 1
 				}
 				if cur >= 0 {
-					list.SetCurrentItem(cur)
+					list.Select(cur, 0)
 					if cur < len(a.ids) {
 						go a.showMessageWithoutFocus(a.ids[cur])
+						if a.aiSummaryVisible {
+							go a.generateOrShowSummary(a.ids[cur])
+						}
 					}
 				}
-				if list.GetItemCount() == 0 {
+				if list.GetRowCount() == 0 {
 					if tv, ok := a.views["text"].(*tview.TextView); ok {
 						tv.SetText("No messages")
 						tv.ScrollToBeginning()
 					}
+					if a.aiSummaryVisible && a.aiSummaryView != nil {
+						a.aiSummaryView.SetText("")
+					}
 				}
 			}
+			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
+			a.reformatListItems()
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+			}
+			a.setStatusPersistent("")
 			if failed == 0 {
 				a.showStatusMessage("✅ Trashed")
 			} else {
