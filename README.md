@@ -34,6 +34,14 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - 🔧 **Highly configurable**
 - 🔒 **Private** - No data sent to external cloud services
 
+#### Welcome Screen
+- On startup, a structured Welcome screen appears:
+  - Title and short description
+  - Quick actions: `[? Help] [s Search] [u Unread] [: Commands]`
+  - If authenticated, shows `Account: <your@email>`
+  - A non-blocking “⏳ Loading inbox…” indicator while the inbox loads in the background
+- If credentials are missing, the Welcome screen shows a compact setup guide with the credentials path.
+
 ## 🏗️ Architecture
 
 ```
