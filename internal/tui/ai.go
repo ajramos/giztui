@@ -104,7 +104,12 @@ func (a *App) generateOrShowSummary(messageID string) {
 		prompt := strings.ReplaceAll(template, "{{body}}", body)
 		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
-			a.QueueUpdateDraw(func() { a.aiSummaryView.SetText("⚠️ LLM error"); a.showStatusMessage("⚠️ LLM error") })
+			a.QueueUpdateDraw(func() {
+				// Mostrar detalle del error en el panel de resumen de IA (más grande)
+				a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
+				a.aiSummaryView.ScrollToBeginning()
+				a.showLLMError("summarize", err)
+			})
 			delete(a.aiInFlight, id)
 			return
 		}
@@ -168,7 +173,7 @@ func (a *App) suggestLabel() {
 		prompt := strings.ReplaceAll(tmpl, "{{body}}", body)
 		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
-			a.showStatusMessage("⚠️ LLM error")
+			a.showLLMError("suggest labels", err)
 			return
 		}
 		var arr []string

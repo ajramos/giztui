@@ -23,6 +23,9 @@ func main() {
 	ollamaEndpointFlag := flag.String("ollama-endpoint", "", "Endpoint de Ollama (incluye /api/generate)")
 	ollamaModelFlag := flag.String("ollama-model", "", "Nombre del modelo de Ollama")
 	ollamaTimeoutFlag := flag.Duration("ollama-timeout", 0, "Timeout de la petición al modelo LLM")
+	llmProviderFlag := flag.String("llm-provider", "", "Proveedor LLM (ollama, bedrock)")
+	llmModelFlag := flag.String("llm-model", "", "Modelo LLM a usar (por ejemplo, anthropic.claude-3-haiku-20240307)")
+	llmRegionFlag := flag.String("llm-region", "", "Región para proveedores basados en región (por ejemplo, us-east-1 para Bedrock)")
 	configPathFlag := flag.String("config", "", "Ruta al fichero de configuración JSON")
 	flag.Parse()
 
@@ -96,6 +99,7 @@ func main() {
 	model := cfg.LLMModel
 	timeout := cfg.GetLLMTimeout()
 	providerName := cfg.LLMProvider
+	region := cfg.LLMRegion
 	if endpoint == "" && cfg.OllamaEndpoint != "" {
 		endpoint = cfg.OllamaEndpoint
 	}
@@ -114,16 +118,38 @@ func main() {
 	if *ollamaTimeoutFlag != 0 {
 		timeout = *ollamaTimeoutFlag
 	}
+	if *llmProviderFlag != "" {
+		providerName = *llmProviderFlag
+	}
+	if *llmModelFlag != "" {
+		model = *llmModelFlag
+	}
+	if *llmRegionFlag != "" {
+		region = *llmRegionFlag
+	}
 	if providerName == "" {
 		providerName = "ollama"
 	}
-	if cfg.LLMEnabled && endpoint != "" && model != "" {
-		llmProvider = llm.NewProviderFromConfig(providerName, endpoint, model, timeout, cfg.LLMAPIKey)
+	if cfg.LLMEnabled && model != "" {
+		// For Bedrock, use region; for Ollama, use endpoint
+		arg := endpoint
+		if providerName == "bedrock" {
+			if region == "" {
+				if env := os.Getenv("AWS_REGION"); env != "" {
+					region = env
+				}
+			}
+			arg = region
+		}
+		var err error
+		llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLMAPIKey)
+		if err != nil {
+			log.Printf("Warning: could not initialize LLM provider (%s): %v", providerName, err)
+		}
 	}
 
 	// Create and run TUI
-	// Note: tui.NewApp currently expects *llm.Client, but we adapted it to accept llm.Provider
-	app := tui.NewApp(gmailClient, llmProvider.(*llm.Client), cfg)
+	app := tui.NewApp(gmailClient, llmProvider, cfg)
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error ejecutando la aplicación: %v\n", err)
 		os.Exit(1)

@@ -20,8 +20,10 @@ type Config struct {
 	LLMProvider string `json:"llm_provider"` // ollama, openai, anthropic, custom
 	LLMModel    string `json:"llm_model"`
 	LLMEndpoint string `json:"llm_endpoint"`
-	LLMAPIKey   string `json:"llm_api_key"`
-	LLMTimeout  string `json:"llm_timeout"`
+	// For providers that use regions (e.g., Bedrock), prefer LLMRegion over LLMEndpoint
+	LLMRegion  string `json:"llm_region"`
+	LLMAPIKey  string `json:"llm_api_key"`
+	LLMTimeout string `json:"llm_timeout"`
 
 	// Prompt templates for LLM interactions
 	SummarizePrompt string `json:"summarize_prompt"`

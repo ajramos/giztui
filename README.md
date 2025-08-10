@@ -14,7 +14,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ Basic search and navigation support
 - 🚧 WIP: Compose, Reply, Drafts, Attachments
 
-### 🧠 AI Features with Local LLM
+### 🧠 AI Features with LLM (Ollama & Bedrock)
 - ✅ **Summarize emails** - Generate concise email summaries
 - ✅ **Recommend labels** - Suggest appropriate labels for emails
 - ✅ **Configurable prompts** - All prompts are customizable
@@ -168,14 +168,14 @@ The application uses a unified configuration directory structure:
 | `g` | Generate reply (experimental) |
 | `o` | Suggest label |
 
-#### LLM Configuration
+#### LLM Configuration (providers)
 
-You can use a pluggable LLM provider (Ollama by default). Configure in `~/.config/gmail-tui/config.json`:
+You can use a pluggable LLM provider. Configure in `~/.config/gmail-tui/config.json`:
 
 ```json
 {
   "llm_enabled": true,
-  "llm_provider": "ollama",          // ollama|openai|anthropic|custom (ollama supported now)
+  "llm_provider": "ollama",          // ollama|bedrock (supported now)
   "llm_model": "llama3.1:8b",
   "llm_endpoint": "http://localhost:11434/api/generate",
   "llm_api_key": "",
@@ -184,6 +184,48 @@ You can use a pluggable LLM provider (Ollama by default). Configure in `~/.confi
 ```
 
 Ollama specific legacy fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) are still supported for backward compatibility.
+
+##### Amazon Bedrock (on-demand)
+
+To use Amazon Bedrock instead of Ollama:
+
+```json
+{
+  "llm_enabled": true,
+  "llm_provider": "bedrock",
+  "llm_model": "us.anthropic.claude-3-5-haiku-20241022-v1:0", // on-demand ID, include region/vendor and revision :0
+  "llm_region": "us-east-1",
+  "llm_timeout": "20s"
+}
+```
+
+Notes for Bedrock on-demand:
+
+- Always include the revision suffix `:0` in `llm_model` for on-demand model IDs.
+- In many accounts, you must include the regional vendor prefix, e.g. `us.anthropic...` rather than just `anthropic...`.
+- Make sure your AWS credentials are set (e.g., `AWS_PROFILE=your-profile`) and the region has access to the model.
+- Alternatively, you can provide an inference profile ARN in `llm_model` and it will be sent via `ModelId`.
+
+Run with a custom config:
+
+```bash
+AWS_PROFILE=your-profile ./gmail-tui --config ~/.config/gmail-tui/config.bedrock.json
+```
+
+Minimal debugging example (standalone):
+
+```bash
+# Build the example
+go build -o build/bedrock_text ./examples/bedrock_text.go
+
+# Invoke on-demand
+AWS_PROFILE=your-profile ./build/bedrock_text \
+  --region us-east-1 \
+  --model us.anthropic.claude-3-5-haiku-20241022-v1:0 \
+  --prompt "Summarize this in one line"
+```
+
+References: Bedrock Go v2 examples for streaming and invocation (ModelId) — see AWS examples repository.
 
 #### Prompt templates
 

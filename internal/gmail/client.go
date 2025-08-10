@@ -148,6 +148,23 @@ func (c *Client) SearchMessages(query string, maxResults int64) ([]*gmail.Messag
 	return res.Messages, nil
 }
 
+// SearchMessagesPage searches with Gmail query and supports pagination
+func (c *Client) SearchMessagesPage(query string, maxResults int64, pageToken string) ([]*gmail.Message, string, error) {
+	user := "me"
+	call := c.Service.Users.Messages.List(user).Q(query)
+	if maxResults > 0 {
+		call = call.MaxResults(maxResults)
+	}
+	if pageToken != "" {
+		call = call.PageToken(pageToken)
+	}
+	res, err := call.Do()
+	if err != nil {
+		return nil, "", fmt.Errorf("no se pudieron buscar los mensajes: %w", err)
+	}
+	return res.Messages, res.NextPageToken, nil
+}
+
 // ListDrafts returns draft messages
 func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 	user := "me"

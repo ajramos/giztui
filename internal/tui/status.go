@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/derailed/tview"
@@ -37,4 +38,37 @@ func (a *App) showError(msg string) {
 // showInfo shows an info message via status helpers
 func (a *App) showInfo(msg string) {
 	a.showStatusMessage(fmt.Sprintf("ℹ️ %s", msg))
+}
+
+// showLLMError logs the full error and shows a concise message in the status bar
+func (a *App) showLLMError(operation string, err error) {
+	if err == nil {
+		return
+	}
+	// Log full detail for debugging
+	if a.logger != nil {
+		a.logger.Printf("LLM error during %s: %v", operation, err)
+	}
+	// Show concise error to the user
+	a.showStatusMessage(fmt.Sprintf("⚠️ LLM error (%s): %s", operation, a.shortError(err, 180)))
+}
+
+// shortError returns a single-line, length-limited error string
+func (a *App) shortError(err error, max int) string {
+	if err == nil {
+		return ""
+	}
+	s := strings.TrimSpace(err.Error())
+	// Replace newlines and tabs to keep status bar clean
+	s = strings.ReplaceAll(s, "\n", " | ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\t", " ")
+	if max <= 0 {
+		max = 180
+	}
+	runes := []rune(s)
+	if len(runes) > max {
+		return string(runes[:max-1]) + "…"
+	}
+	return s
 }

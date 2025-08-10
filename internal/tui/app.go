@@ -184,7 +184,7 @@ func NewKeyActions() *KeyActions {
 }
 
 // NewApp creates a new TUI application following k9s patterns
-func NewApp(client *gmail.Client, llmClient *llm.Client, cfg *config.Config) *App {
+func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	app := &App{
@@ -817,7 +817,7 @@ func (a *App) summarizeSelected() {
 	go func() {
 		resp, err := a.LLM.Generate("Summarize in 3 bullet points (keep language).\n\n" + body)
 		if err != nil {
-			a.QueueUpdateDraw(func() { a.showStatusMessage("⚠️ LLM error") })
+			a.QueueUpdateDraw(func() { a.showLLMError("inline summarize", err) })
 			return
 		}
 		a.QueueUpdateDraw(func() {
