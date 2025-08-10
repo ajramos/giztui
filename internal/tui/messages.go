@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/derailed/tcell/v2"
@@ -99,6 +100,13 @@ func (a *App) reloadMessages() {
 	}
 	a.Draw()
 
+	// If coming from remote search mode, clear it on full reload
+	if a.searchMode == "remote" {
+		a.searchMode = ""
+		a.currentQuery = ""
+		a.nextPageToken = ""
+	}
+
 	// Check if client is available
 	if a.Client == nil {
 		a.showError("❌ Gmail client not initialized")
@@ -189,6 +197,8 @@ func (a *App) reloadMessages() {
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
 	if pageName, _ := a.Pages.GetFrontPage(); pageName == "main" {
 		if a.currentFocus == "" || a.currentFocus == "list" {
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
 			a.SetFocus(a.views["list"])
 			a.currentFocus = "list"
 			a.updateFocusIndicators("list")
@@ -198,6 +208,23 @@ func (a *App) reloadMessages() {
 
 // loadMoreMessages fetches the next page of inbox and appends to list
 func (a *App) loadMoreMessages() {
+	// If in remote search mode, paginate that query
+	if a.searchMode == "remote" {
+		if a.nextPageToken == "" {
+			a.showStatusMessage("No more results")
+			return
+		}
+		a.setStatusPersistent("Loading more results…")
+		messages, next, err := a.Client.SearchMessagesPage(a.currentQuery, 50, a.nextPageToken)
+		if err != nil {
+			a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
+			return
+		}
+		a.appendMessages(messages)
+		a.nextPageToken = next
+		return
+	}
+
 	if a.nextPageToken == "" {
 		a.showStatusMessage("No more messages")
 		return
@@ -231,6 +258,330 @@ func (a *App) loadMoreMessages() {
 		}
 		a.reformatListItems()
 	})
+}
+
+// appendMessages adds messages to current table from a slice of gmail.Message (IDs)
+func (a *App) appendMessages(messages []*gmailapi.Message) {
+	screenWidth := a.getFormatWidth()
+	for _, msg := range messages {
+		a.ids = append(a.ids, msg.Id)
+		meta, err := a.Client.GetMessage(msg.Id)
+		if err != nil {
+			continue
+		}
+		a.messagesMeta = append(a.messagesMeta, meta)
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			row := table.GetRowCount()
+			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
+		}
+	}
+	a.QueueUpdateDraw(func() {
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+		}
+		a.reformatListItems()
+	})
+}
+
+// openSearchOverlay opens a transient overlay above the message list for remote/local search
+func (a *App) openSearchOverlay(mode string) {
+	if mode != "remote" && mode != "local" {
+		mode = "remote"
+	}
+	title := "🔍 Gmail Search"
+	if mode == "local" {
+		title = "🔎 Local Filter"
+	}
+
+	input := tview.NewInputField().
+		SetLabel("").
+		SetFieldWidth(0).
+		SetPlaceholder("e.g., from:user@domain.com subject:report is:unread or plain text for local")
+	// expose input so Tab from list can focus it
+	a.views["searchInput"] = input
+	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
+	help.SetTextColor(tcell.ColorGray)
+	if mode == "remote" {
+		help.SetText("Pulsa Ctrl+F para búsqueda avanzada | Enter=buscar, Ctrl-T=cambiar, ESC=cancelar")
+	} else {
+		help.SetText("Pulsa Ctrl+F para búsqueda avanzada | Enter=aplicar, Ctrl-T=cambiar, ESC=limpiar")
+	}
+
+	box := tview.NewFlex().SetDirection(tview.FlexRow)
+	box.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+	// vertical center input; place help at bottom
+	topSpacer := tview.NewBox()
+	bottomSpacer := tview.NewBox()
+	box.AddItem(topSpacer, 0, 1, false)
+	box.AddItem(input, 1, 0, true)
+	box.AddItem(bottomSpacer, 0, 2, false)
+	box.AddItem(help, 1, 0, false)
+
+	// Capture Enter/ESC and Ctrl-T to toggle modes
+	curMode := mode
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			query := input.GetText()
+			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+				lc.Clear()
+				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
+					sp.SetBorder(false)
+					sp.SetTitle("")
+				}
+				lc.AddItem(a.views["searchPanel"], 0, 0, false)
+				lc.AddItem(a.views["list"], 0, 1, true)
+			} else {
+				a.Pages.RemovePage("searchOverlay")
+			}
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+			if curMode == "remote" {
+				go a.performSearch(query)
+			} else {
+				a.localFilter = query
+				go a.applyLocalFilter(query)
+			}
+			delete(a.views, "searchInput")
+		}
+		if key == tcell.KeyEscape {
+			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+				lc.Clear()
+				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
+					sp.SetBorder(false)
+					sp.SetTitle("")
+				}
+				lc.AddItem(a.views["searchPanel"], 0, 0, false)
+				lc.AddItem(a.views["list"], 0, 1, true)
+			} else {
+				a.Pages.RemovePage("searchOverlay")
+			}
+			// If we were in remote search, ESC resets to inbox
+			if a.searchMode != "" {
+				go a.reloadMessages()
+				a.searchMode = ""
+				a.currentQuery = ""
+				a.localFilter = ""
+				a.nextPageToken = ""
+			}
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+			delete(a.views, "searchInput")
+		}
+	})
+	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		if ev.Modifiers() == tcell.ModCtrl && ev.Rune() == 't' {
+			if curMode == "remote" {
+				curMode = "local"
+				box.SetTitle("🔎 Local Filter")
+				help.SetText("Tokens: from: subject: label: is:unread|starred|important text… | Enter=apply, Ctrl-T=switch, ESC=clear")
+				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+					sp.SetTitle("🔎 Local Filter")
+				}
+			} else {
+				curMode = "remote"
+				box.SetTitle("🔍 Gmail Search")
+				help.SetText("Operators: from: to: subject: label: has:attachment is:unread older_than:7d newer_than:1d | Enter=search, Ctrl-T=switch, ESC=cancel")
+				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+					sp.SetTitle("🔍 Gmail Search")
+				}
+			}
+			return nil
+		}
+		if ev.Key() == tcell.KeyTab {
+			// move focus back to list while keeping search open
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+			return nil
+		}
+		if ev.Key() == tcell.KeyEscape {
+			// mirror ESC handling here to ensure consistent behavior
+			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+				lc.Clear()
+				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
+					sp.SetBorder(false)
+					sp.SetTitle("")
+				}
+				lc.AddItem(a.views["searchPanel"], 0, 0, false)
+				lc.AddItem(a.views["list"], 0, 1, true)
+			} else {
+				a.Pages.RemovePage("searchOverlay")
+			}
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+			delete(a.views, "searchInput")
+			return nil
+		}
+		return ev
+	})
+
+	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+		// vertical center input; place help at bottom
+		topSpacer := tview.NewBox()
+		bottomSpacer := tview.NewBox()
+		sp.Clear()
+		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+		sp.AddItem(topSpacer, 0, 1, false)
+		sp.AddItem(input, 1, 0, true)
+		sp.AddItem(bottomSpacer, 0, 2, false)
+		sp.AddItem(help, 1, 0, false)
+		if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
+			lc.Clear()
+			lc.AddItem(a.views["searchPanel"], 0, 1, true)
+			lc.AddItem(a.views["list"], 0, 3, true)
+		}
+		a.currentFocus = "search"
+		a.updateFocusIndicators("search")
+		a.SetFocus(input)
+		return
+	}
+	a.Pages.AddPage("searchOverlay", box, true, true)
+	a.SetFocus(input)
+}
+
+// openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
+func (a *App) openAdvancedSearchForm() {
+	// Build form fields
+	form := tview.NewForm().
+		AddInputField("From", "", 0, nil, nil).
+		AddInputField("To", "", 0, nil, nil).
+		AddInputField("Subject", "", 0, nil, nil).
+		AddInputField("Label", "", 0, nil, nil).
+		AddCheckbox("Unread", false, nil).
+		AddCheckbox("Starred", false, nil).
+		AddCheckbox("Important", false, nil).
+		AddInputField("Has: attachment (yes/no)", "", 0, nil, nil).
+		AddInputField("Older than (e.g., 7d)", "", 0, nil, nil).
+		AddInputField("Newer than (e.g., 1d)", "", 0, nil, nil)
+	form.SetButtonsAlign(tview.AlignRight)
+	form.AddButton("Search", func() {
+		// Collect values
+		from := form.GetFormItemByLabel("From").(*tview.InputField).GetText()
+		to := form.GetFormItemByLabel("To").(*tview.InputField).GetText()
+		subject := form.GetFormItemByLabel("Subject").(*tview.InputField).GetText()
+		label := form.GetFormItemByLabel("Label").(*tview.InputField).GetText()
+		unread := form.GetFormItemByLabel("Unread").(*tview.Checkbox).IsChecked()
+		starred := form.GetFormItemByLabel("Starred").(*tview.Checkbox).IsChecked()
+		important := form.GetFormItemByLabel("Important").(*tview.Checkbox).IsChecked()
+		hasAttach := strings.TrimSpace(form.GetFormItemByLabel("Has: attachment (yes/no)").(*tview.InputField).GetText())
+		older := strings.TrimSpace(form.GetFormItemByLabel("Older than (e.g., 7d)").(*tview.InputField).GetText())
+		newer := strings.TrimSpace(form.GetFormItemByLabel("Newer than (e.g., 1d)").(*tview.InputField).GetText())
+
+		// Build Gmail query
+		parts := []string{}
+		if from != "" {
+			parts = append(parts, fmt.Sprintf("from:%s", from))
+		}
+		if to != "" {
+			parts = append(parts, fmt.Sprintf("to:%s", to))
+		}
+		if subject != "" {
+			parts = append(parts, fmt.Sprintf("subject:%q", subject))
+		}
+		if label != "" {
+			parts = append(parts, fmt.Sprintf("label:%s", label))
+		}
+		if unread {
+			parts = append(parts, "is:unread")
+		}
+		if starred {
+			parts = append(parts, "is:starred")
+		}
+		if important {
+			parts = append(parts, "is:important")
+		}
+		if strings.EqualFold(hasAttach, "yes") || strings.EqualFold(hasAttach, "y") || strings.EqualFold(hasAttach, "true") {
+			parts = append(parts, "has:attachment")
+		}
+		if older != "" {
+			parts = append(parts, fmt.Sprintf("older_than:%s", older))
+		}
+		if newer != "" {
+			parts = append(parts, fmt.Sprintf("newer_than:%s", newer))
+		}
+		q := strings.Join(parts, " ")
+
+		// Close panel and run search
+		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+			lc.Clear()
+			lc.AddItem(a.views["searchPanel"], 0, 0, false)
+			lc.AddItem(a.views["list"], 0, 1, true)
+		}
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
+		go a.performSearch(q)
+	})
+	form.AddButton("Cancel", func() {
+		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
+			lc.Clear()
+			lc.AddItem(a.views["searchPanel"], 0, 0, false)
+			lc.AddItem(a.views["list"], 0, 1, true)
+		}
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
+	})
+	form.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+
+	// Mount form into searchPanel area splitting list (top form, bottom list)
+	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+		sp.Clear()
+		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+		sp.AddItem(form, 0, 1, true)
+		if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
+			lc.Clear()
+			lc.AddItem(a.views["searchPanel"], 0, 1, true)
+			lc.AddItem(a.views["list"], 0, 3, false)
+		}
+		a.currentFocus = "search"
+		a.updateFocusIndicators("search")
+		a.SetFocus(form)
+		return
+	}
+
+	// Fallback modal if searchPanel not present
+	modal := tview.NewFlex().SetDirection(tview.FlexRow)
+	modal.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+	modal.AddItem(form, 0, 1, true)
+	a.Pages.AddPage("advancedSearch", modal, true, true)
+	a.SetFocus(form)
+}
+
+// applyLocalFilter filters current in-memory messages based on a simple expression
+func (a *App) applyLocalFilter(expr string) {
+	a.searchMode = "local"
+	a.localFilter = expr
+	tokens := strings.Fields(strings.ToLower(expr))
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		table.Clear()
+		count := 0
+		for _, m := range a.messagesMeta {
+			if m == nil {
+				continue
+			}
+			text, _ := a.emailRenderer.FormatEmailList(m, a.getFormatWidth())
+			content := strings.ToLower(text)
+			match := true
+			for _, t := range tokens {
+				if !strings.Contains(content, t) {
+					match = false
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+			table.SetCell(count, 0, tview.NewTableCell(text).SetExpansion(1))
+			count++
+		}
+		table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", count, expr))
+		a.reformatListItems()
+	}
 }
 
 // showMessage displays a message in the text view

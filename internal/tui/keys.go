@@ -129,8 +129,10 @@ func (a *App) bindKeys() {
 			go a.composeMessage(false)
 			return nil
 		case 's':
-			a.Pages.SwitchToPage("search")
-			a.SetFocus(a.views["search"])
+			a.openSearchOverlay("remote")
+			return nil
+		case '/':
+			a.openSearchOverlay("local")
 			return nil
 		case 'u':
 			go a.listUnreadMessages()
@@ -192,11 +194,25 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
+			// If a search (remote/local) is active and overlay is not focused, reset to inbox
+			if a.searchMode != "" {
+				a.searchMode = ""
+				a.currentQuery = ""
+				a.localFilter = ""
+				a.nextPageToken = ""
+				go a.reloadMessages()
+				return nil
+			}
 		}
 
 		// Focus toggle
 		if event.Key() == tcell.KeyTab {
 			a.toggleFocus()
+			return nil
+		}
+		// Advanced search (Ctrl+F)
+		if (event.Modifiers()&tcell.ModCtrl) != 0 && (event.Rune() == 'f' || event.Key() == tcell.KeyCtrlF) {
+			a.openAdvancedSearchForm()
 			return nil
 		}
 
@@ -246,44 +262,53 @@ func (a *App) bindKeys() {
 func (a *App) toggleFocus() {
 	currentFocus := a.GetFocus()
 
-	if currentFocus == a.views["list"] {
-		a.SetFocus(a.views["text"])
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
-	} else if currentFocus == a.views["text"] {
-		// Cycle: text -> labels (if visible) -> summary (if visible) -> list
-		if a.labelsVisible {
-			a.SetFocus(a.labelsView)
-			a.currentFocus = "labels"
-			a.updateFocusIndicators("labels")
-		} else if a.aiSummaryVisible {
-			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
-		} else {
-			a.SetFocus(a.views["list"])
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
+	// Build focus ring dynamically based on visible components
+	ring := []tview.Primitive{}
+	ringNames := []string{}
+	// 1) Search (if visible)
+	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+		_, _, w, h := sp.GetRect()
+		if w > 0 && h > 0 {
+			if inp, ok2 := a.views["searchInput"].(*tview.InputField); ok2 {
+				ring = append(ring, inp)
+				ringNames = append(ringNames, "search")
+			}
 		}
-	} else if a.labelsVisible && currentFocus == a.labelsView {
-		if a.aiSummaryVisible {
-			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
-		} else {
-			a.SetFocus(a.views["list"])
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-		}
-	} else if a.aiSummaryVisible && currentFocus == a.aiSummaryView {
-		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
-	} else {
-		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
 	}
+	// 2) List (always)
+	ring = append(ring, a.views["list"])
+	ringNames = append(ringNames, "list")
+	// 3) Text (always)
+	ring = append(ring, a.views["text"])
+	ringNames = append(ringNames, "text")
+	// 4) Labels (if visible)
+	if a.labelsVisible {
+		ring = append(ring, a.labelsView)
+		ringNames = append(ringNames, "labels")
+	}
+	// 5) Summary (if visible)
+	if a.aiSummaryVisible {
+		ring = append(ring, a.aiSummaryView)
+		ringNames = append(ringNames, "summary")
+	}
+
+	// Find index of current focus
+	idx := -1
+	for i, p := range ring {
+		if currentFocus == p {
+			idx = i
+			break
+		}
+	}
+	// If current focus isn't recognized (e.g., nil), start at beginning
+	next := 0
+	if idx >= 0 {
+		next = (idx + 1) % len(ring)
+	}
+	// Apply focus and indicators
+	a.SetFocus(ring[next])
+	a.currentFocus = ringNames[next]
+	a.updateFocusIndicators(ringNames[next])
 }
 
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal

@@ -57,6 +57,12 @@ type App struct {
 	screenHeight     int
 	currentMessageID string // Added for label command execution
 	nextPageToken    string // Gmail pagination
+
+	// Search/Filter state
+	searchMode    string // "" | "remote" | "local"
+	currentQuery  string
+	localFilter   string
+	searchHistory []string
 	// AI Summary pane
 	aiSummaryView    *tview.TextView
 	aiSummaryVisible bool
@@ -211,6 +217,10 @@ func NewApp(client *gmail.Client, llmClient *llm.Client, cfg *config.Config) *Ap
 		screenHeight:      25,
 		currentMessageID:  "", // Initialize currentMessageID
 		nextPageToken:     "",
+		searchMode:        "",
+		currentQuery:      "",
+		localFilter:       "",
+		searchHistory:     make([]string, 0, 10),
 		aiSummaryCache:    make(map[string]string),
 		aiInFlight:        make(map[string]bool),
 		aiLabelsCache:     make(map[string][]string),
@@ -427,77 +437,71 @@ func (a *App) toggleHelp() {
 
 // performSearch executes the search query
 func (a *App) performSearch(query string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	if strings.TrimSpace(query) == "" {
 		a.showError("Search query cannot be empty")
 		return
 	}
 
-	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.Clear()
-	}
-	a.ids = []string{}
-	a.messagesMeta = []*gmailapi.Message{}
+	// Update UI to searching state
+	a.QueueUpdateDraw(func() {
+		if list, ok := a.views["list"].(*tview.Table); ok {
+			list.Clear()
+			list.SetTitle(fmt.Sprintf(" 🔍 Searching: %s ", query))
+		}
+	})
 
-	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetTitle(fmt.Sprintf(" 🔍 Searching: %s ", query))
+	// Build effective query
+	q := strings.TrimSpace(query)
+	if !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
+		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
-	a.Draw()
 
-	// Perform search
-	messages, err := a.Client.SearchMessages(query, 50)
+	// Perform search (network)
+	messages, next, err := a.Client.SearchMessagesPage(q, 50, "")
 	if err != nil {
-		a.showError(fmt.Sprintf("❌ Search error: %v", err))
-		if list, ok := a.views["list"].(*tview.Table); ok {
-			list.SetTitle(" ❌ Search failed ")
-		}
+		a.QueueUpdateDraw(func() {
+			a.showError(fmt.Sprintf("❌ Search error: %v", err))
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetTitle(" ❌ Search failed ")
+			}
+		})
 		return
 	}
 
-	if len(messages) == 0 {
-		if list, ok := a.views["list"].(*tview.Table); ok {
-			list.SetTitle(fmt.Sprintf(" 🔍 No results for: %s ", query))
-		}
-		a.showInfo(fmt.Sprintf("🔍 No messages found for query: %s", query))
-		return
-	}
-
-	// Display search results
-	for i, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+	// Prepare formatted rows
+	ids := make([]string, 0, len(messages))
+	metas := make([]*gmailapi.Message, 0, len(messages))
+	rows := make([]string, 0, len(messages))
+	for _, msg := range messages {
+		ids = append(ids, msg.Id)
 		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
-			if list, ok := a.views["list"].(*tview.List); ok {
-				list.AddItem(fmt.Sprintf("⚠️  Error loading message %d", i+1), "Failed to load", 0, nil)
-			}
 			continue
 		}
+		metas = append(metas, meta)
 		text, _ := a.emailRenderer.FormatEmailList(meta, a.getFormatWidth())
-		unread := false
-		for _, l := range meta.LabelIds {
-			if l == "UNREAD" {
-				unread = true
-				break
-			}
-		}
-		if unread {
-			text = "● " + text
-		} else {
-			text = "○ " + text
-		}
-		if table, ok := a.views["list"].(*tview.Table); ok {
-			row := table.GetRowCount()
-			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
-		}
-		a.messagesMeta = append(a.messagesMeta, meta)
+		rows = append(rows, text)
 	}
 
-	if table, ok := a.views["list"].(*tview.Table); ok {
-		table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) for: %s ", len(a.ids), query))
-	}
-	a.SetFocus(a.views["list"])
+	// Apply results on UI thread
+	a.QueueUpdateDraw(func() {
+		a.searchMode = "remote"
+		a.currentQuery = q
+		a.nextPageToken = next
+		a.ids = ids
+		a.messagesMeta = metas
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+			for i, text := range rows {
+				table.SetCell(i, 0, tview.NewTableCell(text).SetExpansion(1))
+			}
+			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(ids), q))
+			if table.GetRowCount() > 0 {
+				table.Select(0, 0)
+			}
+		}
+		a.reformatListItems()
+	})
 }
 
 // (moved to status.go) showError/showInfo

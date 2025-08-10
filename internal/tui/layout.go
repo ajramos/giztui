@@ -17,8 +17,16 @@ func (a *App) initComponents() {
 		SetTitle(" 📧 Messages ").
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
+	// Search panel placeholder (hidden by default)
+	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
+	searchPanel.SetBorder(false)
+	// Container that holds search panel (top) and list (bottom)
+	listContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	// Start hidden: panel proportion 0; list takes all
+	listContainer.AddItem(searchPanel, 0, 0, false)
+	listContainer.AddItem(list, 0, 1, true)
 
-		// Create header view (colored) and main text view inside a column container
+	// Create header view (colored) and main text view inside a column container
 	header := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
 	header.SetBorder(false)
 	header.SetTextColor(tcell.ColorGreen)
@@ -46,8 +54,10 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 
-	// Store components
+		// Store components
 	a.views["list"] = list
+	a.views["searchPanel"] = searchPanel
+	a.views["listContainer"] = listContainer
 	a.views["text"] = text
 	a.views["header"] = header
 	a.views["textContainer"] = textContainer
@@ -97,8 +107,8 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Add flash notification at the top (hidden by default)
 	mainFlex.AddItem(a.flash.textView, 0, 0, false)
 
-	// Add list of messages (takes 40% of available height)
-	mainFlex.AddItem(a.views["list"], 0, 40, true)
+	// Add list+search container (takes 40% of available height)
+	mainFlex.AddItem(a.views["listContainer"], 0, 40, true)
 
 	// Message content row: split into content | AI summary (hidden initially)
 	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -139,6 +149,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
 		tc.SetBorderColor(tcell.ColorGray)
 	}
+	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+		sp.SetBorderColor(tcell.ColorGray)
+	}
 
 	// Set focused view border to bright color
 	switch focusedView {
@@ -157,6 +170,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	case "labels":
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(tcell.ColorYellow)
+		}
+	case "search":
+		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+			sp.SetBorderColor(tcell.ColorYellow)
 		}
 	}
 }
