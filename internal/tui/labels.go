@@ -414,13 +414,16 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 		applied  bool
 	}
 	var all []labelItem
+	var visible []labelItem
 	var reload func(filter string)
 	reload = func(filter string) {
 		list.Clear()
+		visible = visible[:0]
 		for _, it := range all {
 			if filter != "" && !strings.Contains(strings.ToLower(it.name), strings.ToLower(filter)) {
 				continue
 			}
+			visible = append(visible, it)
 			display := "○ " + it.name
 			if it.applied {
 				display = "✅ " + it.name
@@ -582,6 +585,106 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					return
 				}
+				if key == tcell.KeyEnter {
+					// UX shortcut: if there is at least one visible result, apply/move the first one
+					if len(visible) >= 1 {
+						v := visible[0]
+						if !moveMode {
+							if !v.applied {
+								a.toggleLabelForMessage(messageID, v.id, v.name, false, func(newApplied bool, err error) {
+									if err == nil {
+										for i := range all {
+											if all[i].id == v.id {
+												all[i].applied = newApplied
+												break
+											}
+										}
+										a.updateCachedMessageLabels(messageID, v.id, newApplied)
+										a.updateMessageCacheLabels(messageID, v.name, newApplied)
+										reload(strings.TrimSpace(input.GetText()))
+										a.refreshMessageContent(messageID)
+									}
+								})
+							} else {
+								a.showStatusMessage("✔️ Label already applied: " + v.name)
+							}
+						} else {
+							// Modo mover: reutiliza la misma lógica que el callback de la lista
+							go func(id, name string) {
+								idsToMove := []string{messageID}
+								if a.bulkMode && len(a.selected) > 0 {
+									idsToMove = idsToMove[:0]
+									for sid := range a.selected {
+										idsToMove = append(idsToMove, sid)
+									}
+								}
+								failed := 0
+								for _, mid := range idsToMove {
+									if err := a.Client.ApplyLabel(mid, id); err != nil {
+										failed++
+									}
+									if err := a.Client.ArchiveMessage(mid); err != nil {
+										failed++
+									}
+								}
+								a.QueueUpdateDraw(func() {
+									listView, ok := a.views["list"].(*tview.Table)
+									if !ok {
+										return
+									}
+									if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+										split.ResizeItem(a.labelsView, 0, 0)
+									}
+									a.labelsVisible = false
+									a.labelsExpanded = false
+									rm := make(map[string]struct{}, len(idsToMove))
+									for _, mid := range idsToMove {
+										rm[mid] = struct{}{}
+									}
+									i := 0
+									for i < len(a.ids) {
+										if _, ok := rm[a.ids[i]]; ok {
+											a.ids = append(a.ids[:i], a.ids[i+1:]...)
+											if i < len(a.messagesMeta) {
+												a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
+											}
+											if i < listView.GetRowCount() {
+												listView.RemoveRow(i)
+											}
+											continue
+										}
+										i++
+									}
+									cur, _ := listView.GetSelection()
+									if cur >= listView.GetRowCount() {
+										cur = listView.GetRowCount() - 1
+									}
+									listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+									if cur >= 0 && cur < len(a.ids) {
+										listView.Select(cur, 0)
+										go a.showMessageWithoutFocus(a.ids[cur])
+									} else if tv, ok := a.views["text"].(*tview.TextView); ok {
+										tv.SetText("No messages")
+										tv.ScrollToBeginning()
+									}
+									a.selected = make(map[string]bool)
+									a.bulkMode = false
+									a.reformatListItems()
+									a.setStatusPersistent("")
+									a.SetFocus(a.views["list"])
+									a.currentFocus = "list"
+									a.updateFocusIndicators("list")
+									if len(idsToMove) <= 1 && failed == 0 {
+										a.showStatusMessage("📦 Moved to: " + name)
+									} else {
+										a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+									}
+								})
+							}(v.id, v.name)
+						}
+					}
+					return
+				}
 			})
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -618,9 +721,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				SetDynamicColors(true).
 				SetTextAlign(tview.AlignRight)
 			if moveMode {
-				footer.SetText("ESC to cancel  ")
+				footer.SetText("Enter applies/moves the first visible match   •   ESC to cancel  ")
 			} else {
-				footer.SetText("ESC to back  ")
+				footer.SetText("Enter applies the first visible match   •   ESC to back  ")
 			}
 			footer.SetTextColor(tcell.ColorGray)
 			container.AddItem(footer, 1, 0, false)

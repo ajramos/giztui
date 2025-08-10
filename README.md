@@ -231,9 +231,9 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
   - `Enter`: toggle label (applies immediately and refreshes message content)
   - `n`: create label, `r`: refresh
   - `ESC`: close panel
-- Browse all labels:
-  - From the panel select “🔎 Browse all labels…” to expand a full picker with search
-  - Type to filter; `Enter` toggles; `ESC` returns to the quick panel
+ - Browse all labels:
+   - From the panel select “🔎 Browse all labels…” to expand a full picker with search
+   - Type to filter; in the search field, `Enter` applies the first visible match; on the list, `Enter` toggles; `ESC` returns to the quick panel
 - Focus rules:
   - Tab cycles: text → labels → summary → list
   - Arrow keys act on the currently focused pane only
@@ -242,7 +242,7 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 ### 📦 Move Message (Contextual)
 
 - Press `m` to open the side panel directly in "Browse all labels" mode
-- Type to filter labels, `Enter` on a label will:
+ - Type to filter labels. In the search field, `Enter` applies/moves the first visible match. `Enter` on a list item will:
   - Apply the label (if not already applied)
   - Archive the message (move semantics)
   - Update the list and content in place
