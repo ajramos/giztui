@@ -92,6 +92,10 @@ type App struct {
 	// Bulk selection
 	selected map[string]bool // messageID -> selected
 	bulkMode bool
+
+	// UI lifecycle flags
+	uiReady          bool // true after first draw
+	welcomeAnimating bool // avoid multiple spinner goroutines
 }
 
 // Pages manages the application pages and navigation
@@ -255,6 +259,10 @@ func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *A
 
 	// Recalcular en resize de forma segura (sin llamadas de red)
 	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+		// Mark UI as ready on first draw
+		if !app.uiReady {
+			app.uiReady = true
+		}
 		w, h := screen.Size()
 		if w != app.screenWidth || h != app.screenHeight {
 			app.screenWidth, app.screenHeight = w, h
@@ -374,29 +382,25 @@ func (a *App) Run() error {
 
 	// Check if client is available
 	if a.Client == nil {
-		// Show error message if no client
-		if text, ok := a.views["text"].(*tview.TextView); ok {
-			text.SetText("❌ Error: Gmail client not initialized\n\n" +
-				"To fix this:\n" +
-				"1. Download credentials from Google Cloud Console\n" +
-				"2. Place them in ~/.config/gmail-tui/credentials.json\n" +
-				"3. Run the application again\n\n" +
-				"For more information, see the README.md file\n\n" +
-				"Press '?' for help or 'q' to quit")
-		}
+		// Welcome screen in setup mode (no credentials)
+		a.showWelcomeScreen(false, "")
 	} else {
-		// Show welcome message and load messages
-		if text, ok := a.views["text"].(*tview.TextView); ok {
-			text.SetText("👋 Welcome to GizTUI!\n\n" +
-				"Your terminal for Gmail\n\n" +
-				"Press '?' for help or 'q' to quit")
-		}
+		// Welcome screen in loading mode with best-effort account email
+		email := a.getActiveAccountEmail()
+		a.showWelcomeScreen(true, email)
 		// Load messages in background
 		go a.reloadMessages()
 	}
 
 	// Start the application
 	return a.Application.Run()
+}
+
+// getActiveAccountEmail returns the current account email if available.
+// For now, we do not have a reliable accessor from the Gmail client, so we
+// return an empty string as a safe default.
+func (a *App) getActiveAccountEmail() string {
+	return ""
 }
 
 // (moved to keys.go) bindKeys
