@@ -113,7 +113,7 @@ func (a *App) toggleMarkdown() {
 		a.setStatusPersistent("🧾 Disabling LLM touch-up…")
 	}
 	a.llmTouchUpEnabled = !a.llmTouchUpEnabled
-	if m, ok := a.messageCache[mid]; ok {
+    if m, ok := a.messageCache[mid]; ok {
 		go func(msg *gmail.Message) {
 			rendered, _ := a.renderMessageContent(msg)
 			a.QueueUpdateDraw(func() {
@@ -132,5 +132,27 @@ func (a *App) toggleMarkdown() {
 		}(m)
 		return
 	}
-	a.showStatusMessage("ℹ️ Open the message first to toggle formatting")
+    // If not cached (e.g., after local search), fetch and then render
+    go func(id string) {
+        fetched, err := a.Client.GetMessageWithContent(id)
+        if err != nil {
+            a.showError("❌ Could not load message content")
+            return
+        }
+        a.messageCache[id] = fetched
+        rendered, _ := a.renderMessageContent(fetched)
+        a.QueueUpdateDraw(func() {
+            if text, ok := a.views["text"].(*tview.TextView); ok {
+                text.SetDynamicColors(true)
+                text.Clear()
+                text.SetText(rendered)
+                text.ScrollToBeginning()
+            }
+            if a.llmTouchUpEnabled {
+                a.showStatusMessage("✅ LLM touch-up enabled")
+            } else {
+                a.showStatusMessage("✅ Deterministic formatting only")
+            }
+        })
+    }(mid)
 }
