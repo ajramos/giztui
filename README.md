@@ -338,6 +338,22 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
   - Arrow keys act on the currently focused pane only
   - The app does not steal focus while background work runs
 
+#### Edit/Remove existing labels
+
+- In the labels side panel (press `l`), you now have:
+  - `📝 Edit existing label…`: Opens a picker with search titled “📝 Select label to edit”.
+    - Type to filter; `Enter` on first match selects the label.
+    - Inline editor titled “📝 Edit label” with the current name pre-filled. `Enter` renames, `Esc` goes back.
+    - After renaming, only the current message header is refreshed; caches are updated to reflect the new label name immediately.
+  - `🗑 Remove existing label…`: Opens a picker titled “🗑 Select label to remove”.
+    - `Enter` selects; confirmation screen titled “🗑 Remove label”. `Enter` confirms, `Esc` cancels.
+    - After deletion, only the current message header is refreshed; caches are updated and side panel is rebuilt.
+
+Navigation niceties:
+- From the list in any picker, pressing Arrow Up on the first item moves focus back to the search field.
+- From the search field, using Arrow keys moves focus to the list.
+- This mirrors the behavior in “🔍 Browse all labels…”.
+
 ### 📦 Move Message (Contextual)
 
 - Press `m` to open the side panel directly in "Browse all labels" mode

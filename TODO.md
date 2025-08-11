@@ -8,14 +8,14 @@
     - Has attachment does not work
     - Search within a date (see gmail specs)
     - Email size
-- Better email visualization (maybe using llm??)
 - Improve status bar experience
 - Improve legend
 - See what happens with my self emailed emails
 - Busqueda de texto con / dentro del email.
-- Pensar en como me puedo mandar cosas a obsidian
+- Pensar en como me puedo mandar cosas a obsidian y a slack
 - Cargar la salida de los LLMs con stream no en completo
-- Revisar la implementación de los LLMs porque hay algunas cosas raras en los providers.
+- Añadir carpetas por defecto a las etiquetas
+- Pensar como aceptar reuniones.
 
 
 ### Email Management

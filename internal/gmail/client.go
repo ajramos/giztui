@@ -1,8 +1,8 @@
 package gmail
 
 import (
-    "context"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -17,8 +17,8 @@ import (
 
 // Client wraps the gmail.Service and provides convenience methods
 type Client struct {
-	Service *gmail.Service
-    profileEmail string
+	Service      *gmail.Service
+	profileEmail string
 }
 
 // NewClient creates a new Gmail client
@@ -29,18 +29,18 @@ func NewClient(service *gmail.Service) *Client {
 // ActiveAccountEmail returns the authenticated user's email address.
 // Uses Gmail Users.GetProfile("me"). The value is cached for subsequent calls.
 func (c *Client) ActiveAccountEmail(ctx context.Context) (string, error) {
-    if c == nil || c.Service == nil {
-        return "", fmt.Errorf("gmail client not initialized")
-    }
-    if c.profileEmail != "" {
-        return c.profileEmail, nil
-    }
-    prof, err := c.Service.Users.GetProfile("me").Context(ctx).Do()
-    if err != nil || prof == nil {
-        return "", err
-    }
-    c.profileEmail = prof.EmailAddress
-    return c.profileEmail, nil
+	if c == nil || c.Service == nil {
+		return "", fmt.Errorf("gmail client not initialized")
+	}
+	if c.profileEmail != "" {
+		return c.profileEmail, nil
+	}
+	prof, err := c.Service.Users.GetProfile("me").Context(ctx).Do()
+	if err != nil || prof == nil {
+		return "", err
+	}
+	c.profileEmail = prof.EmailAddress
+	return c.profileEmail, nil
 }
 
 // Message represents a Gmail message with extracted content
@@ -363,6 +363,41 @@ func (c *Client) ListLabels() ([]*gmail.Label, error) {
 	}
 
 	return res.Labels, nil
+}
+
+// RenameLabel updates the name of an existing label
+func (c *Client) RenameLabel(labelID, newName string) (*gmail.Label, error) {
+	user := "me"
+	if labelID == "" || newName == "" {
+		return nil, fmt.Errorf("invalid label rename inputs")
+	}
+	// Guard: do not allow renaming system labels
+	if strings.HasPrefix(labelID, "CATEGORY_") || labelID == "INBOX" || labelID == "CHAT" || labelID == "SENT" || labelID == "TRASH" || labelID == "SPAM" || (strings.HasSuffix(labelID, "_STAR") || (strings.HasSuffix(labelID, "_STARRED") && labelID != "STARRED")) {
+		return nil, fmt.Errorf("cannot rename system label: %s", labelID)
+	}
+	// Use Patch to update only the name
+	req := &gmail.Label{Name: newName}
+	updated, err := c.Service.Users.Labels.Patch(user, labelID, req).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to rename label: %w")
+	}
+	return updated, nil
+}
+
+// DeleteLabel removes a label permanently
+func (c *Client) DeleteLabel(labelID string) error {
+	user := "me"
+	if labelID == "" {
+		return fmt.Errorf("invalid label id")
+	}
+	// Guard: do not allow deleting system labels
+	if strings.HasPrefix(labelID, "CATEGORY_") || labelID == "INBOX" || labelID == "CHAT" || labelID == "SENT" || labelID == "TRASH" || labelID == "SPAM" || labelID == "STARRED" {
+		return fmt.Errorf("cannot delete system label: %s", labelID)
+	}
+	if err := c.Service.Users.Labels.Delete(user, labelID).Do(); err != nil {
+		return fmt.Errorf("failed to delete label: %w")
+	}
+	return nil
 }
 
 // CreateLabel creates a new label

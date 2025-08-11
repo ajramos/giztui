@@ -7,6 +7,7 @@ import (
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
+	"github.com/mattn/go-runewidth"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -274,6 +275,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 		body := tview.NewList().ShowSecondaryText(false)
 		body.SetBorder(false)
+		// Helper to pad emoji to width 2 for alignment across fonts
+		padIcon := func(icon string) string {
+			if runewidth.StringWidth(icon) < 2 {
+				return icon + " "
+			}
+			return icon
+		}
 		// Current labels first (checked)
 		for _, l := range applied {
 			name := l.Name
@@ -309,12 +317,18 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			})
 		}
 		// Actions
-		body.AddItem("🔍 Browse all labels…", "Enter to apply 1st match | Esc to back", 0, func() {
+		body.AddItem(padIcon("🔍")+" Browse all labels…", "Enter to apply 1st match | Esc to back", 0, func() {
 			a.expandLabelsBrowse(messageID)
 		})
-		body.AddItem("➕ Add custom label…", "Create or apply", 0, func() {
+		body.AddItem(padIcon("➕")+" Add custom label…", "Create or apply", 0, func() {
 			a.labelsExpanded = true // prevent quick view from repainting over input
 			go a.addCustomLabelInline(messageID)
+		})
+		body.AddItem(padIcon("📝")+" Edit existing label…", "Rename a label", 0, func() {
+			a.browseLabelForEdit(messageID)
+		})
+		body.AddItem(padIcon("🗑")+" Remove existing label…", "Delete a label", 0, func() {
+			a.browseLabelForRemove(messageID)
 		})
 
 		// Capture ESC in quick view to close panel (hint shown in footer of subpanels)
@@ -748,7 +762,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				a.labelsView = container
 				split.AddItem(a.labelsView, 0, 1, true)
 			}
-			// ESC handling in list: back to quick view or close panel in move mode
+			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyEscape {
 					a.labelsExpanded = false
@@ -777,6 +791,15 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					return nil
 				}
+				if e.Key() == tcell.KeyUp {
+					idx := list.GetCurrentItem()
+					if idx <= 0 {
+						a.SetFocus(input)
+						a.currentFocus = "labels"
+						a.updateFocusIndicators("labels")
+						return nil
+					}
+				}
 				return e
 			})
 			reload("")
@@ -785,6 +808,243 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			a.updateFocusIndicators("labels")
 		})
 	}()
+}
+
+// browseLabelForEdit opens a browse-all picker to select a label to rename
+func (a *App) browseLabelForEdit(messageID string) {
+	a.labelsExpanded = true
+	a.expandLabelsBrowseGeneric(messageID, " 📝 Select label to edit ", func(id, name string) {
+		a.editLabelInline(id, name)
+	})
+}
+
+// browseLabelForRemove opens a browse-all picker to select a label to delete
+func (a *App) browseLabelForRemove(messageID string) {
+	a.labelsExpanded = true
+	a.expandLabelsBrowseGeneric(messageID, " 🗑 Select label to remove ", func(id, name string) {
+		a.confirmDeleteLabel(id, name)
+	})
+}
+
+// expandLabelsBrowseGeneric clones the browse-all list but calls onPick when the user confirms a label
+func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id, name string)) {
+	input := tview.NewInputField().
+		SetLabel("🔍 Search: ").
+		SetFieldWidth(30)
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(false)
+
+	type labelItem struct{ id, name string }
+	var all []labelItem
+	var visible []labelItem
+	reload := func(filter string) {
+		list.Clear()
+		visible = visible[:0]
+		for _, it := range all {
+			if filter != "" && !strings.Contains(strings.ToLower(it.name), strings.ToLower(filter)) {
+				continue
+			}
+			visible = append(visible, it)
+			id := it.id
+			name := it.name
+			list.AddItem(name, "Enter: pick", 0, func() {
+				if a.logger != nil {
+					a.logger.Printf("browseGeneric: pick via list id=%s name=%s", id, name)
+				}
+				go onPick(id, name)
+			})
+		}
+	}
+
+	go func() {
+		labels, err := a.Client.ListLabels()
+		if err != nil {
+			a.showError("❌ Error loading labels")
+			return
+		}
+		filtered := a.filterAndSortLabels(labels)
+		all = make([]labelItem, 0, len(filtered))
+		for _, l := range filtered {
+			all = append(all, labelItem{l.Id, l.Name})
+		}
+		a.QueueUpdateDraw(func() {
+			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
+			// Permitir volver al listado con flechas desde el buscador
+			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
+					a.SetFocus(list)
+					a.currentFocus = "labels"
+					a.updateFocusIndicators("labels")
+					return e
+				}
+				return e
+			})
+			input.SetDoneFunc(func(key tcell.Key) {
+				if key == tcell.KeyEscape {
+					a.labelsExpanded = false
+					a.populateLabelsQuickView(messageID)
+					return
+				}
+				if key == tcell.KeyEnter {
+					if len(visible) > 0 {
+						v := visible[0]
+						if a.logger != nil {
+							a.logger.Printf("browseGeneric: pick via search id=%s name=%s", v.id, v.name)
+						}
+						go onPick(v.id, v.name)
+					}
+				}
+			})
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBorder(true)
+			container.SetTitle(title)
+			container.SetTitleColor(tcell.ColorYellow)
+			container.AddItem(input, 3, 0, true)
+			container.AddItem(list, 0, 1, true)
+			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+			footer.SetText(" Enter to pick 1st match  |  Esc to back ")
+			footer.SetTextColor(tcell.ColorGray)
+			container.AddItem(footer, 1, 0, false)
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				if a.labelsView != nil {
+					split.RemoveItem(a.labelsView)
+				}
+				a.labelsView = container
+				split.AddItem(a.labelsView, 0, 1, true)
+				split.ResizeItem(a.labelsView, 0, 1)
+			}
+			// Capturar flechas en la lista: si estamos en la primera y pulsamos Arriba, volver al buscador
+			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyUp {
+					idx := list.GetCurrentItem()
+					if idx <= 0 {
+						a.SetFocus(input)
+						a.currentFocus = "labels"
+						a.updateFocusIndicators("labels")
+						return nil
+					}
+				}
+				return e
+			})
+			a.labelsVisible = true
+			a.currentFocus = "labels"
+			a.updateFocusIndicators("labels")
+			a.SetFocus(input)
+			reload("")
+		})
+	}()
+}
+
+// editLabelInline opens an inline form to rename a label
+func (a *App) editLabelInline(labelID, name string) {
+	input := tview.NewInputField().
+		SetLabel("New name: ").
+		SetText(name).
+		SetFieldWidth(30)
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Enter to rename  |  Esc to back ")
+	footer.SetTextColor(tcell.ColorGray)
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBorder(true)
+	container.SetTitle(" 📝 Edit label ")
+	container.SetTitleColor(tcell.ColorYellow)
+	container.AddItem(input, 3, 0, true)
+	container.AddItem(footer, 1, 0, false)
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.browseLabelForEdit(a.getCurrentMessageID())
+			return
+		}
+		if key == tcell.KeyEnter {
+			newName := strings.TrimSpace(input.GetText())
+			if newName == "" || strings.EqualFold(newName, name) {
+				a.browseLabelForEdit(a.getCurrentMessageID())
+				return
+			}
+			go func(oldName, newName string) {
+				if _, err := a.Client.RenameLabel(labelID, newName); err != nil {
+					a.showError("❌ Error renaming label")
+					return
+				}
+				a.QueueUpdateDraw(func() {
+					a.showStatusMessage("✏️ Renamed: " + oldName + " → " + newName)
+					a.labelsExpanded = false
+					mid := a.getCurrentMessageID()
+					a.renameLabelInMessageCache(mid, oldName, newName)
+					a.populateLabelsQuickView(mid)
+					a.refreshMessageContent(mid)
+				})
+			}(name, newName)
+		}
+	})
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(input)
+		a.currentFocus = "labels"
+		a.updateFocusIndicators("labels")
+	})
+}
+
+// confirmDeleteLabel shows a lightweight confirmation and deletes on Enter
+func (a *App) confirmDeleteLabel(labelID, name string) {
+	text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	text.SetText("Delete label ‘" + name + "’? This cannot be undone.")
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Enter to confirm  |  Esc to back ")
+	footer.SetTextColor(tcell.ColorGray)
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBorder(true)
+	container.SetTitle(" 🗑 Remove label ")
+	container.SetTitleColor(tcell.ColorYellow)
+	container.AddItem(text, 0, 1, true)
+	container.AddItem(footer, 1, 0, false)
+	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.browseLabelForRemove(a.getCurrentMessageID())
+			return nil
+		}
+		if e.Key() == tcell.KeyEnter {
+			go func(delName string) {
+				if err := a.Client.DeleteLabel(labelID); err != nil {
+					a.showError("❌ Error deleting label")
+					return
+				}
+				a.QueueUpdateDraw(func() {
+					a.showStatusMessage("🗑️ Deleted: " + delName)
+					a.labelsExpanded = false
+					mid := a.getCurrentMessageID()
+					a.removeLabelNameFromMessageCache(mid, delName)
+					a.populateLabelsQuickView(mid)
+					a.refreshMessageContent(mid)
+				})
+			}(name)
+			return nil
+		}
+		return e
+	})
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(container)
+		a.currentFocus = "labels"
+		a.updateFocusIndicators("labels")
+	})
 }
 
 // openMovePanel opens the side panel directly in browse-all mode to move the message
@@ -1197,6 +1457,33 @@ func (a *App) updateMessageCacheLabels(messageID, labelName string, applied bool
 			}
 			m.Labels = out
 		}
+	}
+}
+
+// renameLabelInMessageCache updates the cached full message label names when a label
+// entity has been renamed. This avoids a refetch and ensures the header reflects
+// the new name immediately for the current message.
+func (a *App) renameLabelInMessageCache(messageID, oldName, newName string) {
+	if m, ok := a.messageCache[messageID]; ok && m != nil {
+		for i, ln := range m.Labels {
+			if strings.EqualFold(ln, oldName) {
+				m.Labels[i] = newName
+			}
+		}
+	}
+}
+
+// removeLabelNameFromMessageCache removes a label name from the cached full message.
+// Useful after deleting a label entity so the header updates immediately.
+func (a *App) removeLabelNameFromMessageCache(messageID, name string) {
+	if m, ok := a.messageCache[messageID]; ok && m != nil {
+		out := m.Labels[:0]
+		for _, ln := range m.Labels {
+			if !strings.EqualFold(ln, name) {
+				out = append(out, ln)
+			}
+		}
+		m.Labels = out
 	}
 }
 

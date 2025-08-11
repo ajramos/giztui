@@ -80,8 +80,13 @@ func FormatEmailForTerminal(ctx context.Context, msg *gmailwrap.Message, opts Fo
 	// Light sanitization for terminal glyphs (after wrapping) and de-duplication
 	body = sanitizeBodyPreservingCode(body)
 	body = dedupeConsecutiveLines(body)
-	body = dedupeNearDuplicateParagraphs(body, 8)
+	// Use a wider window to catch duplicated sections that are separated by
+	// several paragraphs (common in templated notification emails)
+	body = dedupeNearDuplicateParagraphs(body, 32)
 	body = collapsePipeNavRuns(body)
+	// Remove large repeated chunks that sometimes appear in notification templates
+	// when the same section is rendered multiple times in the HTML.
+	body = dedupeRepeatedLineBlocks(body, 8, 24)
 
 	// Compose sections
 	out := &strings.Builder{}
@@ -278,9 +283,14 @@ func dedupeNearDuplicateParagraphs(s string, window int) string {
 	}
 	out := make([]string, 0, len(blocks))
 	recent := make([]string, 0, window)
+	// Precompile regex to strip numeric link refs like [1], [23]
+	linkRefRe := regexp.MustCompile(`\[\d+\]`)
 	normText := func(b string) string {
 		cur := strings.TrimSpace(b)
 		cur = sanitizeForTerminal(cur)
+		// Remove numeric link reference markers so paragraphs with identical text
+		// but different link indices are considered duplicates
+		cur = linkRefRe.ReplaceAllString(cur, "[]")
 		return strings.Join(strings.Fields(cur), " ")
 	}
 	for _, b := range blocks {
@@ -329,6 +339,49 @@ func collapsePipeNavRuns(s string) string {
 			lastNav = ""
 		}
 		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
+}
+
+// dedupeRepeatedLineBlocks removes repeated multi-line blocks within a sliding window.
+// If not sure, it leaves the text unchanged. This is a conservative fallback to avoid
+// compile errors if the more advanced implementation is missing.
+func dedupeRepeatedLineBlocks(s string, minBlockLines, window int) string {
+	if minBlockLines <= 1 || window <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) < minBlockLines*2 {
+		return s
+	}
+	out := make([]string, 0, len(lines))
+	// naive approach: skip exact repeated blocks of size >= minBlockLines within last 'window' lines
+	for i := 0; i < len(lines); {
+		// current block candidate of size minBlockLines
+		size := minBlockLines
+		if i+size > len(lines) {
+			size = len(lines) - i
+		}
+		block := strings.Join(lines[i:i+size], "\n")
+		// look back up to 'window' lines for the same block
+		foundRepeat := false
+		backStart := i - window
+		if backStart < 0 {
+			backStart = 0
+		}
+		for j := backStart; j+size <= i; j++ {
+			if strings.Join(lines[j:j+size], "\n") == block {
+				foundRepeat = true
+				break
+			}
+		}
+		if foundRepeat {
+			// skip this occurrence
+			i += size
+			continue
+		}
+		out = append(out, lines[i])
+		i++
 	}
 	return strings.Join(out, "\n")
 }
