@@ -37,6 +37,9 @@ type Config struct {
 
 	// Keyboard shortcuts
 	Keys KeyBindings `json:"keys"`
+
+	// Logging
+	LogFile string `json:"log_file"`
 }
 
 // LayoutConfig defines layout-specific configuration
@@ -99,6 +102,7 @@ func DefaultConfig() *Config {
 		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, summarize, or remove any content. Only adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, and link references (text [n] + [LINKS]). Preserve [ATTACHMENTS] and [IMAGES] sections unchanged. Output only the adjusted text.\n\n{{body}}",
 		Layout:          DefaultLayoutConfig(),
 		Keys:            DefaultKeyBindings(),
+		LogFile:         "",
 	}
 }
 

@@ -126,8 +126,18 @@ func (a *App) generateOrShowSummary(messageID string) {
 
 // suggestLabel suggests a label using LLM
 func (a *App) suggestLabel() {
+	if a.logger != nil {
+		a.logger.Printf("suggestLabel: start for %s", a.getCurrentMessageID())
+	}
 	if a.LLM == nil {
-		a.showStatusMessage("⚠️ LLM disabled")
+		// Fallback UX: abrir selector completo para no dejar al usuario sin salida
+		mid := a.getCurrentMessageID()
+		if mid != "" {
+			a.showStatusMessage("⚠️ LLM disabled — opening all labels picker")
+			a.showAllLabelsPicker(mid)
+		} else {
+			a.showStatusMessage("⚠️ LLM disabled")
+		}
 		return
 	}
 	messageID := a.getCurrentMessageID()
@@ -143,11 +153,17 @@ func (a *App) suggestLabel() {
 	go func() {
 		m, err := a.Client.GetMessageWithContent(messageID)
 		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("suggestLabel: GetMessageWithContent error: %v", err)
+			}
 			a.showError("❌ Error loading message")
 			return
 		}
 		labels, err := a.Client.ListLabels()
 		if err != nil || len(labels) == 0 {
+			if a.logger != nil {
+				a.logger.Printf("suggestLabel: ListLabels error: %v", err)
+			}
 			a.showError("❌ Error loading labels")
 			return
 		}
@@ -172,19 +188,26 @@ func (a *App) suggestLabel() {
 		}
 		tmpl := strings.ReplaceAll(template, "{{labels}}", strings.Join(allowed, ", "))
 		prompt := strings.ReplaceAll(tmpl, "{{body}}", body)
+		if a.logger != nil {
+			a.logger.Printf("suggestLabel: prompt size=%d", len(prompt))
+		}
 		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
+			// Fallback: mostrar selector completo para que el usuario pueda aplicar manualmente
 			a.showLLMError("suggest labels", err)
+			if a.logger != nil {
+				a.logger.Printf("suggestLabel: LLM error: %v", err)
+			}
+			a.QueueUpdateDraw(func() { a.showAllLabelsPicker(messageID) })
 			return
 		}
+		if a.logger != nil {
+			a.logger.Printf("suggestLabel: raw response: %q", resp)
+		}
+		// Try strict JSON first; then fallback to heuristic extraction (bulleted lines, quoted names)
 		var arr []string
 		if err := json.Unmarshal([]byte(strings.TrimSpace(resp)), &arr); err != nil {
-			parts := strings.Split(resp, ",")
-			for _, p := range parts {
-				if s := strings.TrimSpace(strings.Trim(p, "\"[]")); s != "" {
-					arr = append(arr, s)
-				}
-			}
+			arr = extractLabelsFromLLMResponse(resp)
 		}
 		uniq := make([]string, 0, 3)
 		seen := make(map[string]struct{})
@@ -201,10 +224,7 @@ func (a *App) suggestLabel() {
 				break
 			}
 		}
-		if len(uniq) == 0 {
-			a.showStatusMessage("ℹ️ No label suggestion")
-			return
-		}
+		// Always show panel (even empty) to keep UX consistent
 		a.aiLabelsCache[messageID] = uniq
 		a.QueueUpdateDraw(func() { a.showLabelSuggestions(messageID, uniq); a.showStatusMessage("✅ Suggestions ready") })
 	}()
@@ -212,129 +232,181 @@ func (a *App) suggestLabel() {
 
 // showLabelSuggestions displays a picker to apply one or all suggested labels
 func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
-	picker := tview.NewList().ShowSecondaryText(false)
-	picker.SetBorder(true)
-	picker.SetTitle(" 🏷️ Apply suggested label(s) ")
-
-	labels, err := a.Client.ListLabels()
-	if err != nil {
-		a.showError("❌ Error loading labels")
-		return
+	if a.logger != nil {
+		a.logger.Printf("showLabelSuggestions: start mid=%s count=%d", messageID, len(suggestions))
 	}
-	nameToID := make(map[string]string, len(labels))
-	for _, l := range labels {
-		nameToID[l.Name] = l.Id
-	}
-	for _, name := range suggestions {
-		labelName := name
-		picker.AddItem(labelName, "Enter to apply", 0, func() {
-			if id, ok := nameToID[labelName]; ok {
-				go func() {
-					if err := a.Client.ApplyLabel(messageID, id); err != nil {
-						a.showError("❌ Error applying label")
-						return
-					}
-					a.updateCachedMessageLabels(messageID, id, true)
-					a.showStatusMessage("✅ Applied: " + labelName)
-					a.Pages.SwitchToPage("main")
-					a.restoreFocusAfterModal()
-				}()
+	a.setStatusPersistent("🏷️ Showing suggested labels…")
+	// Do network work off the UI thread
+	go func() {
+		labels, err := a.Client.ListLabels()
+		if err != nil {
+			a.showError("❌ Error loading labels")
+			return
+		}
+		nameToID := make(map[string]string, len(labels))
+		for _, l := range labels {
+			nameToID[l.Name] = l.Id
+		}
+		// Build UI on the UI thread
+		a.QueueUpdateDraw(func() {
+			body := tview.NewList().ShowSecondaryText(false)
+			body.SetBorder(false)
+			if len(suggestions) == 0 {
+				body.AddItem("(No suggestions)", "Use Browse all or Add custom", 0, nil)
 			}
-		})
-	}
-	picker.AddItem("✅ Apply all", "Apply all suggested labels", 0, func() {
-		go func() {
+			// Mark suggestions already applied with ✅
+			appliedSet := make(map[string]bool)
+			if meta, ok := a.messageCache[messageID]; ok && meta != nil {
+				for _, ln := range meta.Labels {
+					appliedSet[ln] = true
+				}
+			}
 			for _, name := range suggestions {
-				if id, ok := nameToID[name]; ok {
-					_ = a.Client.ApplyLabel(messageID, id)
-					a.updateCachedMessageLabels(messageID, id, true)
+				lbl := name
+				prefix := "○ "
+				if appliedSet[lbl] {
+					prefix = "✅ "
 				}
+				body.AddItem(prefix+lbl, "Enter: apply", 0, func() {
+					if id, ok := nameToID[lbl]; ok {
+						go func() {
+							if err := a.Client.ApplyLabel(messageID, id); err != nil {
+								a.showError("❌ Error applying label")
+								return
+							}
+							a.updateCachedMessageLabels(messageID, id, true)
+							a.QueueUpdateDraw(func() {
+								a.showStatusMessage("✅ Applied: " + lbl)
+								a.refreshMessageContent(messageID)
+							})
+						}()
+					}
+				})
 			}
-			a.showStatusMessage("✅ Applied all suggestions")
-			a.Pages.SwitchToPage("main")
-			a.restoreFocusAfterModal()
-		}()
-	})
-	picker.AddItem("🗂️  Pick from all labels", "Open full label list to apply", 0, func() {
-		a.showAllLabelsPicker(messageID)
-	})
-	picker.AddItem("➕ Add custom label", "Create or pick a label and apply", 0, func() {
-		input := tview.NewInputField().
-			SetLabel("Label name: ").
-			SetFieldWidth(30)
-		modal := tview.NewFlex().SetDirection(tview.FlexRow)
-		title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-		title.SetBorder(true)
-		title.SetText("Enter a label name | Enter=apply, ESC=cancel")
-		modal.AddItem(title, 3, 0, false)
-		modal.AddItem(input, 3, 0, true)
-
-		input.SetDoneFunc(func(key tcell.Key) {
-			if key == tcell.KeyEscape {
-				a.Pages.SwitchToPage("aiLabelSuggestions")
-				a.SetFocus(picker)
-				return
-			}
-			if key == tcell.KeyEnter {
-				name := strings.TrimSpace(input.GetText())
-				if name == "" {
-					return
-				}
-				go func() {
-					id, ok := nameToID[name]
-					if !ok {
-						for n, i := range nameToID {
-							if strings.EqualFold(n, name) {
-								id = i
-								ok = true
-								break
+			if len(suggestions) > 1 {
+				body.AddItem("✅ Apply all", "Apply all suggested labels", 0, func() {
+					go func() {
+						for _, name := range suggestions {
+							if id, ok := nameToID[name]; ok {
+								_ = a.Client.ApplyLabel(messageID, id)
+								a.updateCachedMessageLabels(messageID, id, true)
 							}
 						}
-					}
-					if !ok {
-						created, err := a.Client.CreateLabel(name)
-						if err != nil {
-							a.showError("❌ Error creating label")
-							return
-						}
-						id = created.Id
-						nameToID[name] = id
-					}
-					if err := a.Client.ApplyLabel(messageID, id); err != nil {
-						a.showError("❌ Error applying label")
-						return
-					}
-					a.updateCachedMessageLabels(messageID, id, true)
-					a.showStatusMessage("✅ Applied: " + name)
-					a.QueueUpdateDraw(func() { a.Pages.SwitchToPage("main"); a.restoreFocusAfterModal() })
-				}()
+						a.QueueUpdateDraw(func() {
+							a.showStatusMessage("✅ Applied all suggestions")
+							a.refreshMessageContent(messageID)
+						})
+					}()
+				})
+			}
+			// Use magnifying glass like other places
+			body.AddItem("🔍 Browse all labels…", "Enter to apply 1st match | Esc to back", 0, func() { a.expandLabelsBrowse(messageID) })
+			body.AddItem("➕ Add custom label…", "Create or apply", 0, func() { a.addCustomLabelInline(messageID) })
+			// Remove explicit Back item; ESC hint will be shown in footer and ESC returns to quick view
+
+			body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyEscape {
+					// Go back to quick view within the side panel
+					a.labelsExpanded = false
+					a.populateLabelsQuickView(messageID)
+					return nil
+				}
+				return e
+			})
+
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			container.SetBorder(true)
+			container.SetTitle(" 🏷️  Suggested Labels ")
+			container.SetTitleColor(tcell.ColorYellow)
+			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.AddItem(body, 0, 1, true)
+			// Footer hint
+			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+			footer.SetText(" Enter to apply  |  Esc to back ")
+			footer.SetTextColor(tcell.ColorGray)
+			container.AddItem(footer, 1, 0, false)
+
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				if a.labelsView != nil {
+					split.RemoveItem(a.labelsView)
+				}
+				a.labelsView = container
+				split.AddItem(a.labelsView, 0, 1, true)
+				split.ResizeItem(a.labelsView, 0, 1)
+			}
+			a.labelsVisible = true
+			a.currentFocus = "labels"
+			a.updateFocusIndicators("labels")
+			a.SetFocus(body)
+			if body.GetItemCount() > 0 {
+				body.SetCurrentItem(0)
+			}
+			if a.logger != nil {
+				a.logger.Printf("showLabelSuggestions: mounted; items=%d", body.GetItemCount())
 			}
 		})
+	}()
+}
 
-		a.Pages.AddPage("aiLabelAddCustom", modal, true, true)
-		a.Pages.SwitchToPage("aiLabelAddCustom")
-		a.SetFocus(input)
-	})
-
-	picker.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if e.Key() == tcell.KeyEscape {
-			a.Pages.SwitchToPage("main")
-			a.restoreFocusAfterModal()
-			return nil
+// extractLabelsFromLLMResponse attempts to pull label names from free-form text.
+// It supports bullet lists ("- name", "* name"), lines with quotes, and
+// simple patterns like "label is: \"Name\"". Returns a deduplicated list.
+func extractLabelsFromLLMResponse(resp string) []string {
+	lines := strings.Split(resp, "\n")
+	out := make([]string, 0, 6)
+	seen := make(map[string]struct{})
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		s = strings.Trim(s, "\"'`“”‘’[]")
+		if s == "" {
+			return
 		}
-		return e
-	})
-
-	v := tview.NewFlex().SetDirection(tview.FlexRow)
-	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetBorder(true)
-	title.SetText("Select label to apply | Enter=apply, ESC=back")
-	v.AddItem(title, 3, 0, false)
-	v.AddItem(picker, 0, 1, true)
-	a.Pages.AddPage("aiLabelSuggestions", v, true, true)
-	a.Pages.SwitchToPage("aiLabelSuggestions")
-	if picker.GetItemCount() > 0 {
-		picker.SetCurrentItem(0)
+		// keep short but meaningful strings; avoid generic words
+		if len([]rune(s)) < 2 {
+			return
+		}
+		if _, ok := seen[s]; ok {
+			return
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
 	}
-	a.SetFocus(picker)
+	for _, ln := range lines {
+		l := strings.TrimSpace(ln)
+		if l == "" {
+			continue
+		}
+		// bullets: - label or * label
+		if strings.HasPrefix(l, "-") || strings.HasPrefix(l, "*") {
+			l = strings.TrimLeft(l, "-*• ")
+			// split on colon if format "Zscaler: description"
+			parts := strings.SplitN(l, ":", 2)
+			add(parts[0])
+			continue
+		}
+		// lines with quotes
+		if strings.Contains(l, "\"") {
+			// take content within first quotes
+			first := strings.Index(l, "\"")
+			if first >= 0 {
+				rest := l[first+1:]
+				if end := strings.Index(rest, "\""); end > 0 {
+					add(rest[:end])
+					continue
+				}
+			}
+		}
+		// fallback: if sentence contains label is/are, take last word(s)
+		low := strings.ToLower(l)
+		if strings.Contains(low, "label is") || strings.Contains(low, "labels are") {
+			l = strings.TrimPrefix(low, "label is:")
+			l = strings.TrimPrefix(low, "labels are:")
+			add(l)
+		}
+	}
+	// limit to 3
+	if len(out) > 3 {
+		return out[:3]
+	}
+	return out
 }

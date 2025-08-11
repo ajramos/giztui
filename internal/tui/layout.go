@@ -85,6 +85,11 @@ func (a *App) initComponents() {
 
 // initViews initializes the main views
 func (a *App) initViews() {
+	// Add a background page that paints the full-screen background color.
+	// This works around tview containers not painting their own border areas.
+	background := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	a.Pages.AddPage("background", background, true, true)
+
 	// Create main layout
 	mainLayout := a.createMainLayout()
 

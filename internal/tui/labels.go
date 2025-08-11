@@ -309,14 +309,15 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			})
 		}
 		// Actions
-		body.AddItem("🔍 Browse all labels…", "Expand panel", 0, func() {
+		body.AddItem("🔍 Browse all labels…", "Enter to apply 1st match | Esc to back", 0, func() {
 			a.expandLabelsBrowse(messageID)
 		})
 		body.AddItem("➕ Add custom label…", "Create or apply", 0, func() {
-			a.addCustomLabelInline(messageID)
+			a.labelsExpanded = true // prevent quick view from repainting over input
+			go a.addCustomLabelInline(messageID)
 		})
 
-		// Capture ESC in quick view to close panel
+		// Capture ESC in quick view to close panel (hint shown in footer of subpanels)
 		body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			if e.Key() == tcell.KeyEscape {
 				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -357,8 +358,17 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container.SetTitleColor(tcell.ColorYellow)
 		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		container.AddItem(body, 0, 1, true)
+		// Footer hint: quick view uses ESC to close panel
+		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+		footer.SetText(" Esc to back ")
+		footer.SetTextColor(tcell.ColorGray)
+		container.AddItem(footer, 1, 0, false)
 
 		a.QueueUpdateDraw(func() {
+			// If user navigated to an expanded subpanel (browse/create), do not overwrite it
+			if a.labelsExpanded {
+				return
+			}
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				// replace labelsView item with new container
 				split.RemoveItem(a.labelsView)
@@ -726,9 +736,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				SetDynamicColors(true).
 				SetTextAlign(tview.AlignRight)
 			if moveMode {
-				footer.SetText("Enter applies/moves the first visible match   •   ESC to cancel  ")
+				footer.SetText(" Enter to move 1st match  |  Esc to cancel ")
 			} else {
-				footer.SetText("Enter applies the first visible match   •   ESC to back  ")
+				footer.SetText(" Enter to apply 1st match  |  Esc to back ")
 			}
 			footer.SetTextColor(tcell.ColorGray)
 			container.AddItem(footer, 1, 0, false)
@@ -823,18 +833,35 @@ func (a *App) openMovePanelBulk() {
 
 // addCustomLabelInline prompts for a name and applies/creates it
 func (a *App) addCustomLabelInline(messageID string) {
+	a.labelsExpanded = true
+	// Small hint so el usuario ve reacción inmediata
+	a.showStatusMessage("➕ New label…")
+	if a.logger != nil {
+		a.logger.Printf("addCustomLabelInline: open mid=%s", messageID)
+	}
+	// Inline input inside labels side panel (no modal)
 	input := tview.NewInputField().
 		SetLabel("Label name: ").
 		SetFieldWidth(30)
-	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetBorder(true)
-	title.SetText("Enter a label name | Enter=apply, ESC=cancel")
-	modal.AddItem(title, 3, 0, false)
-	modal.AddItem(input, 3, 0, true)
+
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Enter to apply  |  Esc to back ")
+	footer.SetTextColor(tcell.ColorGray)
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBorder(true)
+	container.SetTitle(" ➕ Add custom label ")
+	container.SetTitleColor(tcell.ColorYellow)
+	container.AddItem(input, 3, 0, true)
+	container.AddItem(footer, 1, 0, false)
 
 	input.SetDoneFunc(func(key tcell.Key) {
+		if a.logger != nil {
+			a.logger.Printf("addCustomLabelInline: key=%v", key)
+		}
 		if key == tcell.KeyEscape {
+			a.labelsExpanded = false
 			a.populateLabelsQuickView(messageID)
 			return
 		}
@@ -843,12 +870,25 @@ func (a *App) addCustomLabelInline(messageID string) {
 			if name == "" {
 				return
 			}
+			// Run non-blocking; update status from inside the worker to avoid blocking handler
 			go func() {
-				// Reuse label list to find existing
+				if a.logger != nil {
+					a.logger.Printf("addCustomLabelInline: worker start")
+				}
+				a.QueueUpdateDraw(func() { a.setStatusPersistent("⏳ Creating/applying label…") })
+				if a.logger != nil {
+					a.logger.Printf("addCustomLabelInline: ListLabels start")
+				}
 				labels, err := a.Client.ListLabels()
 				if err != nil {
-					a.showError("❌ Error loading labels")
+					if a.logger != nil {
+						a.logger.Printf("addCustomLabelInline: ListLabels error: %v", err)
+					}
+					a.QueueUpdateDraw(func() { a.showError("❌ Error loading labels") })
 					return
+				}
+				if a.logger != nil {
+					a.logger.Printf("addCustomLabelInline: ListLabels ok (%d)", len(labels))
 				}
 				nameToID := make(map[string]string)
 				for _, l := range labels {
@@ -856,7 +896,6 @@ func (a *App) addCustomLabelInline(messageID string) {
 				}
 				id, ok := nameToID[name]
 				if !ok {
-					// case-insensitive match
 					for n, i := range nameToID {
 						if strings.EqualFold(n, name) {
 							id = i
@@ -866,33 +905,60 @@ func (a *App) addCustomLabelInline(messageID string) {
 					}
 				}
 				if !ok {
+					if a.logger != nil {
+						a.logger.Printf("addCustomLabelInline: CreateLabel %q", name)
+					}
 					created, err := a.Client.CreateLabel(name)
 					if err != nil {
-						a.showError("❌ Error creating label")
+						if a.logger != nil {
+							a.logger.Printf("addCustomLabelInline: CreateLabel error: %v", err)
+						}
+						a.QueueUpdateDraw(func() { a.showError("❌ Error creating label") })
 						return
 					}
 					id = created.Id
 				}
+				if a.logger != nil {
+					a.logger.Printf("addCustomLabelInline: ApplyLabel mid=%s id=%s", messageID, id)
+				}
 				if err := a.Client.ApplyLabel(messageID, id); err != nil {
-					a.showError("❌ Error applying label")
+					if a.logger != nil {
+						a.logger.Printf("addCustomLabelInline: ApplyLabel error: %v", err)
+					}
+					a.QueueUpdateDraw(func() { a.showError("❌ Error applying label") })
 					return
 				}
 				a.updateCachedMessageLabels(messageID, id, true)
-				a.showStatusMessage("✅ Applied: " + name)
-				a.QueueUpdateDraw(func() { a.populateLabelsQuickView(messageID); a.refreshMessageContent(messageID) })
+				// Also update full message cache labels to reflect immediately
+				a.updateMessageCacheLabels(messageID, name, true)
+				a.QueueUpdateDraw(func() {
+					if a.logger != nil {
+						a.logger.Printf("addCustomLabelInline: done, refreshing views")
+					}
+					a.showStatusMessage("✅ Applied: " + name)
+					a.setStatusPersistent("")
+					a.labelsExpanded = false
+					a.populateLabelsQuickView(messageID)
+					a.refreshMessageContent(messageID)
+				})
 			}()
 		}
 	})
 
 	a.QueueUpdateDraw(func() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			split.RemoveItem(a.labelsView)
-			a.labelsView = modal
+			// Replace a.labelsView item by index to avoid losing layout
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = container
 			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
 		}
-		a.SetFocus(input)
+		a.labelsVisible = true
 		a.currentFocus = "labels"
-		a.updateFocusIndicators("text")
+		a.updateFocusIndicators("labels")
+		a.SetFocus(input)
 	})
 }
 
@@ -1018,8 +1084,8 @@ func (a *App) createNewLabelFromView() {
 	title.SetTextColor(tcell.ColorYellow)
 	title.SetBorder(true)
 
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	instructions.SetText("Enter label name and press Enter | ESC to cancel")
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	instructions.SetText(" Enter to apply  |  Esc to back ")
 	instructions.SetTextColor(tcell.ColorGray)
 
 	modal.AddItem(title, 3, 0, false)

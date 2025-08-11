@@ -12,7 +12,7 @@ An optional LLM “touch-up” layer can adjust whitespace/line breaks for nicer
 
 ### Keyboard
 
-- `M` — Toggle LLM touch-up ON/OFF for the current message view
+- `M` — Toggle LLM touch-up ON/OFF for the current message view (whitespace-only formatting)
 - Indicator in the status bar:
   - `🧾` deterministic only
   - `🧠` LLM touch-up enabled
@@ -37,6 +37,7 @@ Config fields (in `~/.config/gmail-tui/config.json`):
 ```
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
+Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/gmail-tui/gmail-tui.log`.
 
 ### Internals
 
@@ -327,10 +328,11 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 - Actions:
   - `Enter`: toggle label (applies immediately and refreshes message content)
   - `n`: create label, `r`: refresh
-  - `ESC`: close panel
- - Browse all labels:
-   - From the panel select “🔎 Browse all labels…” to expand a full picker with search
-   - Type to filter; in the search field, `Enter` applies the first visible match; on the list, `Enter` toggles; `ESC` returns to the quick panel
+  - `ESC`: close panel (hint at bottom-right)
+- Browse all labels:
+  - From the panel select “🔍 Browse all labels…” to expand a full picker with search
+  - Type to filter; in the search field, `Enter` applies the 1st visible match; on the list, `Enter` toggles; `ESC` returns to the quick panel (hint shown)
+- Suggested labels (`o`): opens a side panel with top suggestions (same UX as labels panel), includes “🔍 Browse all labels…” and “➕ Add custom label…”. Applied suggestions are marked with `✅`.
 - Focus rules:
   - Tab cycles: text → labels → summary → list
   - Arrow keys act on the currently focused pane only
@@ -339,7 +341,7 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 ### 📦 Move Message (Contextual)
 
 - Press `m` to open the side panel directly in "Browse all labels" mode
- - Type to filter labels. In the search field, `Enter` applies/moves the first visible match. `Enter` on a list item will:
+  - Type to filter labels. In the search field, `Enter` applies/moves the 1st visible match. `Enter` on a list item will:
   - Apply the label (if not already applied)
   - Archive the message (move semantics)
   - Update the list and content in place

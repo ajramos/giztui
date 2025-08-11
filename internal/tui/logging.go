@@ -11,6 +11,15 @@ func (a *App) initLogger() {
 	if a.logger != nil && a.logFile != nil {
 		return
 	}
+	// Prefer config.LogFile if provided
+	if a.Config != nil && a.Config.LogFile != "" {
+		if f, err := os.OpenFile(a.Config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
+			a.logFile = f
+			a.logger = log.New(f, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds)
+			return
+		}
+		// if it fails, fall back to default path
+	}
 	if home, err := os.UserHomeDir(); err == nil {
 		logDir := filepath.Join(home, ".config", "gmail-tui")
 		if err := os.MkdirAll(logDir, 0o755); err == nil {
