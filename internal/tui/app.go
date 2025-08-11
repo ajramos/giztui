@@ -102,6 +102,9 @@ type App struct {
 	uiReady          bool // true after first draw
 	welcomeAnimating bool // avoid multiple spinner goroutines
 	welcomeEmail     string
+
+	// Formatting toggles
+	llmTouchUpEnabled bool
 }
 
 // Pages manages the application pages and navigation
@@ -247,6 +250,7 @@ func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *A
 		logFile:           nil,
 		selected:          make(map[string]bool),
 		bulkMode:          false,
+		llmTouchUpEnabled: false,
 	}
 
 	// Initialize file logger (logging.go)

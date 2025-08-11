@@ -1,26 +1,15 @@
 package tui
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"unicode"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/gmail-tui/internal/render"
 	"github.com/derailed/tview"
-	html2text "github.com/jaytaylor/html2text"
 )
-
-// convertHTMLToText converts HTML to plain text optimized for terminal readability
-func convertHTMLToText(html string, width int) string {
-	if strings.TrimSpace(html) == "" {
-		return ""
-	}
-	// Use library defaults for stable, legible plain text output
-	txt, err := html2text.FromString(html)
-	if err != nil {
-		return html
-	}
-	return txt
-}
 
 // sanitizeForTerminal replaces or removes glyphs that often render as tofu (�) in terminals
 func sanitizeForTerminal(s string) string {
@@ -65,46 +54,51 @@ func sanitizeForTerminal(s string) string {
 	return out
 }
 
-// renderMessageContent builds header + body (Markdown or plain text)
+// renderMessageContent builds body via deterministic formatter and optional LLM touch-up
 func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
-	preferMD := a.markdownEnabled && a.markdownTogglePer[m.Id]
-	var b strings.Builder
 	// Update header TextView separately (tview markup)
 	if hv, ok := a.views["header"].(*tview.TextView); ok {
 		hv.SetDynamicColors(true)
-		// Set plain header text and rely on TextView color (green) for the whole block
 		hv.SetText(a.emailRenderer.FormatHeaderPlain(m.Subject, m.From, m.Date, m.Labels))
 	}
-	// Legacy combined text path for backward compatibility
-	if preferMD && m.HTML != "" {
-		// Compose header as ANSI (green) and prepend before body
-		// Header is already set in its own view; no need to prepend here
-		// Use HTML→text rendering for stability and readability
-		width := a.screenWidth
-		if width <= 0 {
-			width = 100
+
+	width := a.getListWidth()
+	useLLM := a.llmTouchUpEnabled
+
+	// Optional LLM touch-up function
+	var touch render.TouchUpFunc
+	if useLLM && a.LLM != nil {
+		touch = func(ctx context.Context, input string, wrapWidth int) (string, error) {
+			// Strict instruction: whitespace-only changes
+			prompt := "You are a formatting assistant. Do NOT paraphrase, translate, summarize, or remove any content. " +
+				"Only adjust whitespace and line breaks to improve terminal readability within a wrap width of " +
+				fmt.Sprintf("%d", wrapWidth) + ".\n" +
+				"Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, and link references (text [n] + [LINKS]).\n" +
+				"Preserve [ATTACHMENTS] and [IMAGES] sections unchanged. Output only the adjusted text.\n\n" + input
+			return a.LLM.Generate(prompt)
 		}
-		txt := convertHTMLToText(m.HTML, width)
-		txt = sanitizeForTerminal(txt)
-		// Cap very large outputs to avoid sluggish UI
-		const maxLen = 200_000
-		if len(txt) > maxLen {
-			txt = txt[:maxLen] + "\n(truncated)"
+	}
+
+	// Deterministic format
+	text, err := render.FormatEmailForTerminal(a.ctx, m, render.FormatOptions{WrapWidth: width, UseLLM: useLLM}, touch)
+	if err != nil || strings.TrimSpace(text) == "" {
+		// Fallback to plain text
+		body := sanitizeForTerminal(m.PlainText)
+		if body == "" {
+			body = "No text content available"
 		}
-		// For ANSIWriter path, do NOT escape; return isANSI=true so writer parses ANSI
-		b.WriteString("\n" + txt)
-		return b.String(), true
+		return tview.Escape(body), false
 	}
-	// Plain text path: escape everything to avoid accidental markup parsing
-	body := sanitizeForTerminal(m.PlainText)
-	if body == "" {
-		body = "No text content available"
+	// Do not escape; we don't emit ANSI/tview markup here
+	// Large cap to protect UI
+	const maxLen = 200_000
+	if len(text) > maxLen {
+		text = text[:maxLen] + "\n(truncated)"
 	}
-	// rawHeader already contains [green] ... [-]\n\n
-	return tview.Escape(body), false
+	return text, false
 }
 
-// toggleMarkdown toggles markdown view for current selected message and re-renders from cache
+// toggleMarkdown repurposed: toggle LLM touch-up on/off for current message
 func (a *App) toggleMarkdown() {
 	mid := a.getCurrentMessageID()
 	if mid == "" {
@@ -112,13 +106,14 @@ func (a *App) toggleMarkdown() {
 		return
 	}
 	a.currentMessageID = mid
-	a.markdownTogglePer[mid] = !a.markdownTogglePer[mid]
-	delete(a.markdownCache, mid)
+	// Show immediate feedback while formatting
+	if !a.llmTouchUpEnabled {
+		a.setStatusPersistent("🧠 Enabling LLM touch-up…")
+	} else {
+		a.setStatusPersistent("🧾 Disabling LLM touch-up…")
+	}
+	a.llmTouchUpEnabled = !a.llmTouchUpEnabled
 	if m, ok := a.messageCache[mid]; ok {
-		if a.debug {
-			a.logger.Printf("toggle M: re-render from cache id=%s preferMD=%v", mid, a.markdownTogglePer[mid])
-		}
-		prefer := a.markdownTogglePer[mid]
 		go func(msg *gmail.Message) {
 			rendered, _ := a.renderMessageContent(msg)
 			a.QueueUpdateDraw(func() {
@@ -128,17 +123,14 @@ func (a *App) toggleMarkdown() {
 					text.SetText(rendered)
 					text.ScrollToBeginning()
 				}
-				if prefer {
-					a.showStatusMessage("📝 Markdown view enabled")
+				if a.llmTouchUpEnabled {
+					a.showStatusMessage("✅ LLM touch-up enabled")
 				} else {
-					a.showStatusMessage("🧾 Plain text view enabled")
+					a.showStatusMessage("✅ Deterministic formatting only")
 				}
 			})
 		}(m)
 		return
 	}
-	if a.debug {
-		a.logger.Printf("toggle M: no cache for id=%s", mid)
-	}
-	a.showStatusMessage("ℹ️ Open the message first to enable Markdown toggle")
+	a.showStatusMessage("ℹ️ Open the message first to toggle formatting")
 }

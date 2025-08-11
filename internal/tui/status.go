@@ -11,12 +11,12 @@ import (
 // showStatusMessage displays a transient message in the status bar
 func (a *App) showStatusMessage(msg string) {
 	if status, ok := a.views["status"].(*tview.TextView); ok {
-		status.SetText(fmt.Sprintf("Gmail TUI | %s | Press ? for help | Press q to quit", msg))
+		status.SetText(fmt.Sprintf("%s | %s", a.statusBaseline(), msg))
 		go func() {
 			time.Sleep(3 * time.Second)
 			a.QueueUpdateDraw(func() {
 				if status, ok := a.views["status"].(*tview.TextView); ok {
-					status.SetText("Gmail TUI | Press ? for help | Press q to quit")
+					status.SetText(a.statusBaseline())
 				}
 			})
 		}()
@@ -26,7 +26,7 @@ func (a *App) showStatusMessage(msg string) {
 // setStatusPersistent sets the status bar text without auto-clearing
 func (a *App) setStatusPersistent(msg string) {
 	if status, ok := a.views["status"].(*tview.TextView); ok {
-		status.SetText(fmt.Sprintf("Gmail TUI | %s | Press ? for help | Press q to quit", msg))
+		status.SetText(fmt.Sprintf("%s | %s", a.statusBaseline(), msg))
 	}
 }
 
@@ -71,4 +71,15 @@ func (a *App) shortError(err error, max int) string {
 		return string(runes[:max-1]) + "…"
 	}
 	return s
+}
+
+// statusBaseline returns the baseline status text including persistent indicators
+func (a *App) statusBaseline() string {
+	base := "Gmail TUI"
+	if a != nil && a.llmTouchUpEnabled {
+		base += " | 🧠"
+	} else {
+		base += " | 🧾"
+	}
+	return base + " | Press ? for help | Press q to quit"
 }

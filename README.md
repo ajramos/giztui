@@ -1,3 +1,49 @@
+## Terminal rendering: deterministic + optional LLM touch-up
+
+The message content pane now uses a deterministic formatter designed for terminal readability:
+
+- Preserves quotes (>), code/pre and PGP/SMIME blocks (no wrapping or changes inside)
+- Converts HTML to text with numeric link references: `text [n]` in body and a `[LINKS]` section listing `(n) URL`
+- Renders lists, headings and simple ASCII tables
+- Adds `[ATTACHMENTS]` and `[IMAGES]` sections from MIME metadata
+- Wraps lines to the available width without breaking words/URLs
+
+An optional LLM “touch-up” layer can adjust whitespace/line breaks for nicer layout without changing content.
+
+### Keyboard
+
+- `M` — Toggle LLM touch-up ON/OFF for the current message view
+- Indicator in the status bar:
+  - `🧾` deterministic only
+  - `🧠` LLM touch-up enabled
+
+Notes:
+- Moving with arrow keys previews messages using deterministic formatting only (no LLM calls). LLM is applied when you open a message (Enter) and the indicator is `🧠`.
+- The status bar shows progress like “🧠 Optimizing format with LLM…” while processing.
+
+### Configuration
+
+Config fields (in `~/.config/gmail-tui/config.json`):
+
+```
+{
+  "LLMEnabled": true,
+  "LLMProvider": "ollama",        // or "bedrock"
+  "LLMEndpoint": "http://localhost:11434/api/generate", // Ollama
+  "LLMRegion": "us-east-1",      // Bedrock
+  "LLMModel": "llama3.2:latest",
+  "LLMTimeout": "20s"
+}
+```
+
+CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
+
+### Internals
+
+- Deterministic formatter lives in `internal/render/format.go`
+- TUI integration in `internal/tui/markdown.go`
+- LLM providers in `internal/llm/` (Ollama and Bedrock). Provider is chosen from config/flags.
+
 # 📨 Gmail TUI - Gmail Client with Local AI
 
 A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses the **Gmail API** via OAuth2 and features **local AI integration** through Ollama.

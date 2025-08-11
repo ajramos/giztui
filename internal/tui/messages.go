@@ -1052,7 +1052,12 @@ func (a *App) showMessage(id string) {
 		if a.debug {
 			a.logger.Printf("showMessage: id=%s", id)
 		}
-		text.SetText("Loading message...")
+		if a.llmTouchUpEnabled {
+			a.setStatusPersistent("🧠 Optimizing format with LLM…")
+		} else {
+			a.setStatusPersistent("🧾 Loading message…")
+		}
+		text.SetText("Loading message…")
 		text.ScrollToBeginning()
 	}
 
@@ -1149,7 +1154,11 @@ func (a *App) showMessageWithoutFocus(id string) {
 			message = m
 		}
 
+		// In preview (selection change), do not run LLM touch-up to avoid many calls
+		prev := a.llmTouchUpEnabled
+		a.llmTouchUpEnabled = false
 		rendered, isANSI := a.renderMessageContent(message)
+		a.llmTouchUpEnabled = prev
 
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {

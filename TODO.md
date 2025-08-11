@@ -10,13 +10,13 @@
     - Email size
 - Better email visualization (maybe using llm??)
 - Improve status bar experience
-- Improve welcome page
 - Improve legend
 - See what happens with my self emailed emails
 - Background color in message list
 - Busqueda de texto con / dentro del email.
-- Cuando hago una busqueda local o remota, que el escape no haga un reset de la lista de mensajes, solo cuando presione la r.
 - Pensar en como me puedo mandar cosas a obsidian
+- Cargar la salida de los LLMs con stream no en completo
+- Revisar la implementación de los LLMs porque hay algunas cosas raras en los providers.
 
 
 ### Email Management
