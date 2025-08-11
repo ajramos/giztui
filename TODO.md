@@ -12,7 +12,6 @@
 - Improve status bar experience
 - Improve legend
 - See what happens with my self emailed emails
-- Background color in message list
 - Busqueda de texto con / dentro del email.
 - Pensar en como me puedo mandar cosas a obsidian
 - Cargar la salida de los LLMs con stream no en completo
