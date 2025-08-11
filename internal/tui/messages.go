@@ -1028,6 +1028,10 @@ func (a *App) applyLocalFilter(expr string) {
 	a.QueueUpdateDraw(func() {
 		a.searchMode = "local"
 		a.localFilter = expr
+		// Replace current view with filtered content BEFORE selecting rows to ensure
+		// selection handlers reference the filtered ids/meta, not the previous inbox
+		a.ids = filteredIDs
+		a.messagesMeta = filteredMeta
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.Clear()
 			for i, text := range rows {
@@ -1038,9 +1042,6 @@ func (a *App) applyLocalFilter(expr string) {
 				table.Select(0, 0)
 			}
 		}
-		// Replace current view with filtered content to keep actions consistent
-		a.ids = filteredIDs
-		a.messagesMeta = filteredMeta
 		a.reformatListItems()
 	})
 }
