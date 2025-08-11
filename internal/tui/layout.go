@@ -11,6 +11,7 @@ import (
 func (a *App) initComponents() {
 	// Create main list component as Table to support per-row colors
 	list := tview.NewTable().SetSelectable(true, false)
+	list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	list.SetBorder(true).
 		SetBorderColor(tcell.ColorBlue).
 		SetBorderAttributes(tcell.AttrBold).
@@ -28,10 +29,12 @@ func (a *App) initComponents() {
 
 	// Create header view (colored) and main text view inside a column container
 	header := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
+	header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	header.SetBorder(false)
 	header.SetTextColor(tcell.ColorGreen)
 
 	text := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
+	text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	text.SetBorder(false)
 
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -119,9 +122,9 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Add message content (takes 40% of available height)
 	mainFlex.AddItem(contentSplit, 0, 40, false)
 
-	// Add command bar (hidden by default, appears when : is pressed)
-	cmdBar := a.createCommandBar()
-	mainFlex.AddItem(cmdBar, 1, 0, false)
+	// Command bar is currently hidden by default; do not mount until needed
+	// cmdBar := a.createCommandBar()
+	// mainFlex.AddItem(cmdBar, 1, 0, false)
 
 	// Add status bar at the bottom
 	statusBar := a.createStatusBar()

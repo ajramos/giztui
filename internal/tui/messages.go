@@ -336,7 +336,10 @@ func (a *App) reloadMessages() {
 		}
 
 		if table, ok := a.views["list"].(*tview.Table); ok {
-			table.SetCell(i, 0, tview.NewTableCell(formattedText).SetExpansion(1))
+			cell := tview.NewTableCell(formattedText).
+				SetExpansion(1).
+				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			table.SetCell(i, 0, cell)
 		}
 
 		// cache meta for resize re-rendering
@@ -438,7 +441,10 @@ func (a *App) loadMoreMessages() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
-			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
+			cell := tview.NewTableCell(text).
+				SetExpansion(1).
+				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			table.SetCell(row, 0, cell)
 		}
 		loaded++
 	}
@@ -467,7 +473,10 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
-			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
+			cell := tview.NewTableCell(text).
+				SetExpansion(1).
+				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			table.SetCell(row, 0, cell)
 		}
 	}
 	a.QueueUpdateDraw(func() {

@@ -20,8 +20,8 @@ func (a *App) createCommandBar() tview.Primitive {
 	cmdBar.SetTitleColor(tcell.ColorYellow)
 	cmdBar.SetTitleAlign(tview.AlignCenter)
 	cmdBar.SetText("")
-	cmdBar.SetBackgroundColor(tcell.ColorBlack)
-	cmdBar.SetTextColor(tcell.ColorYellow)
+	cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
 
 	// Store reference to command bar
 	a.views["cmdBar"] = cmdBar
@@ -37,8 +37,8 @@ func (a *App) showCommandBar() {
 
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText(":")
-		cmdBar.SetTextColor(tcell.ColorYellow)
-		cmdBar.SetBackgroundColor(tcell.ColorBlack)
+		cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
+		cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		cmdBar.SetBorderColor(tcell.ColorYellow)
 	}
 
@@ -122,8 +122,8 @@ func (a *App) updateCommandBar() {
 		}
 
 		cmdBar.SetText(displayText)
-		cmdBar.SetTextColor(tcell.ColorYellow)
-		cmdBar.SetBackgroundColor(tcell.ColorBlack)
+		cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
+		cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	}
 }
 

@@ -299,14 +299,24 @@ func (a *App) applyTheme() {
 		tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
 		tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
 		tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
-		return
+	} else {
+		def := config.DefaultColors()
+		a.emailRenderer.UpdateFromConfig(def)
+		tview.Styles.PrimitiveBackgroundColor = def.Body.BgColor.Color()
+		tview.Styles.PrimaryTextColor = def.Body.FgColor.Color()
+		tview.Styles.BorderColor = def.Frame.Border.FgColor.Color()
+		tview.Styles.FocusColor = def.Frame.Border.FocusColor.Color()
 	}
-	def := config.DefaultColors()
-	a.emailRenderer.UpdateFromConfig(def)
-	tview.Styles.PrimitiveBackgroundColor = def.Body.BgColor.Color()
-	tview.Styles.PrimaryTextColor = def.Body.FgColor.Color()
-	tview.Styles.BorderColor = def.Frame.Border.FgColor.Color()
-	tview.Styles.FocusColor = def.Frame.Border.FocusColor.Color()
+	// After updating global styles, also force background colors on existing widgets
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
 }
 
 // (moved to messages.go)
