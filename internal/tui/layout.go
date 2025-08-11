@@ -13,16 +13,18 @@ func (a *App) initComponents() {
 	list := tview.NewTable().SetSelectable(true, false)
 	list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	list.SetBorder(true).
-		SetBorderColor(tcell.ColorBlue).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📧 Messages ").
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
-	// Search panel placeholder (hidden by default)
+		// Search panel placeholder (hidden by default)
 	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
 	searchPanel.SetBorder(false)
+	searchPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	// Container that holds search panel (top) and list (bottom)
 	listContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	listContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	// Start hidden: panel proportion 0; list takes all
 	listContainer.AddItem(searchPanel, 0, 0, false)
 	listContainer.AddItem(list, 0, 1, true)
@@ -38,20 +40,23 @@ func (a *App) initComponents() {
 	text.SetBorder(false)
 
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	textContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	textContainer.SetBorder(true).
-		SetBorderColor(tcell.ColorGray).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
+
 	// Fixed height for header
 	textContainer.AddItem(header, 4, 0, false)
 	textContainer.AddItem(text, 0, 1, false)
 
 	// Create AI Summary view (hidden by default)
 	ai := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
+	ai.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	ai.SetBorder(true).
-		SetBorderColor(tcell.ColorYellow).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🤖 AI Summary ").
 		SetTitleColor(tcell.ColorYellow).
@@ -68,8 +73,9 @@ func (a *App) initComponents() {
 
 	// Labels contextual panel container (hidden by default)
 	labelsFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	labelsFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	labelsFlex.SetBorder(true).
-		SetBorderColor(tcell.ColorGray).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🏷️ Labels ").
 		SetTitleColor(tcell.ColorYellow).
@@ -107,6 +113,7 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Create the main flex container (vertical layout - one below the other)
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
+	mainFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	// Add flash notification at the top (hidden by default)
 	mainFlex.AddItem(a.flash.textView, 0, 0, false)
 
@@ -115,6 +122,7 @@ func (a *App) createMainLayout() tview.Primitive {
 
 	// Message content row: split into content | AI summary (hidden initially)
 	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
+	contentSplit.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	contentSplit.AddItem(a.views["textContainer"], 0, 1, false)
 	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
 	contentSplit.AddItem(a.labelsView, 0, 0, false)    // hidden by default
@@ -152,6 +160,7 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		a.labelsView.SetBorderColor(tcell.ColorGray)
 	}
 	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
+		// Subtle unfocused border to keep contour visible but not contrasty
 		tc.SetBorderColor(tcell.ColorGray)
 	}
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {

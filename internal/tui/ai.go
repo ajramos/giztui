@@ -50,6 +50,7 @@ func (a *App) toggleAISummary() {
 	a.currentFocus = "summary"
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	}
 	a.updateFocusIndicators("summary")
 
@@ -62,7 +63,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 		return
 	}
 	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
-		a.aiSummaryView.SetText(sum)
+		a.aiSummaryView.SetText(sanitizeForTerminal(sum))
 		a.aiSummaryView.ScrollToBeginning()
 		a.setStatusPersistent("🤖 Summary loaded from cache")
 		return
@@ -116,7 +117,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 		a.aiSummaryCache[id] = resp
 		delete(a.aiInFlight, id)
 		a.QueueUpdateDraw(func() {
-			a.aiSummaryView.SetText(resp)
+			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 			a.aiSummaryView.ScrollToBeginning()
 			a.showStatusMessage("✅ Summary ready")
 		})

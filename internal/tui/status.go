@@ -75,7 +75,7 @@ func (a *App) shortError(err error, max int) string {
 
 // statusBaseline returns the baseline status text including persistent indicators
 func (a *App) statusBaseline() string {
-	base := "Gmail TUI"
+	base := "GizTUI"
 	if a != nil && a.llmTouchUpEnabled {
 		base += " | 🧠"
 	} else {

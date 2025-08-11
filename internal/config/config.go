@@ -29,6 +29,8 @@ type Config struct {
 	SummarizePrompt string `json:"summarize_prompt"`
 	ReplyPrompt     string `json:"reply_prompt"`
 	LabelPrompt     string `json:"label_prompt"`
+	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
+	TouchUpPrompt string `json:"touch_up_prompt"`
 
 	// Layout configuration
 	Layout LayoutConfig `json:"layout"`
@@ -94,6 +96,7 @@ func DefaultConfig() *Config {
 		SummarizePrompt: "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
 		ReplyPrompt:     "Redacta una respuesta profesional y amable al siguiente correo:\n\n{{body}}",
 		LabelPrompt:     "Sugiere una etiqueta adecuada para el siguiente correo considerando las ya existentes: {{labels}}.\n\nCorreo:\n{{body}}",
+		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, summarize, or remove any content. Only adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, and link references (text [n] + [LINKS]). Preserve [ATTACHMENTS] and [IMAGES] sections unchanged. Output only the adjusted text.\n\n{{body}}",
 		Layout:          DefaultLayoutConfig(),
 		Keys:            DefaultKeyBindings(),
 	}

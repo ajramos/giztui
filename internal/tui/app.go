@@ -317,6 +317,9 @@ func (a *App) applyTheme() {
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	}
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
 }
 
 // (moved to messages.go)
@@ -361,7 +364,7 @@ func (a *App) generateHelpText() string {
 	var help strings.Builder
 
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("🐕 Gmail TUI - Help & Shortcuts\n")
+	help.WriteString("🐕 GizTUI - Help & Shortcuts\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 
 	help.WriteString("🧭 Navigation\n")

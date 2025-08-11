@@ -15,6 +15,13 @@ type Provider interface {
 	Generate(prompt string) (string, error)
 }
 
+// ParamProvider optionally supports passing provider-specific options (e.g., temperature, max_tokens)
+// Callers should detect support via type assertion and fallback to Generate when unavailable.
+type ParamProvider interface {
+	Provider
+	GenerateWithParams(prompt string, params map[string]interface{}) (string, error)
+}
+
 // Client represents an Ollama client for local LLM interactions
 type Client struct {
 	Endpoint string
@@ -51,11 +58,7 @@ type Response struct {
 
 // Generate sends a prompt to Ollama and returns the generated text
 func (c *Client) Generate(prompt string) (string, error) {
-	reqBody := Request{
-		Model:  c.Model,
-		Prompt: prompt,
-		Stream: false,
-	}
+	reqBody := Request{Model: c.Model, Prompt: prompt, Stream: false}
 
 	data, err := json.Marshal(reqBody)
 	if err != nil {
@@ -82,42 +85,59 @@ func (c *Client) Generate(prompt string) (string, error) {
 	return strings.TrimSpace(response.Response), nil
 }
 
+// GenerateWithParams sends a prompt to Ollama with options (temperature, num_ctx, etc.)
+func (c *Client) GenerateWithParams(prompt string, params map[string]interface{}) (string, error) {
+	reqBody := Request{Model: c.Model, Prompt: prompt, Stream: false, Options: params}
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("no se pudo serializar la petición: %w", err)
+	}
+	client := &http.Client{Timeout: c.Timeout}
+	resp, err := client.Post(c.Endpoint, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("falló la petición a Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Ollama devolvió estado %s", resp.Status)
+	}
+	var response Response
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(&response); err != nil {
+		return "", fmt.Errorf("no se pudo decodificar la respuesta de Ollama: %w", err)
+	}
+	return strings.TrimSpace(response.Response), nil
+}
+
 // Name returns provider name
 func (c *Client) Name() string { return "ollama" }
 
 // SummarizeEmail generates a summary of an email
 func (c *Client) SummarizeEmail(body string) (string, error) {
-	template := c.SummarizeTemplate
-	if template == "" {
-		template = "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo."
+	if strings.TrimSpace(c.SummarizeTemplate) == "" {
+		return "", fmt.Errorf("missing summarize template")
 	}
-
-	prompt := strings.ReplaceAll(template, "{{body}}", body)
+	prompt := strings.ReplaceAll(c.SummarizeTemplate, "{{body}}", body)
 	return c.Generate(prompt)
 }
 
 // DraftReply generates a reply to an email
 func (c *Client) DraftReply(body string) (string, error) {
-	template := c.ReplyTemplate
-	if template == "" {
-		template = "Redacta una respuesta profesional y amable al siguiente correo:\n\n{{body}}"
+	if strings.TrimSpace(c.ReplyTemplate) == "" {
+		return "", fmt.Errorf("missing reply template")
 	}
-
-	prompt := strings.ReplaceAll(template, "{{body}}", body)
+	prompt := strings.ReplaceAll(c.ReplyTemplate, "{{body}}", body)
 	return c.Generate(prompt)
 }
 
 // RecommendLabel suggests a label for an email
 func (c *Client) RecommendLabel(body string, existing []string) (string, error) {
-	template := c.LabelTemplate
-	if template == "" {
-		template = "Sugiere una etiqueta adecuada para el siguiente correo considerando las ya existentes: {{labels}}.\n\nCorreo:\n{{body}}"
+	if strings.TrimSpace(c.LabelTemplate) == "" {
+		return "", fmt.Errorf("missing label template")
 	}
-
 	labelsStr := strings.Join(existing, ", ")
-	prompt := strings.ReplaceAll(template, "{{body}}", body)
+	prompt := strings.ReplaceAll(c.LabelTemplate, "{{body}}", body)
 	prompt = strings.ReplaceAll(prompt, "{{labels}}", labelsStr)
-
 	return c.Generate(prompt)
 }
 

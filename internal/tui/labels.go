@@ -353,8 +353,9 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 		container := tview.NewFlex().SetDirection(tview.FlexRow)
 		container.SetBorder(true)
-		container.SetTitle(" 🏷️ Labels ")
+		container.SetTitle(" 🏷️  Message Labels ")
 		container.SetTitleColor(tcell.ColorYellow)
+		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		container.AddItem(body, 0, 1, true)
 
 		a.QueueUpdateDraw(func() {
@@ -702,6 +703,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			})
 
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			titleText := " 🏷️ › 🔎 Browse all labels… "
 			if moveMode {
