@@ -236,7 +236,7 @@ func (a *App) reloadMessages() {
 	a.ids = []string{}
 	a.messagesMeta = []*gmailapi.Message{}
 
-	// Show loading message
+	// Initial title before we know page size
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		table.SetTitle(" 🔄 Loading messages... ")
 	}
@@ -276,6 +276,34 @@ func (a *App) reloadMessages() {
 	// Usar ancho disponible actual del list (simple, sin watchers)
 	screenWidth := a.getFormatWidth()
 
+	// Spinner with progress once we know how many items are coming
+	var spinnerStop chan struct{}
+	loaded := 0
+	total := len(messages)
+	if _, ok := a.views["list"].(*tview.Table); ok {
+		spinnerStop = make(chan struct{})
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(150 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-spinnerStop:
+					return
+				case <-ticker.C:
+					prog := loaded
+					a.QueueUpdateDraw(func() {
+						if tb, ok := a.views["list"].(*tview.Table); ok {
+							tb.SetTitle(fmt.Sprintf(" %s Loading… (%d/%d) ", frames[i%len(frames)], prog, total))
+						}
+					})
+					i++
+				}
+			}
+		}()
+	}
+
 	// Process messages using the email renderer
 	for i, msg := range messages {
 		a.ids = append(a.ids, msg.Id)
@@ -314,13 +342,7 @@ func (a *App) reloadMessages() {
 		// cache meta for resize re-rendering
 		a.messagesMeta = append(a.messagesMeta, message)
 
-		// Update title periodically
-		if (i+1)%10 == 0 {
-			if table, ok := a.views["list"].(*tview.Table); ok {
-				table.SetTitle(fmt.Sprintf(" 🔄 Loading... (%d/%d) ", i+1, len(messages)))
-			}
-			a.Draw()
-		}
+		loaded = i + 1
 	}
 
 	a.QueueUpdateDraw(func() {
@@ -334,18 +356,18 @@ func (a *App) reloadMessages() {
 		}
 		// Apply per-row colors after initial load
 		a.reformatListItems()
+		// Stop spinner if running
+		if spinnerStop != nil {
+			close(spinnerStop)
+		}
+		// Force focus to list at the end of initial load
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
 	})
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
-	if pageName, _ := a.Pages.GetFrontPage(); pageName == "main" {
-		if a.currentFocus == "" || a.currentFocus == "list" {
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-			a.SetFocus(a.views["list"])
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-		}
-	}
+	// Keep currentFocus list during loading; focus is enforced above on completion
 }
 
 // loadMoreMessages fetches the next page of inbox and appends to list
@@ -377,7 +399,33 @@ func (a *App) loadMoreMessages() {
 		a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
 		return
 	}
-	// Append
+	// Append with lightweight progress in title
+	var spinnerStop chan struct{}
+	loaded := 0
+	total := len(messages)
+	if _, ok := a.views["list"].(*tview.Table); ok {
+		spinnerStop = make(chan struct{})
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(120 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-spinnerStop:
+					return
+				case <-ticker.C:
+					prog := loaded
+					a.QueueUpdateDraw(func() {
+						if tb, ok := a.views["list"].(*tview.Table); ok {
+							tb.SetTitle(fmt.Sprintf(" %s Loading more… (%d/%d) ", frames[i%len(frames)], prog, total))
+						}
+					})
+					i++
+				}
+			}
+		}()
+	}
 	screenWidth := a.getFormatWidth()
 	for _, msg := range messages {
 		a.ids = append(a.ids, msg.Id)
@@ -392,6 +440,7 @@ func (a *App) loadMoreMessages() {
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
 			table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
 		}
+		loaded++
 	}
 	a.nextPageToken = next
 	a.QueueUpdateDraw(func() {
@@ -399,6 +448,9 @@ func (a *App) loadMoreMessages() {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		}
 		a.reformatListItems()
+		if spinnerStop != nil {
+			close(spinnerStop)
+		}
 	})
 }
 

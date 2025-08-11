@@ -42,11 +42,7 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 			text.SetText(a.buildWelcomeText(loading, effEmail, dots))
 			text.ScrollToBeginning()
 		}
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
-		if v, ok := a.views["text"].(tview.Primitive); ok {
-			a.SetFocus(v)
-		}
+		// Do not change focus on startup; keep it in the list for better UX
 	}
 
 	if a.uiReady {
@@ -109,10 +105,9 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	b.WriteString("[white::b]Quick actions:[-:-:-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
 
 	if loading {
-		// Loading state with dots
-		indicator := strings.Repeat(".", dots)
-		b.WriteString(fmt.Sprintf("⏳ Loading inbox%s\n", indicator))
-		b.WriteString("Messages will appear shortly. You can browse help or open search in the meantime.\n")
+		// Keep a simple welcome text without spinner; list title shows progress now
+		b.WriteString("You're all set. Messages are loading in the list.\n")
+		b.WriteString("Press '?' for help, 's' to search, or start navigating the list.\n")
 		return b.String()
 	}
 
