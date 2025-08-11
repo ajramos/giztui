@@ -2,12 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-
-	// "time"
+	"time"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/gmail-tui/internal/render"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -1117,6 +1119,81 @@ func (a *App) showMessage(id string) {
 			}
 		})
 	}()
+}
+
+// saveCurrentMessageToFile writes the currently focused message to disk under config dir
+func (a *App) saveCurrentMessageToFile() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		// Fallback to last opened message
+		id = a.currentMessageID
+	}
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	// Immediate feedback on UI thread
+	a.setStatusPersistent("💾 Saving message…")
+	go func(mid string) {
+		// Try cache first
+		var m *gmail.Message
+		if cached, ok := a.messageCache[mid]; ok {
+			m = cached
+		} else {
+			fetched, err := a.Client.GetMessageWithContent(mid)
+			if err != nil {
+				a.QueueUpdateDraw(func() { a.showError("❌ Could not load message") })
+				return
+			}
+			m = fetched
+		}
+		// Build output using deterministic formatter without LLM
+		width := a.getListWidth()
+		txt, _ := render.FormatEmailForTerminal(a.ctx, m, render.FormatOptions{WrapWidth: width, UseLLM: false}, nil)
+		// Compose full content with header
+		header := a.emailRenderer.FormatHeaderPlain(m.Subject, m.From, m.Date, m.Labels)
+		content := header + "\n\n" + txt
+
+		// Resolve config dir and saved folder
+		home, _ := os.UserHomeDir()
+		base := filepath.Join(home, ".config", "gmail-tui", "saved")
+		if err := os.MkdirAll(base, 0o755); err != nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
+			return
+		}
+		// Sanitize subject to filename
+		name := m.Subject
+		if strings.TrimSpace(name) == "" {
+			name = mid
+		}
+		name = sanitizeFilename(name)
+		// Ensure uniqueness with timestamp
+		ts := time.Now().Format("20060102-150405")
+		file := filepath.Join(base, ts+"-"+name+".txt")
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not write file") })
+			return
+		}
+		a.QueueUpdateDraw(func() { a.showStatusMessage("💾 Saved: " + file) })
+	}(id)
+}
+
+func sanitizeFilename(s string) string {
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, "\\", "-")
+	s = strings.ReplaceAll(s, ":", "-")
+	s = strings.ReplaceAll(s, "|", "-")
+	s = strings.ReplaceAll(s, "*", "-")
+	s = strings.ReplaceAll(s, "?", "-")
+	s = strings.ReplaceAll(s, "\"", "'")
+	s = strings.TrimSpace(s)
+	if len(s) > 80 {
+		s = s[:80]
+	}
+	if s == "" {
+		s = "message"
+	}
+	return s
 }
 
 // showMessageWithoutFocus loads the message content but does not change focus

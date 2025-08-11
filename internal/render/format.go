@@ -1,16 +1,16 @@
 package render
 
 import (
-	"context"
-	"fmt"
-	"regexp"
-	"sort"
-	"strings"
-	"unicode"
+    "context"
+    "fmt"
+    "regexp"
+    "sort"
+    "strings"
+    "unicode"
 
-	gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
-	"golang.org/x/net/html"
-	gmailapi "google.golang.org/api/gmail/v1"
+    gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
+    "golang.org/x/net/html"
+    gmailapi "google.golang.org/api/gmail/v1"
 )
 
 // LinkRef represents a collected hyperlink reference
@@ -72,12 +72,15 @@ func FormatEmailForTerminal(ctx context.Context, msg *gmailwrap.Message, opts Fo
 		}
 	}
 
-	// Wrap body respecting quotes, code and PGP blocks
+    // Wrap body respecting quotes, code and PGP blocks
 	if opts.WrapWidth > 0 {
 		body = WrapTextPreserving(body, opts.WrapWidth)
 	}
 
-	// Compose sections
+    // Light sanitization for terminal glyphs (after wrapping)
+    body = sanitizeBodyPreservingCode(body)
+
+    // Compose sections
 	out := &strings.Builder{}
 	out.WriteString("[BODY]\n")
 	out.WriteString(body)
@@ -160,6 +163,68 @@ func detectPlainTextLinks(input string) ([]LinkRef, string) {
 		return fmt.Sprintf("[%d]", idx)
 	})
 	return links, replaced
+}
+
+// sanitizeBodyPreservingCode applies glyph/whitespace sanitization to non-code lines
+func sanitizeBodyPreservingCode(s string) string {
+    lines := strings.Split(s, "\n")
+    inCode := false
+    for i, ln := range lines {
+        t := strings.TrimSpace(ln)
+        if strings.HasPrefix(t, "```") {
+            inCode = !inCode
+            continue
+        }
+        if inCode {
+            continue
+        }
+        lines[i] = sanitizeForTerminal(ln)
+    }
+    return strings.Join(lines, "\n")
+}
+
+// sanitizeForTerminal replaces common rich-text glyphs with ASCII-safe equivalents
+func sanitizeForTerminal(s string) string {
+    if s == "" {
+        return s
+    }
+    // Normalize common unicode glyphs that often render as tofu
+    var b strings.Builder
+    b.Grow(len(s))
+    for _, r := range s {
+        switch r {
+        case '\u00A0': // NBSP
+            b.WriteRune(' ')
+        case '\u200B', '\u200C', '\u200D', '\uFEFF':
+            // zero-width and BOM → drop
+        case '\u2013', '\u2014':
+            b.WriteRune('-')
+        case '\u2022', '\u2043', '\u25AA', '\u25CF', '\u25E6':
+            b.WriteString("- ")
+        case '\u2018', '\u2019':
+            b.WriteRune('\'')
+        case '\u201C', '\u201D':
+            b.WriteRune('"')
+        case '\u2026':
+            b.WriteString("...")
+        default:
+            // Skip control chars except newline/tab
+            if unicode.IsControl(r) && r != '\n' && r != '\t' {
+                continue
+            }
+            // Drop many symbol/emoji classified as So to avoid tofu blocks
+            if unicode.Is(unicode.So, r) {
+                continue
+            }
+            b.WriteRune(r)
+        }
+    }
+    out := b.String()
+    // collapse triple blank lines
+    for strings.Contains(out, "\n\n\n") {
+        out = strings.ReplaceAll(out, "\n\n\n", "\n\n")
+    }
+    return out
 }
 
 // renderHTMLToText parses HTML and emits text, collecting links and inline image references.
@@ -309,7 +374,7 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 				images = append(images, AttachmentMeta{Filename: src, MimeType: "", Inline: true, ContentID: cid})
 				return
 			case "table":
-				// Render rows anywhere inside the table (handles thead/tbody)
+                // Render rows anywhere inside the table (handles thead/tbody)
 				var walkRows func(n *html.Node)
 				walkRows = func(n *html.Node) {
 					if n == nil {
@@ -325,12 +390,28 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 									for c := td.FirstChild; c != nil; c = c.NextSibling {
 										collectText(&cell, c)
 									}
-									row = append(row, strings.TrimSpace(cell.String()))
+                                    row = append(row, strings.TrimSpace(cell.String()))
 								}
 							}
 						}
-						if len(row) > 0 {
-							b.WriteString(strings.Join(row, " | ") + "\n")
+                        if len(row) > 0 {
+                            // Heuristic: collapse “grid of single chars” (common in newsletter trackers)
+                            allSingle := true
+                            for _, c := range row {
+                                if len([]rune(strings.TrimSpace(c))) > 1 {
+                                    allSingle = false
+                                    break
+                                }
+                            }
+                            line := ""
+                            if allSingle && len(row) >= 5 {
+                                line = strings.Join(row, "")
+                            } else {
+                                line = strings.Join(row, " | ")
+                            }
+                            if strings.TrimSpace(line) != "" {
+                                b.WriteString(line + "\n")
+                            }
 						}
 					}
 					for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -521,23 +602,14 @@ func normalizeNewlines(s string) string {
 }
 
 func sanitizeText(s string) string {
-	// Replace NBSP and trim control chars
-	s = strings.ReplaceAll(s, "\u00A0", " ")
-	var b strings.Builder
-	b.Grow(len(s))
-	for _, r := range s {
-		if unicode.IsControl(r) && r != '\n' && r != '\t' {
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
+    // Kept for compatibility with older calls; delegate to sanitizeForTerminal
+    return sanitizeForTerminal(s)
 }
 
 func collectText(b *strings.Builder, n *html.Node) {
 	switch n.Type {
 	case html.TextNode:
-		b.WriteString(sanitizeText(n.Data))
+        b.WriteString(sanitizeForTerminal(n.Data))
 	case html.ElementNode:
 		tag := strings.ToLower(n.Data)
 		switch tag {

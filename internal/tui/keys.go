@@ -187,6 +187,9 @@ func (a *App) bindKeys() {
 		case 'o':
 			go a.suggestLabel()
 			return nil
+		case 'w':
+			go a.saveCurrentMessageToFile()
+			return nil
 		}
 
 		// ESC exits bulk mode
