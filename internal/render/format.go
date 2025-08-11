@@ -1,16 +1,16 @@
 package render
 
 import (
-    "context"
-    "fmt"
-    "regexp"
-    "sort"
-    "strings"
-    "unicode"
+	"context"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+	"unicode"
 
-    gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
-    "golang.org/x/net/html"
-    gmailapi "google.golang.org/api/gmail/v1"
+	gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
+	"golang.org/x/net/html"
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 // LinkRef represents a collected hyperlink reference
@@ -72,15 +72,18 @@ func FormatEmailForTerminal(ctx context.Context, msg *gmailwrap.Message, opts Fo
 		}
 	}
 
-    // Wrap body respecting quotes, code and PGP blocks
+	// Wrap body respecting quotes, code and PGP blocks
 	if opts.WrapWidth > 0 {
 		body = WrapTextPreserving(body, opts.WrapWidth)
 	}
 
-    // Light sanitization for terminal glyphs (after wrapping)
-    body = sanitizeBodyPreservingCode(body)
+	// Light sanitization for terminal glyphs (after wrapping) and de-duplication
+	body = sanitizeBodyPreservingCode(body)
+	body = dedupeConsecutiveLines(body)
+	body = dedupeNearDuplicateParagraphs(body, 8)
+	body = collapsePipeNavRuns(body)
 
-    // Compose sections
+	// Compose sections
 	out := &strings.Builder{}
 	out.WriteString("[BODY]\n")
 	out.WriteString(body)
@@ -167,64 +170,167 @@ func detectPlainTextLinks(input string) ([]LinkRef, string) {
 
 // sanitizeBodyPreservingCode applies glyph/whitespace sanitization to non-code lines
 func sanitizeBodyPreservingCode(s string) string {
-    lines := strings.Split(s, "\n")
-    inCode := false
-    for i, ln := range lines {
-        t := strings.TrimSpace(ln)
-        if strings.HasPrefix(t, "```") {
-            inCode = !inCode
-            continue
-        }
-        if inCode {
-            continue
-        }
-        lines[i] = sanitizeForTerminal(ln)
-    }
-    return strings.Join(lines, "\n")
+	lines := strings.Split(s, "\n")
+	inCode := false
+	for i, ln := range lines {
+		t := strings.TrimSpace(ln)
+		if strings.HasPrefix(t, "```") {
+			inCode = !inCode
+			continue
+		}
+		if inCode {
+			continue
+		}
+		lines[i] = sanitizeForTerminal(ln)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // sanitizeForTerminal replaces common rich-text glyphs with ASCII-safe equivalents
 func sanitizeForTerminal(s string) string {
-    if s == "" {
-        return s
-    }
-    // Normalize common unicode glyphs that often render as tofu
-    var b strings.Builder
-    b.Grow(len(s))
-    for _, r := range s {
-        switch r {
-        case '\u00A0': // NBSP
-            b.WriteRune(' ')
-        case '\u200B', '\u200C', '\u200D', '\uFEFF':
-            // zero-width and BOM → drop
-        case '\u2013', '\u2014':
-            b.WriteRune('-')
-        case '\u2022', '\u2043', '\u25AA', '\u25CF', '\u25E6':
-            b.WriteString("- ")
-        case '\u2018', '\u2019':
-            b.WriteRune('\'')
-        case '\u201C', '\u201D':
-            b.WriteRune('"')
-        case '\u2026':
-            b.WriteString("...")
-        default:
-            // Skip control chars except newline/tab
-            if unicode.IsControl(r) && r != '\n' && r != '\t' {
-                continue
-            }
-            // Drop many symbol/emoji classified as So to avoid tofu blocks
-            if unicode.Is(unicode.So, r) {
-                continue
-            }
-            b.WriteRune(r)
-        }
-    }
-    out := b.String()
-    // collapse triple blank lines
-    for strings.Contains(out, "\n\n\n") {
-        out = strings.ReplaceAll(out, "\n\n\n", "\n\n")
-    }
-    return out
+	if s == "" {
+		return s
+	}
+	// Normalize common unicode glyphs that often render as tofu
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '\u00A0': // NBSP
+			b.WriteRune(' ')
+		case '\u200B', '\u200C', '\u200D', '\uFEFF':
+			// zero-width and BOM → drop
+		case '\u034F': // combining grapheme joiner
+			// drop
+		case '\u2060': // word joiner
+			// drop
+		case '\u00AD': // soft hyphen
+			// drop
+		case '\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200A':
+			b.WriteRune(' ')
+		case '\u202F': // narrow no-break space
+			b.WriteRune(' ')
+		case '\u2013', '\u2014':
+			b.WriteRune('-')
+		case '\u2022', '\u2043', '\u25AA', '\u25CF', '\u25E6':
+			b.WriteString("- ")
+		case '\u2018', '\u2019':
+			b.WriteRune('\'')
+		case '\u201C', '\u201D':
+			b.WriteRune('"')
+		case '\u2026':
+			b.WriteString("...")
+		default:
+			// Skip control chars except newline/tab
+			if unicode.IsControl(r) && r != '\n' && r != '\t' {
+				continue
+			}
+			// Drop many symbol/emoji classified as So to avoid tofu blocks
+			if unicode.Is(unicode.So, r) {
+				continue
+			}
+			b.WriteRune(r)
+		}
+	}
+	out := b.String()
+	// collapse triple blank lines
+	for strings.Contains(out, "\n\n\n") {
+		out = strings.ReplaceAll(out, "\n\n\n", "\n\n")
+	}
+	return out
+}
+
+// dedupeConsecutiveLines drops consecutive duplicate lines and noisy separators
+func dedupeConsecutiveLines(s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) == 0 {
+		return s
+	}
+	out := make([]string, 0, len(lines))
+	var prev string
+	for _, ln := range lines {
+		cur := strings.TrimRight(ln, " ")
+		trimmed := strings.TrimSpace(cur)
+		// Skip duplicate consecutive lines (avoid repeated footer/header)
+		if trimmed != "" && trimmed == prev {
+			continue
+		}
+		// Drop noisy tiny tables converted to pipes
+		if trimmed == "| |" || trimmed == "|" {
+			continue
+		}
+		out = append(out, cur)
+		prev = trimmed
+	}
+	res := strings.Join(out, "\n")
+	for strings.Contains(res, "\n\n\n") {
+		res = strings.ReplaceAll(res, "\n\n\n", "\n\n")
+	}
+	return res
+}
+
+// dedupeConsecutiveParagraphs removes consecutive duplicate paragraphs (blocks separated by blank lines)
+// dedupeNearDuplicateParagraphs removes duplicates within a sliding window of size k
+func dedupeNearDuplicateParagraphs(s string, window int) string {
+	blocks := strings.Split(s, "\n\n")
+	if len(blocks) <= 1 {
+		return s
+	}
+	out := make([]string, 0, len(blocks))
+	recent := make([]string, 0, window)
+	normText := func(b string) string {
+		cur := strings.TrimSpace(b)
+		cur = sanitizeForTerminal(cur)
+		return strings.Join(strings.Fields(cur), " ")
+	}
+	for _, b := range blocks {
+		n := normText(b)
+		dup := false
+		if n != "" {
+			for i := len(recent) - 1; i >= 0 && i >= len(recent)-window; i-- {
+				if recent[i] == n {
+					dup = true
+					break
+				}
+			}
+		}
+		if dup {
+			continue
+		}
+		out = append(out, strings.TrimRight(b, "\n"))
+		// push to recent
+		recent = append(recent, n)
+		if len(recent) > window {
+			recent = recent[1:]
+		}
+	}
+	res := strings.Join(out, "\n\n")
+	for strings.Contains(res, "\n\n\n\n") {
+		res = strings.ReplaceAll(res, "\n\n\n\n", "\n\n")
+	}
+	return res
+}
+
+// collapsePipeNavRuns compacts lines that are mostly label pipes like "A | B | C" repeated
+func collapsePipeNavRuns(s string) string {
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	lastNav := ""
+	for _, ln := range lines {
+		trimmed := strings.TrimSpace(ln)
+		if strings.Count(trimmed, "|") >= 2 {
+			// keep only one occurrence if repeated
+			norm := strings.Join(strings.Fields(strings.ReplaceAll(trimmed, "|", " ")), " ")
+			if norm == lastNav {
+				continue
+			}
+			lastNav = norm
+		} else {
+			lastNav = ""
+		}
+		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
 }
 
 // renderHTMLToText parses HTML and emits text, collecting links and inline image references.
@@ -351,6 +457,17 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 				}
 				label := strings.TrimSpace(inner.String())
 				if label == "" {
+					// Fallback to aria-label/title/alt
+					for _, a := range n.Attr {
+						if strings.EqualFold(a.Key, "aria-label") || strings.EqualFold(a.Key, "title") || strings.EqualFold(a.Key, "alt") {
+							if t := strings.TrimSpace(a.Val); t != "" {
+								label = t
+								break
+							}
+						}
+					}
+				}
+				if label == "" {
 					label = href
 				}
 				if href != "" {
@@ -374,7 +491,7 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 				images = append(images, AttachmentMeta{Filename: src, MimeType: "", Inline: true, ContentID: cid})
 				return
 			case "table":
-                // Render rows anywhere inside the table (handles thead/tbody)
+				// Render rows anywhere inside the table (handles thead/tbody)
 				var walkRows func(n *html.Node)
 				walkRows = func(n *html.Node) {
 					if n == nil {
@@ -390,28 +507,28 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 									for c := td.FirstChild; c != nil; c = c.NextSibling {
 										collectText(&cell, c)
 									}
-                                    row = append(row, strings.TrimSpace(cell.String()))
+									row = append(row, strings.TrimSpace(cell.String()))
 								}
 							}
 						}
-                        if len(row) > 0 {
-                            // Heuristic: collapse “grid of single chars” (common in newsletter trackers)
-                            allSingle := true
-                            for _, c := range row {
-                                if len([]rune(strings.TrimSpace(c))) > 1 {
-                                    allSingle = false
-                                    break
-                                }
-                            }
-                            line := ""
-                            if allSingle && len(row) >= 5 {
-                                line = strings.Join(row, "")
-                            } else {
-                                line = strings.Join(row, " | ")
-                            }
-                            if strings.TrimSpace(line) != "" {
-                                b.WriteString(line + "\n")
-                            }
+						if len(row) > 0 {
+							// Heuristic: collapse “grid of single chars” (common in newsletter trackers)
+							allSingle := true
+							for _, c := range row {
+								if len([]rune(strings.TrimSpace(c))) > 1 {
+									allSingle = false
+									break
+								}
+							}
+							line := ""
+							if allSingle && len(row) >= 5 {
+								line = strings.Join(row, "")
+							} else {
+								line = strings.Join(row, " | ")
+							}
+							if strings.TrimSpace(line) != "" {
+								b.WriteString(line + "\n")
+							}
 						}
 					}
 					for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -602,14 +719,14 @@ func normalizeNewlines(s string) string {
 }
 
 func sanitizeText(s string) string {
-    // Kept for compatibility with older calls; delegate to sanitizeForTerminal
-    return sanitizeForTerminal(s)
+	// Kept for compatibility with older calls; delegate to sanitizeForTerminal
+	return sanitizeForTerminal(s)
 }
 
 func collectText(b *strings.Builder, n *html.Node) {
 	switch n.Type {
 	case html.TextNode:
-        b.WriteString(sanitizeForTerminal(n.Data))
+		b.WriteString(sanitizeForTerminal(n.Data))
 	case html.ElementNode:
 		tag := strings.ToLower(n.Data)
 		switch tag {
