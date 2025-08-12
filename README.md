@@ -324,6 +324,13 @@ Notes:
 
 Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 
+RSVP (meeting invites):
+
+- Detection: when an email contains a `text/calendar` invitation (METHOD:REQUEST), the status bar shows “📅 Calendar invite detected — press V to RSVP”.
+- `V` opens a side panel to respond (ACCEPT / TENTATIVE / DECLINE) with an optional comment.
+- Equivalent command: `:rsvp accept|tentative|decline [comment]`.
+- Currently, the response is sent by email (ICS REPLY). Google Calendar API integration will arrive in a later phase.
+
 Contextual search shorthands supported in command mode:
 
 ```
