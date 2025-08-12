@@ -702,12 +702,13 @@ func (a *App) openAdvancedSearchForm() {
 	baseScopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
 	scopes := append([]string{}, baseScopes...)
 	scopeVal := "All Mail"
+	if a.logger != nil {
+		a.logger.Println("advsearch: building form")
+	}
 	scopeField := tview.NewInputField().
 		SetLabel("Search").
 		SetText(scopeVal).
 		SetPlaceholder("Press Enter to pick scope/label")
-	// Prevent manual typing; we use a picker for consistency with Browse all labels
-	scopeField.SetAcceptanceFunc(func(textToCheck string, lastChar rune) bool { return false })
 	form.AddFormItem(scopeField)
 	// Attachment
 	var hasAttachment bool
@@ -715,8 +716,14 @@ func (a *App) openAdvancedSearchForm() {
 
 	// Load labels asynchronously to build picker options
 	go func() {
+		if a.logger != nil {
+			a.logger.Println("advsearch: loading labels...")
+		}
 		labels, err := a.Client.ListLabels()
 		if err != nil || labels == nil {
+			if a.logger != nil {
+				a.logger.Printf("advsearch: ListLabels error=%v", err)
+			}
 			return
 		}
 		names := make([]string, 0, len(labels))
@@ -731,114 +738,141 @@ func (a *App) openAdvancedSearchForm() {
 			return
 		}
 		a.QueueUpdateDraw(func() {
+			if a.logger != nil {
+				a.logger.Printf("advsearch: injecting %d user labels", len(names))
+			}
 			sort.Strings(names)
 			scopes = append(baseScopes, names...)
 		})
 	}()
 
-	// Picker dentro del panel (mismo patrón que expandLabelsBrowseWithMode)
+	// Picker como overlay (patrón robusto similar a browse labels)
 	openScopePicker := func() {
-		sp, ok := a.views["searchPanel"].(*tview.Flex)
-		if !ok {
-			return
+		if a.logger != nil {
+			a.logger.Printf("advsearch: openScopePicker scopes=%d (overlay)", len(scopes))
 		}
-
 		filter := tview.NewInputField().
 			SetLabel("🔎 Filter: ").
 			SetFieldWidth(30).
-			SetPlaceholder("type to filter; Enter=select, ESC=back")
+			SetPlaceholder("type to filter; Enter=select, ESC=close")
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(false)
 		list.SetSelectedTextColor(tcell.ColorBlack)
 		list.SetSelectedBackgroundColor(tcell.ColorWhite)
-		list.SetSelectedTextColor(tcell.ColorBlack)
-		list.SetSelectedBackgroundColor(tcell.ColorWhite)
 
-		// Cargar lista
-		var update func()
-		update = func() {
-			txt := strings.ToLower(strings.TrimSpace(filter.GetText()))
+		type item struct{ name string }
+		var all []item
+		all = make([]item, 0, len(scopes))
+		for _, s := range scopes {
+			all = append(all, item{s})
+		}
+		var visible []item
+		reload := func(q string) {
 			list.Clear()
-			for _, s := range scopes {
-				if txt == "" || strings.Contains(strings.ToLower(s), txt) {
-					list.AddItem(s, "", 0, nil)
+			visible = visible[:0]
+			q = strings.ToLower(strings.TrimSpace(q))
+			for _, it := range all {
+				if q == "" || strings.Contains(strings.ToLower(it.name), q) {
+					visible = append(visible, it)
+					name := it.name
+					list.AddItem(name, "Enter: pick", 0, func() {
+						scopeVal = name
+						scopeField.SetText(scopeVal)
+						a.Pages.RemovePage("scopePicker")
+						a.SetFocus(scopeField)
+					})
+				}
+				if len(visible) >= 300 { // safety cap
+					break
 				}
 			}
 			if list.GetItemCount() > 0 {
 				list.SetCurrentItem(0)
 			}
 		}
-		filter.SetChangedFunc(func(_ string) { update() })
-		update()
-
-		// Selección
-		list.SetSelectedFunc(func(index int, mainText, _ string, _ rune) {
-			if mainText != "" {
-				scopeVal = mainText
-				scopeField.SetText(scopeVal)
-			}
-			sp.Clear()
-			sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
-			sp.AddItem(form, 0, 1, true)
-			a.SetFocus(scopeField)
-		})
-		// ESC desde filtro
+		filter.SetChangedFunc(func(text string) { reload(text) })
 		filter.SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEscape {
-				sp.Clear()
-				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
-				sp.AddItem(form, 0, 1, true)
+				a.Pages.RemovePage("scopePicker")
 				a.SetFocus(scopeField)
 			}
 			if key == tcell.KeyEnter && list.GetItemCount() > 0 {
-				main, _ := list.GetItemText(list.GetCurrentItem())
-				scopeVal = main
-				scopeField.SetText(scopeVal)
-				sp.Clear()
-				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
-				sp.AddItem(form, 0, 1, true)
+				if main, _ := list.GetItemText(list.GetCurrentItem()); main != "" {
+					scopeVal = main
+					scopeField.SetText(scopeVal)
+				}
+				a.Pages.RemovePage("scopePicker")
 				a.SetFocus(scopeField)
 			}
 		})
-		// Flechas desde filtro → lista
+		// Arrow keys from filter → list
 		filter.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			switch e.Key() {
-			case tcell.KeyDown, tcell.KeyUp, tcell.KeyPgDn, tcell.KeyPgUp, tcell.KeyHome, tcell.KeyEnd:
+			case tcell.KeyDown, tcell.KeyPgDn:
 				a.SetFocus(list)
 				return e
 			}
 			return e
 		})
-		// ESC desde lista
 		list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			if e.Key() == tcell.KeyEscape {
-				sp.Clear()
-				sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
-				sp.AddItem(form, 0, 1, true)
+				a.Pages.RemovePage("scopePicker")
 				a.SetFocus(scopeField)
 				return nil
+			}
+			if e.Key() == tcell.KeyUp {
+				// if first item, go back to filter
+				if list.GetCurrentItem() <= 0 {
+					a.SetFocus(filter)
+					return nil
+				}
 			}
 			return e
 		})
 
-		// Pintar dentro del panel
-		a.QueueUpdateDraw(func() {
-			sp.Clear()
-			sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Pick scope or label").SetTitleColor(tcell.ColorYellow)
-			sp.AddItem(filter, 3, 0, true)
-			sp.AddItem(list, 0, 1, true)
-			a.SetFocus(filter)
-			a.currentFocus = "search"
-			a.updateFocusIndicators("search")
-		})
+		container := tview.NewFlex().SetDirection(tview.FlexRow)
+		container.SetBorder(true).SetTitle(" 🔎 Pick scope or label ").SetTitleColor(tcell.ColorYellow)
+		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		container.AddItem(filter, 3, 0, true)
+		container.AddItem(list, 0, 1, true)
+		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+		footer.SetText(" Enter=pick | Esc=close ")
+		footer.SetTextColor(tcell.ColorGray)
+		container.AddItem(footer, 1, 0, false)
+
+		reload("")
+		a.Pages.AddPage("scopePicker", container, true, true)
+		a.SetFocus(filter)
+		a.currentFocus = "search"
+		a.updateFocusIndicators("search")
 	}
 	scopeField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
+			if a.logger != nil {
+				a.logger.Println("advsearch: scopeField Enter -> open picker")
+			}
 			openScopePicker()
 		}
 	})
-	// Do not intercept Enter here; DoneFunc above will handle opening the picker
-	scopeField.SetInputCapture(nil)
+
+	// Wire input capture after openScopePicker is defined
+	scopeField.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Key() {
+		case tcell.KeyEnter, tcell.KeyTab:
+			if a.logger != nil {
+				a.logger.Printf("advsearch: scopeField key=%v -> open picker", e.Key())
+			}
+			openScopePicker()
+			return nil
+		case tcell.KeyRune:
+			if a.logger != nil {
+				a.logger.Printf("advsearch: scopeField rune '%c' -> open picker", e.Rune())
+			}
+			openScopePicker()
+			return nil
+		}
+		return e
+	})
 
 	// Build submit function shared by button and Ctrl+Enter
 	submit := func() {
