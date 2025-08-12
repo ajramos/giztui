@@ -117,6 +117,11 @@ func (a *App) generateOrShowSummary(messageID string) {
 		a.aiSummaryCache[id] = resp
 		delete(a.aiInFlight, id)
 		a.QueueUpdateDraw(func() {
+			// Skip UI update if search is focused to avoid focus/content conflicts
+			if a.currentFocus == "search" {
+				a.showStatusMessage("🔕 Sugerencias de etiquetas desactivadas mientras buscas")
+				return
+			}
 			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 			a.aiSummaryView.ScrollToBeginning()
 			a.showStatusMessage("✅ Summary ready")
@@ -147,6 +152,10 @@ func (a *App) suggestLabel() {
 	}
 	if cached, ok := a.aiLabelsCache[messageID]; ok && len(cached) > 0 {
 		a.showLabelSuggestions(messageID, cached)
+		return
+	}
+	// If search is active, do not start suggestion to avoid UI conflicts
+	if a.currentFocus == "search" {
 		return
 	}
 	a.setStatusPersistent("🏷️ Suggesting labels…")
@@ -226,7 +235,15 @@ func (a *App) suggestLabel() {
 		}
 		// Always show panel (even empty) to keep UX consistent
 		a.aiLabelsCache[messageID] = uniq
-		a.QueueUpdateDraw(func() { a.showLabelSuggestions(messageID, uniq); a.showStatusMessage("✅ Suggestions ready") })
+		a.QueueUpdateDraw(func() {
+			if a.currentFocus == "search" {
+				// Clear persistent status if user moved to search meanwhile
+				a.setStatusPersistent("")
+				return
+			}
+			a.showLabelSuggestions(messageID, uniq)
+			a.showStatusMessage("✅ Suggestions ready")
+		})
 	}()
 }
 
@@ -234,6 +251,14 @@ func (a *App) suggestLabel() {
 func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 	if a.logger != nil {
 		a.logger.Printf("showLabelSuggestions: start mid=%s count=%d", messageID, len(suggestions))
+	}
+	// Do not interrupt advanced search
+	if a.currentFocus == "search" {
+		if a.logger != nil {
+			a.logger.Println("showLabelSuggestions: aborted (search active)")
+		}
+		a.showStatusMessage("🔎 Search active — suggestions deferred")
+		return
 	}
 	a.setStatusPersistent("🏷️ Showing suggested labels…")
 	// Do network work off the UI thread

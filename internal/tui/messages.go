@@ -17,6 +17,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/render"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
+	"github.com/mattn/go-runewidth"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -539,6 +540,16 @@ func (a *App) openSearchOverlay(mode string) {
 	input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			query := input.GetText()
+			// If there was an LLM suggestion running, inform user it was cancelled
+			if a.LLM != nil {
+				for k := range a.aiInFlight {
+					if a.aiInFlight[k] {
+						a.aiInFlight[k] = false
+						a.showStatusMessage("🔕 Sugerencia cancelada al abrir la búsqueda")
+						break
+					}
+				}
+			}
 			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 				lc.Clear()
 				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
@@ -687,16 +698,21 @@ func (a *App) openSearchOverlay(mode string) {
 func (a *App) openAdvancedSearchForm() {
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
-	form.AddFormItem(tview.NewInputField().SetLabel("From").SetPlaceholder("user@example.com"))
-	form.AddFormItem(tview.NewInputField().SetLabel("To").SetPlaceholder("person@example.com"))
-	form.AddFormItem(tview.NewInputField().SetLabel("Subject").SetPlaceholder("exact words or phrase"))
-	form.AddFormItem(tview.NewInputField().SetLabel("Has the words").SetPlaceholder("words here"))
-	form.AddFormItem(tview.NewInputField().SetLabel("Doesn't have").SetPlaceholder("exclude words"))
+	fromField := tview.NewInputField().SetLabel("👤 From").SetPlaceholder("user@example.com")
+	toField := tview.NewInputField().SetLabel("📩 To").SetPlaceholder("person@example.com")
+	subjectField := tview.NewInputField().SetLabel("🧾 Subject").SetPlaceholder("exact words or phrase")
+	hasField := tview.NewInputField().SetLabel("🔎 Has the words").SetPlaceholder("words here")
+	notField := tview.NewInputField().SetLabel("🚫 Doesn't have").SetPlaceholder("exclude words")
+	form.AddFormItem(fromField)
+	form.AddFormItem(toField)
+	form.AddFormItem(subjectField)
+	form.AddFormItem(hasField)
+	form.AddFormItem(notField)
 	// Size single expression, e.g. "<2MB" or ">500KB"
-	sizeExprField := tview.NewInputField().SetLabel("Size").SetPlaceholder("e.g., <2MB or >500KB")
+	sizeExprField := tview.NewInputField().SetLabel("📦 Size").SetPlaceholder("e.g., <2MB or >500KB")
 	form.AddFormItem(sizeExprField)
 	// Date within single token, e.g. "2d", "3w", "1m", "4h", "6y"
-	dateWithinField := tview.NewInputField().SetLabel("Date within").SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y")
+	dateWithinField := tview.NewInputField().SetLabel("⏱️  Date within").SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y")
 	form.AddFormItem(dateWithinField)
 	// Scope
 	baseScopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
@@ -706,7 +722,7 @@ func (a *App) openAdvancedSearchForm() {
 		a.logger.Println("advsearch: building form")
 	}
 	scopeField := tview.NewInputField().
-		SetLabel("Search").
+		SetLabel("📂 Search").
 		SetText(scopeVal).
 		SetPlaceholder("Press Enter to pick scope/label")
 	form.AddFormItem(scopeField)
@@ -746,112 +762,174 @@ func (a *App) openAdvancedSearchForm() {
 		})
 	}()
 
-	// Picker como overlay (patrón robusto similar a browse labels)
-	openScopePicker := func() {
-		if a.logger != nil {
-			a.logger.Printf("advsearch: openScopePicker scopes=%d (overlay)", len(scopes))
+	// Track right panel visibility for toggle behavior
+	rightVisible := false
+
+	// Will hold a function to restore the default layout after closing advanced search
+	var restoreLayout func()
+
+	// Right-side picker inside search panel (removed: replaced by unified filter in options)
+
+	// Right-side options panel (categories with icons)
+	// Right-side options panel (categories). Keep as local to be callable
+	// Helper to hide right column
+	hideRight := func() {
+		if right, ok := a.views["searchRight"].(*tview.Flex); ok {
+			right.Clear()
+			if twoCol, ok := a.views["searchTwoCol"].(*tview.Flex); ok {
+				twoCol.ResizeItem(right, 0, 0)
+				// expand form back to full width in twoCol
+				if form != nil {
+					twoCol.ResizeItem(form, 0, 2)
+				}
+			}
 		}
-		filter := tview.NewInputField().
-			SetLabel("🔎 Filter: ").
-			SetFieldWidth(30).
-			SetPlaceholder("type to filter; Enter=select, ESC=close")
+		rightVisible = false
+	}
+
+	renderRightOptions := func(setFocus bool) {
+		right, ok := a.views["searchRight"].(*tview.Flex)
+		if !ok {
+			return
+		}
+		if twoCol, ok := a.views["searchTwoCol"].(*tview.Flex); ok {
+			// Ensure right column is visible when options are rendered
+			twoCol.ResizeItem(right, 0, 1)
+			// shrink form to half width
+			if form != nil {
+				twoCol.ResizeItem(form, 0, 1)
+			}
+		}
+		rightVisible = true
+		right.Clear()
+		// Helper to pad emoji to width 2 for alignment across fonts
+		padIcon := func(icon string) string {
+			if runewidth.StringWidth(icon) < 2 {
+				return icon + " "
+			}
+			return icon
+		}
+
+		type optionItem struct {
+			display string
+			action  func()
+		}
+		options := make([]optionItem, 0, 256)
+		// Folders
+		options = append(options,
+			optionItem{padIcon("📁") + "All Mail", func() { scopeVal = "All Mail"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("📥") + "Inbox", func() { scopeVal = "Inbox"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("📤") + "Sent Mail", func() { scopeVal = "Sent"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("📝") + "Drafts", func() { scopeVal = "Drafts"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("🚫") + "Spam", func() { scopeVal = "Spam"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("🗑️") + "Trash", func() { scopeVal = "Trash"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+		)
+		// Anywhere
+		options = append(options, optionItem{padIcon("📬") + "Mail & Spam & Trash", func() {
+			scopeVal = "Mail & Spam & Trash"
+			scopeField.SetText(scopeVal)
+			hideRight()
+			a.SetFocus(scopeField)
+		}})
+		// State
+		options = append(options,
+			optionItem{padIcon("✅") + "Read Mail", func() { scopeField.SetText("is:read"); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("✉️") + "Unread Mail", func() { scopeField.SetText("is:unread"); hideRight(); a.SetFocus(scopeField) }},
+		)
+		// Categories
+		for _, c := range []string{"social", "updates", "forums", "promotions"} {
+			cc := c
+			disp := strings.Title(cc)
+			options = append(options, optionItem{padIcon("🗂️") + disp, func() { scopeField.SetText("category:" + cc); hideRight(); a.SetFocus(scopeField) }})
+		}
+		// Labels (all user labels in 'scopes' beyond base)
+		baseSet := map[string]struct{}{"All Mail": {}, "Inbox": {}, "Sent": {}, "Drafts": {}, "Spam": {}, "Trash": {}, "Starred": {}, "Important": {}}
+		for _, s := range scopes {
+			if _, okb := baseSet[s]; okb {
+				continue
+			}
+			name := s
+			options = append(options, optionItem{padIcon("🔖") + name, func() { scopeField.SetText("label:\"" + name + "\""); hideRight(); a.SetFocus(scopeField) }})
+		}
+
+		filter := tview.NewInputField().SetLabel("🔎 ")
+		filter.SetPlaceholder("filter options…")
+		filter.SetFieldWidth(30)
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(false)
-		list.SetSelectedTextColor(tcell.ColorBlack)
-		list.SetSelectedBackgroundColor(tcell.ColorWhite)
-
-		type item struct{ name string }
-		var all []item
-		all = make([]item, 0, len(scopes))
-		for _, s := range scopes {
-			all = append(all, item{s})
-		}
-		var visible []item
-		reload := func(q string) {
+		// Container con borde para incluir picker + lista
+		box := tview.NewFlex().SetDirection(tview.FlexRow)
+		box.SetBorder(true).SetTitle(" 📂 Search options ")
+		box.SetBorderColor(tcell.ColorYellow)
+		acts := make([]func(), 0, 256)
+		apply := func(q string) {
+			ql := strings.ToLower(strings.TrimSpace(q))
 			list.Clear()
-			visible = visible[:0]
-			q = strings.ToLower(strings.TrimSpace(q))
-			for _, it := range all {
-				if q == "" || strings.Contains(strings.ToLower(it.name), q) {
-					visible = append(visible, it)
-					name := it.name
-					list.AddItem(name, "Enter: pick", 0, func() {
-						scopeVal = name
-						scopeField.SetText(scopeVal)
-						a.Pages.RemovePage("scopePicker")
-						a.SetFocus(scopeField)
-					})
-				}
-				if len(visible) >= 300 { // safety cap
-					break
+			acts = acts[:0]
+			for _, it := range options {
+				if ql == "" || strings.Contains(strings.ToLower(it.display), ql) {
+					act := it.action
+					list.AddItem(it.display, "", 0, func() { act() })
+					acts = append(acts, act)
 				}
 			}
 			if list.GetItemCount() > 0 {
 				list.SetCurrentItem(0)
 			}
 		}
-		filter.SetChangedFunc(func(text string) { reload(text) })
+		filter.SetChangedFunc(func(s string) { apply(s) })
 		filter.SetDoneFunc(func(key tcell.Key) {
-			if key == tcell.KeyEscape {
-				a.Pages.RemovePage("scopePicker")
-				a.SetFocus(scopeField)
-			}
-			if key == tcell.KeyEnter && list.GetItemCount() > 0 {
-				if main, _ := list.GetItemText(list.GetCurrentItem()); main != "" {
-					scopeVal = main
-					scopeField.SetText(scopeVal)
+			switch key {
+			case tcell.KeyEnter:
+				idx := list.GetCurrentItem()
+				if idx >= 0 && idx < len(acts) {
+					acts[idx]()
+					hideRight()
+					a.SetFocus(scopeField)
 				}
-				a.Pages.RemovePage("scopePicker")
-				a.SetFocus(scopeField)
-			}
-		})
-		// Arrow keys from filter → list
-		filter.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-			switch e.Key() {
-			case tcell.KeyDown, tcell.KeyPgDn:
+			case tcell.KeyTab:
 				a.SetFocus(list)
-				return e
 			}
-			return e
 		})
-		list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		box.AddItem(filter, 1, 0, true)
+		box.AddItem(list, 0, 1, true)
+		right.AddItem(box, 0, 1, true)
+		apply("")
+		box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			if e.Key() == tcell.KeyEscape {
-				a.Pages.RemovePage("scopePicker")
+				hideRight()
 				a.SetFocus(scopeField)
 				return nil
 			}
-			if e.Key() == tcell.KeyUp {
-				// if first item, go back to filter
-				if list.GetCurrentItem() <= 0 {
-					a.SetFocus(filter)
+			if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp {
+				if a.GetFocus() == filter {
+					a.SetFocus(list)
 					return nil
 				}
 			}
 			return e
 		})
-
-		container := tview.NewFlex().SetDirection(tview.FlexRow)
-		container.SetBorder(true).SetTitle(" 🔎 Pick scope or label ").SetTitleColor(tcell.ColorYellow)
-		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		container.AddItem(filter, 3, 0, true)
-		container.AddItem(list, 0, 1, true)
-		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-		footer.SetText(" Enter=pick | Esc=close ")
-		footer.SetTextColor(tcell.ColorGray)
-		container.AddItem(footer, 1, 0, false)
-
-		reload("")
-		a.Pages.AddPage("scopePicker", container, true, true)
-		a.SetFocus(filter)
-		a.currentFocus = "search"
-		a.updateFocusIndicators("search")
+		list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
+				a.SetFocus(filter)
+				return nil
+			}
+			return e
+		})
+		if setFocus {
+			a.SetFocus(filter)
+		}
 	}
 	scopeField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			if a.logger != nil {
-				a.logger.Println("advsearch: scopeField Enter -> open picker")
+				a.logger.Println("advsearch: scopeField Enter -> open options panel")
 			}
-			openScopePicker()
+			if rightVisible {
+				hideRight()
+			} else {
+				renderRightOptions(true)
+			}
 		}
 	})
 
@@ -860,29 +938,42 @@ func (a *App) openAdvancedSearchForm() {
 		switch e.Key() {
 		case tcell.KeyEnter, tcell.KeyTab:
 			if a.logger != nil {
-				a.logger.Printf("advsearch: scopeField key=%v -> open picker", e.Key())
+				a.logger.Printf("advsearch: scopeField key=%v -> open options panel", e.Key())
 			}
-			openScopePicker()
+			if rightVisible {
+				hideRight()
+			} else {
+				renderRightOptions(true)
+			}
 			return nil
 		case tcell.KeyRune:
 			if a.logger != nil {
-				a.logger.Printf("advsearch: scopeField rune '%c' -> open picker", e.Rune())
+				a.logger.Printf("advsearch: scopeField rune '%c' -> open options panel", e.Rune())
 			}
-			openScopePicker()
+			if rightVisible {
+				hideRight()
+			} else {
+				renderRightOptions(true)
+			}
 			return nil
 		}
 		return e
 	})
 
-	// Build submit function shared by button and Ctrl+Enter
+	// Build submit function (triggered by the Search button)
 	submit := func() {
-		from := form.GetFormItemByLabel("From").(*tview.InputField).GetText()
-		to := form.GetFormItemByLabel("To").(*tview.InputField).GetText()
-		subject := form.GetFormItemByLabel("Subject").(*tview.InputField).GetText()
-		hasWords := form.GetFormItemByLabel("Has the words").(*tview.InputField).GetText()
-		notWords := form.GetFormItemByLabel("Doesn't have").(*tview.InputField).GetText()
-		sizeExpr := form.GetFormItemByLabel("Size").(*tview.InputField).GetText()
-		dateWithinExpr := form.GetFormItemByLabel("Date within").(*tview.InputField).GetText()
+		if a.logger != nil {
+			a.logger.Println("advsearch: submit invoked")
+		}
+		// Hide options panel if visible
+		hideRight()
+		from := fromField.GetText()
+		to := toField.GetText()
+		subject := subjectField.GetText()
+		hasWords := hasField.GetText()
+		notWords := notField.GetText()
+		sizeExpr := sizeExprField.GetText()
+		dateWithinExpr := dateWithinField.GetText()
 
 		parts := []string{}
 		if from != "" {
@@ -951,29 +1042,36 @@ func (a *App) openAdvancedSearchForm() {
 				}
 			}
 		}
-		// Scope (union fixed folders + labels) using scopeVal
-		if scopeVal != "" {
-			sel := scopeVal
-			switch sel {
-			case "All Mail":
-				// no-op
-			case "Inbox":
-				parts = append(parts, "in:inbox")
-			case "Sent":
-				parts = append(parts, "in:sent")
-			case "Drafts":
-				parts = append(parts, "in:draft")
-			case "Spam":
-				parts = append(parts, "in:spam")
-			case "Trash":
-				parts = append(parts, "in:trash")
-			case "Starred":
-				parts = append(parts, "is:starred")
-			case "Important":
-				parts = append(parts, "is:important")
-			default:
-				// Assume label name
-				parts = append(parts, fmt.Sprintf("label:%q", sel))
+		// Scope and extra operators from the Search field
+		scopeText := strings.TrimSpace(scopeField.GetText())
+		if scopeText == "" {
+			scopeText = scopeVal // fallback to last selected scope option
+		}
+		switch scopeText {
+		case "", "All Mail":
+			// no-op
+		case "Inbox":
+			parts = append(parts, "in:inbox")
+		case "Sent":
+			parts = append(parts, "in:sent")
+		case "Drafts":
+			parts = append(parts, "in:draft")
+		case "Spam":
+			parts = append(parts, "in:spam")
+		case "Trash":
+			parts = append(parts, "in:trash")
+		case "Starred":
+			parts = append(parts, "is:starred")
+		case "Important":
+			parts = append(parts, "is:important")
+		case "Mail & Spam & Trash":
+			parts = append(parts, "in:anywhere")
+		default:
+			// If already a valid operator, pass-through; else treat as a label token
+			if strings.HasPrefix(scopeText, "in:") || strings.HasPrefix(scopeText, "is:") || strings.HasPrefix(scopeText, "category:") || strings.HasPrefix(scopeText, "label:") {
+				parts = append(parts, scopeText)
+			} else {
+				parts = append(parts, fmt.Sprintf("label:%q", scopeText))
 			}
 		}
 		if hasAttachment {
@@ -981,21 +1079,40 @@ func (a *App) openAdvancedSearchForm() {
 		}
 
 		q := strings.Join(parts, " ")
+		if a.logger != nil {
+			a.logger.Printf("advsearch: built query='%s'", q)
+		}
 
+		// Restore main layout (list+content) and hide advanced search panel
+		if restoreLayout != nil {
+			restoreLayout()
+		}
+		// Ensure searchPanel is hidden and cleared in listContainer
+		if spv, ok := a.views["searchPanel"].(*tview.Flex); ok {
+			spv.Clear()
+			spv.SetBorder(false).SetTitle("")
+		}
 		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 			lc.Clear()
-			// Hide search panel and restore list to full height
 			lc.AddItem(a.views["searchPanel"], 0, 0, false)
 			lc.AddItem(a.views["list"], 0, 1, true)
 		}
 		a.currentFocus = "list"
 		a.updateFocusIndicators("list")
 		a.SetFocus(a.views["list"])
+		if a.logger != nil {
+			a.logger.Println("advsearch: calling performSearch")
+		}
 		go a.performSearch(q)
 	}
 	form.SetButtonsAlign(tview.AlignRight)
-	form.AddButton("Search", submit)
-	form.AddButton("Cancel", func() {
+	form.AddButton("🔎 Search", func() {
+		if a.logger != nil {
+			a.logger.Println("advsearch: Search button pressed")
+		}
+		submit()
+	})
+	form.AddButton("✖ Cancel", func() {
 		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
 			lc.Clear()
 			lc.AddItem(a.views["searchPanel"], 0, 0, false)
@@ -1007,6 +1124,9 @@ func (a *App) openAdvancedSearchForm() {
 	})
 	form.SetBorder(false) // inner form without its own title; container shows the title
 	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		if a.logger != nil {
+			a.logger.Printf("advsearch: form key=%v rune=%q", ev.Key(), ev.Rune())
+		}
 		// When a dropdown is open, intercept keys (ESC/tab/enter)
 		idx, _ := form.GetFocusedItemIndex()
 		if idx >= 0 {
@@ -1030,11 +1150,7 @@ func (a *App) openAdvancedSearchForm() {
 				}
 			}
 		}
-		// Submit only with Ctrl+Enter (or Ctrl+S)
-		if (ev.Key() == tcell.KeyEnter && (ev.Modifiers()&tcell.ModCtrl) != 0) || (ev.Rune() == 's' && (ev.Modifiers()&tcell.ModCtrl) != 0) {
-			submit()
-			return nil
-		}
+		// Do NOT submit on Enter; solo al pulsar el botón "🔎 Search".
 		if ev.Key() == tcell.KeyEscape {
 			// Return to simple search overlay instead of main list
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
@@ -1053,27 +1169,62 @@ func (a *App) openAdvancedSearchForm() {
 		return ev
 	})
 
-	// Mount form into searchPanel area; expand to 50% and hide list for spacious layout
+	// Mount as two vertical panes: left = advanced search, right = message content
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 		sp.Clear()
 		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
-		sp.AddItem(form, 0, 1, true)
-		if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
-			lc.Clear()
-			// Allocate 50% to form, hide list (weight 0)
-			lc.AddItem(a.views["searchPanel"], 0, 1, true)
-			lc.AddItem(a.views["list"], 0, 0, false)
-		}
-		// Allow ESC at container level to return to simple search overlay
-		if sp2, ok3 := a.views["searchPanel"].(*tview.Flex); ok3 {
-			sp2.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-				if ev.Key() == tcell.KeyEscape {
-					a.openSearchOverlay("remote")
-					return nil
+		twoCol := tview.NewFlex().SetDirection(tview.FlexColumn)
+		a.views["searchTwoCol"] = twoCol
+		twoCol.AddItem(form, 0, 2, true)
+		right := tview.NewFlex().SetDirection(tview.FlexRow)
+		a.views["searchRight"] = right
+		twoCol.AddItem(right, 0, 0, false) // hidden until toggle
+		sp.AddItem(twoCol, 0, 1, true)
+
+		// Helper to restore the default main layout when exiting advanced search
+		restoreLayout = func() {
+			if cs, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				cs.Clear()
+				cs.SetDirection(tview.FlexColumn)
+				if tc, ok2 := a.views["textContainer"].(*tview.Flex); ok2 {
+					cs.AddItem(tc, 0, 1, false)
 				}
-				return ev
-			})
+				cs.AddItem(a.aiSummaryView, 0, 0, false)
+				cs.AddItem(a.labelsView, 0, 0, false)
+			}
+			if mf, ok := a.views["mainFlex"].(*tview.Flex); ok {
+				if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
+					mf.ResizeItem(lc, 0, 40) // restore list area
+				}
+			}
 		}
+
+		// Hide the message list row; show two columns instead inside contentSplit
+		if mf, ok := a.views["mainFlex"].(*tview.Flex); ok {
+			if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
+				mf.ResizeItem(lc, 0, 0)
+			}
+		}
+		if cs, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			cs.Clear()
+			cs.SetDirection(tview.FlexRow)
+			// 50/50 split (same weights)
+			cs.AddItem(sp, 0, 1, true) // top: advanced search
+			if tc, ok2 := a.views["textContainer"].(*tview.Flex); ok2 {
+				cs.AddItem(tc, 0, 1, false) // bottom: message content
+			}
+		}
+
+		// ESC anywhere in the left pane exits advanced search and restores layout
+		sp.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+			if ev.Key() == tcell.KeyEscape {
+				restoreLayout()
+				a.openSearchOverlay("remote")
+				return nil
+			}
+			return ev
+		})
+
 		a.currentFocus = "search"
 		a.updateFocusIndicators("search")
 		a.SetFocus(form)
@@ -1820,9 +1971,7 @@ func scanICSField(s, key string) string {
 	}
 	line = strings.TrimSpace(strings.TrimPrefix(line, key))
 	line = strings.TrimPrefix(line, ";VALUE=DATE:")
-	if strings.HasPrefix(line, ":") {
-		line = strings.TrimPrefix(line, ":")
-	}
+	line = strings.TrimPrefix(line, ":")
 	return strings.TrimSpace(line)
 }
 

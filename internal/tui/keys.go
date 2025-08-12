@@ -197,10 +197,16 @@ func (a *App) bindKeys() {
 			go a.searchBySubjectCurrent()
 			return nil
 		case 'l':
+			if a.currentFocus == "search" {
+				return nil
+			}
 			// Toggle contextual labels panel
 			a.manageLabels()
 			return nil
 		case 'm':
+			if a.currentFocus == "search" {
+				return nil
+			}
 			if a.bulkMode && len(a.selected) > 0 {
 				a.openMovePanelBulk()
 			} else {
@@ -211,6 +217,9 @@ func (a *App) bindKeys() {
 			a.toggleMarkdown()
 			return nil
 		case 'V':
+			if a.currentFocus == "search" {
+				return nil
+			}
 			// Toggle RSVP side panel
 			if a.rsvpVisible {
 				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -224,6 +233,11 @@ func (a *App) bindKeys() {
 			go a.openRSVPModal()
 			return nil
 		case 'o':
+			// Avoid opening suggestions while advanced search is active
+			if a.currentFocus == "search" {
+				a.showStatusMessage("🔕 Sugerencias de etiquetas desactivadas mientras buscas")
+				return nil
+			}
 			go a.suggestLabel()
 			return nil
 		case 'w':

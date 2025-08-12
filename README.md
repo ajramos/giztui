@@ -401,6 +401,18 @@ Navigation niceties:
     - `T` → `to:<sender>` (uses `in:anywhere -in:spam -in:trash` so Sent mail is included)
     - `S` → `subject:"<exact subject>"`
 
+ - Advanced search (`Ctrl+F`):
+   - Shows a form with fields: `From`, `To`, `Subject`, `Has the words`, `Doesn't have`, `Size`, `Date within`, `Search`, and `Has attachment`.
+   - `Search` field with quick options: toggle the “📂 Search options” panel with `Enter/Tab`. The panel includes icons and a live filter.
+     - Folders: All Mail, Inbox, Sent, Drafts, Spam, Trash
+     - Anywhere: Mail & Spam & Trash
+     - State: Read, Unread
+     - Categories: social, updates, forums, promotions
+     - Labels: all user labels
+     - Navigation: type to filter; use `↑/↓` to navigate; `Enter` applies to the `Search` field and closes the panel; `Esc` closes the panel.
+   - Vertical layout: form on top (50%) and message content below for context.
+   - Execution: move focus to the `🔎 Search` button and press Enter. The advanced search view closes and the search runs.
+
 ### 📐 Vertical Layout
 
 - Messages list on top, message content below, command bar and status at bottom
