@@ -508,7 +508,7 @@ func (a *App) performSearch(query string) {
 		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
 
-	// Perform search (network)
+	// Stream search results progressively like initial load
 	messages, next, err := a.Client.SearchMessagesPage(q, 50, "")
 	if err != nil {
 		a.QueueUpdateDraw(func() {
@@ -520,40 +520,66 @@ func (a *App) performSearch(query string) {
 		return
 	}
 
-	// Prepare formatted rows
-	ids := make([]string, 0, len(messages))
-	metas := make([]*gmailapi.Message, 0, len(messages))
-	rows := make([]string, 0, len(messages))
+	// Reset state and show spinner
+	a.ids = []string{}
+	a.messagesMeta = []*gmailapi.Message{}
+	a.nextPageToken = next
+	a.searchMode = "remote"
+	a.currentQuery = q
+
+	var spinnerStop chan struct{}
+	if _, ok := a.views["list"].(*tview.Table); ok {
+		spinnerStop = make(chan struct{})
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(150 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-spinnerStop:
+					return
+				case <-ticker.C:
+					prog := len(a.ids)
+					total := len(messages)
+					a.QueueUpdateDraw(func() {
+						if tb, ok := a.views["list"].(*tview.Table); ok {
+							tb.SetTitle(fmt.Sprintf(" %s Searching… (%d/%d) — %s ", frames[i%len(frames)], prog, total, originalQuery))
+						}
+					})
+					i++
+				}
+			}
+		}()
+	}
+
+	screenWidth := a.getFormatWidth()
 	for _, msg := range messages {
-		ids = append(ids, msg.Id)
+		a.ids = append(a.ids, msg.Id)
 		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
 			continue
 		}
-		metas = append(metas, meta)
-		text, _ := a.emailRenderer.FormatEmailList(meta, a.getFormatWidth())
-		rows = append(rows, text)
-	}
-
-	// Apply results on UI thread
-	a.QueueUpdateDraw(func() {
-		a.searchMode = "remote"
-		a.currentQuery = q
-		a.nextPageToken = next
-		a.ids = ids
-		a.messagesMeta = metas
-		if table, ok := a.views["list"].(*tview.Table); ok {
-			table.Clear()
-			for i, text := range rows {
-				table.SetCell(i, 0, tview.NewTableCell(text).SetExpansion(1))
+		a.messagesMeta = append(a.messagesMeta, meta)
+		text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+		a.QueueUpdateDraw(func() {
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				row := table.GetRowCount()
+				table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
 			}
-			// Show the user's original query in the title
-			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(ids), originalQuery))
+			a.reformatListItems()
+		})
+	}
+	if spinnerStop != nil {
+		close(spinnerStop)
+	}
+	a.QueueUpdateDraw(func() {
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(a.ids), originalQuery))
 			if table.GetRowCount() > 0 {
 				table.Select(0, 0)
 			}
 		}
-		a.reformatListItems()
 	})
 }
 

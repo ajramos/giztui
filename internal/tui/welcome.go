@@ -92,32 +92,33 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	b.WriteString("[yellow::b]📨 GizTUI — Your terminal for Gmail[-:-:-]\n\n")
 
 	// Subtitle / description
-	b.WriteString("Explore your Gmail inbox with a k9s-like experience.\n\n")
+	b.WriteString("A k9s-like terminal for Gmail.\n\n")
 
 	// Account line (if available)
 	if strings.TrimSpace(accountEmail) != "" {
-		b.WriteString("[green::b]Account:[-:-:-] ")
+		b.WriteString("[green::b]Signed in as:[-:-:-] ")
 		b.WriteString(accountEmail)
 		b.WriteString("\n\n")
 	}
 
-	// Quick actions (chips)
-	b.WriteString("[white::b]Quick actions:[-:-:-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
-
 	if loading {
-		// Keep a simple welcome text without spinner; list title shows progress now
-		b.WriteString("You're all set. Messages are loading in the list.\n")
-		b.WriteString("Press '?' for help, 's' to search, or start navigating the list.\n")
+		// Shortcuts while logged in
+		b.WriteString("[white::b]Shortcuts:[-:-:-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
+		// Do not duplicate loading text; progress is visible in the list title/spinner
 		return b.String()
 	}
 
 	// Setup guide for first run / missing credentials
-	credPath, _ := config.DefaultCredentialPaths()
-	b.WriteString("It looks like Gmail credentials are missing.\n\n")
-	b.WriteString("Setup steps:\n")
+	configuredCredPath := strings.TrimSpace(a.Config.Credentials)
+	if configuredCredPath == "" {
+		configuredCredPath, _ = config.DefaultCredentialPaths()
+	}
+	b.WriteString("[red::b]Credentials not found.[-:-:-]\n\n")
+	b.WriteString("Setup:\n")
 	b.WriteString("  1. Download OAuth credentials from Google Cloud Console.\n")
-	b.WriteString(fmt.Sprintf("  2. Place the file at `%s`.\n", credPath))
+	b.WriteString(fmt.Sprintf("  2. Place the file at `%s`.\n", configuredCredPath))
 	b.WriteString("  3. Restart the application.\n\n")
-	b.WriteString("See README.md for details. Press '?' for Help or 'q' to Quit.\n")
+	b.WriteString("See README.md for details.\n\n")
+	b.WriteString("[white::b]Shortcuts:[-:-:-]  [? Help]  [q Quit]\n")
 	return b.String()
 }

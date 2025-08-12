@@ -310,7 +310,7 @@ func (a *App) reloadMessages() {
 		}()
 	}
 
-	// Process messages using the email renderer
+	// Process messages using the email renderer (progressive paint + color)
 	for i, msg := range messages {
 		a.ids = append(a.ids, msg.Id)
 
@@ -341,15 +341,19 @@ func (a *App) reloadMessages() {
 			formattedText = "○ " + formattedText
 		}
 
-		if table, ok := a.views["list"].(*tview.Table); ok {
-			cell := tview.NewTableCell(formattedText).
-				SetExpansion(1).
-				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-			table.SetCell(i, 0, cell)
-		}
-
 		// cache meta for resize re-rendering
 		a.messagesMeta = append(a.messagesMeta, message)
+
+		// Paint row and apply colors immediately
+		a.QueueUpdateDraw(func() {
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				cell := tview.NewTableCell(formattedText).
+					SetExpansion(1).
+					SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+				table.SetCell(i, 0, cell)
+			}
+			a.reformatListItems()
+		})
 
 		loaded = i + 1
 	}
@@ -367,7 +371,7 @@ func (a *App) reloadMessages() {
 				table.Select(0, 0)
 			}
 		}
-		// Apply per-row colors after initial load
+		// Final pass (in case of resize between frames)
 		a.reformatListItems()
 		// Stop spinner if running
 		if spinnerStop != nil {
