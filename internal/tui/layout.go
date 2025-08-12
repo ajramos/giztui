@@ -221,7 +221,7 @@ func (a *App) createStatusBar() tview.Primitive {
 	status := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft).
-		SetText("GizTUI | Press ? for help | Press q to quit")
+		SetText(a.statusBaseline())
 
 	return status
 }

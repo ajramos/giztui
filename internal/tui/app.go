@@ -432,6 +432,10 @@ func (a *App) Run() error {
 						if text, ok := a.views["text"].(*tview.TextView); ok {
 							text.SetText(a.buildWelcomeText(true, a.welcomeEmail, 0))
 						}
+						// Also refresh status bar baseline to include the email
+						if status, ok := a.views["status"].(*tview.TextView); ok {
+							status.SetText(a.statusBaseline())
+						}
 					})
 				}
 			}
@@ -578,6 +582,14 @@ func (a *App) performSearch(query string) {
 			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(a.ids), originalQuery))
 			if table.GetRowCount() > 0 {
 				table.Select(0, 0)
+				if len(a.ids) > 0 {
+					firstID := a.ids[0]
+					a.currentMessageID = firstID
+					go a.showMessageWithoutFocus(firstID)
+					if a.aiSummaryVisible {
+						go a.generateOrShowSummary(firstID)
+					}
+				}
 			}
 		}
 	})

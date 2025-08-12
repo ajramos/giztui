@@ -76,10 +76,15 @@ func (a *App) shortError(err error, max int) string {
 // statusBaseline returns the baseline status text including persistent indicators
 func (a *App) statusBaseline() string {
 	base := "GizTUI"
+	// Append active account email if available (non-blocking; never call network here)
+	if a != nil && strings.TrimSpace(a.welcomeEmail) != "" {
+		base += " | " + a.welcomeEmail
+	}
 	if a != nil && a.llmTouchUpEnabled {
 		base += " | 🧠"
 	} else {
 		base += " | 🧾"
 	}
-	return base + " | Press ? for help | Press q to quit"
+	// Simplified baseline message per request
+	return base + " | Press ? for help"
 }
