@@ -3,7 +3,7 @@
 ## 🎯 Roadmap
 
 ## Priorities
-- Fix search:
+- Fix advanced search:
     - Label/Folder picker does not work
     - Has attachment does not work
     - Search within a date (see gmail specs)
@@ -15,7 +15,8 @@
 - Pensar en como me puedo mandar cosas a obsidian y a slack
 - Cargar la salida de los LLMs con stream no en completo
 - Añadir carpetas por defecto a las etiquetas
-- Pensar como aceptar reuniones.
+- Pensar como aceptar reuniones o abrir enlaces
+- Short cut para buscar todos los mensajes del remitente
 
 
 ### Email Management
@@ -49,7 +50,7 @@
 - [ ] **List attachments** - Show attachments for specific emails
 
 ### Labels and Organization
-- [ ] **Create label** - Create new custom labels with visibility options
+- [x] **Create label** - Create new custom labels with visibility options
 - [ ] **Delete label** - Delete custom labels
 - [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
 - [x] **List labels** - Show all available Gmail labels

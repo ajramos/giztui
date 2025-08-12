@@ -202,6 +202,10 @@ The application uses a unified configuration directory structure:
 | `R` | Reply (WIP) |
 | `s` | Search |
 | `/` | Local filter |
+| `F` | Quick search: from current sender |
+| `T` | Quick search: to current sender (includes Sent) |
+| `S` | Quick search: by current subject |
+| `:` | Open command bar (k9s-style) |
 | `u` | Show unread |
 | `t` | Toggle read/unread |
 | `d` | Move to trash |
@@ -312,12 +316,22 @@ Notes:
 
 ### 🧭 Command Mode (k9s-style)
 
-- Press `:` to open the command bar
-- The command bar now has a border, takes focus automatically, and supports suggestions
-- Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`)
-- Suggestions are shown in brackets while typing
+- Press `:` to open the command bar. It appears between the message content and the status bar.
+- Look & feel: bordered panel with title, prompt icon and a `>` chevron.
+- Focus: the input takes focus automatically; `ESC` closes. If the command bar ever loses focus (e.g., due to background loads), it auto-hides for consistency.
+- Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`).
+- Suggestions: shown live in brackets on the right. `↑/↓` navigate history; `Enter` executes.
 
 Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
+
+Contextual search shorthands supported in command mode:
+
+```
+:search from:current      # messages from the current sender (Inbox scope by default)
+:search to:current        # messages to the current sender (includes Sent; excludes spam/trash)
+:search subject:current   # messages with the exact current subject
+:search domain:current    # messages from the current sender's domain (@example.com)
+```
 
 ### 🏷️ Labels Management (Contextual)
 
@@ -375,6 +389,10 @@ Navigation niceties:
 - Remote search (`s`):
   - Runs a Gmail query and shows a new result list.
   - Press `ESC` to return to the inbox; the inbox is reloaded from the server (source of truth).
+  - Quick searches:
+    - `F` → `from:<sender>`
+    - `T` → `to:<sender>` (uses `in:anywhere -in:spam -in:trash` so Sent mail is included)
+    - `S` → `subject:"<exact subject>"`
 
 ### 📐 Vertical Layout
 

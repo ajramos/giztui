@@ -48,8 +48,8 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 
-    // Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
-    textContainer.AddItem(header, 6, 0, false)
+	// Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
+	textContainer.AddItem(header, 6, 0, false)
 	textContainer.AddItem(text, 0, 1, false)
 
 	// Create AI Summary view (hidden by default)
@@ -81,6 +81,17 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 	a.labelsView = labelsFlex
+
+	// Command panel (hidden by default)
+	cmdPanel := tview.NewFlex().SetDirection(tview.FlexRow)
+	cmdPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	cmdPanel.SetBorder(true).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 🐶 Command ").
+		SetTitleColor(tcell.ColorYellow).
+		SetTitleAlign(tview.AlignCenter)
+	a.views["cmdPanel"] = cmdPanel
 }
 
 // initViews initializes the main views
@@ -135,9 +146,10 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Add message content (takes 40% of available height)
 	mainFlex.AddItem(contentSplit, 0, 40, false)
 
-	// Command bar is currently hidden by default; do not mount until needed
-	// cmdBar := a.createCommandBar()
-	// mainFlex.AddItem(cmdBar, 1, 0, false)
+	// Command panel mounted hidden (height 0). It will be resized when opened.
+	if cp, ok := a.views["cmdPanel"]; ok {
+		mainFlex.AddItem(cp, 0, 0, false)
+	}
 
 	// Add status bar at the bottom
 	statusBar := a.createStatusBar()
@@ -171,6 +183,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 		sp.SetBorderColor(tcell.ColorGray)
 	}
+	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+		cp.SetBorderColor(tcell.ColorGray)
+	}
 
 	// Set focused view border to bright color
 	switch focusedView {
@@ -193,6 +208,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	case "search":
 		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 			sp.SetBorderColor(tcell.ColorYellow)
+		}
+	case "cmd":
+		if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+			cp.SetBorderColor(tcell.ColorYellow)
 		}
 	}
 }

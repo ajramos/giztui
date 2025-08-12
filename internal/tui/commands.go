@@ -8,17 +8,36 @@ import (
 	"github.com/derailed/tview"
 )
 
+// emojiBox draws a single piece of text (emoji-safe) at its top-left without markup.
+type emojiBox struct {
+	*tview.Box
+	text  string
+	color tcell.Color
+}
+
+func newEmojiBox(text string, color tcell.Color) *emojiBox {
+	b := &emojiBox{Box: tview.NewBox(), text: text, color: color}
+	b.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	return b
+}
+
+func (e *emojiBox) Draw(screen tcell.Screen) {
+	e.Box.DrawForSubclass(screen, e)
+	x, y, w, _ := e.GetInnerRect()
+	if w <= 0 {
+		return
+	}
+	// Print handles wide runes properly.
+	tview.Print(screen, e.text, x, y, w, tview.AlignLeft, e.color)
+}
+
 // createCommandBar creates the command bar component (k9s style)
 func (a *App) createCommandBar() tview.Primitive {
 	cmdBar := tview.NewTextView()
 	cmdBar.SetDynamicColors(true)
 	cmdBar.SetTextAlign(tview.AlignLeft)
-	cmdBar.SetBorder(true)
-	cmdBar.SetBorderColor(tcell.ColorBlue)
-	cmdBar.SetBorderAttributes(tcell.AttrBold)
-	cmdBar.SetTitle(" 💻 Command ")
-	cmdBar.SetTitleColor(tcell.ColorYellow)
-	cmdBar.SetTitleAlign(tview.AlignCenter)
+	// Inner widget without its own border; the panel provides the border and title
+	cmdBar.SetBorder(false)
 	cmdBar.SetText("")
 	cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
@@ -35,14 +54,104 @@ func (a *App) showCommandBar() {
 	a.cmdBuffer = ""
 	a.cmdSuggestion = ""
 
-	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
-		cmdBar.SetText(":")
-		cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
-		cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		cmdBar.SetBorderColor(tcell.ColorYellow)
+	// Build prompt pieces with an emoji-safe custom box
+	dog := newEmojiBox("🐶>", tview.Styles.PrimaryTextColor)
+
+	input := tview.NewInputField()
+	input.SetFieldWidth(0)
+	input.SetPlaceholder("")
+	input.SetPlaceholderTextColor(tview.Styles.PrimaryTextColor)
+	input.SetBorder(false)
+	input.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	input.SetText("")
+	input.SetDoneFunc(nil) // ensure we set it after capture
+	// Start at end of history
+	a.cmdHistoryIndex = len(a.cmdHistory)
+	// Behaviors: Enter executes, ESC closes, Tab completes, Up/Down history
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			cmd := input.GetText()
+			a.executeCommand(cmd)
+			a.hideCommandBar()
+		}
+	})
+	// Suggestion view on the right
+	hint := tview.NewTextView()
+	hint.SetBorder(false)
+	hint.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	hint.SetText("")
+	hint.SetTextColor(tcell.ColorGray)
+
+	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		switch ev.Key() {
+		case tcell.KeyEscape:
+			a.hideCommandBar()
+			return nil
+		case tcell.KeyTab:
+			// Complete using context-aware suggestion; may return full-line replacement
+			cur := strings.TrimSpace(input.GetText())
+			s := a.generateCommandSuggestion(cur)
+			if s != "" && s != cur {
+				input.SetText(s)
+			}
+			return nil
+		case tcell.KeyUp:
+			if a.cmdHistoryIndex > 0 {
+				a.cmdHistoryIndex--
+				if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
+					input.SetText(a.cmdHistory[a.cmdHistoryIndex])
+				}
+			}
+			return nil
+		case tcell.KeyDown:
+			if a.cmdHistoryIndex < len(a.cmdHistory)-1 {
+				a.cmdHistoryIndex++
+				if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
+					input.SetText(a.cmdHistory[a.cmdHistoryIndex])
+				}
+			} else {
+				a.cmdHistoryIndex = len(a.cmdHistory)
+				input.SetText("")
+			}
+			return nil
+		}
+		return ev
+	})
+	// Keep cmdBuffer in sync (for history/addToHistory consistency if used elsewhere)
+	input.SetChangedFunc(func(text string) {
+		a.cmdBuffer = text
+		// Update live hint based on current buffer
+		cur := strings.TrimSpace(text)
+		s := a.generateCommandSuggestion(cur)
+		if s != "" && s != cur {
+			hint.SetText("[" + s + "]")
+		} else {
+			hint.SetText("")
+		}
+	})
+
+	row := tview.NewFlex().SetDirection(tview.FlexColumn)
+	row.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+
+	row.AddItem(dog, 3, 0, false)
+	row.AddItem(input, 0, 1, true)
+	row.AddItem(hint, 0, 1, false)
+
+	// Mount into cmdPanel and resize panel height
+	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+		cp.Clear()
+		cp.AddItem(row, 1, 0, true)
+		if mainFlex, ok2 := a.views["mainFlex"].(*tview.Flex); ok2 {
+			mainFlex.ResizeItem(cp, 3, 0)
+		}
 	}
 
-	a.SetFocus(a.views["cmdBar"])
+	a.views["cmdPromptDog"] = dog
+	a.views["cmdInput"] = input
+	a.views["cmdHint"] = hint
+	a.currentFocus = "cmd"
+	a.updateFocusIndicators("cmd")
+	a.SetFocus(input)
 }
 
 // hideCommandBar hides the command bar and exits command mode
@@ -54,6 +163,13 @@ func (a *App) hideCommandBar() {
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")
 		cmdBar.SetBorderColor(tcell.ColorBlue)
+	}
+	// Hide cmdPanel by clearing its content and resizing to height 0
+	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+		cp.Clear()
+		if mainFlex, ok2 := a.views["mainFlex"].(*tview.Flex); ok2 {
+			mainFlex.ResizeItem(cp, 0, 0)
+		}
 	}
 
 	a.restoreFocusAfterModal()
@@ -112,19 +228,7 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 
 // updateCommandBar updates the command bar display
 func (a *App) updateCommandBar() {
-	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
-		suggestion := a.generateCommandSuggestion(a.cmdBuffer)
-		a.cmdSuggestion = suggestion
-
-		displayText := fmt.Sprintf(":%s", a.cmdBuffer)
-		if suggestion != "" && suggestion != a.cmdBuffer {
-			displayText += fmt.Sprintf(" [%s]", suggestion)
-		}
-
-		cmdBar.SetText(displayText)
-		cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
-		cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	}
+	// Kept for backward compatibility if cmdBar is used elsewhere; no-op with new InputField
 }
 
 // generateCommandSuggestion generates a suggestion based on the current command buffer
@@ -133,6 +237,7 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		return ""
 	}
 
+	// First-level suggestions
 	commands := map[string][]string{
 		"l":       {"labels", "list"},
 		"la":      {"labels"},
@@ -174,6 +279,38 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 	for cmd, suggestions := range commands {
 		if strings.HasPrefix(cmd, buffer) && cmd != buffer {
 			return suggestions[0]
+		}
+	}
+
+	// Contextual arguments for 'search'
+	if strings.HasPrefix(buffer, "search ") || strings.HasPrefix(buffer, "s ") {
+		arg := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(buffer, "search"), "s"))
+		arg = strings.TrimSpace(arg)
+		// If empty or partial, suggest full tokens
+		// Support: from:current | to:current | subject:current | domain:current
+		opts := []string{"search from:current", "search to:current", "search subject:current", "search domain:current"}
+		if arg == "" {
+			return opts[0]
+		}
+		// Suggest the first option that starts with current arg
+		for _, o := range opts {
+			if strings.HasPrefix(o, buffer) {
+				return o
+			}
+		}
+		// If user typed token start after space (e.g., "search f"), expand to from:current
+		tail := strings.TrimSpace(strings.TrimPrefix(buffer, "search"))
+		tail = strings.TrimSpace(tail)
+		lower := strings.ToLower(tail)
+		switch {
+		case strings.HasPrefix("from:current", lower):
+			return "search from:current"
+		case strings.HasPrefix("to:current", lower):
+			return "search to:current"
+		case strings.HasPrefix("subject:current", lower):
+			return "search subject:current"
+		case strings.HasPrefix("domain:current", lower):
+			return "search domain:current"
 		}
 	}
 	return ""

@@ -350,6 +350,10 @@ func (a *App) reloadMessages() {
 	}
 
 	a.QueueUpdateDraw(func() {
+		// If command mode is active, close it to avoid stealing focus after load
+		if a.cmdMode {
+			a.hideCommandBar()
+		}
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 			// Ensure a sane initial selection

@@ -10,8 +10,22 @@ import (
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
 func (a *App) bindKeys() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// If command panel is open but focus moved away, auto-hide to avoid stuck state
+		if a.cmdMode {
+			if inp, ok := a.views["cmdInput"].(*tview.InputField); ok {
+				if a.GetFocus() != inp {
+					a.hideCommandBar()
+				}
+			}
+		}
 		// Command mode routing
 		if a.cmdMode {
+			// If command input has focus, let it handle input natively
+			if inp, ok := a.views["cmdInput"].(*tview.InputField); ok {
+				if a.GetFocus() == inp {
+					return event
+				}
+			}
 			return a.handleCommandInput(event)
 		}
 
