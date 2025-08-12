@@ -51,6 +51,7 @@ type Message struct {
 	Subject   string
 	From      string
 	To        string
+	Cc        string
 	Date      time.Time
 	Labels    []string
 }
@@ -107,6 +108,7 @@ func (c *Client) GetMessageWithContent(id string) (*Message, error) {
 	message.Subject = extractHeader(msg, "Subject")
 	message.From = extractHeader(msg, "From")
 	message.To = extractHeader(msg, "To")
+	message.Cc = extractHeader(msg, "Cc")
 	message.Date = extractDate(msg)
 	// Map label IDs to human-friendly names and filter system labels to align with labels UI
 	message.Labels = c.humanReadableLabels(extractLabels(msg))

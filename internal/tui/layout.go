@@ -48,8 +48,8 @@ func (a *App) initComponents() {
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 
-	// Fixed height for header
-	textContainer.AddItem(header, 4, 0, false)
+    // Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
+    textContainer.AddItem(header, 6, 0, false)
 	textContainer.AddItem(text, 0, 1, false)
 
 	// Create AI Summary view (hidden by default)

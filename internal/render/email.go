@@ -189,25 +189,56 @@ func (er *EmailRenderer) FormatEmailHeader(message *googleGmail.Message) string 
 }
 
 // FormatHeaderStyled: simple header without colors/markup
-func (er *EmailRenderer) FormatHeaderStyled(subject, from string, date time.Time, labels []string) string {
+func (er *EmailRenderer) FormatHeaderStyled(subject, from, to, cc string, date time.Time, labels []string) string {
 	// Plain styled header (tview markup): everything in green, values escaped by caller if needed
-	header := fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
-		subject, from, er.formatDate(date), strings.Join(labels, ", "))
+	// Show To and Cc only if present
+	lines := []string{
+		fmt.Sprintf("Subject: %s", subject),
+		fmt.Sprintf("From: %s", from),
+	}
+	if strings.TrimSpace(to) != "" {
+		lines = append(lines, fmt.Sprintf("To: %s", to))
+	}
+	if strings.TrimSpace(cc) != "" {
+		lines = append(lines, fmt.Sprintf("Cc: %s", cc))
+	}
+	lines = append(lines, fmt.Sprintf("Date: %s", er.formatDate(date)))
+	lines = append(lines, fmt.Sprintf("Labels: %s", strings.Join(labels, ", ")))
+	header := strings.Join(lines, "\n")
 	return "[green]" + header + "[-]\n\n"
 }
 
 // FormatHeaderANSI returns the email header formatted using ANSI escape codes (green block)
-func (er *EmailRenderer) FormatHeaderANSI(subject, from string, date time.Time, labels []string) string {
-	header := fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
-		subject, from, er.formatDate(date), strings.Join(labels, ", "))
+func (er *EmailRenderer) FormatHeaderANSI(subject, from, to, cc string, date time.Time, labels []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Subject: %s\n", subject)
+	fmt.Fprintf(&b, "From: %s\n", from)
+	if strings.TrimSpace(to) != "" {
+		fmt.Fprintf(&b, "To: %s\n", to)
+	}
+	if strings.TrimSpace(cc) != "" {
+		fmt.Fprintf(&b, "Cc: %s\n", cc)
+	}
+	fmt.Fprintf(&b, "Date: %s\n", er.formatDate(date))
+	fmt.Fprintf(&b, "Labels: %s", strings.Join(labels, ", "))
 	// \x1b[32m → green; \x1b[0m → reset
-	return "\x1b[32m" + header + "\x1b[0m\n\n"
+	return "\x1b[32m" + b.String() + "\x1b[0m\n\n"
 }
 
 // FormatHeaderPlain returns a plain header without markup/tags
-func (er *EmailRenderer) FormatHeaderPlain(subject, from string, date time.Time, labels []string) string {
-	return fmt.Sprintf("Subject: %s\nFrom: %s\nDate: %s\nLabels: %s",
-		subject, from, er.formatDate(date), strings.Join(labels, ", "))
+func (er *EmailRenderer) FormatHeaderPlain(subject, from, to, cc string, date time.Time, labels []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Subject: %s\n", subject)
+	fmt.Fprintf(&b, "From: %s\n", from)
+	if strings.TrimSpace(to) != "" {
+		fmt.Fprintf(&b, "To: %s\n", to)
+	}
+	if strings.TrimSpace(cc) != "" {
+		fmt.Fprintf(&b, "Cc: %s\n", cc)
+	}
+	fmt.Fprintf(&b, "Date: %s\n", er.formatDate(date))
+	fmt.Fprintf(&b, "Labels: %s", strings.Join(labels, ", "))
+	return b.String()
 }
 
 // Helper methods

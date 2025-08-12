@@ -1212,7 +1212,7 @@ func (a *App) saveCurrentMessageToFile() {
 		width := a.getListWidth()
 		txt, _ := render.FormatEmailForTerminal(a.ctx, m, render.FormatOptions{WrapWidth: width, UseLLM: false}, nil)
 		// Compose full content with header
-		header := a.emailRenderer.FormatHeaderPlain(m.Subject, m.From, m.Date, m.Labels)
+		header := a.emailRenderer.FormatHeaderPlain(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels)
 		content := header + "\n\n" + txt
 
 		// Resolve config dir and saved folder
