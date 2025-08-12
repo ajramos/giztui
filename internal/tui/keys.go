@@ -170,6 +170,18 @@ func (a *App) bindKeys() {
 		case 'A':
 			go a.showAttachments()
 			return nil
+		case 'F':
+			// Search by sender of current message (Inbox scope by default)
+			go a.searchByFromCurrent()
+			return nil
+		case 'T':
+			// Search messages addressed to this sender (include Sent)
+			go a.searchByToCurrent()
+			return nil
+		case 'S':
+			// Search by exact subject of current message
+			go a.searchBySubjectCurrent()
+			return nil
 		case 'l':
 			// Toggle contextual labels panel
 			a.manageLabels()

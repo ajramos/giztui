@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1410,6 +1411,184 @@ func (a *App) getCurrentMessageID() string {
 		}
 	}
 	return ""
+}
+
+// extractHeaderValue returns the value of a header (case-insensitive) from a Gmail message metadata
+func extractHeaderValue(m *gmailapi.Message, headerName string) string {
+	if m == nil || m.Payload == nil {
+		return ""
+	}
+	hn := strings.ToLower(headerName)
+	for _, h := range m.Payload.Headers {
+		if strings.ToLower(h.Name) == hn {
+			return h.Value
+		}
+	}
+	return ""
+}
+
+// parseEmailAddress parses a raw RFC5322 address string and returns the email and domain
+func parseEmailAddress(raw string) (string, string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", ""
+	}
+	if addr, err := mail.ParseAddress(raw); err == nil && addr != nil {
+		a := strings.TrimSpace(strings.ToLower(addr.Address))
+		if i := strings.LastIndexByte(a, '@'); i > 0 && i < len(a)-1 {
+			return a, a[i+1:]
+		}
+		return a, ""
+	}
+	// Fallback: try to extract between < > or use raw token
+	if i := strings.IndexByte(raw, '<'); i >= 0 {
+		if j := strings.IndexByte(raw[i:], '>'); j > 0 {
+			token := strings.TrimSpace(raw[i+1 : i+j])
+			token = strings.ToLower(token)
+			if k := strings.LastIndexByte(token, '@'); k > 0 && k < len(token)-1 {
+				return token, token[k+1:]
+			}
+			return token, ""
+		}
+	}
+	low := strings.ToLower(raw)
+	if k := strings.LastIndexByte(low, '@'); k > 0 && k < len(low)-1 {
+		return low, low[k+1:]
+	}
+	return low, ""
+}
+
+// searchByFromCurrent searches messages in Inbox from the sender of the currently selected message
+func (a *App) searchByFromCurrent() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	var meta *gmailapi.Message
+	// Prefer cached metadata slice
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.messagesMeta) {
+			meta = a.messagesMeta[row]
+		}
+	}
+	if meta == nil {
+		m, err := a.Client.GetMessage(id)
+		if err != nil {
+			a.showError("❌ Could not load message metadata")
+			return
+		}
+		meta = m
+	}
+	from := extractHeaderValue(meta, "From")
+	email, _ := parseEmailAddress(from)
+	if strings.TrimSpace(email) == "" {
+		a.showError("❌ Could not determine sender")
+		return
+	}
+	q := fmt.Sprintf("from:%s", email)
+	go a.performSearch(q)
+}
+
+// searchByToCurrent searches messages anywhere addressed to the sender of the selected message
+// Includes Sent to cover your messages to that person, and excludes spam/trash
+func (a *App) searchByToCurrent() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	var meta *gmailapi.Message
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.messagesMeta) {
+			meta = a.messagesMeta[row]
+		}
+	}
+	if meta == nil {
+		m, err := a.Client.GetMessage(id)
+		if err != nil {
+			a.showError("❌ Could not load message metadata")
+			return
+		}
+		meta = m
+	}
+	from := extractHeaderValue(meta, "From")
+	email, _ := parseEmailAddress(from)
+	if strings.TrimSpace(email) == "" {
+		a.showError("❌ Could not determine recipient")
+		return
+	}
+	// Explicit in:anywhere prevents default inbox-only constraint in performSearch
+	q := fmt.Sprintf("in:anywhere -in:spam -in:trash to:%s", email)
+	go a.performSearch(q)
+}
+
+// searchBySubjectCurrent searches messages by the exact subject of the currently selected message
+func (a *App) searchBySubjectCurrent() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	var meta *gmailapi.Message
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.messagesMeta) {
+			meta = a.messagesMeta[row]
+		}
+	}
+	if meta == nil {
+		m, err := a.Client.GetMessage(id)
+		if err != nil {
+			a.showError("❌ Could not load message metadata")
+			return
+		}
+		meta = m
+	}
+	subject := extractHeaderValue(meta, "Subject")
+	subject = strings.TrimSpace(subject)
+	if subject == "" {
+		a.showError("❌ Subject not available")
+		return
+	}
+	// Quote for exact match
+	q := fmt.Sprintf("subject:%q", subject)
+	go a.performSearch(q)
+}
+
+// searchByDomainCurrent searches messages from the sender's domain of the selected message
+func (a *App) searchByDomainCurrent() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	var meta *gmailapi.Message
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		row, _ := table.GetSelection()
+		if row >= 0 && row < len(a.messagesMeta) {
+			meta = a.messagesMeta[row]
+		}
+	}
+	if meta == nil {
+		m, err := a.Client.GetMessage(id)
+		if err != nil {
+			a.showError("❌ Could not load message metadata")
+			return
+		}
+		meta = m
+	}
+	from := extractHeaderValue(meta, "From")
+	_, domain := parseEmailAddress(from)
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		a.showError("❌ Could not determine domain")
+		return
+	}
+	q := fmt.Sprintf("from:(@%s)", domain)
+	go a.performSearch(q)
 }
 
 // getListWidth returns current inner width of the list view or a sensible fallback

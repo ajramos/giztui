@@ -262,6 +262,37 @@ func (a *App) executeSearchCommand(args []string) {
 		a.showError("Usage: search <query>")
 		return
 	}
+	// Support contextual shorthands: from:current | to:current | subject:current | domain:current
+	if len(args) == 1 && strings.Contains(args[0], ":") {
+		parts := strings.SplitN(args[0], ":", 2)
+		key := strings.ToLower(strings.TrimSpace(parts[0]))
+		val := ""
+		if len(parts) > 1 {
+			val = strings.ToLower(strings.TrimSpace(parts[1]))
+		}
+		switch key {
+		case "from":
+			if val == "current" {
+				go a.searchByFromCurrent()
+				return
+			}
+		case "to":
+			if val == "current" {
+				go a.searchByToCurrent()
+				return
+			}
+		case "subject":
+			if val == "current" {
+				go a.searchBySubjectCurrent()
+				return
+			}
+		case "domain":
+			if val == "current" {
+				go a.searchByDomainCurrent()
+				return
+			}
+		}
+	}
 	query := strings.Join(args, " ")
 	go a.performSearch(query)
 }
