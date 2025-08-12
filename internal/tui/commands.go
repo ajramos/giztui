@@ -341,6 +341,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLabelsCommand(args)
 	case "search", "s":
 		a.executeSearchCommand(args)
+	case "rsvp":
+		a.executeRSVPCommand(args)
 	case "inbox", "i":
 		a.executeInboxCommand(args)
 	case "compose", "c":
@@ -351,6 +353,29 @@ func (a *App) executeCommand(cmd string) {
 		a.executeQuitCommand(args)
 	default:
 		a.showError(fmt.Sprintf("Unknown command: %s", command))
+	}
+}
+
+// executeRSVPCommand handles :rsvp commands
+func (a *App) executeRSVPCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: rsvp <accept|tentative|decline> [comment...]")
+		return
+	}
+	choice := strings.ToLower(args[0])
+	comment := ""
+	if len(args) > 1 {
+		comment = strings.Join(args[1:], " ")
+	}
+	switch choice {
+	case "accept", "yes", "y":
+		go a.sendRSVP("ACCEPTED", comment)
+	case "tentative", "maybe", "m":
+		go a.sendRSVP("TENTATIVE", comment)
+	case "decline", "no", "n":
+		go a.sendRSVP("DECLINED", comment)
+	default:
+		a.showError("Usage: rsvp <accept|tentative|decline> [comment...]")
 	}
 }
 

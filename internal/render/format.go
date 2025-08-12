@@ -559,6 +559,72 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 				return
 			case "table":
 				// Render rows anywhere inside the table (handles thead/tbody)
+				// IMPORTANT: also capture <a href> links inside cells so we don't lose RSVP/action links.
+				var collectTextAndLinks func(buf *strings.Builder, node *html.Node)
+				collectTextAndLinks = func(buf *strings.Builder, node *html.Node) {
+					if node == nil {
+						return
+					}
+					switch node.Type {
+					case html.TextNode:
+						buf.WriteString(sanitizeForTerminal(node.Data))
+					case html.ElementNode:
+						tag := strings.ToLower(node.Data)
+						switch tag {
+						case "br":
+							buf.WriteByte('\n')
+						case "p":
+							for c := node.FirstChild; c != nil; c = c.NextSibling {
+								collectTextAndLinks(buf, c)
+							}
+							buf.WriteString("\n\n")
+							return
+						case "a":
+							href := ""
+							for _, a := range node.Attr {
+								if strings.EqualFold(a.Key, "href") {
+									href = strings.TrimSpace(a.Val)
+									break
+								}
+							}
+							var inner strings.Builder
+							for c := node.FirstChild; c != nil; c = c.NextSibling {
+								collectTextAndLinks(&inner, c)
+							}
+							label := strings.TrimSpace(inner.String())
+							if label == "" {
+								for _, a := range node.Attr {
+									if strings.EqualFold(a.Key, "aria-label") || strings.EqualFold(a.Key, "title") || strings.EqualFold(a.Key, "alt") {
+										if t := strings.TrimSpace(a.Val); t != "" {
+											label = t
+											break
+										}
+									}
+								}
+							}
+							if label == "" {
+								label = href
+							}
+							if href != "" {
+								linkCounter++
+								links = append(links, LinkRef{Index: linkCounter, URL: href, Text: label})
+								buf.WriteString(label + fmt.Sprintf(" [%d]", linkCounter))
+							} else {
+								buf.WriteString(label)
+							}
+							return
+						default:
+							for c := node.FirstChild; c != nil; c = c.NextSibling {
+								collectTextAndLinks(buf, c)
+							}
+							return
+						}
+					}
+					for c := node.FirstChild; c != nil; c = c.NextSibling {
+						collectTextAndLinks(buf, c)
+					}
+				}
+
 				var walkRows func(n *html.Node)
 				walkRows = func(n *html.Node) {
 					if n == nil {
@@ -572,7 +638,7 @@ func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, erro
 								if name == "td" || name == "th" {
 									var cell strings.Builder
 									for c := td.FirstChild; c != nil; c = c.NextSibling {
-										collectText(&cell, c)
+										collectTextAndLinks(&cell, c)
 									}
 									row = append(row, strings.TrimSpace(cell.String()))
 								}

@@ -84,6 +84,9 @@ type App struct {
 	// Message content cache (to avoid refetch on toggles)
 	messageCache map[string]*gmail.Message
 
+	// Calendar invite cache (parsed from text/calendar parts)
+	inviteCache map[string]Invite // messageID -> invite metadata
+
 	// Debug logging
 	debug   bool
 	logger  *log.Logger
@@ -93,6 +96,8 @@ type App struct {
 	labelsView     *tview.Flex
 	labelsVisible  bool
 	labelsExpanded bool
+	// RSVP side panel state
+	rsvpVisible bool
 
 	// Bulk selection
 	selected map[string]bool // messageID -> selected
@@ -245,6 +250,7 @@ func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *A
 		markdownCache:     make(map[string]string),
 		markdownTogglePer: make(map[string]bool),
 		messageCache:      make(map[string]*gmail.Message),
+		inviteCache:       make(map[string]Invite),
 		debug:             true,
 		logger:            log.New(os.Stdout, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds),
 		logFile:           nil,

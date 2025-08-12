@@ -210,6 +210,19 @@ func (a *App) bindKeys() {
 		case 'M':
 			a.toggleMarkdown()
 			return nil
+		case 'V':
+			// Toggle RSVP side panel
+			if a.rsvpVisible {
+				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+					split.ResizeItem(a.labelsView, 0, 0)
+				}
+				a.labelsVisible = false
+				a.rsvpVisible = false
+				a.restoreFocusAfterModal()
+				return nil
+			}
+			go a.openRSVPModal()
+			return nil
 		case 'o':
 			go a.suggestLabel()
 			return nil

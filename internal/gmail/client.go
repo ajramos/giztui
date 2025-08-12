@@ -278,6 +278,19 @@ func (c *Client) SendMessage(from, to, subject, body string) (string, error) {
 	return sentMsg.Id, nil
 }
 
+// SendRawMIME sends a fully-formed MIME message (raw content). Caller is responsible for
+// providing correct headers, MIME-Version, boundaries, and payloads. The raw string
+// will be base64url encoded as required by Gmail API.
+func (c *Client) SendRawMIME(raw string) (string, error) {
+	user := "me"
+	msg := &gmail.Message{Raw: base64.URLEncoding.EncodeToString([]byte(raw))}
+	sent, err := c.Service.Users.Messages.Send(user, msg).Do()
+	if err != nil {
+		return "", fmt.Errorf("failed to send raw MIME message: %w", err)
+	}
+	return sent.Id, nil
+}
+
 // ReplyMessage creates a reply to an existing message
 func (c *Client) ReplyMessage(originalMsgID, replyBody string, send bool, cc []string) (string, error) {
 	originalMsg, err := c.GetMessage(originalMsgID)

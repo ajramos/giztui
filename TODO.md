@@ -16,7 +16,6 @@
 - Cargar la salida de los LLMs con stream no en completo
 - Añadir carpetas por defecto a las etiquetas
 - Pensar como aceptar reuniones o abrir enlaces
-- Short cut para buscar todos los mensajes del remitente
 
 
 ### Email Management
@@ -27,6 +26,10 @@
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 - [ ] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
+- [ ] **Calendar integration (phase 2)**
+  - Add Google Calendar API support to create/update events when accepting invites
+  - Handle METHOD:CANCEL by offering to remove from calendar
+  - Improve recurring/series support (SEQUENCE, RECURRENCE-ID)
 - [ ] **Move email to Inbox** - Move to Inbox
 - [ ] **Search by date** - Search by date
 - [x] **Mark email as read** - Mark individual emails as read

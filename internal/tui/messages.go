@@ -1,13 +1,17 @@
 package tui
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
 	"net/mail"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/render"
@@ -747,6 +751,8 @@ func (a *App) openAdvancedSearchForm() {
 		list.SetBorder(false)
 		list.SetSelectedTextColor(tcell.ColorBlack)
 		list.SetSelectedBackgroundColor(tcell.ColorWhite)
+		list.SetSelectedTextColor(tcell.ColorBlack)
+		list.SetSelectedBackgroundColor(tcell.ColorWhite)
 
 		// Cargar lista
 		var update func()
@@ -1164,6 +1170,10 @@ func (a *App) showMessage(id string) {
 		}
 
 		rendered, isANSI := a.renderMessageContent(message)
+		// Detect calendar invite parts (best-effort)
+		if inv, ok := a.detectCalendarInvite(message.Message); ok {
+			a.inviteCache[id] = inv
+		}
 
 		// Update UI in main thread
 		a.QueueUpdateDraw(func() {
@@ -1178,6 +1188,10 @@ func (a *App) showMessage(id string) {
 				}
 				// Scroll to the top of the text
 				text.ScrollToBeginning()
+			}
+			// If invite detected, show hint in status bar
+			if _, ok := a.inviteCache[id]; ok {
+				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
 			// If AI pane is visible, refresh summary for this message
 			if a.aiSummaryVisible {
@@ -1304,6 +1318,11 @@ func (a *App) showMessageWithoutFocus(id string) {
 		rendered, isANSI := a.renderMessageContent(message)
 		a.llmTouchUpEnabled = prev
 
+		// Detect calendar invite (same as showMessage) and cache result
+		if inv, ok := a.detectCalendarInvite(message.Message); ok {
+			a.inviteCache[id] = inv
+		}
+
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)
@@ -1314,6 +1333,10 @@ func (a *App) showMessageWithoutFocus(id string) {
 					text.SetText(rendered)
 				}
 				text.ScrollToBeginning()
+			}
+			// If invite detected in preview, show the same hint
+			if _, ok := a.inviteCache[id]; ok {
+				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
 		})
 	}()
@@ -1621,6 +1644,466 @@ func (a *App) getFormatWidth() int {
 		return a.screenWidth - 2
 	}
 	return 78
+}
+
+// Invite holds parsed fields from a calendar invite
+type Invite struct {
+	UID       string
+	Summary   string
+	Organizer string
+	DtStart   string
+	DtEnd     string
+	YesURL    string
+	NoURL     string
+	MaybeURL  string
+}
+
+// detectCalendarInvite parses a gmailapi.Message to find text/calendar REQUEST
+func (a *App) detectCalendarInvite(msg *gmailapi.Message) (Invite, bool) {
+	if msg == nil || msg.Payload == nil {
+		return Invite{}, false
+	}
+	var out Invite
+	var found bool
+	var walk func(p *gmailapi.MessagePart)
+	walk = func(p *gmailapi.MessagePart) {
+		if p == nil || found {
+			return
+		}
+		mt := strings.ToLower(p.MimeType)
+		// Support inline calendar, application/ics, octet-stream .ics attachments
+		isICS := strings.Contains(mt, "text/calendar") || strings.Contains(mt, "application/ics") ||
+			(p.Filename != "" && strings.HasSuffix(strings.ToLower(p.Filename), ".ics")) ||
+			(strings.Contains(mt, "application/octet-stream") && strings.HasSuffix(strings.ToLower(p.Filename), ".ics"))
+		if isICS {
+			// Heuristic: look for METHOD:REQUEST in headers or body
+			methodReq := false
+			for _, h := range p.Headers {
+				if strings.EqualFold(h.Name, "Content-Type") && strings.Contains(strings.ToLower(h.Value), "method=request") {
+					methodReq = true
+					break
+				}
+			}
+			// Load inline or attachment data
+			var raw []byte
+			if p.Body != nil {
+				if p.Body.Data != "" {
+					if data, err := base64.URLEncoding.DecodeString(p.Body.Data); err == nil {
+						raw = data
+					}
+				} else if p.Body.AttachmentId != "" && a.Client != nil {
+					if data, _, err := a.Client.GetAttachment(msg.Id, p.Body.AttachmentId); err == nil {
+						raw = data
+					}
+				}
+			}
+			if len(raw) > 0 {
+				s := strings.ToUpper(string(raw))
+				if strings.Contains(s, "METHOD:REQUEST") {
+					methodReq = true
+				}
+				out.UID = scanICSField(s, "UID:")
+				out.Summary = scanICSField(s, "SUMMARY:")
+				out.Organizer = scanICSField(s, "ORGANIZER:")
+				out.DtStart = scanICSField(s, "DTSTART")
+				out.DtEnd = scanICSField(s, "DTEND")
+			}
+			if methodReq {
+				found = true
+				return
+			}
+		}
+		// Also try to extract RSVP links from HTML part
+		if strings.Contains(mt, "text/html") && p.Body != nil && p.Body.Data != "" {
+			if data, err := base64.URLEncoding.DecodeString(p.Body.Data); err == nil {
+				y, n, m := extractRSVPLinksFromHTML(string(data))
+				if out.YesURL == "" {
+					out.YesURL = y
+				}
+				if out.NoURL == "" {
+					out.NoURL = n
+				}
+				if out.MaybeURL == "" {
+					out.MaybeURL = m
+				}
+			}
+		}
+		for _, c := range p.Parts {
+			walk(c)
+			if found {
+				return
+			}
+		}
+	}
+	walk(msg.Payload)
+	return out, found
+}
+
+// extractRSVPLinksFromHTML finds Google Calendar RESPOND links and maps rst codes to Yes/No/Maybe
+func extractRSVPLinksFromHTML(htmlStr string) (yes, no, maybe string) {
+	// Very small, robust search; not a full HTML parse to keep it cheap here
+	s := strings.ToLower(htmlStr)
+	// Find all occurrences of calendar google respond URLs
+	// We will just scan for "https://calendar.google.com/calendar/event" slices
+	const marker = "https://calendar.google.com/calendar/event"
+	idx := 0
+	for {
+		i := strings.Index(s[idx:], marker)
+		if i < 0 {
+			break
+		}
+		i += idx
+		// capture until quote or whitespace
+		j := i
+		for j < len(s) && s[j] != '"' && s[j] != '\'' && s[j] != '>' && !unicode.IsSpace(rune(s[j])) {
+			j++
+		}
+		u := htmlStr[i:j]
+		// Check action and rst
+		if strings.Contains(u, "action=respond") {
+			// Map rst
+			if strings.Contains(u, "rst=1") && yes == "" {
+				yes = u
+			} else if strings.Contains(u, "rst=2") && no == "" {
+				no = u
+			} else if strings.Contains(u, "rst=3") && maybe == "" {
+				maybe = u
+			}
+		}
+		idx = j
+	}
+	return
+}
+
+func scanICSField(s, key string) string {
+	idx := strings.Index(s, key)
+	if idx < 0 {
+		return ""
+	}
+	line := s[idx:]
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	line = strings.TrimSpace(strings.TrimPrefix(line, key))
+	line = strings.TrimPrefix(line, ";VALUE=DATE:")
+	if strings.HasPrefix(line, ":") {
+		line = strings.TrimPrefix(line, ":")
+	}
+	return strings.TrimSpace(line)
+}
+
+// openRSVPModal shows a simple modal to RSVP to a detected calendar invite
+func (a *App) openRSVPModal() {
+	mid := a.getCurrentMessageID()
+	if mid == "" {
+		mid = a.currentMessageID
+	}
+	if mid == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	inv, ok := a.inviteCache[mid]
+	if !ok {
+		// Best-effort: re-detect from cache message
+		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
+				inv = parsed
+				a.inviteCache[mid] = inv
+			}
+		}
+	}
+	if inv.UID == "" {
+		a.showError("❌ No calendar invite found in this message")
+		return
+	}
+
+	// Build side panel like labels
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(false)
+	list.AddItem("✅ Accept", "Enter to send", 0, nil)
+	list.AddItem("🤔 Tentative", "Enter to send", 0, nil)
+	list.AddItem("❌ Decline", "Enter to send", 0, nil)
+	if list.GetItemCount() > 0 {
+		list.SetCurrentItem(0)
+	}
+	comment := tview.NewInputField().SetLabel("Comment: ").SetFieldWidth(0)
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Enter=send  |  Tab=switch  |  Esc=close ")
+	footer.SetTextColor(tcell.ColorGray)
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(tcell.ColorYellow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.AddItem(list, 0, 1, true)
+	container.AddItem(comment, 3, 0, false)
+	container.AddItem(footer, 1, 0, false)
+
+	// Key handling
+	sendSelected := func() {
+		idx := list.GetCurrentItem()
+		choice := ""
+		switch idx {
+		case 0:
+			choice = "ACCEPTED"
+		case 1:
+			choice = "TENTATIVE"
+		case 2:
+			choice = "DECLINED"
+		}
+		if choice == "" {
+			return
+		}
+		go a.sendRSVP(choice, comment.GetText())
+		// Close panel
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+		a.labelsVisible = false
+		a.rsvpVisible = false
+		a.restoreFocusAfterModal()
+	}
+	list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Key() {
+		case tcell.KeyTab:
+			a.SetFocus(comment)
+			return nil
+		case tcell.KeyEnter:
+			sendSelected()
+			return nil
+		case tcell.KeyEscape:
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				split.ResizeItem(a.labelsView, 0, 0)
+			}
+			a.labelsVisible = false
+			a.rsvpVisible = false
+			a.restoreFocusAfterModal()
+			return nil
+		}
+		return e
+	})
+	comment.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				split.ResizeItem(a.labelsView, 0, 0)
+			}
+			a.labelsVisible = false
+			a.rsvpVisible = false
+			a.restoreFocusAfterModal()
+			return
+		}
+		if key == tcell.KeyEnter {
+			sendSelected()
+			return
+		}
+		if key == tcell.KeyTab {
+			a.SetFocus(list)
+			return
+		}
+	})
+
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			// Mount into labels slot
+			split.RemoveItem(a.labelsView)
+			a.labelsView = container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.labelsVisible = true
+		a.rsvpVisible = true
+		a.currentFocus = "labels"
+		a.updateFocusIndicators("labels")
+		a.SetFocus(list)
+	})
+}
+
+// sendRSVP builds an iCalendar REPLY and sends it to the organizer via email
+func (a *App) sendRSVP(partstat, comment string) {
+	mid := a.getCurrentMessageID()
+	if mid == "" {
+		mid = a.currentMessageID
+	}
+	inv, ok := a.inviteCache[mid]
+	if !ok || inv.UID == "" {
+		a.showError("❌ No invite to reply to")
+		return
+	}
+	// Resolve organizer email
+	orgEmail := extractEmailFromOrganizer(inv.Organizer)
+	if orgEmail == "" {
+		a.showError("❌ Could not determine organizer email")
+		return
+	}
+	// Resolve our account email
+	fromEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
+	if strings.TrimSpace(fromEmail) == "" {
+		fromEmail = "me"
+	}
+	// Subject
+	subject := inv.Summary
+	if subject == "" {
+		subject = "Meeting"
+	}
+	subjPrefix := map[string]string{"ACCEPTED": "Accepted: ", "TENTATIVE": "Tentative: ", "DECLINED": "Declined: "}
+	if p, ok := subjPrefix[partstat]; ok {
+		subject = p + subject
+	}
+
+	// Plain text body
+	plain := "RSVP: " + strings.ToLower(partstat)
+	if strings.TrimSpace(comment) != "" {
+		plain += "\n\n" + comment
+	}
+
+	// ICS reply content (add SEQUENCE, optional DTSTART/DTEND; RSVP=TRUE)
+	now := time.Now().UTC().Format("20060102T150405Z")
+	attendee := fmt.Sprintf("ATTENDEE;CUTYPE=INDIVIDUAL;CN=%s;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=TRUE:mailto:%s",
+		fromEmail, partstat, fromEmail)
+	// Try to include CN for organizer as some servers require it
+	organizerField := sanitizeOrganizer(inv.Organizer)
+	organizerCN := extractEmailFromOrganizer(inv.Organizer)
+	if organizerCN == "" {
+		organizerCN = organizerField
+	}
+	organizerLine := fmt.Sprintf("ORGANIZER;CN=%s:%s", organizerCN, organizerField)
+	vevent := []string{
+		"BEGIN:VEVENT",
+		"UID:" + inv.UID,
+		"SEQUENCE:0",
+		"DTSTAMP:" + now,
+		organizerLine,
+		attendee,
+	}
+	if strings.TrimSpace(inv.DtStart) != "" {
+		vevent = append(vevent, "DTSTART:"+inv.DtStart)
+	}
+	if strings.TrimSpace(inv.DtEnd) != "" {
+		vevent = append(vevent, "DTEND:"+inv.DtEnd)
+	}
+	if strings.TrimSpace(inv.Summary) != "" {
+		vevent = append(vevent, "SUMMARY:"+inv.Summary)
+	}
+	vevent = append(vevent, "END:VEVENT")
+	ics := strings.Join(append([]string{
+		"BEGIN:VCALENDAR",
+		"METHOD:REPLY",
+		"PRODID:-//gmail-tui//RSVP 1.0//EN",
+		"VERSION:2.0",
+		"CALSCALE:GREGORIAN",
+	}, append(vevent, "END:VCALENDAR", "")...), "\r\n")
+
+	boundary := fmt.Sprintf("mime-boundary-%d", time.Now().UnixNano())
+	raw := strings.Builder{}
+	// Threading headers can help Gmail correlate the reply with the invite
+	var inReplyTo, references string
+	if m, ok := a.messageCache[mid]; ok && m != nil && m.Message != nil {
+		for _, h := range m.Message.Payload.Headers {
+			if strings.EqualFold(h.Name, "Message-Id") || strings.EqualFold(h.Name, "Message-ID") {
+				inReplyTo = strings.TrimSpace(h.Value)
+			}
+		}
+		if inReplyTo != "" {
+			references = inReplyTo
+		}
+	}
+	raw.WriteString(fmt.Sprintf("From: %s\r\n", fromEmail))
+	raw.WriteString(fmt.Sprintf("To: %s\r\n", orgEmail))
+	// Help Gmail route the reply
+	raw.WriteString(fmt.Sprintf("Cc: %s\r\n", "calendar-notification@google.com"))
+	raw.WriteString(fmt.Sprintf("Reply-To: %s\r\n", orgEmail))
+	if inReplyTo != "" {
+		raw.WriteString(fmt.Sprintf("In-Reply-To: %s\r\n", inReplyTo))
+	}
+	if references != "" {
+		raw.WriteString(fmt.Sprintf("References: %s\r\n", references))
+	}
+	raw.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	// Calendar specific headers (some servers look at these)
+	raw.WriteString("Content-Class: urn:content-classes:calendarmessage\r\n")
+	raw.WriteString("MIME-Version: 1.0\r\n")
+	raw.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary))
+	// part 1: text/plain
+	raw.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	raw.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
+	raw.WriteString(plain + "\r\n")
+	// part 2: text/calendar REPLY
+	raw.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	raw.WriteString("Content-Type: text/calendar; charset=UTF-8; method=REPLY\r\n")
+	raw.WriteString("Content-Class: urn:content-classes:calendarmessage\r\n")
+	raw.WriteString("Content-Transfer-Encoding: 7bit\r\n\r\n")
+	raw.WriteString(ics)
+	raw.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
+
+	a.setStatusPersistent("📤 Sending RSVP…")
+	go func() {
+		if _, err := a.Client.SendRawMIME(raw.String()); err != nil {
+			a.QueueUpdateDraw(func() { a.showError(fmt.Sprintf("❌ RSVP failed: %v", err)) })
+			return
+		}
+		// Fallback: hit Google Calendar RESPOND link to force state update
+		if inv.YesURL != "" || inv.NoURL != "" || inv.MaybeURL != "" {
+			target := inv.YesURL
+			switch partstat {
+			case "DECLINED":
+				target = inv.NoURL
+			case "TENTATIVE":
+				target = inv.MaybeURL
+			}
+			if strings.TrimSpace(target) != "" {
+				// Best-effort GET (no cookies required for RSVP links received to this account)
+				_ = doHTTPGetNoFollow(target)
+			}
+		}
+		a.QueueUpdateDraw(func() { a.showStatusMessage("✅ RSVP sent") })
+	}()
+}
+
+// doHTTPGetNoFollow performs a simple GET without following redirects; ignore errors
+func doHTTPGetNoFollow(url string) error {
+	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	// Minimal UA
+	req.Header.Set("User-Agent", "gmail-tui/1.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	return nil
+}
+
+func extractEmailFromOrganizer(org string) string {
+	s := strings.ToLower(strings.TrimSpace(org))
+	// Patterns like ORGANIZER:mailto:foo@bar or ORGANIZER;CN=..:mailto:foo@bar
+	if i := strings.LastIndex(s, "mailto:"); i >= 0 {
+		addr := strings.TrimSpace(s[i+7:])
+		// cut params after email
+		for _, sep := range []string{";", "\\r", "\\n"} {
+			if j := strings.Index(addr, sep); j >= 0 {
+				addr = addr[:j]
+			}
+		}
+		return addr
+	}
+	// Fallback: extract last token with @
+	toks := strings.Fields(s)
+	for _, t := range toks {
+		if strings.Contains(t, "@") {
+			return strings.Trim(t, ":<>")
+		}
+	}
+	return ""
+}
+
+func sanitizeOrganizer(org string) string {
+	if strings.Contains(strings.ToUpper(org), "ORGANIZER:") {
+		return strings.TrimSpace(strings.SplitN(org, ":", 2)[1])
+	}
+	return org
 }
 
 // archiveSelected archives the selected message
