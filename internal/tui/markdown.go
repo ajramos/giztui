@@ -67,6 +67,40 @@ func whitespaceOnlyEqual(a, b string) bool {
 	return norm(a) == norm(b)
 }
 
+// paragraphsOnlyDeleted returns true if out can be obtained from in by removing
+// whole paragraphs (blocks separated by blank lines) and changing only whitespace.
+func paragraphsOnlyDeleted(in, out string) bool {
+	normalizeParagraphs := func(s string) []string {
+		s = strings.ReplaceAll(s, "\r\n", "\n")
+		s = strings.ReplaceAll(s, "\r", "\n")
+		parts := strings.Split(s, "\n\n")
+		res := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			// collapse internal whitespace within each paragraph
+			res = append(res, strings.Join(strings.Fields(p), " "))
+		}
+		return res
+	}
+	ain := normalizeParagraphs(in)
+	bout := normalizeParagraphs(out)
+	// out must be a subsequence of in (only deletions allowed)
+	i := 0
+	for _, b := range bout {
+		for i < len(ain) && ain[i] != b {
+			i++
+		}
+		if i == len(ain) {
+			return false
+		}
+		i++
+	}
+	return true
+}
+
 // renderMessageContent builds body via deterministic formatter and optional LLM touch-up
 func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	// Update header TextView separately (tview markup)
@@ -102,19 +136,19 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 				if err != nil {
 					return "", err
 				}
-				if !whitespaceOnlyEqual(input, out) {
-					return input, nil
+				if whitespaceOnlyEqual(input, out) || paragraphsOnlyDeleted(input, out) {
+					return out, nil
 				}
-				return out, nil
+				return input, nil
 			}
 			out, err := a.LLM.Generate(prompt)
 			if err != nil {
 				return "", err
 			}
-			if !whitespaceOnlyEqual(input, out) {
-				return input, nil
+			if whitespaceOnlyEqual(input, out) || paragraphsOnlyDeleted(input, out) {
+				return out, nil
 			}
-			return out, nil
+			return input, nil
 		}
 	}
 

@@ -134,15 +134,29 @@ func FormatEmailForTerminal(ctx context.Context, msg *gmailwrap.Message, opts Fo
 		out.WriteString("\n")
 	}
 
-	// LINKS
+	// LINKS (dedupe identical URLs while preserving first-seen order)
 	out.WriteString("[LINKS]\n")
 	if len(links) == 0 {
 		out.WriteString("None\n")
 	} else {
-		// Ensure links sorted by Index
 		sort.Slice(links, func(i, j int) bool { return links[i].Index < links[j].Index })
+		seen := make(map[string]bool, len(links))
+		ordered := make([]string, 0, len(links))
 		for _, lr := range links {
-			out.WriteString(fmt.Sprintf("(%d) %s\n", lr.Index, lr.URL))
+			if lr.URL == "" {
+				continue
+			}
+			if !seen[lr.URL] {
+				seen[lr.URL] = true
+				ordered = append(ordered, lr.URL)
+			}
+		}
+		if len(ordered) == 0 {
+			out.WriteString("None\n")
+		} else {
+			for i, u := range ordered {
+				out.WriteString(fmt.Sprintf("(%d) %s\n", i+1, u))
+			}
 		}
 	}
 

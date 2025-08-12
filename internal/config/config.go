@@ -99,7 +99,7 @@ func DefaultConfig() *Config {
 		SummarizePrompt: "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
 		ReplyPrompt:     "Redacta una respuesta profesional y amable al siguiente correo:\n\n{{body}}",
 		LabelPrompt:     "Sugiere una etiqueta adecuada para el siguiente correo considerando las ya existentes: {{labels}}.\n\nCorreo:\n{{body}}",
-		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, summarize, or remove any content. Only adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, and link references (text [n] + [LINKS]). Preserve [ATTACHMENTS] and [IMAGES] sections unchanged. Output only the adjusted text.\n\n{{body}}",
+		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
 		Layout:          DefaultLayoutConfig(),
 		Keys:            DefaultKeyBindings(),
 		LogFile:         "",

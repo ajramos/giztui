@@ -379,7 +379,7 @@ func (c *Client) RenameLabel(labelID, newName string) (*gmail.Label, error) {
 	req := &gmail.Label{Name: newName}
 	updated, err := c.Service.Users.Labels.Patch(user, labelID, req).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to rename label: %w")
+		return nil, fmt.Errorf("failed to rename label: %w", err)
 	}
 	return updated, nil
 }
@@ -395,7 +395,7 @@ func (c *Client) DeleteLabel(labelID string) error {
 		return fmt.Errorf("cannot delete system label: %s", labelID)
 	}
 	if err := c.Service.Users.Labels.Delete(user, labelID).Do(); err != nil {
-		return fmt.Errorf("failed to delete label: %w")
+		return fmt.Errorf("failed to delete label: %w", err)
 	}
 	return nil
 }
