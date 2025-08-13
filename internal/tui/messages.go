@@ -1500,9 +1500,31 @@ func (a *App) openAdvancedSearchForm() {
 func (a *App) applyLocalFilter(expr string) {
 	// Compute matches off the UI thread
 	tokens := strings.Fields(strings.ToLower(expr))
+	labelTokens := make([]string, 0)
+	textTokens := make([]string, 0)
+	for _, t := range tokens {
+		if strings.HasPrefix(t, "label:") {
+			v := strings.TrimSpace(strings.TrimPrefix(t, "label:"))
+			if v != "" {
+				labelTokens = append(labelTokens, v)
+			}
+		} else {
+			textTokens = append(textTokens, t)
+		}
+	}
 	filteredIDs := make([]string, 0, len(a.ids))
 	filteredMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
 	rows := make([]string, 0, len(a.messagesMeta))
+
+	// Build label ID -> name map once (best-effort)
+	idToName := map[string]string{}
+	if a.Client != nil {
+		if labels, err := a.Client.ListLabels(); err == nil {
+			for _, l := range labels {
+				idToName[l.Id] = l.Name
+			}
+		}
+	}
 
 	for i, m := range a.messagesMeta {
 		if m == nil {
@@ -1522,12 +1544,43 @@ func (a *App) applyLocalFilter(expr string) {
 				}
 			}
 		}
-		content := strings.ToLower(subject + " " + from + " " + to + " " + m.Snippet)
+		// Collect label display names (normalize CATEGORY_* → friendly name)
+		labelNames := make([]string, 0, len(m.LabelIds))
+		for _, lid := range m.LabelIds {
+			name := idToName[lid]
+			if name == "" {
+				name = lid
+			}
+			up := strings.ToUpper(name)
+			if strings.HasPrefix(up, "CATEGORY_") {
+				name = strings.TrimPrefix(name, "CATEGORY_")
+			}
+			labelNames = append(labelNames, strings.ToLower(name))
+		}
+		labelsJoined := strings.Join(labelNames, " ")
+		content := strings.ToLower(subject + " " + from + " " + to + " " + m.Snippet + " " + labelsJoined)
 		match := true
-		for _, t := range tokens {
+		// General text tokens
+		for _, t := range textTokens {
 			if !strings.Contains(content, t) {
 				match = false
 				break
+			}
+		}
+		// label: tokens (each must match at least one label name)
+		if match && len(labelTokens) > 0 {
+			for _, lt := range labelTokens {
+				found := false
+				for _, ln := range labelNames {
+					if strings.Contains(ln, lt) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					match = false
+					break
+				}
 			}
 		}
 		if !match {
