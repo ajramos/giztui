@@ -165,6 +165,8 @@ The application uses a unified configuration directory structure:
 | `a` | Archive |
 | `D` | View drafts (experimental) |
 | `A` | View attachments (WIP) |
+| `w` | Save current message to file (.txt, rendered) |
+| `W` | Save current message as raw .eml (server format) |
 | `l` | Manage labels (contextual panel) |
 | `m` | Move message (choose label) |
 | `M` | Toggle Markdown rendering |
@@ -365,6 +367,10 @@ Navigation niceties:
      - Categories: social, updates, forums, promotions
      - Labels: all user labels
      - Navigation: type to filter; use `↑/↓` to navigate; `Enter` applies to the `Search` field and closes the panel; `Esc` closes the panel.
+    - `Size`: accepts `>NKB`, `<NMB` or bytes without unit (e.g., `>1024`). Only KB/MB/bytes are supported. If invalid, a status message is shown and the form stays open.
+    - `Date within`: accepts `Nd`, `Nw`, `Nm`, `Ny` and maps to a symmetric range using `after:`/`before:` around today. Example (today 2025/08/13): `3d` → `after:2025/8/10 before:2025/8/17`.
+    - `📎 Has attachment`: checkbox to require attachments (`has:attachment`).
+    - `Esc` behavior: if the right “Search options” panel is open, first `Esc` closes it and returns focus to the `Search` field; otherwise `Esc` exits advanced search and opens the simple search overlay.
    - Vertical layout: form on top (50%) and message content below for context.
    - Execution: move focus to the `🔎 Search` button and press Enter. The advanced search view closes and the search runs.
 
