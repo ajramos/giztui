@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
@@ -18,15 +19,15 @@ import (
 
 func main() {
 	// Command line flags
-	credPathFlag := flag.String("credentials", "", "Ruta al archivo JSON de credenciales del cliente OAuth")
-	tokenPathFlag := flag.String("token", "", "Ruta al archivo de token OAuth cacheado")
-	ollamaEndpointFlag := flag.String("ollama-endpoint", "", "Endpoint de Ollama (incluye /api/generate)")
-	ollamaModelFlag := flag.String("ollama-model", "", "Nombre del modelo de Ollama")
-	ollamaTimeoutFlag := flag.Duration("ollama-timeout", 0, "Timeout de la petición al modelo LLM")
-	llmProviderFlag := flag.String("llm-provider", "", "Proveedor LLM (ollama, bedrock)")
-	llmModelFlag := flag.String("llm-model", "", "Modelo LLM a usar (por ejemplo, anthropic.claude-3-haiku-20240307)")
-	llmRegionFlag := flag.String("llm-region", "", "Región para proveedores basados en región (por ejemplo, us-east-1 para Bedrock)")
-	configPathFlag := flag.String("config", "", "Ruta al fichero de configuración JSON")
+	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON")
+	tokenPathFlag := flag.String("token", "", "Path to cached OAuth token JSON")
+	ollamaEndpointFlag := flag.String("ollama-endpoint", "", "Ollama endpoint (include /api/generate)")
+	ollamaModelFlag := flag.String("ollama-model", "", "Ollama model name")
+	ollamaTimeoutFlag := flag.Duration("ollama-timeout", 0, "LLM request timeout")
+	llmProviderFlag := flag.String("llm-provider", "", "LLM provider (ollama, bedrock)")
+	llmModelFlag := flag.String("llm-model", "", "LLM model to use (e.g., anthropic.claude-3-haiku-20240307)")
+	llmRegionFlag := flag.String("llm-region", "", "Region for region-based providers (e.g., us-east-1 for Bedrock)")
+	configPathFlag := flag.String("config", "", "Path to JSON configuration file")
 	flag.Parse()
 
 	// Load configuration
@@ -37,7 +38,7 @@ func main() {
 
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		log.Printf("Advertencia: no se pudo cargar la configuración: %v", err)
+		log.Printf("Warning: could not load configuration: %v", err)
 		cfg = config.DefaultConfig()
 	}
 
@@ -72,11 +73,11 @@ func main() {
 
 	// Validate credentials path
 	if credPath == "" {
-		log.Fatal("Se requiere una ruta al archivo de credenciales de Gmail. Proporciónala mediante --credentials o en el fichero de configuración.")
+		log.Fatal("Gmail credentials file is required. Provide it via --credentials or config file.")
 	}
 
 	if _, err := os.Stat(credPath); err != nil {
-		log.Fatalf("No se encontró el archivo de credenciales en %s. Descarga las credenciales de la consola de Google Cloud y colócalas ahí.", credPath)
+		log.Fatalf("Credentials file not found at %s. Download client credentials from Google Cloud Console and place it there.", credPath)
 	}
 
 	// Initialize Gmail service
@@ -85,13 +86,27 @@ func main() {
 		"https://www.googleapis.com/auth/gmail.readonly",
 		"https://www.googleapis.com/auth/gmail.send",
 		"https://www.googleapis.com/auth/gmail.modify",
-		"https://www.googleapis.com/auth/gmail.compose")
+		"https://www.googleapis.com/auth/gmail.compose",
+		"https://www.googleapis.com/auth/calendar.events",
+	)
 	if err != nil {
-		log.Fatalf("No se pudo inicializar el servicio de Gmail: %v", err)
+		log.Fatalf("Could not initialize Gmail service: %v", err)
 	}
 
 	// Create Gmail client
 	gmailClient := gmail.NewClient(service)
+
+	// Initialize Calendar service (Calendar-only RSVP)
+	calSvc, err := auth.NewCalendarService(ctx, credPath, tokenPath,
+		"https://www.googleapis.com/auth/calendar.events",
+	)
+	if err != nil {
+		log.Printf("Warning: could not initialize Calendar (RSVP via API disabled): %v", err)
+	}
+	var calClient *calendar.Client
+	if calSvc != nil {
+		calClient = calendar.NewClient(calSvc)
+	}
 
 	// Initialize LLM provider if enabled
 	var llmProvider llm.Provider
@@ -149,9 +164,9 @@ func main() {
 	}
 
 	// Create and run TUI
-	app := tui.NewApp(gmailClient, llmProvider, cfg)
+	app := tui.NewApp(gmailClient, calClient, llmProvider, cfg)
 	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error ejecutando la aplicación: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)
 	}
 }

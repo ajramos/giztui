@@ -78,7 +78,7 @@ func (c *Client) ListMessagesPage(maxResults int64, pageToken string) ([]*gmail.
 
 	res, err := call.Do()
 	if err != nil {
-		return nil, "", fmt.Errorf("no se pudieron listar los mensajes: %w", err)
+		return nil, "", fmt.Errorf("could not list messages: %w", err)
 	}
 
 	return res.Messages, res.NextPageToken, nil
@@ -89,7 +89,7 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 	user := "me"
 	msg, err := c.Service.Users.Messages.Get(user, id).Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo obtener el mensaje: %w", err)
+		return nil, fmt.Errorf("could not get message: %w", err)
 	}
 
 	return msg, nil
@@ -163,7 +163,7 @@ func (c *Client) SearchMessages(query string, maxResults int64) ([]*gmail.Messag
 
 	res, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron buscar los mensajes: %w", err)
+		return nil, fmt.Errorf("could not search messages: %w", err)
 	}
 
 	return res.Messages, nil
@@ -181,7 +181,7 @@ func (c *Client) SearchMessagesPage(query string, maxResults int64, pageToken st
 	}
 	res, err := call.Do()
 	if err != nil {
-		return nil, "", fmt.Errorf("no se pudieron buscar los mensajes: %w", err)
+		return nil, "", fmt.Errorf("could not search messages: %w", err)
 	}
 	return res.Messages, res.NextPageToken, nil
 }
@@ -196,7 +196,7 @@ func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 
 	res, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron listar los borradores: %w", err)
+		return nil, fmt.Errorf("could not list drafts: %w", err)
 	}
 
 	return res.Drafts, nil
@@ -237,7 +237,7 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 	user := "me"
 	createdDraft, err := c.Service.Users.Drafts.Create(user, draft).Do()
 	if err != nil {
-		return "", fmt.Errorf("no se pudo crear el borrador: %w", err)
+		return "", fmt.Errorf("could not create draft: %w", err)
 	}
 
 	return createdDraft.Id, nil
@@ -272,7 +272,7 @@ func (c *Client) SendMessage(from, to, subject, body string) (string, error) {
 	user := "me"
 	sentMsg, err := c.Service.Users.Messages.Send(user, message).Do()
 	if err != nil {
-		return "", fmt.Errorf("no se pudo enviar el mensaje: %w", err)
+		return "", fmt.Errorf("could not send message: %w", err)
 	}
 
 	return sentMsg.Id, nil
@@ -322,7 +322,7 @@ func (c *Client) MarkAsRead(messageID string) error {
 
 	_, err := c.Service.Users.Messages.Modify(user, messageID, modifyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo marcar como leído: %w", err)
+		return fmt.Errorf("could not mark as read: %w", err)
 	}
 
 	return nil
@@ -337,7 +337,7 @@ func (c *Client) MarkAsUnread(messageID string) error {
 
 	_, err := c.Service.Users.Messages.Modify(user, messageID, modifyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo marcar como no leído: %w", err)
+		return fmt.Errorf("could not mark as unread: %w", err)
 	}
 
 	return nil
@@ -348,7 +348,7 @@ func (c *Client) TrashMessage(messageID string) error {
 	user := "me"
 	_, err := c.Service.Users.Messages.Trash(user, messageID).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo mover a papelera: %w", err)
+		return fmt.Errorf("could not move to trash: %w", err)
 	}
 
 	return nil
@@ -363,7 +363,7 @@ func (c *Client) ArchiveMessage(messageID string) error {
 
 	_, err := c.Service.Users.Messages.Modify(user, messageID, modifyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo archivar: %w", err)
+		return fmt.Errorf("could not archive message: %w", err)
 	}
 
 	return nil
@@ -374,7 +374,7 @@ func (c *Client) ListLabels() ([]*gmail.Label, error) {
 	user := "me"
 	res, err := c.Service.Users.Labels.List(user).Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron listar las etiquetas: %w", err)
+		return nil, fmt.Errorf("could not list labels: %w", err)
 	}
 
 	return res.Labels, nil
@@ -424,7 +424,7 @@ func (c *Client) CreateLabel(name string) (*gmail.Label, error) {
 
 	createdLabel, err := c.Service.Users.Labels.Create(user, label).Do()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo crear la etiqueta: %w", err)
+		return nil, fmt.Errorf("could not create label: %w", err)
 	}
 
 	return createdLabel, nil
@@ -439,7 +439,7 @@ func (c *Client) ApplyLabel(messageID, labelID string) error {
 
 	_, err := c.Service.Users.Messages.Modify(user, messageID, modifyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo aplicar la etiqueta: %w", err)
+		return fmt.Errorf("could not apply label: %w", err)
 	}
 
 	return nil
@@ -454,7 +454,7 @@ func (c *Client) RemoveLabel(messageID, labelID string) error {
 
 	_, err := c.Service.Users.Messages.Modify(user, messageID, modifyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("no se pudo quitar la etiqueta: %w", err)
+		return fmt.Errorf("could not remove label: %w", err)
 	}
 
 	return nil
@@ -465,12 +465,12 @@ func (c *Client) GetAttachment(messageID, attachmentID string) ([]byte, string, 
 	user := "me"
 	att, err := c.Service.Users.Messages.Attachments.Get(user, messageID, attachmentID).Do()
 	if err != nil {
-		return nil, "", fmt.Errorf("no se pudo obtener el adjunto: %w", err)
+		return nil, "", fmt.Errorf("could not get attachment: %w", err)
 	}
 
 	data, err := base64.URLEncoding.DecodeString(att.Data)
 	if err != nil {
-		return nil, "", fmt.Errorf("no se pudo decodificar el adjunto: %w", err)
+		return nil, "", fmt.Errorf("could not decode attachment: %w", err)
 	}
 
 	// Try to get filename

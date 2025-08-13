@@ -3,8 +3,6 @@ package tui
 import (
 	"encoding/base64"
 	"fmt"
-	"io"
-	"net/http"
 	"net/mail"
 	"os"
 	"path/filepath"
@@ -13,11 +11,15 @@ import (
 	"time"
 	"unicode"
 
+	calclient "github.com/ajramos/gmail-tui/internal/calendar"
+	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/render"
+	"github.com/ajramos/gmail-tui/pkg/auth"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"github.com/mattn/go-runewidth"
+	cal "google.golang.org/api/calendar/v3"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -608,7 +610,7 @@ func (a *App) openSearchOverlay(mode string) {
 				for k := range a.aiInFlight {
 					if a.aiInFlight[k] {
 						a.aiInFlight[k] = false
-						a.showStatusMessage("🔕 Sugerencia cancelada al abrir la búsqueda")
+						a.showStatusMessage("🔕 Suggestion cancelled when opening search")
 						break
 					}
 				}
@@ -2259,8 +2261,8 @@ func (a *App) detectCalendarInvite(msg *gmailapi.Message) (Invite, bool) {
 				}
 			}
 			if len(raw) > 0 {
-				s := strings.ToUpper(string(raw))
-				if strings.Contains(s, "METHOD:REQUEST") {
+				s := string(raw)
+				if strings.Contains(strings.ToUpper(s), "METHOD:REQUEST") {
 					methodReq = true
 				}
 				out.UID = scanICSField(s, "UID:")
@@ -2379,22 +2381,20 @@ func (a *App) openRSVPModal() {
 	// Build side panel like labels
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
-	list.AddItem("✅ Accept", "Enter to send", 0, nil)
-	list.AddItem("🤔 Tentative", "Enter to send", 0, nil)
-	list.AddItem("❌ Decline", "Enter to send", 0, nil)
+	list.AddItem("✅ Accept", "Enter to update via Calendar", 0, nil)
+	list.AddItem("🤔 Tentative", "Enter to update via Calendar", 0, nil)
+	list.AddItem("❌ Decline", "Enter to update via Calendar", 0, nil)
 	if list.GetItemCount() > 0 {
 		list.SetCurrentItem(0)
 	}
-	comment := tview.NewInputField().SetLabel("Comment: ").SetFieldWidth(0)
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-	footer.SetText(" Enter=send  |  Tab=switch  |  Esc=close ")
+	footer.SetText(" Enter=update  |  Esc=close ")
 	footer.SetTextColor(tcell.ColorGray)
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(tcell.ColorYellow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.AddItem(list, 0, 1, true)
-	container.AddItem(comment, 3, 0, false)
 	container.AddItem(footer, 1, 0, false)
 
 	// Key handling
@@ -2412,7 +2412,7 @@ func (a *App) openRSVPModal() {
 		if choice == "" {
 			return
 		}
-		go a.sendRSVP(choice, comment.GetText())
+		go a.sendRSVP(choice, "")
 		// Close panel
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
@@ -2423,9 +2423,6 @@ func (a *App) openRSVPModal() {
 	}
 	list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch e.Key() {
-		case tcell.KeyTab:
-			a.SetFocus(comment)
-			return nil
 		case tcell.KeyEnter:
 			sendSelected()
 			return nil
@@ -2439,25 +2436,6 @@ func (a *App) openRSVPModal() {
 			return nil
 		}
 		return e
-	})
-	comment.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEscape {
-			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0)
-			}
-			a.labelsVisible = false
-			a.rsvpVisible = false
-			a.restoreFocusAfterModal()
-			return
-		}
-		if key == tcell.KeyEnter {
-			sendSelected()
-			return
-		}
-		if key == tcell.KeyTab {
-			a.SetFocus(list)
-			return
-		}
 	})
 
 	a.QueueUpdateDraw(func() {
@@ -2487,151 +2465,82 @@ func (a *App) sendRSVP(partstat, comment string) {
 		a.showError("❌ No invite to reply to")
 		return
 	}
-	// Resolve organizer email
-	orgEmail := extractEmailFromOrganizer(inv.Organizer)
-	if orgEmail == "" {
-		a.showError("❌ Could not determine organizer email")
+	if a.Calendar == nil || a.Calendar.Service == nil {
+		a.showError("❌ Calendar API not available. Please re-authorize with Calendar permissions.")
 		return
 	}
 	// Resolve our account email
-	fromEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
-	if strings.TrimSpace(fromEmail) == "" {
-		fromEmail = "me"
+	attendeeEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
+	if strings.TrimSpace(attendeeEmail) == "" {
+		a.showError("❌ Could not determine account email")
+		return
 	}
-	// Subject
-	subject := inv.Summary
-	if subject == "" {
-		subject = "Meeting"
-	}
-	subjPrefix := map[string]string{"ACCEPTED": "Accepted: ", "TENTATIVE": "Tentative: ", "DECLINED": "Declined: "}
-	if p, ok := subjPrefix[partstat]; ok {
-		subject = p + subject
-	}
-
-	// Plain text body
-	plain := "RSVP: " + strings.ToLower(partstat)
-	if strings.TrimSpace(comment) != "" {
-		plain += "\n\n" + comment
-	}
-
-	// ICS reply content (add SEQUENCE, optional DTSTART/DTEND; RSVP=TRUE)
-	now := time.Now().UTC().Format("20060102T150405Z")
-	attendee := fmt.Sprintf("ATTENDEE;CUTYPE=INDIVIDUAL;CN=%s;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=TRUE:mailto:%s",
-		fromEmail, partstat, fromEmail)
-	// Try to include CN for organizer as some servers require it
-	organizerField := sanitizeOrganizer(inv.Organizer)
-	organizerCN := extractEmailFromOrganizer(inv.Organizer)
-	if organizerCN == "" {
-		organizerCN = organizerField
-	}
-	organizerLine := fmt.Sprintf("ORGANIZER;CN=%s:%s", organizerCN, organizerField)
-	vevent := []string{
-		"BEGIN:VEVENT",
-		"UID:" + inv.UID,
-		"SEQUENCE:0",
-		"DTSTAMP:" + now,
-		organizerLine,
-		attendee,
-	}
-	if strings.TrimSpace(inv.DtStart) != "" {
-		vevent = append(vevent, "DTSTART:"+inv.DtStart)
-	}
-	if strings.TrimSpace(inv.DtEnd) != "" {
-		vevent = append(vevent, "DTEND:"+inv.DtEnd)
-	}
-	if strings.TrimSpace(inv.Summary) != "" {
-		vevent = append(vevent, "SUMMARY:"+inv.Summary)
-	}
-	vevent = append(vevent, "END:VEVENT")
-	ics := strings.Join(append([]string{
-		"BEGIN:VCALENDAR",
-		"METHOD:REPLY",
-		"PRODID:-//gmail-tui//RSVP 1.0//EN",
-		"VERSION:2.0",
-		"CALSCALE:GREGORIAN",
-	}, append(vevent, "END:VCALENDAR", "")...), "\r\n")
-
-	boundary := fmt.Sprintf("mime-boundary-%d", time.Now().UnixNano())
-	raw := strings.Builder{}
-	// Threading headers can help Gmail correlate the reply with the invite
-	var inReplyTo, references string
-	if m, ok := a.messageCache[mid]; ok && m != nil && m.Message != nil {
-		for _, h := range m.Message.Payload.Headers {
-			if strings.EqualFold(h.Name, "Message-Id") || strings.EqualFold(h.Name, "Message-ID") {
-				inReplyTo = strings.TrimSpace(h.Value)
+	a.setStatusPersistent("📤 Updating status in Calendar…")
+	go func(uid string, status string) {
+		attempt := func() (*cal.Event, error) {
+			evt, err := a.Calendar.FindByICalUID(a.ctx, uid)
+			if err != nil || evt == nil {
+				return nil, err
 			}
+			if err := a.Calendar.RespondToInvite(a.ctx, evt.Id, attendeeEmail, status, true); err != nil {
+				return nil, err
+			}
+			return evt, nil
 		}
-		if inReplyTo != "" {
-			references = inReplyTo
-		}
-	}
-	raw.WriteString(fmt.Sprintf("From: %s\r\n", fromEmail))
-	raw.WriteString(fmt.Sprintf("To: %s\r\n", orgEmail))
-	// Help Gmail route the reply
-	raw.WriteString(fmt.Sprintf("Cc: %s\r\n", "calendar-notification@google.com"))
-	raw.WriteString(fmt.Sprintf("Reply-To: %s\r\n", orgEmail))
-	if inReplyTo != "" {
-		raw.WriteString(fmt.Sprintf("In-Reply-To: %s\r\n", inReplyTo))
-	}
-	if references != "" {
-		raw.WriteString(fmt.Sprintf("References: %s\r\n", references))
-	}
-	raw.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
-	// Calendar specific headers (some servers look at these)
-	raw.WriteString("Content-Class: urn:content-classes:calendarmessage\r\n")
-	raw.WriteString("MIME-Version: 1.0\r\n")
-	raw.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary))
-	// part 1: text/plain
-	raw.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-	raw.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
-	raw.WriteString(plain + "\r\n")
-	// part 2: text/calendar REPLY
-	raw.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-	raw.WriteString("Content-Type: text/calendar; charset=UTF-8; method=REPLY\r\n")
-	raw.WriteString("Content-Class: urn:content-classes:calendarmessage\r\n")
-	raw.WriteString("Content-Transfer-Encoding: 7bit\r\n\r\n")
-	raw.WriteString(ics)
-	raw.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
-
-	a.setStatusPersistent("📤 Sending RSVP…")
-	go func() {
-		if _, err := a.Client.SendRawMIME(raw.String()); err != nil {
-			a.QueueUpdateDraw(func() { a.showError(fmt.Sprintf("❌ RSVP failed: %v", err)) })
+		if evt, err := attempt(); err != nil {
+			if a.isInsufficientPermissions(err) {
+				a.QueueUpdateDraw(func() { a.setStatusPersistent("🔐 Re-authorizing Calendar…") })
+				if err2 := a.reauthorizeCalendar(); err2 == nil {
+					if _, err3 := attempt(); err3 != nil {
+						a.QueueUpdateDraw(func() { a.showError(fmt.Sprintf("❌ Error after re-authorize: %v", err3)) })
+						return
+					}
+					a.QueueUpdateDraw(func() { a.showStatusMessage("✅ RSVP actualizado en Calendar") })
+					return
+				}
+				a.QueueUpdateDraw(func() { a.showError("❌ Could not re-authorize Calendar. Check credentials and token.") })
+				return
+			}
+			// If not found by iCalUID, and we extracted RSVP links, give a friendly hint
+			if strings.Contains(strings.ToLower(err.Error()), "event not found") {
+				a.QueueUpdateDraw(func() {
+					a.showError("❌ Event not found in Calendar for this invite. It may not be added to your calendar yet.")
+				})
+				return
+			}
+			a.QueueUpdateDraw(func() { a.showError(fmt.Sprintf("❌ Error updating RSVP: %v", err)) })
 			return
+		} else {
+			// Success
+			_ = evt
+			a.QueueUpdateDraw(func() { a.showStatusMessage("✅ RSVP updated in Calendar") })
 		}
-		// Fallback: hit Google Calendar RESPOND link to force state update
-		if inv.YesURL != "" || inv.NoURL != "" || inv.MaybeURL != "" {
-			target := inv.YesURL
-			switch partstat {
-			case "DECLINED":
-				target = inv.NoURL
-			case "TENTATIVE":
-				target = inv.MaybeURL
-			}
-			if strings.TrimSpace(target) != "" {
-				// Best-effort GET (no cookies required for RSVP links received to this account)
-				_ = doHTTPGetNoFollow(target)
-			}
-		}
-		a.QueueUpdateDraw(func() { a.showStatusMessage("✅ RSVP sent") })
-	}()
+	}(inv.UID, partstat)
 }
 
-// doHTTPGetNoFollow performs a simple GET without following redirects; ignore errors
-func doHTTPGetNoFollow(url string) error {
-	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequest("GET", url, nil)
+// isInsufficientPermissions checks common markers for missing Calendar scope
+func (a *App) isInsufficientPermissions(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "insufficientpermissions") || strings.Contains(s, "403")
+}
+
+// reauthorizeCalendar runs OAuth flow with Calendar scopes and swaps the client
+func (a *App) reauthorizeCalendar() error {
+	cred, tok := config.DefaultCredentialPaths()
+	if strings.TrimSpace(a.Config.Credentials) != "" {
+		cred = a.Config.Credentials
+	}
+	if strings.TrimSpace(a.Config.Token) != "" {
+		tok = a.Config.Token
+	}
+	svc, err := auth.NewCalendarService(a.ctx, cred, tok, "https://www.googleapis.com/auth/calendar.events")
 	if err != nil {
 		return err
 	}
-	// Minimal UA
-	req.Header.Set("User-Agent", "gmail-tui/1.0")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	a.Calendar = calclient.NewClient(svc)
 	return nil
 }
 

@@ -359,23 +359,19 @@ func (a *App) executeCommand(cmd string) {
 // executeRSVPCommand handles :rsvp commands
 func (a *App) executeRSVPCommand(args []string) {
 	if len(args) == 0 {
-		a.showError("Usage: rsvp <accept|tentative|decline> [comment...]")
+		a.showError("Usage: rsvp <accept|tentative|decline>")
 		return
 	}
 	choice := strings.ToLower(args[0])
-	comment := ""
-	if len(args) > 1 {
-		comment = strings.Join(args[1:], " ")
-	}
 	switch choice {
 	case "accept", "yes", "y":
-		go a.sendRSVP("ACCEPTED", comment)
+		go a.sendRSVP("ACCEPTED", "")
 	case "tentative", "maybe", "m":
-		go a.sendRSVP("TENTATIVE", comment)
+		go a.sendRSVP("TENTATIVE", "")
 	case "decline", "no", "n":
-		go a.sendRSVP("DECLINED", comment)
+		go a.sendRSVP("DECLINED", "")
 	default:
-		a.showError("Usage: rsvp <accept|tentative|decline> [comment...]")
+		a.showError("Usage: rsvp <accept|tentative|decline>")
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	calclient "github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
@@ -21,19 +22,20 @@ import (
 // App encapsulates the terminal UI and the Gmail client
 type App struct {
 	*tview.Application
-	Pages   *Pages
-	Config  *config.Config
-	Client  *gmail.Client
-	LLM     llm.Provider
-	Keys    config.KeyBindings
-	ctx     context.Context
-	cancel  context.CancelFunc
-	mu      sync.RWMutex
-	views   map[string]tview.Primitive
-	cmdBuff *CmdBuff
-	running bool
-	flash   *Flash
-	actions *KeyActions
+	Pages    *Pages
+	Config   *config.Config
+	Client   *gmail.Client
+	Calendar *calclient.Client
+	LLM      llm.Provider
+	Keys     config.KeyBindings
+	ctx      context.Context
+	cancel   context.CancelFunc
+	mu       sync.RWMutex
+	views    map[string]tview.Primitive
+	cmdBuff  *CmdBuff
+	running  bool
+	flash    *Flash
+	actions  *KeyActions
 	// Email renderer
 	emailRenderer *render.EmailRenderer
 	// State management
@@ -202,13 +204,14 @@ func NewKeyActions() *KeyActions {
 }
 
 // NewApp creates a new TUI application following k9s patterns
-func NewApp(client *gmail.Client, llmClient llm.Provider, cfg *config.Config) *App {
+func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient llm.Provider, cfg *config.Config) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	app := &App{
 		Application:       tview.NewApplication(),
 		Config:            cfg,
 		Client:            client,
+		Calendar:          calendarClient,
 		LLM:               llmClient,
 		Keys:              cfg.Keys,
 		ctx:               ctx,

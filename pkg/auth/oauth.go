@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	calapi "google.golang.org/api/calendar/v3"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 )
@@ -35,12 +36,12 @@ func NewOAuth2Config(credentialsPath string, tokenPath string, scopes ...string)
 func (c *OAuth2Config) LoadCredentials() (*oauth2.Config, error) {
 	data, err := os.ReadFile(c.CredentialsPath)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo leer el archivo de credenciales: %w", err)
+		return nil, fmt.Errorf("could not read credentials file: %w", err)
 	}
 
 	config, err := google.ConfigFromJSON(data, c.Scopes...)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo parsear el archivo de credenciales: %w", err)
+		return nil, fmt.Errorf("could not parse credentials file: %w", err)
 	}
 
 	return config, nil
@@ -69,7 +70,7 @@ func (c *OAuth2Config) SaveToken(token *oauth2.Token) error {
 
 	f, err := os.OpenFile(c.TokenPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return fmt.Errorf("no se pudo guardar el token: %w", err)
+		return fmt.Errorf("could not save OAuth token: %w", err)
 	}
 	defer f.Close()
 
@@ -114,7 +115,7 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 	// Create a local server to capture the authorization code
 	codeChan := make(chan string, 1)
 	errorChan := make(chan error, 1)
-	
+
 	// Start local server
 	server := &http.Server{
 		Addr: ":8080",
@@ -126,8 +127,8 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 				w.Write([]byte(`
 					<html>
 						<body>
-							<h2>Autorización exitosa</h2>
-							<p>Puedes cerrar esta ventana y volver a la aplicación.</p>
+                            <h2>Authorization successful</h2>
+                            <p>You can close this window and return to the application.</p>
 						</body>
 					</html>
 				`))
@@ -138,23 +139,23 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 				w.Write([]byte(`
 					<html>
 						<body>
-							<h2>Error de autorización</h2>
-							<p>No se recibió el código de autorización.</p>
+                            <h2>Authorization error</h2>
+                            <p>Authorization code not received.</p>
 						</body>
 					</html>
 				`))
-				errorChan <- fmt.Errorf("no se recibió código de autorización")
+				errorChan <- fmt.Errorf("authorization code not received")
 			}
 		}),
 	}
-	
+
 	// Start server in goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errorChan <- err
 		}
 	}()
-	
+
 	// Create OAuth2 config with local redirect URI
 	localConfig := &oauth2.Config{
 		ClientID:     config.ClientID,
@@ -163,14 +164,14 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 		Scopes:       config.Scopes,
 		Endpoint:     config.Endpoint,
 	}
-	
+
 	authURL := localConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("\n[bold]Autorización requerida[reset]\n")
-	fmt.Printf("1. Ve a este enlace: [blue]%s[reset]\n", authURL)
-	fmt.Printf("2. Autoriza la aplicación\n")
-	fmt.Printf("3. Serás redirigido automáticamente\n")
-	fmt.Printf("\nEsperando autorización...\n")
-	
+	fmt.Printf("\n[bold]Authorization required[reset]\n")
+	fmt.Printf("1. Open this link: [blue]%s[reset]\n", authURL)
+	fmt.Printf("2. Grant access to the application\n")
+	fmt.Printf("3. You will be redirected automatically\n")
+	fmt.Printf("\nWaiting for authorization...\n")
+
 	// Wait for authorization code
 	var authCode string
 	select {
@@ -178,22 +179,22 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 		// Success
 	case err := <-errorChan:
 		server.Shutdown(ctx)
-		return nil, fmt.Errorf("error en el servidor local: %w", err)
+		return nil, fmt.Errorf("local server error: %w", err)
 	case <-time.After(5 * time.Minute):
 		server.Shutdown(ctx)
-		return nil, fmt.Errorf("tiempo de espera agotado")
+		return nil, fmt.Errorf("authorization timeout exceeded")
 	}
-	
+
 	// Shutdown server
 	server.Shutdown(ctx)
-	
+
 	// Exchange code for token
 	token, err := localConfig.Exchange(ctx, authCode)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo intercambiar el código por token: %w", err)
+		return nil, fmt.Errorf("could not exchange authorization code for token: %w", err)
 	}
 
-	fmt.Printf("[green]¡Autorización exitosa![reset]\n")
+	fmt.Printf("[green]Authorization successful![reset]\n")
 	return token, nil
 }
 
@@ -202,7 +203,7 @@ func (c *OAuth2Config) refreshToken(ctx context.Context, config *oauth2.Config, 
 	tokenSource := config.TokenSource(ctx, token)
 	newToken, err := tokenSource.Token()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo refrescar el token: %w", err)
+		return nil, fmt.Errorf("could not refresh token: %w", err)
 	}
 
 	return newToken, nil
@@ -226,7 +227,31 @@ func NewGmailService(ctx context.Context, credentialsPath, tokenPath string, sco
 
 	service, err := gmail.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo crear el servicio de Gmail: %w", err)
+		return nil, fmt.Errorf("could not create Gmail service: %w", err)
+	}
+
+	return service, nil
+}
+
+// NewCalendarService creates a new Google Calendar service using OAuth2
+func NewCalendarService(ctx context.Context, credentialsPath, tokenPath string, scopes ...string) (*calapi.Service, error) {
+	oauthConfig := NewOAuth2Config(credentialsPath, tokenPath, scopes...)
+
+	token, err := oauthConfig.GetToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := oauthConfig.LoadCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := config.Client(ctx, token)
+
+	service, err := calapi.NewService(ctx, option.WithHTTPClient(httpClient))
+	if err != nil {
+		return nil, fmt.Errorf("could not create Calendar service: %w", err)
 	}
 
 	return service, nil

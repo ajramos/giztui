@@ -5,15 +5,17 @@
 ## Priorities
 - Improve status bar experience
 - Improve legend
-- See what happens with my self emailed emails
-- Busqueda de texto con / dentro del email.
-- Pensar en como me puedo mandar cosas a obsidian y a slack
-- Cargar la salida de los LLMs con stream no en completo
-- Pensar como aceptar reuniones o abrir enlaces
-- Sistema de configuracion de themes
-- Cuando termine de cargar los mensajes que se ponga en el primero y lo visualice
-- Marcar en la lista cuando tengo attachment
-
+- Investigate behavior for self-emailed messages
+- Text search `/` inside the email body
+- Think about sending items to Obsidian and Slack
+- Stream LLM output instead of full response
+- Accept meetings or open links (design UX)
+- Theme configuration system
+- After loading messages, auto-select and render the first one
+- Show attachment indicator in the list
+- Vim-like navigation: jump to message by line number
+- Plugin system: extensible architecture to add custom functionality without touching the core
+- State management: consider MVU (Model-View-Update) for UI/state consistency (e.g., Bubble Tea)
 
 ### Email Management
 - [x] **Query emails** - Search and query emails with Gmail search syntax
@@ -23,10 +25,6 @@
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 - [ ] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
-- [ ] **Calendar integration (phase 2)**
-  - Add Google Calendar API support to create/update events when accepting invites
-  - Handle METHOD:CANCEL by offering to remove from calendar
-  - Improve recurring/series support (SEQUENCE, RECURRENCE-ID)
 - [ ] **Move email to Inbox** - Move to Inbox
 - [ ] **Search by date** - Search by date
 - [x] **Mark email as read** - Mark individual emails as read
@@ -66,6 +64,7 @@
 - [ ] **Create calendar event** - Create new calendar events with Google Meet
 - [ ] **Update calendar event** - Modify existing calendar events
 - [ ] **Delete calendar event** - Remove calendar events
+- [x] **Accept Calendar invitations**
 
 ## 🎨 AI Capabilities
 - [ ] **Reply draft suggestion** - Given a email provides a draft of the reply

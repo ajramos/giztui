@@ -253,7 +253,7 @@ Example configuration snippet:
 
 ```json
 {
-  "summarize_prompt": "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo.",
+  "summarize_prompt": "Briefly summarize the following email in the same language as the input. Keep it concise and factual.\n\n{{body}}",
   "label_prompt": "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
 }
 ```
@@ -282,9 +282,9 @@ Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
 RSVP (meeting invites):
 
 - Detection: when an email contains a `text/calendar` invitation (METHOD:REQUEST), the status bar shows “📅 Calendar invite detected — press V to RSVP”.
-- `V` opens a side panel to respond (ACCEPT / TENTATIVE / DECLINE) with an optional comment.
-- Equivalent command: `:rsvp accept|tentative|decline [comment]`.
-- Currently, the response is sent by email (ICS REPLY). Google Calendar API integration will arrive in a later phase.
+- `V` opens a side panel to respond (ACCEPT / TENTATIVE / DECLINE).
+- Equivalent command: `:rsvp accept|tentative|decline`.
+- The response updates your attendance directly via Google Calendar API (Calendar scope required). Email-based ICS replies are no longer used.
 
 Contextual search shorthands supported in command mode:
 
