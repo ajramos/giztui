@@ -486,13 +486,19 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					// Aplicar etiqueta y archivar (Gmail ignora duplicados en ApplyLabel)
 					failed := 0
-					for _, mid := range idsToMove {
+					total := len(idsToMove)
+					// Estado inicial persistente
+					a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
+					for i, mid := range idsToMove {
 						if err := a.Client.ApplyLabel(mid, id); err != nil {
 							failed++
 						}
 						if err := a.Client.ArchiveMessage(mid); err != nil {
 							failed++
 						}
+						// Progreso incremental
+						idx := i + 1
+						a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
 					}
 					// Actualizar UI y cerrar panel
 					a.QueueUpdateDraw(func() {
@@ -645,13 +651,17 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								failed := 0
-								for _, mid := range idsToMove {
+								total := len(idsToMove)
+								a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
+								for i, mid := range idsToMove {
 									if err := a.Client.ApplyLabel(mid, id); err != nil {
 										failed++
 									}
 									if err := a.Client.ArchiveMessage(mid); err != nil {
 										failed++
 									}
+									idx := i + 1
+									a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
 								}
 								a.QueueUpdateDraw(func() {
 									listView, ok := a.views["list"].(*tview.Table)

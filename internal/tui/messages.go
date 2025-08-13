@@ -2832,11 +2832,17 @@ func (a *App) archiveSelectedBulk() {
 	a.setStatusPersistent(fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		failed := 0
-		for _, id := range ids {
+		total := len(ids)
+		for i, id := range ids {
 			if err := a.Client.ArchiveMessage(id); err != nil {
 				failed++
 				continue
 			}
+			// Progress update on UI thread
+			idx := i + 1
+			a.QueueUpdateDraw(func() {
+				a.setStatusPersistent(fmt.Sprintf("Archiving %d/%d…", idx, total))
+			})
 			// Remove from UI list on main thread after loop
 		}
 		a.QueueUpdateDraw(func() {
@@ -2918,10 +2924,16 @@ func (a *App) trashSelectedBulk() {
 	a.setStatusPersistent(fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		failed := 0
-		for _, id := range ids {
+		total := len(ids)
+		for i, id := range ids {
 			if err := a.Client.TrashMessage(id); err != nil {
 				failed++
 			}
+			// Progress update on UI thread
+			idx := i + 1
+			a.QueueUpdateDraw(func() {
+				a.setStatusPersistent(fmt.Sprintf("Trashing %d/%d…", idx, total))
+			})
 		}
 		a.QueueUpdateDraw(func() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
