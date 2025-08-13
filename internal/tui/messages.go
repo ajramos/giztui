@@ -1083,34 +1083,61 @@ func (a *App) openAdvancedSearchForm() {
 		if notWords != "" {
 			parts = append(parts, fmt.Sprintf("-%s", notWords))
 		}
-		// Size (parse <NMB or >NKB)
+		// Size (parse <NMB or >NKB) with validation
 		if expr := strings.TrimSpace(sizeExpr); expr != "" {
-			op := expr[0]
-			rest := strings.TrimSpace(expr[1:])
-			// split number and unit
-			num := ""
-			unit := ""
-			for i := 0; i < len(rest); i++ {
-				if rest[i] >= '0' && rest[i] <= '9' {
-					num += string(rest[i])
-				} else {
-					unit = strings.TrimSpace(rest[i:])
-					break
+			valid := false
+			if len(expr) >= 2 && (expr[0] == '>' || expr[0] == '<') {
+				op := expr[0]
+				rest := strings.TrimSpace(expr[1:])
+				// Extract integer number and optional unit
+				num := ""
+				unit := ""
+				for i := 0; i < len(rest); i++ {
+					if rest[i] >= '0' && rest[i] <= '9' {
+						num += string(rest[i])
+					} else {
+						unit = strings.TrimSpace(rest[i:])
+						break
+					}
+				}
+				if num != "" {
+					u := strings.ToLower(unit)
+					suffix := ""
+					unitValid := false
+					if u == "" { // assume bytes if no unit
+						suffix = ""
+						unitValid = true
+					} else if strings.HasPrefix(u, "mb") || u == "m" {
+						suffix = "m"
+						unitValid = true
+					} else if strings.HasPrefix(u, "kb") || u == "k" {
+						suffix = "k"
+						unitValid = true
+					} else if u == "b" || u == "bytes" {
+						suffix = ""
+						unitValid = true
+					}
+					if unitValid {
+						valid = true
+						if op == '>' {
+							if suffix == "" {
+								parts = append(parts, fmt.Sprintf("larger:%s", num))
+							} else {
+								parts = append(parts, fmt.Sprintf("larger:%s%s", num, suffix))
+							}
+						} else {
+							if suffix == "" {
+								parts = append(parts, fmt.Sprintf("smaller:%s", num))
+							} else {
+								parts = append(parts, fmt.Sprintf("smaller:%s%s", num, suffix))
+							}
+						}
+					}
 				}
 			}
-			u := strings.ToLower(unit)
-			suffix := ""
-			if strings.HasPrefix(u, "mb") || u == "m" {
-				suffix = "m"
-			} else if strings.HasPrefix(u, "kb") || u == "k" {
-				suffix = "k"
-			}
-			if num != "" && suffix != "" {
-				if op == '>' {
-					parts = append(parts, fmt.Sprintf("larger:%s%s", num, suffix))
-				} else if op == '<' {
-					parts = append(parts, fmt.Sprintf("smaller:%s%s", num, suffix))
-				}
+			if !valid {
+				a.showStatusMessage("📦 Size must be like >500KB or <2MB")
+				return
 			}
 		}
 		// Date within -> newer_than:N(unit)
