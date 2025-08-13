@@ -323,7 +323,16 @@ func (a *App) reloadMessages() {
 			continue
 		}
 
-		// Use the email renderer to format the message
+		// Update renderer context (labels map + system visibility policy)
+		if labels, err := a.Client.ListLabels(); err == nil {
+			m := make(map[string]string, len(labels))
+			for _, l := range labels {
+				m[l.Id] = l.Name
+			}
+			a.emailRenderer.SetLabelMap(m)
+			a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+		}
+		// Use the email renderer to format the message (with 📎/🗓️ and label chips)
 		formattedText, _ := a.emailRenderer.FormatEmailList(message, screenWidth)
 
 		// Add unread indicator
@@ -473,6 +482,22 @@ func (a *App) loadMoreMessages() {
 		// Set placeholder cell; colors will be applied by reformatListItems below
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
+			if labels, err := a.Client.ListLabels(); err == nil {
+				m := make(map[string]string, len(labels))
+				for _, l := range labels {
+					m[l.Id] = l.Name
+				}
+				a.emailRenderer.SetLabelMap(m)
+				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+			}
+			if labels, err := a.Client.ListLabels(); err == nil {
+				m := make(map[string]string, len(labels))
+				for _, l := range labels {
+					m[l.Id] = l.Name
+				}
+				a.emailRenderer.SetLabelMap(m)
+				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+			}
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
 			cell := tview.NewTableCell(text).
 				SetExpansion(1).
@@ -1672,6 +1697,62 @@ func (a *App) saveCurrentMessageToFile() {
 			return
 		}
 		a.QueueUpdateDraw(func() { a.showStatusMessage("💾 Saved: " + file) })
+	}(id)
+}
+
+// saveCurrentMessageRawEML saves the raw RFC 5322 message as received from Gmail API (.eml)
+func (a *App) saveCurrentMessageRawEML() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		id = a.currentMessageID
+	}
+	if id == "" {
+		a.showError("❌ No message selected")
+		return
+	}
+	a.setStatusPersistent("💾 Saving raw .eml…")
+	go func(mid string) {
+		// Fetch raw via Gmail API (format=raw)
+		if a.Client == nil || a.Client.Service == nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Gmail client not initialized") })
+			return
+		}
+		user := "me"
+		msg, err := a.Client.Service.Users.Messages.Get(user, mid).Format("raw").Do()
+		if err != nil || msg == nil || msg.Raw == "" {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not fetch raw message") })
+			return
+		}
+		// Decode base64url raw -> bytes
+		data, err := base64.URLEncoding.DecodeString(msg.Raw)
+		if err != nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not decode raw message") })
+			return
+		}
+		// Build filename
+		subj := "message"
+		if m, e := a.Client.GetMessage(mid); e == nil && m != nil {
+			for _, h := range m.Payload.Headers {
+				if strings.EqualFold(h.Name, "Subject") && strings.TrimSpace(h.Value) != "" {
+					subj = h.Value
+					break
+				}
+			}
+		}
+		home, _ := os.UserHomeDir()
+		base := filepath.Join(home, ".config", "gmail-tui", "saved")
+		if err := os.MkdirAll(base, 0o755); err != nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
+			return
+		}
+		name := sanitizeFilename(subj)
+		ts := time.Now().Format("20060102-150405")
+		file := filepath.Join(base, ts+"-"+name+".eml")
+		if err := os.WriteFile(file, data, 0o644); err != nil {
+			a.QueueUpdateDraw(func() { a.showError("❌ Could not write file") })
+			return
+		}
+		a.QueueUpdateDraw(func() { a.showStatusMessage("💾 Saved raw: " + file) })
 	}(id)
 }
 

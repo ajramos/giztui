@@ -16,7 +16,7 @@
 
 
 ### Email Management
-- [ ] **Query emails** - Search and query emails with Gmail search syntax
+- [x] **Query emails** - Search and query emails with Gmail search syntax
 - [ ] **Get unread emails** - List unread emails with count and preview
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox

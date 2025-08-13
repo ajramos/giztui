@@ -512,7 +512,7 @@ func (a *App) performSearch(query string) {
 		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
 
-	// Stream search results progressively like initial load
+	// Stream search results progresivamente como en la carga inicial
 	messages, next, err := a.Client.SearchMessagesPage(q, 50, "")
 	if err != nil {
 		a.QueueUpdateDraw(func() {
@@ -557,6 +557,16 @@ func (a *App) performSearch(query string) {
 		}()
 	}
 
+	// Prepare label map and show system labels in list for search results (mixed scopes)
+	if labels, err := a.Client.ListLabels(); err == nil {
+		m := make(map[string]string, len(labels))
+		for _, l := range labels {
+			m[l.Id] = l.Name
+		}
+		a.emailRenderer.SetLabelMap(m)
+	}
+	a.emailRenderer.SetShowSystemLabelsInList(true)
+
 	screenWidth := a.getFormatWidth()
 	for _, msg := range messages {
 		a.ids = append(a.ids, msg.Id)
@@ -592,6 +602,8 @@ func (a *App) performSearch(query string) {
 				}
 			}
 		}
+		// Keep policy for system labels on list while user is in search mode
+		a.emailRenderer.SetShowSystemLabelsInList(true)
 	})
 }
 

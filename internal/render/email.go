@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/derailed/tcell/v2"
@@ -121,15 +122,33 @@ func (ec *EmailColorer) isSent(message *googleGmail.Message) bool {
 type EmailRenderer struct {
 	colorer      *EmailColorer
 	headerKeyTag string // e.g., "[#50fa7b]"
+	// Optional label mapping and flags for list rendering enhancements
+	labelIdToName          map[string]string
+	showSystemLabelsInList bool
 }
 
 // NewEmailRenderer creates a new email renderer
 func NewEmailRenderer() *EmailRenderer {
 	return &EmailRenderer{
-		colorer:      NewEmailColorer(),
-		headerKeyTag: "[yellow]",
+		colorer:                NewEmailColorer(),
+		headerKeyTag:           "[yellow]",
+		labelIdToName:          make(map[string]string),
+		showSystemLabelsInList: false,
 	}
 }
+
+// SetLabelMap sets a map of label ID -> label Name used when rendering list chips
+func (er *EmailRenderer) SetLabelMap(m map[string]string) {
+	if m == nil {
+		er.labelIdToName = make(map[string]string)
+		return
+	}
+	er.labelIdToName = m
+}
+
+// SetShowSystemLabelsInList toggles whether system labels (Inbox, Sent, Spam, etc.)
+// should be rendered as chips in the list view.
+func (er *EmailRenderer) SetShowSystemLabelsInList(v bool) { er.showSystemLabelsInList = v }
 
 // FormatEmailList formats an email for list display
 func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth int) (string, tcell.Color) {
@@ -157,8 +176,11 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	}
 	senderWidth := 22
 	dateWidth := 8
-	// Remaining for subject
-	subjectWidth := maxWidth - senderWidth - dateWidth - 6 // account for separators and spaces
+	// Remaining for subject minus suffix width (icons + chips)
+	suffix := er.buildIconsAndChips(message)
+	suffixWidth := runewidth.StringWidth(suffix)
+	// account for separators and spaces (" | ", " | ") = 6
+	subjectWidth := maxWidth - senderWidth - dateWidth - 6 - suffixWidth
 	if subjectWidth < 10 {
 		subjectWidth = 10
 	}
@@ -168,13 +190,138 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	// Fecha al final con alineación a la izquierda
 	dateText := er.fitWidth(date, dateWidth)
 
-	// Create formatted string with fixed columns: Sender | Subject | Date
-	formatted := fmt.Sprintf("%s | %s | %s", senderText, subjectText, dateText)
+	// Create formatted string with fixed columns: Sender | Subject(+suffix) | Date
+	formatted := fmt.Sprintf("%s | %s%s | %s", senderText, subjectText, suffix, dateText)
 
 	// Devolvemos color neutro para simplificar (sin estilos)
 	textColor := tcell.ColorWhite
 
 	return formatted, textColor
+}
+
+// buildIconsAndChips returns a string like "  📎🗓️  [Aws] [Finance] [+2]"
+func (er *EmailRenderer) buildIconsAndChips(message *googleGmail.Message) string {
+	if message == nil || message.Payload == nil {
+		return ""
+	}
+	// Detect attachments and calendar from MIME structure (metadata only)
+	hasAttachment := false
+	hasCalendar := false
+	var walk func(p *googleGmail.MessagePart)
+	walk = func(p *googleGmail.MessagePart) {
+		if p == nil {
+			return
+		}
+		mt := strings.ToLower(p.MimeType)
+		if p.Body != nil && p.Body.AttachmentId != "" {
+			// treat any attachment as a real attachment; filename strengthens signal but is optional
+			hasAttachment = true
+		}
+		if p.Filename != "" {
+			hasAttachment = true
+			if strings.HasSuffix(strings.ToLower(p.Filename), ".ics") {
+				hasCalendar = true
+			}
+		}
+		if strings.Contains(mt, "text/calendar") || strings.Contains(mt, "application/ics") {
+			hasCalendar = true
+		}
+		for _, c := range p.Parts {
+			walk(c)
+		}
+	}
+	walk(message.Payload)
+
+	// Labels as chips (limit to 3 + +N). Use ID->Name map when available
+	names := make([]string, 0, len(message.LabelIds))
+	for _, id := range message.LabelIds {
+		name := id
+		if n, ok := er.labelIdToName[id]; ok && strings.TrimSpace(n) != "" {
+			name = n
+		}
+		upperID := strings.ToUpper(id)
+		upperName := strings.ToUpper(name)
+		// Always skip state/importance labels (represented via colors)
+		isStarVariant := strings.HasSuffix(upperID, "_STAR") || strings.HasSuffix(upperID, "_STARRED") || strings.HasSuffix(upperName, "_STAR") || strings.HasSuffix(upperName, "_STARRED")
+		if upperID == "UNREAD" || upperID == "STARRED" || upperID == "IMPORTANT" || upperName == "UNREAD" || upperName == "STARRED" || upperName == "IMPORTANT" || isStarVariant {
+			continue
+		}
+		// General system labels (Inbox/Sent/Trash/Spam/Draft/Category_*)
+		isSystemGeneral := strings.HasPrefix(upperID, "CATEGORY_") || upperID == "INBOX" || upperID == "CHAT" || upperID == "SENT" || upperID == "TRASH" || upperID == "SPAM" || upperID == "DRAFT"
+		if isSystemGeneral && !er.showSystemLabelsInList {
+			continue
+		}
+		// Normalize display name (Category_* → friendly name; Title Case otherwise)
+		names = append(names, normalizeLabelDisplay(name, id))
+	}
+	var b strings.Builder
+	b.WriteString(" ")
+	// First: labels
+	if len(names) > 0 {
+		if len(names) > 3 {
+			for i := 0; i < 3; i++ {
+				b.WriteString(" [")
+				b.WriteString(names[i])
+				b.WriteString("]")
+			}
+			b.WriteString(fmt.Sprintf(" [+%d]", len(names)-3))
+		} else {
+			for _, n := range names {
+				b.WriteString(" [")
+				b.WriteString(n)
+				b.WriteString("]")
+			}
+		}
+	}
+	// Then: icons
+	if hasAttachment {
+		b.WriteString(" 📎")
+	}
+	if hasCalendar {
+		b.WriteString(" 🗓️")
+	}
+	return b.String()
+}
+
+// toTitleCase converts strings like "AWS", "spam", "aws-partners" to "Aws", "Spam", "Aws Partners"
+func toTitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	// Replace common separators with spaces, lower the rest, then title-case tokens
+	repl := strings.NewReplacer("_", " ", "-", " ", ".", " ")
+	s = repl.Replace(s)
+	s = strings.TrimSpace(s)
+	parts := strings.Fields(s)
+	for i, p := range parts {
+		if p == "" {
+			continue
+		}
+		r := []rune(strings.ToLower(p))
+		r[0] = unicode.ToUpper(r[0])
+		parts[i] = string(r)
+	}
+	return strings.Join(parts, " ")
+}
+
+// normalizeLabelDisplay maps system names to friendly Display, including Category_* → <name>
+func normalizeLabelDisplay(name, id string) string {
+	if name == "" && id != "" {
+		name = id
+	}
+	upperID := strings.ToUpper(id)
+	upperName := strings.ToUpper(name)
+	// Category_*: show only the category name
+	if strings.HasPrefix(upperID, "CATEGORY_") {
+		n := strings.TrimPrefix(id, "CATEGORY_")
+		return toTitleCase(n)
+	}
+	if strings.HasPrefix(upperName, "CATEGORY_") {
+		n := strings.TrimPrefix(name, "CATEGORY_")
+		return toTitleCase(n)
+	}
+	// Generic title case otherwise
+	return toTitleCase(name)
 }
 
 // FormatEmailHeader formats email header for display

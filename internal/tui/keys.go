@@ -243,6 +243,9 @@ func (a *App) bindKeys() {
 		case 'w':
 			go a.saveCurrentMessageToFile()
 			return nil
+		case 'W':
+			go a.saveCurrentMessageRawEML()
+			return nil
 		}
 
 		// ESC exits bulk mode
