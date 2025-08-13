@@ -341,8 +341,10 @@ Navigation niceties:
 ### 🔎 Search & Filter UX
 
 - Local filter (`/`):
-  - Applies an in-memory filter over the current inbox page.
-  - Actions while filtered (archive, trash, move, label) propagate to the underlying inbox snapshot.
+  - Applies an in-memory filter over the current list (works on Inbox and on Search Results).
+  - Matches against Subject, From, To, Snippet, and also against visible label chips (e.g., `Personal`, `AWS`).
+  - Supports simple label filters with `label:<name>` tokens. Examples: `label:Personal`, `report label:AWS`.
+  - Actions while filtered (archive, trash, move, label) propagate to the underlying snapshot (Inbox or Search Results).
   - Press `ESC` to exit the filter instantly without network calls, restoring the original list with your changes reflected.
   - After removing an item (archive/trash/move), the selection stays on the same visual position.
 
@@ -365,6 +367,13 @@ Navigation niceties:
      - Navigation: type to filter; use `↑/↓` to navigate; `Enter` applies to the `Search` field and closes the panel; `Esc` closes the panel.
    - Vertical layout: form on top (50%) and message content below for context.
    - Execution: move focus to the `🔎 Search` button and press Enter. The advanced search view closes and the search runs.
+
+### 📎 Icons & 🏷️ Label Chips in the list
+
+- The list shows attachment (📎) and calendar invite/update (🗓️) icons computed from message metadata.
+- Label chips are rendered in Title Case and limited to 3; extra labels appear as `+N`.
+- In Search Results we also display system labels (e.g., `Trash`, `Sent`) to provide context across folders; in Inbox normal view, redundant system labels are hidden.
+- State labels like Unread/Important/Starred are not shown as chips because they are already represented with colors.
 
 ### 📐 Vertical Layout
 
