@@ -818,9 +818,9 @@ func (a *App) openAdvancedSearchForm() {
 	setNav(notField, 4)
 	setNav(sizeExprField, 5)
 	setNav(dateWithinField, 6)
-    // Attachment
-    var hasAttachment bool
-    form.AddCheckbox("📎 Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
+	// Attachment
+	var hasAttachment bool
+	form.AddCheckbox("📎 Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
 
 	// Load labels asynchronously to build picker options
 	go func() {
@@ -1251,7 +1251,13 @@ func (a *App) openAdvancedSearchForm() {
 		if idx >= 0 {
 			if _, ok := form.GetFormItem(idx).(*tview.DropDown); ok {
 				if ev.Key() == tcell.KeyEscape {
-					// Return to simple search overlay instead of main list
+					// In advanced search: first ESC closes the right options panel if open
+					if rightVisible {
+						hideRight()
+						a.SetFocus(scopeField)
+						return nil
+					}
+					// Otherwise fall back to exiting advanced search to simple overlay
 					if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 						sp.Clear()
 					}
@@ -1325,7 +1331,13 @@ func (a *App) openAdvancedSearchForm() {
 		}
 		// Do NOT submit on Enter; solo al pulsar el botón "🔎 Search".
 		if ev.Key() == tcell.KeyEscape {
-			// Return to simple search overlay instead of main list
+			// In advanced search: first ESC closes the right options panel if open
+			if rightVisible {
+				hideRight()
+				a.SetFocus(scopeField)
+				return nil
+			}
+			// Otherwise, exit to simple search overlay
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 				sp.Clear()
 			}
@@ -1392,9 +1404,14 @@ func (a *App) openAdvancedSearchForm() {
 			}
 		}
 
-		// ESC anywhere in the left pane exits advanced search and restores layout
+		// ESC in the left pane: close options first; otherwise exit to simple overlay
 		sp.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 			if ev.Key() == tcell.KeyEscape {
+				if rightVisible {
+					hideRight()
+					a.SetFocus(scopeField)
+					return nil
+				}
 				restoreLayout()
 				a.openSearchOverlay("remote")
 				return nil
