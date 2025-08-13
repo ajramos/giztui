@@ -695,7 +695,8 @@ func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied b
 	}
 }
 
-func (a *App) trashSelected() {
+// moved to messages_actions.go
+/*func (a *App) trashSelected() {
 	var messageID string
 	var selectedIndex int = -1
 
@@ -887,7 +888,7 @@ func (a *App) trashSelected() {
 			}
 		})
 	}
-}
+}*/
 
 // (moved to labels.go) manageLabels
 

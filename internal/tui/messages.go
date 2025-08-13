@@ -2574,7 +2574,7 @@ func sanitizeOrganizer(org string) string {
 	return org
 }
 
-// archiveSelected archives the selected message
+/* moved to messages_actions.go
 func (a *App) archiveSelected() {
 	var messageID string
 	var selectedIndex int = -1
@@ -2644,91 +2644,13 @@ func (a *App) archiveSelected() {
 	}
 	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
 
-	// Safe UI removal (preselect another index before removing)
-	a.QueueUpdateDraw(func() {
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			return
-		}
-		count := list.GetRowCount()
-		if count == 0 {
-			return
-		}
-
-		// Determine index to remove; prefer current selection
-		removeIndex, _ := list.GetSelection()
-		if removeIndex < 0 || removeIndex >= count {
-			removeIndex = 0
-		}
-
-		// Preselect a different index to avoid removal-on-selected glitches
-		if count > 1 {
-			pre := removeIndex - 1
-			if removeIndex == 0 {
-				pre = 1
-			}
-			if pre < 0 {
-				pre = 0
-			}
-			if pre >= count {
-				pre = count - 1
-			}
-			list.Select(pre, 0)
-		}
-
-		// Update caches using removeIndex
-		if removeIndex >= 0 && removeIndex < len(a.ids) {
-			a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
-		}
-		if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
-			a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
-		}
-
-		// Visual removal
-		if count == 1 {
-			list.Clear()
-			// No selection remains
-		} else {
-			if removeIndex >= 0 && removeIndex < list.GetRowCount() {
-				list.RemoveRow(removeIndex)
-			}
-			// Keep the same visual position when possible (select the row that shifted into removeIndex)
-			desired := removeIndex
-			newCount := list.GetRowCount()
-			if desired >= newCount {
-				desired = newCount - 1
-			}
-			if desired >= 0 && desired < newCount {
-				list.Select(desired, 0)
-			}
-		}
-
-		// Update title and content
-		list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-		if text, ok := a.views["text"].(*tview.TextView); ok {
-			// Reflect the newly selected row (if any)
-			cur, _ := list.GetSelection()
-			if cur >= 0 && cur < len(a.ids) {
-				go a.showMessageWithoutFocus(a.ids[cur])
-				if a.aiSummaryVisible {
-					go a.generateOrShowSummary(a.ids[cur])
-				}
-			} else {
-				text.SetText("No messages")
-				text.ScrollToBeginning()
-				if a.aiSummaryVisible && a.aiSummaryView != nil {
-					a.aiSummaryView.SetText("")
-				}
-			}
-		}
-		// Propagate removal to base snapshot if in local filter
-		if messageID != "" {
-			a.baseRemoveByID(messageID)
-		}
-	})
+    // Safe UI removal (preselect another index before removing)
+    a.QueueUpdateDraw(func() {
+        a.safeRemoveCurrentSelection(messageID)
+    })
 }
 
-// archiveSelectedBulk archives all selected messages
+// moved to messages_bulk.go
 func (a *App) archiveSelectedBulk() {
 	if len(a.selected) == 0 {
 		return
@@ -2754,56 +2676,8 @@ func (a *App) archiveSelectedBulk() {
 			})
 			// Remove from UI list on main thread after loop
 		}
-		a.QueueUpdateDraw(func() {
-			// Remove all archived from current list
-			if list, ok := a.views["list"].(*tview.Table); ok {
-				// Build a set for quick lookup
-				rm := make(map[string]struct{}, len(ids))
-				for _, id := range ids {
-					rm[id] = struct{}{}
-				}
-				// Walk ids and remove those that are in rm
-				i := 0
-				for i < len(a.ids) {
-					if _, ok := rm[a.ids[i]]; ok {
-						a.ids = append(a.ids[:i], a.ids[i+1:]...)
-						if i < len(a.messagesMeta) {
-							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-						}
-						if i < list.GetRowCount() {
-							list.RemoveRow(i)
-						}
-						continue
-					}
-					i++
-				}
-				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-				// Adjust selection and content
-				cur, _ := list.GetSelection()
-				if cur >= list.GetRowCount() {
-					cur = list.GetRowCount() - 1
-				}
-				if cur >= 0 {
-					list.Select(cur, 0)
-					if cur < len(a.ids) {
-						go a.showMessageWithoutFocus(a.ids[cur])
-						if a.aiSummaryVisible {
-							go a.generateOrShowSummary(a.ids[cur])
-						}
-					}
-				}
-				if list.GetRowCount() == 0 {
-					if tv, ok := a.views["text"].(*tview.TextView); ok {
-						tv.SetText("No messages")
-						tv.ScrollToBeginning()
-					}
-					if a.aiSummaryVisible && a.aiSummaryView != nil {
-						a.aiSummaryView.SetText("")
-					}
-				}
-			}
-			// Propagate to base snapshot if in local filter
-			a.baseRemoveByIDs(ids)
+        a.QueueUpdateDraw(func() {
+            a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
@@ -2821,7 +2695,7 @@ func (a *App) archiveSelectedBulk() {
 	}()
 }
 
-// trashSelectedBulk moves all selected messages to trash
+// moved to messages_bulk.go
 func (a *App) trashSelectedBulk() {
 	if len(a.selected) == 0 {
 		return
@@ -2844,53 +2718,8 @@ func (a *App) trashSelectedBulk() {
 				a.setStatusPersistent(fmt.Sprintf("Trashing %d/%d…", idx, total))
 			})
 		}
-		a.QueueUpdateDraw(func() {
-			if list, ok := a.views["list"].(*tview.Table); ok {
-				rm := make(map[string]struct{}, len(ids))
-				for _, id := range ids {
-					rm[id] = struct{}{}
-				}
-				i := 0
-				for i < len(a.ids) {
-					if _, ok := rm[a.ids[i]]; ok {
-						a.ids = append(a.ids[:i], a.ids[i+1:]...)
-						if i < len(a.messagesMeta) {
-							a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-						}
-						if i < list.GetRowCount() {
-							list.RemoveRow(i)
-						}
-						continue
-					}
-					i++
-				}
-				list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-				// Adjust selection and content
-				cur, _ := list.GetSelection()
-				if cur >= list.GetRowCount() {
-					cur = list.GetRowCount() - 1
-				}
-				if cur >= 0 {
-					list.Select(cur, 0)
-					if cur < len(a.ids) {
-						go a.showMessageWithoutFocus(a.ids[cur])
-						if a.aiSummaryVisible {
-							go a.generateOrShowSummary(a.ids[cur])
-						}
-					}
-				}
-				if list.GetRowCount() == 0 {
-					if tv, ok := a.views["text"].(*tview.TextView); ok {
-						tv.SetText("No messages")
-						tv.ScrollToBeginning()
-					}
-					if a.aiSummaryVisible && a.aiSummaryView != nil {
-						a.aiSummaryView.SetText("")
-					}
-				}
-			}
-			// Propagate to base snapshot if in local filter
-			a.baseRemoveByIDs(ids)
+        a.QueueUpdateDraw(func() {
+            a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
@@ -2907,6 +2736,7 @@ func (a *App) trashSelectedBulk() {
 		})
 	}()
 }
+*/
 
 // replySelected replies to the selected message (placeholder)
 func (a *App) replySelected() { a.showInfo("Reply functionality not yet implemented") }
