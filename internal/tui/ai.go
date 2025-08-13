@@ -119,7 +119,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 		a.QueueUpdateDraw(func() {
 			// Skip UI update if search is focused to avoid focus/content conflicts
 			if a.currentFocus == "search" {
-				a.showStatusMessage("🔕 Sugerencias de etiquetas desactivadas mientras buscas")
+				a.showStatusMessage("🔕 Label suggestions disabled while searching")
 				return
 			}
 			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
