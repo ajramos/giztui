@@ -338,7 +338,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					split.ResizeItem(a.labelsView, 0, 0)
 				}
 				a.labelsVisible = false
-				// Salir también de bulk si estaba activo
+                // Also exit bulk mode if it was active
 				if a.bulkMode {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
@@ -390,7 +390,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				split.AddItem(a.labelsView, 0, 1, false)
 			}
 			// While labels son visibles, solo tragamos flechas en la lista
-			// cuando el foco actual está en labels. Si el usuario cambia con
+            // when the current focus is in labels. If the user changes with
 			// Tab a la lista, las flechas deben funcionar normalmente.
 			if l, ok := a.views["list"].(*tview.Table); ok {
 				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
@@ -532,7 +532,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						}
 						// Also propagate removals to base snapshot in local filter mode
 						a.baseRemoveByIDs(idsToMove)
-						// Ajustar selección y contenido
+                        // Adjust selection and content
 						cur, _ := listView.GetSelection()
 						if cur >= listView.GetRowCount() {
 							cur = listView.GetRowCount() - 1
@@ -641,7 +641,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								a.showStatusMessage("✔️ Label already applied: " + v.name)
 							}
 						} else {
-							// Modo mover: reutiliza la misma lógica que el callback de la lista
+                            // Move mode: reuse the same logic as the list callback
 							go func(id, name string) {
 								idsToMove := []string{messageID}
 								if a.bulkMode && len(a.selected) > 0 {
@@ -1104,7 +1104,7 @@ func (a *App) openMovePanelBulk() {
 // addCustomLabelInline prompts for a name and applies/creates it
 func (a *App) addCustomLabelInline(messageID string) {
 	a.labelsExpanded = true
-	// Small hint so el usuario ve reacción inmediata
+    // Small hint so the user sees immediate feedback
 	a.showStatusMessage("➕ New label…")
 	if a.logger != nil {
 		a.logger.Printf("addCustomLabelInline: open mid=%s", messageID)

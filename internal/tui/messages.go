@@ -1404,7 +1404,7 @@ func (a *App) openAdvancedSearchForm() {
 			}
 			return nil
 		}
-		// Do NOT submit on Enter; solo al pulsar el botón "🔎 Search".
+    // Do NOT submit on Enter; only when pressing the "🔎 Search" button.
 		if ev.Key() == tcell.KeyEscape {
 			// In advanced search: first ESC closes the right options panel if open
 			if rightVisible {

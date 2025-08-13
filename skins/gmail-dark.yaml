@@ -13,8 +13,8 @@ gmailTUI:
       focusColor: "#6272a4"     # Color de bordes con foco
     
     title:
-      fgColor: "#f8f8f2"        # Color del título
-      bgColor: "#282a36"        # Fondo del título
+      fgColor: "#f8f8f2"        # Title color
+      bgColor: "#282a36"        # Title background
       highlightColor: "#f1fa8c" # Color de resaltado
       counterColor: "#50fa7b"   # Color del contador
       filterColor: "#8be9fd"    # Color del filtro
@@ -25,10 +25,10 @@ gmailTUI:
     headerFgColor: "#50fa7b"    # Color de headers
     headerBgColor: "#282a36"    # Fondo de headers
 
-  # Colores específicos para emails
+  # Specific colors for emails
   email:
-    unreadColor: "#ffb86c"      # Naranja para no leídos
-    readColor: "#6272a4"        # Gris para leídos
+    unreadColor: "#ffb86c"      # Orange for unread
+    readColor: "#6272a4"        # Gray for read
     importantColor: "#ff5555"   # Rojo para importantes
     sentColor: "#50fa7b"        # Verde para enviados
     draftColor: "#f1fa8c"       # Amarillo para borradores

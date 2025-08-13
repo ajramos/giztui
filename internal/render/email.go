@@ -32,22 +32,22 @@ func NewEmailColorer() *EmailColorer {
 	}
 }
 
-// ColorerFunc devuelve función de coloreo para emails
+// ColorerFunc returns a colorer function for emails
 func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.Color {
 	return func(message *googleGmail.Message, column string) tcell.Color {
 		switch strings.ToUpper(column) {
 		case "STATUS":
 			if ec.isUnread(message) {
-				return ec.UnreadColor // 🔵 Azul para no leído
+                return ec.UnreadColor // blue for unread
 			}
-			return ec.ReadColor // ⚪ Gris para leído
+            return ec.ReadColor // gray for read
 
 		case "FROM":
 			if ec.isImportant(message) {
 				return ec.ImportantColor // 🔴 Rojo para importante
 			}
 			if ec.isUnread(message) {
-				return ec.UnreadColor // 🟠 Naranja para no leído
+                return ec.UnreadColor // orange for unread
 			}
 			return tcell.ColorWhite
 
@@ -61,13 +61,13 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 			if ec.isUnread(message) {
 				return tcell.ColorWhite // ⚪ Blanco brillante
 			}
-			return ec.ReadColor // ⚫ Gris para leído
+            return ec.ReadColor // gray for read
 		}
 		return tcell.ColorWhite
 	}
 }
 
-// UpdateFromStyles actualiza colores desde configuración
+// UpdateFromStyles updates colors from configuration
 func (ec *EmailColorer) UpdateFromStyles(colors *config.ColorsConfig) {
 	ec.UnreadColor = colors.Email.UnreadColor.Color()
 	ec.ReadColor = colors.Email.ReadColor.Color()
@@ -152,7 +152,7 @@ func (er *EmailRenderer) SetShowSystemLabelsInList(v bool) { er.showSystemLabels
 
 // FormatEmailList formats an email for list display
 func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth int) (string, tcell.Color) {
-	// colorer no usado en la versión simple
+    // colorer not used in the simple version
 
 	// Extract sender name
 	senderName := er.extractSenderName(er.getHeader(message, "From"))
@@ -187,7 +187,7 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 
 	senderText := er.fitWidth(senderName, senderWidth)
 	subjectText := er.fitWidth(subject, subjectWidth)
-	// Fecha al final con alineación a la izquierda
+    // Date at the end, left aligned
 	dateText := er.fitWidth(date, dateWidth)
 
 	// Create formatted string with fixed columns: Sender | Subject(+suffix) | Date

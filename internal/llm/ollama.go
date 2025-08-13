@@ -62,18 +62,18 @@ func (c *Client) Generate(prompt string) (string, error) {
 
 	data, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo serializar la petición: %w", err)
+    return "", fmt.Errorf("could not serialize request: %w", err)
 	}
 
 	client := &http.Client{Timeout: c.Timeout}
 	resp, err := client.Post(c.Endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("falló la petición a Ollama: %w", err)
+    return "", fmt.Errorf("ollama request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Ollama devolvió estado %s", resp.Status)
+    return "", fmt.Errorf("ollama returned status %s", resp.Status)
 	}
 
 	var response Response
@@ -90,16 +90,16 @@ func (c *Client) GenerateWithParams(prompt string, params map[string]interface{}
 	reqBody := Request{Model: c.Model, Prompt: prompt, Stream: false, Options: params}
 	data, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo serializar la petición: %w", err)
+    return "", fmt.Errorf("could not serialize request: %w", err)
 	}
 	client := &http.Client{Timeout: c.Timeout}
 	resp, err := client.Post(c.Endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("falló la petición a Ollama: %w", err)
+    return "", fmt.Errorf("ollama request failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Ollama devolvió estado %s", resp.Status)
+    return "", fmt.Errorf("ollama returned status %s", resp.Status)
 	}
 	var response Response
 	dec := json.NewDecoder(resp.Body)

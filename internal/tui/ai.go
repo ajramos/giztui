@@ -100,13 +100,13 @@ func (a *App) generateOrShowSummary(messageID string) {
 		// Build prompt from configuration template, with a sensible fallback
 		template := strings.TrimSpace(a.Config.SummarizePrompt)
 		if template == "" {
-			template = "Resume brevemente el siguiente correo electrónico:\n\n{{body}}\n\nDevuelve el resumen en español en un párrafo."
+			template = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 		}
 		prompt := strings.ReplaceAll(template, "{{body}}", body)
 		resp, err := a.LLM.Generate(prompt)
 		if err != nil {
 			a.QueueUpdateDraw(func() {
-				// Mostrar detalle del error en el panel de resumen de IA (más grande)
+				// Show error details in the AI summary panel (larger area)
 				a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
 				a.aiSummaryView.ScrollToBeginning()
 				a.showLLMError("summarize", err)

@@ -237,7 +237,7 @@ func (a *App) bindKeys() {
 		case 'o':
 			// Avoid opening suggestions while advanced search is active
 			if a.currentFocus == "search" {
-				a.showStatusMessage("🔕 Sugerencias de etiquetas desactivadas mientras buscas")
+				a.showStatusMessage("🔕 Label suggestions disabled while searching")
 				return nil
 			}
 			go a.suggestLabel()
