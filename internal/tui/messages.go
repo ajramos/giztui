@@ -369,18 +369,37 @@ func (a *App) reloadMessages() {
 			r, _ := table.GetSelection()
 			if table.GetRowCount() > 0 && r < 0 {
 				table.Select(0, 0)
+				// Auto-load content for the first message
+				if len(a.ids) > 0 {
+					firstID := a.ids[0]
+					a.currentMessageID = firstID
+					go a.showMessageWithoutFocus(firstID)
+					if a.aiSummaryVisible {
+						go a.generateOrShowSummary(firstID)
+					}
+				}
 			}
 		}
 		// Final pass (in case of resize between frames)
 		a.reformatListItems()
+		// If advanced search is visible, keep focus on it
+		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
+			if f, fok := a.views["advFrom"].(*tview.InputField); fok {
+				a.currentFocus = "search"
+				a.updateFocusIndicators("search")
+				a.SetFocus(f)
+			}
+		}
 		// Stop spinner if running
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
-		// Force focus to list at the end of initial load
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
-		a.SetFocus(a.views["list"])
+		// Force focus to list unless advanced search is visible
+		if spt, ok := a.views["searchPanel"].(*tview.Flex); !(ok && spt.GetTitle() == "🔎 Advanced Search") {
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+			a.SetFocus(a.views["list"])
+		}
 	})
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
@@ -516,7 +535,8 @@ func (a *App) openSearchOverlay(mode string) {
 		ph = "Type words to match (space-separated)"
 	}
 	input := tview.NewInputField().
-		SetLabel("").
+		SetLabel("🔍 ").
+		SetLabelColor(tcell.ColorYellow).
 		SetFieldWidth(0).
 		SetPlaceholder(ph)
 	// expose input so Tab from list can focus it
@@ -543,7 +563,11 @@ func (a *App) openSearchOverlay(mode string) {
 	curMode := mode
 	input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
-			query := input.GetText()
+			query := strings.TrimSpace(input.GetText())
+			if query == "" && curMode == "remote" {
+				a.showStatusMessage("🔎 Enter a search query or press ESC to cancel")
+				return
+			}
 			// If there was an LLM suggestion running, inform user it was cancelled
 			if a.LLM != nil {
 				for k := range a.aiInFlight {
@@ -703,6 +727,8 @@ func (a *App) openAdvancedSearchForm() {
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
 	fromField := tview.NewInputField().SetLabel("👤 From").SetPlaceholder("user@example.com")
+	// Expose for focus restoration while background loads complete
+	a.views["advFrom"] = fromField
 	toField := tview.NewInputField().SetLabel("📩 To").SetPlaceholder("person@example.com")
 	subjectField := tview.NewInputField().SetLabel("🧾 Subject").SetPlaceholder("exact words or phrase")
 	hasField := tview.NewInputField().SetLabel("🔎 Has the words").SetPlaceholder("words here")
@@ -730,6 +756,68 @@ func (a *App) openAdvancedSearchForm() {
 		SetText(scopeVal).
 		SetPlaceholder("Press Enter to pick scope/label")
 	form.AddFormItem(scopeField)
+	// Expose fields for global navigation handling by storing the form itself
+	a.views["advForm"] = form
+	// Enable arrow-key navigation between fields
+	focusClamp := func(i int) int {
+		c := form.GetFormItemCount()
+		if c == 0 {
+			return 0
+		}
+		if i < 0 {
+			return 0
+		}
+		if i >= c {
+			return c - 1
+		}
+		return i
+	}
+	setNav := func(f *tview.InputField, idx int) {
+		f.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+			if a.logger != nil {
+				a.logger.Printf("advsearch: field[%d] key=%v rune=%q focus=%T", idx, ev.Key(), ev.Rune(), a.GetFocus())
+			}
+			switch ev.Key() {
+			case tcell.KeyUp:
+				next := focusClamp(idx - 1)
+				if a.logger != nil {
+					a.logger.Printf("advsearch: move Up %d -> %d", idx, next)
+				}
+				form.SetFocus(next)
+				return nil
+			case tcell.KeyDown:
+				next := focusClamp(idx + 1)
+				if a.logger != nil {
+					a.logger.Printf("advsearch: move Down %d -> %d", idx, next)
+				}
+				form.SetFocus(next)
+				return nil
+			case tcell.KeyTab:
+				next := focusClamp(idx + 1)
+				if a.logger != nil {
+					a.logger.Printf("advsearch: Tab %d -> %d", idx, next)
+				}
+				form.SetFocus(next)
+				return nil
+			case tcell.KeyBacktab:
+				next := focusClamp(idx - 1)
+				if a.logger != nil {
+					a.logger.Printf("advsearch: Backtab %d -> %d", idx, next)
+				}
+				form.SetFocus(next)
+				return nil
+			}
+			return ev
+		})
+	}
+	// Indices match the order added above
+	setNav(fromField, 0)
+	setNav(toField, 1)
+	setNav(subjectField, 2)
+	setNav(hasField, 3)
+	setNav(notField, 4)
+	setNav(sizeExprField, 5)
+	setNav(dateWithinField, 6)
 	// Attachment
 	var hasAttachment bool
 	form.AddCheckbox("Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
@@ -1086,6 +1174,11 @@ func (a *App) openAdvancedSearchForm() {
 		if a.logger != nil {
 			a.logger.Printf("advsearch: built query='%s'", q)
 		}
+		// If empty, keep the advanced search open and show a hint (align with simple search)
+		if strings.TrimSpace(q) == "" {
+			a.showStatusMessage("🔎 Search query cannot be empty")
+			return
+		}
 
 		// Restore main layout (list+content) and hide advanced search panel
 		if restoreLayout != nil {
@@ -1116,20 +1209,15 @@ func (a *App) openAdvancedSearchForm() {
 		}
 		submit()
 	})
-	form.AddButton("✖ Cancel", func() {
-		if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
-			lc.Clear()
-			lc.AddItem(a.views["searchPanel"], 0, 0, false)
-			lc.AddItem(a.views["list"], 0, 1, true)
-		}
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
-		a.SetFocus(a.views["list"])
-	})
 	form.SetBorder(false) // inner form without its own title; container shows the title
 	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		if a.logger != nil {
-			a.logger.Printf("advsearch: form key=%v rune=%q", ev.Key(), ev.Rune())
+			idx, _ := form.GetFocusedItemIndex()
+			title := ""
+			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+				title = sp.GetTitle()
+			}
+			a.logger.Printf("advsearch: form key=%v rune=%q focusIndex=%d title=%q", ev.Key(), ev.Rune(), idx, title)
 		}
 		// When a dropdown is open, intercept keys (ESC/tab/enter)
 		idx, _ := form.GetFocusedItemIndex()
@@ -1154,6 +1242,60 @@ func (a *App) openAdvancedSearchForm() {
 				}
 			}
 		}
+		// Arrow/Tab navigation between fields at form level
+		if ev.Key() == tcell.KeyDown || ev.Key() == tcell.KeyUp || ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
+			cur, btn := form.GetFocusedItemIndex()
+			items := form.GetFormItemCount()
+			unified := cur
+			if unified < 0 && btn >= 0 {
+				unified = items + btn
+			}
+			next := unified
+			switch ev.Key() {
+			case tcell.KeyDown, tcell.KeyTab:
+				next = unified + 1
+			case tcell.KeyUp, tcell.KeyBacktab:
+				next = unified - 1
+			}
+			if next < 0 {
+				next = 0
+			}
+			// Allow navigating into buttons: treat total = fields + buttons
+			total := items + form.GetButtonCount()
+			if total > 0 && next >= total {
+				next = total - 1
+			}
+			if a.logger != nil {
+				a.logger.Printf("advsearch: nav %v from %d to %d (items=%d buttons=%d)", ev.Key(), unified, next, items, form.GetButtonCount())
+			}
+			// If focusing a button index, map to button and force focus
+			if next >= items {
+				btnIdx := next - items
+				if btnIdx < form.GetButtonCount() {
+					if btn := form.GetButton(btnIdx); btn != nil {
+						a.SetFocus(btn)
+						a.currentFocus = "search"
+						a.updateFocusIndicators("search")
+						if a.logger != nil {
+							a.logger.Printf("advsearch: focusing button index=%d (next=%d items=%d)", btnIdx, next, items)
+						}
+						return nil
+					}
+				}
+			}
+			if item := form.GetFormItem(next); item != nil {
+				if p, ok := item.(tview.Primitive); ok {
+					a.SetFocus(p)
+					a.currentFocus = "search"
+					a.updateFocusIndicators("search")
+				} else {
+					form.SetFocus(next)
+				}
+			} else {
+				form.SetFocus(next)
+			}
+			return nil
+		}
 		// Do NOT submit on Enter; solo al pulsar el botón "🔎 Search".
 		if ev.Key() == tcell.KeyEscape {
 			// Return to simple search overlay instead of main list
@@ -1176,7 +1318,11 @@ func (a *App) openAdvancedSearchForm() {
 	// Mount as two vertical panes: left = advanced search, right = message content
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 		sp.Clear()
-		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+		sp.SetBorder(true).
+			SetBorderColor(tcell.ColorYellow).
+			SetTitle("🔎 Advanced Search").
+			SetTitleColor(tcell.ColorYellow).
+			SetTitleAlign(tview.AlignCenter)
 		twoCol := tview.NewFlex().SetDirection(tview.FlexColumn)
 		a.views["searchTwoCol"] = twoCol
 		twoCol.AddItem(form, 0, 2, true)
@@ -1231,7 +1377,7 @@ func (a *App) openAdvancedSearchForm() {
 
 		a.currentFocus = "search"
 		a.updateFocusIndicators("search")
-		a.SetFocus(form)
+		a.SetFocus(fromField)
 		return
 	}
 

@@ -270,8 +270,30 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// Focus toggle
+		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {
+			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
+				if frm, ok2 := a.views["advForm"].(*tview.Form); ok2 {
+					idx, _ := frm.GetFocusedItemIndex()
+					items := frm.GetFormItemCount()
+					buttons := frm.GetButtonCount()
+					if idx < 0 {
+						idx = items
+					}
+					next := idx + 1
+					total := items + buttons
+					if total > 0 && next >= total {
+						next = total - 1
+					}
+					frm.SetFocus(next)
+					if a.logger != nil {
+						a.logger.Printf("keys: Tab advsearch idx=%d -> next=%d (items=%d buttons=%d)", idx, next, items, buttons)
+					}
+					a.currentFocus = "search"
+					a.updateFocusIndicators("search")
+					return nil
+				}
+			}
 			a.toggleFocus()
 			return nil
 		}
