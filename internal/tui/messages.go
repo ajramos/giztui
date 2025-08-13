@@ -818,9 +818,9 @@ func (a *App) openAdvancedSearchForm() {
 	setNav(notField, 4)
 	setNav(sizeExprField, 5)
 	setNav(dateWithinField, 6)
-	// Attachment
-	var hasAttachment bool
-	form.AddCheckbox("Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
+    // Attachment
+    var hasAttachment bool
+    form.AddCheckbox("📎 Has attachment", false, func(label string, checked bool) { hasAttachment = checked })
 
 	// Load labels asynchronously to build picker options
 	go func() {
