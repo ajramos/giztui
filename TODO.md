@@ -3,10 +3,6 @@
 ## 🎯 Roadmap
 
 ## Priorities
-- Fix advanced search:
-    - Has attachment does not work
-    - Search within a date (see gmail specs)
-    - Email size
 - Improve status bar experience
 - Improve legend
 - See what happens with my self emailed emails
@@ -16,7 +12,7 @@
 - Pensar como aceptar reuniones o abrir enlaces
 - Sistema de configuracion de themes
 - Cuando termine de cargar los mensajes que se ponga en el primero y lo visualice
-- Marcar en lalista cuando tengo attachment
+- Marcar en la lista cuando tengo attachment
 
 
 ### Email Management

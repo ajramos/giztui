@@ -1140,25 +1140,63 @@ func (a *App) openAdvancedSearchForm() {
 				return
 			}
 		}
-		// Date within -> newer_than:N(unit)
+		// Date within -> compute symmetric window around today using after:/before:
+		// Accepts Nd, Nw, Nm, Ny (e.g., 3d, 1w, 2m, 1y)
 		if tok := strings.TrimSpace(dateWithinExpr); tok != "" {
-			// token like 2d, 3w, 1m, 4h, 6y
-			n := ""
+			numStr := ""
 			unit := ""
 			for i := 0; i < len(tok); i++ {
 				if tok[i] >= '0' && tok[i] <= '9' {
-					n += string(tok[i])
+					numStr += string(tok[i])
 				} else {
 					unit = strings.ToLower(strings.TrimSpace(tok[i:]))
 					break
 				}
 			}
-			if n != "" && unit != "" {
-				// Allow d,w,m,y,h (Gmail may ignore h/w in some cases)
-				switch unit[0] {
-				case 'd', 'w', 'm', 'y', 'h':
-					parts = append(parts, fmt.Sprintf("newer_than:%s%s", n, string(unit[0])))
+			valid := false
+			if numStr != "" && unit != "" {
+				// Parse amount
+				amount := 0
+				for i := 0; i < len(numStr); i++ {
+					amount = amount*10 + int(numStr[i]-'0')
 				}
+				if amount > 0 {
+					now := time.Now()
+					// Anchor at local date boundaries
+					anchor := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+					var start time.Time
+					var endExclusive time.Time
+					switch unit[0] {
+					case 'd':
+						start = anchor.AddDate(0, 0, -amount)
+						endExclusive = anchor.AddDate(0, 0, amount+1) // +1 day for exclusive before:
+						valid = true
+					case 'w':
+						days := amount * 7
+						start = anchor.AddDate(0, 0, -days)
+						endExclusive = anchor.AddDate(0, 0, days+1)
+						valid = true
+					case 'm':
+						start = anchor.AddDate(0, -amount, 0)
+						// end = anchor + amount months, then +1 day for exclusive before
+						endExclusive = anchor.AddDate(0, amount, 1)
+						valid = true
+					case 'y':
+						start = anchor.AddDate(-amount, 0, 0)
+						endExclusive = anchor.AddDate(amount, 0, 1)
+						valid = true
+					}
+					if valid {
+						// Format as YYYY/M/D without zero padding to match Gmail tolerance
+						format := "2006/1/2"
+						parts = append(parts, fmt.Sprintf("after:%s", start.Format(format)))
+						parts = append(parts, fmt.Sprintf("before:%s", endExclusive.Format(format)))
+					}
+				}
+			}
+			if !valid {
+				a.showStatusMessage("⏱️ Date must be like 3d, 1w, 2m or 1y")
+				return
 			}
 		}
 		// Scope and extra operators from the Search field
