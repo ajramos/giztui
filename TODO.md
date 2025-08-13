@@ -9,10 +9,9 @@
 - Text search `/` inside the email body
 - Think about sending items to Obsidian and Slack
 - Stream LLM output instead of full response
-- Accept meetings or open links (design UX)
+- Open links (design UX)
 - Theme configuration system
 - After loading messages, auto-select and render the first one
-- Show attachment indicator in the list
 - Vim-like navigation: jump to message by line number
 - Plugin system: extensible architecture to add custom functionality without touching the core
 - State management: consider MVU (Model-View-Update) for UI/state consistency (e.g., Bubble Tea)
