@@ -24,6 +24,9 @@ type Config struct {
 	LLMRegion  string `json:"llm_region"`
 	LLMAPIKey  string `json:"llm_api_key"`
 	LLMTimeout string `json:"llm_timeout"`
+    // Streaming
+    LLMStreamEnabled bool   `json:"llm_stream_enabled"`
+    LLMStreamChunkMs int    `json:"llm_stream_chunk_ms"`
 
 	// Prompt templates for LLM interactions
 	SummarizePrompt string `json:"summarize_prompt"`
@@ -95,7 +98,9 @@ func DefaultConfig() *Config {
 		LLMProvider:     "ollama",
 		LLMModel:        "llama3.2:latest",
 		LLMEndpoint:     "http://localhost:11434/api/generate",
-		LLMTimeout:      "20s",
+        LLMTimeout:      "20s",
+        LLMStreamEnabled: true,
+        LLMStreamChunkMs: 60,
 		SummarizePrompt: "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
 		ReplyPrompt:     "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
 		LabelPrompt:     "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",

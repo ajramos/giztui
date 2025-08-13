@@ -16,6 +16,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
 - ✅ **Summarize emails** - Generate concise email summaries
+- ✅ **Streaming summaries (Ollama)** - Incremental tokens render live in the summary pane
 - ✅ **Recommend labels** - Suggest appropriate labels for emails
 - ✅ **Configurable prompts** - All prompts are customizable
 - 🧪 **Generate replies** - Experimental (placeholder implementation)
@@ -194,7 +195,8 @@ You can use a pluggable LLM provider. Configure in `~/.config/gmail-tui/config.j
   "llm_model": "llama3.1:8b",
   "llm_endpoint": "http://localhost:11434/api/generate",
   "llm_api_key": "",
-  "llm_timeout": "20s"
+  "llm_timeout": "20s",
+  "llm_stream_enabled": true
 }
 ```
 
@@ -462,6 +464,7 @@ An optional LLM “touch-up” layer can adjust whitespace/line breaks for nicer
 Notes:
 - Moving with arrow keys previews messages using deterministic formatting only (no LLM calls). LLM is applied when you open a message (Enter) and the indicator is `🧠`.
 - The status bar shows progress like “🧠 Optimizing format with LLM…” while processing.
+- When streaming is enabled and supported (Ollama), summaries appear incrementally with status “🧠 Streaming summary…”. If streaming is unavailable, it falls back to a single final render.
 
 ### Configuration
 

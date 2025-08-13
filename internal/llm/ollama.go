@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
+    "context"
 )
 
 // Provider defines a generic LLM interface
@@ -20,6 +22,12 @@ type Provider interface {
 type ParamProvider interface {
 	Provider
 	GenerateWithParams(prompt string, params map[string]interface{}) (string, error)
+}
+
+// StreamProvider optionally supports streaming token callbacks
+type StreamProvider interface {
+    Provider
+    GenerateStream(ctx context.Context, prompt string, onToken func(string)) error
 }
 
 // Client represents an Ollama client for local LLM interactions
@@ -78,8 +86,8 @@ func (c *Client) Generate(prompt string) (string, error) {
 
 	var response Response
 	dec := json.NewDecoder(resp.Body)
-	if err := dec.Decode(&response); err != nil {
-		return "", fmt.Errorf("no se pudo decodificar la respuesta de Ollama: %w", err)
+    if err := dec.Decode(&response); err != nil {
+        return "", fmt.Errorf("could not decode Ollama response: %w", err)
 	}
 
 	return strings.TrimSpace(response.Response), nil
@@ -103,10 +111,58 @@ func (c *Client) GenerateWithParams(prompt string, params map[string]interface{}
 	}
 	var response Response
 	dec := json.NewDecoder(resp.Body)
-	if err := dec.Decode(&response); err != nil {
-		return "", fmt.Errorf("no se pudo decodificar la respuesta de Ollama: %w", err)
+    if err := dec.Decode(&response); err != nil {
+        return "", fmt.Errorf("could not decode Ollama response: %w", err)
 	}
 	return strings.TrimSpace(response.Response), nil
+}
+
+// GenerateStream streams tokens from Ollama and invokes onToken for each response chunk
+func (c *Client) GenerateStream(ctx context.Context, prompt string, onToken func(string)) error {
+    reqBody := Request{Model: c.Model, Prompt: prompt, Stream: true}
+    data, err := json.Marshal(reqBody)
+    if err != nil {
+        return fmt.Errorf("could not serialize request: %w", err)
+    }
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.Endpoint, bytes.NewReader(data))
+    if err != nil {
+        return fmt.Errorf("ollama request build failed: %w", err)
+    }
+    req.Header.Set("Content-Type", "application/json")
+    client := &http.Client{Timeout: 0} // streaming; rely on ctx for cancellation
+    resp, err := client.Do(req)
+    if err != nil {
+        return fmt.Errorf("ollama request failed: %w", err)
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("ollama returned status %s", resp.Status)
+    }
+    dec := json.NewDecoder(resp.Body)
+    for {
+        select {
+        case <-ctx.Done():
+            return ctx.Err()
+        default:
+        }
+        var chunk struct {
+            Response string `json:"response"`
+            Done     bool   `json:"done"`
+        }
+        if err := dec.Decode(&chunk); err != nil {
+            if err == io.EOF {
+                break
+            }
+            return fmt.Errorf("ollama stream decode error: %w", err)
+        }
+        if chunk.Response != "" && onToken != nil {
+            onToken(chunk.Response)
+        }
+        if chunk.Done {
+            break
+        }
+    }
+    return nil
 }
 
 // Name returns provider name

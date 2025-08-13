@@ -1,12 +1,13 @@
 package tui
 
 import (
-	"encoding/json"
-	"sort"
-	"strings"
+    "context"
+    "encoding/json"
+    "sort"
+    "strings"
 
-	"github.com/derailed/tcell/v2"
-	"github.com/derailed/tview"
+    "github.com/derailed/tcell/v2"
+    "github.com/derailed/tview"
 )
 
 // toggleAISummary shows/hides the AI summary pane and triggers generation if needed
@@ -77,7 +78,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 	a.aiSummaryView.SetText("🧠 Summarizing…")
 	a.aiSummaryView.ScrollToBeginning()
 	a.setStatusPersistent("🧠 Summarizing…")
-	a.aiInFlight[messageID] = true
+    a.aiInFlight[messageID] = true
 	go func(id string) {
 		m, err := a.Client.GetMessageWithContent(id)
 		if err != nil {
@@ -102,8 +103,50 @@ func (a *App) generateOrShowSummary(messageID string) {
 		if template == "" {
 			template = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 		}
-		prompt := strings.ReplaceAll(template, "{{body}}", body)
-		resp, err := a.LLM.Generate(prompt)
+        prompt := strings.ReplaceAll(template, "{{body}}", body)
+        // Try streaming for Ollama if enabled
+        if a.Config != nil && a.Config.LLMStreamEnabled {
+            if prov, ok := a.LLM.(interface{ Name() string }); ok && prov.Name() == "ollama" {
+                if streamer, ok2 := a.LLM.(interface{ GenerateStream(context.Context, string, func(string)) error }); ok2 {
+                    var b strings.Builder
+                    a.QueueUpdateDraw(func() {
+                        a.aiSummaryView.SetText("")
+                        a.setStatusPersistent("🧠 Streaming summary…")
+                    })
+                    ctx, cancel := context.WithCancel(a.ctx)
+                    err := streamer.GenerateStream(ctx, prompt, func(tok string) {
+                        b.WriteString(tok)
+                        a.QueueUpdateDraw(func() {
+                            a.aiSummaryView.SetText(sanitizeForTerminal(b.String()))
+                        })
+                    })
+                    cancel()
+                    if err != nil {
+                        a.QueueUpdateDraw(func() {
+                            a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
+                            a.aiSummaryView.ScrollToBeginning()
+                            a.showLLMError("summarize", err)
+                        })
+                        delete(a.aiInFlight, id)
+                        return
+                    }
+                    resp := b.String()
+                    a.aiSummaryCache[id] = resp
+                    delete(a.aiInFlight, id)
+                    a.QueueUpdateDraw(func() {
+                        if a.currentFocus == "search" {
+                            a.setStatusPersistent("")
+                            return
+                        }
+                        a.aiSummaryView.SetText(sanitizeForTerminal(resp))
+                        a.aiSummaryView.ScrollToBeginning()
+                        a.showStatusMessage("✅ Summary ready")
+                    })
+                    return
+                }
+            }
+        }
+        resp, err := a.LLM.Generate(prompt)
 		if err != nil {
 			a.QueueUpdateDraw(func() {
 				// Show error details in the AI summary panel (larger area)
