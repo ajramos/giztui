@@ -85,7 +85,17 @@ func (a *App) reformatListItems() {
 			SetExpansion(1).
 			SetAlign(tview.AlignLeft)
 		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
-			cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+			// If this row is the focused selection, let SelectedStyle (blue) show through; otherwise white background
+			if table != nil {
+				cur, _ := table.GetSelection()
+				if cur == i {
+					cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+				} else {
+					cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+				}
+			} else {
+				cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+			}
 		} else {
 			cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		}

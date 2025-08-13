@@ -59,7 +59,8 @@ func (a *App) bindKeys() {
 					}
 					a.reformatListItems()
 					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, ESC=exit")
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite))
+					// Keep focus highlight consistent (blue) even in Bulk mode
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					return nil
 				}
 				// toggle selection
@@ -90,7 +91,8 @@ func (a *App) bindKeys() {
 					}
 					a.reformatListItems()
 					a.setStatusPersistent("Bulk mode — space/b=select, *=all, a=archive, d=trash, m=move, ESC=exit")
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite))
+					// Keep focus highlight consistent (blue) even in Bulk mode
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 				} else {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
@@ -343,6 +345,8 @@ func (a *App) bindKeys() {
 					go a.generateOrShowSummary(id)
 				}
 				a.currentMessageID = id
+				// Re-render list items so bulk selection backgrounds update when focus moves
+				a.reformatListItems()
 			}
 		})
 	}
