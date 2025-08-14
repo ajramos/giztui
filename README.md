@@ -16,6 +16,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
 - ✅ **Summarize emails** - Generate concise email summaries
+- ✅ **AI summaries local cache (SQLite)** - Reuse previously generated summaries across sessions
 - ✅ **Streaming summaries (Ollama)** - Incremental tokens render live in the summary pane
 - ✅ **Recommend labels** - Suggest appropriate labels for emails
 - ✅ **Configurable prompts** - All prompts are customizable
@@ -172,6 +173,7 @@ The application uses a unified configuration directory structure:
 | `m` | Move message (choose label) |
 | `M` | Toggle Markdown rendering |
 | `y` | Toggle AI summary |
+| `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
 | `o` | Suggest label |
 | `q` | Quit |
@@ -263,6 +265,31 @@ Example configuration snippet:
 Notes:
 - If a prompt is empty or missing, a sensible default will be used.
 - Changes to `config.json` are picked up on application start. Please restart the app after editing the configuration.
+- When streaming is enabled and supported (Ollama), summaries appear incrementally with status “🧠 Streaming summary…”. If streaming is unavailable, it falls back to a single final render.
+
+## 🧰 Local Cache (SQLite)
+
+The app uses an embedded SQLite database (no external server) to cache AI summaries:
+
+- Default location: `~/.config/gmail-tui/cache/gmail-<account_email>.sqlite3`
+- Per-account separation by filename
+- PRAGMAs tuned for TUI (WAL, foreign keys, timeouts)
+
+Configuration snippet:
+
+```json
+{
+  "ai_summary_cache_enabled": true,
+  "ai_summary_cache_path": ""
+}
+```
+
+- If `ai_summary_cache_path` is empty, a sensible per-account default is used; otherwise, the given path is used as the DB file or directory.
+
+### Summary refresh
+
+- Press `Y` (uppercase) to forcefully regenerate the AI summary for the current message (ignores cache).
+- Command mode: `:summary refresh`.
 
 ### Layout Controls
 

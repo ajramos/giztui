@@ -314,6 +314,9 @@ func (a *App) bindKeys() {
 			case 'y':
 				a.toggleAISummary()
 				return nil
+			case 'Y':
+				go a.forceRegenerateSummary()
+				return nil
 			case 'g':
 				a.showStatusMessage("💬 Generate reply: placeholder")
 				return nil

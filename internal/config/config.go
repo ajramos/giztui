@@ -28,6 +28,10 @@ type Config struct {
 	LLMStreamEnabled bool `json:"llm_stream_enabled"`
 	LLMStreamChunkMs int  `json:"llm_stream_chunk_ms"`
 
+	// AI summary cache (SQLite)
+	AISummaryCacheEnabled bool   `json:"ai_summary_cache_enabled"`
+	AISummaryCachePath    string `json:"ai_summary_cache_path"`
+
 	// Prompt templates for LLM interactions
 	SummarizePrompt string `json:"summarize_prompt"`
 	ReplyPrompt     string `json:"reply_prompt"`
@@ -93,21 +97,23 @@ type KeyBindings struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		OllamaTimeout:    "30s",
-		LLMEnabled:       true,
-		LLMProvider:      "ollama",
-		LLMModel:         "llama3.2:latest",
-		LLMEndpoint:      "http://localhost:11434/api/generate",
-		LLMTimeout:       "20s",
-		LLMStreamEnabled: true,
-		LLMStreamChunkMs: 60,
-		SummarizePrompt:  "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
-		ReplyPrompt:      "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
-		LabelPrompt:      "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
-		TouchUpPrompt:    "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
-		Layout:           DefaultLayoutConfig(),
-		Keys:             DefaultKeyBindings(),
-		LogFile:          "",
+		OllamaTimeout:         "30s",
+		LLMEnabled:            true,
+		LLMProvider:           "ollama",
+		LLMModel:              "llama3.2:latest",
+		LLMEndpoint:           "http://localhost:11434/api/generate",
+		LLMTimeout:            "20s",
+		LLMStreamEnabled:      true,
+		LLMStreamChunkMs:      60,
+		AISummaryCacheEnabled: true,
+		AISummaryCachePath:    "",
+		SummarizePrompt:       "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
+		ReplyPrompt:           "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
+		LabelPrompt:           "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
+		TouchUpPrompt:         "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
+		Layout:                DefaultLayoutConfig(),
+		Keys:                  DefaultKeyBindings(),
+		LogFile:               "",
 	}
 }
 

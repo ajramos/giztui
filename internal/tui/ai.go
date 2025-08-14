@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -68,6 +69,18 @@ func (a *App) generateOrShowSummary(messageID string) {
 		a.aiSummaryView.ScrollToBeginning()
 		a.setStatusPersistent("🤖 Summary loaded from cache")
 		return
+	}
+	// Try to load from SQLite cache before generating
+	if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+			if sum, ok, _ := a.cacheStore.LoadAISummary(a.ctx, strings.ToLower(email), messageID); ok && strings.TrimSpace(sum) != "" {
+				a.aiSummaryCache[messageID] = sum
+				a.aiSummaryView.SetText(sanitizeForTerminal(sum))
+				a.aiSummaryView.ScrollToBeginning()
+				a.setStatusPersistent("🤖 Summary loaded from local DB cache")
+				return
+			}
+		}
 	}
 	if a.aiInFlight[messageID] {
 		a.aiSummaryView.SetText("🧠 Summarizing…")
@@ -134,6 +147,11 @@ func (a *App) generateOrShowSummary(messageID string) {
 					}
 					resp := b.String()
 					a.aiSummaryCache[id] = resp
+					if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+						if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+							go a.cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+						}
+					}
 					delete(a.aiInFlight, id)
 					a.QueueUpdateDraw(func() {
 						if a.currentFocus == "search" {
@@ -160,6 +178,11 @@ func (a *App) generateOrShowSummary(messageID string) {
 			return
 		}
 		a.aiSummaryCache[id] = resp
+		if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+			if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+				go a.cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+			}
+		}
 		delete(a.aiInFlight, id)
 		a.QueueUpdateDraw(func() {
 			// Skip UI update if search is focused to avoid focus/content conflicts
@@ -172,6 +195,25 @@ func (a *App) generateOrShowSummary(messageID string) {
 			a.showStatusMessage("✅ Summary ready")
 		})
 	}(messageID)
+}
+
+// forceRegenerateSummary clears caches and regenerates the summary for the current message
+func (a *App) forceRegenerateSummary() {
+	id := a.getCurrentMessageID()
+	if id == "" {
+		a.showError("No message selected")
+		return
+	}
+	// Remove from in-memory cache
+	delete(a.aiSummaryCache, id)
+	// Remove from SQLite cache (best-effort)
+	if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+			_ = a.cacheStore.DeleteAISummary(a.ctx, strings.ToLower(email), id)
+		}
+	}
+	a.setStatusPersistent("♻️ Regenerating summary…")
+	go a.generateOrShowSummary(id)
 }
 
 // suggestLabel suggests a label using LLM

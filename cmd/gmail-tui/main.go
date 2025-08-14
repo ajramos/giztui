@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ajramos/gmail-tui/internal/cache"
 	"github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
@@ -163,8 +164,37 @@ func main() {
 		}
 	}
 
+	// Optional: open cache store for AI summaries (and future features)
+	var store *cache.Store
+	if cfg.AISummaryCacheEnabled {
+		email, _ := gmailClient.ActiveAccountEmail(ctx)
+		baseDir := filepath.Join(os.Getenv("HOME"), ".config", "gmail-tui", "cache")
+		if cfg.AISummaryCachePath != "" {
+			baseDir = cfg.AISummaryCachePath
+		}
+		dbPath := baseDir
+		if ext := filepath.Ext(baseDir); ext == "" || ext == "." {
+			safe := strings.ToLower(strings.TrimSpace(email))
+			safe = strings.NewReplacer("/", "_", "\\", "_", ":", "_", "@", "_", " ", "_").Replace(safe)
+			if safe == "" {
+				safe = "default"
+			}
+			dbPath = filepath.Join(baseDir, safe+".sqlite3")
+		}
+		if st, err := cache.Open(ctx, dbPath); err == nil {
+			store = st
+		} else {
+			log.Printf("Warning: could not open cache store: %v", err)
+		}
+	}
+
 	// Create and run TUI
 	app := tui.NewApp(gmailClient, calClient, llmProvider, cfg)
+	// Inject store if available (setter preferred; using unexported field would break encapsulation)
+	if store != nil {
+		// Provide a small helper in TUI to register the store without breaking module boundaries
+		app.RegisterCacheStore(store)
+	}
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/cache"
 	calclient "github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
@@ -88,6 +89,9 @@ type App struct {
 
 	// Calendar invite cache (parsed from text/calendar parts)
 	inviteCache map[string]Invite // messageID -> invite metadata
+
+	// Cache store (SQLite)
+	cacheStore *cache.Store
 
 	// Debug logging
 	debug   bool
@@ -295,6 +299,11 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 	})
 
 	return app
+}
+
+// RegisterCacheStore wires a cache.Store into the App for local caching features
+func (a *App) RegisterCacheStore(store *cache.Store) {
+	a.cacheStore = store
 }
 
 // applyTheme loads theme colors and updates the email renderer

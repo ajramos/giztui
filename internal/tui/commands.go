@@ -341,6 +341,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLabelsCommand(args)
 	case "search", "s":
 		a.executeSearchCommand(args)
+	case "summary":
+		a.executeSummaryCommand(args)
 	case "rsvp":
 		a.executeRSVPCommand(args)
 	case "inbox", "i":
@@ -453,6 +455,20 @@ func (a *App) executeSearchCommand(args []string) {
 	}
 	query := strings.Join(args, " ")
 	go a.performSearch(query)
+}
+
+// executeSummaryCommand handles :summary commands
+func (a *App) executeSummaryCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: summary <refresh>")
+		return
+	}
+	switch strings.ToLower(args[0]) {
+	case "refresh", "regenerate", "update":
+		go a.forceRegenerateSummary()
+	default:
+		a.showError("Usage: summary <refresh>")
+	}
 }
 
 // executeInboxCommand handles inbox commands
