@@ -179,7 +179,7 @@ func (a *App) restoreLocalBaseSnapshot() {
 		a.currentQuery = ""
 		a.localFilter = ""
 		a.nextPageToken = next
-		a.ids = ids
+		a.SetMessageIDs(ids)
 		a.messagesMeta = metas
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.Clear()
@@ -244,21 +244,24 @@ func (a *App) exitSearch() {
 
 // reloadMessages loads messages from the inbox
 func (a *App) reloadMessages() {
+	// Reset modes/state with minimal locking
 	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	a.draftMode = false
-	if table, ok := a.views["list"].(*tview.Table); ok {
-		table.Clear()
-	}
-	a.ids = []string{}
-	a.messagesMeta = []*gmailapi.Message{}
+	a.mu.Unlock()
 
-	// Initial title before we know page size
-	if table, ok := a.views["list"].(*tview.Table); ok {
-		table.SetTitle(" 🔄 Loading messages... ")
-	}
-	a.Draw()
+	// Clear list UI and state safely on UI thread
+	a.QueueUpdateDraw(func() {
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+			table.SetTitle(" 🔄 Loading messages... ")
+		}
+	})
+	// Clear cached IDs using thread-safe method
+	a.ClearMessageIDs()
+	// Clear message metadata under lock
+	a.mu.Lock()
+	a.messagesMeta = []*gmailapi.Message{}
+	a.mu.Unlock()
 
 	// If coming from remote search mode, clear it on full reload
 	if a.searchMode == "remote" {
@@ -294,6 +297,16 @@ func (a *App) reloadMessages() {
 	// Usar ancho disponible actual del list (simple, sin watchers)
 	screenWidth := a.getFormatWidth()
 
+	// Preload labels once for renderer context (avoid per-row API calls)
+	if labels, err := a.Client.ListLabels(); err == nil {
+		m := make(map[string]string, len(labels))
+		for _, l := range labels {
+			m[l.Id] = l.Name
+		}
+		a.emailRenderer.SetLabelMap(m)
+		a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+	}
+
 	// Spinner with progress once we know how many items are coming
 	var spinnerStop chan struct{}
 	loaded := 0
@@ -324,7 +337,8 @@ func (a *App) reloadMessages() {
 
 	// Process messages using the email renderer (progressive paint + color)
 	for i, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+		// Append ID thread-safely (no long-held lock here)
+		a.AppendMessageID(msg.Id)
 
 		// Get only metadata, not full content
 		message, err := a.Client.GetMessage(msg.Id)
@@ -335,15 +349,6 @@ func (a *App) reloadMessages() {
 			continue
 		}
 
-		// Update renderer context (labels map + system visibility policy)
-		if labels, err := a.Client.ListLabels(); err == nil {
-			m := make(map[string]string, len(labels))
-			for _, l := range labels {
-				m[l.Id] = l.Name
-			}
-			a.emailRenderer.SetLabelMap(m)
-			a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
-		}
 		// Use the email renderer to format the message (with 📎/🗓️ and label chips)
 		formattedText, _ := a.emailRenderer.FormatEmailList(message, screenWidth)
 
@@ -362,8 +367,10 @@ func (a *App) reloadMessages() {
 			formattedText = "○ " + formattedText
 		}
 
-		// cache meta for resize re-rendering
+		// cache meta for resize re-rendering (protect shared slice)
+		a.mu.Lock()
 		a.messagesMeta = append(a.messagesMeta, message)
+		a.mu.Unlock()
 
 		// Paint row and apply colors immediately
 		a.QueueUpdateDraw(func() {
@@ -393,7 +400,7 @@ func (a *App) reloadMessages() {
 				// Auto-load content for the first message
 				if len(a.ids) > 0 {
 					firstID := a.ids[0]
-					a.currentMessageID = firstID
+					a.SetCurrentMessageID(firstID)
 					go a.showMessageWithoutFocus(firstID)
 					if a.aiSummaryVisible {
 						go a.generateOrShowSummary(firstID)
@@ -484,32 +491,27 @@ func (a *App) loadMoreMessages() {
 		}()
 	}
 	screenWidth := a.getFormatWidth()
+	// Preload labels once for this page
+	if labels, err := a.Client.ListLabels(); err == nil {
+		m := make(map[string]string, len(labels))
+		for _, l := range labels {
+			m[l.Id] = l.Name
+		}
+		a.emailRenderer.SetLabelMap(m)
+		a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+	}
 	for _, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+		a.AppendMessageID(msg.Id)
 		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
 			continue
 		}
+		a.mu.Lock()
 		a.messagesMeta = append(a.messagesMeta, meta)
+		a.mu.Unlock()
 		// Set placeholder cell; colors will be applied by reformatListItems below
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
-			if labels, err := a.Client.ListLabels(); err == nil {
-				m := make(map[string]string, len(labels))
-				for _, l := range labels {
-					m[l.Id] = l.Name
-				}
-				a.emailRenderer.SetLabelMap(m)
-				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
-			}
-			if labels, err := a.Client.ListLabels(); err == nil {
-				m := make(map[string]string, len(labels))
-				for _, l := range labels {
-					m[l.Id] = l.Name
-				}
-				a.emailRenderer.SetLabelMap(m)
-				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
-			}
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
 			cell := tview.NewTableCell(text).
 				SetExpansion(1).
@@ -534,7 +536,7 @@ func (a *App) loadMoreMessages() {
 func (a *App) appendMessages(messages []*gmailapi.Message) {
 	screenWidth := a.getFormatWidth()
 	for _, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+		a.AppendMessageID(msg.Id)
 		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
 			continue
@@ -1611,7 +1613,7 @@ func (a *App) applyLocalFilter(expr string) {
 		a.localFilter = expr
 		// Replace current view with filtered content BEFORE selecting rows to ensure
 		// selection handlers reference the filtered ids/meta, not the previous inbox
-		a.ids = filteredIDs
+		a.SetMessageIDs(filteredIDs)
 		a.messagesMeta = filteredMeta
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.Clear()
@@ -1647,7 +1649,7 @@ func (a *App) showMessage(id string) {
 	a.SetFocus(a.views["text"])
 	a.currentFocus = "text"
 	a.updateFocusIndicators("text")
-	a.currentMessageID = id
+	a.SetCurrentMessageID(id)
 
 	a.Draw()
 
@@ -1849,7 +1851,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 		text.SetText("Loading message...")
 		text.ScrollToBeginning()
 	}
-	a.currentMessageID = id
+	a.SetCurrentMessageID(id)
 
 	go func() {
 		if a.debug {

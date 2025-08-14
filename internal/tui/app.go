@@ -424,6 +424,74 @@ func (a *App) SetMessageIDs(ids []string) {
 	copy(a.ids, ids)
 }
 
+// setMessageIDsUnsafe sets message IDs without locking (for use when mutex is already held)
+func (a *App) setMessageIDsUnsafe(ids []string) {
+	a.ids = make([]string, len(ids))
+	copy(a.ids, ids)
+}
+
+// AppendMessageID appends a message ID thread-safely
+func (a *App) AppendMessageID(id string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.ids = append(a.ids, id)
+}
+
+// appendMessageIDUnsafe appends a message ID without locking (for use when mutex is already held)
+func (a *App) appendMessageIDUnsafe(id string) {
+	a.ids = append(a.ids, id)
+}
+
+// ClearMessageIDs clears all message IDs thread-safely
+func (a *App) ClearMessageIDs() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.ids = []string{}
+}
+
+// clearMessageIDsUnsafe clears all message IDs without locking (for use when mutex is already held)
+func (a *App) clearMessageIDsUnsafe() {
+	a.ids = []string{}
+}
+
+// RemoveMessageIDAt removes a message ID at the specified index thread-safely
+func (a *App) RemoveMessageIDAt(index int) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if index < 0 || index >= len(a.ids) {
+		return false
+	}
+	a.ids = append(a.ids[:index], a.ids[index+1:]...)
+	return true
+}
+
+// RemoveMessageIDByValue removes the first occurrence of a message ID thread-safely
+func (a *App) RemoveMessageIDByValue(id string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, msgID := range a.ids {
+		if msgID == id {
+			a.ids = append(a.ids[:i], a.ids[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveMessageIDsInPlace removes IDs that exist in the provided map, using in-place filtering
+func (a *App) RemoveMessageIDsInPlace(toRemove map[string]bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	i := 0
+	for i < len(a.ids) {
+		if _, ok := toRemove[a.ids[i]]; ok {
+			a.ids = append(a.ids[:i], a.ids[i+1:]...)
+		} else {
+			i++
+		}
+	}
+}
+
 // IsRunning returns whether the app is running thread-safely
 func (a *App) IsRunning() bool {
 	a.mu.RLock()
@@ -694,7 +762,7 @@ func (a *App) performSearch(query string) {
 	}
 
 	// Reset state and show spinner
-	a.ids = []string{}
+	a.ClearMessageIDs()
 	a.messagesMeta = []*gmailapi.Message{}
 	a.nextPageToken = next
 	a.searchMode = "remote"
@@ -738,7 +806,7 @@ func (a *App) performSearch(query string) {
 
 	screenWidth := a.getFormatWidth()
 	for _, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+		a.AppendMessageID(msg.Id)
 		meta, err := a.Client.GetMessage(msg.Id)
 		if err != nil {
 			continue
@@ -763,7 +831,7 @@ func (a *App) performSearch(query string) {
 				table.Select(0, 0)
 				if len(a.ids) > 0 {
 					firstID := a.ids[0]
-					a.currentMessageID = firstID
+					a.SetCurrentMessageID(firstID)
 					go a.showMessageWithoutFocus(firstID)
 					if a.aiSummaryVisible {
 						go a.generateOrShowSummary(firstID)
@@ -862,199 +930,6 @@ func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied b
 }
 
 // moved to messages_actions.go
-/*func (a *App) trashSelected() {
-	var messageID string
-	var selectedIndex int = -1
-
-	// Get the current message ID based on focus
-	if a.currentFocus == "list" {
-		// Get from list view (Table)
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("❌ Could not access message list")
-			return
-		}
-
-		selectedIndex, _ = list.GetSelection()
-		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-			a.showError("❌ No message selected")
-			return
-		}
-
-		messageID = a.ids[selectedIndex]
-	} else if a.currentFocus == "text" {
-		// Get from text view - read selection from Table
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("❌ Could not access message list")
-			return
-		}
-
-		selectedIndex, _ = list.GetSelection()
-		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-			a.showError("❌ No message selected")
-			return
-		}
-
-		messageID = a.ids[selectedIndex]
-	} else if a.currentFocus == "summary" {
-		// From AI summary: operate on the selected row in the table
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("❌ Could not access message list")
-			return
-		}
-		selectedIndex, _ = list.GetSelection()
-		if selectedIndex < 0 || selectedIndex >= len(a.ids) {
-			a.showError("❌ No message selected")
-			return
-		}
-		messageID = a.ids[selectedIndex]
-	} else {
-		a.showError("❌ Unknown focus state")
-		return
-	}
-
-	if messageID == "" {
-		a.showError("❌ Invalid message ID")
-		return
-	}
-
-	// Get the current message to show confirmation
-	message, err := a.Client.GetMessage(messageID)
-	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
-		return
-	}
-
-	// Extract subject for confirmation
-	subject := "Unknown subject"
-	if message.Payload != nil && message.Payload.Headers != nil {
-		for _, header := range message.Payload.Headers {
-			if header.Name == "Subject" {
-				subject = header.Value
-				break
-			}
-		}
-	}
-
-	// Move message to trash
-	err = a.Client.TrashMessage(messageID)
-	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
-		return
-	}
-
-	// Show success message
-	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
-
-	// Remove the message from the list and adjust selection (UI thread)
-	if selectedIndex >= 0 && selectedIndex < len(a.ids) {
-		a.QueueUpdateDraw(func() {
-			list, ok := a.views["list"].(*tview.Table)
-			if !ok {
-				return
-			}
-			count := list.GetRowCount()
-			if count == 0 {
-				return
-			}
-
-			// Determine index to remove; fix selection if it's invalid
-			removeIndex, _ := list.GetSelection()
-			if removeIndex < 0 || removeIndex >= count {
-				removeIndex = 0
-			}
-
-			// Compute next selection relative to the current list before removal
-			next := -1
-			if count > 1 {
-				next = removeIndex
-				if next >= count-1 {
-					next = count - 2
-				}
-				if next < 0 {
-					next = 0
-				}
-				// Ensure table has a valid current selection before removal
-				list.Select(removeIndex, 0)
-			}
-
-			// Remove visually with safe pre-selection to avoid tview RemoveItem bug when removing current index 0
-			if count == 1 {
-				// Update caches
-				if removeIndex >= 0 && removeIndex < len(a.ids) {
-					a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
-				}
-				if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
-					a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
-				}
-				list.Clear()
-				next = -1
-			} else {
-				// Choose a pre-selection different from the removal index
-				preSelect := removeIndex - 1
-				if removeIndex == 0 {
-					preSelect = 1
-				}
-				if preSelect < 0 {
-					preSelect = 0
-				}
-				if preSelect >= count {
-					preSelect = count - 1
-				}
-				list.Select(preSelect, 0)
-
-				// Update caches prior to visual removal
-				if removeIndex >= 0 && removeIndex < len(a.ids) {
-					a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
-				}
-				if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
-					a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
-				}
-
-				// Now remove the visual item
-				if removeIndex >= 0 && removeIndex < list.GetRowCount() {
-					list.RemoveRow(removeIndex)
-				}
-
-				// Determine next selection post-removal: keep the same visual position if possible
-				newCount := list.GetRowCount()
-				if next >= 0 && next < newCount {
-					list.Select(next, 0)
-				} else if newCount > 0 {
-					next = 0
-					list.Select(0, 0)
-				} else {
-					next = -1
-				}
-			}
-
-			// Update title after caches changed
-			list.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-
-			// Update message content pane
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				if next >= 0 && next < len(a.ids) {
-					go a.showMessageWithoutFocus(a.ids[next])
-					if a.aiSummaryVisible {
-						go a.generateOrShowSummary(a.ids[next])
-					}
-				} else {
-					text.SetText("No messages")
-					text.ScrollToBeginning()
-					if a.aiSummaryVisible && a.aiSummaryView != nil {
-						a.aiSummaryView.SetText("")
-					}
-				}
-			}
-			// Also propagate to base snapshot if in local filter
-			if messageID != "" {
-				a.baseRemoveByID(messageID)
-			}
-		})
-	}
-}*/
 
 // (moved to labels.go) manageLabels
 

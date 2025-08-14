@@ -178,7 +178,7 @@ func (a *App) toggleMarkdown() {
 		a.showError("❌ No message selected")
 		return
 	}
-	a.currentMessageID = mid
+	a.SetCurrentMessageID(mid)
 	// Show immediate feedback while formatting
 	if !a.llmTouchUpEnabled {
 		a.setStatusPersistent("🧠 Enabling LLM touch-up…")

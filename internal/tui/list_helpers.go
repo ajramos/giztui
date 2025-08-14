@@ -42,7 +42,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 
 	// Update caches using removeIndex
 	if removeIndex >= 0 && removeIndex < len(a.ids) {
-		a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+		a.RemoveMessageIDAt(removeIndex)
 	}
 	if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
 		a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)
@@ -110,7 +110,7 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 	i := 0
 	for i < len(a.ids) {
 		if _, ok := rm[a.ids[i]]; ok {
-			a.ids = append(a.ids[:i], a.ids[i+1:]...)
+			a.RemoveMessageIDAt(i)
 			if i < len(a.messagesMeta) {
 				a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 			}

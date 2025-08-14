@@ -512,17 +512,17 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						a.labelsVisible = false
 						a.labelsExpanded = false
 						// Eliminar todos los movidos de la lista/ids/meta
-						rm := make(map[string]struct{}, len(idsToMove))
+						rm := make(map[string]bool, len(idsToMove))
 						for _, mid := range idsToMove {
-							rm[mid] = struct{}{}
+							rm[mid] = true
 						}
+						// Remove message IDs using thread-safe helper
+						a.RemoveMessageIDsInPlace(rm)
+						// Also remove from messagesMeta and listView in sync
 						i := 0
-						for i < len(a.ids) {
-							if _, ok := rm[a.ids[i]]; ok {
-								a.ids = append(a.ids[:i], a.ids[i+1:]...)
-								if i < len(a.messagesMeta) {
-									a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-								}
+						for i < len(a.messagesMeta) {
+							if a.messagesMeta[i] != nil && rm[a.messagesMeta[i].Id] {
+								a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 								if i < listView.GetRowCount() {
 									listView.RemoveRow(i)
 								}
@@ -673,17 +673,17 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 									a.labelsVisible = false
 									a.labelsExpanded = false
-									rm := make(map[string]struct{}, len(idsToMove))
+									rm := make(map[string]bool, len(idsToMove))
 									for _, mid := range idsToMove {
-										rm[mid] = struct{}{}
+										rm[mid] = true
 									}
+									// Remove message IDs using thread-safe helper
+									a.RemoveMessageIDsInPlace(rm)
+									// Also remove from messagesMeta and listView in sync
 									i := 0
-									for i < len(a.ids) {
-										if _, ok := rm[a.ids[i]]; ok {
-											a.ids = append(a.ids[:i], a.ids[i+1:]...)
-											if i < len(a.messagesMeta) {
-												a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-											}
+									for i < len(a.messagesMeta) {
+										if a.messagesMeta[i] != nil && rm[a.messagesMeta[i].Id] {
+											a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 											if i < listView.GetRowCount() {
 												listView.RemoveRow(i)
 											}
@@ -1277,10 +1277,10 @@ func (a *App) showMessagesForLabel(messages []*gmailapi.Message, labelName strin
 	messagesList.SetTitle(fmt.Sprintf(" 📧 Messages with label: %s ", labelName))
 
 	// Clear current IDs and populate with new messages
-	a.ids = []string{}
+	a.ClearMessageIDs()
 
 	for i, msg := range messages {
-		a.ids = append(a.ids, msg.Id)
+		a.AppendMessageID(msg.Id)
 
 		// Get message details
 		message, err := a.Client.GetMessageWithContent(msg.Id)
@@ -1611,8 +1611,8 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 						next = pre
 					}
 					// Update caches using removeIndex
-					if removeIndex >= 0 && removeIndex < len(a.ids) {
-						a.ids = append(a.ids[:removeIndex], a.ids[removeIndex+1:]...)
+					if removeIndex >= 0 && removeIndex < len(a.GetMessageIDs()) {
+						a.RemoveMessageIDAt(removeIndex)
 					}
 					if removeIndex >= 0 && removeIndex < len(a.messagesMeta) {
 						a.messagesMeta = append(a.messagesMeta[:removeIndex], a.messagesMeta[removeIndex+1:]...)

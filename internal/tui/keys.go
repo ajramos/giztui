@@ -364,7 +364,7 @@ func (a *App) bindKeys() {
 				if a.aiSummaryVisible {
 					go a.generateOrShowSummary(id)
 				}
-				a.currentMessageID = id
+				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
 				a.reformatListItems()
 			}
