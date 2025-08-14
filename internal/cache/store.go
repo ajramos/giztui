@@ -317,6 +317,26 @@ func (s *Store) SetSyncState(ctx context.Context, key, value string) error {
 	return err
 }
 
+// Stats returns counts for tables and last_history_id if present
+func (s *Store) Stats(ctx context.Context) (map[string]int64, string, error) {
+	if s == nil || s.db == nil {
+		return nil, "", fmt.Errorf("cache store not initialized")
+	}
+	q := func(table string) int64 {
+		var n int64
+		_ = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&n)
+		return n
+	}
+	stats := map[string]int64{
+		"ai_summaries":  q("ai_summaries"),
+		"messages_meta": q("messages_meta"),
+		"messages_body": q("messages_body"),
+		"labels":        q("labels"),
+	}
+	last, _, _ := s.GetSyncState(ctx, "last_history_id")
+	return stats, last, nil
+}
+
 // ClearAISummaries deletes all AI summaries
 func (s *Store) ClearAISummaries(ctx context.Context) error {
 	if s == nil || s.db == nil {

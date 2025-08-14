@@ -188,6 +188,19 @@
 
 ## 🚀 Deployment & Distribution
 
+---
+
+## Intelligent Cache (Phase 1) — Status
+
+- [x] AI summaries cached on SQLite (disk) with in-memory layer
+- [x] Prefetch bodies for top N messages after reload
+- [x] Preload recent message metadata from cache on startup
+- [x] History API wrappers: `GetCurrentHistoryID`, `ListHistorySince`
+- [x] Incremental sync: baseline + apply visible updates, update `last_history_id`
+- [x] Commands: `:cache stats|clear-*`, `:sync`
+- [ ] Background policy for cache invalidation (size/age) and scheduled VACUUM
+- [ ] Tests for cache store and sync paths
+
 ### Build System
 - [ ] **Cross-platform builds** - Support builds for different platforms
 - [ ] **Release process** - Automate release process
