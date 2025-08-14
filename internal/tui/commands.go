@@ -326,6 +326,10 @@ func (a *App) completeCommand() {
 
 // executeCommand executes the current command
 func (a *App) executeCommand(cmd string) {
+	// Accept optional leading ':' like Vim-style commands
+	if strings.HasPrefix(cmd, ":") {
+		cmd = strings.TrimSpace(cmd[1:])
+	}
 	a.addToHistory(cmd)
 
 	parts := strings.Fields(cmd)
@@ -351,6 +355,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args)
 	case "cache":
 		a.executeCacheCommand(args)
+	case "sync":
+		go a.syncIncremental()
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
 	case "quit", "q":
@@ -531,7 +537,18 @@ func (a *App) executeCacheCommand(args []string) {
 			_ = a.cacheStore.ClearSyncState(a.ctx)
 			a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ Sync state cleared") })
 		}()
+	case "stats":
+		go func() {
+			stats, last, err := a.cacheStore.Stats(a.ctx)
+			a.QueueUpdateDraw(func() {
+				if err != nil {
+					a.showError("❌ Cache stats error")
+					return
+				}
+				a.setStatusPersistent(fmt.Sprintf("🧮 Cache: meta=%d body=%d summaries=%d labels=%d last_history_id=%s", stats["messages_meta"], stats["messages_body"], stats["ai_summaries"], stats["labels"], last))
+			})
+		}()
 	default:
-		a.showError("Usage: cache <clear|clear-all|clear-summaries|clear-messages|clear-sync>")
+		a.showError("Usage: cache <clear|clear-all|clear-summaries|clear-messages|clear-sync|stats>")
 	}
 }

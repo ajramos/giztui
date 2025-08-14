@@ -186,6 +186,77 @@ func (c *Client) SearchMessagesPage(query string, maxResults int64, pageToken st
 	return res.Messages, res.NextPageToken, nil
 }
 
+// GetCurrentHistoryID returns the current mailbox historyId (baseline for incremental sync)
+func (c *Client) GetCurrentHistoryID(ctx context.Context) (uint64, error) {
+	if c == nil || c.Service == nil {
+		return 0, fmt.Errorf("gmail client not initialized")
+	}
+	prof, err := c.Service.Users.GetProfile("me").Context(ctx).Do()
+	if err != nil || prof == nil {
+		return 0, fmt.Errorf("could not get profile: %w", err)
+	}
+	// Gmail API returns int64; cast to uint64 safely
+	if prof.HistoryId < 0 {
+		return 0, fmt.Errorf("invalid history id")
+	}
+	return uint64(prof.HistoryId), nil
+}
+
+// ListHistorySince lists message IDs changed since the provided history ID.
+// Returns a unique set of message IDs that were added/updated/removed and the latest historyId observed.
+func (c *Client) ListHistorySince(ctx context.Context, since uint64, maxPages int) ([]string, uint64, error) {
+	if c == nil || c.Service == nil {
+		return nil, 0, fmt.Errorf("gmail client not initialized")
+	}
+	if maxPages <= 0 {
+		maxPages = 5
+	}
+	call := c.Service.Users.History.List("me").StartHistoryId(since)
+	ids := make(map[string]struct{}, 128)
+	var latest uint64 = since
+	pages := 0
+	for {
+		res, err := call.Context(ctx).Do()
+		if err != nil {
+			return nil, latest, fmt.Errorf("could not list history: %w", err)
+		}
+		// Collect IDs from top-level messages, and from added/deleted structs
+		for _, h := range res.History {
+			if uint64(h.Id) > latest {
+				latest = uint64(h.Id)
+			}
+			for _, m := range h.Messages {
+				if m != nil && m.Id != "" {
+					ids[m.Id] = struct{}{}
+				}
+			}
+			for _, a := range h.MessagesAdded {
+				if a.Message != nil && a.Message.Id != "" {
+					ids[a.Message.Id] = struct{}{}
+				}
+			}
+			for _, d := range h.MessagesDeleted {
+				if d.Message != nil && d.Message.Id != "" {
+					ids[d.Message.Id] = struct{}{}
+				}
+			}
+		}
+		if res.NextPageToken == "" {
+			break
+		}
+		pages++
+		if pages >= maxPages {
+			break
+		}
+		call = call.PageToken(res.NextPageToken)
+	}
+	out := make([]string, 0, len(ids))
+	for id := range ids {
+		out = append(out, id)
+	}
+	return out, latest, nil
+}
+
 // ListDrafts returns draft messages
 func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 	user := "me"

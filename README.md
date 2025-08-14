@@ -269,11 +269,11 @@ Notes:
 
 ## 🧰 Local Cache (SQLite)
 
-The app uses an embedded SQLite database (no external server) to cache AI summaries:
+The app uses an embedded SQLite database (no external server) to cache data locally for speed and offline-friendly behavior.
 
 - Default location: `~/.config/gmail-tui/cache/gmail-<account_email>.sqlite3`
 - Per-account separation by filename
-- PRAGMAs tuned for TUI (WAL, foreign keys, timeouts)
+- PRAGMAs tuned for TUI (WAL, foreign keys, busy_timeout, synchronous)
 
 Configuration snippet:
 
@@ -286,10 +286,42 @@ Configuration snippet:
 
 - If `ai_summary_cache_path` is empty, a sensible per-account default is used; otherwise, the given path is used as the DB file or directory.
 
-### Summary refresh
+### AI Summaries Cache
 
+- Summaries are cached on disk after first generation and reused across sessions.
 - Press `Y` (uppercase) to forcefully regenerate the AI summary for the current message (ignores cache).
 - Command mode: `:summary refresh`.
+
+### Message Cache (Phase 1)
+
+Phase 1 introduces a lightweight cache for message metadata and bodies to improve responsiveness and reduce API calls:
+
+- What is cached:
+  - `messages_meta`: message id, thread id, snippet, internal date, label ids, history id
+  - `messages_body`: plain text and HTML body (rendering uses plain text primarily)
+  - `labels`: label id → name mapping (used for list chips)
+  - `sync_state`: stores `last_history_id` baseline for incremental sync
+
+- Startup behavior:
+  - Preload recent message metadata from disk to paint the list immediately.
+  - Refresh from Gmail in the background and repaint.
+  - Prefetch bodies for the top ~15 messages in background to speed up first opens.
+
+- Incremental sync (Gmail History API):
+  - On first run, the app initializes a baseline (`last_history_id`).
+  - Subsequent runs fetch changes since the baseline and update the visible rows + cache.
+  - Status messages:
+    - `🔄 Syncing…` while fetching changes
+    - `✅ Synced N` when changes are applied
+    - `✅ Up to date` when there are no changes
+
+- Commands for cache and sync:
+  - `:cache stats` — show counts for `ai_summaries`, `messages_meta`, `messages_body`, `labels` and the `last_history_id` (persistent on the status bar)
+  - `:cache clear-all` — clear summaries, messages, and sync state
+  - `:cache clear-summaries` — clear only AI summaries
+  - `:cache clear-messages` — clear only message metadata and bodies
+  - `:cache clear-sync` — clear only sync state
+  - `:sync` — force an incremental synchronization right now
 
 ### Layout Controls
 
@@ -306,7 +338,7 @@ Configuration snippet:
 - Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`).
 - Suggestions: shown live in brackets on the right. `↑/↓` navigate history; `Enter` executes.
 
-Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
+Supported commands: `labels`, `search`, `inbox`, `compose`, `summary`, `rsvp`, `cache`, `sync`, `help`, `quit`
 
 RSVP (meeting invites):
 

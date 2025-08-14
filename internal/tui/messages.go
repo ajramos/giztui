@@ -506,6 +506,163 @@ func (a *App) reloadMessages() {
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
 	// Keep currentFocus list during loading; focus is enforced above on completion
+
+	// After initial load, kick a background prefetch of message bodies for top N items
+	go a.prefetchBodiesTopN(15)
+
+	// Start an incremental sync in background (baseline or apply small changes)
+	go a.syncIncremental()
+}
+
+// prefetchBodiesTopN fetches and persists bodies for the first N ids lacking body cache
+func (a *App) prefetchBodiesTopN(n int) {
+	if n <= 0 {
+		return
+	}
+	if a.cacheStore == nil {
+		return
+	}
+	ids := append([]string(nil), a.ids...)
+	if len(ids) > n {
+		ids = ids[:n]
+	}
+	for _, id := range ids {
+		// Skip if already cached in memory
+		if _, ok := a.messageCache[id]; ok {
+			continue
+		}
+		// Skip if stored on disk
+		if _, _, ok, _ := a.cacheStore.GetMessageBody(a.ctx, id); ok {
+			continue
+		}
+		// Fetch and persist
+		m, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			continue
+		}
+		a.messageCache[id] = m
+		_ = a.cacheStore.UpsertMessageBody(a.ctx, id, m.PlainText, m.HTML, time.Now().Unix())
+		if m.Message != nil {
+			labelsJSON, _ := json.Marshal(m.Message.LabelIds)
+			_ = a.cacheStore.UpsertMessageMeta(a.ctx, cache.MessageMeta{
+				ID:           m.Message.Id,
+				ThreadID:     m.Message.ThreadId,
+				Snippet:      m.Message.Snippet,
+				InternalDate: m.Message.InternalDate,
+				LabelIDsJSON: string(labelsJSON),
+				HistoryID:    int64(m.Message.HistoryId),
+				UpdatedAt:    time.Now().Unix(),
+				LastAccessed: time.Now().Unix(),
+			})
+		}
+	}
+}
+
+// syncIncremental performs a lightweight downward sync using Gmail History API
+func (a *App) syncIncremental() {
+	if a.Client == nil || a.cacheStore == nil {
+		return
+	}
+	// Load last_history_id baseline
+	lastStr, ok, _ := a.cacheStore.GetSyncState(a.ctx, "last_history_id")
+	if !ok || strings.TrimSpace(lastStr) == "" {
+		// Initialize baseline to current history and return without applying changes
+		hid, err := a.Client.GetCurrentHistoryID(a.ctx)
+		if err != nil {
+			return
+		}
+		_ = a.cacheStore.SetSyncState(a.ctx, "last_history_id", fmt.Sprintf("%d", hid))
+		if a.logger != nil {
+			a.logger.Printf("sync: initialized baseline historyId=%d", hid)
+		}
+		a.QueueUpdateDraw(func() { a.showStatusMessage("✅ Sync baseline initialized") })
+		return
+	}
+	// Parse last history id
+	var last uint64
+	{
+		var n uint64
+		for i := 0; i < len(lastStr); i++ {
+			c := lastStr[i]
+			if c < '0' || c > '9' {
+				n = 0
+				break
+			}
+			n = n*10 + uint64(c-'0')
+		}
+		last = n
+	}
+	a.QueueUpdateDraw(func() { a.setStatusPersistent("🔄 Syncing…") })
+	// Ask for history changes (cap pages to keep it cheap)
+	ids, latest, err := a.Client.ListHistorySince(a.ctx, last, 3)
+	if err != nil {
+		a.QueueUpdateDraw(func() { a.showError("❌ Sync error"); a.setStatusPersistent("") })
+		return
+	}
+	if latest <= last {
+		a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ Up to date") })
+		return
+	}
+	// Build a set of visible ids to limit UI updates
+	visible := make(map[string]int, len(a.ids))
+	for i, id := range a.ids {
+		visible[id] = i
+	}
+	updated := 0
+	for _, id := range ids {
+		row, ok := visible[id]
+		if !ok {
+			continue
+		}
+		// Refresh metadata (not body) to update list row
+		meta, err := a.Client.GetMessage(id)
+		if err != nil || meta == nil {
+			continue
+		}
+		// Replace in memory slice
+		if row >= 0 && row < len(a.messagesMeta) {
+			a.messagesMeta[row] = meta
+		}
+		// Persist meta best-effort
+		labelsJSON, _ := json.Marshal(meta.LabelIds)
+		_ = a.cacheStore.UpsertMessageMeta(a.ctx, cache.MessageMeta{
+			ID:           meta.Id,
+			ThreadID:     meta.ThreadId,
+			Snippet:      meta.Snippet,
+			InternalDate: meta.InternalDate,
+			LabelIDsJSON: string(labelsJSON),
+			HistoryID:    int64(meta.HistoryId),
+			UpdatedAt:    time.Now().Unix(),
+			LastAccessed: time.Now().Unix(),
+		})
+		// Re-render the row on UI thread
+		func(row int, m *gmailapi.Message) {
+			text, _ := a.emailRenderer.FormatEmailList(m, a.getFormatWidth())
+			// Add unread indicator
+			unread := false
+			for _, l := range m.LabelIds {
+				if l == "UNREAD" {
+					unread = true
+					break
+				}
+			}
+			if unread {
+				text = "● " + text
+			} else {
+				text = "○ " + text
+			}
+			a.QueueUpdateDraw(func() {
+				if table, ok := a.views["list"].(*tview.Table); ok {
+					cell := tview.NewTableCell(text).SetExpansion(1).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+					table.SetCell(row, 0, cell)
+				}
+			})
+		}(row, meta)
+		updated++
+	}
+	// Save new baseline
+	_ = a.cacheStore.SetSyncState(a.ctx, "last_history_id", fmt.Sprintf("%d", latest))
+	a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage(fmt.Sprintf("✅ Synced %d", updated)) })
 }
 
 // loadMoreMessages fetches the next page of inbox and appends to list
