@@ -15,6 +15,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
 	"github.com/ajramos/gmail-tui/internal/render"
+	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -116,6 +117,14 @@ type App struct {
 
 	// Formatting toggles
 	llmTouchUpEnabled bool
+
+	// Services (new architecture)
+	emailService services.EmailService
+	aiService    services.AIService
+	labelService services.LabelService
+	cacheService services.CacheService
+	repository   services.MessageRepository
+	errorHandler *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
@@ -298,12 +307,156 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		return false
 	})
 
+	// Initialize services
+	app.initServices()
+
 	return app
 }
 
 // RegisterCacheStore wires a cache.Store into the App for local caching features
 func (a *App) RegisterCacheStore(store *cache.Store) {
 	a.cacheStore = store
+	// Re-initialize cache service if store is available
+	if a.cacheStore != nil && a.cacheService == nil {
+		a.cacheService = services.NewCacheService(a.cacheStore)
+		// Re-initialize AI service with cache if LLM is available
+		if a.LLM != nil && a.aiService == nil {
+			a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		}
+	}
+}
+
+// initServices initializes the service layer for better architecture
+func (a *App) initServices() {
+	// Initialize repository
+	a.repository = services.NewMessageRepository(a.Client)
+
+	// Initialize label service
+	a.labelService = services.NewLabelService(a.Client)
+
+	// Initialize cache service if store is available
+	if a.cacheStore != nil {
+		a.cacheService = services.NewCacheService(a.cacheStore)
+	}
+
+	// Initialize AI service if LLM provider is available
+	if a.LLM != nil {
+		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+	}
+
+	// Initialize email service
+	a.emailService = services.NewEmailService(a.repository, a.Client, a.emailRenderer)
+
+	// Initialize error handler
+	a.initErrorHandler()
+}
+
+// initErrorHandler initializes the centralized error handler
+func (a *App) initErrorHandler() {
+	// Find status view
+	var statusView *tview.TextView
+	if view, exists := a.views["status"]; exists {
+		if tv, ok := view.(*tview.TextView); ok {
+			statusView = tv
+		}
+	}
+
+	// Find flash view
+	var flashView *tview.TextView
+	if a.flash != nil && a.flash.textView != nil {
+		if tv, ok := a.flash.textView.(*tview.TextView); ok {
+			flashView = tv
+		}
+	}
+
+	// Create error handler
+	a.errorHandler = NewErrorHandler(a.Application, statusView, flashView, a.logger)
+}
+
+// Thread-safe state access methods
+
+// GetCurrentView returns the current view name thread-safely
+func (a *App) GetCurrentView() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.currentView
+}
+
+// SetCurrentView sets the current view name thread-safely
+func (a *App) SetCurrentView(view string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.currentView = view
+}
+
+// GetCurrentMessageID returns the current message ID thread-safely
+func (a *App) GetCurrentMessageID() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.currentMessageID
+}
+
+// SetCurrentMessageID sets the current message ID thread-safely
+func (a *App) SetCurrentMessageID(messageID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.currentMessageID = messageID
+}
+
+// GetMessageIDs returns a copy of message IDs thread-safely
+func (a *App) GetMessageIDs() []string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	ids := make([]string, len(a.ids))
+	copy(ids, a.ids)
+	return ids
+}
+
+// SetMessageIDs sets message IDs thread-safely
+func (a *App) SetMessageIDs(ids []string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.ids = make([]string, len(ids))
+	copy(a.ids, ids)
+}
+
+// IsRunning returns whether the app is running thread-safely
+func (a *App) IsRunning() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.running
+}
+
+// SetRunning sets the running state thread-safely
+func (a *App) SetRunning(running bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.running = running
+}
+
+// GetScreenSize returns the current screen dimensions thread-safely
+func (a *App) GetScreenSize() (int, int) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.screenWidth, a.screenHeight
+}
+
+// SetScreenSize sets the screen dimensions thread-safely
+func (a *App) SetScreenSize(width, height int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.screenWidth = width
+	a.screenHeight = height
+}
+
+// GetErrorHandler returns the error handler for centralized error handling
+func (a *App) GetErrorHandler() *ErrorHandler {
+	return a.errorHandler
+}
+
+// GetServices returns the service instances for business logic operations
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository
 }
 
 // applyTheme loads theme colors and updates the email renderer

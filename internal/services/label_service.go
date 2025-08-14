@@ -1,0 +1,106 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/ajramos/gmail-tui/internal/gmail"
+	gmail_v1 "google.golang.org/api/gmail/v1"
+)
+
+// LabelServiceImpl implements LabelService
+type LabelServiceImpl struct {
+	gmailClient *gmail.Client
+}
+
+// NewLabelService creates a new label service
+func NewLabelService(gmailClient *gmail.Client) *LabelServiceImpl {
+	return &LabelServiceImpl{
+		gmailClient: gmailClient,
+	}
+}
+
+func (s *LabelServiceImpl) ListLabels(ctx context.Context) ([]*gmail_v1.Label, error) {
+	labels, err := s.gmailClient.ListLabels()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list labels: %w", err)
+	}
+
+	return labels, nil
+}
+
+func (s *LabelServiceImpl) CreateLabel(ctx context.Context, name string) (*gmail_v1.Label, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("label name cannot be empty")
+	}
+
+	label, err := s.gmailClient.CreateLabel(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create label: %w", err)
+	}
+
+	return label, nil
+}
+
+func (s *LabelServiceImpl) RenameLabel(ctx context.Context, labelID, newName string) (*gmail_v1.Label, error) {
+	if strings.TrimSpace(labelID) == "" || strings.TrimSpace(newName) == "" {
+		return nil, fmt.Errorf("labelID and newName cannot be empty")
+	}
+
+	label, err := s.gmailClient.RenameLabel(labelID, newName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rename label: %w", err)
+	}
+
+	return label, nil
+}
+
+func (s *LabelServiceImpl) DeleteLabel(ctx context.Context, labelID string) error {
+	if strings.TrimSpace(labelID) == "" {
+		return fmt.Errorf("labelID cannot be empty")
+	}
+
+	if err := s.gmailClient.DeleteLabel(labelID); err != nil {
+		return fmt.Errorf("failed to delete label: %w", err)
+	}
+
+	return nil
+}
+
+func (s *LabelServiceImpl) ApplyLabel(ctx context.Context, messageID, labelID string) error {
+	if strings.TrimSpace(messageID) == "" || strings.TrimSpace(labelID) == "" {
+		return fmt.Errorf("messageID and labelID cannot be empty")
+	}
+
+	if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
+		return fmt.Errorf("failed to apply label: %w", err)
+	}
+
+	return nil
+}
+
+func (s *LabelServiceImpl) RemoveLabel(ctx context.Context, messageID, labelID string) error {
+	if strings.TrimSpace(messageID) == "" || strings.TrimSpace(labelID) == "" {
+		return fmt.Errorf("messageID and labelID cannot be empty")
+	}
+
+	if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
+		return fmt.Errorf("failed to remove label: %w", err)
+	}
+
+	return nil
+}
+
+func (s *LabelServiceImpl) GetMessageLabels(ctx context.Context, messageID string) ([]string, error) {
+	if strings.TrimSpace(messageID) == "" {
+		return nil, fmt.Errorf("messageID cannot be empty")
+	}
+
+	message, err := s.gmailClient.GetMessage(messageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message: %w", err)
+	}
+
+	return s.gmailClient.ExtractLabels(message), nil
+}

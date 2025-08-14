@@ -98,69 +98,76 @@ func main() {
 	gmailClient := gmail.NewClient(service)
 
 	// Initialize Calendar service (Calendar-only RSVP)
-	calSvc, err := auth.NewCalendarService(ctx, credPath, tokenPath,
-		"https://www.googleapis.com/auth/calendar.events",
-	)
-	if err != nil {
-		log.Printf("Warning: could not initialize Calendar (RSVP via API disabled): %v", err)
-	}
 	var calClient *calendar.Client
-	if calSvc != nil {
+	if calSvc, err := auth.NewCalendarService(ctx, credPath, tokenPath,
+		"https://www.googleapis.com/auth/calendar.events",
+	); err == nil && calSvc != nil {
 		calClient = calendar.NewClient(calSvc)
+	} else if err != nil {
+		log.Printf("Warning: could not initialize Calendar service: %v", err)
 	}
 
-	// Initialize LLM provider if enabled
-	var llmProvider llm.Provider
-	endpoint := cfg.LLMEndpoint
-	model := cfg.LLMModel
-	timeout := cfg.GetLLMTimeout()
-	providerName := cfg.LLMProvider
-	region := cfg.LLMRegion
-	if endpoint == "" && cfg.OllamaEndpoint != "" {
-		endpoint = cfg.OllamaEndpoint
-	}
-	if model == "" && cfg.OllamaModel != "" {
-		model = cfg.OllamaModel
-	}
-	if cfg.OllamaTimeout != "" {
-		timeout = cfg.GetOllamaTimeout()
-	}
+	// Handle LLM configuration overrides
 	if *ollamaEndpointFlag != "" {
-		endpoint = *ollamaEndpointFlag
+		cfg.OllamaEndpoint = *ollamaEndpointFlag
+		cfg.LLMEndpoint = *ollamaEndpointFlag
 	}
 	if *ollamaModelFlag != "" {
-		model = *ollamaModelFlag
+		cfg.OllamaModel = *ollamaModelFlag
+		cfg.LLMModel = *ollamaModelFlag
 	}
 	if *ollamaTimeoutFlag != 0 {
-		timeout = *ollamaTimeoutFlag
+		cfg.OllamaTimeout = ollamaTimeoutFlag.String()
+		cfg.LLMTimeout = ollamaTimeoutFlag.String()
 	}
 	if *llmProviderFlag != "" {
-		providerName = *llmProviderFlag
+		cfg.LLMProvider = *llmProviderFlag
 	}
 	if *llmModelFlag != "" {
-		model = *llmModelFlag
+		cfg.LLMModel = *llmModelFlag
 	}
 	if *llmRegionFlag != "" {
-		region = *llmRegionFlag
+		cfg.LLMRegion = *llmRegionFlag
 	}
-	if providerName == "" {
-		providerName = "ollama"
-	}
-	if cfg.LLMEnabled && model != "" {
-		// For Bedrock, use region; for Ollama, use endpoint
-		arg := endpoint
-		if providerName == "bedrock" {
-			if region == "" {
-				if env := os.Getenv("AWS_REGION"); env != "" {
-					region = env
-				}
-			}
-			arg = region
+
+	// Initialize LLM provider
+	var llmProvider llm.Provider
+	if cfg.LLMEnabled {
+		model := cfg.LLMModel
+		if model == "" && cfg.OllamaModel != "" {
+			model = cfg.OllamaModel
 		}
-		var err error
-		llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLMAPIKey)
-		if err != nil {
-			log.Printf("Warning: could not initialize LLM provider (%s): %v", providerName, err)
+
+		timeout := cfg.GetLLMTimeout()
+		if cfg.OllamaTimeout != "" {
+			timeout = cfg.GetOllamaTimeout()
+		}
+
+		if model != "" {
+			providerName := cfg.LLMProvider
+			if providerName == "" {
+				providerName = "ollama"
+			}
+
+			arg := cfg.LLMEndpoint
+			if arg == "" && cfg.OllamaEndpoint != "" {
+				arg = cfg.OllamaEndpoint
+			}
+
+			if providerName == "bedrock" {
+				region := cfg.LLMRegion
+				if region == "" {
+					if env := os.Getenv("AWS_REGION"); env != "" {
+						region = env
+					}
+				}
+				arg = region
+			}
+			var err error
+			llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLMAPIKey)
+			if err != nil {
+				log.Printf("Warning: could not initialize LLM provider (%s): %v", providerName, err)
+			}
 		}
 	}
 
@@ -200,3 +207,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+

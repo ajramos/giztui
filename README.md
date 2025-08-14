@@ -46,14 +46,30 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 
 ## 🏗️ Architecture
 
+Gmail TUI uses a **clean, service-oriented architecture** with proper separation of concerns, thread-safe state management, and centralized error handling.
+
+### 📁 Project Structure
 ```
 gmail-tui/
 ├── cmd/gmail-tui/          # Main application entry point
 ├── internal/               # Private application code
-│   ├── config/            # Configuration management
-│   ├── gmail/             # Gmail API client
-│   ├── llm/               # Ollama client
-│   └── tui/               # User interface
+│   ├── cache/             # SQLite caching system
+│   ├── calendar/          # Google Calendar integration
+│   ├── config/            # Configuration management & theming
+│   ├── gmail/             # Gmail API client wrapper
+│   ├── llm/               # Multi-provider LLM support (Ollama, Bedrock)
+│   ├── render/            # Email rendering & formatting
+│   ├── services/          # 🆕 Business logic service layer
+│   │   ├── interfaces.go  # Service contracts
+│   │   ├── email_service.go    # Email operations
+│   │   ├── ai_service.go       # AI/LLM operations
+│   │   ├── label_service.go    # Label management
+│   │   ├── cache_service.go    # Cache operations
+│   │   └── repository.go       # Data access layer
+│   └── tui/               # Terminal User Interface
+│       ├── app.go         # Main application with service integration
+│       ├── error_handler.go   # 🆕 Centralized error handling
+│       └── ...            # UI components & views
 ├── pkg/                   # Reusable packages
 │   ├── auth/              # OAuth2 authentication
 │   └── utils/             # General utilities
@@ -61,6 +77,62 @@ gmail-tui/
 ├── examples/              # Usage examples
 └── README.md
 ```
+
+### 🔧 Service Architecture
+
+The application now follows a **layered architecture** with clear separation between UI, business logic, and data access:
+
+#### 📊 **Service Layer** (`internal/services/`)
+- **EmailService**: High-level email operations (compose, send, archive, etc.)
+- **AIService**: LLM integration with caching and streaming support  
+- **LabelService**: Gmail label management operations
+- **CacheService**: SQLite-based caching for AI summaries
+- **MessageRepository**: Data access abstraction for Gmail API
+
+#### 🎯 **Key Architectural Improvements**
+
+1. **Service Interfaces** - Clean contracts for business logic
+   ```go
+   type EmailService interface {
+       ArchiveMessage(ctx context.Context, messageID string) error
+       TrashMessage(ctx context.Context, messageID string) error
+       // ... other operations
+   }
+   ```
+
+2. **Centralized Error Handling** - Consistent user feedback across the app
+   ```go
+   app.GetErrorHandler().ShowError(ctx, "Failed to archive message")
+   app.GetErrorHandler().ShowSuccess(ctx, "Message archived successfully")
+   ```
+
+3. **Thread-Safe State Management** - Safe concurrent access to app state
+   ```go
+   currentView := app.GetCurrentView()        // Thread-safe read
+   app.SetCurrentMessageID(messageID)         // Thread-safe write
+   ```
+
+4. **Dependency Injection** - Services are automatically initialized and injected
+   ```go
+   emailService, aiService, labelService, cacheService, repository := app.GetServices()
+   ```
+
+#### 🛡️ **Benefits**
+- **Better Testability** - Services can be easily mocked and unit tested
+- **Cleaner Code** - UI components focus on presentation, not business logic
+- **Thread Safety** - Proper mutex protection for concurrent operations
+- **Consistent UX** - Centralized error handling provides uniform user feedback
+- **Maintainability** - Clear separation makes the codebase easier to understand and modify
+- **Extensibility** - New features can be added by implementing service interfaces
+
+### 🔄 **Data Flow**
+```
+User Input → TUI Components → Services → Repository → Gmail API
+                ↓                ↓
+           Error Handler ← Business Logic
+```
+
+This architecture ensures that business logic is separated from UI concerns, making the application more maintainable, testable, and robust.
 
 ## 🚀 Installation
 
