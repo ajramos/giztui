@@ -1,0 +1,386 @@
+---
+description: Common TUI component patterns and implementations
+alwaysApply: false
+---
+
+# UI Patterns - Gmail TUI
+
+## Common TUI Component Patterns
+
+### **List Component Pattern**
+```go
+func (a *App) updateEmailList() {
+    list, ok := a.views["list"].(*tview.Table)
+    if !ok {
+        return
+    }
+    
+    // Clear existing rows
+    for i := list.GetRowCount() - 1; i > 0; i-- {
+        list.RemoveRow(i)
+    }
+    
+    // Get data from service
+    emailService, _, _, _, _ := a.GetServices()
+    emails, err := emailService.GetEmails(a.ctx)
+    if err != nil {
+        a.GetErrorHandler().ShowError(a.ctx, "Failed to load emails")
+        return
+    }
+    
+    // Populate rows with proper colors
+    colorer := a.emailColorer.ColorerFunc()
+    for i, email := range emails {
+        row := i + 1
+        statusColor := colorer(email, "STATUS")
+        
+        list.SetCell(row, 0, tview.NewTableCell(getStatusIcon(email)).
+            SetTextColor(statusColor).
+            SetAlign(tview.AlignCenter))
+    }
+}
+```
+
+### **Modal Dialog Pattern**
+```go
+func (a *App) showConfirmDialog(title, message string, onConfirm func()) {
+    modal := tview.NewModal().
+        SetText(message).
+        AddButtons([]string{"Confirm", "Cancel"}).
+        SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+            a.pages.RemovePage("confirm")
+            if buttonIndex == 0 && onConfirm != nil {
+                onConfirm()
+            }
+        })
+    
+    a.pages.AddPage("confirm", modal, true, true)
+    a.SetFocus(modal)
+}
+
+// Usage
+a.showConfirmDialog("Delete Email", 
+    "Are you sure you want to delete this email?", 
+    func() {
+        emailService, _, _, _, _ := a.GetServices()
+        err := emailService.DeleteMessage(a.ctx, messageID)
+        if err != nil {
+            a.GetErrorHandler().ShowError(a.ctx, "Failed to delete message")
+        } else {
+            a.GetErrorHandler().ShowSuccess(a.ctx, "Message deleted")
+        }
+    })
+```
+
+### **Input Prompt Pattern**
+```go
+func (a *App) showInputPrompt(title, label string, onSubmit func(string)) {
+    inputField := tview.NewInputField().
+        SetLabel(label + ": ").
+        SetFieldWidth(50).
+        SetDoneFunc(func(key tcell.Key) {
+            if key == tcell.KeyEnter {
+                text := inputField.GetText()
+                a.pages.RemovePage("input")
+                if onSubmit != nil {
+                    onSubmit(text)
+                }
+            } else if key == tcell.KeyEsc {
+                a.pages.RemovePage("input")
+            }
+        })
+    
+    flex := tview.NewFlex().
+        AddItem(tview.NewBox(), 0, 1, false).
+        AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+            AddItem(tview.NewBox(), 0, 1, false).
+            AddItem(inputField, 3, 1, true).
+            AddItem(tview.NewBox(), 0, 1, false), 
+            50, 1, true).
+        AddItem(tview.NewBox(), 0, 1, false)
+    
+    a.pages.AddPage("input", flex, true, true)
+    a.SetFocus(inputField)
+}
+```
+
+### **Progress Indicator Pattern**
+```go
+func (a *App) showProgress(operation string) func() {
+    progressText := tview.NewTextView().
+        SetText(fmt.Sprintf("⏳ %s...", operation)).
+        SetTextAlign(tview.AlignCenter)
+    
+    a.pages.AddPage("progress", progressText, true, true)
+    
+    // Return cleanup function
+    return func() {
+        a.QueueUpdateDraw(func() {
+            a.pages.RemovePage("progress")
+        })
+    }
+}
+
+// Usage
+done := a.showProgress("Loading messages")
+go func() {
+    defer done()
+    
+    // Long-running operation
+    emailService, _, _, _, _ := a.GetServices()
+    emails, err := emailService.LoadMessages(a.ctx)
+    
+    a.QueueUpdateDraw(func() {
+        if err != nil {
+            a.GetErrorHandler().ShowError(a.ctx, "Failed to load messages")
+        } else {
+            a.refreshEmailList()
+            a.GetErrorHandler().ShowSuccess(a.ctx, "Messages loaded")
+        }
+    })
+}()
+```
+
+### **Status Bar Pattern**
+```go
+func (a *App) updateStatusBar() {
+    statusView, ok := a.views["status"].(*tview.TextView)
+    if !ok {
+        return
+    }
+    
+    // Get current context
+    currentView := a.GetCurrentView()
+    messageCount := len(a.GetMessageIDs())
+    
+    // Build status text
+    status := fmt.Sprintf("Gmail TUI | View: %s | Messages: %d | Press ? for help", 
+        currentView, messageCount)
+    
+    statusView.SetText(status)
+}
+```
+
+### **Keyboard Handler Pattern**
+```go
+func (a *App) setupKeyBindings() {
+    a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        switch event.Key() {
+        case tcell.KeyF1:
+            a.showHelpDialog()
+            return nil
+            
+        case tcell.KeyTab:
+            a.cycleFocus()
+            return nil
+            
+        case tcell.KeyEsc:
+            a.handleEscape()
+            return nil
+        }
+        
+        // Handle character keys
+        switch event.Rune() {
+        case '?':
+            a.showHelpDialog()
+            return nil
+            
+        case ':':
+            a.showCommandPrompt()
+            return nil
+            
+        case '/':
+            a.showSearchPrompt()
+            return nil
+            
+        case 'a':
+            if a.GetCurrentView() == "messages" {
+                a.handleArchiveAction()
+                return nil
+            }
+        }
+        
+        return event
+    })
+}
+```
+
+## Layout Patterns
+
+### **Responsive Three-Pane Layout**
+```go
+func (a *App) createLayout() *tview.Flex {
+    // Main container
+    mainFlex := tview.NewFlex()
+    
+    // Left pane (messages list)
+    messagesList := a.createMessagesList()
+    
+    // Right pane (message content)
+    messageContent := a.createMessageContent()
+    
+    // Bottom status bar
+    statusBar := a.createStatusBar()
+    
+    // Responsive layout based on terminal size
+    width, height := a.GetScreenSize()
+    
+    if width < 80 { // Narrow: single column
+        mainFlex.SetDirection(tview.FlexRow).
+            AddItem(messagesList, height-3, 1, true).
+            AddItem(statusBar, 1, 1, false)
+    } else { // Wide: side by side
+        contentFlex := tview.NewFlex().
+            AddItem(messagesList, 0, 1, true).
+            AddItem(messageContent, 0, 2, false)
+            
+        mainFlex.SetDirection(tview.FlexRow).
+            AddItem(contentFlex, height-3, 1, true).
+            AddItem(statusBar, 1, 1, false)
+    }
+    
+    return mainFlex
+}
+```
+
+### **Focus Management Pattern**
+```go
+func (a *App) cycleFocus() {
+    currentFocus := a.GetCurrentFocus()
+    
+    focusOrder := []string{"list", "content", "status"}
+    
+    for i, focus := range focusOrder {
+        if focus == currentFocus {
+            nextIndex := (i + 1) % len(focusOrder)
+            a.setFocusTo(focusOrder[nextIndex])
+            break
+        }
+    }
+}
+
+func (a *App) setFocusTo(viewName string) {
+    if view, exists := a.views[viewName]; exists {
+        a.SetFocus(view)
+        a.SetCurrentFocus(viewName)
+        a.updateFocusIndicators()
+    }
+}
+
+func (a *App) updateFocusIndicators() {
+    // Update borders to show focus
+    for name, view := range a.views {
+        if primitive, ok := view.(*tview.Box); ok {
+            if name == a.GetCurrentFocus() {
+                primitive.SetBorderColor(tcell.ColorBlue)
+            } else {
+                primitive.SetBorderColor(tcell.ColorGray)
+            }
+        }
+    }
+}
+```
+
+## Color and Styling Patterns
+
+### **Theme Application Pattern**
+```go
+func (a *App) applyTheme(theme *config.ColorsConfig) {
+    // Update global tview styles
+    tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
+    tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
+    tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
+    tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+    
+    // Update renderer colors
+    if a.emailRenderer != nil {
+        a.emailRenderer.UpdateFromConfig(theme)
+    }
+    
+    // Force redraw all components
+    a.QueueUpdateDraw(func() {
+        for _, view := range a.views {
+            if themeable, ok := view.(ThemeableComponent); ok {
+                themeable.ApplyTheme(theme)
+            }
+        }
+    })
+}
+
+type ThemeableComponent interface {
+    ApplyTheme(*config.ColorsConfig)
+}
+```
+
+## Error and Loading States
+
+### **Loading State Pattern**
+```go
+func (a *App) withLoadingState(operation string, fn func() error) {
+    // Show loading
+    a.GetErrorHandler().ShowProgress(a.ctx, operation)
+    
+    go func() {
+        err := fn()
+        
+        a.QueueUpdateDraw(func() {
+            a.GetErrorHandler().ClearProgress()
+            
+            if err != nil {
+                a.GetErrorHandler().ShowError(a.ctx, 
+                    fmt.Sprintf("%s failed", operation))
+            } else {
+                a.GetErrorHandler().ShowSuccess(a.ctx, 
+                    fmt.Sprintf("%s completed", operation))
+            }
+        })
+    }()
+}
+
+// Usage
+a.withLoadingState("Archiving message", func() error {
+    emailService, _, _, _, _ := a.GetServices()
+    return emailService.ArchiveMessage(a.ctx, messageID)
+})
+```
+
+### **Empty State Pattern**
+```go
+func (a *App) showEmptyState(view string, message string) {
+    emptyText := tview.NewTextView().
+        SetText(fmt.Sprintf("📭 %s\n\nPress 'r' to refresh", message)).
+        SetTextAlign(tview.AlignCenter).
+        SetTextColor(tcell.ColorGray)
+    
+    if container, ok := a.views[view].(*tview.Flex); ok {
+        container.Clear()
+        container.AddItem(emptyText, 0, 1, true)
+    }
+}
+```
+
+## Component Reuse Patterns
+
+### **Generic Table Builder**
+```go
+func (a *App) createTable(name string, headers []string) *tview.Table {
+    table := tview.NewTable().
+        SetBorders(true).
+        SetSelectable(true, false)
+    
+    // Set headers
+    for i, header := range headers {
+        cell := tview.NewTableCell(header).
+            SetTextColor(tcell.ColorYellow).
+            SetSelectable(false)
+        table.SetCell(0, i, cell)
+    }
+    
+    // Store in views map
+    a.views[name] = table
+    
+    return table
+}
+```
+
+These patterns provide consistent, reusable components that follow the service-oriented architecture and maintain excellent UX standards.

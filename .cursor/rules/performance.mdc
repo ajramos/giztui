@@ -1,0 +1,363 @@
+---
+description: Performance optimization guidelines for Gmail TUI
+alwaysApply: false
+---
+
+# Performance Rules - Gmail TUI
+
+## Core Performance Principles
+
+### **Non-Blocking UI**
+- UI must remain responsive during all operations
+- Long-running tasks must run in goroutines
+- Use `QueueUpdateDraw` for all UI updates from goroutines
+- Never block the main UI thread
+
+### **Efficient Memory Usage**
+- Avoid memory leaks in long-running TUI application
+- Use object pooling for frequently allocated objects
+- Clean up goroutines and resources properly
+- Monitor memory usage in production
+
+### **Network Optimization**
+- Batch API calls when possible
+- Implement proper caching strategies
+- Use pagination for large datasets
+- Handle network failures gracefully
+
+## UI Performance Patterns
+
+### **Async Loading Pattern**
+```go
+func (a *App) loadMessagesAsync() {
+    // Show immediate feedback
+    a.GetErrorHandler().ShowProgress(a.ctx, "Loading messages")
+    
+    go func() {
+        // Get service
+        emailService, _, _, _, _ := a.GetServices()
+        
+        // Perform operation off UI thread
+        messages, err := emailService.LoadMessages(a.ctx)
+        
+        // Update UI on main thread
+        a.QueueUpdateDraw(func() {
+            a.GetErrorHandler().ClearProgress()
+            
+            if err != nil {
+                a.GetErrorHandler().ShowError(a.ctx, "Failed to load messages")
+                return
+            }
+            
+            // Update UI with results
+            a.updateMessagesList(messages)
+            a.GetErrorHandler().ShowSuccess(a.ctx, "Messages loaded")
+        })
+    }()
+}
+```
+
+### **Efficient List Updates**
+```go
+func (a *App) updateLargeList(items []Item) {
+    list, ok := a.views["list"].(*tview.Table)
+    if !ok {
+        return
+    }
+    
+    // Batch UI updates
+    a.QueueUpdateDraw(func() {
+        // Clear existing (efficient for tview)
+        list.Clear()
+        
+        // Set headers once
+        a.setTableHeaders(list)
+        
+        // Add rows in batch
+        for i, item := range items {
+            if i > 1000 { // Limit initial render
+                break
+            }
+            a.addTableRow(list, i+1, item)
+        }
+        
+        // Enable virtual scrolling for remaining items
+        if len(items) > 1000 {
+            a.enableVirtualScrolling(list, items)
+        }
+    })
+}
+```
+
+### **Virtual Scrolling for Large Lists**
+```go
+func (a *App) enableVirtualScrolling(table *tview.Table, allItems []Item) {
+    table.SetSelectionChangedFunc(func(row, col int) {
+        // Load more items as user scrolls
+        if row > table.GetRowCount()-10 {
+            a.loadMoreItems(allItems, table.GetRowCount())
+        }
+    })
+}
+
+func (a *App) loadMoreItems(allItems []Item, currentCount int) {
+    batchSize := 50
+    start := currentCount - 1 // Subtract header
+    end := start + batchSize
+    
+    if end > len(allItems) {
+        end = len(allItems)
+    }
+    
+    if start >= end {
+        return
+    }
+    
+    // Add batch of items
+    a.QueueUpdateDraw(func() {
+        table, _ := a.views["list"].(*tview.Table)
+        for i := start; i < end; i++ {
+            a.addTableRow(table, i+1, allItems[i])
+        }
+    })
+}
+```
+
+## Caching Strategies
+
+### **Service-Level Caching**
+```go
+func (s *EmailServiceImpl) GetMessages(ctx context.Context) ([]*Message, error) {
+    // Check cache first
+    if s.cacheService != nil {
+        if cached, found, err := s.cacheService.GetMessages(ctx); err == nil && found {
+            return cached, nil
+        }
+    }
+    
+    // Fetch from API
+    messages, err := s.repository.LoadMessages(ctx)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Cache for future use
+    if s.cacheService != nil {
+        go func() {
+            _ = s.cacheService.SaveMessages(context.Background(), messages)
+        }()
+    }
+    
+    return messages, nil
+}
+```
+
+### **UI State Caching**
+```go
+func (a *App) cacheViewState(viewName string) {
+    if view, exists := a.views[viewName]; exists {
+        state := ViewState{
+            ScrollPosition: a.getScrollPosition(view),
+            Selection:      a.getSelection(view),
+            FilterState:    a.getFilterState(view),
+        }
+        a.viewStateCache[viewName] = state
+    }
+}
+
+func (a *App) restoreViewState(viewName string) {
+    if state, exists := a.viewStateCache[viewName]; exists {
+        if view, exists := a.views[viewName]; exists {
+            a.setScrollPosition(view, state.ScrollPosition)
+            a.setSelection(view, state.Selection)
+            a.setFilterState(view, state.FilterState)
+        }
+    }
+}
+```
+
+## Resource Management
+
+### **Goroutine Lifecycle**
+```go
+func (a *App) startBackgroundWorker() {
+    a.workerCancel = make(chan struct{})
+    
+    go func() {
+        ticker := time.NewTicker(30 * time.Second)
+        defer ticker.Stop()
+        
+        for {
+            select {
+            case <-ticker.C:
+                a.performBackgroundTask()
+                
+            case <-a.workerCancel:
+                return
+                
+            case <-a.ctx.Done():
+                return
+            }
+        }
+    }()
+}
+
+func (a *App) stopBackgroundWorker() {
+    if a.workerCancel != nil {
+        close(a.workerCancel)
+        a.workerCancel = nil
+    }
+}
+```
+
+### **Connection Pooling**
+```go
+func NewEmailService(client *gmail.Client) *EmailServiceImpl {
+    return &EmailServiceImpl{
+        client: client,
+        httpClient: &http.Client{
+            Timeout: 30 * time.Second,
+            Transport: &http.Transport{
+                MaxIdleConns:        100,
+                MaxIdleConnsPerHost: 10,
+                IdleConnTimeout:     90 * time.Second,
+            },
+        },
+    }
+}
+```
+
+## Performance Monitoring
+
+### **Operation Timing**
+```go
+func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string) error {
+    start := time.Now()
+    defer func() {
+        duration := time.Since(start)
+        if duration > 2*time.Second {
+            log.Printf("SLOW: ArchiveMessage took %v", duration)
+        }
+    }()
+    
+    return s.repository.ArchiveMessage(ctx, messageID)
+}
+```
+
+### **Memory Monitoring**
+```go
+func (a *App) logMemoryUsage() {
+    var m runtime.MemStats
+    runtime.ReadMemStats(&m)
+    
+    if m.Alloc > 100*1024*1024 { // 100MB threshold
+        log.Printf("HIGH MEMORY: Alloc=%d KB, Sys=%d KB", 
+            m.Alloc/1024, m.Sys/1024)
+    }
+}
+```
+
+### **Performance Metrics**
+```go
+type PerformanceMetrics struct {
+    APICallDuration   time.Duration
+    UIUpdateDuration  time.Duration
+    MemoryUsage      uint64
+    GoroutineCount   int
+}
+
+func (a *App) collectMetrics() PerformanceMetrics {
+    var m runtime.MemStats
+    runtime.ReadMemStats(&m)
+    
+    return PerformanceMetrics{
+        MemoryUsage:    m.Alloc,
+        GoroutineCount: runtime.NumGoroutine(),
+    }
+}
+```
+
+## Optimization Checklist
+
+### **UI Performance**
+- [ ] All long operations run in goroutines
+- [ ] UI updates use `QueueUpdateDraw`
+- [ ] Large lists use virtual scrolling
+- [ ] Smooth animations and transitions
+- [ ] Responsive keyboard input
+
+### **Memory Performance**
+- [ ] No memory leaks in goroutines
+- [ ] Proper resource cleanup
+- [ ] Efficient data structures
+- [ ] Reasonable cache sizes
+- [ ] Monitor memory usage
+
+### **Network Performance**
+- [ ] Batch API calls when possible
+- [ ] Implement request caching
+- [ ] Handle rate limiting
+- [ ] Optimize payload sizes
+- [ ] Use connection pooling
+
+### **Service Performance**
+- [ ] Service calls are async when appropriate
+- [ ] Proper error handling doesn't block UI
+- [ ] Background tasks don't interfere with user actions
+- [ ] Context cancellation works correctly
+- [ ] Services handle timeouts gracefully
+
+## Performance Anti-Patterns
+
+### ❌ **Avoid These**
+```go
+// ❌ Blocking UI thread
+func (a *App) badLoadMessages() {
+    messages, err := a.Client.GetMessages() // Blocks UI
+    if err != nil {
+        // UI frozen during error
+    }
+}
+
+// ❌ Memory leak
+func (a *App) badBackgroundTask() {
+    go func() {
+        for { // Never exits
+            time.Sleep(1 * time.Second)
+        }
+    }()
+}
+
+// ❌ Inefficient updates
+func (a *App) badUpdateList() {
+    for _, item := range items {
+        a.QueueUpdateDraw(func() { // Too many queue calls
+            table.AddRow(item)
+        })
+    }
+}
+```
+
+### ✅ **Do This Instead**
+```go
+// ✅ Async with proper feedback
+func (a *App) goodLoadMessages() {
+    a.GetErrorHandler().ShowProgress(a.ctx, "Loading")
+    
+    go func() {
+        emailService, _, _, _, _ := a.GetServices()
+        messages, err := emailService.LoadMessages(a.ctx)
+        
+        a.QueueUpdateDraw(func() {
+            a.GetErrorHandler().ClearProgress()
+            if err != nil {
+                a.GetErrorHandler().ShowError(a.ctx, "Load failed")
+            } else {
+                a.updateMessagesList(messages)
+            }
+        })
+    }()
+}
+```
+
+These performance patterns ensure Gmail TUI remains responsive and efficient even with large datasets and complex operations.

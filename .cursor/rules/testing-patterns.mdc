@@ -1,0 +1,211 @@
+---
+description: Testing patterns for service-oriented Gmail TUI
+alwaysApply: false
+---
+
+# Testing Patterns - Gmail TUI
+
+## Service Layer Testing
+
+### **Unit Testing Services**
+```go
+// Test structure for services
+func TestEmailService_ArchiveMessage(t *testing.T) {
+    // Arrange
+    mockClient := &MockGmailClient{}
+    mockRenderer := &MockRenderer{}
+    service := NewEmailService(mockRepository, mockClient, mockRenderer)
+    
+    // Act
+    err := service.ArchiveMessage(context.Background(), "test-message-id")
+    
+    // Assert
+    assert.NoError(t, err)
+    assert.True(t, mockClient.WasCalled("ArchiveMessage"))
+}
+```
+
+### **Service Testing Rules**
+- Mock external dependencies (Gmail API, LLM providers)
+- Test error conditions and edge cases
+- Use table-driven tests for multiple scenarios
+- Test context cancellation behavior
+- Verify service interface compliance
+
+### **Mock Interfaces**
+```go
+type MockGmailClient struct {
+    calls []string
+    responses map[string]interface{}
+    errors map[string]error
+}
+
+func (m *MockGmailClient) ArchiveMessage(messageID string) error {
+    m.calls = append(m.calls, "ArchiveMessage")
+    if err, exists := m.errors["ArchiveMessage"]; exists {
+        return err
+    }
+    return nil
+}
+
+func (m *MockGmailClient) WasCalled(method string) bool {
+    for _, call := range m.calls {
+        if call == method {
+            return true
+        }
+    }
+    return false
+}
+```
+
+## UI Testing Patterns
+
+### **Component Testing**
+```go
+func TestApp_HandleArchiveAction(t *testing.T) {
+    // Arrange
+    app := NewTestApp()
+    mockEmailService := &MockEmailService{}
+    app.emailService = mockEmailService
+    
+    // Simulate message selection
+    app.SetCurrentMessageID("test-id")
+    
+    // Act
+    err := app.handleArchiveAction()
+    
+    // Assert  
+    assert.NoError(t, err)
+    assert.True(t, mockEmailService.WasCalled("ArchiveMessage"))
+}
+```
+
+### **UI Testing Rules**
+- Mock all services for UI tests
+- Test user interaction flows
+- Verify error handling displays correct messages
+- Test keyboard navigation and shortcuts
+- Test responsive layout behavior
+
+## Integration Testing
+
+### **Service Integration Tests**
+```go
+func TestEmailService_Integration(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping integration test")
+    }
+    
+    // Use real Gmail client with test credentials
+    client := setupTestGmailClient(t)
+    service := NewEmailService(NewMessageRepository(client), client, renderer)
+    
+    // Test actual API calls
+    err := service.ArchiveMessage(context.Background(), testMessageID)
+    assert.NoError(t, err)
+}
+```
+
+### **End-to-End Testing**
+```go
+func TestFullWorkflow_ArchiveEmail(t *testing.T) {
+    // Start with real app instance
+    app := setupTestApp(t)
+    
+    // Simulate user workflow
+    // 1. Load messages
+    // 2. Select message  
+    // 3. Archive action
+    // 4. Verify UI update
+}
+```
+
+## Test Utilities
+
+### **Test App Factory**
+```go
+func NewTestApp() *App {
+    app := &App{
+        Application: tview.NewApplication(),
+        ctx:         context.Background(),
+    }
+    
+    // Initialize with mock services
+    app.emailService = &MockEmailService{}
+    app.aiService = &MockAIService{}
+    app.errorHandler = NewMockErrorHandler()
+    
+    return app
+}
+```
+
+### **Common Test Helpers**
+```go
+func setupTestContext() context.Context {
+    return context.WithTimeout(context.Background(), 5*time.Second)
+}
+
+func assertErrorHandlerCalled(t *testing.T, handler *MockErrorHandler, method string) {
+    assert.True(t, handler.WasCalled(method), 
+        "Expected ErrorHandler.%s to be called", method)
+}
+```
+
+## Testing Checklist
+
+### **Service Tests**
+- [ ] Happy path functionality
+- [ ] Error conditions and edge cases
+- [ ] Context cancellation
+- [ ] Interface compliance
+- [ ] Mock external dependencies
+
+### **UI Tests**
+- [ ] User interaction flows
+- [ ] Keyboard shortcuts work
+- [ ] Error messages display correctly  
+- [ ] Loading states visible
+- [ ] Responsive layout behavior
+
+### **Integration Tests**
+- [ ] Service + API integration
+- [ ] Full user workflows
+- [ ] Error propagation
+- [ ] Performance under load
+- [ ] Memory leak detection
+
+## Test Organization
+
+```
+internal/
+├── services/
+│   ├── email_service_test.go
+│   ├── ai_service_test.go
+│   └── mocks/
+│       ├── mock_gmail_client.go
+│       └── mock_llm_provider.go
+├── tui/
+│   ├── app_test.go
+│   ├── messages_test.go
+│   └── test_helpers.go
+└── integration/
+    ├── workflow_test.go
+    └── api_test.go
+```
+
+## Running Tests
+
+```bash
+# Unit tests only
+go test -short ./...
+
+# All tests including integration
+go test ./...
+
+# Coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Benchmark tests
+go test -bench=. ./...
+```
