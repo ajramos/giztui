@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/gmail-tui/internal/prompts"
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 
@@ -47,6 +48,7 @@ type AIService interface {
 	GenerateReply(ctx context.Context, content string, options ReplyOptions) (string, error)
 	SuggestLabels(ctx context.Context, content string, availableLabels []string) ([]string, error)
 	FormatContent(ctx context.Context, content string, options FormatOptions) (string, error)
+	ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error)
 }
 
 // CacheService handles caching operations
@@ -63,6 +65,16 @@ type SearchService interface {
 	BuildQuery(ctx context.Context, criteria SearchCriteria) (string, error)
 	GetSearchHistory(ctx context.Context) ([]string, error)
 	SaveSearchHistory(ctx context.Context, query string) error
+}
+
+// PromptService handles prompt template operations
+type PromptService interface {
+	ListPrompts(ctx context.Context, category string) ([]*PromptTemplate, error)
+	GetPrompt(ctx context.Context, id int) (*PromptTemplate, error)
+	ApplyPrompt(ctx context.Context, messageContent string, promptID int, variables map[string]string) (*PromptResult, error)
+	GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error)
+	IncrementUsage(ctx context.Context, promptID int) error
+	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
 }
 
 // Data structures
@@ -139,4 +151,14 @@ type SearchResult struct {
 	TotalCount    int
 	Query         string
 	Duration      time.Duration
+}
+
+// Prompt-related data structures
+type PromptTemplate = prompts.PromptTemplate
+type PromptResult = prompts.PromptResult
+
+type PromptApplyOptions struct {
+	AccountEmail string
+	MessageID    string
+	Variables    map[string]string
 }

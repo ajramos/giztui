@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
@@ -18,6 +19,7 @@ func (a *App) toggleAISummary() {
 			split.ResizeItem(a.aiSummaryView, 0, 0)
 		}
 		a.aiSummaryVisible = false
+		a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
 		a.SetFocus(a.views["text"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
@@ -48,11 +50,14 @@ func (a *App) toggleAISummary() {
 		split.ResizeItem(a.aiSummaryView, 0, 1)
 	}
 	a.aiSummaryVisible = true
+	a.aiPanelInPromptMode = false // Reset prompt mode flag
 	a.SetFocus(a.aiSummaryView)
 	a.currentFocus = "summary"
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		// Reset title to AI Summary when switching from prompt mode
+		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
 	}
 	a.updateFocusIndicators("summary")
 
@@ -67,17 +72,18 @@ func (a *App) generateOrShowSummary(messageID string) {
 	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
 		a.aiSummaryView.SetText(sanitizeForTerminal(sum))
 		a.aiSummaryView.ScrollToBeginning()
-		a.setStatusPersistent("🤖 Summary loaded from cache")
+		a.GetErrorHandler().ShowSuccess(a.ctx, "Summary loaded from cache")
 		return
 	}
 	// Try to load from SQLite cache before generating
-	if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+	if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
 		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-			if sum, ok, _ := a.cacheStore.LoadAISummary(a.ctx, strings.ToLower(email), messageID); ok && strings.TrimSpace(sum) != "" {
+			cacheStore := db.NewCacheStore(a.dbStore)
+			if sum, ok, _ := cacheStore.LoadAISummary(a.ctx, strings.ToLower(email), messageID); ok && strings.TrimSpace(sum) != "" {
 				a.aiSummaryCache[messageID] = sum
 				a.aiSummaryView.SetText(sanitizeForTerminal(sum))
 				a.aiSummaryView.ScrollToBeginning()
-				a.setStatusPersistent("🤖 Summary loaded from local DB cache")
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Summary loaded from local DB cache")
 				return
 			}
 		}
@@ -85,12 +91,12 @@ func (a *App) generateOrShowSummary(messageID string) {
 	if a.aiInFlight[messageID] {
 		a.aiSummaryView.SetText("🧠 Summarizing…")
 		a.aiSummaryView.ScrollToBeginning()
-		a.setStatusPersistent("🧠 Summarizing…")
+		a.GetErrorHandler().ShowProgress(a.ctx, "Summarizing...")
 		return
 	}
 	a.aiSummaryView.SetText("🧠 Summarizing…")
 	a.aiSummaryView.ScrollToBeginning()
-	a.setStatusPersistent("🧠 Summarizing…")
+	a.GetErrorHandler().ShowProgress(a.ctx, "Summarizing...")
 	a.aiInFlight[messageID] = true
 	go func(id string) {
 		m, err := a.Client.GetMessageWithContent(id)
@@ -126,7 +132,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 					var b strings.Builder
 					a.QueueUpdateDraw(func() {
 						a.aiSummaryView.SetText("")
-						a.setStatusPersistent("🧠 Streaming summary…")
+						a.GetErrorHandler().ShowProgress(a.ctx, "Streaming summary...")
 					})
 					ctx, cancel := context.WithCancel(a.ctx)
 					err := streamer.GenerateStream(ctx, prompt, func(tok string) {
@@ -147,20 +153,24 @@ func (a *App) generateOrShowSummary(messageID string) {
 					}
 					resp := b.String()
 					a.aiSummaryCache[id] = resp
-					if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+					if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
 						if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-							go a.cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+							go func() {
+								cacheStore := db.NewCacheStore(a.dbStore)
+								cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+							}()
 						}
 					}
 					delete(a.aiInFlight, id)
 					a.QueueUpdateDraw(func() {
 						if a.currentFocus == "search" {
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 							return
 						}
 						a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 						a.aiSummaryView.ScrollToBeginning()
-						a.showStatusMessage("✅ Summary ready")
+						a.GetErrorHandler().ClearProgress()
+						a.GetErrorHandler().ShowSuccess(a.ctx, "Summary ready")
 					})
 					return
 				}
@@ -178,21 +188,25 @@ func (a *App) generateOrShowSummary(messageID string) {
 			return
 		}
 		a.aiSummaryCache[id] = resp
-		if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+		if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
 			if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-				go a.cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+				go func() {
+					cacheStore := db.NewCacheStore(a.dbStore)
+					cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
+				}()
 			}
 		}
 		delete(a.aiInFlight, id)
 		a.QueueUpdateDraw(func() {
 			// Skip UI update if search is focused to avoid focus/content conflicts
 			if a.currentFocus == "search" {
-				a.showStatusMessage("🔕 Label suggestions disabled while searching")
+				a.GetErrorHandler().ShowInfo(a.ctx, "Label suggestions disabled while searching")
 				return
 			}
 			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 			a.aiSummaryView.ScrollToBeginning()
-			a.showStatusMessage("✅ Summary ready")
+			a.GetErrorHandler().ClearProgress()
+			a.GetErrorHandler().ShowSuccess(a.ctx, "Summary ready")
 		})
 	}(messageID)
 }
@@ -207,12 +221,13 @@ func (a *App) forceRegenerateSummary() {
 	// Remove from in-memory cache
 	delete(a.aiSummaryCache, id)
 	// Remove from SQLite cache (best-effort)
-	if a.cacheStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+	if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
 		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-			_ = a.cacheStore.DeleteAISummary(a.ctx, strings.ToLower(email), id)
+			cacheStore := db.NewCacheStore(a.dbStore)
+			_ = cacheStore.DeleteAISummary(a.ctx, strings.ToLower(email), id)
 		}
 	}
-	a.setStatusPersistent("♻️ Regenerating summary…")
+	a.GetErrorHandler().ShowProgress(a.ctx, "Regenerating summary...")
 	go a.generateOrShowSummary(id)
 }
 

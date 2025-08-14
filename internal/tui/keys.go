@@ -206,6 +206,18 @@ func (a *App) bindKeys() {
 			// Toggle contextual labels panel
 			a.manageLabels()
 			return nil
+		case 'p':
+			if a.currentFocus == "search" {
+				return nil
+			}
+			// If focus is on AI summary panel, toggle it off
+			if a.currentFocus == "summary" && a.aiSummaryVisible {
+				a.toggleAISummary()
+				return nil
+			}
+			// Otherwise, open prompt library picker
+			go a.openPromptPicker()
+			return nil
 		case 'm':
 			if a.currentFocus == "search" {
 				return nil
@@ -251,7 +263,7 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// ESC exits bulk mode
+		// ESC exits bulk mode or closes AI panel
 		if event.Key() == tcell.KeyEscape {
 			if a.bulkMode {
 				a.bulkMode = false
@@ -261,6 +273,11 @@ func (a *App) bindKeys() {
 				if list, ok := a.views["list"].(*tview.Table); ok {
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 				}
+				return nil
+			}
+			// If focus is on AI summary panel, close it
+			if a.currentFocus == "summary" && a.aiSummaryVisible {
+				a.toggleAISummary()
 				return nil
 			}
 			// If a search is active and overlay is not focused, delegate to exitSearch
@@ -361,8 +378,14 @@ func (a *App) bindKeys() {
 				if a.labelsVisible {
 					go a.populateLabelsQuickView(id)
 				}
+				// Close AI panel when changing messages to avoid conflicts and storm requests
 				if a.aiSummaryVisible {
-					go a.generateOrShowSummary(id)
+					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+						split.ResizeItem(a.aiSummaryView, 0, 0)
+					}
+					a.aiSummaryVisible = false
+					a.aiPanelInPromptMode = false
+					// Don't change focus, just hide the panel
 				}
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
@@ -441,12 +464,12 @@ func (a *App) handleVimNavigation(key rune) bool {
 	}
 
 	now := time.Now()
-	
+
 	// Clear sequence if timeout exceeded (1 second)
 	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Second {
 		a.vimSequence = ""
 	}
-	
+
 	switch key {
 	case 'g':
 		if a.vimSequence == "g" {
@@ -468,7 +491,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 		a.executeGoToCommand([]string{}) // Use working command function
 		return true
 	}
-	
+
 	return false
 }
 

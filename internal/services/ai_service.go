@@ -206,3 +206,61 @@ func (s *AIServiceImpl) FormatContent(ctx context.Context, content string, optio
 
 	return formatted, nil
 }
+
+func (s *AIServiceImpl) ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error) {
+	if s.provider == nil {
+		return "", fmt.Errorf("AI provider not available")
+	}
+
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("content cannot be empty")
+	}
+
+	if strings.TrimSpace(prompt) == "" {
+		return "", fmt.Errorf("prompt cannot be empty")
+	}
+
+	// Generate response using the custom prompt
+	result, err := s.provider.Generate(prompt)
+	if err != nil {
+		return "", fmt.Errorf("failed to apply custom prompt: %w", err)
+	}
+
+	return result, nil
+}
+
+// ApplyCustomPromptStream applies a custom prompt with streaming support
+func (s *AIServiceImpl) ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error) {
+	if s.provider == nil {
+		return "", fmt.Errorf("AI provider not available")
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("content cannot be empty")
+	}
+	if strings.TrimSpace(prompt) == "" {
+		return "", fmt.Errorf("prompt cannot be empty")
+	}
+
+	// Check if provider supports streaming
+	if streamer, ok := s.provider.(interface {
+		GenerateStream(context.Context, string, func(string)) error
+	}); ok {
+		var result strings.Builder
+
+		err := streamer.GenerateStream(ctx, prompt, func(token string) {
+			result.WriteString(token)
+			if onToken != nil {
+				onToken(token)
+			}
+		})
+
+		if err != nil {
+			return "", fmt.Errorf("failed to apply custom prompt with streaming: %w", err)
+		}
+
+		return result.String(), nil
+	}
+
+	// Fallback to non-streaming if not supported
+	return s.ApplyCustomPrompt(ctx, content, prompt, variables)
+}

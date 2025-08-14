@@ -22,6 +22,15 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Configurable prompts** - All prompts are customizable
 - 🧪 **Generate replies** - Experimental (placeholder implementation)
 
+### 🚀 **Prompt Library System** 🆕
+- ✅ **Custom prompt templates** - Predefined prompts for different use cases
+- ✅ **Variable substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`
+- ✅ **Streaming LLM responses** - Real-time token streaming for prompt results
+- ✅ **Smart caching** - Cache prompt results to avoid re-processing
+- ✅ **Split-view interface** - Prompt picker appears like labels (not full-screen modal)
+- ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items, etc.)
+- ✅ **Usage tracking** - Monitor which prompts are used most frequently
+
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
 - ✅ **Multiple layout modes** - Wide, medium, narrow, and mobile layouts
@@ -52,30 +61,89 @@ Gmail TUI uses a **clean, service-oriented architecture** with proper separation
 ```
 gmail-tui/
 ├── cmd/gmail-tui/          # Main application entry point
+│   └── main.go            # Application entry point
 ├── internal/               # Private application code
 │   ├── cache/             # SQLite caching system
+│   │   └── store.go       # Cache store implementation
 │   ├── calendar/          # Google Calendar integration
+│   │   └── client.go      # Calendar API client
 │   ├── config/            # Configuration management & theming
+│   │   ├── config.go      # Configuration loading & validation
+│   │   ├── colors.go      # Color scheme management
+│   │   ├── theme.go       # Theme system
+│   │   └── manager.go     # Configuration manager
+│   ├── db/                # 🆕 Database layer
+│   │   ├── store.go       # Main database store
+│   │   ├── cache_store.go # AI summary caching
+│   │   └── prompt_store.go # 🆕 Prompt library storage
 │   ├── gmail/             # Gmail API client wrapper
-│   ├── llm/               # Multi-provider LLM support (Ollama, Bedrock)
+│   │   └── client.go      # Gmail API client
+│   ├── llm/               # Multi-provider LLM support
+│   │   ├── factory.go     # LLM provider factory
+│   │   ├── ollama.go      # Ollama provider
+│   │   └── bedrock.go     # Amazon Bedrock provider
+│   ├── prompts/           # 🆕 Prompt system
+│   │   └── types.go       # Prompt data types
 │   ├── render/            # Email rendering & formatting
+│   │   ├── email.go       # Email renderer
+│   │   └── format.go      # Formatting utilities
 │   ├── services/          # 🆕 Business logic service layer
 │   │   ├── interfaces.go  # Service contracts
 │   │   ├── email_service.go    # Email operations
 │   │   ├── ai_service.go       # AI/LLM operations
 │   │   ├── label_service.go    # Label management
 │   │   ├── cache_service.go    # Cache operations
+│   │   ├── prompt_service.go   # 🆕 Prompt library management
 │   │   └── repository.go       # Data access layer
 │   └── tui/               # Terminal User Interface
 │       ├── app.go         # Main application with service integration
 │       ├── error_handler.go   # 🆕 Centralized error handling
-│       └── ...            # UI components & views
+│       ├── layout.go      # UI layout management
+│       ├── keys.go        # Keyboard shortcuts & input handling
+│       ├── messages.go    # Message list & content display
+│       ├── messages_actions.go # Message actions (archive, trash, etc.)
+│       ├── messages_bulk.go   # Bulk message operations
+│       ├── labels.go      # Label management UI
+│       ├── ai.go          # AI summary & LLM features
+│       ├── prompts.go     # 🆕 Prompt library UI
+│       ├── markdown.go    # Markdown rendering & LLM touch-up
+│       ├── commands.go    # Command bar & execution
+│       ├── status.go      # Status bar & notifications
+│       ├── welcome.go     # Welcome screen
+│       ├── logging.go     # Logging setup
+│       └── list_helpers.go # List manipulation utilities
 ├── pkg/                   # Reusable packages
-│   ├── auth/              # OAuth2 authentication
-│   └── utils/             # General utilities
+│   └── auth/              # OAuth2 authentication
+│       └── oauth.go       # OAuth2 implementation
 ├── docs/                  # Documentation
+│   ├── ARCHITECTURE.md    # Architecture documentation
+│   ├── COLORS.md          # Color system documentation
+│   ├── gmail-filters-and-search-operators.md # Search operators
+│   └── search_ux_and_roadmap.md # Search UX roadmap
+├── scripts/               # Build & development scripts
+│   └── check-architecture.sh # Architecture compliance checker
+├── skins/                 # Theme skins
+│   ├── gmail-dark.yaml    # Dark theme
+│   ├── gmail-light.yaml   # Light theme
+│   └── custom-example.yaml # Custom theme example
 ├── examples/              # Usage examples
-└── README.md
+│   ├── config.json        # Configuration example
+│   ├── credentials.json.example # Credentials template
+│   └── theme_demo.go      # Theme demonstration
+├── .github/               # GitHub workflows
+│   └── workflows/         # CI/CD workflows
+│       └── ci.yml         # Continuous integration
+├── build/                 # Build artifacts
+├── .claude/               # Claude AI configuration
+├── .cursor/               # Cursor IDE configuration
+├── Makefile               # Build & development tasks
+├── go.mod                 # Go module definition
+├── go.sum                 # Go dependencies checksums
+├── .pre-commit-config.yaml # Pre-commit hooks
+├── .golangci.yml          # Go linter configuration
+├── CLAUDE.md              # Claude AI development notes
+├── TODO.md                # Development roadmap & tasks
+└── README.md              # This file
 ```
 
 ### 🔧 Service Architecture
@@ -87,6 +155,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **AIService**: LLM integration with caching and streaming support  
 - **LabelService**: Gmail label management operations
 - **CacheService**: SQLite-based caching for AI summaries
+- **PromptService**: 🆕 Prompt library management with caching and usage tracking
 - **MessageRepository**: Data access abstraction for Gmail API
 
 #### 🎯 **Key Architectural Improvements**
@@ -284,8 +353,51 @@ Gmail TUI supports VIM-style navigation for efficient message browsing:
 | Key | Action |
 |-----|--------|
 | `y` | Summarize message |
+| `Y` | Regenerate AI summary (force refresh) |
 | `g` | Generate reply (experimental) |
 | `o` | Suggest label |
+| `P` | 🆕 **Open Prompt Library** |
+
+#### 🚀 **Prompt Library System** 🆕
+
+The Prompt Library allows you to apply custom AI prompts to emails for various purposes like analysis, action item extraction, or custom processing.
+
+**Usage:**
+1. **Select a message** in the message list
+2. **Press `P`** to open the Prompt Library
+3. **Choose a prompt** from the list or search by typing
+4. **View results** in the AI panel with real-time streaming
+
+**Available Prompts:**
+- **Quick Summary** - Concise email summary
+- **Action Items** - Extract actionable tasks and deadlines
+- **Key Points** - Identify main topics and insights
+- **Follow-up Required** - Determine if response is needed
+- **Custom Prompts** - Add your own prompt templates
+
+**Features:**
+- ✅ **Variable Substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`
+- ✅ **Streaming Responses** - Real-time token streaming for immediate feedback
+- ✅ **Smart Caching** - Results cached to avoid re-processing
+- ✅ **Usage Tracking** - Monitor prompt usage patterns
+- ✅ **Split-View Interface** - Non-intrusive prompt picker (like labels)
+
+**Example Prompt Template:**
+```
+Extract action items and deadlines from this email:
+
+From: {{from}}
+Subject: {{subject}}
+Date: {{date}}
+
+Content: {{body}}
+
+Please identify:
+1. Specific action items
+2. Deadlines mentioned
+3. Follow-up required
+4. Priority level
+```
 
 #### LLM Configuration (providers)
 
@@ -598,16 +710,37 @@ Notes:
 
 Config fields (in `~/.config/gmail-tui/config.json`):
 
-```
+```json
 {
   "LLMEnabled": true,
   "LLMProvider": "ollama",        // or "bedrock"
   "LLMEndpoint": "http://localhost:11434/api/generate", // Ollama
   "LLMRegion": "us-east-1",      // Bedrock
   "LLMModel": "llama3.2:latest",
-  "LLMTimeout": "20s"
+  "LLMTimeout": "20s",
+  "LLMStreamEnabled": true,       // Enable streaming for Ollama
+  "AISummaryCacheEnabled": true,  // Enable AI summary caching
+  "PromptLibraryEnabled": true    // 🆕 Enable Prompt Library system
 }
 ```
+
+#### 🚀 **Prompt Library Configuration** 🆕
+
+The Prompt Library system is automatically initialized with default prompts on first use. You can customize the system:
+
+**Database Location:**
+- Prompts and results are stored in the same SQLite database as AI summaries
+- Location: `~/.config/gmail-tui/gmail-tui-{account}.db`
+
+**Default Prompts:**
+The system comes with pre-configured prompts:
+- **Quick Summary** - Concise email summary
+- **Action Items** - Extract actionable tasks and deadlines  
+- **Key Points** - Identify main topics and insights
+- **Follow-up Required** - Determine if response is needed
+
+**Custom Prompts:**
+You can add your own prompt templates through the database or by modifying the initialization code in `internal/db/prompt_store.go`.
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
 Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/gmail-tui/gmail-tui.log`.

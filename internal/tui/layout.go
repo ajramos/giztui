@@ -205,6 +205,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(tcell.ColorYellow)
 		}
+	case "prompts":
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(tcell.ColorYellow)
+		}
 	case "search":
 		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 			sp.SetBorderColor(tcell.ColorYellow)

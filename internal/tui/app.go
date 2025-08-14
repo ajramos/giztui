@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/cache"
 	calclient "github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
 	"github.com/ajramos/gmail-tui/internal/render"
@@ -73,10 +73,11 @@ type App struct {
 	baseNextPageToken string
 	baseSelectionID   string
 	// AI Summary pane
-	aiSummaryView    *tview.TextView
-	aiSummaryVisible bool
-	aiSummaryCache   map[string]string // messageID -> summary
-	aiInFlight       map[string]bool   // messageID -> generating
+	aiSummaryView       *tview.TextView
+	aiSummaryVisible    bool
+	aiSummaryCache      map[string]string // messageID -> summary
+	aiInFlight          map[string]bool   // messageID -> generating
+	aiPanelInPromptMode bool              // Track if panel is being used for prompt vs summary
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
 
@@ -91,8 +92,8 @@ type App struct {
 	// Calendar invite cache (parsed from text/calendar parts)
 	inviteCache map[string]Invite // messageID -> invite metadata
 
-	// Cache store (SQLite)
-	cacheStore *cache.Store
+	// Database store (SQLite)
+	dbStore *db.Store
 
 	// Debug logging
 	debug   bool
@@ -111,8 +112,8 @@ type App struct {
 	bulkMode bool
 
 	// VIM-style navigation
-	vimSequence    string    // Track VIM key sequences like "gg"
-	vimTimeout     time.Time // Timeout for key sequences
+	vimSequence string    // Track VIM key sequences like "gg"
+	vimTimeout  time.Time // Timeout for key sequences
 
 	// UI lifecycle flags
 	uiReady          bool // true after first draw
@@ -123,12 +124,13 @@ type App struct {
 	llmTouchUpEnabled bool
 
 	// Services (new architecture)
-	emailService services.EmailService
-	aiService    services.AIService
-	labelService services.LabelService
-	cacheService services.CacheService
-	repository   services.MessageRepository
-	errorHandler *ErrorHandler
+	emailService  services.EmailService
+	aiService     services.AIService
+	labelService  services.LabelService
+	cacheService  services.CacheService
+	repository    services.MessageRepository
+	promptService services.PromptService
+	errorHandler  *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
@@ -317,15 +319,27 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 	return app
 }
 
-// RegisterCacheStore wires a cache.Store into the App for local caching features
-func (a *App) RegisterCacheStore(store *cache.Store) {
-	a.cacheStore = store
-	// Re-initialize cache service if store is available
-	if a.cacheStore != nil && a.cacheService == nil {
-		a.cacheService = services.NewCacheService(a.cacheStore)
+// RegisterDBStore wires a db.Store into the App for local data storage features
+func (a *App) RegisterDBStore(store *db.Store) {
+	a.dbStore = store
+	// Initialize services if store is available
+	if a.dbStore != nil {
+		// Initialize cache service
+		if a.cacheService == nil {
+			cacheStore := db.NewCacheStore(a.dbStore)
+			a.cacheService = services.NewCacheService(cacheStore)
+		}
 		// Re-initialize AI service with cache if LLM is available
 		if a.LLM != nil && a.aiService == nil {
 			a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		}
+		// Initialize prompt service if AI service is available
+		if a.aiService != nil && a.promptService == nil {
+			promptStore := db.NewPromptStore(a.dbStore)
+			a.promptService = services.NewPromptService(promptStore, a.aiService)
+			if a.logger != nil {
+				a.logger.Printf("RegisterDBStore: initialized prompt service")
+			}
 		}
 	}
 }
@@ -339,8 +353,9 @@ func (a *App) initServices() {
 	a.labelService = services.NewLabelService(a.Client)
 
 	// Initialize cache service if store is available
-	if a.cacheStore != nil {
-		a.cacheService = services.NewCacheService(a.cacheStore)
+	if a.dbStore != nil {
+		cacheStore := db.NewCacheStore(a.dbStore)
+		a.cacheService = services.NewCacheService(cacheStore)
 	}
 
 	// Initialize AI service if LLM provider is available
@@ -350,6 +365,20 @@ func (a *App) initServices() {
 
 	// Initialize email service
 	a.emailService = services.NewEmailService(a.repository, a.Client, a.emailRenderer)
+
+	// Initialize prompt service if database store is available
+	if a.dbStore != nil && a.aiService != nil {
+		promptStore := db.NewPromptStore(a.dbStore)
+		a.promptService = services.NewPromptService(promptStore, a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: initialized prompt service")
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: prompt service NOT initialized - dbStore=%v aiService=%v",
+				a.dbStore != nil, a.aiService != nil)
+		}
+	}
 
 	// Initialize error handler
 	a.initErrorHandler()
@@ -527,8 +556,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService
 }
 
 // applyTheme loads theme colors and updates the email renderer
@@ -833,8 +862,13 @@ func (a *App) performSearch(query string) {
 					firstID := a.ids[0]
 					a.SetCurrentMessageID(firstID)
 					go a.showMessageWithoutFocus(firstID)
+					// Close AI panel when loading new messages to avoid conflicts
 					if a.aiSummaryVisible {
-						go a.generateOrShowSummary(firstID)
+						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+							split.ResizeItem(a.aiSummaryView, 0, 0)
+						}
+						a.aiSummaryVisible = false
+						a.aiPanelInPromptMode = false
 					}
 				}
 			}

@@ -6,16 +6,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/cache"
+	"github.com/ajramos/gmail-tui/internal/db"
 )
 
 // CacheServiceImpl implements CacheService
 type CacheServiceImpl struct {
-	store *cache.Store
+	store *db.CacheStore
 }
 
 // NewCacheService creates a new cache service
-func NewCacheService(store *cache.Store) *CacheServiceImpl {
+func NewCacheService(store *db.CacheStore) *CacheServiceImpl {
 	return &CacheServiceImpl{
 		store: store,
 	}
