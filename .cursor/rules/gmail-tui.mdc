@@ -10,23 +10,38 @@ alwaysApply: true
 - Follow Go naming conventions (camelCase for variables, PascalCase for exported functions)
 
 ## Project Structure
-- Follow the established directory structure:
+- Follow the service-oriented architecture structure:
   - `cmd/gmail-tui/` - Main application entry point
   - `internal/` - Private application code
+    - `services/` - **Business logic layer (NEW)**
+      - `interfaces.go` - Service contracts
+      - `email_service.go` - Email operations
+      - `ai_service.go` - LLM integration
+      - `label_service.go` - Label management
+      - `cache_service.go` - Caching operations
+      - `repository.go` - Data access layer
+    - `tui/` - **UI presentation layer**
+      - `app.go` - Service integration + error handling
+      - `error_handler.go` - Centralized user feedback
     - `config/` - Configuration management
-    - `gmail/` - Gmail API client
-    - `llm/` - Local LLM integration (Ollama)
-    - `tui/` - Terminal UI components
+    - `gmail/` - Gmail API client wrapper
+    - `llm/` - LLM provider integrations
+    - `render/` - Email formatting and display
   - `pkg/` - Public packages
     - `auth/` - OAuth2 authentication
-    - `utils/` - Utility functions
   - `docs/` - Documentation
   - `examples/` - Usage examples
 
 ## Code Style
 - Use Go 1.21+ features
 - Follow Go best practices and idioms
+- **Service-Oriented Principles:**
+  - Business logic in `internal/services/`, UI logic in `internal/tui/`
+  - All services implement interfaces from `interfaces.go`
+  - Access services via `app.GetServices()` - never instantiate directly
 - Use proper error handling with wrapped errors
+- **Centralized Error Handling:** Use `app.GetErrorHandler()` for all user feedback
+- **Thread Safety:** Use accessor methods like `app.GetCurrentView()`, `app.SetCurrentMessageID()`
 - Implement proper logging for debugging
 - Use context for cancellation and timeouts
 - Prefer composition over inheritance
@@ -36,21 +51,30 @@ alwaysApply: true
 - Implement proper token caching and refresh
 - Handle API rate limits gracefully
 - Use appropriate Gmail API scopes
+- **Service Layer:** Gmail API calls must be in services, never in UI components
+- **Repository Pattern:** Use `MessageRepository` for data access abstraction
 - Implement proper error handling for API calls
 
 ## TUI Development
 - Use `tview` library for terminal UI
+- **UI Layer Responsibility:** Handle ONLY presentation and user input
+- **Service Integration:** UI components call services for business logic
+- **Error Feedback:** Use `ErrorHandler` for all user messages, never direct output
+- **Thread Safety:** All UI updates via `QueueUpdateDraw()`, use accessor methods for state
 - Implement keyboard shortcuts for all actions
 - Provide clear visual feedback for user actions
 - Handle terminal resizing gracefully
 - Use colors and formatting for better UX
 
 ## LLM Integration
-- Support Ollama for local LLM inference
+- Support multiple providers (Ollama, Bedrock) via `AIService`
+- **Service Layer:** All LLM operations in `AIService`, never in UI components
+- **Caching Integration:** Use `CacheService` for AI summary persistence
 - Implement configurable prompt templates
 - Handle LLM timeouts and errors gracefully
 - Provide fallback when LLM is unavailable
 - Use structured prompts for consistent results
+- **Streaming Support:** Handle streaming responses properly
 
 ## Configuration
 - Support JSON configuration files
@@ -60,15 +84,21 @@ alwaysApply: true
 - Support hot-reloading where appropriate
 
 ## Testing
-- Write unit tests for all packages
+- **Service Layer Testing:** Unit tests for all services with mocked dependencies
+- **UI Layer Testing:** Test presentation logic with mocked services
+- **Integration Testing:** End-to-end workflows with real services
 - Use table-driven tests where appropriate
-- Mock external dependencies
-- Test error conditions
-- Aim for good test coverage
+- Mock external dependencies (Gmail API, LLM providers)
+- Test error conditions and service error handling
+- Test thread-safe accessor methods
+- Aim for good test coverage across all layers
 
 ## Error Handling
-- Use wrapped errors with context
-- Provide user-friendly error messages
+- **Centralized Pattern:** ALWAYS use `app.GetErrorHandler()` for user feedback
+- **Never use:** `fmt.Printf`, `log.Printf` for user-facing messages
+- **Error Levels:** Use appropriate levels (Error, Warning, Success, Info, Progress)
+- **Service Errors:** Services return technical errors, UI shows user-friendly messages
+- Use wrapped errors with context in service layer
 - Log detailed errors for debugging
 - Handle network failures gracefully
 - Implement retry logic where appropriate
@@ -81,11 +111,14 @@ alwaysApply: true
 - Follow OAuth2 security best practices
 
 ## Performance
-- Use goroutines for concurrent operations
-- Implement proper connection pooling
-- Cache frequently accessed data
-- Minimize API calls
+- **Service Benefits:** Service layer enables better caching and connection pooling
+- **Async Operations:** Use goroutines in services, update UI via `QueueUpdateDraw()`
+- **Thread Safety:** Service-oriented architecture prevents race conditions
+- **Caching Strategy:** Use `CacheService` for frequently accessed data
+- Implement proper connection pooling in service layer
+- Minimize API calls through service coordination
 - Use efficient data structures
+- **Non-blocking UI:** Never block UI thread with long operations
 
 ## Documentation
 - Write clear README with setup instructions
@@ -137,8 +170,12 @@ alwaysApply: true
 - Provide health check endpoints
 
 ## Code Review Guidelines
+- **Architecture Compliance:** Verify service-oriented patterns are followed
+- **Service Layer:** Ensure business logic is in services, not UI
+- **Error Handling:** Check for proper `ErrorHandler` usage, no direct output
+- **Thread Safety:** Verify use of accessor methods, no direct field access
 - Review for security vulnerabilities
-- Check for proper error handling
-- Ensure good test coverage
+- Ensure good test coverage across all layers
 - Verify documentation updates
 - Consider performance implications
+- **Integration:** Check that services are properly integrated and tested
