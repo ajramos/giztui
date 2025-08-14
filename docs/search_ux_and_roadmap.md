@@ -48,7 +48,7 @@ Objective: Implement a unified email search with two modes (remote/local) and an
 4) “Search” picker
    - Integrated in the panel (no full-screen modals). Special folders + user labels (alphabetical). Filter, type-to-jump, Enter/ESC, explicit focus.
 5) Execute search & render results
-   - Build Gmail query from the advanced form and run remote search. Simple local: AND across Subject/From/To/Snippet. Update title and list; keep pagination.
+   - Build Gmail query from the advanced form and execute via EmailService. Simple local: AND across Subject/From/To/Snippet using service layer filtering. Update title and list through service; keep pagination.
 6) Focus & indicators
    - Tab cycle over all visible components. Yellow/gray borders per focus. Ignore global shortcuts when focus is in inputs/dropdowns/pickers.
 7) State & reset
@@ -58,17 +58,17 @@ Objective: Implement a unified email search with two modes (remote/local) and an
 9) Manual testing
    - Open/close simple & advanced flows; toggle remote/local; use picker; execute searches; ESC at every level; tab across components; paginate; return to Inbox.
 10) Polish
-   - Performance for local filtering; friendly error messages in the status bar.
+   - Performance for local filtering through service layer; friendly error messages via ErrorHandler.
 
 ### Status — Implemented
 - Container & layout
   - Search overlay integrated in the same screen above the message list (25% simple). Advanced form expands to replace the list region.
 - Simple mode UX
-  - Dynamic title and border; input full width & vertically centered; English placeholders/help; Ctrl+T toggles Remote/Local; Enter executes; ESC closes and restores list. Remote search updates results immediately via safe UI updates.
+  - Dynamic title and border; input full width & vertically centered; English placeholders/help; Ctrl+T toggles Remote/Local; Enter executes; ESC closes and restores list. Remote search updates results through EmailService with safe UI updates via ErrorHandler.
   - Default `in:inbox` appended when the user query lacks `in:`/`label:`.
   - Title shows exact query: “Search Results (N) — {query}”.
 - Local search
-  - Multi-word AND across Subject, From, To, Snippet. Runs off-UI-thread and updates via QueueUpdateDraw. Title and list update accordingly.
+  - Multi-word AND across Subject, From, To, Snippet through service layer. Runs off-UI-thread and updates via QueueUpdateDraw. Title and list update using service methods.
 - Advanced form
   - Fields present: From, To, Subject, Has, Doesn’t have, Size (single field), Date within (single field), Has attachment (checkbox), Search (selector). ESC returns to simple. Ctrl+Enter/Ctrl+S trigger search.
 - “Search” picker

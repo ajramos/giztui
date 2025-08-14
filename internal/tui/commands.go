@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/derailed/tcell/v2"
@@ -271,6 +272,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"qu":      {"quit"},
 		"qui":     {"quit"},
 		"quit":    {"quit"},
+		"g":       {"G"},
+		"G":       {"G"},
+		"1":       {"1"},
+		"$":       {"$"},
+		"5":       {"5"},
+		"10":      {"10"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -313,6 +320,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 			return "search domain:current"
 		}
 	}
+
+	// Contextual help for G command
+	if strings.HasPrefix(buffer, "G ") {
+		return "G <message_number>"
+	}
+
 	return ""
 }
 
@@ -353,8 +366,13 @@ func (a *App) executeCommand(cmd string) {
 		a.executeHelpCommand(args)
 	case "quit", "q":
 		a.executeQuitCommand(args)
+	case "g", "G":
+		a.executeGoToCommand(args)
 	default:
-		a.showError(fmt.Sprintf("Unknown command: %s", command))
+		// Check for numeric shortcuts like :1, :$
+		if matched := a.executeNumericShortcut(command); !matched {
+			a.showError(fmt.Sprintf("Unknown command: %s", command))
+		}
 	}
 }
 
@@ -492,3 +510,73 @@ func (a *App) executeQuitCommand(args []string) {
 	a.closeLogger()
 	a.Stop()
 }
+
+// executeGoToCommand handles :G command (go to last message) and numeric navigation
+func (a *App) executeGoToCommand(args []string) {
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		return // Silently fail like the working G key
+	}
+	
+	// Check if we have any messages
+	if len(a.ids) == 0 {
+		return // No messages to navigate to
+	}
+	
+	// Default to last message (:G behavior) 
+	// Last message is at table row = len(a.ids) - 1
+	targetRow := len(a.ids) - 1
+	
+	// If argument provided (called from :5 style commands), calculate target row
+	if len(args) > 0 {
+		if num, err := strconv.Atoi(args[0]); err == nil && num >= 1 {
+			// Convert 1-based user input to 0-based table row
+			// User message 1 = table row 0, message 2 = table row 1, etc.
+			maxMessage := len(a.ids) // Total number of messages
+			if num > maxMessage {
+				targetRow = len(a.ids) - 1 // Go to last message if number too high
+			} else {
+				targetRow = num - 1 // User message N = table row N-1
+			}
+		}
+	}
+	
+	// Use the same simple approach as the working direct G key
+	list.Select(targetRow, 0)
+}
+
+// executeNumericShortcut handles :1, :$, and pure numbers for navigation
+func (a *App) executeNumericShortcut(command string) bool {
+	switch command {
+	case "1":
+		a.executeGoToFirst()
+		return true
+	case "$":
+		a.executeGoToCommand([]string{}) // No args = last message
+		return true
+	default:
+		// Check if it's a pure number
+		if num, err := strconv.Atoi(command); err == nil && num >= 1 {
+			a.executeGoToCommand([]string{command})
+			return true
+		}
+	}
+	return false
+}
+
+// executeGoToFirst navigates to the first message (gg and :1 behavior)
+func (a *App) executeGoToFirst() {
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		return // Silently fail like the working G key
+	}
+	
+	// Check if we have any messages
+	if len(a.ids) == 0 {
+		return // No messages to navigate to
+	}
+	
+	// First message is at table row 0 (maps to a.ids[0])
+	list.Select(0, 0)
+}
+

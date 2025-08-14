@@ -11,7 +11,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ Archive and move to trash
 - ✅ Manage labels (add, remove, create)
 - ✅ Load more messages (when list is focused)
-- ✅ Basic search and navigation support
+- ✅ Search and navigation support with VIM-style commands (`:5`, `G`, `gg`)
 - 🚧 WIP: Compose, Reply, Drafts, Attachments
 
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
@@ -247,6 +247,35 @@ The application uses a unified configuration directory structure:
 | `y` | Toggle AI summary |
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
+
+#### 🏃 VIM-Style Navigation
+
+Gmail TUI supports VIM-style navigation for efficient message browsing:
+
+**Command-based navigation (`:` prefix):**
+| Command | Action |
+|---------|--------|
+| `:5` | Jump to message 5 |
+| `:1` | Jump to first message |
+| `:$` | Jump to last message |
+| `:G` | Jump to last message |
+
+**Direct shortcuts (VIM-style):**
+| Key | Action |
+|-----|--------|
+| `G` | Jump to last message |
+| `gg` | Jump to first message (press 'g' twice quickly) |
+
+**Examples:**
+- Type `:10` + Enter → Jump to message 10
+- Press `G` → Jump to last message  
+- Press `g` then `g` quickly → Jump to first message
+- Type `:$` + Enter → Jump to last message
+
+#### 🔧 Other shortcuts
+
+| Key | Action |
+|-----|--------|
 | `o` | Suggest label |
 | `q` | Quit |
 

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -308,6 +309,19 @@ func (a *App) bindKeys() {
 			return event
 		}
 
+		// VIM-style navigation shortcuts
+		switch event.Rune() {
+		case 'g':
+			if a.handleVimNavigation('g') {
+				return nil
+			}
+			// Fall through to LLM features if not VIM navigation
+		case 'G':
+			if a.handleVimNavigation('G') {
+				return nil
+			}
+		}
+
 		// LLM features
 		if a.LLM != nil {
 			switch event.Rune() {
@@ -318,7 +332,10 @@ func (a *App) bindKeys() {
 				go a.forceRegenerateSummary()
 				return nil
 			case 'g':
-				a.showStatusMessage("💬 Generate reply: placeholder")
+				// Only show generate reply if not handled by VIM navigation
+				if !a.isVimNavigationActive() {
+					a.showStatusMessage("💬 Generate reply: placeholder")
+				}
 				return nil
 			case 'o':
 				go a.suggestLabel()
@@ -413,4 +430,59 @@ func (a *App) restoreFocusAfterModal() {
 	a.SetFocus(a.views["list"])
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
+}
+
+// handleVimNavigation handles VIM-style navigation key sequences
+func (a *App) handleVimNavigation(key rune) bool {
+	// Check if we're in a context where VIM navigation should work
+	// Allow VIM navigation when focus is on list or when no specific focus is set
+	if a.currentFocus != "" && a.currentFocus != "list" {
+		return false
+	}
+
+	now := time.Now()
+	
+	// Clear sequence if timeout exceeded (1 second)
+	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Second {
+		a.vimSequence = ""
+	}
+	
+	switch key {
+	case 'g':
+		if a.vimSequence == "g" {
+			// Double 'g' - go to first message
+			a.vimSequence = ""
+			a.vimTimeout = time.Time{}
+			a.executeGoToFirst()
+			return true
+		} else {
+			// Start of sequence - wait for next key
+			a.vimSequence = "g"
+			a.vimTimeout = now.Add(time.Second)
+			return true
+		}
+	case 'G':
+		// Single 'G' - go to last message
+		a.vimSequence = ""
+		a.vimTimeout = time.Time{}
+		a.executeGoToCommand([]string{}) // Use working command function
+		return true
+	}
+	
+	return false
+}
+
+// isVimNavigationActive checks if a VIM navigation sequence is currently active
+func (a *App) isVimNavigationActive() bool {
+	if a.vimSequence == "" {
+		return false
+	}
+	// Check if sequence hasn't timed out
+	if !a.vimTimeout.IsZero() && time.Now().Sub(a.vimTimeout) <= time.Second {
+		return true
+	}
+	// Clear expired sequence
+	a.vimSequence = ""
+	a.vimTimeout = time.Time{}
+	return false
 }

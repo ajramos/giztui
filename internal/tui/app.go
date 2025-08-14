@@ -110,6 +110,10 @@ type App struct {
 	selected map[string]bool // messageID -> selected
 	bulkMode bool
 
+	// VIM-style navigation
+	vimSequence    string    // Track VIM key sequences like "gg"
+	vimTimeout     time.Time // Timeout for key sequences
+
 	// UI lifecycle flags
 	uiReady          bool // true after first draw
 	welcomeAnimating bool // avoid multiple spinner goroutines

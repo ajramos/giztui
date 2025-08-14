@@ -2,6 +2,10 @@
 
 This file provides context for Claude Code (AI assistant) when working on Gmail TUI.
 
+## 📝 **Git Commit Guidelines**
+
+When committing changes, **DO NOT** include Claude signatures or co-authored by lines in commit messages. Keep commit messages clean and focused on the actual changes.
+
 ## 🏗️ **Mandatory Architecture Patterns**
 
 Claude should **ALWAYS** follow these patterns when developing new features:
@@ -128,6 +132,7 @@ When asked to implement a new feature:
 1. **Analyze Requirements** - Identify what services are needed
 2. **Check Existing Services** - Reuse if possible, extend if needed
 3. **Design Service Interface** - Define clean contracts
+4. **Validate with the user the proposed solution**** - Make sure the customer agrees on the approach 
 4. **Implement Service** - Business logic only
 5. **Integrate with UI** - Presentation logic only
 6. **Add Error Handling** - Use ErrorHandler consistently

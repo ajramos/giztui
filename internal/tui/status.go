@@ -40,6 +40,11 @@ func (a *App) showInfo(msg string) {
 	a.showStatusMessage(fmt.Sprintf("ℹ️ %s", msg))
 }
 
+// showSuccess shows a success message via status helpers
+func (a *App) showSuccess(msg string) {
+	a.showStatusMessage(fmt.Sprintf("✅ %s", msg))
+}
+
 // showLLMError logs the full error and shows a concise message in the status bar
 func (a *App) showLLMError(operation string, err error) {
 	if err == nil {
