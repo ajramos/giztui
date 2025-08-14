@@ -1,0 +1,32 @@
+# Pre-commit hooks for Gmail TUI
+repos:
+  - repo: local
+    hooks:
+      - id: architecture-check
+        name: Architecture Pattern Check
+        entry: scripts/check-architecture.sh
+        language: script
+        files: '\.go$'
+        
+      - id: go-fmt
+        name: Go Format
+        entry: gofmt
+        language: system
+        args: [-w]
+        files: '\.go$'
+        
+      - id: go-vet
+        name: Go Vet
+        entry: go
+        language: system
+        args: [vet, ./...]
+        files: '\.go$'
+        pass_filenames: false
+        
+      - id: go-test
+        name: Go Test
+        entry: go
+        language: system
+        args: [test, ./...]
+        files: '\.go$'
+        pass_filenames: false
