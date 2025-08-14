@@ -13,6 +13,9 @@ import (
 
 // toggleAISummary shows/hides the AI summary pane and triggers generation if needed
 func (a *App) toggleAISummary() {
+	if a.logger != nil {
+		a.logger.Printf("toggleAISummary: start; visible=%v focus=%s", a.aiSummaryVisible, a.currentFocus)
+	}
 	if a.aiSummaryVisible && a.currentFocus == "summary" {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.aiSummaryView, 0, 0)
@@ -26,17 +29,17 @@ func (a *App) toggleAISummary() {
 	}
 
 	mid := a.getCurrentMessageID()
+	if mid == "" && a.currentMessageID != "" {
+		mid = a.currentMessageID
+	}
 	if mid == "" && len(a.ids) > 0 {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			idx := list.GetCurrentItem()
-			if idx >= 0 && idx < len(a.ids) {
-				mid = a.ids[idx]
-				go a.showMessage(mid)
-			}
-		}
+		mid = a.ids[0]
 	}
 	if mid == "" {
 		a.showError("No message selected")
+		if a.logger != nil {
+			a.logger.Printf("toggleAISummary: no message id available")
+		}
 		return
 	}
 
@@ -56,7 +59,10 @@ func (a *App) toggleAISummary() {
 	}
 	a.updateFocusIndicators("summary")
 
-	a.generateOrShowSummary(mid)
+	if a.logger != nil {
+		a.logger.Printf("toggleAISummary: generate mid=%s", mid)
+	}
+	go a.generateOrShowSummary(mid)
 }
 
 // generateOrShowSummary shows cached summary or triggers generation if missing
@@ -64,10 +70,15 @@ func (a *App) generateOrShowSummary(messageID string) {
 	if a.aiSummaryView == nil {
 		return
 	}
+	if a.logger != nil {
+		a.logger.Printf("generateOrShowSummary: id=%s stream=%v provider=%T", messageID, a.Config != nil && a.Config.LLMStreamEnabled, a.LLM)
+	}
 	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
-		a.aiSummaryView.SetText(sanitizeForTerminal(sum))
-		a.aiSummaryView.ScrollToBeginning()
-		a.setStatusPersistent("🤖 Summary loaded from cache")
+		a.QueueUpdateDraw(func() {
+			a.aiSummaryView.SetText(sanitizeForTerminal(sum))
+			a.aiSummaryView.ScrollToBeginning()
+			a.setStatusPersistent("🤖 Summary loaded from cache")
+		})
 		return
 	}
 	// Try to load from SQLite cache before generating
@@ -75,24 +86,60 @@ func (a *App) generateOrShowSummary(messageID string) {
 		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
 			if sum, ok, _ := a.cacheStore.LoadAISummary(a.ctx, strings.ToLower(email), messageID); ok && strings.TrimSpace(sum) != "" {
 				a.aiSummaryCache[messageID] = sum
-				a.aiSummaryView.SetText(sanitizeForTerminal(sum))
-				a.aiSummaryView.ScrollToBeginning()
-				a.setStatusPersistent("🤖 Summary loaded from local DB cache")
+				a.QueueUpdateDraw(func() {
+					a.aiSummaryView.SetText(sanitizeForTerminal(sum))
+					a.aiSummaryView.ScrollToBeginning()
+					a.setStatusPersistent("🤖 Summary loaded from local DB cache")
+				})
 				return
 			}
 		}
 	}
 	if a.aiInFlight[messageID] {
+		a.QueueUpdateDraw(func() {
+			a.aiSummaryView.SetText("🧠 Summarizing…")
+			a.aiSummaryView.ScrollToBeginning()
+			a.setStatusPersistent("🧠 Summarizing…")
+		})
+		return
+	}
+	a.QueueUpdateDraw(func() {
 		a.aiSummaryView.SetText("🧠 Summarizing…")
 		a.aiSummaryView.ScrollToBeginning()
 		a.setStatusPersistent("🧠 Summarizing…")
-		return
-	}
-	a.aiSummaryView.SetText("🧠 Summarizing…")
-	a.aiSummaryView.ScrollToBeginning()
-	a.setStatusPersistent("🧠 Summarizing…")
+	})
 	a.aiInFlight[messageID] = true
+	// Watchdog: ensure we never stay stuck indefinitely
 	go func(id string) {
+		// Use same timeout baseline as LLM timeout + small buffer
+		timeout := 65 * time.Second
+		if a.Config != nil {
+			if t := a.Config.GetLLMTimeout(); t > 0 {
+				// Add 5s buffer for UI cleanup
+				timeout = t + 5*time.Second
+			}
+		}
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		<-timer.C
+		if a.aiInFlight[id] {
+			delete(a.aiInFlight, id)
+			a.QueueUpdateDraw(func() {
+				a.aiSummaryView.SetText("⚠️ Summary timed out")
+				a.setStatusPersistent("")
+			})
+		}
+	}(messageID)
+	go func(id string) {
+		defer func() {
+			if r := recover(); r != nil {
+				delete(a.aiInFlight, id)
+				a.QueueUpdateDraw(func() {
+					a.aiSummaryView.SetText("⚠️ Internal error while summarizing")
+					a.setStatusPersistent("")
+				})
+			}
+		}()
 		m, err := a.Client.GetMessageWithContent(id)
 		if err != nil {
 			a.QueueUpdateDraw(func() {
@@ -119,6 +166,9 @@ func (a *App) generateOrShowSummary(messageID string) {
 		prompt := strings.ReplaceAll(template, "{{body}}", body)
 		// Try streaming for Ollama if enabled
 		if a.Config != nil && a.Config.LLMStreamEnabled {
+			if a.logger != nil {
+				a.logger.Printf("generateOrShowSummary: streaming path")
+			}
 			if prov, ok := a.LLM.(interface{ Name() string }); ok && prov.Name() == "ollama" {
 				if streamer, ok2 := a.LLM.(interface {
 					GenerateStream(context.Context, string, func(string)) error
@@ -128,7 +178,14 @@ func (a *App) generateOrShowSummary(messageID string) {
 						a.aiSummaryView.SetText("")
 						a.setStatusPersistent("🧠 Streaming summary…")
 					})
-					ctx, cancel := context.WithCancel(a.ctx)
+					// Use configured timeout if available; default 60s
+					timeout := 60 * time.Second
+					if a.Config != nil {
+						if t := a.Config.GetLLMTimeout(); t > 0 {
+							timeout = t
+						}
+					}
+					ctx, cancel := context.WithTimeout(a.ctx, timeout)
 					err := streamer.GenerateStream(ctx, prompt, func(tok string) {
 						b.WriteString(tok)
 						a.QueueUpdateDraw(func() {
@@ -138,9 +195,14 @@ func (a *App) generateOrShowSummary(messageID string) {
 					cancel()
 					if err != nil {
 						a.QueueUpdateDraw(func() {
-							a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
+							if err == context.DeadlineExceeded {
+								a.aiSummaryView.SetText("⚠️ LLM timeout while summarizing")
+							} else {
+								a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
+							}
 							a.aiSummaryView.ScrollToBeginning()
 							a.showLLMError("summarize", err)
+							a.setStatusPersistent("")
 						})
 						delete(a.aiInFlight, id)
 						return
@@ -161,18 +223,50 @@ func (a *App) generateOrShowSummary(messageID string) {
 						a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 						a.aiSummaryView.ScrollToBeginning()
 						a.showStatusMessage("✅ Summary ready")
+						a.setStatusPersistent("")
 					})
 					return
 				}
 			}
 		}
-		resp, err := a.LLM.Generate(prompt)
-		if err != nil {
+		// Non-stream path with timeout guard to avoid UI hang
+		if a.logger != nil {
+			a.logger.Printf("generateOrShowSummary: non-stream path")
+		}
+		timeout := 60 * time.Second
+		if a.Config != nil {
+			if t := a.Config.GetLLMTimeout(); t > 0 {
+				timeout = t
+			}
+		}
+		type genResult struct {
+			resp string
+			err  error
+		}
+		doneCh := make(chan genResult, 1)
+		go func() {
+			r, e := a.LLM.Generate(prompt)
+			doneCh <- genResult{resp: r, err: e}
+		}()
+		var resp string
+		var err2 error
+		select {
+		case r := <-doneCh:
+			resp, err2 = r.resp, r.err
+		case <-time.After(timeout):
+			err2 = context.DeadlineExceeded
+		}
+		if err2 != nil {
 			a.QueueUpdateDraw(func() {
 				// Show error details in the AI summary panel (larger area)
-				a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
+				if err2 == context.DeadlineExceeded {
+					a.aiSummaryView.SetText("⚠️ LLM timeout while summarizing")
+				} else {
+					a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err2.Error()))
+				}
 				a.aiSummaryView.ScrollToBeginning()
-				a.showLLMError("summarize", err)
+				a.showLLMError("summarize", err2)
+				a.setStatusPersistent("")
 			})
 			delete(a.aiInFlight, id)
 			return
@@ -193,6 +287,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
 			a.aiSummaryView.ScrollToBeginning()
 			a.showStatusMessage("✅ Summary ready")
+			a.setStatusPersistent("")
 		})
 	}(messageID)
 }

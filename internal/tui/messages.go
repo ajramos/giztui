@@ -2,15 +2,18 @@ package tui
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/mail"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/ajramos/gmail-tui/internal/cache"
 	calclient "github.com/ajramos/gmail-tui/internal/calendar"
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
@@ -260,6 +263,68 @@ func (a *App) reloadMessages() {
 	}
 	a.Draw()
 
+	// Fast path: paint from local cache immediately if available
+	usedCache := false
+	if a.cacheStore != nil {
+		if metas, err := a.cacheStore.LoadRecentMessageMetas(a.ctx, 50); err == nil && len(metas) > 0 {
+			if a.debug && a.logger != nil {
+				a.logger.Printf("reloadMessages: painting %d from cache", len(metas))
+			}
+			// Build gmailapi.Message slice from cached meta
+			cachedIDs := make([]string, 0, len(metas))
+			cachedMeta := make([]*gmailapi.Message, 0, len(metas))
+			for _, mm := range metas {
+				var lids []string
+				if strings.TrimSpace(mm.LabelIDsJSON) != "" {
+					_ = json.Unmarshal([]byte(mm.LabelIDsJSON), &lids)
+				}
+				m := &gmailapi.Message{
+					Id:           mm.ID,
+					ThreadId:     mm.ThreadID,
+					Snippet:      mm.Snippet,
+					LabelIds:     lids,
+					InternalDate: mm.InternalDate,
+					HistoryId:    uint64(mm.HistoryID),
+				}
+				cachedIDs = append(cachedIDs, mm.ID)
+				cachedMeta = append(cachedMeta, m)
+			}
+			a.ids = cachedIDs
+			a.messagesMeta = cachedMeta
+			// Paint rows
+			screenWidth := a.getFormatWidth()
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				for i := range a.ids {
+					if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
+						continue
+					}
+					msg := a.messagesMeta[i]
+					formattedText, _ := a.emailRenderer.FormatEmailList(msg, screenWidth)
+					unread := false
+					for _, lid := range msg.LabelIds {
+						if lid == "UNREAD" {
+							unread = true
+							break
+						}
+					}
+					if unread {
+						formattedText = "● " + formattedText
+					} else {
+						formattedText = "○ " + formattedText
+					}
+					cell := tview.NewTableCell(formattedText).SetExpansion(1).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+					table.SetCell(i, 0, cell)
+				}
+				table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+				if table.GetRowCount() > 0 {
+					table.Select(0, 0)
+				}
+			}
+			a.reformatListItems()
+			usedCache = true
+		}
+	}
+
 	// If coming from remote search mode, clear it on full reload
 	if a.searchMode == "remote" {
 		a.searchMode = ""
@@ -294,6 +359,15 @@ func (a *App) reloadMessages() {
 	// Usar ancho disponible actual del list (simple, sin watchers)
 	screenWidth := a.getFormatWidth()
 
+	// If we rendered from cache, reset list before painting fresh results
+	if usedCache {
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+		}
+		a.ids = []string{}
+		a.messagesMeta = []*gmailapi.Message{}
+	}
+
 	// Spinner with progress once we know how many items are coming
 	var spinnerStop chan struct{}
 	loaded := 0
@@ -301,6 +375,13 @@ func (a *App) reloadMessages() {
 	if _, ok := a.views["list"].(*tview.Table); ok {
 		spinnerStop = make(chan struct{})
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					if a.logger != nil {
+						a.logger.Printf("panic in reloadMessages spinner: %v\n%s", r, debug.Stack())
+					}
+				}
+			}()
 			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			i := 0
 			ticker := time.NewTicker(150 * time.Millisecond)
@@ -463,6 +544,13 @@ func (a *App) loadMoreMessages() {
 	if _, ok := a.views["list"].(*tview.Table); ok {
 		spinnerStop = make(chan struct{})
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					if a.logger != nil {
+						a.logger.Printf("panic in loadMoreMessages spinner: %v\n%s", r, debug.Stack())
+					}
+				}
+			}()
 			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			i := 0
 			ticker := time.NewTicker(120 * time.Millisecond)
@@ -1629,51 +1717,107 @@ func (a *App) applyLocalFilter(expr string) {
 
 // showMessage displays a message in the text view
 func (a *App) showMessage(id string) {
-	// Show loading message immediately
-	if text, ok := a.views["text"].(*tview.TextView); ok {
-		if a.debug {
-			a.logger.Printf("showMessage: id=%s", id)
+	// Show loading message immediately (UI thread)
+	a.QueueUpdateDraw(func() {
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessage(UI): id=%s", id)
+			}
+			if a.llmTouchUpEnabled {
+				a.setStatusPersistent("🧠 Optimizing format with LLM…")
+			} else {
+				a.setStatusPersistent("🧾 Loading message…")
+			}
+			text.SetText("Loading message…")
+			text.ScrollToBeginning()
 		}
-		if a.llmTouchUpEnabled {
-			a.setStatusPersistent("🧠 Optimizing format with LLM…")
-		} else {
-			a.setStatusPersistent("🧾 Loading message…")
-		}
-		text.SetText("Loading message…")
-		text.ScrollToBeginning()
-	}
-
-	// Automatically switch focus to text view when viewing a message
-	a.SetFocus(a.views["text"])
-	a.currentFocus = "text"
-	a.updateFocusIndicators("text")
-	a.currentMessageID = id
-
-	a.Draw()
+		// Automatically switch focus to text view when viewing a message
+		a.SetFocus(a.views["text"])
+		a.currentFocus = "text"
+		a.updateFocusIndicators("text")
+		a.currentMessageID = id
+	})
 
 	// Load message content in background
 	go func() {
-		if a.debug {
-			a.logger.Printf("showMessage background: id=%s", id)
+		defer func() {
+			if r := recover(); r != nil {
+				if a.logger != nil {
+					a.logger.Printf("panic in showMessage(bg): %v\n%s", r, debug.Stack())
+				}
+				a.QueueUpdateDraw(func() { a.showError("⚠️ Internal error while loading message") })
+			}
+		}()
+		if a.debug && a.logger != nil {
+			a.logger.Printf("showMessage(bg): start id=%s", id)
 		}
-		// Use cache if available; otherwise fetch and cache
+		// Use memory cache if available; else try disk cache; otherwise fetch and cache
 		var message *gmail.Message
 		if cached, ok := a.messageCache[id]; ok {
-			if a.debug {
-				a.logger.Printf("showMessage: cache hit id=%s", id)
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessage(bg): memory cache hit id=%s", id)
 			}
 			message = cached
-		} else {
+		} else if a.cacheStore != nil {
+			if plain, html, ok, _ := a.cacheStore.GetMessageBody(a.ctx, id); ok {
+				if a.debug && a.logger != nil {
+					a.logger.Printf("showMessage(bg): disk cache hit id=%s", id)
+				}
+				// Build minimal message from in-memory metadata + cached body
+				var meta *gmailapi.Message
+				for i := range a.ids {
+					if i < len(a.messagesMeta) && a.ids[i] == id {
+						meta = a.messagesMeta[i]
+						break
+					}
+				}
+				if meta == nil {
+					if m, err := a.Client.GetMessage(id); err == nil {
+						meta = m
+					}
+				}
+				gm := &gmail.Message{Message: meta, PlainText: plain, HTML: html}
+				if meta != nil {
+					gm.Subject = extractHeaderValue(meta, "Subject")
+					gm.From = extractHeaderValue(meta, "From")
+					gm.To = extractHeaderValue(meta, "To")
+					gm.Cc = extractHeaderValue(meta, "Cc")
+					gm.Date = a.Client.ExtractDate(meta)
+				}
+				message = gm
+			}
+		}
+		if message == nil {
 			m, err := a.Client.GetMessageWithContent(id)
 			if err != nil {
 				a.showError(fmt.Sprintf("❌ Error loading message: %v", err))
 				return
 			}
-			if a.debug {
-				a.logger.Printf("showMessage: fetched id=%s", id)
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessage(bg): fetched from API id=%s", id)
 			}
 			a.messageCache[id] = m
 			message = m
+			// Persist to SQLite in background
+			if a.cacheStore != nil {
+				go func(mw *gmail.Message) {
+					_ = a.cacheStore.UpsertMessageBody(a.ctx, id, mw.PlainText, mw.HTML, time.Now().Unix())
+					// Upsert metadata too (best-effort)
+					if mw.Message != nil {
+						labelsJSON, _ := json.Marshal(mw.Message.LabelIds)
+						_ = a.cacheStore.UpsertMessageMeta(a.ctx, cache.MessageMeta{
+							ID:           mw.Message.Id,
+							ThreadID:     mw.Message.ThreadId,
+							Snippet:      mw.Message.Snippet,
+							InternalDate: mw.Message.InternalDate,
+							LabelIDsJSON: string(labelsJSON),
+							HistoryID:    int64(mw.Message.HistoryId),
+							UpdatedAt:    time.Now().Unix(),
+							LastAccessed: time.Now().Unix(),
+						})
+					}
+				}(m)
+			}
 		}
 
 		rendered, isANSI := a.renderMessageContent(message)
@@ -1704,7 +1848,12 @@ func (a *App) showMessage(id string) {
 			if a.aiSummaryVisible {
 				a.generateOrShowSummary(id)
 			}
+			// Clear persistent loading status once content is rendered
+			a.setStatusPersistent("")
 		})
+		if a.debug && a.logger != nil {
+			a.logger.Printf("showMessage(bg): done id=%s", id)
+		}
 	}()
 }
 
@@ -1841,38 +1990,95 @@ func sanitizeFilename(s string) string {
 
 // showMessageWithoutFocus loads the message content but does not change focus
 func (a *App) showMessageWithoutFocus(id string) {
-	// Show loading message
-	if text, ok := a.views["text"].(*tview.TextView); ok {
-		if a.debug {
-			a.logger.Printf("showMessageWithoutFocus: id=%s", id)
+	// Show loading message (UI thread)
+	a.QueueUpdateDraw(func() {
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessageWithoutFocus(UI): id=%s", id)
+			}
+			text.SetText("Loading message...")
+			text.ScrollToBeginning()
 		}
-		text.SetText("Loading message...")
-		text.ScrollToBeginning()
-	}
+	})
 	a.currentMessageID = id
 
 	go func() {
-		if a.debug {
-			a.logger.Printf("showMessageWithoutFocus background: id=%s", id)
+		defer func() {
+			if r := recover(); r != nil {
+				if a.logger != nil {
+					a.logger.Printf("panic in showMessageWithoutFocus(bg): %v\n%s", r, debug.Stack())
+				}
+				a.QueueUpdateDraw(func() { a.showError("⚠️ Internal error while loading message") })
+			}
+		}()
+		if a.debug && a.logger != nil {
+			a.logger.Printf("showMessageWithoutFocus(bg): start id=%s", id)
 		}
-		// Use cache if available; otherwise fetch and cache
+		// Use memory cache if available; else try disk cache; otherwise fetch and cache
 		var message *gmail.Message
 		if cached, ok := a.messageCache[id]; ok {
-			if a.debug {
-				a.logger.Printf("showMessageWithoutFocus: cache hit id=%s", id)
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessageWithoutFocus(bg): memory cache hit id=%s", id)
 			}
 			message = cached
-		} else {
+		} else if a.cacheStore != nil {
+			if plain, html, ok, _ := a.cacheStore.GetMessageBody(a.ctx, id); ok {
+				if a.debug && a.logger != nil {
+					a.logger.Printf("showMessageWithoutFocus(bg): disk cache hit id=%s", id)
+				}
+				var meta *gmailapi.Message
+				for i := range a.ids {
+					if i < len(a.messagesMeta) && a.ids[i] == id {
+						meta = a.messagesMeta[i]
+						break
+					}
+				}
+				if meta == nil {
+					if m, err := a.Client.GetMessage(id); err == nil {
+						meta = m
+					}
+				}
+				gm := &gmail.Message{Message: meta, PlainText: plain, HTML: html}
+				if meta != nil {
+					gm.Subject = extractHeaderValue(meta, "Subject")
+					gm.From = extractHeaderValue(meta, "From")
+					gm.To = extractHeaderValue(meta, "To")
+					gm.Cc = extractHeaderValue(meta, "Cc")
+					gm.Date = a.Client.ExtractDate(meta)
+				}
+				message = gm
+			}
+		}
+		if message == nil {
 			m, err := a.Client.GetMessageWithContent(id)
 			if err != nil {
 				a.showError(fmt.Sprintf("❌ Error loading message: %v", err))
 				return
 			}
-			if a.debug {
-				a.logger.Printf("showMessageWithoutFocus: fetched id=%s", id)
+			if a.debug && a.logger != nil {
+				a.logger.Printf("showMessageWithoutFocus(bg): fetched from API id=%s", id)
 			}
 			a.messageCache[id] = m
 			message = m
+			// Persist to SQLite in background
+			if a.cacheStore != nil {
+				go func(mw *gmail.Message) {
+					_ = a.cacheStore.UpsertMessageBody(a.ctx, id, mw.PlainText, mw.HTML, time.Now().Unix())
+					if mw.Message != nil {
+						labelsJSON, _ := json.Marshal(mw.Message.LabelIds)
+						_ = a.cacheStore.UpsertMessageMeta(a.ctx, cache.MessageMeta{
+							ID:           mw.Message.Id,
+							ThreadID:     mw.Message.ThreadId,
+							Snippet:      mw.Message.Snippet,
+							InternalDate: mw.Message.InternalDate,
+							LabelIDsJSON: string(labelsJSON),
+							HistoryID:    int64(mw.Message.HistoryId),
+							UpdatedAt:    time.Now().Unix(),
+							LastAccessed: time.Now().Unix(),
+						})
+					}
+				}(m)
+			}
 		}
 
 		// In preview (selection change), do not run LLM touch-up to avoid many calls
@@ -1901,7 +2107,12 @@ func (a *App) showMessageWithoutFocus(id string) {
 			if _, ok := a.inviteCache[id]; ok {
 				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
+			// Clear persistent loading status once preview content is rendered
+			a.setStatusPersistent("")
 		})
+		if a.debug && a.logger != nil {
+			a.logger.Printf("showMessageWithoutFocus(bg): done id=%s", id)
+		}
 	}()
 }
 
@@ -2644,8 +2855,8 @@ func (a *App) archiveSelected() {
 	}
 	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
 
-    // Safe UI removal (preselect another index before removing)
-    a.QueueUpdateDraw(func() {
+	// Safe UI removal (preselect another index before removing)
+	a.QueueUpdateDraw(func() {
         a.safeRemoveCurrentSelection(messageID)
     })
 }
@@ -2676,7 +2887,7 @@ func (a *App) archiveSelectedBulk() {
 			})
 			// Remove from UI list on main thread after loop
 		}
-        a.QueueUpdateDraw(func() {
+		a.QueueUpdateDraw(func() {
             a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
@@ -2718,7 +2929,7 @@ func (a *App) trashSelectedBulk() {
 				a.setStatusPersistent(fmt.Sprintf("Trashing %d/%d…", idx, total))
 			})
 		}
-        a.QueueUpdateDraw(func() {
+		a.QueueUpdateDraw(func() {
             a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)

@@ -312,7 +312,11 @@ func (a *App) bindKeys() {
 		if a.LLM != nil {
 			switch event.Rune() {
 			case 'y':
-				a.toggleAISummary()
+				// Ensure we do not block UI; log and run in background
+				if a.logger != nil {
+					a.logger.Printf("key: Y pressed; triggering toggleAISummary")
+				}
+				go a.toggleAISummary()
 				return nil
 			case 'Y':
 				go a.forceRegenerateSummary()

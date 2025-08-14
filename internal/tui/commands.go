@@ -349,6 +349,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeInboxCommand(args)
 	case "compose", "c":
 		a.executeComposeCommand(args)
+	case "cache":
+		a.executeCacheCommand(args)
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
 	case "quit", "q":
@@ -491,4 +493,45 @@ func (a *App) executeQuitCommand(args []string) {
 	a.cancel()
 	a.closeLogger()
 	a.Stop()
+}
+
+// executeCacheCommand handles cache maintenance commands
+func (a *App) executeCacheCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: cache <clear|clear-all|clear-summaries|clear-messages|clear-sync>")
+		return
+	}
+	if a.cacheStore == nil {
+		a.showError("⚠️ Cache store not initialized")
+		return
+	}
+	sub := strings.ToLower(args[0])
+	switch sub {
+	case "clear-all", "clearall", "reset":
+		a.setStatusPersistent("🧹 Clearing all cache…")
+		go func() {
+			_ = a.cacheStore.ClearAll(a.ctx)
+			a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ Cache cleared") })
+		}()
+	case "clear", "clear-messages", "messages":
+		a.setStatusPersistent("🧹 Clearing message cache…")
+		go func() {
+			_ = a.cacheStore.ClearMessages(a.ctx)
+			a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ Message cache cleared") })
+		}()
+	case "clear-summaries", "summaries":
+		a.setStatusPersistent("🧹 Clearing AI summaries…")
+		go func() {
+			_ = a.cacheStore.ClearAISummaries(a.ctx)
+			a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ AI summaries cleared") })
+		}()
+	case "clear-sync", "sync":
+		a.setStatusPersistent("🧹 Clearing sync state…")
+		go func() {
+			_ = a.cacheStore.ClearSyncState(a.ctx)
+			a.QueueUpdateDraw(func() { a.setStatusPersistent(""); a.showStatusMessage("✅ Sync state cleared") })
+		}()
+	default:
+		a.showError("Usage: cache <clear|clear-all|clear-summaries|clear-messages|clear-sync>")
+	}
 }

@@ -116,6 +116,10 @@ type App struct {
 
 	// Formatting toggles
 	llmTouchUpEnabled bool
+
+	// Preview cancellation (debounce/cancel previous selection loads)
+	previewCancel context.CancelFunc
+	previewSeq    int64
 }
 
 // Pages manages the application pages and navigation
