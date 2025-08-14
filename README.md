@@ -275,7 +275,7 @@ The app uses an embedded SQLite database (no external server) to cache data loca
 - Per-account separation by filename
 - PRAGMAs tuned for TUI (WAL, foreign keys, busy_timeout, synchronous)
 
-For details and troubleshooting see [Cache & Incremental Sync](docs/cache_and_sync.md).
+For details and troubleshooting see [Cache & Incremental Sync](docs/cache_and_sync.md). For upcoming work, see [Phase 2 – Next Steps](docs/cache_phase2_next_steps.md).
 
 Configuration snippet:
 
