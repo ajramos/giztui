@@ -153,4 +153,3 @@ func DefaultColors() *ColorsConfig {
 		},
 	}
 }
-

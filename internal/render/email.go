@@ -38,16 +38,16 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 		switch strings.ToUpper(column) {
 		case "STATUS":
 			if ec.isUnread(message) {
-                return ec.UnreadColor // blue for unread
+				return ec.UnreadColor // blue for unread
 			}
-            return ec.ReadColor // gray for read
+			return ec.ReadColor // gray for read
 
 		case "FROM":
 			if ec.isImportant(message) {
 				return ec.ImportantColor // 🔴 Rojo para importante
 			}
 			if ec.isUnread(message) {
-                return ec.UnreadColor // orange for unread
+				return ec.UnreadColor // orange for unread
 			}
 			return tcell.ColorWhite
 
@@ -61,7 +61,7 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 			if ec.isUnread(message) {
 				return tcell.ColorWhite // ⚪ Blanco brillante
 			}
-            return ec.ReadColor // gray for read
+			return ec.ReadColor // gray for read
 		}
 		return tcell.ColorWhite
 	}
@@ -152,7 +152,7 @@ func (er *EmailRenderer) SetShowSystemLabelsInList(v bool) { er.showSystemLabels
 
 // FormatEmailList formats an email for list display
 func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth int) (string, tcell.Color) {
-    // colorer not used in the simple version
+	// colorer not used in the simple version
 
 	// Extract sender name
 	senderName := er.extractSenderName(er.getHeader(message, "From"))
@@ -187,7 +187,7 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 
 	senderText := er.fitWidth(senderName, senderWidth)
 	subjectText := er.fitWidth(subject, subjectWidth)
-    // Date at the end, left aligned
+	// Date at the end, left aligned
 	dateText := er.fitWidth(date, dateWidth)
 
 	// Create formatted string with fixed columns: Sender | Subject(+suffix) | Date

@@ -70,7 +70,7 @@ func (b *BedrockClient) generateAnthropic(prompt string) (string, error) {
 	lower := strings.ToLower(modelID)
 	if !strings.HasPrefix(lower, "arn:") && !strings.Contains(lower, "inference-profile/") {
 		if !strings.Contains(modelID, ":") {
-            // Some integrations require the revision suffix (:0)
+			// Some integrations require the revision suffix (:0)
 			modelID = modelID + ":0"
 		}
 	}
@@ -94,7 +94,7 @@ func (b *BedrockClient) generateAnthropic(prompt string) (string, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
-// Build InvokeModel input. SDK v2 uses only ModelId even for profile ARNs.
+	// Build InvokeModel input. SDK v2 uses only ModelId even for profile ARNs.
 	out, err := b.svc.InvokeModel(ctx, &bedrockruntime.InvokeModelInput{
 		ModelId:     aws.String(modelID),
 		ContentType: aws.String("application/json"),

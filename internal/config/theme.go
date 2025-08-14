@@ -170,4 +170,3 @@ func GetThemePreview(theme *ColorsConfig) string {
 
 	return preview
 }
-
