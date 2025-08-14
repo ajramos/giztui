@@ -740,7 +740,45 @@ The system comes with pre-configured prompts:
 - **Follow-up Required** - Determine if response is needed
 
 **Custom Prompts:**
-You can add your own prompt templates through the database or by modifying the initialization code in `internal/db/prompt_store.go`.
+You can add your own prompt templates directly to the database using SQLite commands:
+
+```bash
+# Connect to your database (replace {your-email} with your actual email)
+sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db
+
+# Add a custom prompt
+INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+VALUES (
+    'Prompt Name', 
+    'Description of what this prompt does', 
+    'Your prompt text with variables {{from}} {{subject}} {{body}} {{date}}', 
+    'category', 
+    strftime('%s', 'now'), 
+    0
+);
+
+# Verify the prompt was added
+SELECT * FROM prompt_templates WHERE name = 'Prompt Name';
+```
+
+**Example - Sentiment Analysis Prompt:**
+```sql
+INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+VALUES (
+    'Sentiment Analysis', 
+    'Analyze the emotional tone and sentiment of the email', 
+    'Analyze the emotional tone and sentiment of this email from {{from}} with subject "{{subject}}":\n\n{{body}}\n\nPlease provide:\n1. Overall sentiment (positive/negative/neutral)\n2. Emotional indicators\n3. Tone analysis\n4. Recommendations for response', 
+    'analysis', 
+    strftime('%s', 'now'), 
+    0
+);
+```
+
+**Available Categories:**
+- `summary` - For summarization prompts
+- `analysis` - For analysis and insights
+- `action` - For action items and tasks
+- `custom` - For your own categories
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
 Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/gmail-tui/gmail-tui.log`.
