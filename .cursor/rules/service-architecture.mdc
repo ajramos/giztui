@@ -1,0 +1,185 @@
+---
+alwaysApply: true
+---
+
+# Service-Oriented Architecture Rules - Gmail TUI
+
+## Overview
+Gmail TUI now follows a service-oriented architecture with clear separation of concerns between UI and business logic.
+
+## Core Principles
+
+### ✅ **Service Layer First**
+- ALL business logic must be in `internal/services/`
+- UI components only handle presentation and user input
+- Never put Gmail API calls, LLM operations, or complex logic in TUI components
+
+### ✅ **Required Service Pattern**
+```go
+func (a *App) handleUserAction() error {
+    // 1. Get services
+    emailService, aiService, labelService, cacheService, repository := a.GetServices()
+    
+    // 2. Get state thread-safely
+    messageID := a.GetCurrentMessageID()
+    
+    // 3. Call service for business logic
+    if err := emailService.DoOperation(a.ctx, messageID); err != nil {
+        a.GetErrorHandler().ShowError(a.ctx, "Operation failed")
+        return err
+    }
+    
+    // 4. Show success feedback
+    a.GetErrorHandler().ShowSuccess(a.ctx, "Operation completed")
+    return nil
+}
+```
+
+## Service Implementation Rules
+
+### **Service Interface Definition**
+- All services MUST implement interfaces in `internal/services/interfaces.go`
+- Services MUST use context.Context for cancellation
+- Services MUST return proper error types
+
+### **Service Integration**
+- Services are automatically initialized in `initServices()`
+- Access services via `app.GetServices()`
+- Never instantiate services directly in UI
+
+## Error Handling Rules
+
+### ✅ **ALWAYS Use ErrorHandler**
+```go
+// ✅ Correct
+app.GetErrorHandler().ShowError(ctx, "Operation failed")
+app.GetErrorHandler().ShowSuccess(ctx, "Operation completed") 
+app.GetErrorHandler().ShowProgress(ctx, "Loading...")
+
+// ❌ Wrong
+fmt.Printf("Error: %v\n", err)  // Direct output
+log.Printf("Success")           // Only logs, no user feedback
+```
+
+### **Error Levels**
+- `ShowError()` - User-facing error messages
+- `ShowWarning()` - Non-critical issues
+- `ShowSuccess()` - Operation confirmations
+- `ShowInfo()` - General information
+- `ShowProgress()` - Long-running operations
+
+## Thread Safety Rules
+
+### ✅ **ALWAYS Use Accessor Methods**
+```go
+// ✅ Correct - Thread-safe
+currentView := app.GetCurrentView()
+app.SetCurrentMessageID(messageID)
+ids := app.GetMessageIDs() // Returns copy
+
+// ❌ Wrong - Direct access (race conditions)
+currentView := app.currentView
+app.currentMessageID = messageID
+```
+
+### **UI Updates**
+- All UI mutations MUST use `app.QueueUpdateDraw(func() {...})`
+- Never mutate tview components from goroutines directly
+- Use thread-safe accessor methods for app state
+
+## File Organization Rules
+
+### **internal/tui/app.go**
+- Service initialization and integration
+- Thread-safe accessor methods
+- Application lifecycle management
+- NO business logic implementation
+
+### **internal/services/**
+- Business logic implementation
+- Gmail API integration
+- LLM operations
+- Data access patterns
+
+### **Feature Implementation Files**
+- `messages.go` - Email list and content (uses EmailService)
+- `labels.go` - Label management (uses LabelService)
+- `ai.go` - AI features (uses AIService)
+- UI logic only, delegate to services
+
+## Anti-Patterns to AVOID
+
+### ❌ **Never Do This**
+```go
+// ❌ Business logic in UI
+func (a *App) badExample() {
+    messages, err := a.Client.GetMessages() // Direct API call in UI
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)     // Direct output
+    }
+    a.currentMessageID = "new-id"           // Direct field access
+}
+```
+
+### ✅ **Always Do This**
+```go
+// ✅ Proper service-oriented approach
+func (a *App) goodExample() {
+    emailService, _, _, _, _ := a.GetServices()
+    messageID := a.GetCurrentMessageID()
+    
+    if err := emailService.LoadMessages(a.ctx); err != nil {
+        a.GetErrorHandler().ShowError(a.ctx, "Failed to load messages")
+        return
+    }
+    
+    a.SetCurrentMessageID("new-id")
+    a.GetErrorHandler().ShowSuccess(a.ctx, "Messages loaded")
+}
+```
+
+## Testing Rules
+
+### **Service Testing**
+- Unit tests for all services
+- Mock dependencies in tests
+- Test error conditions
+- Integration tests for complex workflows
+
+### **UI Testing**  
+- Mock services for UI tests
+- Focus on presentation logic
+- Test user interactions
+- Verify service method calls
+
+## Migration from Old Patterns
+
+### **Step 1: Identify Business Logic**
+Look for these patterns in UI code:
+- Direct `a.Client.*` calls
+- Complex data transformations
+- Network operations
+- Cache operations
+
+### **Step 2: Extract to Services**
+- Move logic to appropriate service
+- Create service interface if needed
+- Update service initialization
+
+### **Step 3: Update UI Integration**
+- Replace direct calls with service calls
+- Add proper error handling with ErrorHandler
+- Use thread-safe accessor methods
+
+## Compliance Checklist
+
+When implementing new features:
+- [ ] Business logic is in services, not UI
+- [ ] Uses `GetServices()` to access functionality
+- [ ] Uses `GetErrorHandler()` for all user feedback  
+- [ ] Uses thread-safe accessor methods for state
+- [ ] Follows established service interfaces
+- [ ] Includes proper error handling
+- [ ] Has appropriate tests
+
+This architecture ensures maintainable, testable, and robust code as the application grows.

@@ -1,11 +1,23 @@
 ---
-description: use this rule when we are implementing new features
+description: DEPRECATED - Use service-architecture.mdc instead for new features
 alwaysApply: false
+deprecated: true
 ---
-# Feature Implementation Pattern - Gmail TUI
+# Feature Implementation Pattern - Gmail TUI [DEPRECATED]
+
+## ⚠️ **DEPRECATED NOTICE**
+This pattern is outdated. The Gmail TUI now uses a service-oriented architecture.
+
+**Use `service-architecture.mdc` instead for new feature implementations.**
 
 ## Overview
-This document outlines the established pattern for implementing new features in the Gmail TUI project, based on successful implementations like toggle read/unread and trash functionality.
+~~This document outlines the established pattern for implementing new features in the Gmail TUI project, based on successful implementations like toggle read/unread and trash functionality.~~
+
+**Old pattern shown below is deprecated due to:**
+- Direct API calls in UI components (violates separation of concerns)
+- No centralized error handling
+- Missing thread-safe state access
+- Business logic mixed with presentation logic
 
 ## Implementation Pattern
 

@@ -2,32 +2,63 @@
 alwaysApply: true
 ---
 
-Title: Gmail TUI Architecture & Module Boundaries
+Title: Gmail TUI Service-Oriented Architecture & Module Boundaries
 
 Summary
-- Objective: Keep `package tui` modular and maintainable by splitting responsibilities into focused files.
-- Scope: Only internal TUI architecture. Other packages (`internal/gmail`, `internal/llm`, `internal/render`, `internal/config`) stay as-is.
+- Objective: Keep `package tui` modular and maintainable with service-oriented architecture.
+- Architecture: Business logic in `internal/services/`, UI logic in `internal/tui/`
+- Key Change: Services handle business logic, UI handles presentation only.
 
-Directory & Files (tui/)
-- app.go: Application wiring only (App struct, NewApp, Pages/Stack/CmdBuff types). No feature logic.
-- layout.go: UI layout creation and focus indicators (initComponents, initViews, createMainLayout, updateFocusIndicators).
-- keys.go: Global key bindings and input routing (bindKeys, toggleFocus, handleCommandInput).
-- status.go: Status/flash helpers (showStatusMessage, setStatusPersistent, showError, showInfo, NewFlash).
-- messages.go: Message list & content logic (reloadMessages, loadMoreMessages, showMessage*, refreshMessageContent*, getCurrentMessageID, list formatting helpers).
-- labels.go: Label management (manageLabels, showMessageLabelsView, toggleLabelForMessage, moveSelected, showMoveLabelsView, partition/sort helpers, caches updates).
-- ai.go: LLM features (toggleAISummary, generateOrShowSummary, suggestLabel, showLabelSuggestions, showAllLabelsPicker, showCustomLabelInput, applyLabelAndRefresh).
-- markdown.go: Markdown rendering & toggle (convertHTMLToMarkdown, renderMarkdownToANSI, ansiToTview, renderMessageContent, toggleMarkdown internals & caches).
-- logging.go: Logger setup/teardown (stdout by default; file under ~/.config/gmail-tui/gmail-tui.log when available).
-- commands.go: Command bar (showCommandBar, hideCommandBar, executeCommand*, command suggestions & history).
+Directory & Files Structure:
+
+## Services Layer (internal/services/)
+- interfaces.go: Service contracts and interfaces
+- email_service.go: Email operations (archive, trash, compose, send)
+- ai_service.go: LLM integration with caching and streaming
+- label_service.go: Gmail label management operations
+- cache_service.go: SQLite-based caching for AI summaries
+- repository.go: Data access abstraction for Gmail API
+
+## UI Layer (internal/tui/)
+- app.go: Application wiring, service integration, thread-safe accessors, ErrorHandler setup
+- error_handler.go: Centralized error handling and user feedback
+- layout.go: UI layout creation and focus indicators 
+- keys.go: Global key bindings and input routing (calls services, not business logic)
+- messages.go: Message list & content UI (uses EmailService for operations)
+- labels.go: Label management UI (uses LabelService for operations)  
+- ai.go: LLM features UI (uses AIService for operations)
+- markdown.go: Markdown rendering & toggle UI
+- logging.go: Logger setup/teardown
+- commands.go: Command bar UI
 
 Rules & Constraints
-- UI thread safety: All UI mutations must happen via a.QueueUpdateDraw(...) (never update tview components directly from goroutines).
-- Networking: No network calls in input handlers; do them in goroutines and surface results via QueueUpdateDraw.
-- Caching: Use App-level caches (messagesMeta, ids, messageCache, aiSummaryCache, aiLabelsCache, markdownCache). Avoid RMW races; prefer compute off-thread + main-thread updates.
-- Key handling: keys.go must not implement feature logic. It only routes to functions in messages.go/labels.go/ai.go/markdown.go.
-- Logging: Use a.logger exclusively. logging.go owns initialization/teardown. Do not import log directly elsewhere.
-- Errors & status: Use status.go helpers. Avoid writing transient info inside the message content view.
-- Import hygiene: Each file imports only what it needs. Do not create circular imports inside tui.
+
+## Service Layer Rules
+- ALL business logic must be in services, never in UI components
+- Services must implement interfaces defined in interfaces.go
+- Services are accessed via app.GetServices() - never instantiated directly
+- Use context.Context for cancellation and timeouts
+- Return meaningful errors that can be handled by ErrorHandler
+
+## UI Layer Rules  
+- UI components handle ONLY presentation and user input
+- Use ErrorHandler for ALL user feedback: app.GetErrorHandler().ShowError/ShowSuccess()
+- Use thread-safe accessors: app.GetCurrentView(), app.SetCurrentMessageID(), etc.
+- NO direct field access: never use app.currentView = "x", use app.SetCurrentView("x")
+- UI thread safety: All UI mutations via a.QueueUpdateDraw(...) 
+- Key handling: keys.go routes to UI methods, which call services for business logic
+
+## Thread Safety Rules
+- All app state access must use provided getter/setter methods
+- Never access app struct fields directly (race conditions)
+- Copy slices/maps when returning from getters
+- Use mutex protection for any new state fields
+
+## Error Handling Rules
+- NEVER use fmt.Printf, log.Printf for user-facing messages
+- Always use app.GetErrorHandler() for user feedback
+- Log technical errors, show user-friendly messages
+- Use appropriate error levels (Error, Warning, Success, Info, Progress)
 
 Naming & Style
 - English only for code and comments. Follow Go conventions.
