@@ -423,6 +423,15 @@ func (a *App) generateHelpText() string {
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	help.WriteString("q         🚪 Quit application\n")
 	help.WriteString("?         ❓ Toggle this help screen\n")
+	help.WriteString("\n🧰 Cache & Sync (Command Mode)\n")
+	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	help.WriteString(":cache stats         🧮 Show cache table counts and last_history_id\n")
+	help.WriteString(":cache clear-all     🧹 Clear summaries, messages and sync state\n")
+	help.WriteString(":cache clear-summaries  🧹 Clear only AI summaries\n")
+	help.WriteString(":cache clear-messages   🧹 Clear only message cache\n")
+	help.WriteString(":cache clear-sync      🧹 Clear only sync state\n")
+	help.WriteString(":sync                 🔄 Force incremental synchronization\n")
+	help.WriteString(":summary refresh      📝 Regenerate AI summary (ignore cache)\n")
 
 	return help.String()
 }
