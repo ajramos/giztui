@@ -393,18 +393,22 @@ func (a *App) reloadMessages() {
 		}
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-			// Ensure a sane initial selection
-			r, _ := table.GetSelection()
-			if table.GetRowCount() > 0 && r < 0 {
+
+			// Always ensure the first message is selected when loading messages
+			if table.GetRowCount() > 0 && len(a.ids) > 0 {
+				// Force selection of first message
 				table.Select(0, 0)
+
+				// Set the current message ID to the first message
+				firstID := a.ids[0]
+				a.SetCurrentMessageID(firstID)
+
 				// Auto-load content for the first message
-				if len(a.ids) > 0 {
-					firstID := a.ids[0]
-					a.SetCurrentMessageID(firstID)
-					go a.showMessageWithoutFocus(firstID)
-					if a.aiSummaryVisible {
-						go a.generateOrShowSummary(firstID)
-					}
+				go a.showMessageWithoutFocus(firstID)
+
+				// Generate AI summary if panel is visible
+				if a.aiSummaryVisible {
+					go a.generateOrShowSummary(firstID)
 				}
 			}
 		}
@@ -554,6 +558,21 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 	a.QueueUpdateDraw(func() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+
+			// Ensure there's always a valid selection when appending messages
+			if table.GetRowCount() > 0 && len(a.ids) > 0 {
+				currentRow, _ := table.GetSelection()
+				// If no selection or selection is invalid, select the first message
+				if currentRow < 0 || currentRow >= table.GetRowCount() {
+					table.Select(0, 0)
+					// Update current message ID if not set
+					if a.GetCurrentMessageID() == "" {
+						firstID := a.ids[0]
+						a.SetCurrentMessageID(firstID)
+						go a.showMessageWithoutFocus(firstID)
+					}
+				}
+			}
 		}
 		a.reformatListItems()
 	})
@@ -1623,6 +1642,12 @@ func (a *App) applyLocalFilter(expr string) {
 			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
 			if table.GetRowCount() > 0 {
 				table.Select(0, 0)
+				// Set current message ID to the first filtered message
+				if len(filteredIDs) > 0 {
+					firstID := filteredIDs[0]
+					a.SetCurrentMessageID(firstID)
+					go a.showMessageWithoutFocus(firstID)
+				}
 			}
 		}
 		a.reformatListItems()
