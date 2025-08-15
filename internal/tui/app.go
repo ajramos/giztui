@@ -119,6 +119,7 @@ type App struct {
 	uiReady          bool // true after first draw
 	welcomeAnimating bool // avoid multiple spinner goroutines
 	welcomeEmail     string
+	messagesLoading  bool // true when messages are being loaded
 
 	// Formatting toggles
 	llmTouchUpEnabled bool
@@ -279,6 +280,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		selected:          make(map[string]bool),
 		bulkMode:          false,
 		llmTouchUpEnabled: false,
+		messagesLoading:   false,
 	}
 
 	// Initialize file logger (logging.go)
@@ -443,6 +445,20 @@ func (a *App) GetMessageIDs() []string {
 	ids := make([]string, len(a.ids))
 	copy(ids, a.ids)
 	return ids
+}
+
+// IsMessagesLoading returns whether messages are currently being loaded
+func (a *App) IsMessagesLoading() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.messagesLoading
+}
+
+// SetMessagesLoading sets the messages loading state
+func (a *App) SetMessagesLoading(loading bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.messagesLoading = loading
 }
 
 // SetMessageIDs sets message IDs thread-safely

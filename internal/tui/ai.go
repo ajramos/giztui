@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/derailed/tcell/v2"
@@ -14,31 +13,109 @@ import (
 
 // toggleAISummary shows/hides the AI summary pane and triggers generation if needed
 func (a *App) toggleAISummary() {
-	if a.aiSummaryVisible && a.currentFocus == "summary" {
-		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			split.ResizeItem(a.aiSummaryView, 0, 0)
+	if a.debug {
+		a.logger.Printf("toggleAISummary: called, aiSummaryVisible=%v, currentFocus=%s", a.aiSummaryVisible, a.currentFocus)
+	}
+
+	// Safety check: ensure application is ready and views are initialized
+	if a.views == nil {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - views map is nil, application not ready")
 		}
-		a.aiSummaryVisible = false
-		a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
-		a.SetFocus(a.views["text"])
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
-		a.showStatusMessage("🙈 AI summary hidden")
+		a.showError("❌ Application not ready, please wait for messages to load")
 		return
 	}
 
-	mid := a.getCurrentMessageID()
+	// Safety check: ensure list view exists and is accessible
+	if _, ok := a.views["list"]; !ok {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - list view not found")
+		}
+		a.showError("❌ Message list not ready, please wait")
+		return
+	}
+
+	// Safety check: ensure messages are not currently loading
+	if a.IsMessagesLoading() {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - messages are currently loading")
+		}
+		a.showError("❌ Messages are loading, please wait")
+		return
+	}
+
+	// Safety check: ensure messages are loaded
+	if len(a.ids) == 0 {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - no messages loaded yet")
+		}
+		a.showError("❌ No messages loaded yet, please wait")
+		return
+	}
+
+	// Safety check: ensure AI summary view is available
+	if a.aiSummaryView == nil {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - AI summary view not initialized")
+		}
+		a.showError("❌ AI summary view not ready, please wait")
+		return
+	}
+
+	if a.aiSummaryVisible && a.currentFocus == "summary" {
+		// If AI summary is visible and focused, close it
+		if a.debug {
+			a.logger.Printf("toggleAISummary: AI summary visible and focused, closing panel")
+		}
+		a.closeAISummary()
+		return
+	}
+
+	// Safety check: ensure views map exists
+	if a.views == nil {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - views map is nil")
+		}
+		a.showError("❌ Application views not initialized")
+		return
+	}
+
+	if a.debug {
+		a.logger.Printf("toggleAISummary: views map exists, checking current message ID")
+	}
+
+	mid := a.GetCurrentMessageID()
+	if a.debug {
+		a.logger.Printf("toggleAISummary: current message ID='%s', len(ids)=%d", mid, len(a.ids))
+	}
+
 	if mid == "" && len(a.ids) > 0 {
-		if list, ok := a.views["list"].(*tview.List); ok {
-			idx := list.GetCurrentItem()
-			if idx >= 0 && idx < len(a.ids) {
-				mid = a.ids[idx]
-				go a.showMessage(mid)
+		if a.debug {
+			a.logger.Printf("toggleAISummary: trying to get message ID from table selection")
+		}
+		// Try to get from current table selection
+		if table, ok := a.views["list"]; ok && table != nil {
+			if tableView, ok := table.(*tview.Table); ok {
+				row, _ := tableView.GetSelection()
+				if a.debug {
+					a.logger.Printf("toggleAISummary: table row selection=%d", row)
+				}
+				if row >= 0 && row < len(a.ids) {
+					mid = a.ids[row]
+					a.SetCurrentMessageID(mid)
+					if a.debug {
+						a.logger.Printf("toggleAISummary: set message ID to '%s' from table selection", mid)
+					}
+					go a.showMessage(mid)
+				}
 			}
 		}
 	}
 	if mid == "" {
-		a.showError("No message selected")
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - no message ID available")
+		}
+		a.showError("❌ No message selected")
 		return
 	}
 
@@ -46,168 +123,233 @@ func (a *App) toggleAISummary() {
 		a.showMessageWithoutFocus(mid)
 	}
 
-	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-		split.ResizeItem(a.aiSummaryView, 0, 1)
+	// Safety check: ensure contentSplit exists and is accessible
+	if split, ok := a.views["contentSplit"]; ok && split != nil {
+		if contentSplit, ok := split.(*tview.Flex); ok {
+			contentSplit.ResizeItem(a.aiSummaryView, 0, 1)
+		}
 	}
+
+	// Safety check: ensure aiSummaryView is initialized
+	if a.aiSummaryView == nil {
+		if a.debug {
+			a.logger.Printf("toggleAISummary: ERROR - aiSummaryView is nil")
+		}
+		a.showError("❌ AI Summary view not initialized")
+		return
+	}
+
+	if a.debug {
+		a.logger.Printf("toggleAISummary: aiSummaryView is initialized, proceeding with summary generation")
+	}
+
 	a.aiSummaryVisible = true
 	a.aiPanelInPromptMode = false // Reset prompt mode flag
-	a.SetFocus(a.aiSummaryView)
-	a.currentFocus = "summary"
+
+	// Safety check: ensure aiSummaryView is accessible before setting focus
 	if a.aiSummaryView != nil {
+		a.SetFocus(a.aiSummaryView)
+		a.currentFocus = "summary"
 		a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		// Reset title to AI Summary when switching from prompt mode
 		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
+		a.updateFocusIndicators("summary")
+	} else {
+		a.showError("❌ AI Summary view not accessible")
+		return
 	}
-	a.updateFocusIndicators("summary")
 
-	a.generateOrShowSummary(mid)
+	if a.debug {
+		a.logger.Printf("toggleAISummary: showing AI summary panel and generating summary for message '%s'", mid)
+	}
+
+	// Generate summary immediately
+	go a.generateOrShowSummary(mid)
+}
+
+// closeAISummary closes the AI summary panel
+func (a *App) closeAISummary() {
+	if a.debug {
+		a.logger.Printf("closeAISummary: closing AI summary panel")
+	}
+
+	if split, ok := a.views["contentSplit"]; ok && split != nil {
+		if contentSplit, ok := split.(*tview.Flex); ok {
+			contentSplit.ResizeItem(a.aiSummaryView, 0, 0)
+		}
+	}
+	a.aiSummaryVisible = false
+	a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
+
+	// Safety check: ensure text view exists before setting focus
+	if textView, ok := a.views["text"]; ok && textView != nil {
+		a.SetFocus(textView)
+		a.currentFocus = "text"
+		a.updateFocusIndicators("text")
+	} else {
+		// Fallback to list view if text view is not available
+		if listView, ok := a.views["list"]; ok && listView != nil {
+			a.SetFocus(listView)
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+		}
+	}
+	a.showStatusMessage("🙈 AI summary hidden")
 }
 
 // generateOrShowSummary shows cached summary or triggers generation if missing
 func (a *App) generateOrShowSummary(messageID string) {
+	if a.debug {
+		a.logger.Printf("generateOrShowSummary: called for message '%s'", messageID)
+	}
+
 	if a.aiSummaryView == nil {
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: ERROR - aiSummaryView is nil")
+		}
 		return
 	}
+
+	// Check cache first
 	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: found cached summary for '%s'", messageID)
+		}
 		a.aiSummaryView.SetText(sanitizeForTerminal(sum))
 		a.aiSummaryView.ScrollToBeginning()
-		a.GetErrorHandler().ShowSuccess(a.ctx, "Summary loaded from cache")
 		return
 	}
-	// Try to load from SQLite cache before generating
-	if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
-		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-			cacheStore := db.NewCacheStore(a.dbStore)
-			if sum, ok, _ := cacheStore.LoadAISummary(a.ctx, strings.ToLower(email), messageID); ok && strings.TrimSpace(sum) != "" {
-				a.aiSummaryCache[messageID] = sum
-				a.aiSummaryView.SetText(sanitizeForTerminal(sum))
-				a.aiSummaryView.ScrollToBeginning()
-				a.GetErrorHandler().ShowSuccess(a.ctx, "Summary loaded from local DB cache")
-				return
-			}
-		}
-	}
+
+	// Check if already processing
 	if a.aiInFlight[messageID] {
-		a.aiSummaryView.SetText("🧠 Summarizing…")
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: already processing message '%s'", messageID)
+		}
+		a.aiSummaryView.SetText("🧠 Already summarizing…")
 		a.aiSummaryView.ScrollToBeginning()
-		a.GetErrorHandler().ShowProgress(a.ctx, "Summarizing...")
 		return
 	}
+
+	// Check if LLM is available
+	if a.LLM == nil {
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: ERROR - LLM is nil")
+		}
+		a.aiSummaryView.SetText("⚠️ LLM not available\n\nPlease check your LLM configuration.")
+		a.aiSummaryView.ScrollToBeginning()
+		return
+	}
+
+	// Show loading message
 	a.aiSummaryView.SetText("🧠 Summarizing…")
 	a.aiSummaryView.ScrollToBeginning()
-	a.GetErrorHandler().ShowProgress(a.ctx, "Summarizing...")
+
+	// Mark as in flight
 	a.aiInFlight[messageID] = true
+
+	// Generate summary in background following the working pattern
 	go func(id string) {
+		defer func() {
+			// Always clean up in-flight status
+			delete(a.aiInFlight, id)
+		}()
+
+		// Get message content
 		m, err := a.Client.GetMessageWithContent(id)
 		if err != nil {
+			if a.debug {
+				a.logger.Printf("generateOrShowSummary: GetMessageWithContent error: %v", err)
+			}
 			a.QueueUpdateDraw(func() {
-				a.aiSummaryView.SetText("⚠️ Error loading message")
-				a.showStatusMessage("⚠️ Error loading message")
+				a.aiSummaryView.SetText("⚠️ Error loading message\n\n" + err.Error())
+				a.aiSummaryView.ScrollToBeginning()
 			})
-			delete(a.aiInFlight, id)
 			return
 		}
-		if a.LLM == nil {
-			a.QueueUpdateDraw(func() { a.aiSummaryView.SetText("⚠️ LLM disabled"); a.showStatusMessage("⚠️ LLM disabled") })
-			delete(a.aiInFlight, id)
-			return
-		}
+
+		// Prepare content for summary
 		body := m.PlainText
 		if len([]rune(body)) > 8000 {
 			body = string([]rune(body)[:8000])
 		}
+
 		// Build prompt from configuration template, with a sensible fallback
 		template := strings.TrimSpace(a.Config.SummarizePrompt)
 		if template == "" {
 			template = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 		}
 		prompt := strings.ReplaceAll(template, "{{body}}", body)
-		// Try streaming for Ollama if enabled
-		if a.Config != nil && a.Config.LLMStreamEnabled {
-			if prov, ok := a.LLM.(interface{ Name() string }); ok && prov.Name() == "ollama" {
-				if streamer, ok2 := a.LLM.(interface {
-					GenerateStream(context.Context, string, func(string)) error
-				}); ok2 {
-					var b strings.Builder
-					a.QueueUpdateDraw(func() {
-						a.aiSummaryView.SetText("")
-						a.GetErrorHandler().ShowProgress(a.ctx, "Streaming summary...")
-					})
-					ctx, cancel := context.WithCancel(a.ctx)
-					err := streamer.GenerateStream(ctx, prompt, func(tok string) {
-						b.WriteString(tok)
-						a.QueueUpdateDraw(func() {
-							a.aiSummaryView.SetText(sanitizeForTerminal(b.String()))
-						})
-					})
-					cancel()
-					if err != nil {
-						a.QueueUpdateDraw(func() {
-							a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
-							a.aiSummaryView.ScrollToBeginning()
-							a.showLLMError("summarize", err)
-						})
-						delete(a.aiInFlight, id)
-						return
-					}
-					resp := b.String()
-					a.aiSummaryCache[id] = resp
-					if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
-						if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-							go func() {
-								cacheStore := db.NewCacheStore(a.dbStore)
-								cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
-							}()
-						}
-					}
-					delete(a.aiInFlight, id)
-					a.QueueUpdateDraw(func() {
-						if a.currentFocus == "search" {
-							a.GetErrorHandler().ClearProgress()
-							return
-						}
-						a.aiSummaryView.SetText(sanitizeForTerminal(resp))
-						a.aiSummaryView.ScrollToBeginning()
-						a.GetErrorHandler().ClearProgress()
-						a.GetErrorHandler().ShowSuccess(a.ctx, "Summary ready")
-					})
-					return
-				}
-			}
+
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: generating summary for message '%s', prompt size=%d", id, len(prompt))
 		}
-		resp, err := a.LLM.Generate(prompt)
-		if err != nil {
-			a.QueueUpdateDraw(func() {
-				// Show error details in the AI summary panel (larger area)
-				a.aiSummaryView.SetText("⚠️ LLM error while summarizing\n\n" + strings.TrimSpace(err.Error()))
-				a.aiSummaryView.ScrollToBeginning()
-				a.showLLMError("summarize", err)
+
+		// Try streaming first if supported, fallback to regular generation
+		var finalResult string
+
+		// Check if LLM supports streaming
+		if streamer, ok := a.LLM.(interface {
+			GenerateStream(context.Context, string, func(string)) error
+		}); ok {
+			if a.debug {
+				a.logger.Printf("generateOrShowSummary: using streaming for message '%s'", id)
+			}
+
+			var resultBuilder strings.Builder
+			err = streamer.GenerateStream(a.ctx, prompt, func(token string) {
+				resultBuilder.WriteString(token)
+				// Update UI with each token for real-time streaming
+				a.QueueUpdateDraw(func() {
+					currentText := a.aiSummaryView.GetText(true)
+					if currentText == "🧠 Summarizing…" {
+						// First token, start building
+						a.aiSummaryView.SetText("🧠 " + token)
+					} else {
+						// Append token to existing content
+						a.aiSummaryView.SetText(currentText + token)
+					}
+					a.aiSummaryView.ScrollToEnd()
+				})
 			})
-			delete(a.aiInFlight, id)
+
+			if err == nil {
+				finalResult = resultBuilder.String()
+			}
+		} else {
+			if a.debug {
+				a.logger.Printf("generateOrShowSummary: streaming not supported, using regular generation for message '%s'", id)
+			}
+
+			// Fallback to regular generation
+			finalResult, err = a.LLM.Generate(prompt)
+		}
+
+		if err != nil {
+			if a.debug {
+				a.logger.Printf("generateOrShowSummary: LLM error: %v", err)
+			}
+			a.QueueUpdateDraw(func() {
+				a.aiSummaryView.SetText("⚠️ Error generating summary\n\n" + err.Error())
+				a.aiSummaryView.ScrollToBeginning()
+			})
 			return
 		}
-		a.aiSummaryCache[id] = resp
-		if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
-			if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-				go func() {
-					cacheStore := db.NewCacheStore(a.dbStore)
-					cacheStore.SaveAISummary(a.ctx, strings.ToLower(email), id, resp, time.Now().Unix())
-				}()
-			}
+
+		// Cache the final result
+		a.aiSummaryCache[id] = finalResult
+
+		// If we used streaming, the UI is already updated. If not, show the final result
+		if finalResult != "" && !strings.Contains(a.aiSummaryView.GetText(true), finalResult) {
+			a.QueueUpdateDraw(func() {
+				a.aiSummaryView.SetText(sanitizeForTerminal(finalResult))
+				a.aiSummaryView.ScrollToBeginning()
+			})
 		}
-		delete(a.aiInFlight, id)
-		a.QueueUpdateDraw(func() {
-			// Skip UI update if search is focused to avoid focus/content conflicts
-			if a.currentFocus == "search" {
-				a.GetErrorHandler().ShowInfo(a.ctx, "Label suggestions disabled while searching")
-				return
-			}
-			a.aiSummaryView.SetText(sanitizeForTerminal(resp))
-			a.aiSummaryView.ScrollToBeginning()
-			a.GetErrorHandler().ClearProgress()
-			a.GetErrorHandler().ShowSuccess(a.ctx, "Summary ready")
-		})
+
+		if a.debug {
+			a.logger.Printf("generateOrShowSummary: completed successfully for message '%s'", id)
+		}
 	}(messageID)
 }
 

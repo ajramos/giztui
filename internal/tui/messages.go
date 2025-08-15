@@ -244,6 +244,9 @@ func (a *App) exitSearch() {
 
 // reloadMessages loads messages from the inbox
 func (a *App) reloadMessages() {
+	// Set loading state
+	a.SetMessagesLoading(true)
+	
 	// Reset modes/state with minimal locking
 	a.mu.Lock()
 	a.draftMode = false
@@ -436,6 +439,9 @@ func (a *App) reloadMessages() {
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
 	// Keep currentFocus list during loading; focus is enforced above on completion
+	
+	// Mark loading as complete
+	a.SetMessagesLoading(false)
 }
 
 // loadMoreMessages fetches the next page of inbox and appends to list
@@ -2021,13 +2027,32 @@ func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []stri
 
 // getCurrentMessageID gets the ID of the currently selected message
 func (a *App) getCurrentMessageID() string {
-	if table, ok := a.views["list"].(*tview.Table); ok {
-		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.ids) {
-			return a.ids[row]
-		}
+	// Safety check: ensure views map exists and is not nil
+	if a.views == nil {
+		return ""
 	}
-	return ""
+	
+	// Safety check: ensure list view exists
+	table, ok := a.views["list"]
+	if !ok || table == nil {
+		return ""
+	}
+	
+	// Type assertion with safety check
+	tableView, ok := table.(*tview.Table)
+	if !ok {
+		return ""
+	}
+	
+	// Get selection safely
+	row, _ := tableView.GetSelection()
+	
+	// Safety check: ensure ids slice exists and is not nil
+	if a.ids == nil || row < 0 || row >= len(a.ids) {
+		return ""
+	}
+	
+	return a.ids[row]
 }
 
 // extractHeaderValue returns the value of a header (case-insensitive) from a Gmail message metadata
