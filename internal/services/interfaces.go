@@ -78,10 +78,14 @@ type PromptService interface {
 	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
 
 	// NUEVO: Aplicar prompt a múltiples mensajes
-	ApplyBulkPrompt(ctx context.Context, messageIDs []string, promptID int, variables map[string]string) (*BulkPromptResult, error)
-	ApplyBulkPromptStream(ctx context.Context, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error)
+	ApplyBulkPrompt(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string) (*BulkPromptResult, error)
+	ApplyBulkPromptStream(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error)
 	GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error)
 	SaveBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int, resultText string) error
+	
+	// Cache management
+	ClearPromptCache(ctx context.Context, accountEmail string) error
+	ClearAllPromptCaches(ctx context.Context) error
 }
 
 // Data structures

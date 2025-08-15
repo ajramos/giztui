@@ -294,7 +294,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	})
 
 	// Get account email for caching
-	accountEmail := "user@example.com" // TODO: get from config or auth
+	accountEmail := a.getActiveAccountEmail()
 
 	// Check if we have a cached result first
 	if a.logger != nil {

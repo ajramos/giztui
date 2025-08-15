@@ -136,3 +136,116 @@ func (ps *PromptStore) GetPromptResult(ctx context.Context, accountEmail, messag
 
 	return result, nil
 }
+
+// SaveBulkPromptResult saves a bulk prompt execution result
+func (ps *PromptStore) SaveBulkPromptResult(ctx context.Context, accountEmail, cacheKey string, promptID int, messageCount int, messageIDs []string, resultText string) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+
+	if strings.TrimSpace(accountEmail) == "" || strings.TrimSpace(cacheKey) == "" || strings.TrimSpace(resultText) == "" {
+		return fmt.Errorf("invalid bulk prompt result inputs")
+	}
+
+	messageIDsStr := strings.Join(messageIDs, ",")
+	
+	_, err := ps.db.ExecContext(ctx,
+		`INSERT OR REPLACE INTO bulk_prompt_results (account_email, cache_key, prompt_id, message_count, message_ids, result_text, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		accountEmail, cacheKey, promptID, messageCount, messageIDsStr, resultText, time.Now().Unix())
+
+	return err
+}
+
+// GetBulkPromptResult retrieves a cached bulk prompt result if available
+func (ps *PromptStore) GetBulkPromptResult(ctx context.Context, accountEmail, cacheKey string) (*prompts.BulkPromptResultDB, error) {
+	if ps == nil || ps.db == nil {
+		return nil, fmt.Errorf("prompt store not initialized")
+	}
+
+	result := &prompts.BulkPromptResultDB{}
+	err := ps.db.QueryRowContext(ctx,
+		`SELECT id, account_email, cache_key, prompt_id, message_count, message_ids, result_text, created_at 
+		 FROM bulk_prompt_results WHERE account_email = ? AND cache_key = ? 
+		 ORDER BY created_at DESC LIMIT 1`,
+		accountEmail, cacheKey).
+		Scan(&result.ID, &result.AccountEmail, &result.CacheKey, &result.PromptID,
+			&result.MessageCount, &result.MessageIDs, &result.ResultText, &result.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // No cached result found
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// ClearPromptCache clears all prompt results for the given account
+func (ps *PromptStore) ClearPromptCache(ctx context.Context, accountEmail string) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+
+	if strings.TrimSpace(accountEmail) == "" {
+		return fmt.Errorf("account email cannot be empty")
+	}
+
+	// Clear both single and bulk prompt results in a transaction
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Clear single prompt results
+	_, err = tx.ExecContext(ctx, "DELETE FROM prompt_results WHERE account_email = ?", accountEmail)
+	if err != nil {
+		return fmt.Errorf("failed to clear single prompt results: %w", err)
+	}
+
+	// Clear bulk prompt results
+	_, err = tx.ExecContext(ctx, "DELETE FROM bulk_prompt_results WHERE account_email = ?", accountEmail)
+	if err != nil {
+		return fmt.Errorf("failed to clear bulk prompt results: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// ClearAllPromptCaches clears all prompt results for all accounts (admin function)
+func (ps *PromptStore) ClearAllPromptCaches(ctx context.Context) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+
+	// Clear both tables in a transaction
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Clear all single prompt results
+	_, err = tx.ExecContext(ctx, "DELETE FROM prompt_results")
+	if err != nil {
+		return fmt.Errorf("failed to clear all single prompt results: %w", err)
+	}
+
+	// Clear all bulk prompt results
+	_, err = tx.ExecContext(ctx, "DELETE FROM bulk_prompt_results")
+	if err != nil {
+		return fmt.Errorf("failed to clear all bulk prompt results: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}

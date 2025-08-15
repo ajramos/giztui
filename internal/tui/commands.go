@@ -366,6 +366,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeHelpCommand(args)
 	case "quit", "q":
 		a.executeQuitCommand(args)
+	case "cache":
+		a.executeCacheCommand(args)
 	case "g", "G":
 		a.executeGoToCommand(args)
 	default:
@@ -578,5 +580,74 @@ func (a *App) executeGoToFirst() {
 	
 	// First message is at table row 0 (maps to a.ids[0])
 	list.Select(0, 0)
+}
+
+// executeCacheCommand handles cache-related commands
+func (a *App) executeCacheCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: cache <clear|info>")
+		return
+	}
+
+	subcommand := strings.ToLower(args[0])
+	switch subcommand {
+	case "clear", "clean":
+		a.executeCacheClear(args[1:])
+	case "info", "status":
+		a.executeCacheInfo(args[1:])
+	default:
+		a.showError(fmt.Sprintf("Unknown cache subcommand: %s. Usage: cache <clear|info>", subcommand))
+	}
+}
+
+// executeCacheClear clears prompt caches
+func (a *App) executeCacheClear(args []string) {
+	// Get services
+	_, _, _, _, _, promptService := a.GetServices()
+	if promptService == nil {
+		a.showError("Prompt service not available")
+		return
+	}
+
+	accountEmail := a.getActiveAccountEmail()
+	
+	go func() {
+		if len(args) > 0 && strings.ToLower(args[0]) == "all" {
+			// Clear all caches for all accounts (admin function)
+			if err := promptService.ClearAllPromptCaches(a.ctx); err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to clear all caches: %v", err))
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, "All prompt caches cleared successfully")
+		} else {
+			// Clear caches for current account
+			if err := promptService.ClearPromptCache(a.ctx, accountEmail); err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to clear cache: %v", err))
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Prompt cache cleared for %s", accountEmail))
+		}
+	}()
+}
+
+// executeCacheInfo shows cache information
+func (a *App) executeCacheInfo(args []string) {
+	accountEmail := a.getActiveAccountEmail()
+	
+	go func() {
+		// Get services to check if database is available
+		_, _, _, _, _, promptService := a.GetServices()
+		if promptService == nil {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+			return
+		}
+		
+		// Create safe filename
+		safeEmail := strings.ToLower(strings.ReplaceAll(accountEmail, "@", "_"))
+		
+		// Show basic cache info with simple message
+		infoMsg := fmt.Sprintf("Cache info: %s | DB: %s.sqlite3", accountEmail, safeEmail)
+		a.GetErrorHandler().ShowInfo(a.ctx, infoMsg)
+	}()
 }
 

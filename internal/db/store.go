@@ -219,6 +219,40 @@ VALUES (?, ?, ?, 'bulk_analysis', ?, TRUE)`,
 		ver = 4
 	}
 
+	// v5: bulk prompt results table
+	if ver == 4 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS bulk_prompt_results (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  cache_key     TEXT NOT NULL,
+  prompt_id     INTEGER NOT NULL,
+  message_count INTEGER NOT NULL,
+  message_ids   TEXT NOT NULL,
+  result_text   TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  FOREIGN KEY (prompt_id) REFERENCES prompt_templates(id),
+  UNIQUE(account_email, cache_key)
+);`)
+		
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=5;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v5: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 5
+	}
+
 	return nil
 }
 

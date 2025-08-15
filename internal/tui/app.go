@@ -828,8 +828,13 @@ func (a *App) Run() error {
 // getActiveAccountEmail returns the current account email if available.
 // For now, we do not have a reliable accessor from the Gmail client, so we
 // return an empty string as a safe default.
-// getActiveAccountEmail remains as a compatibility stub if needed elsewhere.
-func (a *App) getActiveAccountEmail() string { return "" }
+// getActiveAccountEmail returns the current account email if available.
+func (a *App) getActiveAccountEmail() string {
+	if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
+		return email
+	}
+	return "user@example.com" // fallback for when account email can't be retrieved
+}
 
 // (moved to keys.go) bindKeys
 

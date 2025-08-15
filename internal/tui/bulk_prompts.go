@@ -346,7 +346,8 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			a.streamingCancel = nil // Clear when done
 		}()
 
-		result, err := promptService.ApplyBulkPromptStream(ctx, messageIDs, promptID, map[string]string{}, func(token string) {
+		accountEmail := a.getActiveAccountEmail()
+		result, err := promptService.ApplyBulkPromptStream(ctx, accountEmail, messageIDs, promptID, map[string]string{}, func(token string) {
 			resultBuilder.WriteString(token)
 			currentText := resultBuilder.String()
 

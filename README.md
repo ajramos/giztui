@@ -557,11 +557,24 @@ Notes:
 
 ## 🧰 Local Cache (SQLite)
 
-The app uses an embedded SQLite database (no external server) to cache AI summaries:
+The app uses an embedded SQLite database (no external server) to cache AI summaries and prompt results:
 
-- Default location: `~/.config/gmail-tui/cache/gmail-<account_email>.sqlite3`
-- Per-account separation by filename
-- PRAGMAs tuned for TUI (WAL, foreign keys, timeouts)
+- **Default location**: `~/.config/gmail-tui/cache/{account_email}.sqlite3`
+- **Per-account separation** by filename
+- **PRAGMAs tuned for TUI** (WAL, foreign keys, timeouts)
+- **Multiple cache types**: AI summaries, single prompts, bulk prompts
+
+### 📊 **Cache Tables:**
+- `ai_summaries` - AI-generated email summaries
+- `prompt_results` - Single message prompt results  
+- `bulk_prompt_results` - Multi-message bulk prompt results
+- `prompt_templates` - Custom prompt templates
+
+### 🎯 **Cache Benefits:**
+- **Instant retrieval** of previously processed prompts
+- **Cost savings** by avoiding duplicate LLM calls
+- **Offline access** to cached results
+- **Performance boost** for repeated operations
 
 Configuration snippet:
 
@@ -579,6 +592,33 @@ Configuration snippet:
 - Press `Y` (uppercase) to forcefully regenerate the AI summary for the current message (ignores cache).
 - Command mode: `:summary refresh`.
 
+### 🗑️ **Cache Management**
+
+Manage your local cache through command mode for better performance and storage control:
+
+**Cache Information:**
+```bash
+:cache info          # Show current account and database location
+```
+
+**Clear Cache:**
+```bash
+:cache clear         # Clear all prompt caches for current account
+:cache clear all     # Clear all caches for all accounts (admin)
+```
+
+**Cache Commands:**
+- `:cache info` - Display account email and database file location
+- `:cache clear` - Remove all cached prompt results for your account
+- `:cache clear all` - Remove all cached results for all accounts
+- Cache operations run asynchronously and show success/error messages
+
+**When to Clear Cache:**
+- After changing LLM providers or models
+- When experiencing unexpected cached results
+- To free up disk space
+- After major prompt template changes
+
 ### Layout Controls
 
 | Key | Action |
@@ -594,7 +634,7 @@ Configuration snippet:
 - Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`).
 - Suggestions: shown live in brackets on the right. `↑/↓` navigate history; `Enter` executes.
 
-Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`
+Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`, `cache`
 
 RSVP (meeting invites):
 

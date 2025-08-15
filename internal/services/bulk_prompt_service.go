@@ -55,6 +55,7 @@ func (s *BulkPromptServiceImpl) SetPromptService(promptService PromptService) {
 // ApplyBulkPrompt applies a prompt to multiple messages and returns a consolidated result
 func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	ctx context.Context,
+	accountEmail string,
 	messageIDs []string,
 	promptID int,
 	variables map[string]string,
@@ -65,25 +66,10 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 
 	startTime := time.Now()
 
-	// Check cache first
-	if s.cacheService != nil {
-		// Create a cache key based on sorted message IDs for consistency
-		sortedIDs := make([]string, len(messageIDs))
-		copy(sortedIDs, messageIDs)
-		sort.Strings(sortedIDs)
-		cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
-
-		// Try to get from cache
-		if cached, exists, err := s.cacheService.GetSummary(ctx, "", cacheKey); err == nil && exists {
-			return &BulkPromptResult{
-				PromptID:     promptID,
-				MessageCount: len(messageIDs),
-				Summary:      cached,
-				MessageIDs:   messageIDs,
-				Duration:     time.Since(startTime),
-				FromCache:    true,
-				CreatedAt:    time.Now(),
-			}, nil
+	// Check cache first via prompt service
+	if s.promptService != nil {
+		if cachedResult, err := s.promptService.GetCachedBulkResult(ctx, accountEmail, messageIDs, promptID); err == nil && cachedResult != nil {
+			return cachedResult, nil
 		}
 	}
 
@@ -134,13 +120,9 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 		return nil, fmt.Errorf("failed to apply bulk prompt: %w", err)
 	}
 
-	// Cache the result
-	if s.cacheService != nil {
-		sortedIDs := make([]string, len(successfulIDs))
-		copy(sortedIDs, successfulIDs)
-		sort.Strings(sortedIDs)
-		cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
-		_ = s.cacheService.SaveSummary(ctx, "", cacheKey, result)
+	// Cache the result via prompt service
+	if s.promptService != nil {
+		_ = s.promptService.SaveBulkResult(ctx, accountEmail, successfulIDs, promptID, result)
 	}
 
 	return &BulkPromptResult{
@@ -155,28 +137,13 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 }
 
 // ApplyBulkPromptStream applies a prompt to multiple messages with streaming support
-func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error) {
+func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error) {
 	startTime := time.Now()
 
-	// Check cache first
-	if s.cacheService != nil {
-		// Create a cache key based on sorted message IDs for consistency
-		sortedIDs := make([]string, len(messageIDs))
-		copy(sortedIDs, messageIDs)
-		sort.Strings(sortedIDs)
-		cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
-
-		// Try to get from cache
-		if cached, exists, err := s.cacheService.GetSummary(ctx, "", cacheKey); err == nil && exists {
-			return &BulkPromptResult{
-				PromptID:     promptID,
-				MessageCount: len(messageIDs),
-				Summary:      cached,
-				MessageIDs:   messageIDs,
-				Duration:     0, // Since it's from cache
-				FromCache:    true,
-				CreatedAt:    time.Now(),
-			}, nil
+	// Check cache first via prompt service
+	if s.promptService != nil {
+		if cachedResult, err := s.promptService.GetCachedBulkResult(ctx, accountEmail, messageIDs, promptID); err == nil && cachedResult != nil {
+			return cachedResult, nil
 		}
 	}
 
@@ -222,13 +189,9 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, messa
 		return nil, fmt.Errorf("failed to apply bulk prompt with streaming: %w", err)
 	}
 
-	// Cache the result
-	if s.cacheService != nil {
-		sortedIDs := make([]string, len(successfulIDs))
-		copy(sortedIDs, successfulIDs)
-		sort.Strings(sortedIDs)
-		cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
-		_ = s.cacheService.SaveSummary(ctx, "", cacheKey, result)
+	// Cache the result via prompt service
+	if s.promptService != nil {
+		_ = s.promptService.SaveBulkResult(ctx, accountEmail, successfulIDs, promptID, result)
 	}
 
 	return &BulkPromptResult{

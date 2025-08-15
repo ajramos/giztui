@@ -21,3 +21,15 @@ type PromptResult struct {
 	ResultText   string `json:"result_text"`
 	CreatedAt    int64  `json:"created_at"`
 }
+
+// BulkPromptResultDB represents a bulk prompt execution result stored in database
+type BulkPromptResultDB struct {
+	ID           int    `json:"id"`
+	AccountEmail string `json:"account_email"`
+	CacheKey     string `json:"cache_key"`
+	PromptID     int    `json:"prompt_id"`
+	MessageCount int    `json:"message_count"`
+	MessageIDs   string `json:"message_ids"`
+	ResultText   string `json:"result_text"`
+	CreatedAt    int64  `json:"created_at"`
+}
