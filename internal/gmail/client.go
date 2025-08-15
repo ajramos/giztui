@@ -65,10 +65,9 @@ func (c *Client) ListMessages(maxResults int64) ([]*gmail.Message, error) {
 // ListMessagesPage returns a page of inbox messages and the nextPageToken
 func (c *Client) ListMessagesPage(maxResults int64, pageToken string) ([]*gmail.Message, string, error) {
 	user := "me"
-	// Align with Gmail Web Inbox: only INBOX and exclude sent, drafts, chat, spam, trash
+	// Show INBOX messages (including self-sent emails that are in inbox)
 	call := c.Service.Users.Messages.List(user).
-		LabelIds("INBOX").
-		Q("-in:sent -in:draft -in:chat -in:spam -in:trash")
+		LabelIds("INBOX")
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}

@@ -1,37 +1,23 @@
-# TODO List - Gmail TUI Project
-
-## ✅ Recently Completed
-
-### 🏗️ **Architectural Refactoring (December 2024)**
-- [x] **Service Layer Architecture** - Extracted business logic into dedicated services
-  - EmailService for email operations
-  - AIService for LLM integration 
-  - LabelService for label management
-  - CacheService for SQLite caching
-  - MessageRepository for data access abstraction
-- [x] **Centralized Error Handling** - Consistent user feedback with ErrorHandler
-- [x] **Thread-Safe State Management** - Mutex-protected accessor methods for app state
-- [x] **Service Integration** - Services automatically initialized and injected into TUI
-- [x] **Improved Code Organization** - Better separation of UI and business logic concerns
+# TODO List - GizTUI Project
 
 ## 🎯 Roadmap
 
 ## Priorities
-- Improve status bar experience
-- Improve legend
-- Investigate behavior for self-emailed messages
-- Text search `/` inside the email body
-- Think about sending items to Obsidian and Slack
-- Stream LLM output instead of full response
-- Open links (design UX)
-- Theme configuration system
-- After loading messages, auto-select and render the first one
-- Vim-like navigation: jump to message by line number
-- Plugin system: extensible architecture to add custom functionality without touching the core
-- State management: consider MVU (Model-View-Update) for UI/state consistency (e.g., Bubble Tea)
+- [ ] Improve status bar experience
+- [ ] Improve legend
+- [ ] Text search `/` inside the email body
+- [ ] Think about sending items to Obsidian and Slack
+- [ ] Open links (design UX)
+- [ ] Theme configuration system
+- [ ] Plugin system: extensible architecture to add custom functionality without touching the core
+- [ ] Create equivalent command for shortcuts: prompts
+- [ ] UI for creating new prompt templates
+- [ ] Treat several emails in batch with one prompt.
+- [x] Investigate behavior for self-emailed messages
+- [x] After loading messages, auto-select and render the first one
+- [x] Stream LLM output instead of full response
 
 ### Email Management
-- [x] **Query emails** - Search and query emails with Gmail search syntax
 - [ ] **Get unread emails** - List unread emails with count and preview
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
@@ -40,6 +26,7 @@
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
 - [ ] **Search by date** - Search by date
+- [x] **Query emails** - Search and query emails with Gmail search syntax
 - [x] **Mark email as read** - Mark individual emails as read
 - [x] **Archive email** - Move emails to archive (remove from inbox)
 - [x] **Batch archive emails** - Archive multiple emails at once
@@ -61,9 +48,9 @@
 - [ ] **List attachments** - Show attachments for specific emails
 
 ### Labels and Organization
-- [x] **Create label** - Create new custom labels with visibility options
-- [ ] **Delete label** - Delete custom labels
 - [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
+- [x] **Create label** - Create new custom labels with visibility options
+- [x] **Delete label** - Delete custom labels
 - [x] **List labels** - Show all available Gmail labels
 - [x] **Apply label** - Apply labels to emails
 - [x] **Remove label** - Remove labels from emails
@@ -121,9 +108,21 @@
 - [x] **Keyboard navigation** - Tab cycles panes; arrows respect focused pane
 
 ### Message rendering
-- [ ] Markdown rendering for HTML messages.
-- [ ] Remove hyperlinks and add them at the end as references.
+- [x] ~~Markdown rendering for HTML messages~~.(Substituted by a process)
+- [x] Remove hyperlinks and add them at the end as references.
+- [ ] Be able to render the original raw message.
 
+### 🏗️ **Architectural Refactoring (December 2024)**
+- [x] **Service Layer Architecture** - Extracted business logic into dedicated services
+  - EmailService for email operations
+  - AIService for LLM integration 
+  - LabelService for label management
+  - CacheService for SQLite caching
+  - MessageRepository for data access abstraction
+- [x] **Centralized Error Handling** - Consistent user feedback with ErrorHandler
+- [x] **Thread-Safe State Management** - Mutex-protected accessor methods for app state
+- [x] **Service Integration** - Services automatically initialized and injected into TUI
+- [x] **Improved Code Organization** - Better separation of UI and business logic concerns
 
 ## 🎨 Theme System
 
