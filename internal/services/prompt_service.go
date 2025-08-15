@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ajramos/gmail-tui/internal/db"
@@ -10,15 +11,17 @@ import (
 
 // PromptServiceImpl implements PromptService
 type PromptServiceImpl struct {
-	store     *db.PromptStore
-	aiService AIService
+	store       *db.PromptStore
+	aiService   AIService
+	bulkService *BulkPromptServiceImpl
 }
 
 // NewPromptService creates a new prompt service
-func NewPromptService(store *db.PromptStore, aiService AIService) *PromptServiceImpl {
+func NewPromptService(store *db.PromptStore, aiService AIService, bulkService *BulkPromptServiceImpl) *PromptServiceImpl {
 	return &PromptServiceImpl{
-		store:     store,
-		aiService: aiService,
+		store:       store,
+		aiService:   aiService,
+		bulkService: bulkService,
 	}
 }
 
@@ -91,6 +94,11 @@ func (s *PromptServiceImpl) IncrementUsage(ctx context.Context, promptID int) er
 	return s.store.IncrementPromptUsage(ctx, promptID)
 }
 
+// SetBulkService sets the bulk service reference
+func (s *PromptServiceImpl) SetBulkService(bulkService *BulkPromptServiceImpl) {
+	s.bulkService = bulkService
+}
+
 func (s *PromptServiceImpl) SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error {
 	if s.store == nil {
 		return fmt.Errorf("cache store not available")
@@ -99,10 +107,69 @@ func (s *PromptServiceImpl) SaveResult(ctx context.Context, accountEmail, messag
 	return s.store.SavePromptResult(ctx, accountEmail, messageID, promptID, resultText)
 }
 
+// ApplyBulkPrompt applies a prompt to multiple messages
+func (s *PromptServiceImpl) ApplyBulkPrompt(ctx context.Context, messageIDs []string, promptID int, variables map[string]string) (*BulkPromptResult, error) {
+	if s.bulkService == nil {
+		return nil, fmt.Errorf("bulk prompt service not available")
+	}
+	return s.bulkService.ApplyBulkPrompt(ctx, messageIDs, promptID, variables)
+}
+
+// GetCachedBulkResult retrieves a cached bulk prompt result
+func (s *PromptServiceImpl) GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error) {
+	// For now, we'll use a simple cache key approach
+	// In the future, this could be enhanced with a dedicated bulk result store
+	if s.bulkService == nil {
+		return nil, fmt.Errorf("bulk prompt service not available")
+	}
+
+	// Create a cache key and check if it exists
+	sortedIDs := make([]string, len(messageIDs))
+	copy(sortedIDs, messageIDs)
+	sort.Strings(sortedIDs)
+	cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
+
+	if s.store != nil {
+		// Try to get from the existing prompt result store
+		// This is a simplified approach - you might want to create a dedicated bulk result store
+		_ = cacheKey // Avoid unused variable warning
+		return nil, fmt.Errorf("bulk result caching not yet implemented")
+	}
+
+	return nil, fmt.Errorf("no cache store available")
+}
+
+// SaveBulkResult saves a bulk prompt result
+func (s *PromptServiceImpl) SaveBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int, resultText string) error {
+	// For now, we'll use a simple approach
+	// In the future, this could be enhanced with a dedicated bulk result store
+	if s.bulkService == nil {
+		return fmt.Errorf("bulk prompt service not available")
+	}
+
+	// Create a cache key and save to cache
+	sortedIDs := make([]string, len(messageIDs))
+	copy(sortedIDs, messageIDs)
+	sort.Strings(sortedIDs)
+	cacheKey := fmt.Sprintf("bulk_%d_%s", promptID, strings.Join(sortedIDs, "_"))
+
+	// This is a simplified approach - you might want to create a dedicated bulk result store
+	_ = cacheKey // Avoid unused variable warning
+	return fmt.Errorf("bulk result saving not yet implemented")
+}
+
 func (s *PromptServiceImpl) GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error) {
 	if s.store == nil {
 		return nil, fmt.Errorf("cache store not available")
 	}
 
 	return s.store.GetPromptResult(ctx, accountEmail, messageID, promptID)
+}
+
+// ApplyBulkPromptStream delegates to the bulk prompt service with streaming
+func (s *PromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error) {
+	if s.bulkService == nil {
+		return nil, fmt.Errorf("bulk prompt service not available")
+	}
+	return s.bulkService.ApplyBulkPromptStream(ctx, messageIDs, promptID, variables, onToken)
 }

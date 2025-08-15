@@ -59,7 +59,7 @@ func (a *App) bindKeys() {
 						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					return nil
@@ -78,8 +78,8 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
-		case 'b':
-			// Toggle bulk mode with 'b'
+		case 'v':
+			// Toggle bulk mode with 'v' (visual mode - like Vim)
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
 					a.bulkMode = true
@@ -91,7 +91,32 @@ func (a *App) bindKeys() {
 						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent("Bulk mode — space/b=select, *=all, a=archive, d=trash, m=move, ESC=exit")
+					a.setStatusPersistent("Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
+					// Keep focus highlight consistent (blue) even in Bulk mode
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				} else {
+					a.bulkMode = false
+					a.selected = make(map[string]bool)
+					a.reformatListItems()
+					a.setStatusPersistent("")
+					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				}
+				return nil
+			}
+		case 'b':
+			// Toggle bulk mode with 'b' (alternative to 'v')
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				if !a.bulkMode {
+					a.bulkMode = true
+					r, _ := list.GetSelection()
+					if r >= 0 && r < len(a.ids) {
+						if a.selected == nil {
+							a.selected = make(map[string]bool)
+						}
+						a.selected[a.ids[r]] = true
+					}
+					a.reformatListItems()
+					a.setStatusPersistent("Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 				} else {
@@ -215,7 +240,12 @@ func (a *App) bindKeys() {
 				a.toggleAISummary()
 				return nil
 			}
-			// Otherwise, open prompt library picker
+			// If in bulk mode with selected messages, open bulk prompt picker
+			if a.bulkMode && len(a.selected) > 0 {
+				go a.openBulkPromptPicker()
+				return nil
+			}
+			// Otherwise, open prompt library picker for single message
 			go a.openPromptPicker()
 			return nil
 		case 'm':
@@ -265,25 +295,47 @@ func (a *App) bindKeys() {
 
 		// ESC exits bulk mode or closes AI panel
 		if event.Key() == tcell.KeyEscape {
+			if a.logger != nil {
+				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v",
+					a.bulkMode, a.currentFocus, a.aiSummaryVisible)
+			}
+
+			// If we're in bulk mode, exit bulk mode first
 			if a.bulkMode {
-				a.bulkMode = false
-				a.selected = make(map[string]bool)
-				a.reformatListItems()
-				a.setStatusPersistent("")
-				if list, ok := a.views["list"].(*tview.Table); ok {
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - exiting bulk mode")
+				}
+				a.exitBulkMode()
+				// If AI panel is visible, also hide it
+				if a.aiSummaryVisible {
+					if a.logger != nil {
+						a.logger.Printf("keys: ESC - hiding AI panel after bulk mode exit")
+					}
+					a.hideAIPanel()
 				}
 				return nil
 			}
+
 			// If focus is on AI summary panel, close it
 			if a.currentFocus == "summary" && a.aiSummaryVisible {
-				a.toggleAISummary()
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - hiding AI panel")
+				}
+				a.hideAIPanel()
 				return nil
 			}
+
 			// If a search is active and overlay is not focused, delegate to exitSearch
 			if a.searchMode != "" {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - exiting search")
+				}
 				go a.exitSearch()
 				return nil
+			}
+
+			if a.logger != nil {
+				a.logger.Printf("keys: ESC - no action taken")
 			}
 		}
 

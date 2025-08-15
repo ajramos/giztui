@@ -78,6 +78,7 @@ type App struct {
 	aiSummaryCache      map[string]string // messageID -> summary
 	aiInFlight          map[string]bool   // messageID -> generating
 	aiPanelInPromptMode bool              // Track if panel is being used for prompt vs summary
+	streamingCancel     context.CancelFunc // Cancel function for active streaming operations
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
 
@@ -125,13 +126,14 @@ type App struct {
 	llmTouchUpEnabled bool
 
 	// Services (new architecture)
-	emailService  services.EmailService
-	aiService     services.AIService
-	labelService  services.LabelService
-	cacheService  services.CacheService
-	repository    services.MessageRepository
-	promptService services.PromptService
-	errorHandler  *ErrorHandler
+	emailService      services.EmailService
+	aiService         services.AIService
+	labelService      services.LabelService
+	cacheService      services.CacheService
+	repository        services.MessageRepository
+	bulkPromptService *services.BulkPromptServiceImpl
+	promptService     services.PromptService
+	errorHandler      *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
@@ -324,62 +326,155 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 // RegisterDBStore wires a db.Store into the App for local data storage features
 func (a *App) RegisterDBStore(store *db.Store) {
 	a.dbStore = store
-	// Initialize services if store is available
-	if a.dbStore != nil {
-		// Initialize cache service
-		if a.cacheService == nil {
-			cacheStore := db.NewCacheStore(a.dbStore)
-			a.cacheService = services.NewCacheService(cacheStore)
+	if a.logger != nil {
+		a.logger.Printf("RegisterDBStore: store registered, re-initializing services")
+	}
+
+	// Re-initialize all services with the new store
+	a.reinitializeServices()
+}
+
+// reinitializeServices re-initializes services when store becomes available
+func (a *App) reinitializeServices() {
+	if a.logger != nil {
+		a.logger.Printf("reinitializeServices: starting service re-initialization")
+	}
+
+	// Initialize cache service if store is available
+	if a.dbStore != nil && a.cacheService == nil {
+		cacheStore := db.NewCacheStore(a.dbStore)
+		a.cacheService = services.NewCacheService(cacheStore)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: cache service initialized: %v", a.cacheService != nil)
 		}
-		// Re-initialize AI service with cache if LLM is available
-		if a.LLM != nil && a.aiService == nil {
-			a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+	}
+
+	// Initialize AI service if LLM provider is available
+	if a.LLM != nil && a.aiService == nil {
+		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: AI service initialized: %v", a.aiService != nil)
 		}
-		// Initialize prompt service if AI service is available
-		if a.aiService != nil && a.promptService == nil {
-			promptStore := db.NewPromptStore(a.dbStore)
-			a.promptService = services.NewPromptService(promptStore, a.aiService)
-			if a.logger != nil {
-				a.logger.Printf("RegisterDBStore: initialized prompt service")
-			}
+	}
+
+	// Initialize prompt service first (without bulk service for now)
+	if a.dbStore != nil && a.aiService != nil && a.promptService == nil {
+		promptStore := db.NewPromptStore(a.dbStore)
+		a.promptService = services.NewPromptService(promptStore, a.aiService, nil) // Pass nil for now
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: prompt service initialized: %v", a.promptService != nil)
 		}
+	}
+
+	// Initialize bulk prompt service if dependencies are available
+	if a.repository != nil && a.aiService != nil && a.cacheService != nil && a.promptService != nil && a.bulkPromptService == nil {
+		a.bulkPromptService = services.NewBulkPromptService(a.emailService, a.aiService, a.cacheService, a.repository, a.promptService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: bulk prompt service initialized: %v", a.bulkPromptService != nil)
+		}
+	}
+
+	// Now update prompt service with bulk service
+	if a.promptService != nil && a.bulkPromptService != nil {
+		// We need to update the prompt service to include the bulk service
+		// This is a bit of a hack, but it's the cleanest way to handle the circular dependency
+		if promptService, ok := a.promptService.(*services.PromptServiceImpl); ok {
+			promptService.SetBulkService(a.bulkPromptService)
+		}
+	}
+
+	// Update bulk prompt service with prompt service
+	if a.bulkPromptService != nil && a.promptService != nil {
+		// We need to update the bulk prompt service to include the prompt service
+		// This is a bit of a hack, but it's the cleanest way to handle the circular dependency
+		a.bulkPromptService.SetPromptService(a.promptService)
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("reinitializeServices: service re-initialization completed")
 	}
 }
 
 // initServices initializes the service layer for better architecture
 func (a *App) initServices() {
+	if a.logger != nil {
+		a.logger.Printf("initServices: starting service initialization")
+	}
+
 	// Initialize repository
 	a.repository = services.NewMessageRepository(a.Client)
+	if a.logger != nil {
+		a.logger.Printf("initServices: repository initialized: %v", a.repository != nil)
+	}
 
 	// Initialize label service
 	a.labelService = services.NewLabelService(a.Client)
+	if a.logger != nil {
+		a.logger.Printf("initServices: label service initialized: %v", a.labelService != nil)
+	}
 
 	// Initialize cache service if store is available
 	if a.dbStore != nil {
 		cacheStore := db.NewCacheStore(a.dbStore)
 		a.cacheService = services.NewCacheService(cacheStore)
+		if a.logger != nil {
+			a.logger.Printf("initServices: cache service initialized: %v", a.cacheService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: cache service NOT initialized - dbStore is nil")
+		}
 	}
 
 	// Initialize AI service if LLM provider is available
 	if a.LLM != nil {
 		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("initServices: AI service initialized: %v", a.aiService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: AI service NOT initialized - LLM is nil")
+		}
 	}
 
 	// Initialize email service
 	a.emailService = services.NewEmailService(a.repository, a.Client, a.emailRenderer)
+	if a.logger != nil {
+		a.logger.Printf("initServices: email service initialized: %v", a.emailService != nil)
+	}
 
-	// Initialize prompt service if database store is available
-	if a.dbStore != nil && a.aiService != nil {
-		promptStore := db.NewPromptStore(a.dbStore)
-		a.promptService = services.NewPromptService(promptStore, a.aiService)
+	// Initialize bulk prompt service if dependencies are available
+	if a.repository != nil && a.aiService != nil && a.cacheService != nil {
+		// For now, pass nil as promptService to avoid circular dependency
+		// It will be set later in reinitializeServices
+		a.bulkPromptService = services.NewBulkPromptService(a.emailService, a.aiService, a.cacheService, a.repository, nil)
 		if a.logger != nil {
-			a.logger.Printf("initServices: initialized prompt service")
+			a.logger.Printf("initServices: bulk prompt service initialized: %v", a.bulkPromptService != nil)
 		}
 	} else {
 		if a.logger != nil {
-			a.logger.Printf("initServices: prompt service NOT initialized - dbStore=%v aiService=%v",
-				a.dbStore != nil, a.aiService != nil)
+			a.logger.Printf("initServices: bulk prompt service NOT initialized - repository=%v aiService=%v cacheService=%v",
+				a.repository != nil, a.aiService != nil, a.cacheService != nil)
 		}
+	}
+
+	// Initialize prompt service if database store is available
+	if a.dbStore != nil && a.aiService != nil && a.bulkPromptService != nil {
+		promptStore := db.NewPromptStore(a.dbStore)
+		a.promptService = services.NewPromptService(promptStore, a.aiService, a.bulkPromptService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: prompt service initialized: %v", a.promptService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: prompt service NOT initialized - dbStore=%v aiService=%v bulkPromptService=%v",
+				a.dbStore != nil, a.aiService != nil, a.bulkPromptService != nil)
+		}
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("initServices: service initialization completed")
 	}
 
 	// Initialize error handler

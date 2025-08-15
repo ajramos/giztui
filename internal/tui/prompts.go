@@ -204,6 +204,12 @@ func (a *App) openPromptPicker() {
 
 // closePromptPicker closes the prompt picker and restores focus
 func (a *App) closePromptPicker() {
+	// Cancel any active streaming operations
+	if a.streamingCancel != nil {
+		a.streamingCancel()
+		a.streamingCancel = nil
+	}
+	
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
@@ -375,6 +381,11 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 				})
 
 				ctx, cancel := context.WithCancel(a.ctx)
+				a.streamingCancel = cancel // Store cancel function for Esc handler
+				defer func() {
+					cancel()
+					a.streamingCancel = nil // Clear when done
+				}()
 				if a.logger != nil {
 					a.logger.Printf("applyPromptToMessage: starting GenerateStream")
 				}
@@ -393,7 +404,6 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 						}
 					})
 				})
-				cancel()
 				if a.logger != nil {
 					a.logger.Printf("applyPromptToMessage: GenerateStream completed, result length: %d", len(b.String()))
 				}

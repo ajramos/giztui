@@ -18,6 +18,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Summarize emails** - Generate concise email summaries
 - ✅ **AI summaries local cache (SQLite)** - Reuse previously generated summaries across sessions
 - ✅ **Streaming summaries (Ollama)** - Incremental tokens render live in the summary pane
+- ✅ **Streaming cancellation** - Press Esc to instantly cancel any streaming operation
 - ✅ **Recommend labels** - Suggest appropriate labels for emails
 - ✅ **Configurable prompts** - All prompts are customizable
 - 🧪 **Generate replies** - Experimental (placeholder implementation)
@@ -26,10 +27,20 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Custom prompt templates** - Predefined prompts for different use cases
 - ✅ **Variable substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`
 - ✅ **Streaming LLM responses** - Real-time token streaming for prompt results
+- ✅ **Interruptible streaming** - Cancel any prompt operation instantly with Esc
 - ✅ **Smart caching** - Cache prompt results to avoid re-processing
 - ✅ **Split-view interface** - Prompt picker appears like labels (not full-screen modal)
 - ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items, etc.)
 - ✅ **Usage tracking** - Monitor which prompts are used most frequently
+
+### 🔥 **Bulk Prompts** 🆕
+- ✅ **Multi-email analysis** - Apply prompts to multiple emails simultaneously
+- ✅ **Consolidated insights** - Get unified analysis across multiple messages
+- ✅ **Cloud product tracking** - Specialized prompts for AWS/Azure/GCP updates
+- ✅ **Project monitoring** - Consolidate project status from multiple emails
+- ✅ **Trend analysis** - Identify patterns across multiple sources
+- ✅ **Efficient processing** - Async processing with progress indicators
+- ✅ **Responsive controls** - Cancel bulk operations instantly with Esc
 
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
@@ -316,6 +327,8 @@ The application uses a unified configuration directory structure:
 | `y` | Toggle AI summary |
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
+| `p` | Open prompt picker (single message) or bulk prompt picker (bulk mode) |
+| `Esc` | Cancel active streaming operations (AI summary, prompts, bulk prompts) |
 
 #### 🏃 VIM-Style Navigation
 
@@ -347,6 +360,25 @@ Gmail TUI supports VIM-style navigation for efficient message browsing:
 |-----|--------|
 | `o` | Suggest label |
 | `q` | Quit |
+
+#### 🚀 **Bulk Operations** 🆕
+
+Bulk operations allow you to select multiple messages and perform actions on them simultaneously:
+
+| Key | Action |
+|-----|--------|
+| `v`, `b` or `space` | Enter bulk mode and select current message |
+| `space` | Toggle selection of current message (in bulk mode) |
+| `*` | Select all visible messages |
+| `a` | Archive selected messages |
+| `d` | Move selected messages to trash |
+| `m` | Move selected messages to label |
+| `p` | Apply AI prompt to all selected messages |
+| `Esc` | Exit bulk mode |
+
+**Bulk Mode Status Bar:**
+- Shows current selection count
+- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit`
 
 ### AI Features (LLM)
 

@@ -181,6 +181,12 @@ func (a *App) closeAISummary() {
 	}
 	a.aiSummaryVisible = false
 	a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
+	
+	// Cancel any active streaming operations when hiding panel
+	if a.streamingCancel != nil {
+		a.streamingCancel()
+		a.streamingCancel = nil
+	}
 
 	// Safety check: ensure text view exists before setting focus
 	if textView, ok := a.views["text"]; ok && textView != nil {
@@ -297,7 +303,13 @@ func (a *App) generateOrShowSummary(messageID string) {
 			}
 
 			var resultBuilder strings.Builder
-			err = streamer.GenerateStream(a.ctx, prompt, func(token string) {
+			ctx, cancel := context.WithCancel(a.ctx)
+			a.streamingCancel = cancel // Store cancel function for Esc handler
+			defer func() {
+				cancel()
+				a.streamingCancel = nil // Clear when done
+			}()
+			err = streamer.GenerateStream(ctx, prompt, func(token string) {
 				resultBuilder.WriteString(token)
 				// Update UI with each token for real-time streaming
 				a.QueueUpdateDraw(func() {

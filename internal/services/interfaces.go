@@ -49,6 +49,7 @@ type AIService interface {
 	SuggestLabels(ctx context.Context, content string, availableLabels []string) ([]string, error)
 	FormatContent(ctx context.Context, content string, options FormatOptions) (string, error)
 	ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error)
+	ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error)
 }
 
 // CacheService handles caching operations
@@ -75,6 +76,12 @@ type PromptService interface {
 	GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error)
 	IncrementUsage(ctx context.Context, promptID int) error
 	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
+
+	// NUEVO: Aplicar prompt a múltiples mensajes
+	ApplyBulkPrompt(ctx context.Context, messageIDs []string, promptID int, variables map[string]string) (*BulkPromptResult, error)
+	ApplyBulkPromptStream(ctx context.Context, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error)
+	GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error)
+	SaveBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int, resultText string) error
 }
 
 // Data structures
@@ -161,4 +168,16 @@ type PromptApplyOptions struct {
 	AccountEmail string
 	MessageID    string
 	Variables    map[string]string
+}
+
+// NUEVO: Resultado de bulk prompt
+type BulkPromptResult struct {
+	PromptID     int
+	MessageCount int
+	Summary      string
+	MessageIDs   []string
+	Duration     time.Duration
+	FromCache    bool
+	AccountEmail string
+	CreatedAt    time.Time
 }
