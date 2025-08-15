@@ -408,13 +408,40 @@ The Prompt Library allows you to apply custom AI prompts to emails for various p
 - **Custom Prompts** - Add your own prompt templates
 
 **Features:**
-- ✅ **Variable Substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`
+- ✅ **Variable Substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`, `{{messages}}`
 - ✅ **Streaming Responses** - Real-time token streaming for immediate feedback
 - ✅ **Smart Caching** - Results cached to avoid re-processing
 - ✅ **Usage Tracking** - Monitor prompt usage patterns
 - ✅ **Split-View Interface** - Non-intrusive prompt picker (like labels)
 
-**Example Prompt Template:**
+#### 🔄 **Variable Substitution**
+
+The prompt system supports different variables depending on the context:
+
+**Single Message Prompts** (when pressing `p` on one message):
+- `{{from}}` - Sender's email address
+- `{{subject}}` - Email subject line
+- `{{date}}` - Email date
+- `{{body}}` - Single message content
+
+**Bulk Message Prompts** (when pressing `p` in bulk mode with multiple selected messages):
+- `{{body}}` - Combined content from all selected messages (legacy support)
+- `{{messages}}` - Combined content from all selected messages (recommended for bulk)
+
+**Combined Message Format:**
+When using bulk prompts, the `{{body}}` or `{{messages}}` variable contains all selected messages formatted like:
+```
+---START EMAILS---
+---START EMAIL 1---
+[First email content]
+---END EMAIL 1---
+---START EMAIL 2---
+[Second email content]
+---END EMAIL 2---
+---END OF EMAILS---
+```
+
+**Example Single Message Prompt:**
 ```
 Extract action items and deadlines from this email:
 
@@ -429,6 +456,22 @@ Please identify:
 2. Deadlines mentioned
 3. Follow-up required
 4. Priority level
+```
+
+**Example Bulk Message Prompt:**
+```
+Analyze these project update emails and provide a consolidated summary:
+
+{{messages}}
+
+Please organize the information by:
+1. **Key Achievements** - What was accomplished
+2. **Current Issues** - Problems or blockers mentioned
+3. **Upcoming Deadlines** - Important dates across all emails
+4. **Action Items** - Tasks that need attention
+5. **Overall Project Status** - High-level assessment
+
+Format your response with clear sections and bullet points.
 ```
 
 #### LLM Configuration (providers)
@@ -810,7 +853,137 @@ VALUES (
 - `summary` - For summarization prompts
 - `analysis` - For analysis and insights
 - `action` - For action items and tasks
+- `bulk_analysis` - For multi-email bulk operations
 - `custom` - For your own categories
+
+### 🗄️ **Database Prompt Management**
+
+The prompt library uses SQLite for storage. You can directly manage prompts using standard SQL commands:
+
+**Connect to Database:**
+```bash
+# Replace {your-email} with your actual email address
+sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db
+```
+
+**View Existing Prompts:**
+```sql
+-- List all prompts with basic info
+SELECT id, name, category, is_favorite, usage_count FROM prompt_templates;
+
+-- View a specific prompt's details
+SELECT * FROM prompt_templates WHERE name = 'Quick Summary';
+
+-- List prompts by category
+SELECT id, name, description FROM prompt_templates WHERE category = 'analysis';
+```
+
+**Add New Prompts:**
+```sql
+-- Basic prompt template
+INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+VALUES (
+    'Email Classifier',
+    'Classify emails into categories',
+    'Classify this email from {{from}} with subject "{{subject}}" into one of: Important, Spam, Newsletter, Personal, Work.\n\nEmail content:\n{{body}}\n\nProvide only the category name.',
+    'analysis',
+    strftime('%s', 'now'),
+    0
+);
+
+-- Bulk analysis prompt (use {{messages}} or {{body}} for combined content)
+INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+VALUES (
+    'Weekly Team Updates',
+    'Summarize team updates from multiple emails',
+    'Analyze these team update emails and provide a consolidated weekly summary:\n\n{{messages}}\n\nPlease organize by:\n1. Key Achievements\n2. Blockers & Issues\n3. Upcoming Priorities\n4. Action Items',
+    'bulk_analysis',
+    strftime('%s', 'now'),
+    1
+);
+```
+
+**Modify Existing Prompts:**
+```sql
+-- Update prompt text
+UPDATE prompt_templates 
+SET prompt_text = 'New improved prompt text with {{variables}}'
+WHERE name = 'Quick Summary';
+
+-- Change category
+UPDATE prompt_templates 
+SET category = 'custom' 
+WHERE id = 5;
+
+-- Mark as favorite
+UPDATE prompt_templates 
+SET is_favorite = 1 
+WHERE name = 'Email Classifier';
+
+-- Update description
+UPDATE prompt_templates 
+SET description = 'Updated description' 
+WHERE id = 3;
+```
+
+**Delete Prompts:**
+```sql
+-- Delete by name
+DELETE FROM prompt_templates WHERE name = 'Unwanted Prompt';
+
+-- Delete by ID
+DELETE FROM prompt_templates WHERE id = 10;
+
+-- Delete all prompts in a category
+DELETE FROM prompt_templates WHERE category = 'old_category';
+
+-- Clear usage statistics (reset counters)
+UPDATE prompt_templates SET usage_count = 0;
+```
+
+**Backup and Restore:**
+```bash
+# Backup prompts to SQL file
+sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+  ".dump prompt_templates" > prompts_backup.sql
+
+# Restore from backup
+sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+  ".read prompts_backup.sql"
+
+# Export prompts to CSV
+sqlite3 -header -csv ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+  "SELECT * FROM prompt_templates;" > prompts.csv
+```
+
+**Database Schema:**
+```sql
+-- View the prompt_templates table structure
+.schema prompt_templates
+
+-- Example output:
+-- CREATE TABLE prompt_templates (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     name TEXT NOT NULL,
+--     description TEXT,
+--     prompt_text TEXT NOT NULL,
+--     category TEXT DEFAULT 'general',
+--     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+--     is_favorite BOOLEAN DEFAULT 0,
+--     usage_count INTEGER DEFAULT 0
+-- );
+```
+
+**Tips:**
+- Always restart Gmail TUI after modifying prompts directly in the database
+- Use single quotes for SQL strings to avoid escaping issues
+- Test new prompts with short emails first
+- Keep prompt names unique for easier management
+- Use meaningful categories to organize your prompts
+- For bulk prompts, use `{{messages}}` (recommended) or `{{body}}` for combined message content
+- For single prompts, use `{{from}}`, `{{subject}}`, `{{date}}`, `{{body}}` for message details
+- Bulk prompts (category `bulk_analysis`) only appear in bulk mode picker
+- Regular prompts are filtered out from bulk mode picker
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
 Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/gmail-tui/gmail-tui.log`.
