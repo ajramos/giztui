@@ -13,6 +13,25 @@
 - [ ] Create equivalent command for shortcuts: prompts
 - [ ] UI for creating new prompt templates
 - [ ] Treat several emails in batch with one prompt.
+- [ ] Reciew execution parameters, there are some duplication with llm and ollama.
+-credentials string
+        Path to OAuth client credentials JSON
+  -llm-model string
+        LLM model to use (e.g., anthropic.claude-3-haiku-20240307)
+  -llm-provider string
+        LLM provider (ollama, bedrock)
+  -llm-region string
+        Region for region-based providers (e.g., us-east-1 for Bedrock)
+  -ollama-endpoint string
+        Ollama endpoint (include /api/generate)
+  -ollama-model string
+        Ollama model name
+  -ollama-timeout duration
+        LLM request timeout
+  -token string
+        Path to cached OAuth token JSON
+- [ ] Review look and feel of the folders, scope selection in the advance search, the page doesn't update well and leaves some orphan letters as you move up and down through the options.
+- [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
 - [x] Investigate behavior for self-emailed messages
 - [x] After loading messages, auto-select and render the first one
 - [x] Stream LLM output instead of full response
@@ -70,6 +89,7 @@
 - [ ] **Reply draft suggestion** - Given a email provides a draft of the reply
 - [x] **Email summaritzation** - Creates a summary of the email 
 - [x] **Label assignation suggestion** - Given a email provides the label selection
+- [x] **Bulk prompt processing** - Apply prompts to multiple emails simultaneously for consolidated analysis
 
 
 ## 🎨 UX Improvements

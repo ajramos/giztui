@@ -158,6 +158,67 @@ INSERT INTO prompt_templates (name, description, prompt_text, category, created_
 		ver = 3
 	}
 
+	// v4: bulk analysis prompts
+	if ver == 3 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		// Insert bulk analysis prompts one by one to avoid SQL formatting issues
+		bulkPrompts := []struct {
+			name, description, promptText string
+		}{
+			{
+				"Cloud Product Analysis",
+				"Analyze cloud product updates and extract relevant information about specific services",
+				"You are analyzing a collection of cloud product update emails. Focus on extracting and summarizing information about cloud services, new features, and product announcements.\n\nEmails to analyze:\n{{messages}}\n\nPlease provide a comprehensive analysis including:\n1. **New Product Features**: List any new features or capabilities mentioned\n2. **Service Updates**: Document any service improvements or changes\n3. **AI/ML Services**: Highlight any updates related to AI, machine learning, or Bedrock services\n4. **Pricing Changes**: Note any pricing updates or new pricing models\n5. **Regional Availability**: Document any new region launches or availability changes\n6. **Integration Updates**: List any new integrations or API changes\n7. **Security & Compliance**: Note any security enhancements or compliance updates\n\nFormat your response clearly with bullet points and sections.",
+			},
+			{
+				"Newsletter Digest",
+				"Create a concise digest summarizing the key points from multiple newsletter emails",
+				"You are creating a digest from multiple newsletter emails. Extract the most important information and create a concise summary.\n\nEmails to analyze:\n{{messages}}\n\nPlease create a digest with:\n1. **Top Headlines**: 3-5 most important stories or announcements\n2. **Key Updates**: Significant changes or new information\n3. **Action Items**: Any items requiring attention or follow-up\n4. **Trends**: Patterns or recurring themes across the emails\n5. **Summary**: 2-3 sentence executive summary\n\nKeep the digest concise and actionable.",
+			},
+			{
+				"Technical Updates Summary",
+				"Summarize technical updates and changes from multiple technical emails",
+				"You are analyzing technical update emails to extract key technical changes and improvements.\n\nEmails to analyze:\n{{messages}}\n\nPlease provide a technical summary including:\n1. **API Changes**: Any new endpoints, deprecations, or breaking changes\n2. **Performance Improvements**: Speed, efficiency, or scalability enhancements\n3. **New Integrations**: Third-party service connections or partnerships\n4. **Security Updates**: Security patches, authentication changes, or compliance updates\n5. **Developer Experience**: Tools, SDKs, or development workflow improvements\n6. **Infrastructure Changes**: Platform updates, deployment changes, or architecture improvements\n7. **Migration Notes**: Any required actions for existing users\n\nFormat with clear technical details and impact assessment.",
+			},
+			{
+				"Business Intelligence Report",
+				"Extract business insights and strategic information from multiple business emails",
+				"You are analyzing business emails to extract strategic insights and business intelligence.\n\nEmails to analyze:\n{{messages}}\n\nPlease provide a business intelligence report including:\n1. **Market Trends**: Industry developments or market shifts\n2. **Competitive Intelligence**: Competitor activities or positioning\n3. **Strategic Initiatives**: New business directions or partnerships\n4. **Financial Updates**: Revenue, investment, or cost information\n5. **Customer Insights**: User feedback, adoption metrics, or satisfaction data\n6. **Risk Factors**: Potential challenges or concerns\n7. **Opportunities**: New market opportunities or growth areas\n8. **Recommendations**: Strategic actions or next steps\n\nFormat as a business report with clear insights and actionable recommendations.",
+			},
+			{
+				"Event & Conference Summary",
+				"Summarize information from multiple event-related emails",
+				"You are analyzing event and conference emails to create a comprehensive summary.\n\nEmails to analyze:\n{{messages}}\n\nPlease provide an event summary including:\n1. **Upcoming Events**: Dates, locations, and key details\n2. **Registration Deadlines**: Important dates and requirements\n3. **Featured Speakers**: Key presenters and their topics\n4. **Session Highlights**: Notable sessions, workshops, or tracks\n5. **Networking Opportunities**: Meetups, social events, or community activities\n6. **Costs & Discounts**: Pricing, early bird offers, or special rates\n7. **Travel Information**: Venue details, accommodation, or transportation\n8. **Action Items**: Registration tasks, preparation requirements, or follow-ups\n\nFormat with clear event details and next steps.",
+			},
+		}
+
+		for _, prompt := range bulkPrompts {
+			_, err = tx.ExecContext(ctx, `
+INSERT OR IGNORE INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+VALUES (?, ?, ?, 'bulk_analysis', ?, TRUE)`,
+				prompt.name, prompt.description, prompt.promptText, time.Now().Unix())
+			if err != nil {
+				break
+			}
+		}
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=4;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v4: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 4
+	}
+
 	return nil
 }
 
