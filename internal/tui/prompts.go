@@ -77,9 +77,6 @@ func (a *App) openPromptPicker() {
 			}
 
 			display := fmt.Sprintf("%s %s", icon, item.name)
-			if item.description != "" {
-				display += fmt.Sprintf(" - %s", item.description)
-			}
 
 			// Capture variables for closure
 			promptID := item.id
@@ -112,9 +109,13 @@ func (a *App) openPromptPicker() {
 			a.logger.Printf("openPromptPicker: loaded %d prompts", len(prompts))
 		}
 
-		// Convert to promptItem
+		// Convert to promptItem, excluding bulk_analysis prompts
 		all = make([]promptItem, 0, len(prompts))
 		for _, p := range prompts {
+			// Skip bulk_analysis prompts for single message picker
+			if p.Category == "bulk_analysis" {
+				continue
+			}
 			all = append(all, promptItem{
 				id:          p.ID,
 				name:        p.Name,
