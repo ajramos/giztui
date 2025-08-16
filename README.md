@@ -453,14 +453,17 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | Key | Action |
 |-----|--------|
 | `K` | Forward email to Slack (contextual panel) |
+| `:slack` | Forward email to Slack (command equivalent) |
+| `:slack 5` | Forward message #5 to Slack (command with message number) |
 
 **Usage:**
 1. **Select a message** in the message list
-2. **Press `K`** to open the Slack forwarding panel
-3. **Choose a channel** from the configured list
-4. **Add optional message** (e.g., "Hey team, heads up with this email")
-5. **Press Enter** to send or **Tab** to switch focus between channel list and message input
-6. **Press Esc** to close the panel
+2. **Press `K`** or **type `:slack`** to open the Slack forwarding panel
+3. **Or type `:slack 5`** to open panel for message #5 (auto-selects message)
+4. **Choose a channel** from the configured list
+5. **Add optional message** (e.g., "Hey team, heads up with this email")
+6. **Press Enter** to send or **Tab** to switch focus between channel list and message input
+7. **Press Esc** to close the panel
 
 **Format Styles:**
 - **📄 Summary** - AI-generated summary using your custom prompt template
@@ -777,7 +780,7 @@ Manage your local cache through command mode for better performance and storage 
 - Autocompletion: type partial commands and press `Tab` to complete (e.g., `:la` → `labels`).
 - Suggestions: shown live in brackets on the right. `↑/↓` navigate history; `Enter` executes.
 
-Supported commands: `labels`, `search`, `inbox`, `compose`, `help`, `quit`, `cache`
+Supported commands: `labels`, `search`, `slack`, `inbox`, `compose`, `help`, `quit`, `cache`
 
 RSVP (meeting invites):
 

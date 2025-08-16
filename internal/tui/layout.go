@@ -88,7 +88,7 @@ func (a *App) initComponents() {
 	slackFlex.SetBorder(true).
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
-		SetTitle(" 💬 Slack ").
+		SetTitle(" 💬 Send to Slack channel ").
 		SetTitleColor(tcell.ColorYellow).
 		SetTitleAlign(tview.AlignCenter)
 	a.slackView = slackFlex

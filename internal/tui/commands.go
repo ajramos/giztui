@@ -246,7 +246,11 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"labe":    {"labels"},
 		"label":   {"labels"},
 		"labels":  {"labels"},
-		"s":       {"search"},
+		"s":       {"search", "slack"},
+		"sl":      {"slack"},
+		"sla":     {"slack"},
+		"slac":    {"slack"},
+		"slack":   {"slack"},
 		"se":      {"search"},
 		"sea":     {"search"},
 		"sear":    {"search"},
@@ -352,8 +356,17 @@ func (a *App) executeCommand(cmd string) {
 	switch command {
 	case "labels", "l":
 		a.executeLabelsCommand(args)
-	case "search", "s":
+	case "search":
 		a.executeSearchCommand(args)
+	case "slack", "sl":
+		a.executeSlackCommand(args)
+	case "s":
+		// Handle ambiguous "s" - prioritize search if has args, slack if no args
+		if len(args) > 0 {
+			a.executeSearchCommand(args)
+		} else {
+			a.executeSlackCommand(args)
+		}
 	case "summary":
 		a.executeSummaryCommand(args)
 	case "rsvp":
@@ -376,6 +389,58 @@ func (a *App) executeCommand(cmd string) {
 			a.showError(fmt.Sprintf("Unknown command: %s", command))
 		}
 	}
+}
+
+// executeSlackCommand handles :slack commands
+func (a *App) executeSlackCommand(args []string) {
+	// Check if Slack is enabled
+	if !a.Config.Slack.Enabled {
+		a.showError("Slack integration is not enabled in configuration")
+		return
+	}
+
+	var messageID string
+	
+	// Handle optional message number argument
+	if len(args) > 0 {
+		// Parse message number (1-based like :5 command)
+		if num, err := strconv.Atoi(args[0]); err == nil && num >= 1 {
+			// Check if we have messages loaded
+			if len(a.ids) == 0 {
+				a.showError("No messages loaded")
+				return
+			}
+			
+			// Convert 1-based user input to 0-based array index
+			maxMessage := len(a.ids)
+			if num > maxMessage {
+				a.showError(fmt.Sprintf("Message %d not found (only %d messages loaded)", num, maxMessage))
+				return
+			}
+			
+			// Get message ID from the specified position
+			messageIndex := num - 1 // Convert to 0-based index
+			messageID = a.ids[messageIndex]
+			
+			// Also select the message in the UI for consistency
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.Select(messageIndex, 0)
+			}
+		} else {
+			a.showError(fmt.Sprintf("Invalid message number: %s", args[0]))
+			return
+		}
+	} else {
+		// No arguments - use current selected message
+		messageID = a.GetCurrentMessageID()
+		if messageID == "" {
+			a.showError("No message selected")
+			return
+		}
+	}
+
+	// Show the Slack forwarding panel
+	a.showSlackForwardDialog()
 }
 
 // executeRSVPCommand handles :rsvp commands

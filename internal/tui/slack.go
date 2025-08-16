@@ -72,19 +72,18 @@ func (a *App) populateSlackPanel(messageID string) {
 		return
 	}
 
-	a.createSlackPanel(messageID, channels)
+	channelList := a.createSlackPanel(messageID, channels)
+	
+	// Set focus after panel is fully created and populated
+	a.SetFocus(channelList)
 }
 
-// createSlackPanel creates the Slack forwarding contextual panel
-func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) {
+// createSlackPanel creates the Slack forwarding contextual panel and returns the channel list for focus setting
+func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) *tview.List {
 	// Clear existing slack view
 	a.slackView.Clear()
 
-	// Title
-	title := tview.NewTextView()
-	title.SetText("🔗 Available channels")
-	title.SetTextAlign(tview.AlignLeft)
-	title.SetTextColor(tcell.ColorYellow)
+	// No title needed - removing "🔗 Available channels" as requested
 
 	// Channel selection list
 	channelList := tview.NewList()
@@ -102,12 +101,10 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	}
 	channelList.SetCurrentItem(defaultIndex)
 
-	// User message input with emoji and better styling
-	userMessageLabel := tview.NewTextView()
-	userMessageLabel.SetText("📝 Optional message:")
-	userMessageLabel.SetTextColor(tcell.ColorYellow)
-	
+	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
+	userMessageInput.SetLabel("📝 Pre-message: ")
+	userMessageInput.SetLabelColor(tcell.ColorYellow)
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
 
@@ -191,15 +188,13 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	})
 
 	// Layout the panel
-	a.slackView.AddItem(title, 1, 0, false)
 	a.slackView.AddItem(channelList, 0, 1, true)
-	a.slackView.AddItem(userMessageLabel, 1, 0, false)
 	a.slackView.AddItem(userMessageInput, 1, 0, false)
 	a.slackView.AddItem(spacer, 1, 0, false)
 	a.slackView.AddItem(instructions, 1, 0, false)
 
-	// Set focus to the channel list
-	a.SetFocus(channelList)
+	// Return channelList for focus setting
+	return channelList
 }
 
 // hideSlackPanel hides the Slack panel (synchronous operation like hideAIPanel)
