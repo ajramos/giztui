@@ -197,3 +197,72 @@ func (s *PromptServiceImpl) ClearAllPromptCaches(ctx context.Context) error {
 	}
 	return s.store.ClearAllPromptCaches(ctx)
 }
+
+// GetUsageStats retrieves usage statistics for all prompts
+func (s *PromptServiceImpl) GetUsageStats(ctx context.Context) (*UsageStats, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("cache store not available")
+	}
+
+	// Get all prompts with usage data
+	prompts, err := s.store.ListPromptTemplates(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list prompts: %w", err)
+	}
+
+	// Calculate statistics
+	var totalUsage int
+	var uniquePrompts int
+	var lastUsed time.Time
+	var topPrompts []PromptUsageStat
+	var favoritePrompts []PromptUsageStat
+
+	for _, prompt := range prompts {
+		if prompt.UsageCount > 0 {
+			uniquePrompts++
+			totalUsage += prompt.UsageCount
+
+			// Track latest usage (approximate using created_at for now)
+			createdTime := time.Unix(prompt.CreatedAt, 0)
+			if createdTime.After(lastUsed) {
+				lastUsed = createdTime
+			}
+
+			// Create usage stat
+			stat := PromptUsageStat{
+				ID:         prompt.ID,
+				Name:       prompt.Name,
+				Category:   prompt.Category,
+				UsageCount: prompt.UsageCount,
+				IsFavorite: prompt.IsFavorite,
+				LastUsed:   createdTime.Format("2006-01-02 15:04"),
+			}
+
+			// Add to top prompts list
+			topPrompts = append(topPrompts, stat)
+
+			// Add to favorites if applicable
+			if prompt.IsFavorite {
+				favoritePrompts = append(favoritePrompts, stat)
+			}
+		}
+	}
+
+	// Sort top prompts by usage count (descending)
+	sort.Slice(topPrompts, func(i, j int) bool {
+		return topPrompts[i].UsageCount > topPrompts[j].UsageCount
+	})
+
+	// Limit to top 10
+	if len(topPrompts) > 10 {
+		topPrompts = topPrompts[:10]
+	}
+
+	return &UsageStats{
+		TopPrompts:      topPrompts,
+		TotalUsage:      totalUsage,
+		UniquePrompts:   uniquePrompts,
+		LastUsed:        lastUsed,
+		FavoritePrompts: favoritePrompts,
+	}, nil
+}

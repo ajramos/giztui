@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -255,16 +256,34 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 
 // populateLabelsQuickView renders current labels + quick actions in the side panel
 func (a *App) populateLabelsQuickView(messageID string) {
+	if a.logger != nil {
+		a.logger.Printf("populateLabelsQuickView: starting for messageID=%s, bulkMode=%v, selectedCount=%d", messageID, a.bulkMode, len(a.selected))
+	}
 	go func() {
+		if a.logger != nil {
+			a.logger.Printf("populateLabelsQuickView: fetching message details for messageID=%s", messageID)
+		}
 		msg, err := a.Client.GetMessage(messageID)
 		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("populateLabelsQuickView: FAILED to get message: %v", err)
+			}
 			a.showError("❌ Error loading message")
 			return
 		}
+		if a.logger != nil {
+			a.logger.Printf("populateLabelsQuickView: fetching labels list")
+		}
 		labels, err := a.Client.ListLabels()
 		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("populateLabelsQuickView: FAILED to get labels: %v", err)
+			}
 			a.showError("❌ Error loading labels")
 			return
+		}
+		if a.logger != nil {
+			a.logger.Printf("populateLabelsQuickView: got %d labels, building UI", len(labels))
 		}
 		// Build quick view UI off-thread then apply
 		current := make(map[string]bool)
@@ -287,14 +306,21 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			name := l.Name
 			lid := l.Id
 			body.AddItem("✅ "+name, "Enter: toggle off", 0, func() {
-				a.toggleLabelForMessage(messageID, lid, name, true, func(newApplied bool, err error) {
-					if err == nil {
-						a.updateCachedMessageLabels(messageID, lid, newApplied)
-						a.updateMessageCacheLabels(messageID, name, newApplied)
-						a.populateLabelsQuickView(messageID)
-						a.refreshMessageContent(messageID)
-					}
-				})
+				// Check if we need to apply to bulk selection
+				if a.bulkMode && len(a.selected) > 0 {
+					// Apply label to all selected messages (remove since currently applied)
+					go a.applyLabelToBulkSelection(lid, name, true)
+				} else {
+					// Single message label toggle
+					a.toggleLabelForMessage(messageID, lid, name, true, func(newApplied bool, err error) {
+						if err == nil {
+							a.updateCachedMessageLabels(messageID, lid, newApplied)
+							a.updateMessageCacheLabels(messageID, name, newApplied)
+							a.populateLabelsQuickView(messageID)
+							a.refreshMessageContent(messageID)
+						}
+					})
+				}
 			})
 		}
 		// Quick actions: first N from notApplied
@@ -306,14 +332,21 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			name := l.Name
 			lid := l.Id
 			body.AddItem("○ "+name, "Enter: apply", 0, func() {
-				a.toggleLabelForMessage(messageID, lid, name, false, func(newApplied bool, err error) {
-					if err == nil {
-						a.updateCachedMessageLabels(messageID, lid, newApplied)
-						a.updateMessageCacheLabels(messageID, name, newApplied)
-						a.populateLabelsQuickView(messageID)
-						a.refreshMessageContent(messageID)
-					}
-				})
+				// Check if we need to apply to bulk selection
+				if a.bulkMode && len(a.selected) > 0 {
+					// Apply label to all selected messages (add since not currently applied)
+					go a.applyLabelToBulkSelection(lid, name, false)
+				} else {
+					// Single message label toggle
+					a.toggleLabelForMessage(messageID, lid, name, false, func(newApplied bool, err error) {
+						if err == nil {
+							a.updateCachedMessageLabels(messageID, lid, newApplied)
+							a.updateMessageCacheLabels(messageID, name, newApplied)
+							a.populateLabelsQuickView(messageID)
+							a.refreshMessageContent(messageID)
+						}
+					})
+				}
 			})
 		}
 		// Actions
@@ -343,7 +376,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					a.setStatusPersistent("")
+					a.GetErrorHandler().ClearProgress()
 					if tbl, ok := a.views["list"].(*tview.Table); ok {
 						tbl.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					}
@@ -378,7 +411,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		footer.SetTextColor(tcell.ColorGray)
 		container.AddItem(footer, 1, 0, false)
 
+		if a.logger != nil {
+			a.logger.Printf("populateLabelsQuickView: about to call QueueUpdateDraw to update UI")
+		}
 		a.QueueUpdateDraw(func() {
+			if a.logger != nil {
+				a.logger.Printf("populateLabelsQuickView: inside QueueUpdateDraw callback")
+			}
 			// If user navigated to an expanded subpanel (browse/create), do not overwrite it
 			if a.labelsExpanded {
 				return
@@ -457,21 +496,28 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			applied := it.applied
 			list.AddItem(display, "Enter: toggle", 0, func() {
 				if !moveMode {
-					a.toggleLabelForMessage(messageID, id, name, applied, func(newApplied bool, err error) {
-						if err == nil {
-							// Update local model then rerender
-							for i := range all {
-								if all[i].id == id {
-									all[i].applied = newApplied
-									break
+					// Check if we need to apply to bulk selection
+					if a.bulkMode && len(a.selected) > 0 {
+						// Apply label to all selected messages
+						go a.applyLabelToBulkSelection(id, name, applied)
+					} else {
+						// Single message label toggle
+						a.toggleLabelForMessage(messageID, id, name, applied, func(newApplied bool, err error) {
+							if err == nil {
+								// Update local model then rerender
+								for i := range all {
+									if all[i].id == id {
+										all[i].applied = newApplied
+										break
+									}
 								}
+								a.updateCachedMessageLabels(messageID, id, newApplied)
+								a.updateMessageCacheLabels(messageID, name, newApplied)
+								reload(strings.TrimSpace(input.GetText()))
+								a.refreshMessageContent(messageID)
 							}
-							a.updateCachedMessageLabels(messageID, id, newApplied)
-							a.updateMessageCacheLabels(messageID, name, newApplied)
-							reload(strings.TrimSpace(input.GetText()))
-							a.refreshMessageContent(messageID)
-						}
-					})
+						})
+					}
 					return
 				}
 				// Move mode: aplicar etiqueta y archivar para todos los seleccionados (o el actual)
@@ -486,79 +532,76 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					// Aplicar etiqueta y archivar (Gmail ignora duplicados en ApplyLabel)
 					failed := 0
-					total := len(idsToMove)
-					// Estado inicial persistente
-					a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
-					for i, mid := range idsToMove {
+					
+					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
+					for _, mid := range idsToMove {
 						if err := a.Client.ApplyLabel(mid, id); err != nil {
 							failed++
 						}
 						if err := a.Client.ArchiveMessage(mid); err != nil {
 							failed++
 						}
-						// Progreso incremental
-						idx := i + 1
-						a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
 					}
-					// Actualizar UI y cerrar panel
+					// Simplified UI update to avoid complex operations that might hang
 					a.QueueUpdateDraw(func() {
-						listView, ok := a.views["list"].(*tview.Table)
-						if !ok {
-							return
-						}
+						// Close the panel first
 						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
 						a.labelsVisible = false
 						a.labelsExpanded = false
-						// Eliminar todos los movidos de la lista/ids/meta
-						rm := make(map[string]bool, len(idsToMove))
-						for _, mid := range idsToMove {
-							rm[mid] = true
-						}
-						// Remove message IDs using thread-safe helper
-						a.RemoveMessageIDsInPlace(rm)
-						// Also remove from messagesMeta and listView in sync
-						i := 0
-						for i < len(a.messagesMeta) {
-							if a.messagesMeta[i] != nil && rm[a.messagesMeta[i].Id] {
-								a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-								if i < listView.GetRowCount() {
-									listView.RemoveRow(i)
-								}
-								continue
-							}
-							i++
-						}
-						// Also propagate removals to base snapshot in local filter mode
-						a.baseRemoveByIDs(idsToMove)
-						// Adjust selection and content
-						cur, _ := listView.GetSelection()
-						if cur >= listView.GetRowCount() {
-							cur = listView.GetRowCount() - 1
-						}
-						listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-						if cur >= 0 && cur < len(a.ids) {
-							listView.Select(cur, 0)
-							go a.showMessageWithoutFocus(a.ids[cur])
-						} else if tv, ok := a.views["text"].(*tview.TextView); ok {
-							tv.SetText("No messages")
-							tv.ScrollToBeginning()
-						}
-						// Salir de bulk y quitar checkboxes
+						
+						// Exit bulk mode
 						a.selected = make(map[string]bool)
 						a.bulkMode = false
 						a.reformatListItems()
-						a.setStatusPersistent("")
+						
+						// Restore focus
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
-						if len(idsToMove) <= 1 && failed == 0 {
-							a.showStatusMessage("📦 Moved to: " + name)
-						} else {
-							a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
-						}
 					})
+					
+					// Do complex operations outside QueueUpdateDraw to avoid hanging
+					go func() {
+						time.Sleep(100 * time.Millisecond) // Let UI update complete first
+						
+						if listView, ok := a.views["list"].(*tview.Table); ok {
+							// Remove messages from internal data structures
+							rm := make(map[string]bool, len(idsToMove))
+							for _, mid := range idsToMove {
+								rm[mid] = true
+							}
+							
+							// Remove message IDs using thread-safe helper
+							a.RemoveMessageIDsInPlace(rm)
+							
+							// Update UI list in a separate queue operation
+							a.QueueUpdateDraw(func() {
+								// Remove from messagesMeta 
+								newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
+								for _, msg := range a.messagesMeta {
+									if msg != nil && !rm[msg.Id] {
+										newMeta = append(newMeta, msg)
+									}
+								}
+								a.messagesMeta = newMeta
+								
+								// Update list title
+								listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+								
+								// Refresh the list view by reloading it
+								go a.reloadMessages()
+							})
+						}
+					}()
+					
+					// Simple status update without complex threading
+					if len(idsToMove) <= 1 && failed == 0 {
+						a.showStatusMessage("📦 Moved to: " + name)
+					} else {
+						a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+					}
 				}()
 			})
 		}
@@ -599,7 +642,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
@@ -611,7 +654,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.populateLabelsQuickView(messageID)
 					}
@@ -622,23 +665,30 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					if len(visible) >= 1 {
 						v := visible[0]
 						if !moveMode {
-							if !v.applied {
-								a.toggleLabelForMessage(messageID, v.id, v.name, false, func(newApplied bool, err error) {
-									if err == nil {
-										for i := range all {
-											if all[i].id == v.id {
-												all[i].applied = newApplied
-												break
-											}
-										}
-										a.updateCachedMessageLabels(messageID, v.id, newApplied)
-										a.updateMessageCacheLabels(messageID, v.name, newApplied)
-										reload(strings.TrimSpace(input.GetText()))
-										a.refreshMessageContent(messageID)
-									}
-								})
+							// Check if we need to apply to bulk selection
+							if a.bulkMode && len(a.selected) > 0 {
+								// Apply label to all selected messages
+								go a.applyLabelToBulkSelection(v.id, v.name, v.applied)
 							} else {
-								a.showStatusMessage("✔️ Label already applied: " + v.name)
+								// Single message label toggle
+								if !v.applied {
+									a.toggleLabelForMessage(messageID, v.id, v.name, false, func(newApplied bool, err error) {
+										if err == nil {
+											for i := range all {
+												if all[i].id == v.id {
+													all[i].applied = newApplied
+													break
+												}
+											}
+											a.updateCachedMessageLabels(messageID, v.id, newApplied)
+											a.updateMessageCacheLabels(messageID, v.name, newApplied)
+											reload(strings.TrimSpace(input.GetText()))
+											a.refreshMessageContent(messageID)
+										}
+									})
+								} else {
+									a.showStatusMessage("✔️ Label already applied: " + v.name)
+								}
 							}
 						} else {
 							// Move mode: reuse the same logic as the list callback
@@ -651,73 +701,76 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								failed := 0
-								total := len(idsToMove)
-								a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
-								for i, mid := range idsToMove {
+								
+								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
+								for _, mid := range idsToMove {
 									if err := a.Client.ApplyLabel(mid, id); err != nil {
 										failed++
 									}
 									if err := a.Client.ArchiveMessage(mid); err != nil {
 										failed++
 									}
-									idx := i + 1
-									a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
 								}
+								// Simplified UI update to avoid complex operations that might hang
 								a.QueueUpdateDraw(func() {
-									listView, ok := a.views["list"].(*tview.Table)
-									if !ok {
-										return
-									}
+									// Close the panel first
 									if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 										split.ResizeItem(a.labelsView, 0, 0)
 									}
 									a.labelsVisible = false
 									a.labelsExpanded = false
-									rm := make(map[string]bool, len(idsToMove))
-									for _, mid := range idsToMove {
-										rm[mid] = true
-									}
-									// Remove message IDs using thread-safe helper
-									a.RemoveMessageIDsInPlace(rm)
-									// Also remove from messagesMeta and listView in sync
-									i := 0
-									for i < len(a.messagesMeta) {
-										if a.messagesMeta[i] != nil && rm[a.messagesMeta[i].Id] {
-											a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
-											if i < listView.GetRowCount() {
-												listView.RemoveRow(i)
-											}
-											continue
-										}
-										i++
-									}
-									// Also propagate removals to base snapshot in local filter mode
-									a.baseRemoveByIDs(idsToMove)
-									cur, _ := listView.GetSelection()
-									if cur >= listView.GetRowCount() {
-										cur = listView.GetRowCount() - 1
-									}
-									listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-									if cur >= 0 && cur < len(a.ids) {
-										listView.Select(cur, 0)
-										go a.showMessageWithoutFocus(a.ids[cur])
-									} else if tv, ok := a.views["text"].(*tview.TextView); ok {
-										tv.SetText("No messages")
-										tv.ScrollToBeginning()
-									}
+									
+									// Exit bulk mode
 									a.selected = make(map[string]bool)
 									a.bulkMode = false
 									a.reformatListItems()
-									a.setStatusPersistent("")
+									
+									// Restore focus
 									a.SetFocus(a.views["list"])
 									a.currentFocus = "list"
 									a.updateFocusIndicators("list")
-									if len(idsToMove) <= 1 && failed == 0 {
-										a.showStatusMessage("📦 Moved to: " + name)
-									} else {
-										a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
-									}
 								})
+								
+								// Do complex operations outside QueueUpdateDraw to avoid hanging
+								go func() {
+									time.Sleep(100 * time.Millisecond) // Let UI update complete first
+									
+									if listView, ok := a.views["list"].(*tview.Table); ok {
+										// Remove messages from internal data structures
+										rm := make(map[string]bool, len(idsToMove))
+										for _, mid := range idsToMove {
+											rm[mid] = true
+										}
+										
+										// Remove message IDs using thread-safe helper
+										a.RemoveMessageIDsInPlace(rm)
+										
+										// Update UI list in a separate queue operation
+										a.QueueUpdateDraw(func() {
+											// Remove from messagesMeta 
+											newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
+											for _, msg := range a.messagesMeta {
+												if msg != nil && !rm[msg.Id] {
+													newMeta = append(newMeta, msg)
+												}
+											}
+											a.messagesMeta = newMeta
+											
+											// Update list title
+											listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+											
+											// Refresh the list view by reloading it
+											go a.reloadMessages()
+										})
+									}
+								}()
+								
+								// Simple status update without complex threading
+								if len(idsToMove) <= 1 && failed == 0 {
+									a.showStatusMessage("📦 Moved to: " + name)
+								} else {
+									a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+								}
 							}(v.id, v.name)
 						}
 					}
@@ -785,7 +838,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
@@ -795,7 +848,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.populateLabelsQuickView(messageID)
 					}
@@ -1145,7 +1198,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 				if a.logger != nil {
 					a.logger.Printf("addCustomLabelInline: worker start")
 				}
-				a.QueueUpdateDraw(func() { a.setStatusPersistent("⏳ Creating/applying label…") })
+				a.GetErrorHandler().ShowProgress(a.ctx, "⏳ Creating/applying label…")
 				if a.logger != nil {
 					a.logger.Printf("addCustomLabelInline: ListLabels start")
 				}
@@ -1206,7 +1259,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 						a.logger.Printf("addCustomLabelInline: done, refreshing views")
 					}
 					a.showStatusMessage("✅ Applied: " + name)
-					a.setStatusPersistent("")
+					a.GetErrorHandler().ClearProgress()
 					a.labelsExpanded = false
 					a.populateLabelsQuickView(messageID)
 					a.refreshMessageContent(messageID)
@@ -1423,12 +1476,12 @@ func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool)
 				exists = true
 				break
 			}
-			// Mirror to base snapshot if in local filter
-			a.updateBaseCachedMessageLabels(messageID, labelID, applied)
 		}
 		if !exists {
 			msg.LabelIds = append(msg.LabelIds, labelID)
 		}
+		// Mirror to base snapshot if in local filter
+		a.updateBaseCachedMessageLabels(messageID, labelID, applied)
 	} else {
 		// remove
 		out := msg.LabelIds[:0]
@@ -1791,4 +1844,106 @@ func (a *App) applyLabelAndRefresh(messageID, labelID, labelName string) {
 			a.refreshMessageContent(messageID)
 		}
 	})
+}
+
+// applyLabelToBulkSelection applies a label to all selected messages WITHOUT archiving them
+func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyApplied bool) {
+	if !a.bulkMode || len(a.selected) == 0 {
+		return
+	}
+
+	// Get all selected message IDs
+	messageIDs := make([]string, 0, len(a.selected))
+	for id := range a.selected {
+		messageIDs = append(messageIDs, id)
+	}
+	
+	// Debug logging
+	if a.logger != nil {
+		a.logger.Printf("applyLabelToBulkSelection: processing %d messages, labelID=%s, action=%s", 
+			len(messageIDs), labelID, func() string { if currentlyApplied { return "remove" } else { return "add" } }())
+		for i, id := range messageIDs {
+			a.logger.Printf("applyLabelToBulkSelection: messageIDs[%d] = %s", i, id)
+		}
+	}
+
+	// Determine the action - if ANY message has the label, we remove it from all
+	// If NO messages have the label, we add it to all
+	action := "add"
+	if currentlyApplied {
+		action = "remove"
+	}
+
+	// Close the labels panel immediately (like the working move operations)
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+		a.labelsVisible = false
+		a.labelsExpanded = false
+		
+		// Stay in bulk mode (don't exit like move operations do)
+		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+	})
+
+	// Do the actual labeling work in a separate goroutine (like move operations)
+	go func() {
+		failed := 0
+		total := len(messageIDs)
+		
+		// Apply the label operation to all selected messages
+		for i, messageID := range messageIDs {
+			if a.logger != nil {
+				a.logger.Printf("applyLabelToBulkSelection: processing message %d/%d, messageID=%s", i+1, len(messageIDs), messageID)
+			}
+			
+			var err error
+			if action == "add" {
+				err = a.Client.ApplyLabel(messageID, labelID)
+			} else {
+				err = a.Client.RemoveLabel(messageID, labelID)
+			}
+			
+			if err != nil {
+				if a.logger != nil {
+					a.logger.Printf("applyLabelToBulkSelection: FAILED to %s label for message %s: %v", action, messageID, err)
+				}
+				failed++
+				continue
+			}
+
+			if a.logger != nil {
+				a.logger.Printf("applyLabelToBulkSelection: SUCCESS %s label for message %s", action, messageID)
+			}
+
+			// Update local cache for this message (simplified)
+			a.updateCachedMessageLabels(messageID, labelID, action == "add")
+		}
+
+		// Update UI after all operations complete
+		a.QueueUpdateDraw(func() {
+			// Update the visual list to reflect label changes
+			a.reformatListItems()
+		})
+
+		// Show completion status using ErrorHandler (async to avoid deadlock)
+		successful := total - failed
+		go func() {
+			if failed == 0 {
+				if action == "add" {
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied '%s' to %d messages", labelName, total))
+				} else {
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Removed '%s' from %d messages", labelName, total))
+				}
+			} else {
+				if action == "add" {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("🏷️ Applied '%s' to %d/%d messages (%d failed)", labelName, successful, total, failed))
+				} else {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("🏷️ Removed '%s' from %d/%d messages (%d failed)", labelName, successful, total, failed))
+				}
+			}
+		}()
+	}()
 }

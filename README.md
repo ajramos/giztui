@@ -42,14 +42,30 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items, etc.)
 - ✅ **Usage tracking** - Monitor which prompts are used most frequently
 
-### 🔥 **Bulk Prompts** 🆕
+### 🔥 **Bulk Operations** 🆕
 - ✅ **Multi-email analysis** - Apply prompts to multiple emails simultaneously
+- ✅ **Bulk labeling** - Apply labels to multiple selected messages at once
+- ✅ **Bulk moving** - Move multiple messages with label+archive in one operation
+- ✅ **Search-enabled operations** - Filter labels during bulk operations for quick selection
 - ✅ **Consolidated insights** - Get unified analysis across multiple messages
 - ✅ **Cloud product tracking** - Specialized prompts for AWS/Azure/GCP updates
 - ✅ **Project monitoring** - Consolidate project status from multiple emails
 - ✅ **Trend analysis** - Identify patterns across multiple sources
 - ✅ **Efficient processing** - Async processing with progress indicators
 - ✅ **Responsive controls** - Cancel bulk operations instantly with Esc
+- ✅ **Robust error handling** - Proper status updates and deadlock prevention
+
+### 📝 **Obsidian Integration** 🆕
+- ✅ **Email ingestion** - Send emails directly to Obsidian as Markdown notes
+- ✅ **Bulk ingestion** - Process multiple selected emails with shared comments
+- ✅ **Second brain system** - Organize emails in `00-Inbox` folder
+- ✅ **Configurable template** - Single, customizable Markdown template
+- ✅ **Variable substitution** - Auto-complete `{{subject}}`, `{{body}}`, `{{from}}`, etc.
+- ✅ **Personal comments** - Add custom notes before ingestion (single & bulk)
+- ✅ **Duplicate prevention** - SQLite-based history tracking
+- ✅ **Attachment support** - Include email attachments in notes
+- ✅ **Keyboard shortcut** - `Shift+O` for quick ingestion
+- ✅ **Panel interface** - Clean side panel (not modal) for template preview
 
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
@@ -170,7 +186,7 @@ gmail-tui/
 
 ### 🔧 Service Architecture
 
-The application now follows a **layered architecture** with clear separation between UI, business logic, and data access:
+The application follows a **robust, service-oriented architecture** with clear separation between UI, business logic, and data access:
 
 #### 📊 **Service Layer** (`internal/services/`)
 - **EmailService**: High-level email operations (compose, send, archive, etc.)
@@ -179,6 +195,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **CacheService**: SQLite-based caching for AI summaries
 - **PromptService**: 🆕 Prompt library management with caching and usage tracking
 - **SlackService**: 🆕 Slack integration for email forwarding with multiple format styles
+- **ObsidianService**: 🆕 Email-to-Obsidian ingestion with template support
 - **MessageRepository**: Data access abstraction for Gmail API
 
 #### 🎯 **Key Architectural Improvements**
@@ -206,7 +223,26 @@ The application now follows a **layered architecture** with clear separation bet
 
 4. **Dependency Injection** - Services are automatically initialized and injected
    ```go
-   emailService, aiService, labelService, cacheService, repository := app.GetServices()
+   emailService, aiService, labelService, cacheService, repository, promptService, obsidianService := app.GetServices()
+   ```
+
+5. **🆕 Enhanced Bulk Operations** - Consistent patterns for all bulk operations
+   ```go
+   // All bulk operations follow the same pattern:
+   // 1. Progress tracking with ErrorHandler
+   // 2. Async processing with status updates  
+   // 3. Deadlock-free UI updates
+   // 4. Proper cleanup and state management
+   ```
+
+6. **🆕 Improved Threading Model** - Prevents UI deadlocks
+   ```go
+   // Fixed: ErrorHandler calls outside QueueUpdateDraw to avoid deadlocks
+   a.QueueUpdateDraw(func() {
+       // UI updates only
+   })
+   // Status messages outside to prevent nested QueueUpdateDraw
+   a.GetErrorHandler().ShowSuccess(ctx, "Operation completed")
    ```
 
 #### 🛡️ **Benefits**
@@ -214,6 +250,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **Cleaner Code** - UI components focus on presentation, not business logic
 - **Thread Safety** - Proper mutex protection for concurrent operations
 - **Consistent UX** - Centralized error handling provides uniform user feedback
+- **Deadlock Prevention** - 🆕 Improved threading prevents UI hangs
 - **Maintainability** - Clear separation makes the codebase easier to understand and modify
 - **Extensibility** - New features can be added by implementing service interfaces
 
@@ -386,6 +423,7 @@ For all other settings (LLM, timeouts, etc.), edit the config file.
 | `g` | Generate reply (experimental) |
 | `p` | Open prompt picker (single message) or bulk prompt picker (bulk mode) |
 | `K` | Forward email to Slack |
+| `O` | 🆕 **Ingest email(s) to Obsidian** (single or bulk mode) |
 | `Esc` | Cancel active streaming operations (AI summary, prompts, bulk prompts) |
 
 #### 🏃 VIM-Style Navigation
@@ -432,11 +470,12 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `d` | Move selected messages to trash |
 | `m` | Move selected messages to label |
 | `p` | Apply AI prompt to all selected messages |
+| `O` | 🆕 **Ingest selected messages to Obsidian** |
 | `Esc` | Exit bulk mode |
 
 **Bulk Mode Status Bar:**
 - Shows current selection count
-- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit`
+- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit`
 
 ### AI Features (LLM)
 
@@ -1190,3 +1229,185 @@ Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defa
 ## 🗺️ Project Status & Roadmap
 
 - For up-to-date feature status and planned work, see `TODO.md`.
+
+## 📝 Obsidian Integration
+
+Gmail TUI includes a powerful Obsidian integration that allows you to ingest emails directly to your second brain system.
+
+### Features
+
+- **Single configurable template** - One template for all emails with variable substitution
+- **Personal comments** - **🆕 Add personal notes about emails before ingestion**
+- **Duplicate prevention** - SQLite-based history tracking prevents re-ingestion
+- **Attachment support** - Include email attachments by default
+- **Clean interface** - Side panel (not modal) for template preview and comment input
+- **Organized structure** - All emails go to `00-Inbox` folder for second brain processing
+- **Immediate feedback** - Panel closes instantly, operation runs asynchronously
+- **Keyboard navigation** - Tab between template view and comment field
+
+### Configuration
+
+Add this section to your `~/.config/gmail-tui/config.json`:
+
+```json
+{
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Documents/Obsidian/MyVault",
+    "ingest_folder": "00-Inbox",
+    "filename_format": "{{date}}_{{subject_slug}}_{{from_domain}}",
+    "history_enabled": true,
+    "prevent_duplicates": true,
+    "max_file_size": 1048576,
+    "include_attachments": true,
+    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n{% if comment %}**Personal Note:** {{comment}}\n\n{% endif %}---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+  }
+}
+```
+
+### Usage
+
+#### Single Email Ingestion
+1. **Select an email** in the message list
+2. **Press `Shift+O`** to open the "Send to Obsidian" panel
+3. **Review the template** that will be used (displayed at the top)
+4. **Optional**: Add a personal comment in the "Pre-message:" field
+5. **Press `Enter`** to ingest the email to Obsidian
+6. **Press `Esc`** to cancel at any time
+7. **Use `Tab`** to navigate between template view and comment field
+
+#### Bulk Email Ingestion 🆕
+1. **Enter bulk mode** by pressing `v`, `b`, or `space` on an email
+2. **Select multiple emails** using `space` or `*` (select all)
+3. **Press `Shift+O`** to open the bulk Obsidian panel
+4. **Review the bulk template** information
+5. **Optional**: Add a shared comment for all selected emails in the "Bulk comment:" field
+6. **Press `Enter`** to ingest all selected emails with the shared comment
+7. **Press `Esc`** to cancel at any time
+
+**Note**: The panel closes immediately when you press Enter, and the ingestion runs asynchronously. You'll see progress and success messages in the status bar showing the processing status for each email.
+
+### Template Variables
+
+- `{{subject}}` - Email subject
+- `{{from}}` - Sender email
+- `{{to}}` - Recipient email
+- `{{cc}}` - CC recipients
+- `{{body}}` - Email content
+- `{{date}}` - Email date
+- `{{labels}}` - Gmail labels
+- `{{message_id}}` - Gmail message ID
+- `{{ingest_date}}` - Date of ingestion
+- `{{comment}}` - **🆕 Personal comment added by user**
+
+### Configuration Options
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Enable/disable Obsidian integration | `true` |
+| `vault_path` | string | Path to your Obsidian vault | `~/Documents/Obsidian/MyVault` |
+| `ingest_folder` | string | Folder where emails are saved | `00-Inbox` |
+| `filename_format` | string | Format for generated filenames | `{{date}}_{{subject_slug}}_{{from_domain}}` |
+| `history_enabled` | boolean | Track ingestion history | `true` |
+| `prevent_duplicates` | boolean | Prevent duplicate ingestions | `true` |
+| `max_file_size` | integer | Maximum file size in bytes | `1048576` (1MB) |
+| `include_attachments` | boolean | Include email attachments | `true` |
+| `template` | string | Markdown template for emails | See example above |
+
+### Customizing Templates
+
+You can customize the template for different types of emails. Here are some examples:
+
+**Meeting Template:**
+```markdown
+---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: meeting
+status: inbox
+tags: [meeting, action-items]
+---
+
+# {{subject}}
+
+**Meeting Details:**
+- **From:** {{from}}
+- **Date:** {{date}}
+- **Type:** Meeting/Follow-up
+
+{% if comment %}**Personal Note:** {{comment}}
+
+{% endif %}**Action Items:**
+- [ ] 
+
+**Notes:**
+{{body}}
+
+**Next Meeting:**
+- [ ] Schedule follow-up
+
+---
+
+*Ingested from Gmail on {{ingest_date}}*`
+```
+
+**Project Template:**
+```markdown
+---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: project
+status: inbox
+tags: [project, update]
+---
+
+# {{subject}}
+
+**Project Details:**
+- **From:** {{from}}
+- **Date:** {{date}}
+- **Project:** 
+
+**Key Updates:**
+- 
+
+**Next Steps:**
+- [ ] 
+
+**Content:**
+{{body}}
+
+---
+
+*Ingested from Gmail on {{ingest_date}}*`
+```
+
+### Troubleshooting
+
+**Common Issues:**
+- **"Vault path not found"** - Verify the `vault_path` exists and is accessible
+- **"Permission denied"** - Check write permissions on the vault directory
+- **Emails not ingesting** - Ensure `enabled` is `true` and restart the app
+- **Duplicate prevention** - Check the `obsidian_forward_history` table in SQLite
+
+**Database Location:**
+The ingestion history is stored in the same SQLite database as other features:
+`~/.config/gmail-tui/cache/{account_email}.sqlite3`
+
+**Table Structure:**
+```sql
+CREATE TABLE obsidian_forward_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    account_email TEXT NOT NULL,
+    obsidian_path TEXT NOT NULL,
+    template_used TEXT,
+    forward_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'success',
+    error_message TEXT,
+    file_size INTEGER,
+    metadata TEXT
+);
+```

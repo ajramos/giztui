@@ -123,6 +123,8 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	// Cache the result via prompt service
 	if s.promptService != nil {
 		_ = s.promptService.SaveBulkResult(ctx, accountEmail, successfulIDs, promptID, result)
+		// Increment usage count for the prompt
+		_ = s.promptService.IncrementUsage(ctx, promptID)
 	}
 
 	return &BulkPromptResult{
@@ -192,6 +194,8 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 	// Cache the result via prompt service
 	if s.promptService != nil {
 		_ = s.promptService.SaveBulkResult(ctx, accountEmail, successfulIDs, promptID, result)
+		// Increment usage count for the prompt
+		_ = s.promptService.IncrementUsage(ctx, promptID)
 	}
 
 	return &BulkPromptResult{

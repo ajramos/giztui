@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ajramos/gmail-tui/internal/obsidian"
 )
 
 // Config holds all configuration for the Gmail TUI application
@@ -50,6 +52,9 @@ type Config struct {
 
 	// Logging
 	LogFile string `json:"log_file"`
+
+	// Obsidian integration
+	Obsidian *obsidian.ObsidianConfig `json:"obsidian"`
 }
 
 // SlackConfig contains all Slack integration settings

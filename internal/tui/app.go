@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
+	"github.com/ajramos/gmail-tui/internal/obsidian"
 	"github.com/ajramos/gmail-tui/internal/render"
 	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
@@ -75,9 +77,9 @@ type App struct {
 	// AI Summary pane
 	aiSummaryView       *tview.TextView
 	aiSummaryVisible    bool
-	aiSummaryCache      map[string]string // messageID -> summary
-	aiInFlight          map[string]bool   // messageID -> generating
-	aiPanelInPromptMode bool              // Track if panel is being used for prompt vs summary
+	aiSummaryCache      map[string]string  // messageID -> summary
+	aiInFlight          map[string]bool    // messageID -> generating
+	aiPanelInPromptMode bool               // Track if panel is being used for prompt vs summary
 	streamingCancel     context.CancelFunc // Cancel function for active streaming operations
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
@@ -141,6 +143,7 @@ type App struct {
 	bulkPromptService *services.BulkPromptServiceImpl
 	promptService     services.PromptService
 	slackService      services.SlackService
+	obsidianService   services.ObsidianService
 	errorHandler      *ErrorHandler
 }
 
@@ -398,6 +401,31 @@ func (a *App) reinitializeServices() {
 		a.bulkPromptService.SetPromptService(a.promptService)
 	}
 
+	// Initialize Obsidian service if database store is available
+	if a.dbStore != nil && a.obsidianService == nil {
+		obsidianStore := db.NewObsidianStore(a.dbStore)
+
+		// Get Obsidian config from app config
+		var obsidianConfig *obsidian.ObsidianConfig
+		if a.Config != nil && a.Config.Obsidian != nil {
+			obsidianConfig = a.Config.Obsidian
+			if a.logger != nil {
+				a.logger.Printf("reinitializeServices: using Obsidian config from app config")
+			}
+		} else {
+			// Fallback to default config if not available
+			obsidianConfig = obsidian.DefaultObsidianConfig()
+			if a.logger != nil {
+				a.logger.Printf("reinitializeServices: using default Obsidian config")
+			}
+		}
+
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: obsidian service initialized: %v", a.obsidianService != nil)
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("reinitializeServices: service re-initialization completed")
 	}
@@ -493,6 +521,41 @@ func (a *App) initServices() {
 		}
 	}
 
+	// Initialize Obsidian service if database store is available
+	if a.dbStore != nil {
+		obsidianStore := db.NewObsidianStore(a.dbStore)
+		// Get Obsidian config from app config
+		var obsidianConfig *obsidian.ObsidianConfig
+		if a.Config != nil && a.Config.Obsidian != nil {
+			obsidianConfig = a.Config.Obsidian
+			if a.logger != nil {
+				a.logger.Printf("initServices: using Obsidian config from app config")
+			}
+		} else {
+			// Fallback to default config if not available
+			obsidianConfig = obsidian.DefaultObsidianConfig()
+			// Set a reasonable vault path if not configured
+			homeDir, err := os.UserHomeDir()
+			if err == nil {
+				obsidianConfig.VaultPath = filepath.Join(homeDir, "ObsidianVault")
+			} else {
+				obsidianConfig.VaultPath = "./ObsidianVault"
+			}
+			if a.logger != nil {
+				a.logger.Printf("initServices: using default Obsidian config")
+			}
+		}
+		
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
+		if a.logger != nil {
+			a.logger.Printf("initServices: obsidian service initialized: %v", a.obsidianService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: obsidian service NOT initialized - dbStore=%v", a.dbStore != nil)
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
@@ -520,7 +583,7 @@ func (a *App) initErrorHandler() {
 	}
 
 	// Create error handler
-	a.errorHandler = NewErrorHandler(a.Application, statusView, flashView, a.logger)
+	a.errorHandler = NewErrorHandler(a.Application, a, statusView, flashView, a.logger)
 }
 
 // Thread-safe state access methods
@@ -687,8 +750,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService
 }
 
 // GetSlackService returns the Slack service instance

@@ -63,6 +63,96 @@ func (a *App) goodCleanup() {
 }
 ```
 
+### 📨 **Status Message Best Practices**
+- **ALWAYS** use `ErrorHandler` for ALL status operations (progress, success, error, warnings)
+- **NEVER** use direct status methods (`setStatusPersistent`, `showStatusMessage`) - these are deprecated
+- **Consistent baseline**: ErrorHandler ensures all status messages show with proper app baseline
+- **CRITICAL**: **NEVER** wrap ErrorHandler calls in `QueueUpdateDraw()` - ErrorHandler handles UI threading internally
+
+#### ✅ **Correct Status Patterns for Bulk Operations:**
+```go
+// ✅ Progress updates - called directly from goroutines
+for i, item := range items {
+    // ErrorHandler handles UI threading internally
+    a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d/%d messages…", i+1, len(items)))
+    // ... process item
+}
+
+// ✅ Clear progress when done
+a.GetErrorHandler().ClearProgress()
+
+// ✅ Final results
+if failed == 0 {
+    a.GetErrorHandler().ShowSuccess(a.ctx, "✅ All messages processed!")
+} else {
+    a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ %d processed (%d failed)", successful, failed))
+}
+
+// ✅ From key handlers - ALWAYS use goroutine to avoid deadlock
+func (a *App) handleKey() *tcell.EventKey {
+    // Do UI operations first (synchronous)
+    a.reformatListItems()
+    list.SetSelectedStyle(style)
+    
+    // Then ErrorHandler calls asynchronously
+    go func() {
+        a.GetErrorHandler().ShowInfo(a.ctx, "Message")
+    }()
+    return nil
+}
+
+// ✅ From nested goroutines - ALWAYS use separate goroutines for ErrorHandler
+go func() {
+    // Business logic (label operations, API calls, etc.)
+    for i, item := range items {
+        // Process item...
+        
+        // Progress updates asynchronously to avoid deadlock
+        go func(idx, total int) {
+            a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d/%d…", idx, total))
+        }(i+1, len(items))
+    }
+    
+    // UI updates synchronously
+    a.QueueUpdateDraw(func() {
+        // Update UI state...
+    })
+    
+    // Final status asynchronously
+    go func() {
+        a.GetErrorHandler().ClearProgress()
+        a.GetErrorHandler().ShowSuccess(a.ctx, "Completed!")
+    }()
+}()
+```
+
+#### ❌ **Dangerous Anti-Patterns - CAUSE DEADLOCKS:**
+```go
+// ❌ DEADLOCK RISK - Never wrap ErrorHandler in QueueUpdateDraw
+a.QueueUpdateDraw(func() {
+    a.GetErrorHandler().ShowProgress(a.ctx, "Processing...")  // DEADLOCK!
+})
+
+// ❌ DEADLOCK RISK - Never call ErrorHandler from synchronous key handlers
+func (a *App) handleKey() *tcell.EventKey {
+    a.GetErrorHandler().ShowInfo(a.ctx, "Message")  // DEADLOCK!
+    return nil
+}
+
+// ❌ DEPRECATED - Inconsistent baseline, direct status methods
+a.setStatusPersistent("Processing...")
+a.showStatusMessage("Success!")
+a.setStatusPersistent("")
+```
+
+#### 📋 **ErrorHandler Method Guide:**
+- `ShowProgress(ctx, msg)` - For ongoing operations (doesn't auto-clear)
+- `ClearProgress()` - Clear progress messages
+- `ShowSuccess(ctx, msg)` - Success messages (auto-clear after 3s)
+- `ShowError(ctx, msg)` - Error messages (auto-clear after 3s)
+- `ShowWarning(ctx, msg)` - Warning messages (auto-clear after 3s)
+- `ShowInfo(ctx, msg)` - Info messages (auto-clear after 3s)
+
 ## 📋 **Code Templates**
 
 ### Service Implementation Template
@@ -125,8 +215,10 @@ func (a *App) badExample() {
     messages, err := a.Client.GetMessages() // Direct API call in UI
     if err != nil {
         fmt.Printf("Error: %v\n", err)     // Direct output
+        a.setStatusPersistent("Error!")     // Deprecated status method
     }
     a.currentMessageID = "new-id"           // Direct field access
+    a.showStatusMessage("Done")             // Deprecated status method
 }
 ```
 
@@ -186,12 +278,68 @@ When asked to implement a new feature:
 5. **Improve Error Handling** - Use ErrorHandler
 6. **Fix ESC Handling** - Replace `QueueUpdateDraw` with synchronous operations
 
+## 🐛 **Recent Debugging & Fixes (August 2025)**
+
+### 🔧 **Bulk Operations Debugging Session**
+Successfully resolved critical issues in bulk operations that were causing hangs and incomplete functionality:
+
+#### **Issues Fixed:**
+1. **Bulk Labeling Hang on Filtered Search** - When filtering labels to a single result and pressing Enter, system would hang
+2. **Cache Update Bug** - `updateCachedMessageLabels` was calling `updateBaseCachedMessageLabels` inside a loop incorrectly
+3. **Mixed Status Handling** - Inconsistent use of `showStatusMessage` vs `GetErrorHandler()` causing UI deadlocks
+4. **Missing Bulk Mode Support** - Enter key handler in label search didn't support bulk operations
+
+#### **Root Causes:**
+- **Threading Deadlocks**: Nested `QueueUpdateDraw()` calls when `showStatusMessage()` was called from goroutines
+- **Missing Logic Paths**: Search/filter Enter key handler only supported single messages, not bulk mode
+- **Cache Corruption**: Label cache updates were happening multiple times per message due to loop placement
+
+#### **Solutions Applied:**
+```go
+// ❌ Old problematic pattern (caused deadlocks)
+func (a *App) oldBulkOperation() {
+    go func() {
+        // ... do work ...
+        a.showStatusMessage("Done") // Used QueueUpdateDraw internally
+    }()
+}
+
+// ✅ New fixed pattern (deadlock-free)
+func (a *App) newBulkOperation() {
+    go func() {
+        // ... do work ...
+        go func() {
+            a.GetErrorHandler().ShowSuccess(a.ctx, "Done") // Async ErrorHandler
+        }()
+    }()
+}
+```
+
+#### **Key Learning:**
+- **Never call `showStatusMessage()` from goroutines** - it uses `QueueUpdateDraw` internally
+- **Always use `GetErrorHandler()` for status updates** - it's designed for async operations
+- **Add bulk mode checks to ALL user interaction handlers** - not just list item callbacks
+- **Debug with logging first** - determine exact hang location before fixing
+
+#### **Files Modified:**
+- `internal/tui/labels.go` - Fixed Enter key handler to support bulk mode
+- `internal/tui/labels.go` - Fixed `updateCachedMessageLabels` cache bug
+- `internal/tui/bulk_prompts.go` - Enhanced debug logging
+- `internal/tui/keys.go` - Improved ESC key handling consistency
+
+#### **Testing Verified:**
+- ✅ Bulk labeling with filtered search works correctly
+- ✅ Multiple message selection + label application succeeds
+- ✅ No deadlocks when using ErrorHandler for status updates
+- ✅ Cache updates happen correctly (once per message)
+
 ## 📖 **Documentation**
 
 Always update:
 - `docs/ARCHITECTURE.md` for architectural changes
 - `README.md` for user-facing features
 - `TODO.md` for completed tasks
+- `CLAUDE.md` for debugging sessions and architectural lessons learned
 - Code comments for complex logic
 
 ---

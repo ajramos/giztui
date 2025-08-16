@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
@@ -31,7 +32,7 @@ func (a *App) openBulkPromptPicker() {
 	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Applying prompt to %d selected messages", messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("openBulkPromptPicker: prompt service not available")
@@ -131,10 +132,13 @@ func (a *App) openBulkPromptPicker() {
 			}
 
 			if a.logger != nil {
-				a.logger.Printf("bulk prompt picker: loaded %d prompts (%d bulk_analysis, %d others)",
-					len(all),
-					len(prompts)-len(all),
-					len(all)-(len(prompts)-len(all)))
+				bulkCount := 0
+				for _, p := range prompts {
+					if p.Category == "bulk_analysis" {
+						bulkCount++
+					}
+				}
+				a.logger.Printf("bulk prompt picker: loaded %d bulk_analysis prompts out of %d total", bulkCount, len(prompts))
 			}
 
 			reload("")
@@ -229,7 +233,7 @@ func (a *App) closeBulkPromptPicker() {
 		a.streamingCancel()
 		a.streamingCancel = nil
 	}
-	
+
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
 			split.ResizeItem(a.labelsView, 0, 0)
@@ -246,11 +250,19 @@ func (a *App) exitBulkMode() {
 	if a.logger != nil {
 		a.logger.Printf("exitBulkMode: starting")
 	}
-	
+
 	// Do everything synchronously to avoid UI thread blocking
 	// Clear bulk mode
 	a.bulkMode = false
 	a.selected = make(map[string]bool)
+
+	// Reformat list items to remove bulk indicators
+	a.reformatListItems()
+
+	// Reset list selection style to normal
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
 
 	// Hide AI panel if it's visible
 	if a.aiSummaryVisible {
@@ -260,7 +272,6 @@ func (a *App) exitBulkMode() {
 		}
 		a.aiSummaryVisible = false
 		a.aiPanelInPromptMode = false
-		a.setStatusPersistent("")
 	}
 
 	// Return focus to list
@@ -268,11 +279,12 @@ func (a *App) exitBulkMode() {
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
 
-	// Update status using queue to avoid blocking
+	// Update status asynchronously to avoid deadlock
 	go func() {
+		a.GetErrorHandler().ClearProgress()
 		a.GetErrorHandler().ShowInfo(a.ctx, "Exited bulk mode")
 	}()
-	
+
 	if a.logger != nil {
 		a.logger.Printf("exitBulkMode: completed")
 	}
@@ -283,12 +295,12 @@ func (a *App) hideAIPanel() {
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: starting")
 	}
-	
+
 	// Do everything synchronously to avoid UI thread blocking (same fix as exitBulkMode)
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
 	}
-	
+
 	a.aiSummaryVisible = false
 	a.aiPanelInPromptMode = false
 
@@ -298,8 +310,8 @@ func (a *App) hideAIPanel() {
 	a.updateFocusIndicators("list")
 
 	// Clear any status message
-	a.setStatusPersistent("")
-	
+	a.GetErrorHandler().ClearProgress()
+
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: completed")
 	}
@@ -348,20 +360,20 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		}
 	})
 
-	// Show progress
+	// Show initial progress
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Applying '%s' to %d messages...", promptName, messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
 	}
 
-	// Apply bulk prompt with streaming
+	// Apply bulk prompt using the dedicated bulk prompt service
 	go func() {
 		var resultBuilder strings.Builder
-		
+
 		ctx, cancel := context.WithCancel(a.ctx)
 		a.streamingCancel = cancel // Store cancel function for Esc handler
 		defer func() {
@@ -370,6 +382,15 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		}()
 
 		accountEmail := a.getActiveAccountEmail()
+		
+		// Check if we can use streaming for this bulk operation
+		_, _, _, _, _, promptService, _ := a.GetServices()
+		if promptService == nil {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+			return
+		}
+
+		// Try streaming bulk prompt first
 		result, err := promptService.ApplyBulkPromptStream(ctx, accountEmail, messageIDs, promptID, map[string]string{}, func(token string) {
 			// Check if context was canceled
 			select {
@@ -426,11 +447,73 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 				a.updateFocusIndicators("summary")
 			}
 		})
-	}()
 
-	// Clear progress and show success
-	a.GetErrorHandler().ClearProgress()
-	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt '%s' completed for %d messages", promptName, messageCount))
+		// Clear progress and show success asynchronously to avoid hanging 
+		go func() {
+			// Small delay to ensure UI update completes first
+			time.Sleep(10 * time.Millisecond)
+			a.GetErrorHandler().ClearProgress()
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt '%s' completed for %d messages", promptName, result.MessageCount))
+		}()
+	}()
+}
+
+// cleanEmailContentForLLM processes email content to make it more digestible for LLM
+// Similar to the bulk service's cleanEmailContent function
+func (a *App) cleanEmailContentForLLM(content string) string {
+	if content == "" {
+		return "[Empty email]"
+	}
+
+	// Remove excessive URLs and tracking links
+	lines := strings.Split(content, "\n")
+	var cleanLines []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Skip empty lines
+		if line == "" {
+			continue
+		}
+
+		// Skip pure URL lines (tracking/unsubscribe links)
+		if strings.HasPrefix(line, "https://") && len(line) > 50 {
+			continue
+		}
+
+		// Skip common email footers
+		if strings.Contains(strings.ToLower(line), "unsubscribe") ||
+			strings.Contains(strings.ToLower(line), "privacy policy") ||
+			strings.Contains(strings.ToLower(line), "powered by") ||
+			strings.Contains(strings.ToLower(line), "support@") {
+			continue
+		}
+
+		// Clean up encoded characters (basic cleanup)
+		line = strings.ReplaceAll(line, "-2F", "/")
+		line = strings.ReplaceAll(line, "-2B", "+")
+		line = strings.ReplaceAll(line, "-3D", "=")
+
+		// Limit line length for readability
+		if len(line) > 200 {
+			line = line[:200] + "..."
+		}
+
+		cleanLines = append(cleanLines, line)
+
+		// Limit total lines to prevent overwhelming the LLM
+		if len(cleanLines) >= 20 {
+			cleanLines = append(cleanLines, "[Content truncated for brevity...]")
+			break
+		}
+	}
+
+	if len(cleanLines) == 0 {
+		return "[No meaningful content found]"
+	}
+
+	return strings.Join(cleanLines, "\n")
 }
 
 // showBulkPromptResult displays the result of a bulk prompt operation
