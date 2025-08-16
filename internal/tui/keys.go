@@ -63,7 +63,7 @@ func (a *App) bindKeys() {
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					// Show status message asynchronously to avoid deadlock
 					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 					}()
 					return nil
 				}
@@ -101,7 +101,7 @@ func (a *App) bindKeys() {
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					// Show status message asynchronously to avoid deadlock
 					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 					}()
 				} else {
 					a.bulkMode = false
@@ -132,7 +132,7 @@ func (a *App) bindKeys() {
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					// Show status message asynchronously to avoid deadlock
 					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 					}()
 				} else {
 					a.bulkMode = false
@@ -254,7 +254,11 @@ func (a *App) bindKeys() {
 			if a.currentFocus == "search" {
 				return nil
 			}
-			go a.showSlackForwardDialog()
+			if a.bulkMode && len(a.selected) > 0 {
+				go a.showSlackBulkForwardDialog()
+			} else {
+				go a.showSlackForwardDialog()
+			}
 			return nil
 		case 'l':
 			if a.currentFocus == "search" {

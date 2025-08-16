@@ -24,13 +24,15 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - 🧪 **Generate replies** - Experimental (placeholder implementation)
 
 ### 💬 **Slack Integration** 🆕
-- ✅ **Email forwarding to Slack** - Send emails to configured Slack channels
+- ✅ **Email forwarding to Slack** - Send emails to configured Slack channels (single & bulk)
+- ✅ **Bulk forwarding with comments** - Forward multiple selected emails with shared comments
 - ✅ **Multiple format styles** - Choose between summary, compact, full, or raw formats
 - ✅ **AI-powered summaries** - Use custom AI prompts for intelligent email summarization
 - ✅ **Custom user messages** - Add optional context when forwarding emails
 - ✅ **Multi-channel support** - Configure multiple Slack channels with webhooks
 - ✅ **Variable substitution** - Dynamic prompts with email headers and content
 - ✅ **TUI content fidelity** - "Full" format uses exact same processed content as displayed
+- ✅ **Progress tracking** - Real-time progress updates for bulk operations
 
 ### 🚀 **Prompt Library System** 🆕
 - ✅ **Custom prompt templates** - Predefined prompts for different use cases
@@ -470,12 +472,13 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `d` | Move selected messages to trash |
 | `m` | Move selected messages to label |
 | `p` | Apply AI prompt to all selected messages |
+| `K` | 🆕 **Forward selected messages to Slack** |
 | `O` | 🆕 **Ingest selected messages to Obsidian** |
 | `Esc` | Exit bulk mode |
 
 **Bulk Mode Status Bar:**
 - Shows current selection count
-- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit`
+- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit`
 
 ### AI Features (LLM)
 
@@ -502,7 +505,7 @@ Bulk operations allow you to select multiple messages and perform actions on the
 - Use with navigation commands like `:5` (jump to message 5) or `:slack 10` (forward message 10)
 - Perfect for quickly referencing specific messages by their position
 
-**Usage:**
+**Single Email Usage:**
 1. **Select a message** in the message list
 2. **Press `K`** or **type `:slack`** to open the Slack forwarding panel
 3. **Or type `:slack 5`** to open panel for message #5 (auto-selects message)
@@ -511,6 +514,16 @@ Bulk operations allow you to select multiple messages and perform actions on the
 6. **Press Enter** to send or **Tab** to switch focus between channel list and message input
 7. **Press Esc** to close the panel
 
+**Bulk Email Usage:** 🆕
+1. **Enter bulk mode** by pressing `v`, `b`, or `space` on a message
+2. **Select multiple emails** using `space` to toggle, `*` to select all
+3. **Press `K`** to open the bulk Slack forwarding panel  
+4. **Choose a channel** from the configured list (use arrow keys)
+5. **Add bulk comment** that will be included with ALL forwarded emails
+6. **Use Tab** to navigate between channel list and comment input field
+7. **Press Enter** to forward all selected emails with progress tracking
+8. **Press Esc** to cancel bulk forwarding
+
 **Format Styles:**
 - **📄 Summary** - AI-generated summary using your custom prompt template
 - **📦 Compact** - Headers + 200 character preview (From, Subject, body snippet)
@@ -518,11 +531,15 @@ Bulk operations allow you to select multiple messages and perform actions on the
 - **🔧 Raw** - Minimal processing, basic HTML-to-text conversion only
 
 **Features:**
+- ✅ **Single & bulk forwarding** - Forward one email or multiple emails simultaneously 
+- ✅ **Bulk comments** - Add shared comments that appear on all forwarded emails
+- ✅ **Progress tracking** - Real-time progress updates for bulk operations (e.g., "Forwarding 3/5 to #general...")
 - ✅ **Multi-channel support** - Configure multiple Slack channels with individual webhooks
 - ✅ **Smart variable substitution** - AI prompts can use `{{body}}`, `{{subject}}`, `{{from}}`, `{{to}}`, `{{cc}}`, `{{bcc}}`, `{{date}}`, and more
 - ✅ **TUI content fidelity** - "Full" format shows exactly what you see in the message widget
 - ✅ **Contextual UI** - Panel appears as a widget on the home screen (like labels)
 - ✅ **Optional user messages** - Add personal context when forwarding emails
+- ✅ **Robust error handling** - Individual failures don't stop bulk operations
 
 #### 🚀 **Prompt Library System** 🆕
 
