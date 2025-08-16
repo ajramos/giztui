@@ -366,32 +366,32 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 	if len(a.selected) == 0 {
 		return
 	}
-	
+
 	// Snapshot selection (following archiveSelectedBulk pattern)
 	ids := make([]string, 0, len(a.selected))
 	for id := range a.selected {
 		ids = append(ids, id)
 	}
-	
+
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📝 Saving %d emails to your notes…", len(ids)))
 	go func() {
 		failed := 0
 		total := len(ids)
-		
+
 		// Get account email
 		accountEmail := a.getActiveAccountEmail()
 		if accountEmail == "" {
 			a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
 			return
 		}
-		
+
 		// Get Obsidian service
 		_, _, _, _, _, _, obsidianService := a.GetServices()
 		if obsidianService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
 			return
 		}
-		
+
 		// Process each message individually with progress updates (following bulk pattern)
 		for i, id := range ids {
 			// Load message content
@@ -400,11 +400,11 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 				failed++
 				continue
 			}
-			
+
 			// Progress update on UI thread (following archiveSelectedBulk pattern)
 			idx := i + 1
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📝 Saving email %d/%d…", idx, total))
-			
+
 			// Create options for ingestion
 			options := obsidian.ObsidianOptions{
 				AccountEmail: accountEmail,
@@ -415,7 +415,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 					"batch_total":    total,
 				},
 			}
-			
+
 			// Perform ingestion for this message
 			result, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
 			if err != nil {
@@ -426,13 +426,13 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 				}
 				continue
 			}
-			
+
 			// Log successful ingestion for debugging
 			if a.logger != nil && result != nil {
 				a.logger.Printf("Bulk Obsidian ingestion successful for message %s: %s", id, result.FilePath)
 			}
 		}
-		
+
 		// Final UI update (following archiveSelectedBulk pattern)
 		a.QueueUpdateDraw(func() {
 			// Exit bulk mode and restore normal rendering/styles
@@ -443,10 +443,10 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
 		})
-		
+
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		
+
 		// Show final result
 		if failed == 0 {
 			a.GetErrorHandler().ShowSuccess(a.ctx, "📚 All emails saved to your notes!")

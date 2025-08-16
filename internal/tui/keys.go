@@ -208,6 +208,10 @@ func (a *App) bindKeys() {
 			go a.listUnreadMessages()
 			return nil
 		case 't':
+			if a.bulkMode && len(a.selected) > 0 {
+				go a.toggleMarkReadUnreadBulk()
+				return nil
+			}
 			go a.toggleMarkReadUnread()
 			return nil
 		case 'd':
