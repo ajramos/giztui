@@ -12,30 +12,21 @@
 - [ ] Plugin system: extensible architecture to add custom functionality without touching the core
 - [ ] Create equivalent command for shortcuts: prompts
 - [ ] UI for creating new prompt templates
+- [ ] Group llm configuration under the same object in config
+- [ ] Move configuration file templates to files.
+- [ ] when using :slack command the focus doesn't go to the send to slack widget.
+- [ ] Send slack messages in bulk
+- [ ] Add comment to the template in Slack
+- [ ] Usage of the ErrorHandler in the operations
 - [x] Treat several emails in batch with one prompt.
-- [ ] Review execution parameters, there are some duplication with llm and ollama.
--credentials string
-        Path to OAuth client credentials JSON
-  -llm-model string
-        LLM model to use (e.g., anthropic.claude-3-haiku-20240307)
-  -llm-provider string
-        LLM provider (ollama, bedrock)
-  -llm-region string
-        Region for region-based providers (e.g., us-east-1 for Bedrock)
-  -ollama-endpoint string
-        Ollama endpoint (include /api/generate)
-  -ollama-model string
-        Ollama model name
-  -ollama-timeout duration
-        LLM request timeout
-  -token string
-        Path to cached OAuth token JSON
+- [x] Review execution parameters, there are some duplication with llm and ollama.
 - [ ] Review look and feel of the folders, scope selection in the advance search, the page doesn't update well and leaves some orphan letters as you move up and down through the options.
 - [x] Fix AI SUmmary, Prompt Application (Single and bulk) issue with Escape. (it hangs when pressing Esc)
 - [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
 - [x] Investigate behavior for self-emailed messages
 - [x] After loading messages, auto-select and render the first one
 - [x] Stream LLM output instead of full response
+- Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
 
 ### Email Management
 - [ ] **Get unread emails** - List unread emails with count and preview
