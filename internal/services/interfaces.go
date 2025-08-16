@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/gmail-tui/internal/obsidian"
 	"github.com/ajramos/gmail-tui/internal/prompts"
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
@@ -82,7 +83,7 @@ type PromptService interface {
 	ApplyBulkPromptStream(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error)
 	GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error)
 	SaveBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int, resultText string) error
-	
+
 	// Cache management
 	ClearPromptCache(ctx context.Context, accountEmail string) error
 	ClearAllPromptCaches(ctx context.Context) error
@@ -184,4 +185,14 @@ type BulkPromptResult struct {
 	FromCache    bool
 	AccountEmail string
 	CreatedAt    time.Time
+}
+
+// ObsidianService handles Obsidian integration operations
+type ObsidianService interface {
+	IngestEmailToObsidian(ctx context.Context, message *gmail.Message, options obsidian.ObsidianOptions) (*obsidian.ObsidianIngestResult, error)
+	GetObsidianTemplates(ctx context.Context) ([]*obsidian.ObsidianTemplate, error)
+	ValidateObsidianConnection(ctx context.Context) error
+	GetObsidianVaultPath() string
+	GetConfig() *obsidian.ObsidianConfig
+	UpdateConfig(config *obsidian.ObsidianConfig)
 }

@@ -285,6 +285,12 @@ func (a *App) bindKeys() {
 			}
 			go a.suggestLabel()
 			return nil
+		case 'O': // Shift+O for Obsidian ingestion
+			if a.currentFocus == "search" {
+				return nil
+			}
+			go a.sendEmailToObsidian()
+			return nil
 		case 'w':
 			go a.saveCurrentMessageToFile()
 			return nil

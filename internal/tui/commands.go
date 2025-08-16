@@ -519,16 +519,16 @@ func (a *App) executeGoToCommand(args []string) {
 	if !ok {
 		return // Silently fail like the working G key
 	}
-	
+
 	// Check if we have any messages
 	if len(a.ids) == 0 {
 		return // No messages to navigate to
 	}
-	
-	// Default to last message (:G behavior) 
+
+	// Default to last message (:G behavior)
 	// Last message is at table row = len(a.ids) - 1
 	targetRow := len(a.ids) - 1
-	
+
 	// If argument provided (called from :5 style commands), calculate target row
 	if len(args) > 0 {
 		if num, err := strconv.Atoi(args[0]); err == nil && num >= 1 {
@@ -542,7 +542,7 @@ func (a *App) executeGoToCommand(args []string) {
 			}
 		}
 	}
-	
+
 	// Use the same simple approach as the working direct G key
 	list.Select(targetRow, 0)
 }
@@ -572,12 +572,12 @@ func (a *App) executeGoToFirst() {
 	if !ok {
 		return // Silently fail like the working G key
 	}
-	
+
 	// Check if we have any messages
 	if len(a.ids) == 0 {
 		return // No messages to navigate to
 	}
-	
+
 	// First message is at table row 0 (maps to a.ids[0])
 	list.Select(0, 0)
 }
@@ -603,14 +603,14 @@ func (a *App) executeCacheCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
 	}
 
 	accountEmail := a.getActiveAccountEmail()
-	
+
 	go func() {
 		if len(args) > 0 && strings.ToLower(args[0]) == "all" {
 			// Clear all caches for all accounts (admin function)
@@ -633,21 +633,20 @@ func (a *App) executeCacheClear(args []string) {
 // executeCacheInfo shows cache information
 func (a *App) executeCacheInfo(args []string) {
 	accountEmail := a.getActiveAccountEmail()
-	
+
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService := a.GetServices()
+		_, _, _, _, _, promptService, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return
 		}
-		
+
 		// Create safe filename
 		safeEmail := strings.ToLower(strings.ReplaceAll(accountEmail, "@", "_"))
-		
+
 		// Show basic cache info with simple message
 		infoMsg := fmt.Sprintf("Cache info: %s | DB: %s.sqlite3", accountEmail, safeEmail)
 		a.GetErrorHandler().ShowInfo(a.ctx, infoMsg)
 	}()
 }
-

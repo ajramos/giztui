@@ -14,6 +14,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/llm"
+	"github.com/ajramos/gmail-tui/internal/obsidian"
 	"github.com/ajramos/gmail-tui/internal/render"
 	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
@@ -75,9 +76,9 @@ type App struct {
 	// AI Summary pane
 	aiSummaryView       *tview.TextView
 	aiSummaryVisible    bool
-	aiSummaryCache      map[string]string // messageID -> summary
-	aiInFlight          map[string]bool   // messageID -> generating
-	aiPanelInPromptMode bool              // Track if panel is being used for prompt vs summary
+	aiSummaryCache      map[string]string  // messageID -> summary
+	aiInFlight          map[string]bool    // messageID -> generating
+	aiPanelInPromptMode bool               // Track if panel is being used for prompt vs summary
 	streamingCancel     context.CancelFunc // Cancel function for active streaming operations
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
@@ -133,6 +134,7 @@ type App struct {
 	repository        services.MessageRepository
 	bulkPromptService *services.BulkPromptServiceImpl
 	promptService     services.PromptService
+	obsidianService   services.ObsidianService
 	errorHandler      *ErrorHandler
 }
 
@@ -390,6 +392,31 @@ func (a *App) reinitializeServices() {
 		a.bulkPromptService.SetPromptService(a.promptService)
 	}
 
+	// Initialize Obsidian service if database store is available
+	if a.dbStore != nil && a.obsidianService == nil {
+		obsidianStore := db.NewObsidianStore(a.dbStore)
+
+		// Get Obsidian config from app config
+		var obsidianConfig *obsidian.ObsidianConfig
+		if a.Config != nil && a.Config.Obsidian != nil {
+			obsidianConfig = a.Config.Obsidian
+			if a.logger != nil {
+				a.logger.Printf("reinitializeServices: using Obsidian config from app config")
+			}
+		} else {
+			// Fallback to default config if not available
+			obsidianConfig = obsidian.DefaultObsidianConfig()
+			if a.logger != nil {
+				a.logger.Printf("reinitializeServices: using default Obsidian config")
+			}
+		}
+
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: obsidian service initialized: %v", a.obsidianService != nil)
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("reinitializeServices: service re-initialization completed")
 	}
@@ -470,6 +497,31 @@ func (a *App) initServices() {
 		if a.logger != nil {
 			a.logger.Printf("initServices: prompt service NOT initialized - dbStore=%v aiService=%v bulkPromptService=%v",
 				a.dbStore != nil, a.aiService != nil, a.bulkPromptService != nil)
+		}
+	}
+
+	// Initialize Obsidian service if database store is available
+	if a.dbStore != nil {
+		obsidianStore := db.NewObsidianStore(a.dbStore)
+		// TODO: Get Obsidian config from app config
+		obsidianConfig := &obsidian.ObsidianConfig{
+			Enabled:            true,
+			VaultPath:          "/Users/ajramos/Documents/ObsidianVault",
+			IngestFolder:       "00-Inbox",
+			FilenameFormat:     "{{date}}_{{subject_slug}}_{{from_domain}}",
+			HistoryEnabled:     true,
+			PreventDuplicates:  true,
+			MaxFileSize:        1048576,
+			IncludeAttachments: true,
+			Template:           "Default template from config",
+		}
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig)
+		if a.logger != nil {
+			a.logger.Printf("initServices: obsidian service initialized: %v", a.obsidianService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: obsidian service NOT initialized - dbStore=%v", a.dbStore != nil)
 		}
 	}
 
@@ -667,8 +719,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService
 }
 
 // applyTheme loads theme colors and updates the email renderer

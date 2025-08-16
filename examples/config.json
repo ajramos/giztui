@@ -53,5 +53,16 @@
     "attachments": "A",
     "manage_labels": "l",
     "quit": "q"
+  },
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Documents/Obsidian/MyVault",
+    "ingest_folder": "00-Inbox",
+    "filename_format": "{{date}}_{{subject_slug}}_{{from_domain}}",
+    "history_enabled": true,
+    "prevent_duplicates": true,
+    "max_file_size": 1048576,
+    "include_attachments": true,
+    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
   }
 }

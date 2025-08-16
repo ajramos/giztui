@@ -217,6 +217,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
 			cp.SetBorderColor(tcell.ColorYellow)
 		}
+	case "obsidian":
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(tcell.ColorYellow)
+		}
 	}
 }
 

@@ -26,7 +26,7 @@ func (a *App) openPromptPicker() {
 	}
 
 	// Get prompt service
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("openPromptPicker: prompt service is nil")
@@ -210,7 +210,7 @@ func (a *App) closePromptPicker() {
 		a.streamingCancel()
 		a.streamingCancel = nil
 	}
-	
+
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
@@ -238,7 +238,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	})
 
 	// Get services
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("applyPromptToMessage: prompt service not available")

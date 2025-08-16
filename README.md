@@ -42,6 +42,16 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Efficient processing** - Async processing with progress indicators
 - ✅ **Responsive controls** - Cancel bulk operations instantly with Esc
 
+### 📝 **Obsidian Integration** 🆕
+- ✅ **Email ingestion** - Send emails directly to Obsidian as Markdown notes
+- ✅ **Second brain system** - Organize emails in `00-Inbox` folder
+- ✅ **Configurable template** - Single, customizable Markdown template
+- ✅ **Variable substitution** - Auto-complete `{{subject}}`, `{{body}}`, `{{from}}`, etc.
+- ✅ **Duplicate prevention** - SQLite-based history tracking
+- ✅ **Attachment support** - Include email attachments in notes
+- ✅ **Keyboard shortcut** - `Shift+O` for quick ingestion
+- ✅ **Panel interface** - Clean side panel (not modal) for template preview
+
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
 - ✅ **Multiple layout modes** - Wide, medium, narrow, and mobile layouts
@@ -328,6 +338,7 @@ The application uses a unified configuration directory structure:
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
 | `p` | Open prompt picker (single message) or bulk prompt picker (bulk mode) |
+| `O` | 🆕 **Ingest email to Obsidian** |
 | `Esc` | Cancel active streaming operations (AI summary, prompts, bulk prompts) |
 
 #### 🏃 VIM-Style Navigation
@@ -1037,3 +1048,175 @@ Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defa
 ## 🗺️ Project Status & Roadmap
 
 - For up-to-date feature status and planned work, see `TODO.md`.
+
+## 📝 Obsidian Integration
+
+Gmail TUI includes a powerful Obsidian integration that allows you to ingest emails directly to your second brain system.
+
+### Features
+
+- **Single configurable template** - One template for all emails with variable substitution
+- **Personal comments** - **🆕 Add personal notes about emails before ingestion**
+- **Duplicate prevention** - SQLite-based history tracking prevents re-ingestion
+- **Attachment support** - Include email attachments by default
+- **Clean interface** - Side panel (not modal) for template preview and comment input
+- **Organized structure** - All emails go to `00-Inbox` folder for second brain processing
+- **Immediate feedback** - Panel closes instantly, operation runs asynchronously
+- **Keyboard navigation** - Tab between template view and comment field
+
+### Configuration
+
+Add this section to your `~/.config/gmail-tui/config.json`:
+
+```json
+{
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Documents/Obsidian/MyVault",
+    "ingest_folder": "00-Inbox",
+    "filename_format": "{{date}}_{{subject_slug}}_{{from_domain}}",
+    "history_enabled": true,
+    "prevent_duplicates": true,
+    "max_file_size": 1048576,
+    "include_attachments": true,
+    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n{% if comment %}**Personal Note:** {{comment}}\n\n{% endif %}---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+  }
+}
+```
+
+### Usage
+
+1. **Select an email** in the message list
+2. **Press `Shift+O`** to open the "Send to Obsidian" panel
+3. **Review the template** that will be used (displayed at the top)
+4. **Optional**: Add a personal comment in the "Pre-message:" field
+5. **Press `Enter`** to ingest the email to Obsidian
+6. **Press `Esc`** to cancel at any time
+7. **Use `Tab`** to navigate between template view and comment field
+
+**Note**: The panel closes immediately when you press Enter, and the ingestion runs asynchronously. You'll see progress and success messages in the status bar.
+
+### Template Variables
+
+- `{{subject}}` - Email subject
+- `{{from}}` - Sender email
+- `{{to}}` - Recipient email
+- `{{cc}}` - CC recipients
+- `{{body}}` - Email content
+- `{{date}}` - Email date
+- `{{labels}}` - Gmail labels
+- `{{message_id}}` - Gmail message ID
+- `{{ingest_date}}` - Date of ingestion
+- `{{comment}}` - **🆕 Personal comment added by user**
+
+### Configuration Options
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Enable/disable Obsidian integration | `true` |
+| `vault_path` | string | Path to your Obsidian vault | `~/Documents/Obsidian/MyVault` |
+| `ingest_folder` | string | Folder where emails are saved | `00-Inbox` |
+| `filename_format` | string | Format for generated filenames | `{{date}}_{{subject_slug}}_{{from_domain}}` |
+| `history_enabled` | boolean | Track ingestion history | `true` |
+| `prevent_duplicates` | boolean | Prevent duplicate ingestions | `true` |
+| `max_file_size` | integer | Maximum file size in bytes | `1048576` (1MB) |
+| `include_attachments` | boolean | Include email attachments | `true` |
+| `template` | string | Markdown template for emails | See example above |
+
+### Customizing Templates
+
+You can customize the template for different types of emails. Here are some examples:
+
+**Meeting Template:**
+```markdown
+---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: meeting
+status: inbox
+tags: [meeting, action-items]
+---
+
+# {{subject}}
+
+**Meeting Details:**
+- **From:** {{from}}
+- **Date:** {{date}}
+- **Type:** Meeting/Follow-up
+
+{% if comment %}**Personal Note:** {{comment}}
+
+{% endif %}**Action Items:**
+- [ ] 
+
+**Notes:**
+{{body}}
+
+**Next Meeting:**
+- [ ] Schedule follow-up
+
+---
+
+*Ingested from Gmail on {{ingest_date}}*`
+```
+
+**Project Template:**
+```markdown
+---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: project
+status: inbox
+tags: [project, update]
+---
+
+# {{subject}}
+
+**Project Details:**
+- **From:** {{from}}
+- **Date:** {{date}}
+- **Project:** 
+
+**Key Updates:**
+- 
+
+**Next Steps:**
+- [ ] 
+
+**Content:**
+{{body}}
+
+---
+
+*Ingested from Gmail on {{ingest_date}}*`
+```
+
+### Troubleshooting
+
+**Common Issues:**
+- **"Vault path not found"** - Verify the `vault_path` exists and is accessible
+- **"Permission denied"** - Check write permissions on the vault directory
+- **Emails not ingesting** - Ensure `enabled` is `true` and restart the app
+- **Duplicate prevention** - Check the `obsidian_forward_history` table in SQLite
+
+**Database Location:**
+The ingestion history is stored in the same SQLite database as other features:
+`~/.config/gmail-tui/cache/{account_email}.sqlite3`
+
+**Table Structure:**
+```sql
+CREATE TABLE obsidian_forward_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    account_email TEXT NOT NULL,
+    obsidian_path TEXT NOT NULL,
+    template_used TEXT,
+    forward_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'success',
+    error_message TEXT,
+    file_size INTEGER,
+    metadata TEXT
+);
+```

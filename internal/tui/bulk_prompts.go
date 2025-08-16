@@ -31,7 +31,7 @@ func (a *App) openBulkPromptPicker() {
 	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Applying prompt to %d selected messages", messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("openBulkPromptPicker: prompt service not available")
@@ -229,7 +229,7 @@ func (a *App) closeBulkPromptPicker() {
 		a.streamingCancel()
 		a.streamingCancel = nil
 	}
-	
+
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
 			split.ResizeItem(a.labelsView, 0, 0)
@@ -246,7 +246,7 @@ func (a *App) exitBulkMode() {
 	if a.logger != nil {
 		a.logger.Printf("exitBulkMode: starting")
 	}
-	
+
 	// Do everything synchronously to avoid UI thread blocking
 	// Clear bulk mode
 	a.bulkMode = false
@@ -272,7 +272,7 @@ func (a *App) exitBulkMode() {
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, "Exited bulk mode")
 	}()
-	
+
 	if a.logger != nil {
 		a.logger.Printf("exitBulkMode: completed")
 	}
@@ -283,12 +283,12 @@ func (a *App) hideAIPanel() {
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: starting")
 	}
-	
+
 	// Do everything synchronously to avoid UI thread blocking (same fix as exitBulkMode)
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
 	}
-	
+
 	a.aiSummaryVisible = false
 	a.aiPanelInPromptMode = false
 
@@ -299,7 +299,7 @@ func (a *App) hideAIPanel() {
 
 	// Clear any status message
 	a.setStatusPersistent("")
-	
+
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: completed")
 	}
@@ -352,7 +352,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Applying '%s' to %d messages...", promptName, messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService := a.GetServices()
+	_, _, _, _, _, promptService, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
@@ -361,7 +361,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 	// Apply bulk prompt with streaming
 	go func() {
 		var resultBuilder strings.Builder
-		
+
 		ctx, cancel := context.WithCancel(a.ctx)
 		a.streamingCancel = cancel // Store cancel function for Esc handler
 		defer func() {
