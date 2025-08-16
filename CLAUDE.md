@@ -33,6 +33,36 @@ Claude should **ALWAYS** follow these patterns when developing new features:
 - **NEVER** access app struct fields directly
 - **ALWAYS** use proper mutex protection for new state fields
 
+### ⚡ **ESC Key Handling Requirements**
+- **CRITICAL**: **NEVER** use `QueueUpdateDraw()` in ESC handlers or cleanup functions
+- **ALWAYS** use synchronous operations for UI cleanup to prevent deadlocks
+- **Streaming Cancellation**: Main ESC handler in `keys.go` cancels streaming FIRST, then delegates cleanup
+- **Pattern**: ESC handlers should call cleanup functions that do direct UI operations
+- **Examples**: `exitBulkMode()`, `hideAIPanel()` use synchronous `split.ResizeItem()`, `SetFocus()`, etc.
+
+#### 🚨 **Anti-Pattern - Causes Hanging:**
+```go
+// ❌ NEVER DO THIS - Causes UI thread deadlock
+func (a *App) badCleanup() {
+    a.QueueUpdateDraw(func() {
+        // UI operations here
+    })
+}
+```
+
+#### ✅ **Correct Pattern - Works Immediately:**
+```go
+// ✅ ALWAYS DO THIS - Direct synchronous operations
+func (a *App) goodCleanup() {
+    // Direct UI operations
+    if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+        split.ResizeItem(panel, 0, 0)
+    }
+    a.SetFocus(a.views["list"])
+    a.currentFocus = "list"
+}
+```
+
 ## 📋 **Code Templates**
 
 ### Service Implementation Template
@@ -124,6 +154,8 @@ Study these existing implementations:
 - `internal/services/ai_service.go` - LLM integration pattern  
 - `internal/tui/app.go` - Service integration pattern
 - `internal/tui/error_handler.go` - Error handling pattern
+- `internal/tui/keys.go` - ESC key handling with streaming cancellation
+- `internal/tui/bulk_prompts.go` - Synchronous UI cleanup (`exitBulkMode`, `hideAIPanel`)
 
 ## 🎯 **Development Workflow**
 
@@ -152,6 +184,7 @@ When asked to implement a new feature:
 3. **Update UI Integration** - Use service methods
 4. **Add Thread Safety** - Use accessor methods
 5. **Improve Error Handling** - Use ErrorHandler
+6. **Fix ESC Handling** - Replace `QueueUpdateDraw` with synchronous operations
 
 ## 📖 **Documentation**
 

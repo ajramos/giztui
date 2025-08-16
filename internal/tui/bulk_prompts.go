@@ -243,43 +243,66 @@ func (a *App) closeBulkPromptPicker() {
 
 // exitBulkMode exits bulk mode and returns to normal view
 func (a *App) exitBulkMode() {
-	a.QueueUpdateDraw(func() {
-		// Clear bulk mode
-		a.bulkMode = false
-		a.selected = make(map[string]bool)
+	if a.logger != nil {
+		a.logger.Printf("exitBulkMode: starting")
+	}
+	
+	// Do everything synchronously to avoid UI thread blocking
+	// Clear bulk mode
+	a.bulkMode = false
+	a.selected = make(map[string]bool)
 
-		// Hide AI panel if it's visible
-		if a.aiSummaryVisible {
-			a.hideAIPanel()
-		}
-
-		// Return focus to list
-		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
-
-		// Update status
-		a.GetErrorHandler().ShowInfo(a.ctx, "Exited bulk mode")
-	})
-}
-
-// hideAIPanel hides the AI panel and returns focus to the message list
-func (a *App) hideAIPanel() {
-	a.QueueUpdateDraw(func() {
+	// Hide AI panel if it's visible
+	if a.aiSummaryVisible {
+		// Hide AI panel directly
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
 		}
 		a.aiSummaryVisible = false
 		a.aiPanelInPromptMode = false
-
-		// Return focus to list
-		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
-
-		// Clear any status message
 		a.setStatusPersistent("")
-	})
+	}
+
+	// Return focus to list
+	a.SetFocus(a.views["list"])
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+
+	// Update status using queue to avoid blocking
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "Exited bulk mode")
+	}()
+	
+	if a.logger != nil {
+		a.logger.Printf("exitBulkMode: completed")
+	}
+}
+
+// hideAIPanel hides the AI panel and returns focus to the message list
+func (a *App) hideAIPanel() {
+	if a.logger != nil {
+		a.logger.Printf("hideAIPanel: starting")
+	}
+	
+	// Do everything synchronously to avoid UI thread blocking (same fix as exitBulkMode)
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
+	}
+	
+	a.aiSummaryVisible = false
+	a.aiPanelInPromptMode = false
+
+	// Return focus to list
+	a.SetFocus(a.views["list"])
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+
+	// Clear any status message
+	a.setStatusPersistent("")
+	
+	if a.logger != nil {
+		a.logger.Printf("hideAIPanel: completed")
+	}
 }
 
 // applyBulkPrompt applies a prompt to all selected messages
@@ -348,6 +371,13 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 
 		accountEmail := a.getActiveAccountEmail()
 		result, err := promptService.ApplyBulkPromptStream(ctx, accountEmail, messageIDs, promptID, map[string]string{}, func(token string) {
+			// Check if context was canceled
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			resultBuilder.WriteString(token)
 			currentText := resultBuilder.String()
 
@@ -368,6 +398,11 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		})
 
 		if err != nil {
+			// Check if error is due to context cancellation (user pressed ESC)
+			if ctx.Err() == context.Canceled {
+				a.GetErrorHandler().ShowInfo(a.ctx, "Bulk prompt operation canceled")
+				return
+			}
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to apply bulk prompt: %v", err))
 			return
 		}

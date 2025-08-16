@@ -12,8 +12,8 @@
 - [ ] Plugin system: extensible architecture to add custom functionality without touching the core
 - [ ] Create equivalent command for shortcuts: prompts
 - [ ] UI for creating new prompt templates
-- [ ] Treat several emails in batch with one prompt.
-- [ ] Reciew execution parameters, there are some duplication with llm and ollama.
+- [x] Treat several emails in batch with one prompt.
+- [ ] Review execution parameters, there are some duplication with llm and ollama.
 -credentials string
         Path to OAuth client credentials JSON
   -llm-model string
@@ -31,6 +31,7 @@
   -token string
         Path to cached OAuth token JSON
 - [ ] Review look and feel of the folders, scope selection in the advance search, the page doesn't update well and leaves some orphan letters as you move up and down through the options.
+- [x] Fix AI SUmmary, Prompt Application (Single and bulk) issue with Escape. (it hangs when pressing Esc)
 - [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
 - [x] Investigate behavior for self-emailed messages
 - [x] After loading messages, auto-select and render the first one
@@ -130,7 +131,7 @@
 ### Message rendering
 - [x] ~~Markdown rendering for HTML messages~~.(Substituted by a process)
 - [x] Remove hyperlinks and add them at the end as references.
-- [ ] Be able to render the original raw message.
+- [x] Be able to render the original raw message. (It can be saved with W)
 
 ### 🏗️ **Architectural Refactoring (December 2024)**
 - [x] **Service Layer Architecture** - Extracted business logic into dedicated services
