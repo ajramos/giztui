@@ -82,6 +82,17 @@ func (a *App) initComponents() {
 		SetTitleAlign(tview.AlignCenter)
 	a.labelsView = labelsFlex
 
+	// Slack contextual panel container (hidden by default)
+	slackFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	slackFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	slackFlex.SetBorder(true).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 💬 Slack ").
+		SetTitleColor(tcell.ColorYellow).
+		SetTitleAlign(tview.AlignCenter)
+	a.slackView = slackFlex
+
 	// Command panel (hidden by default)
 	cmdPanel := tview.NewFlex().SetDirection(tview.FlexRow)
 	cmdPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -142,6 +153,7 @@ func (a *App) createMainLayout() tview.Primitive {
 	contentSplit.AddItem(a.views["textContainer"], 0, 1, false)
 	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
 	contentSplit.AddItem(a.labelsView, 0, 0, false)    // hidden by default
+	contentSplit.AddItem(a.slackView, 0, 0, false)     // hidden by default
 	a.views["contentSplit"] = contentSplit
 	// Add message content (takes 40% of available height)
 	mainFlex.AddItem(contentSplit, 0, 40, false)
@@ -176,6 +188,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if a.labelsView != nil {
 		a.labelsView.SetBorderColor(tcell.ColorGray)
 	}
+	if a.slackView != nil {
+		a.slackView.SetBorderColor(tcell.ColorGray)
+	}
 	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
 		// Subtle unfocused border to keep contour visible but not contrasty
 		tc.SetBorderColor(tcell.ColorGray)
@@ -204,6 +219,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	case "labels":
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(tcell.ColorYellow)
+		}
+	case "slack":
+		if a.slackView != nil {
+			a.slackView.SetBorderColor(tcell.ColorYellow)
 		}
 	case "prompts":
 		if a.labelsView != nil {

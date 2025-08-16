@@ -224,6 +224,13 @@ func (a *App) bindKeys() {
 			// Search by exact subject of current message
 			go a.searchBySubjectCurrent()
 			return nil
+		case 'K':
+			// Forward to Slack
+			if a.currentFocus == "search" {
+				return nil
+			}
+			go a.showSlackForwardDialog()
+			return nil
 		case 'l':
 			if a.currentFocus == "search" {
 				return nil
@@ -332,6 +339,15 @@ func (a *App) bindKeys() {
 					a.logger.Printf("keys: ESC - hiding AI panel")
 				}
 				a.hideAIPanel()
+				return nil
+			}
+
+			// If focus is on Slack panel, close it
+			if a.currentFocus == "slack" && a.slackVisible {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - hiding Slack panel")
+				}
+				a.hideSlackPanel()
 				return nil
 			}
 
@@ -489,6 +505,11 @@ func (a *App) toggleFocus() {
 	if a.aiSummaryVisible {
 		ring = append(ring, a.aiSummaryView)
 		ringNames = append(ringNames, "summary")
+	}
+	// 6) Slack (if visible)
+	if a.slackVisible {
+		ring = append(ring, a.slackView)
+		ringNames = append(ringNames, "slack")
 	}
 
 	// Find index of current focus

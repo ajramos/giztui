@@ -39,6 +39,9 @@ type Config struct {
 	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
 	TouchUpPrompt string `json:"touch_up_prompt"`
 
+	// Slack integration
+	Slack SlackConfig `json:"slack"`
+
 	// Layout configuration
 	Layout LayoutConfig `json:"layout"`
 
@@ -47,6 +50,47 @@ type Config struct {
 
 	// Logging
 	LogFile string `json:"log_file"`
+}
+
+// SlackConfig contains all Slack integration settings
+type SlackConfig struct {
+	// Enabled controls whether Slack integration is available
+	Enabled bool `json:"enabled"`
+	
+	// Channels defines the list of available Slack channels for forwarding
+	Channels []SlackChannel `json:"channels"`
+	
+	// Defaults specifies default behavior for email forwarding
+	Defaults SlackDefaults `json:"defaults"`
+	
+	// SummaryPrompt is the AI prompt template for generating email summaries
+	// Available variables: {{body}}, {{subject}}, {{from}}, {{to}}, {{cc}}, {{bcc}}, 
+	// {{date}}, {{reply-to}}, {{message-id}}, {{in-reply-to}}, {{references}}, {{max_words}}
+	SummaryPrompt string `json:"summary_prompt"`
+}
+
+// SlackChannel defines a Slack channel configuration
+type SlackChannel struct {
+	// ID is a unique internal identifier for the channel
+	ID string `json:"id"`
+	
+	// Name is the display name shown in the UI (e.g., "team-updates", "personal-dm")
+	Name string `json:"name"`
+	
+	// WebhookURL is the Slack webhook URL for posting messages to this channel
+	WebhookURL string `json:"webhook_url"`
+	
+	// Default indicates if this channel should be pre-selected in the UI
+	Default bool `json:"default"`
+	
+	// Description provides optional additional context for the channel
+	Description string `json:"description"`
+}
+
+// SlackDefaults defines default Slack forwarding behavior
+type SlackDefaults struct {
+	// FormatStyle controls how emails are formatted: "summary" (AI-generated), "compact" (headers + preview), "full" (TUI processed), "raw" (minimal processing)
+	FormatStyle string `json:"format_style"`
 }
 
 // LayoutConfig defines layout-specific configuration
@@ -111,9 +155,27 @@ func DefaultConfig() *Config {
 		ReplyPrompt:           "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
 		LabelPrompt:           "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
 		TouchUpPrompt:         "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
+		Slack:                 DefaultSlackConfig(),
 		Layout:                DefaultLayoutConfig(),
 		Keys:                  DefaultKeyBindings(),
 		LogFile:               "",
+	}
+}
+
+// DefaultSlackConfig returns default Slack configuration
+func DefaultSlackConfig() SlackConfig {
+	return SlackConfig{
+		Enabled:  false,
+		Channels: []SlackChannel{},
+		Defaults: DefaultSlackDefaults(),
+		SummaryPrompt: "You are a precise email summarizer. Extract only factual information from the email below. Do not add opinions, interpretations, or information not present in the original email.\n\nRequirements:\n- Maximum {{max_words}} words\n- Preserve exact names, dates, numbers, and technical terms\n- If forwarding urgent/important items, start with \"[URGENT]\" or \"[ACTION REQUIRED]\" only if explicitly stated\n- Do not infer emotions or intentions not explicitly stated\n- If email contains meeting details, preserve exact time/date/location\n- If email contains action items, list them exactly as written\n\nEmail to summarize:\n{{body}}\n\nProvide only the factual summary, nothing else.",
+	}
+}
+
+// DefaultSlackDefaults returns default Slack formatting preferences
+func DefaultSlackDefaults() SlackDefaults {
+	return SlackDefaults{
+		FormatStyle: "summary",
 	}
 }
 

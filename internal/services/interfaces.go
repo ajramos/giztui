@@ -60,6 +60,13 @@ type CacheService interface {
 	ClearCache(ctx context.Context, accountEmail string) error
 }
 
+// SlackService handles Slack integration operations
+type SlackService interface {
+	ForwardEmail(ctx context.Context, messageID string, options SlackForwardOptions) error
+	ValidateWebhook(ctx context.Context, webhookURL string) error
+	ListConfiguredChannels(ctx context.Context) ([]SlackChannel, error)
+}
+
 // SearchService handles search operations
 type SearchService interface {
 	Search(ctx context.Context, query string, opts SearchOptions) (*SearchResult, error)
@@ -184,4 +191,22 @@ type BulkPromptResult struct {
 	FromCache    bool
 	AccountEmail string
 	CreatedAt    time.Time
+}
+
+// Slack-related data structures
+type SlackForwardOptions struct {
+	ChannelID        string // Internal channel identifier
+	WebhookURL       string // Slack webhook URL
+	ChannelName      string // Display name for user feedback
+	UserMessage      string // Optional user message: "Hey guys, heads up with this email"
+	FormatStyle      string // "summary", "compact", "full", "raw"
+	ProcessedContent string // TUI-processed content for "full" format (optional)
+}
+
+type SlackChannel struct {
+	ID          string `json:"id"`          // Internal ID
+	Name        string `json:"name"`        // Display name: "team-updates", "personal-dm"
+	WebhookURL  string `json:"webhook_url"` // Slack webhook URL
+	Default     bool   `json:"default"`     // Default selection
+	Description string `json:"description"` // Optional description
 }

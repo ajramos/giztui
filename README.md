@@ -23,6 +23,15 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Configurable prompts** - All prompts are customizable
 - 🧪 **Generate replies** - Experimental (placeholder implementation)
 
+### 💬 **Slack Integration** 🆕
+- ✅ **Email forwarding to Slack** - Send emails to configured Slack channels
+- ✅ **Multiple format styles** - Choose between summary, compact, full, or raw formats
+- ✅ **AI-powered summaries** - Use custom AI prompts for intelligent email summarization
+- ✅ **Custom user messages** - Add optional context when forwarding emails
+- ✅ **Multi-channel support** - Configure multiple Slack channels with webhooks
+- ✅ **Variable substitution** - Dynamic prompts with email headers and content
+- ✅ **TUI content fidelity** - "Full" format uses exact same processed content as displayed
+
 ### 🚀 **Prompt Library System** 🆕
 - ✅ **Custom prompt templates** - Predefined prompts for different use cases
 - ✅ **Variable substitution** - Auto-complete `{{from}}`, `{{subject}}`, `{{body}}`, `{{date}}`
@@ -105,6 +114,7 @@ gmail-tui/
 │   │   ├── label_service.go    # Label management
 │   │   ├── cache_service.go    # Cache operations
 │   │   ├── prompt_service.go   # 🆕 Prompt library management
+│   │   ├── slack_service.go    # 🆕 Slack integration
 │   │   └── repository.go       # Data access layer
 │   └── tui/               # Terminal User Interface
 │       ├── app.go         # Main application with service integration
@@ -117,6 +127,7 @@ gmail-tui/
 │       ├── labels.go      # Label management UI
 │       ├── ai.go          # AI summary & LLM features
 │       ├── prompts.go     # 🆕 Prompt library UI
+│       ├── slack.go       # 🆕 Slack integration UI
 │       ├── markdown.go    # Markdown rendering & LLM touch-up
 │       ├── commands.go    # Command bar & execution
 │       ├── status.go      # Status bar & notifications
@@ -167,6 +178,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **LabelService**: Gmail label management operations
 - **CacheService**: SQLite-based caching for AI summaries
 - **PromptService**: 🆕 Prompt library management with caching and usage tracking
+- **SlackService**: 🆕 Slack integration for email forwarding with multiple format styles
 - **MessageRepository**: Data access abstraction for Gmail API
 
 #### 🎯 **Key Architectural Improvements**
@@ -373,6 +385,7 @@ For all other settings (LLM, timeouts, etc.), edit the config file.
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
 | `p` | Open prompt picker (single message) or bulk prompt picker (bulk mode) |
+| `K` | Forward email to Slack |
 | `Esc` | Cancel active streaming operations (AI summary, prompts, bulk prompts) |
 
 #### 🏃 VIM-Style Navigation
@@ -434,6 +447,33 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `g` | Generate reply (experimental) |
 | `o` | Suggest label |
 | `P` | 🆕 **Open Prompt Library** |
+
+### 💬 **Slack Integration** 🆕
+
+| Key | Action |
+|-----|--------|
+| `K` | Forward email to Slack (contextual panel) |
+
+**Usage:**
+1. **Select a message** in the message list
+2. **Press `K`** to open the Slack forwarding panel
+3. **Choose a channel** from the configured list
+4. **Add optional message** (e.g., "Hey team, heads up with this email")
+5. **Press Enter** to send or **Tab** to switch focus between channel list and message input
+6. **Press Esc** to close the panel
+
+**Format Styles:**
+- **📄 Summary** - AI-generated summary using your custom prompt template
+- **📦 Compact** - Headers + 200 character preview (From, Subject, body snippet)
+- **📧 Full** - Complete email with TUI-processed content (includes LLM touch-up if enabled)
+- **🔧 Raw** - Minimal processing, basic HTML-to-text conversion only
+
+**Features:**
+- ✅ **Multi-channel support** - Configure multiple Slack channels with individual webhooks
+- ✅ **Smart variable substitution** - AI prompts can use `{{body}}`, `{{subject}}`, `{{from}}`, `{{to}}`, `{{cc}}`, `{{bcc}}`, `{{date}}`, and more
+- ✅ **TUI content fidelity** - "Full" format shows exactly what you see in the message widget
+- ✅ **Contextual UI** - Panel appears as a widget on the home screen (like labels)
+- ✅ **Optional user messages** - Add personal context when forwarding emails
 
 #### 🚀 **Prompt Library System** 🆕
 
@@ -518,6 +558,64 @@ Please organize the information by:
 
 Format your response with clear sections and bullet points.
 ```
+
+#### 💬 **Slack Configuration** 🆕
+
+Enable Slack integration by adding the configuration to `~/.config/gmail-tui/config.json`:
+
+```json
+{
+  "slack": {
+    "enabled": true,
+    "channels": [
+      {
+        "id": "general",
+        "name": "General",
+        "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        "default": true,
+        "description": "General team updates"
+      },
+      {
+        "id": "urgent",
+        "name": "Urgent Alerts",
+        "webhook_url": "https://hooks.slack.com/services/YOUR/URGENT/WEBHOOK",
+        "default": false,
+        "description": "For urgent notifications only"
+      }
+    ],
+    "defaults": {
+      "format_style": "summary"
+    },
+    "summary_prompt": "You are a precise email summarizer. Extract only factual information from the email below. Do not add opinions, interpretations, or information not present in the original email.\n\nRequirements:\n- Maximum {{max_words}} words\n- Preserve exact names, dates, numbers, and technical terms\n- If forwarding urgent/important items, start with \"[URGENT]\" or \"[ACTION REQUIRED]\" only if explicitly stated\n- Do not infer emotions or intentions not explicitly stated\n- If email contains meeting details, preserve exact time/date/location\n- If email contains action items, list them exactly as written\n\nEmail to summarize:\n{{body}}\n\nProvide only the factual summary, nothing else."
+  }
+}
+```
+
+**Configuration Fields:**
+
+- **`enabled`** - Enable/disable Slack integration
+- **`channels[]`** - Array of configured Slack channels:
+  - **`id`** - Unique identifier for the channel
+  - **`name`** - Display name shown in the UI
+  - **`webhook_url`** - Slack webhook URL for posting messages
+  - **`default`** - Whether this channel is pre-selected in the UI
+  - **`description`** - Optional description (not shown in UI)
+- **`defaults.format_style`** - Default format: `"summary"`, `"compact"`, `"full"`, or `"raw"`
+- **`summary_prompt`** - AI prompt template for generating email summaries
+
+**Available Variables for Prompts:**
+All email headers and content are available as variables in your custom prompts:
+- **Core**: `{{body}}`, `{{subject}}`, `{{from}}`, `{{date}}`
+- **Recipients**: `{{to}}`, `{{cc}}`, `{{bcc}}`
+- **Technical**: `{{reply-to}}`, `{{message-id}}`, `{{in-reply-to}}`, `{{references}}`
+- **Special**: `{{max_words}}` - Word limit for summaries
+
+**Setup Steps:**
+1. **Create Slack webhook URLs** in your Slack workspace
+2. **Add webhook URLs** to the channel configurations
+3. **Set `"enabled": true`** to activate the feature
+4. **Customize format style** and summary prompt as needed
+5. **Press `K`** in Gmail TUI to start forwarding emails
 
 #### LLM Configuration (providers)
 

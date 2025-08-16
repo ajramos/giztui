@@ -105,6 +105,10 @@ type App struct {
 	labelsView     *tview.Flex
 	labelsVisible  bool
 	labelsExpanded bool
+	
+	// Slack contextual panel
+	slackView    *tview.Flex
+	slackVisible bool
 	// RSVP side panel state
 	rsvpVisible bool
 
@@ -133,6 +137,7 @@ type App struct {
 	repository        services.MessageRepository
 	bulkPromptService *services.BulkPromptServiceImpl
 	promptService     services.PromptService
+	slackService      services.SlackService
 	errorHandler      *ErrorHandler
 }
 
@@ -473,6 +478,18 @@ func (a *App) initServices() {
 		}
 	}
 
+	// Initialize Slack service if enabled in config
+	if a.Config.Slack.Enabled {
+		a.slackService = services.NewSlackService(a.Client, a.Config, a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: slack service initialized: %v", a.slackService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: slack service NOT initialized - SlackEnabled is false")
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
@@ -671,6 +688,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService
 }
 
+// GetSlackService returns the Slack service instance
+func (a *App) GetSlackService() services.SlackService {
+	return a.slackService
+}
+
 // applyTheme loads theme colors and updates the email renderer
 func (a *App) applyTheme() {
 	// Try to load theme from skins directory; fallback to defaults
@@ -770,7 +792,11 @@ func (a *App) generateHelpText() string {
 	help.WriteString("t         👁️  Toggle read/unread\n")
 	help.WriteString("d         🗑️  Move to trash\n")
 	help.WriteString("a         📁 Archive message\n")
-	help.WriteString("m         📦 Move message\n\n")
+	help.WriteString("m         📦 Move message\n")
+	if a.Config.Slack.Enabled {
+		help.WriteString("K         💬 Forward to Slack\n")
+	}
+	help.WriteString("\n")
 
 	help.WriteString("📦 Bulk Operations\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
