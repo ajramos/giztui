@@ -44,9 +44,11 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 
 ### 📝 **Obsidian Integration** 🆕
 - ✅ **Email ingestion** - Send emails directly to Obsidian as Markdown notes
+- ✅ **Bulk ingestion** - Process multiple selected emails with shared comments
 - ✅ **Second brain system** - Organize emails in `00-Inbox` folder
 - ✅ **Configurable template** - Single, customizable Markdown template
 - ✅ **Variable substitution** - Auto-complete `{{subject}}`, `{{body}}`, `{{from}}`, etc.
+- ✅ **Personal comments** - Add custom notes before ingestion (single & bulk)
 - ✅ **Duplicate prevention** - SQLite-based history tracking
 - ✅ **Attachment support** - Include email attachments in notes
 - ✅ **Keyboard shortcut** - `Shift+O` for quick ingestion
@@ -169,7 +171,7 @@ gmail-tui/
 
 ### 🔧 Service Architecture
 
-The application now follows a **layered architecture** with clear separation between UI, business logic, and data access:
+The application follows a **robust, service-oriented architecture** with clear separation between UI, business logic, and data access:
 
 #### 📊 **Service Layer** (`internal/services/`)
 - **EmailService**: High-level email operations (compose, send, archive, etc.)
@@ -177,6 +179,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **LabelService**: Gmail label management operations
 - **CacheService**: SQLite-based caching for AI summaries
 - **PromptService**: 🆕 Prompt library management with caching and usage tracking
+- **ObsidianService**: 🆕 Email-to-Obsidian ingestion with template support
 - **MessageRepository**: Data access abstraction for Gmail API
 
 #### 🎯 **Key Architectural Improvements**
@@ -204,7 +207,26 @@ The application now follows a **layered architecture** with clear separation bet
 
 4. **Dependency Injection** - Services are automatically initialized and injected
    ```go
-   emailService, aiService, labelService, cacheService, repository := app.GetServices()
+   emailService, aiService, labelService, cacheService, repository, obsidianService := app.GetServices()
+   ```
+
+5. **🆕 Enhanced Bulk Operations** - Consistent patterns for all bulk operations
+   ```go
+   // All bulk operations follow the same pattern:
+   // 1. Progress tracking with ErrorHandler
+   // 2. Async processing with status updates  
+   // 3. Deadlock-free UI updates
+   // 4. Proper cleanup and state management
+   ```
+
+6. **🆕 Improved Threading Model** - Prevents UI deadlocks
+   ```go
+   // Fixed: ErrorHandler calls outside QueueUpdateDraw to avoid deadlocks
+   a.QueueUpdateDraw(func() {
+       // UI updates only
+   })
+   // Status messages outside to prevent nested QueueUpdateDraw
+   a.GetErrorHandler().ShowSuccess(ctx, "Operation completed")
    ```
 
 #### 🛡️ **Benefits**
@@ -212,6 +234,7 @@ The application now follows a **layered architecture** with clear separation bet
 - **Cleaner Code** - UI components focus on presentation, not business logic
 - **Thread Safety** - Proper mutex protection for concurrent operations
 - **Consistent UX** - Centralized error handling provides uniform user feedback
+- **Deadlock Prevention** - 🆕 Improved threading prevents UI hangs
 - **Maintainability** - Clear separation makes the codebase easier to understand and modify
 - **Extensibility** - New features can be added by implementing service interfaces
 
@@ -338,7 +361,7 @@ The application uses a unified configuration directory structure:
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |
 | `p` | Open prompt picker (single message) or bulk prompt picker (bulk mode) |
-| `O` | 🆕 **Ingest email to Obsidian** |
+| `O` | 🆕 **Ingest email(s) to Obsidian** (single or bulk mode) |
 | `Esc` | Cancel active streaming operations (AI summary, prompts, bulk prompts) |
 
 #### 🏃 VIM-Style Navigation
@@ -385,11 +408,12 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `d` | Move selected messages to trash |
 | `m` | Move selected messages to label |
 | `p` | Apply AI prompt to all selected messages |
+| `O` | 🆕 **Ingest selected messages to Obsidian** |
 | `Esc` | Exit bulk mode |
 
 **Bulk Mode Status Bar:**
 - Shows current selection count
-- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit`
+- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit`
 
 ### AI Features (LLM)
 
@@ -1086,6 +1110,7 @@ Add this section to your `~/.config/gmail-tui/config.json`:
 
 ### Usage
 
+#### Single Email Ingestion
 1. **Select an email** in the message list
 2. **Press `Shift+O`** to open the "Send to Obsidian" panel
 3. **Review the template** that will be used (displayed at the top)
@@ -1094,7 +1119,16 @@ Add this section to your `~/.config/gmail-tui/config.json`:
 6. **Press `Esc`** to cancel at any time
 7. **Use `Tab`** to navigate between template view and comment field
 
-**Note**: The panel closes immediately when you press Enter, and the ingestion runs asynchronously. You'll see progress and success messages in the status bar.
+#### Bulk Email Ingestion 🆕
+1. **Enter bulk mode** by pressing `v`, `b`, or `space` on an email
+2. **Select multiple emails** using `space` or `*` (select all)
+3. **Press `Shift+O`** to open the bulk Obsidian panel
+4. **Review the bulk template** information
+5. **Optional**: Add a shared comment for all selected emails in the "Bulk comment:" field
+6. **Press `Enter`** to ingest all selected emails with the shared comment
+7. **Press `Esc`** to cancel at any time
+
+**Note**: The panel closes immediately when you press Enter, and the ingestion runs asynchronously. You'll see progress and success messages in the status bar showing the processing status for each email.
 
 ### Template Variables
 

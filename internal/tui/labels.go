@@ -343,7 +343,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					a.setStatusPersistent("")
+					a.GetErrorHandler().ClearProgress()
 					if tbl, ok := a.views["list"].(*tview.Table); ok {
 						tbl.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					}
@@ -488,7 +488,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					failed := 0
 					total := len(idsToMove)
 					// Estado inicial persistente
-					a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
+					a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d message(s) to %s…", total, name))
 					for i, mid := range idsToMove {
 						if err := a.Client.ApplyLabel(mid, id); err != nil {
 							failed++
@@ -498,7 +498,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						}
 						// Progreso incremental
 						idx := i + 1
-						a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
+						a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d/%d to %s…", idx, total, name))
 					}
 					// Actualizar UI y cerrar panel
 					a.QueueUpdateDraw(func() {
@@ -549,16 +549,18 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						a.selected = make(map[string]bool)
 						a.bulkMode = false
 						a.reformatListItems()
-						a.setStatusPersistent("")
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
-						if len(idsToMove) <= 1 && failed == 0 {
-							a.showStatusMessage("📦 Moved to: " + name)
-						} else {
-							a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
-						}
 					})
+					
+					// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+					a.GetErrorHandler().ClearProgress()
+					if len(idsToMove) <= 1 && failed == 0 {
+						a.GetErrorHandler().ShowSuccess(a.ctx, "📦 Moved to: " + name)
+					} else {
+						a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+					}
 				}()
 			})
 		}
@@ -599,7 +601,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
@@ -611,7 +613,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.populateLabelsQuickView(messageID)
 					}
@@ -652,7 +654,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 								failed := 0
 								total := len(idsToMove)
-								a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d message(s) to %s…", total, name)) })
+								a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d message(s) to %s…", total, name))
 								for i, mid := range idsToMove {
 									if err := a.Client.ApplyLabel(mid, id); err != nil {
 										failed++
@@ -661,7 +663,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 										failed++
 									}
 									idx := i + 1
-									a.QueueUpdateDraw(func() { a.setStatusPersistent(fmt.Sprintf("Moving %d/%d to %s…", idx, total, name)) })
+									a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d/%d to %s…", idx, total, name))
 								}
 								a.QueueUpdateDraw(func() {
 									listView, ok := a.views["list"].(*tview.Table)
@@ -708,16 +710,18 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									a.selected = make(map[string]bool)
 									a.bulkMode = false
 									a.reformatListItems()
-									a.setStatusPersistent("")
 									a.SetFocus(a.views["list"])
 									a.currentFocus = "list"
 									a.updateFocusIndicators("list")
-									if len(idsToMove) <= 1 && failed == 0 {
-										a.showStatusMessage("📦 Moved to: " + name)
-									} else {
-										a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
-									}
 								})
+								
+								// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+								a.GetErrorHandler().ClearProgress()
+								if len(idsToMove) <= 1 && failed == 0 {
+									a.GetErrorHandler().ShowSuccess(a.ctx, "📦 Moved to: " + name)
+								} else {
+									a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+								}
 							}(v.id, v.name)
 						}
 					}
@@ -785,7 +789,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
@@ -795,7 +799,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.setStatusPersistent("")
+							a.GetErrorHandler().ClearProgress()
 						}
 						a.populateLabelsQuickView(messageID)
 					}
@@ -1145,7 +1149,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 				if a.logger != nil {
 					a.logger.Printf("addCustomLabelInline: worker start")
 				}
-				a.QueueUpdateDraw(func() { a.setStatusPersistent("⏳ Creating/applying label…") })
+				a.GetErrorHandler().ShowProgress(a.ctx, "⏳ Creating/applying label…")
 				if a.logger != nil {
 					a.logger.Printf("addCustomLabelInline: ListLabels start")
 				}
@@ -1206,7 +1210,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 						a.logger.Printf("addCustomLabelInline: done, refreshing views")
 					}
 					a.showStatusMessage("✅ Applied: " + name)
-					a.setStatusPersistent("")
+					a.GetErrorHandler().ClearProgress()
 					a.labelsExpanded = false
 					a.populateLabelsQuickView(messageID)
 					a.refreshMessageContent(messageID)

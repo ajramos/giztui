@@ -63,6 +63,53 @@ func (a *App) goodCleanup() {
 }
 ```
 
+### 📨 **Status Message Best Practices**
+- **ALWAYS** use `ErrorHandler` for ALL status operations (progress, success, error, warnings)
+- **NEVER** use direct status methods (`setStatusPersistent`, `showStatusMessage`) - these are deprecated
+- **Consistent baseline**: ErrorHandler ensures all status messages show with proper app baseline
+- **CRITICAL**: **NEVER** wrap ErrorHandler calls in `QueueUpdateDraw()` - ErrorHandler handles UI threading internally
+
+#### ✅ **Correct Status Patterns for Bulk Operations:**
+```go
+// ✅ Progress updates - called directly from goroutines
+for i, item := range items {
+    // ErrorHandler handles UI threading internally
+    a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d/%d messages…", i+1, len(items)))
+    // ... process item
+}
+
+// ✅ Clear progress when done
+a.GetErrorHandler().ClearProgress()
+
+// ✅ Final results
+if failed == 0 {
+    a.GetErrorHandler().ShowSuccess(a.ctx, "✅ All messages processed!")
+} else {
+    a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ %d processed (%d failed)", successful, failed))
+}
+```
+
+#### ❌ **Dangerous Anti-Patterns - CAUSE DEADLOCKS:**
+```go
+// ❌ DEADLOCK RISK - Never wrap ErrorHandler in QueueUpdateDraw
+a.QueueUpdateDraw(func() {
+    a.GetErrorHandler().ShowProgress(a.ctx, "Processing...")  // DEADLOCK!
+})
+
+// ❌ DEPRECATED - Inconsistent baseline, direct status methods
+a.setStatusPersistent("Processing...")
+a.showStatusMessage("Success!")
+a.setStatusPersistent("")
+```
+
+#### 📋 **ErrorHandler Method Guide:**
+- `ShowProgress(ctx, msg)` - For ongoing operations (doesn't auto-clear)
+- `ClearProgress()` - Clear progress messages
+- `ShowSuccess(ctx, msg)` - Success messages (auto-clear after 3s)
+- `ShowError(ctx, msg)` - Error messages (auto-clear after 3s)
+- `ShowWarning(ctx, msg)` - Warning messages (auto-clear after 3s)
+- `ShowInfo(ctx, msg)` - Info messages (auto-clear after 3s)
+
 ## 📋 **Code Templates**
 
 ### Service Implementation Template
@@ -125,8 +172,10 @@ func (a *App) badExample() {
     messages, err := a.Client.GetMessages() // Direct API call in UI
     if err != nil {
         fmt.Printf("Error: %v\n", err)     // Direct output
+        a.setStatusPersistent("Error!")     // Deprecated status method
     }
     a.currentMessageID = "new-id"           // Direct field access
+    a.showStatusMessage("Done")             // Deprecated status method
 }
 ```
 

@@ -13,6 +13,13 @@ import (
 
 // sendEmailToObsidian initiates the process of sending an email to Obsidian
 func (a *App) sendEmailToObsidian() {
+	// Check for bulk mode first (following the established pattern)
+	if a.bulkMode && len(a.selected) > 0 {
+		go a.openBulkObsidianPanel()
+		return
+	}
+
+	// Single message logic
 	messageID := a.GetCurrentMessageID()
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
@@ -232,10 +239,14 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
 		a.labelsVisible = false
+		// Restore focus to message list
+		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
 	})
 
 	// Show progress
-	a.GetErrorHandler().ShowProgress(a.ctx, "Ingesting email to Obsidian...")
+	a.GetErrorHandler().ShowProgress(a.ctx, "📝 Saving email to your notes...")
 
 	// Add debug logging
 	if a.logger != nil {
@@ -288,15 +299,11 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Clear progress and show success
 	a.GetErrorHandler().ClearProgress()
 
-	// Show detailed success message
-	successMsg := fmt.Sprintf("Email ingested successfully!")
+	// Show user-friendly success message
+	successMsg := "📝 Email saved to your notes!"
 	if comment != "" {
-		successMsg += fmt.Sprintf("\n💬 Comment: %s", comment)
+		successMsg += fmt.Sprintf(" (with your comment)")
 	}
-	if result != nil && result.FilePath != "" {
-		successMsg += fmt.Sprintf("\n📁 File: %s", result.FilePath)
-	}
-	successMsg += "\n📁 Check your Obsidian vault"
 
 	a.GetErrorHandler().ShowSuccess(a.ctx, successMsg)
 }
@@ -352,6 +359,253 @@ Template includes:
 • Your personal comment (if provided)
 
 Press Enter to ingest or Esc to cancel.`
+}
+
+// sendSelectedBulkToObsidianWithComment sends all selected messages to Obsidian with a comment
+func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
+	if len(a.selected) == 0 {
+		return
+	}
+	
+	// Snapshot selection (following archiveSelectedBulk pattern)
+	ids := make([]string, 0, len(a.selected))
+	for id := range a.selected {
+		ids = append(ids, id)
+	}
+	
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📝 Saving %d emails to your notes…", len(ids)))
+	go func() {
+		failed := 0
+		total := len(ids)
+		
+		// Get account email
+		accountEmail := a.getActiveAccountEmail()
+		if accountEmail == "" {
+			a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
+			return
+		}
+		
+		// Get Obsidian service
+		_, _, _, _, _, _, obsidianService := a.GetServices()
+		if obsidianService == nil {
+			a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
+			return
+		}
+		
+		// Process each message individually with progress updates (following bulk pattern)
+		for i, id := range ids {
+			// Load message content
+			message, err := a.Client.GetMessageWithContent(id)
+			if err != nil {
+				failed++
+				continue
+			}
+			
+			// Progress update on UI thread (following archiveSelectedBulk pattern)
+			idx := i + 1
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📝 Saving email %d/%d…", idx, total))
+			
+			// Create options for ingestion
+			options := obsidian.ObsidianOptions{
+				AccountEmail: accountEmail,
+				CustomMetadata: map[string]interface{}{
+					"comment":        comment,
+					"bulk_operation": true,
+					"batch_index":    idx,
+					"batch_total":    total,
+				},
+			}
+			
+			// Perform ingestion for this message
+			result, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
+			if err != nil {
+				failed++
+				// Log the error for debugging
+				if a.logger != nil {
+					a.logger.Printf("Bulk Obsidian ingestion failed for message %s: %v", id, err)
+				}
+				continue
+			}
+			
+			// Log successful ingestion for debugging
+			if a.logger != nil && result != nil {
+				a.logger.Printf("Bulk Obsidian ingestion successful for message %s: %s", id, result.FilePath)
+			}
+		}
+		
+		// Final UI update (following archiveSelectedBulk pattern)
+		a.QueueUpdateDraw(func() {
+			// Exit bulk mode and restore normal rendering/styles
+			a.selected = make(map[string]bool)
+			a.bulkMode = false
+			a.reformatListItems()
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+			}
+		})
+		
+		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+		a.GetErrorHandler().ClearProgress()
+		
+		// Show final result
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, "📚 All emails saved to your notes!")
+		} else {
+			successCount := total - failed
+			if successCount > 0 {
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("📚 %d emails saved (%d failed)", successCount, failed))
+			} else {
+				a.GetErrorHandler().ShowError(a.ctx, "❌ Failed to save emails to notes")
+			}
+		}
+	}()
+}
+
+// sendSelectedBulkToObsidian sends all selected messages to Obsidian (backward compatibility)
+func (a *App) sendSelectedBulkToObsidian() {
+	a.sendSelectedBulkToObsidianWithComment("")
+}
+
+// openBulkObsidianPanel shows the panel for bulk Obsidian ingestion
+func (a *App) openBulkObsidianPanel() {
+	if !a.bulkMode || len(a.selected) == 0 {
+		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk Obsidian ingestion")
+		return
+	}
+
+	messageCount := len(a.selected)
+	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Preparing to send %d messages to Obsidian", messageCount))
+
+	// Get account email
+	accountEmail := a.getActiveAccountEmail()
+	if accountEmail == "" {
+		a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
+		return
+	}
+
+	// Create panel similar to single message but for bulk
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBorder(true)
+	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
+	container.SetTitleColor(tcell.ColorYellow)
+
+	// Show bulk template info
+	templateContent := a.getBulkObsidianTemplate(messageCount)
+	templateView := tview.NewTextView().
+		SetText(templateContent).
+		SetScrollable(true).
+		SetWordWrap(true).
+		SetBorder(false)
+
+	// Comment input field for bulk operation
+	commentLabel := tview.NewTextView().SetText("💬 Bulk comment:")
+	commentLabel.SetTextColor(tcell.ColorYellow)
+
+	commentInput := tview.NewInputField()
+	commentInput.SetLabel("")
+	commentInput.SetText("")
+	commentInput.SetPlaceholder("Add a note for all emails in this batch...")
+	commentInput.SetFieldWidth(50)
+	commentInput.SetBorder(false)
+	commentInput.SetFieldBackgroundColor(tcell.ColorBlue)
+	commentInput.SetFieldTextColor(tcell.ColorDarkGreen)
+
+	// Instructions
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	instructions.SetText("Enter to ingest all | Esc to cancel")
+	instructions.SetTextColor(tcell.ColorGray)
+
+	// Create a horizontal flex for label and input alignment
+	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
+	commentRow.AddItem(commentLabel, 0, 1, false)
+	commentRow.AddItem(commentInput, 0, 1, false)
+
+	// Add items to container with proper proportions
+	container.AddItem(templateView, 0, 1, false)
+	container.AddItem(commentRow, 2, 0, false)
+	container.AddItem(instructions, 1, 0, false)
+
+	// Add to content split
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+
+	// Set focus and state
+	a.currentFocus = "obsidian"
+	a.updateFocusIndicators("obsidian")
+	a.labelsVisible = true
+
+	// Configure input handling
+	commentInput.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.closeObsidianPanel()
+			return nil
+		}
+		if e.Key() == tcell.KeyEnter {
+			// Get comment text
+			comment := commentInput.GetText()
+			// Perform bulk ingestion
+			go a.performBulkObsidianIngest(accountEmail, comment)
+			return nil
+		}
+		return e
+	})
+
+	// Container-level input capture for Escape
+	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.closeObsidianPanel()
+			return nil
+		}
+		return e
+	})
+
+	// Set focus to input
+	a.SetFocus(commentInput)
+}
+
+// getBulkObsidianTemplate returns template info for bulk operations
+func (a *App) getBulkObsidianTemplate(messageCount int) string {
+	return fmt.Sprintf(`📧 BULK OBSIDIAN INGESTION
+
+Selected: %d messages for bulk ingestion to Obsidian
+
+Each email will be processed using the template configured in your config file.
+
+Template includes:
+• Subject, From, To, CC, Date
+• Labels and Message ID  
+• Email body content
+• Your bulk comment (if provided)
+• Batch metadata (index, total)
+
+Files will be created in your Obsidian vault's 00-Inbox folder.
+
+Press Enter to process all messages or Esc to cancel.`, messageCount)
+}
+
+// performBulkObsidianIngest performs bulk ingestion (wraps the existing bulk function)
+func (a *App) performBulkObsidianIngest(accountEmail, comment string) {
+	// Close panel immediately
+	a.QueueUpdateDraw(func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+		a.labelsVisible = false
+		// Restore focus to message list
+		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+	})
+
+	// Call the bulk function with the comment
+	a.sendSelectedBulkToObsidianWithComment(comment)
 }
 
 // closeObsidianPanel closes the Obsidian ingestion panel

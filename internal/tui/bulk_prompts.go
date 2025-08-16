@@ -260,7 +260,7 @@ func (a *App) exitBulkMode() {
 		}
 		a.aiSummaryVisible = false
 		a.aiPanelInPromptMode = false
-		a.setStatusPersistent("")
+		a.GetErrorHandler().ClearProgress()
 	}
 
 	// Return focus to list
@@ -298,7 +298,7 @@ func (a *App) hideAIPanel() {
 	a.updateFocusIndicators("list")
 
 	// Clear any status message
-	a.setStatusPersistent("")
+	a.GetErrorHandler().ClearProgress()
 
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: completed")
@@ -348,7 +348,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		}
 	})
 
-	// Show progress
+	// Show initial progress
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Applying '%s' to %d messages...", promptName, messageCount))
 
 	// Get prompt service
@@ -358,7 +358,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		return
 	}
 
-	// Apply bulk prompt with streaming
+	// Apply bulk prompt - FOLLOWING THE BULK MOVE PATTERN
 	go func() {
 		var resultBuilder strings.Builder
 
@@ -369,55 +369,88 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			a.streamingCancel = nil // Clear when done
 		}()
 
-		accountEmail := a.getActiveAccountEmail()
-		result, err := promptService.ApplyBulkPromptStream(ctx, accountEmail, messageIDs, promptID, map[string]string{}, func(token string) {
-			// Check if context was canceled
-			select {
-			case <-ctx.Done():
-				return
-			default:
+		// FOLLOWING THE BULK MOVE PATTERN: Process each message individually with progress updates
+		failed := 0
+		total := len(messageIDs)
+		
+		// Initial progress update
+		a.QueueUpdateDraw(func() {
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d/%d messages...", 1, total))
+		})
+
+		// Process each message individually to show progress like bulk move
+		for i, messageID := range messageIDs {
+			// Progress update for each message (like bulk move does)
+			idx := i + 1
+			a.QueueUpdateDraw(func() {
+				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d/%d messages...", idx, total))
+			})
+
+			// Get message content for this specific message
+			message, err := a.Client.GetMessageWithContent(messageID)
+			if err != nil {
+				failed++
+				continue
 			}
 
-			resultBuilder.WriteString(token)
-			currentText := resultBuilder.String()
+			// Extract content for this message using the PlainText field
+			rawContent := message.PlainText
+			if rawContent == "" {
+				failed++
+				continue
+			}
+			
+			// Clean the email content before sending to LLM (like the bulk service does)
+			content := a.cleanEmailContentForLLM(rawContent)
 
-			// Update UI with streaming content
+			// Apply the prompt to this individual message
+			result, err := promptService.ApplyPrompt(ctx, content, promptID, map[string]string{
+				"from":    a.extractHeader(message, "From"),
+				"subject": a.extractHeader(message, "Subject"),
+				"date":    a.extractHeader(message, "Date"),
+			})
+
+			if err != nil {
+				failed++
+				continue
+			}
+
+			// Build the combined result
+			resultBuilder.WriteString(fmt.Sprintf("\n--- MESSAGE %d/%d ---\n", idx, total))
+			resultBuilder.WriteString(fmt.Sprintf("From: %s\n", a.extractHeader(message, "From")))
+			resultBuilder.WriteString(fmt.Sprintf("Subject: %s\n", a.extractHeader(message, "Subject")))
+			resultBuilder.WriteString(fmt.Sprintf("Result:\n%s\n", result.ResultText))
+			resultBuilder.WriteString("---\n")
+
+			// Update UI with progress for this message
 			a.QueueUpdateDraw(func() {
 				if a.aiSummaryView != nil {
-					// Format the streaming result
-					formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
-					formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", messageCount)
-					formattedResult += "⏱️  Processing... 🔄\n"
-					formattedResult += "📝 Analysis (streaming):\n"
-					formattedResult += currentText
+					progressText := fmt.Sprintf("🤖 Bulk Prompt Progress: %s\n\n", promptName)
+					progressText += fmt.Sprintf("📊 Messages Processed: %d/%d\n", idx, total)
+					progressText += fmt.Sprintf("✅ Successful: %d\n", idx-failed)
+					progressText += fmt.Sprintf("❌ Failed: %d\n", failed)
+					progressText += fmt.Sprintf("⏱️  Processing... 🔄\n\n")
+					progressText += "📝 Current Results:\n"
+					progressText += resultBuilder.String()
 
-					a.aiSummaryView.SetText(formattedResult)
+					a.aiSummaryView.SetText(progressText)
 					a.aiSummaryView.ScrollToEnd()
 				}
 			})
-		})
-
-		if err != nil {
-			// Check if error is due to context cancellation (user pressed ESC)
-			if ctx.Err() == context.Canceled {
-				a.GetErrorHandler().ShowInfo(a.ctx, "Bulk prompt operation canceled")
-				return
-			}
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to apply bulk prompt: %v", err))
-			return
 		}
 
 		// Final update with complete information
 		a.QueueUpdateDraw(func() {
 			if a.aiSummaryView != nil {
-				formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
-				formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", result.MessageCount)
-				formattedResult += fmt.Sprintf("⏱️  Processing Time: %v\n", result.Duration)
-				formattedResult += fmt.Sprintf("💾 From Cache: %v\n\n", result.FromCache)
-				formattedResult += "📝 Analysis:\n"
-				formattedResult += result.Summary
+				finalResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
+				finalResult += fmt.Sprintf("📊 Total Messages: %d\n", total)
+				finalResult += fmt.Sprintf("✅ Successful: %d\n", total-failed)
+				finalResult += fmt.Sprintf("❌ Failed: %d\n", failed)
+				finalResult += fmt.Sprintf("⏱️  Completed\n\n")
+				finalResult += fmt.Sprintf("📝 Combined Analysis:\n")
+				finalResult += resultBuilder.String()
 
-				a.aiSummaryView.SetText(formattedResult)
+				a.aiSummaryView.SetText(finalResult)
 				a.aiSummaryView.ScrollToBeginning()
 
 				// Ensure focus is on AI panel so escape key works
@@ -426,11 +459,76 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 				a.updateFocusIndicators("summary")
 			}
 		})
-	}()
 
-	// Clear progress and show success
-	a.GetErrorHandler().ClearProgress()
-	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt '%s' completed for %d messages", promptName, messageCount))
+		// Increment usage count for bulk prompt
+		_ = promptService.IncrementUsage(a.ctx, promptID)
+
+		// Clear progress and show success
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt '%s' completed for %d messages", promptName, total))
+		} else {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt '%s' completed for %d messages (%d failed)", promptName, total, failed))
+		}
+	}()
+}
+
+// cleanEmailContentForLLM processes email content to make it more digestible for LLM
+// Similar to the bulk service's cleanEmailContent function
+func (a *App) cleanEmailContentForLLM(content string) string {
+	if content == "" {
+		return "[Empty email]"
+	}
+
+	// Remove excessive URLs and tracking links
+	lines := strings.Split(content, "\n")
+	var cleanLines []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Skip empty lines
+		if line == "" {
+			continue
+		}
+
+		// Skip pure URL lines (tracking/unsubscribe links)
+		if strings.HasPrefix(line, "https://") && len(line) > 50 {
+			continue
+		}
+
+		// Skip common email footers
+		if strings.Contains(strings.ToLower(line), "unsubscribe") ||
+			strings.Contains(strings.ToLower(line), "privacy policy") ||
+			strings.Contains(strings.ToLower(line), "powered by") ||
+			strings.Contains(strings.ToLower(line), "support@") {
+			continue
+		}
+
+		// Clean up encoded characters (basic cleanup)
+		line = strings.ReplaceAll(line, "-2F", "/")
+		line = strings.ReplaceAll(line, "-2B", "+")
+		line = strings.ReplaceAll(line, "-3D", "=")
+
+		// Limit line length for readability
+		if len(line) > 200 {
+			line = line[:200] + "..."
+		}
+
+		cleanLines = append(cleanLines, line)
+
+		// Limit total lines to prevent overwhelming the LLM
+		if len(cleanLines) >= 20 {
+			cleanLines = append(cleanLines, "[Content truncated for brevity...]")
+			break
+		}
+	}
+
+	if len(cleanLines) == 0 {
+		return "[No meaningful content found]"
+	}
+
+	return strings.Join(cleanLines, "\n")
 }
 
 // showBulkPromptResult displays the result of a bulk prompt operation

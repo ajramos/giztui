@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,10 +19,11 @@ import (
 type ObsidianServiceImpl struct {
 	store  *db.ObsidianStore
 	config *obsidian.ObsidianConfig
+	logger *log.Logger
 }
 
 // NewObsidianService creates a new Obsidian service
-func NewObsidianService(store *db.ObsidianStore, config *obsidian.ObsidianConfig) *ObsidianServiceImpl {
+func NewObsidianService(store *db.ObsidianStore, config *obsidian.ObsidianConfig, logger *log.Logger) *ObsidianServiceImpl {
 	if config == nil {
 		config = obsidian.DefaultObsidianConfig()
 	}
@@ -29,13 +31,16 @@ func NewObsidianService(store *db.ObsidianStore, config *obsidian.ObsidianConfig
 	service := &ObsidianServiceImpl{
 		store:  store,
 		config: config,
+		logger: logger,
 	}
 
 	// Initialize the database table if it doesn't exist
 	if store != nil {
 		if err := store.InitializeTable(context.Background()); err != nil {
 			// Log error but don't fail service creation
-			fmt.Printf("Warning: failed to initialize Obsidian table: %v\n", err)
+			if logger != nil {
+				logger.Printf("Warning: failed to initialize Obsidian table: %v", err)
+			}
 		}
 	}
 
@@ -68,7 +73,7 @@ func (s *ObsidianServiceImpl) IngestEmailToObsidian(ctx context.Context, message
 	}
 
 	// Format email content using the single template from config
-	content, err := s.formatEmailForObsidian(message)
+	content, err := s.formatEmailForObsidian(message, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format email: %w", err)
 	}
@@ -79,18 +84,27 @@ func (s *ObsidianServiceImpl) IngestEmailToObsidian(ctx context.Context, message
 		return nil, fmt.Errorf("failed to generate file path: %w", err)
 	}
 
-	// Add logging to debug file path generation
-	// TODO: Use proper logger instead of fmt.Printf
+	// Log debug information
+	if s.logger != nil {
+		s.logger.Printf("Obsidian ingestion: creating file at %s (content length: %d)", filePath, len(content))
+	}
 
 	// Create file in Obsidian (for now, create local file as placeholder)
 	err = s.createObsidianFile(filePath, content)
 	if err != nil {
+		if s.logger != nil {
+			s.logger.Printf("Obsidian ingestion failed for message %s: %v", message.Id, err)
+		}
 		// Record failure
 		s.recordForwardFailure(ctx, message, options, err)
 		return &obsidian.ObsidianIngestResult{
 			Success:      false,
 			ErrorMessage: fmt.Sprintf("failed to create file: %v", err),
 		}, nil
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("Obsidian ingestion successful: created file %s", filePath)
 	}
 
 	// Record success
@@ -134,7 +148,7 @@ func (s *ObsidianServiceImpl) validateOptions(options obsidian.ObsidianOptions) 
 }
 
 // formatEmailForObsidian formats an email using the single template from config
-func (s *ObsidianServiceImpl) formatEmailForObsidian(message *gmail.Message) (string, error) {
+func (s *ObsidianServiceImpl) formatEmailForObsidian(message *gmail.Message, options obsidian.ObsidianOptions) (string, error) {
 	content := s.config.Template
 
 	// Extract message content
@@ -148,6 +162,16 @@ func (s *ObsidianServiceImpl) formatEmailForObsidian(message *gmail.Message) (st
 		body = string([]rune(body)[:8000])
 	}
 
+	// Extract comment from options
+	comment := ""
+	if options.CustomMetadata != nil {
+		if commentValue, exists := options.CustomMetadata["comment"]; exists {
+			if commentStr, ok := commentValue.(string); ok && commentStr != "" {
+				comment = fmt.Sprintf("> **Note:** %s\n", commentStr)
+			}
+		}
+	}
+
 	// Prepare variables for substitution
 	variables := map[string]string{
 		"subject":     message.Subject,
@@ -159,6 +183,7 @@ func (s *ObsidianServiceImpl) formatEmailForObsidian(message *gmail.Message) (st
 		"labels":      strings.Join(message.LabelIds, ", "),
 		"message_id":  message.Id,
 		"ingest_date": time.Now().Format("2006-01-02 15:04:05"),
+		"comment":     comment,
 	}
 
 	// Replace variables in template
@@ -343,4 +368,66 @@ func (s *ObsidianServiceImpl) UpdateConfig(config *obsidian.ObsidianConfig) {
 	if config != nil {
 		s.config = config
 	}
+}
+
+// IngestBulkEmailsToObsidian ingests multiple emails to Obsidian with progress tracking
+func (s *ObsidianServiceImpl) IngestBulkEmailsToObsidian(ctx context.Context, messages []*gmail.Message, accountEmail string, onProgress func(int, int, error)) (*obsidian.BulkObsidianResult, error) {
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("no messages provided")
+	}
+
+	startTime := time.Now()
+	var successfulPaths []string
+	var failedMessages []string
+	var totalSize int64
+
+	for i, message := range messages {
+		// Call progress callback
+		if onProgress != nil {
+			onProgress(i, len(messages), nil)
+		}
+
+		// Create options for this message
+		options := obsidian.ObsidianOptions{
+			AccountEmail: accountEmail,
+			CustomMetadata: map[string]interface{}{
+				"bulk_operation": true,
+				"batch_index":    i + 1,
+				"batch_total":    len(messages),
+			},
+		}
+
+		// Ingest this message
+		result, err := s.IngestEmailToObsidian(ctx, message, options)
+		if err != nil {
+			failedMessages = append(failedMessages, message.Id)
+			if onProgress != nil {
+				onProgress(i+1, len(messages), err)
+			}
+			continue
+		}
+
+		if result != nil && result.Success {
+			successfulPaths = append(successfulPaths, result.FilePath)
+			totalSize += result.FileSize
+		} else {
+			failedMessages = append(failedMessages, message.Id)
+		}
+	}
+
+	// Final progress callback
+	if onProgress != nil {
+		onProgress(len(messages), len(messages), nil)
+	}
+
+	return &obsidian.BulkObsidianResult{
+		TotalMessages:   len(messages),
+		SuccessfulCount: len(successfulPaths),
+		FailedCount:     len(failedMessages),
+		SuccessfulPaths: successfulPaths,
+		FailedMessages:  failedMessages,
+		TotalSize:       totalSize,
+		Duration:        time.Since(startTime),
+		CompletedAt:     time.Now(),
+	}, nil
 }

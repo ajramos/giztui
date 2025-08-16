@@ -278,6 +278,15 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"$":       {"$"},
 		"5":       {"5"},
 		"10":      {"10"},
+		"st":      {"stats"},
+		"sta":     {"stats"},
+		"stat":    {"stats"},
+		"stats":   {"stats"},
+		"u":       {"usage"},
+		"us":      {"usage"},
+		"usa":     {"usage"},
+		"usag":    {"usage"},
+		"usage":   {"usage"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -368,6 +377,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeQuitCommand(args)
 	case "cache":
 		a.executeCacheCommand(args)
+	case "stats", "usage":
+		a.executeStatsCommand(args)
 	case "g", "G":
 		a.executeGoToCommand(args)
 	default:
@@ -597,6 +608,25 @@ func (a *App) executeCacheCommand(args []string) {
 		a.executeCacheInfo(args[1:])
 	default:
 		a.showError(fmt.Sprintf("Unknown cache subcommand: %s. Usage: cache <clear|info>", subcommand))
+	}
+}
+
+// executeStatsCommand handles the stats/usage command
+func (a *App) executeStatsCommand(args []string) {
+	if len(args) == 0 {
+		// Show general usage stats
+		go a.showUsageStats()
+		return
+	}
+
+	subcommand := args[0]
+	switch subcommand {
+	case "prompts", "prompt":
+		go a.showUsageStats()
+	case "clear", "reset":
+		a.showError("Usage stats reset not yet implemented")
+	default:
+		a.showError(fmt.Sprintf("Unknown stats subcommand: %s. Usage: stats [prompts]", subcommand))
 	}
 }
 

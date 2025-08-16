@@ -26,6 +26,7 @@ const (
 type ErrorHandler struct {
 	mu         sync.RWMutex
 	app        *tview.Application
+	appRef     *App // Reference to main App for baseline status
 	statusView *tview.TextView
 	flashView  *tview.TextView
 	logger     *log.Logger
@@ -37,9 +38,10 @@ type ErrorHandler struct {
 }
 
 // NewErrorHandler creates a new error handler
-func NewErrorHandler(app *tview.Application, statusView *tview.TextView, flashView *tview.TextView, logger *log.Logger) *ErrorHandler {
+func NewErrorHandler(app *tview.Application, appRef *App, statusView *tview.TextView, flashView *tview.TextView, logger *log.Logger) *ErrorHandler {
 	return &ErrorHandler{
 		app:        app,
+		appRef:     appRef,
 		statusView: statusView,
 		flashView:  flashView,
 		logger:     logger,
@@ -254,6 +256,9 @@ func (eh *ErrorHandler) refreshStatusDisplay() {
 
 // getBaselineStatus returns the baseline status text
 func (eh *ErrorHandler) getBaselineStatus() string {
+	if eh.appRef != nil {
+		return eh.appRef.statusBaseline()
+	}
 	return "Gmail TUI • Press ? for help • : for commands"
 }
 

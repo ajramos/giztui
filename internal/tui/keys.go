@@ -289,6 +289,7 @@ func (a *App) bindKeys() {
 			if a.currentFocus == "search" {
 				return nil
 			}
+			// Allow Obsidian ingestion in both normal and bulk modes
 			go a.sendEmailToObsidian()
 			return nil
 		case 'w':

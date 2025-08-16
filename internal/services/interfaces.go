@@ -76,6 +76,7 @@ type PromptService interface {
 	ApplyPrompt(ctx context.Context, messageContent string, promptID int, variables map[string]string) (*PromptResult, error)
 	GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error)
 	IncrementUsage(ctx context.Context, promptID int) error
+	GetUsageStats(ctx context.Context) (*UsageStats, error)
 	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
 
 	// NUEVO: Aplicar prompt a múltiples mensajes
@@ -187,9 +188,29 @@ type BulkPromptResult struct {
 	CreatedAt    time.Time
 }
 
+// UsageStats represents prompt usage statistics
+type UsageStats struct {
+	TopPrompts      []PromptUsageStat `json:"top_prompts"`
+	TotalUsage      int               `json:"total_usage"`
+	UniquePrompts   int               `json:"unique_prompts"`
+	LastUsed        time.Time         `json:"last_used"`
+	FavoritePrompts []PromptUsageStat `json:"favorite_prompts"`
+}
+
+// PromptUsageStat represents usage statistics for a single prompt
+type PromptUsageStat struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	UsageCount  int    `json:"usage_count"`
+	IsFavorite  bool   `json:"is_favorite"`
+	LastUsed    string `json:"last_used"`
+}
+
 // ObsidianService handles Obsidian integration operations
 type ObsidianService interface {
 	IngestEmailToObsidian(ctx context.Context, message *gmail.Message, options obsidian.ObsidianOptions) (*obsidian.ObsidianIngestResult, error)
+	IngestBulkEmailsToObsidian(ctx context.Context, messages []*gmail.Message, accountEmail string, onProgress func(int, int, error)) (*obsidian.BulkObsidianResult, error)
 	GetObsidianTemplates(ctx context.Context) ([]*obsidian.ObsidianTemplate, error)
 	ValidateObsidianConnection(ctx context.Context) error
 	GetObsidianVaultPath() string

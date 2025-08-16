@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -411,7 +412,7 @@ func (a *App) reinitializeServices() {
 			}
 		}
 
-		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig)
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: obsidian service initialized: %v", a.obsidianService != nil)
 		}
@@ -503,19 +504,29 @@ func (a *App) initServices() {
 	// Initialize Obsidian service if database store is available
 	if a.dbStore != nil {
 		obsidianStore := db.NewObsidianStore(a.dbStore)
-		// TODO: Get Obsidian config from app config
-		obsidianConfig := &obsidian.ObsidianConfig{
-			Enabled:            true,
-			VaultPath:          "/Users/ajramos/Documents/ObsidianVault",
-			IngestFolder:       "00-Inbox",
-			FilenameFormat:     "{{date}}_{{subject_slug}}_{{from_domain}}",
-			HistoryEnabled:     true,
-			PreventDuplicates:  true,
-			MaxFileSize:        1048576,
-			IncludeAttachments: true,
-			Template:           "Default template from config",
+		// Get Obsidian config from app config
+		var obsidianConfig *obsidian.ObsidianConfig
+		if a.Config != nil && a.Config.Obsidian != nil {
+			obsidianConfig = a.Config.Obsidian
+			if a.logger != nil {
+				a.logger.Printf("initServices: using Obsidian config from app config")
+			}
+		} else {
+			// Fallback to default config if not available
+			obsidianConfig = obsidian.DefaultObsidianConfig()
+			// Set a reasonable vault path if not configured
+			homeDir, err := os.UserHomeDir()
+			if err == nil {
+				obsidianConfig.VaultPath = filepath.Join(homeDir, "ObsidianVault")
+			} else {
+				obsidianConfig.VaultPath = "./ObsidianVault"
+			}
+			if a.logger != nil {
+				a.logger.Printf("initServices: using default Obsidian config")
+			}
 		}
-		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig)
+		
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
 		if a.logger != nil {
 			a.logger.Printf("initServices: obsidian service initialized: %v", a.obsidianService != nil)
 		}
@@ -552,7 +563,7 @@ func (a *App) initErrorHandler() {
 	}
 
 	// Create error handler
-	a.errorHandler = NewErrorHandler(a.Application, statusView, flashView, a.logger)
+	a.errorHandler = NewErrorHandler(a.Application, a, statusView, flashView, a.logger)
 }
 
 // Thread-safe state access methods

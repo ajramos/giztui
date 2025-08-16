@@ -17,7 +17,7 @@ func (a *App) archiveSelectedBulk() {
 	for id := range a.selected {
 		ids = append(ids, id)
 	}
-	a.setStatusPersistent(fmt.Sprintf("Archiving %d message(s)…", len(ids)))
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		failed := 0
 		total := len(ids)
@@ -28,9 +28,7 @@ func (a *App) archiveSelectedBulk() {
 			}
 			// Progress update on UI thread
 			idx := i + 1
-			a.QueueUpdateDraw(func() {
-				a.setStatusPersistent(fmt.Sprintf("Archiving %d/%d…", idx, total))
-			})
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d…", idx, total))
 			// Remove from UI list on main thread after loop
 		}
 		a.QueueUpdateDraw(func() {
@@ -42,13 +40,15 @@ func (a *App) archiveSelectedBulk() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
-			a.setStatusPersistent("")
-			if failed == 0 {
-				a.showStatusMessage("✅ Archived")
-			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Archived with %d failure(s)", failed))
-			}
 		})
+		
+		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Archived")
+		} else {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Archived with %d failure(s)", failed))
+		}
 	}()
 }
 
@@ -61,7 +61,7 @@ func (a *App) trashSelectedBulk() {
 	for id := range a.selected {
 		ids = append(ids, id)
 	}
-	a.setStatusPersistent(fmt.Sprintf("Trashing %d message(s)…", len(ids)))
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		failed := 0
 		total := len(ids)
@@ -71,9 +71,7 @@ func (a *App) trashSelectedBulk() {
 			}
 			// Progress update on UI thread
 			idx := i + 1
-			a.QueueUpdateDraw(func() {
-				a.setStatusPersistent(fmt.Sprintf("Trashing %d/%d…", idx, total))
-			})
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d…", idx, total))
 		}
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
@@ -84,12 +82,14 @@ func (a *App) trashSelectedBulk() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
-			a.setStatusPersistent("")
-			if failed == 0 {
-				a.showStatusMessage("✅ Trashed")
-			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
-			}
 		})
+		
+		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Trashed")
+		} else {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
+		}
 	}()
 }

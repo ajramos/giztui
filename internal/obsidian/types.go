@@ -68,6 +68,8 @@ message_id: {{message_id}}
 **Date:** {{date}}  
 **Labels:** {{labels}}
 
+{{comment}}
+
 ---
 
 {{body}}
@@ -86,4 +88,16 @@ type ObsidianIngestResult struct {
 	TemplateUsed string                 `json:"template_used"`
 	ErrorMessage string                 `json:"error_message,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata"`
+}
+
+// BulkObsidianResult represents the result of a bulk email ingestion
+type BulkObsidianResult struct {
+	TotalMessages   int           `json:"total_messages"`
+	SuccessfulCount int           `json:"successful_count"`
+	FailedCount     int           `json:"failed_count"`
+	SuccessfulPaths []string      `json:"successful_paths"`
+	FailedMessages  []string      `json:"failed_messages"`
+	TotalSize       int64         `json:"total_size"`
+	Duration        time.Duration `json:"duration"`
+	CompletedAt     time.Time     `json:"completed_at"`
 }
