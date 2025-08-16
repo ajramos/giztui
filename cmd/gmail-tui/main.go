@@ -19,58 +19,51 @@ import (
 )
 
 func main() {
-	// Command line flags
-	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON")
-	tokenPathFlag := flag.String("token", "", "Path to cached OAuth token JSON")
-	ollamaEndpointFlag := flag.String("ollama-endpoint", "", "Ollama endpoint (include /api/generate)")
-	ollamaModelFlag := flag.String("ollama-model", "", "Ollama model name")
-	ollamaTimeoutFlag := flag.Duration("ollama-timeout", 0, "LLM request timeout")
-	llmProviderFlag := flag.String("llm-provider", "", "LLM provider (ollama, bedrock)")
-	llmModelFlag := flag.String("llm-model", "", "LLM model to use (e.g., anthropic.claude-3-haiku-20240307)")
-	llmRegionFlag := flag.String("llm-region", "", "Region for region-based providers (e.g., us-east-1 for Bedrock)")
-	configPathFlag := flag.String("config", "", "Path to JSON configuration file")
+	// Essential command line flags only (GNU-style double dashes)
+	configPathFlag := flag.String("config", "", "Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)")
+	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)")
+	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
+	
+	// Override flag usage text to show clean, simple usage
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Gmail TUI - Terminal-based Gmail client\n\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		fmt.Fprintf(os.Stderr, "  %s [options]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Examples:\n")
+		fmt.Fprintf(os.Stderr, "  %s                        # Run with default configuration\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --setup                # Run interactive setup wizard\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --config custom.json   # Use custom configuration\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintf(os.Stderr, "  --config string\n        %s\n", "Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)")
+		fmt.Fprintf(os.Stderr, "  --credentials string\n        %s\n", "Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)")
+		fmt.Fprintf(os.Stderr, "  --setup\n        %s\n\n", "Run interactive setup wizard")
+		fmt.Fprintf(os.Stderr, "Environment Variables:\n")
+		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CONFIG      Override default config file path\n")
+		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CREDENTIALS Override default credentials file path\n")
+		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_TOKEN       Override default token file path\n\n")
+		fmt.Fprintf(os.Stderr, "For all other settings (LLM, timeouts, etc.), edit the config file.\n")
+	}
+	
 	flag.Parse()
-
-	// Load configuration
-	configPath := *configPathFlag
-	if configPath == "" {
-		configPath = config.DefaultConfigPath()
+	
+	// Handle setup mode
+	if *setupFlag {
+		runSetupWizard()
+		return
 	}
 
+	// Load configuration with smart defaults and environment variable support
+	configPath := getConfigPath(*configPathFlag)
+	
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Printf("Warning: could not load configuration: %v", err)
 		cfg = config.DefaultConfig()
 	}
 
-	// Determine credential and token paths
-	credPath, tokenPath := config.DefaultCredentialPaths()
-	if cfg.Credentials != "" {
-		credPath = cfg.Credentials
-		// Expand ~ to home directory if present
-		if strings.HasPrefix(credPath, "~") {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				credPath = filepath.Join(home, credPath[2:])
-			}
-		}
-	}
-	if cfg.Token != "" {
-		tokenPath = cfg.Token
-		// Expand ~ to home directory if present
-		if strings.HasPrefix(tokenPath, "~") {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				tokenPath = filepath.Join(home, tokenPath[2:])
-			}
-		}
-	}
-	if *credPathFlag != "" {
-		credPath = *credPathFlag
-	}
-	if *tokenPathFlag != "" {
-		tokenPath = *tokenPathFlag
-	}
+	// Determine credential and token paths with smart defaults
+	credPath := getCredentialsPath(*credPathFlag, cfg.Credentials)
+	tokenPath := getTokenPath("", cfg.Token)
 
 	// Validate credentials path
 	if credPath == "" {
@@ -107,28 +100,7 @@ func main() {
 		log.Printf("Warning: could not initialize Calendar service: %v", err)
 	}
 
-	// Handle LLM configuration overrides
-	if *ollamaEndpointFlag != "" {
-		cfg.OllamaEndpoint = *ollamaEndpointFlag
-		cfg.LLMEndpoint = *ollamaEndpointFlag
-	}
-	if *ollamaModelFlag != "" {
-		cfg.OllamaModel = *ollamaModelFlag
-		cfg.LLMModel = *ollamaModelFlag
-	}
-	if *ollamaTimeoutFlag != 0 {
-		cfg.OllamaTimeout = ollamaTimeoutFlag.String()
-		cfg.LLMTimeout = ollamaTimeoutFlag.String()
-	}
-	if *llmProviderFlag != "" {
-		cfg.LLMProvider = *llmProviderFlag
-	}
-	if *llmModelFlag != "" {
-		cfg.LLMModel = *llmModelFlag
-	}
-	if *llmRegionFlag != "" {
-		cfg.LLMRegion = *llmRegionFlag
-	}
+	// All LLM configuration is now handled via config file only
 
 	// Initialize LLM provider
 	var llmProvider llm.Provider
@@ -206,4 +178,147 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// getConfigPath returns the configuration file path using the following priority:
+// 1. CLI flag
+// 2. Environment variable GMAIL_TUI_CONFIG
+// 3. Default path ~/.config/gmail-tui/config.json
+func getConfigPath(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	
+	if envPath := os.Getenv("GMAIL_TUI_CONFIG"); envPath != "" {
+		return expandPath(envPath)
+	}
+	
+	return config.DefaultConfigPath()
+}
+
+// getCredentialsPath returns the credentials file path using the following priority:
+// 1. CLI flag
+// 2. Environment variable GMAIL_TUI_CREDENTIALS
+// 3. Config file setting
+// 4. Default path ~/.config/gmail-tui/credentials.json
+func getCredentialsPath(flagValue, configValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	
+	if envPath := os.Getenv("GMAIL_TUI_CREDENTIALS"); envPath != "" {
+		return expandPath(envPath)
+	}
+	
+	if configValue != "" {
+		return expandPath(configValue)
+	}
+	
+	credPath, _ := config.DefaultCredentialPaths()
+	return credPath
+}
+
+// getTokenPath returns the token file path using the following priority:
+// 1. CLI flag
+// 2. Environment variable GMAIL_TUI_TOKEN
+// 3. Config file setting
+// 4. Default path ~/.config/gmail-tui/token.json
+func getTokenPath(flagValue, configValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	
+	if envPath := os.Getenv("GMAIL_TUI_TOKEN"); envPath != "" {
+		return expandPath(envPath)
+	}
+	
+	if configValue != "" {
+		return expandPath(configValue)
+	}
+	
+	_, tokenPath := config.DefaultCredentialPaths()
+	return tokenPath
+}
+
+// expandPath expands ~ to the user's home directory
+func expandPath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+	
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	
+	if path == "~" {
+		return home
+	}
+	
+	return filepath.Join(home, path[2:])
+}
+
+// runSetupWizard runs an interactive setup wizard to help users configure Gmail TUI
+func runSetupWizard() {
+	fmt.Println("📧 Gmail TUI Setup Wizard")
+	fmt.Println("=======================")
+	fmt.Println()
+	
+	// Check if default config already exists
+	defaultConfigPath := config.DefaultConfigPath()
+	credPath, tokenPath := config.DefaultCredentialPaths()
+	
+	if _, err := os.Stat(defaultConfigPath); err == nil {
+		fmt.Printf("✅ Configuration file already exists: %s\n", defaultConfigPath)
+	} else {
+		fmt.Printf("📝 Will create configuration file: %s\n", defaultConfigPath)
+	}
+	
+	if _, err := os.Stat(credPath); err == nil {
+		fmt.Printf("✅ Credentials file found: %s\n", credPath)
+	} else {
+		fmt.Printf("⚠️  Credentials file missing: %s\n", credPath)
+		fmt.Println()
+		fmt.Println("📋 To set up Gmail API credentials:")
+		fmt.Println("1. Go to https://console.cloud.google.com/")
+		fmt.Println("2. Create a new project or select existing one")
+		fmt.Println("3. Enable Gmail API")
+		fmt.Println("4. Create OAuth 2.0 credentials (Desktop application)")
+		fmt.Println("5. Download the JSON file and save it as:")
+		fmt.Printf("   %s\n", credPath)
+		fmt.Println()
+	}
+	
+	if _, err := os.Stat(tokenPath); err == nil {
+		fmt.Printf("✅ Token file exists: %s\n", tokenPath)
+	} else {
+		fmt.Printf("🔐 Token will be created on first login: %s\n", tokenPath)
+	}
+	
+	// Create default config if it doesn't exist
+	if _, err := os.Stat(defaultConfigPath); os.IsNotExist(err) {
+		fmt.Println()
+		fmt.Print("📄 Create default configuration file? [Y/n]: ")
+		
+		var response string
+		fmt.Scanln(&response)
+		
+		if response == "" || strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
+			cfg := config.DefaultConfig()
+			if err := cfg.SaveConfig(defaultConfigPath); err != nil {
+				fmt.Printf("❌ Failed to create config file: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("✅ Created configuration file: %s\n", defaultConfigPath)
+		}
+	}
+	
+	fmt.Println()
+	fmt.Println("🚀 Setup complete! You can now run:")
+	fmt.Printf("   %s\n", os.Args[0])
+	fmt.Println()
+	fmt.Println("💡 Tips:")
+	fmt.Println("• Edit the config file to customize LLM settings")
+	fmt.Println("• Use environment variables for different profiles")
+	fmt.Println("• Run with -h to see all options")
 }

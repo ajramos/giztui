@@ -286,17 +286,62 @@ The application uses a unified configuration directory structure:
 ### Basic commands
 
 ```bash
-# Run with default configuration
+# First time setup (interactive wizard)
+./gmail-tui --setup
+
+# Run with default configuration (zero parameters needed)
 ./gmail-tui
-
-# Specify custom credentials
-./gmail-tui --credentials ~/path/to/credentials.json
-
-# Configure LLM (Ollama example)
-./gmail-tui --config ~/.config/gmail-tui/config.json
 
 # Use custom configuration file
 ./gmail-tui --config ~/custom-config.json
+
+# Specify custom credentials (rarely needed)
+./gmail-tui --credentials ~/path/to/credentials.json
+```
+
+### Environment Variables
+
+For advanced users or automation:
+
+```bash
+# Override default paths
+export GMAIL_TUI_CONFIG=~/.config/gmail-tui/config.json
+export GMAIL_TUI_CREDENTIALS=~/.config/gmail-tui/credentials.json
+export GMAIL_TUI_TOKEN=~/.config/gmail-tui/token.json
+
+# Run with environment settings
+./gmail-tui
+```
+
+### Command Line Options
+
+The CLI has been simplified to focus on essential parameters:
+
+```bash
+Gmail TUI - Terminal-based Gmail client
+
+Usage:
+  gmail-tui [options]
+
+Examples:
+  gmail-tui                        # Run with default configuration
+  gmail-tui --setup                # Run interactive setup wizard
+  gmail-tui --config custom.json   # Use custom configuration
+
+Options:
+  --config string
+        Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)
+  --credentials string
+        Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)
+  --setup
+        Run interactive setup wizard
+
+Environment Variables:
+  GMAIL_TUI_CONFIG      Override default config file path
+  GMAIL_TUI_CREDENTIALS Override default credentials file path
+  GMAIL_TUI_TOKEN       Override default token file path
+
+For all other settings (LLM, timeouts, etc.), edit the config file.
 ```
 
 ### Keyboard shortcuts

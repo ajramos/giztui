@@ -769,19 +769,33 @@ func (a *App) generateHelpText() string {
 	help.WriteString("n         ✏️  Compose new message\n")
 	help.WriteString("t         👁️  Toggle read/unread\n")
 	help.WriteString("d         🗑️  Move to trash\n")
-	help.WriteString("a         �� Archive message\n")
+	help.WriteString("a         📁 Archive message\n")
 	help.WriteString("m         📦 Move message\n\n")
+
+	help.WriteString("📦 Bulk Operations\n")
+	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	help.WriteString("v/space   ✅ Enter bulk mode & select message\n")
+	help.WriteString("space     ➕ Toggle message selection (in bulk mode)\n")
+	help.WriteString("*         🌟 Select all visible messages\n")
+	help.WriteString("a         📁 Archive selected messages\n")
+	help.WriteString("d         🗑️  Delete selected messages\n")
+	help.WriteString("m         📦 Move selected messages\n")
+	help.WriteString("p         🎯 Apply bulk prompt to selected\n")
+	help.WriteString("Esc       ❌ Exit bulk mode\n\n")
 
 	if a.LLM != nil {
 		help.WriteString("🤖 AI Features\n")
 		help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 		help.WriteString("y         📝 Summarize message\n")
+		help.WriteString("Y         🔄 Regenerate summary (force refresh)\n")
+		help.WriteString("p         🎯 Open Prompt Library\n")
 		help.WriteString("g         🤖 Generate reply\n")
 		help.WriteString("o         🏷️  Suggest label\n\n")
 	}
 
 	help.WriteString("⚙️  Application\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	help.WriteString(":         💻 Command mode (e.g., :search, :cache, :help)\n")
 	help.WriteString("q         🚪 Quit application\n")
 	help.WriteString("?         ❓ Toggle this help screen\n")
 
