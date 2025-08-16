@@ -59,9 +59,12 @@ func (a *App) bindKeys() {
 						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent("Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					// Show status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+					}()
 					return nil
 				}
 				// toggle selection
@@ -74,7 +77,10 @@ func (a *App) bindKeys() {
 						a.selected[mid] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent(fmt.Sprintf("Selected: %d", len(a.selected)))
+					// Show status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
+					}()
 				}
 				return nil
 			}
@@ -91,15 +97,21 @@ func (a *App) bindKeys() {
 						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent("Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					// Show status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+					}()
 				} else {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					a.setStatusPersistent("")
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					// Clear status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ClearProgress()
+					}()
 				}
 				return nil
 			}
@@ -116,15 +128,21 @@ func (a *App) bindKeys() {
 						a.selected[a.ids[r]] = true
 					}
 					a.reformatListItems()
-					a.setStatusPersistent("Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, ESC=exit")
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					// Show status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, O=obsidian, ESC=exit")
+					}()
 				} else {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					a.setStatusPersistent("")
 					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					// Clear status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ClearProgress()
+					}()
 				}
 				return nil
 			}
@@ -149,7 +167,10 @@ func (a *App) bindKeys() {
 						}
 					}
 					a.reformatListItems()
-					a.setStatusPersistent(fmt.Sprintf("Selected: %d", len(a.selected)))
+					// Show status message asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
+					}()
 				}
 				return nil
 			}

@@ -33,14 +33,18 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items, etc.)
 - ✅ **Usage tracking** - Monitor which prompts are used most frequently
 
-### 🔥 **Bulk Prompts** 🆕
+### 🔥 **Bulk Operations** 🆕
 - ✅ **Multi-email analysis** - Apply prompts to multiple emails simultaneously
+- ✅ **Bulk labeling** - Apply labels to multiple selected messages at once
+- ✅ **Bulk moving** - Move multiple messages with label+archive in one operation
+- ✅ **Search-enabled operations** - Filter labels during bulk operations for quick selection
 - ✅ **Consolidated insights** - Get unified analysis across multiple messages
 - ✅ **Cloud product tracking** - Specialized prompts for AWS/Azure/GCP updates
 - ✅ **Project monitoring** - Consolidate project status from multiple emails
 - ✅ **Trend analysis** - Identify patterns across multiple sources
 - ✅ **Efficient processing** - Async processing with progress indicators
 - ✅ **Responsive controls** - Cancel bulk operations instantly with Esc
+- ✅ **Robust error handling** - Proper status updates and deadlock prevention
 
 ### 📝 **Obsidian Integration** 🆕
 - ✅ **Email ingestion** - Send emails directly to Obsidian as Markdown notes
