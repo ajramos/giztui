@@ -455,6 +455,13 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `K` | Forward email to Slack (contextual panel) |
 | `:slack` | Forward email to Slack (command equivalent) |
 | `:slack 5` | Forward message #5 to Slack (command with message number) |
+| `:numbers` or `:n` | Toggle message number display in list |
+
+**Message Numbers:**
+- **`:numbers`** or **`:n`** toggles display of message numbers (1, 2, 3...) in the message list
+- Numbers appear at the leftmost position and are right-aligned for clean formatting
+- Use with navigation commands like `:5` (jump to message 5) or `:slack 10` (forward message 10)
+- Perfect for quickly referencing specific messages by their position
 
 **Usage:**
 1. **Select a message** in the message list

@@ -272,6 +272,13 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"he":      {"help"},
 		"hel":     {"help"},
 		"help":    {"help"},
+		"n":       {"numbers"},
+		"nu":      {"numbers"},
+		"num":     {"numbers"},
+		"numb":    {"numbers"},
+		"numbe":   {"numbers"},
+		"number":  {"numbers"},
+		"numbers": {"numbers"},
 		"q":       {"quit"},
 		"qu":      {"quit"},
 		"qui":     {"quit"},
@@ -377,6 +384,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args)
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
+	case "numbers", "n":
+		a.executeNumbersCommand(args)
 	case "quit", "q":
 		a.executeQuitCommand(args)
 	case "cache":
@@ -713,6 +722,22 @@ func (a *App) executeCacheInfo(args []string) {
 		// Show basic cache info with simple message
 		infoMsg := fmt.Sprintf("Cache info: %s | DB: %s.sqlite3", accountEmail, safeEmail)
 		a.GetErrorHandler().ShowInfo(a.ctx, infoMsg)
+	}()
+}
+
+// executeNumbersCommand handles :numbers/:n commands (toggle message number display)
+func (a *App) executeNumbersCommand(args []string) {
+	// Toggle the display of message numbers
+	a.showMessageNumbers = !a.showMessageNumbers
+	
+	// Trigger UI redraw in a goroutine to avoid hanging
+	go func() {
+		a.reformatListItems()
+		if a.showMessageNumbers {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Message numbers enabled")
+		} else {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Message numbers disabled")
+		}
 	}()
 }
 

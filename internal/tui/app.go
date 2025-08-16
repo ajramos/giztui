@@ -129,6 +129,9 @@ type App struct {
 	// Formatting toggles
 	llmTouchUpEnabled bool
 
+	// Message display options
+	showMessageNumbers bool
+
 	// Services (new architecture)
 	emailService      services.EmailService
 	aiService         services.AIService
@@ -822,6 +825,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("⚙️  Application\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	help.WriteString(":         💻 Command mode (e.g., :search, :cache, :help)\n")
+	help.WriteString(":numbers  🔢 Toggle message number display\n")
 	help.WriteString("q         🚪 Quit application\n")
 	help.WriteString("?         ❓ Toggle this help screen\n")
 

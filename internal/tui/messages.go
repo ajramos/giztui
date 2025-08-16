@@ -68,11 +68,19 @@ func (a *App) reformatListItems() {
 
 		// Build prefixes
 		var prefix string
+		
+		// Add message number if enabled (leftmost position)
+		if a.showMessageNumbers {
+			maxNumber := len(a.ids)
+			width := len(fmt.Sprintf("%d", maxNumber))
+			prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
+		}
+		
 		if a.bulkMode {
 			if a.selected != nil && a.selected[a.ids[i]] {
-				prefix = "☑ "
+				prefix += "☑ "
 			} else {
-				prefix = "☐ "
+				prefix += "☐ "
 			}
 		}
 		if unread {
@@ -197,9 +205,20 @@ func (a *App) restoreLocalBaseSnapshot() {
 						break
 					}
 				}
-				prefix := "○ "
+				var prefix string
+				
+				// Add message number if enabled (leftmost position)
+				if a.showMessageNumbers {
+					maxNumber := len(a.ids)
+					width := len(fmt.Sprintf("%d", maxNumber))
+					prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
+				}
+				
+				// Add read/unread indicator
 				if unread {
-					prefix = "● "
+					prefix += "● "
+				} else {
+					prefix += "○ "
 				}
 				table.SetCell(i, 0, tview.NewTableCell(prefix+line).SetExpansion(1))
 			}
@@ -364,11 +383,19 @@ func (a *App) reloadMessages() {
 			}
 		}
 
-		if unread {
-			formattedText = "● " + formattedText
-		} else {
-			formattedText = "○ " + formattedText
+		// Build prefix with message number (if enabled) and read/unread indicator
+		var prefix string
+		if a.showMessageNumbers {
+			maxNumber := len(a.ids)
+			width := len(fmt.Sprintf("%d", maxNumber))
+			prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
 		}
+		if unread {
+			prefix += "● "
+		} else {
+			prefix += "○ "
+		}
+		formattedText = prefix + formattedText
 
 		// cache meta for resize re-rendering (protect shared slice)
 		a.mu.Lock()
@@ -1643,7 +1670,31 @@ func (a *App) applyLocalFilter(expr string) {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.Clear()
 			for i, text := range rows {
-				table.SetCell(i, 0, tview.NewTableCell(text).SetExpansion(1))
+				// Build prefix for filtered results
+				var prefix string
+				if a.showMessageNumbers {
+					maxNumber := len(filteredIDs)
+					width := len(fmt.Sprintf("%d", maxNumber))
+					prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering for filtered results
+				}
+				
+				// Add read/unread indicator
+				if i < len(filteredMeta) && filteredMeta[i] != nil {
+					unread := false
+					for _, labelId := range filteredMeta[i].LabelIds {
+						if labelId == "UNREAD" {
+							unread = true
+							break
+						}
+					}
+					if unread {
+						prefix += "● "
+					} else {
+						prefix += "○ "
+					}
+				}
+				
+				table.SetCell(i, 0, tview.NewTableCell(prefix+text).SetExpansion(1))
 			}
 			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
 			if table.GetRowCount() > 0 {
