@@ -17,10 +17,10 @@ import (
 
 // SlackServiceImpl implements the SlackService interface
 type SlackServiceImpl struct {
-	client      *gmail.Client
-	config      *config.Config
-	aiService   AIService
-	httpClient  *http.Client
+	client     *gmail.Client
+	config     *config.Config
+	aiService  AIService
+	httpClient *http.Client
 }
 
 // NewSlackService creates a new SlackService implementation
@@ -139,7 +139,8 @@ func (s *SlackServiceImpl) formatSummaryMessage(ctx context.Context, headers map
 			"message-id":  headers["message-id"],
 			"in-reply-to": headers["in-reply-to"],
 			"references":  headers["references"],
-			"max_words":   "50", // Keep summaries concise for Slack
+			"max_words":   "50",                // Keep summaries concise for Slack
+			"comment":     options.UserMessage, // User's pre-message for context
 		}
 
 		// Replace variables in the prompt (like PromptService does)
@@ -165,7 +166,6 @@ func (s *SlackServiceImpl) formatSummaryMessage(ctx context.Context, headers map
 	// Metadata is now available as variables in the prompt template
 	// Users can include {{subject}}, {{from}}, {{date}} in their custom prompts
 
-
 	return strings.Join(parts, ""), nil
 }
 
@@ -186,7 +186,6 @@ func (s *SlackServiceImpl) formatCompactMessage(headers map[string]string, body 
 	if preview != "" {
 		parts = append(parts, fmt.Sprintf("> %s", preview))
 	}
-
 
 	return strings.Join(parts, "\n")
 }
@@ -258,16 +257,16 @@ func (s *SlackServiceImpl) formatRawMessage(headers map[string]string, body stri
 // extractEmailMetadata extracts all headers from email
 func (s *SlackServiceImpl) extractEmailMetadata(message *gmailapi.Message) map[string]string {
 	headers := map[string]string{
-		"subject":      "",
-		"from":         "",
-		"to":           "",
-		"cc":           "",
-		"bcc":          "",
-		"date":         "",
-		"reply-to":     "",
-		"message-id":   "",
-		"in-reply-to":  "",
-		"references":   "",
+		"subject":     "",
+		"from":        "",
+		"to":          "",
+		"cc":          "",
+		"bcc":         "",
+		"date":        "",
+		"reply-to":    "",
+		"message-id":  "",
+		"in-reply-to": "",
+		"references":  "",
 	}
 
 	if message.Payload == nil || message.Payload.Headers == nil {
