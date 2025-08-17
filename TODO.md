@@ -3,7 +3,6 @@
 ## 🎯 TODO - Active Roadmap
 
 ## Issues
-- [ ]When moving an email to a specific label and archive it, the message list is reloaded, and it should not.
 
 
 ### Priorities
@@ -188,6 +187,7 @@
 - [x] Treat several emails in batch with one prompt.
 - [x] Review execution parameters, there are some duplication with llm and ollama.
 - [x] Fix AI SUmmary, Prompt Application (Single and bulk) issue with Escape. (it hangs when pressing Esc)
+- [x] Fix unnecessary message list reload after move operations (August 2025)
 - [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
 - [x] Investigate behavior for self-emailed messages
 - [x] After loading messages, auto-select and render the first one

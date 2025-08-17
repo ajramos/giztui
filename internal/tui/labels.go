@@ -590,8 +590,11 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								// Update list title
 								listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 								
-								// Refresh the list view by reloading it
-								go a.reloadMessages()
+								// Refresh the list display to show the updated data
+								a.reformatListItems()
+								
+								// No need to reload - local removal is sufficient
+								// The messages are already removed from a.ids and a.messagesMeta
 							})
 						}
 					}()
@@ -759,8 +762,11 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 											// Update list title
 											listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 											
-											// Refresh the list view by reloading it
-											go a.reloadMessages()
+											// Refresh the list display to show the updated data
+											a.reformatListItems()
+											
+											// No need to reload - local removal is sufficient
+											// The messages are already removed from a.ids and a.messagesMeta
 										})
 									}
 								}()
