@@ -257,11 +257,56 @@ When asked to implement a new feature:
 2. **Check Existing Services** - Reuse if possible, extend if needed
 3. **Design Service Interface** - Define clean contracts
 4. **Validate with the user the proposed solution**** - Make sure the customer agrees on the approach 
-4. **Implement Service** - Business logic only
-5. **Integrate with UI** - Presentation logic only
-6. **Add Error Handling** - Use ErrorHandler consistently
-7. **Ensure Thread Safety** - Use accessor methods
-8. **Test Integration** - Verify build and functionality
+5. **Implement Service** - Business logic only
+6. **Integrate with UI** - Presentation logic only
+7. **Add Error Handling** - Use ErrorHandler consistently
+8. **Ensure Thread Safety** - Use accessor methods
+9. **Command Parity** - Add equivalent command for any new keyboard shortcut
+10. **Test Integration** - Verify build and functionality
+
+### 🎮 **Command Parity Requirements**
+
+When implementing features with keyboard shortcuts, **ALWAYS** ensure command parity:
+
+#### **Mandatory Pattern:**
+- **Every keyboard shortcut MUST have an equivalent command**
+- **Commands MUST support bulk mode automatically** 
+- **Commands MUST provide short aliases** (e.g., `:archive` and `:a`)
+- **Commands MUST work with existing autocompletion**
+
+#### **Implementation Steps:**
+1. **Add command case** to `executeCommand()` in `internal/tui/commands.go`
+2. **Create execution function** following bulk-aware pattern:
+   ```go
+   func (a *App) executeMyCommand(args []string) {
+       // Check bulk mode and selected messages
+       if a.bulkMode && len(a.selected) > 0 {
+           go a.myActionBulk()
+       } else {
+           go a.myAction()
+       }
+   }
+   ```
+3. **Add to command suggestions** in `generateCommandSuggestion()`
+4. **Update README** with command parity table
+5. **Test both keyboard and command interfaces**
+
+#### **Examples:**
+```go
+// ✅ Correct command parity implementation
+case "archive", "a":
+    a.executeArchiveCommand(args)
+case "trash", "d": 
+    a.executeTrashCommand(args)
+case "read", "toggle-read", "t":
+    a.executeToggleReadCommand(args)
+```
+
+#### **Benefits:**
+- **Accessibility** - Users can discover functionality through commands
+- **Consistency** - Every action has multiple ways to access
+- **Bulk support** - Commands automatically detect and respect bulk mode
+- **Discoverability** - Tab completion helps users learn available actions
 
 ## 🛠️ **Build & Test Commands**
 - `make build` - Build the application

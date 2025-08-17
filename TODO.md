@@ -22,7 +22,6 @@
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
 - [ ] **Change configuration directory** - Migrate from `~/.config/gmail-tui/` to `~/.config/giztui/` to reflect current tool name
-- [ ] **Command parity with shortcuts** - Ensure every keyboard shortcut has an equivalent command (`:` mode)
 - [ ] Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
 
 ### 🔍 Search & Filter Enhancements
@@ -224,6 +223,7 @@
 - [x] **Command bar border** - Add visual border to command bar for better UX
 - [x] **Command bar focus** - Automatically focus command bar when activated
 - [x] **Command suggestions** - Show suggestions in brackets when typing commands
+- [x] **Command parity with shortcuts** - Every keyboard shortcut has an equivalent command (`:` mode)
 
 ### Interface Improvements (Completed)
 - [x] **Vertical layout** - Stacked layout with list, content, commands, and status

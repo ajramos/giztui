@@ -348,6 +348,29 @@ Environment Variables:
 For all other settings (LLM, timeouts, etc.), edit the config file.
 ```
 
+### 🎯 **Command Parity with Shortcuts**
+
+Every keyboard shortcut has an equivalent command for better accessibility and discoverability:
+
+| Keyboard | Command | Action |
+|----------|---------|--------|
+| `a` | `:archive` or `:a` | Archive message(s) |
+| `d` | `:trash` or `:d` | Move to trash |
+| `t` | `:read` or `:toggle-read` or `:t` | Toggle read/unread status |
+| `r` | `:reply` or `:r` | Reply to message |
+| `n` | `:compose` or `:new` | Compose new message |
+| `u` | `:unread` or `:u` | Show unread messages |
+| `R` | `:refresh` | Refresh message list |
+| `s` | `:search` | Search messages |
+| `l` | `:labels` or `:l` | Manage labels |
+| `K` | `:slack` | Forward to Slack |
+
+**Features:**
+- ✅ **Bulk mode support** - Commands automatically detect bulk mode and act on selected messages
+- ✅ **Context awareness** - `:refresh` loads drafts when in draft mode, messages otherwise
+- ✅ **Short aliases** - Most commands have both full names and short aliases
+- ✅ **Autocompletion** - All commands work with the existing Tab completion system
+
 ### Keyboard shortcuts
 
 | Key | Action |
