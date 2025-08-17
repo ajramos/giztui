@@ -117,6 +117,16 @@ app.currentMessageID = messageID    // Race condition
 3. Add setter method with `Lock()`
 4. Use proper copying for slices/maps
 
+## 🎯 **UI Focus Management**
+
+For detailed information about focus management, border highlighting, and side panel patterns, see:
+**📖 [Focus Management Guide](./FOCUS_MANAGEMENT.md)**
+
+Key concepts:
+- **Reuse "labels" focus state** for all side panel pickers (labels, links, prompts)
+- **Command parity** - Ensure `:command` behaves identically to keyboard shortcuts
+- **Consistent UI patterns** - All pickers use same container and focus restoration
+
 ## 🚨 **Error Handling Patterns**
 
 ### ✅ **Use ErrorHandler for All User Feedback**

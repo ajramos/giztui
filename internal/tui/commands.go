@@ -479,8 +479,9 @@ func (a *App) executeSlackCommand(args []string) {
 		}
 	}
 
-	// Show the Slack forwarding panel
-	a.showSlackForwardDialog()
+	// Show the Slack forwarding panel  
+	// Ensure proper focus management like keyboard shortcut
+	go a.showSlackForwardDialog()
 }
 
 // executeRSVPCommand handles :rsvp commands

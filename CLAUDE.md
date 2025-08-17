@@ -248,6 +248,7 @@ Study these existing implementations:
 - `internal/tui/error_handler.go` - Error handling pattern
 - `internal/tui/keys.go` - ESC key handling with streaming cancellation
 - `internal/tui/bulk_prompts.go` - Synchronous UI cleanup (`exitBulkMode`, `hideAIPanel`)
+- `docs/FOCUS_MANAGEMENT.md` - UI focus patterns and side panel picker architecture
 
 ## 🎯 **Development Workflow**
 
@@ -382,6 +383,7 @@ func (a *App) newBulkOperation() {
 
 Always update:
 - `docs/ARCHITECTURE.md` for architectural changes
+- `docs/FOCUS_MANAGEMENT.md` for UI focus patterns and side panel behavior
 - `README.md` for user-facing features
 - `TODO.md` for completed tasks
 - `CLAUDE.md` for debugging sessions and architectural lessons learned
