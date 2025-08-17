@@ -69,6 +69,18 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Keyboard shortcut** - `Shift+O` for quick ingestion
 - ✅ **Panel interface** - Clean side panel (not modal) for template preview
 
+### 🔗 **Link Picker** 🆕
+- ✅ **Smart link detection** - Automatically extract links from HTML and plain text emails
+- ✅ **Quick access** - Press `L` to open link picker or use `:links` command
+- ✅ **Cross-platform opening** - Native browser opening on macOS, Linux, Windows
+- ✅ **Advanced search** - Filter links by text, domain (`domain:github.com`), or type
+- ✅ **Visual categorization** - Icons for different link types (🌐 external, 📧 email, 📁 files)
+- ✅ **Keyboard navigation** - Arrow keys to browse, Enter to open, 1-9 for quick access
+- ✅ **Multiple protocols** - Support for HTTP/HTTPS, FTP/FTPS, and mailto links
+- ✅ **Real clipboard copy** - Copy URLs with `Ctrl+Y` (cross-platform clipboard support)
+- ✅ **Status bar preview** - See full URLs in status bar while navigating
+- ✅ **Instant feedback** - Live URL display and success messages
+
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
 - ✅ **Multiple layout modes** - Wide, medium, narrow, and mobile layouts
@@ -370,6 +382,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `R` | `:refresh` | Refresh message list |
 | `s` | `:search` | Search messages |
 | `l` | `:labels` or `:l` | Manage labels |
+| `L` | `:links` or `:link` | Open link picker |
 | `K` | `:slack` | Forward to Slack |
 
 **Features:**
@@ -401,6 +414,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `w` | Save current message to file (.txt, rendered) |
 | `W` | Save current message as raw .eml (server format) |
 | `l` | Manage labels (contextual panel) |
+| `L` | 🆕 **Open link picker** |
 | `m` | Move message (choose label) |
 | `M` | Toggle Markdown rendering |
 | `y` | Toggle AI summary |
