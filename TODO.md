@@ -35,6 +35,32 @@
 - [ ] **Update README** - Parts of README are outdated and need refresh
 - [ ] **Change configuration directory** - Migrate from `~/.config/gmail-tui/` to `~/.config/giztui/` to reflect current tool name
 - [ ] **Command parity with shortcuts** - Ensure every keyboard shortcut has an equivalent command (`:` mode)
+
+## 🔍 **Search & Filter Enhancements**
+- [ ] **Fix has:attachment filter** - Resolve issues with attachment-based email filtering
+- [ ] **Improve date range search** - Enhanced date filtering with after:/before: operators
+- [ ] **Add size-based email search** - Search emails by size (>1MB, <500KB, etc.)
+- [ ] **Local indexing for fast searches** - Build local search index for performance improvements
+- [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
+
+## 🎨 **UX & Accessibility Improvements**
+- [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
+- [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
+- [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
+- [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
+- [ ] **Efficient Gmail syncing** - Partial offline mode with smart sync optimization
+
+## 📊 **Analytics & Telemetry**
+- [ ] **Privacy-first local telemetry** - Track usage, shortcuts, timings, and errors locally only
+- [ ] **Built-in analytics dashboard** - TUI-based productivity metrics and usage statistics
+- [ ] **Telemetry export/reset** - Easy data export and privacy controls (no remote upload)
+- [ ] **Personal productivity reports** - Simple graphs for weekly/monthly email processing review
+
+## 🔧 **Development & Quality**
+- [ ] **Enhanced testing coverage** - Tests for complex functionalities (shortcuts, filters, AI)
+- [ ] **CI pipeline implementation** - Continuous integration for quality assurance
+- [ ] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
+- [ ] **Configurable plugin shortcuts** - Custom actions and keyboard shortcuts for plugins
 - Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
 
 ### Email Management
