@@ -23,4 +23,5 @@ Available variables:
 - {{to}} - Recipient email address
 - {{cc}} - CC recipients
 - {{bcc}} - BCC recipients
+- {{comment}} - User's pre-message (optional, from UI input)
 -->
