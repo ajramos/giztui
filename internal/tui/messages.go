@@ -1826,8 +1826,7 @@ func (a *App) saveCurrentMessageToFile() {
 		content := header + "\n\n" + txt
 
 		// Resolve config dir and saved folder
-		home, _ := os.UserHomeDir()
-		base := filepath.Join(home, ".config", "gmail-tui", "saved")
+		base := config.DefaultSavedDir()
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
 			return
@@ -1888,8 +1887,7 @@ func (a *App) saveCurrentMessageRawEML() {
 				}
 			}
 		}
-		home, _ := os.UserHomeDir()
-		base := filepath.Join(home, ".config", "gmail-tui", "saved")
+		base := config.DefaultSavedDir()
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
 			return

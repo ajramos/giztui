@@ -2,6 +2,10 @@
 
 ## 🎯 TODO - Active Roadmap
 
+## Issues
+- [ ]When moving an email to a specific label and archive it, the message list is reloaded, and it should not.
+
+
 ### Priorities
 - [ ] Improve status bar experience
 - [ ] Improve legend
@@ -21,7 +25,6 @@
 - [ ] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
-- [ ] **Change configuration directory** - Migrate from `~/.config/gmail-tui/` to `~/.config/giztui/` to reflect current tool name
 - [ ] Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
 
 ### 🔍 Search & Filter Enhancements
@@ -224,6 +227,9 @@
 - [x] **Command bar focus** - Automatically focus command bar when activated
 - [x] **Command suggestions** - Show suggestions in brackets when typing commands
 - [x] **Command parity with shortcuts** - Every keyboard shortcut has an equivalent command (`:` mode)
+
+### Infrastructure & Polish (Completed)
+- [x] **Change configuration directory** - Migrate from `~/.config/gmail-tui/` to `~/.config/giztui/` to reflect current tool name
 
 ### Interface Improvements (Completed)
 - [x] **Vertical layout** - Stacked layout with list, content, commands, and status

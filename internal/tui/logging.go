@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/ajramos/gmail-tui/internal/config"
 )
 
 // initLogger initializes file logger under ~/.config/gmail-tui/gmail-tui.log if possible
@@ -20,8 +22,8 @@ func (a *App) initLogger() {
 		}
 		// if it fails, fall back to default path
 	}
-	if home, err := os.UserHomeDir(); err == nil {
-		logDir := filepath.Join(home, ".config", "gmail-tui")
+	logDir := config.DefaultLogDir()
+	if logDir != "" {
 		if err := os.MkdirAll(logDir, 0o755); err == nil {
 			lf := filepath.Join(logDir, "gmail-tui.log")
 			if f, err := os.OpenFile(lf, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {

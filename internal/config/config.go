@@ -251,7 +251,7 @@ func DefaultConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".config", "gmail-tui", "config.json")
+	return filepath.Join(home, ".config", "giztui", "config.json")
 }
 
 // DefaultCredentialPaths returns the default paths for credentials and token
@@ -261,11 +261,38 @@ func DefaultCredentialPaths() (string, string) {
 		return "", ""
 	}
 
-	configDir := filepath.Join(home, ".config", "gmail-tui")
+	configDir := filepath.Join(home, ".config", "giztui")
 	credentialsPath := filepath.Join(configDir, "credentials.json")
 	tokenPath := filepath.Join(configDir, "token.json")
 
 	return credentialsPath, tokenPath
+}
+
+// DefaultCacheDir returns the default cache directory path
+func DefaultCacheDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "giztui", "cache")
+}
+
+// DefaultSavedDir returns the default saved files directory path
+func DefaultSavedDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "giztui", "saved")
+}
+
+// DefaultLogDir returns the default log directory path
+func DefaultLogDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "giztui")
 }
 
 // SaveConfig saves the configuration to a file

@@ -20,8 +20,8 @@ import (
 
 func main() {
 	// Essential command line flags only (GNU-style double dashes)
-	configPathFlag := flag.String("config", "", "Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)")
-	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)")
+	configPathFlag := flag.String("config", "", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
+	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
 	
 	// Override flag usage text to show clean, simple usage
@@ -34,8 +34,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s --setup                # Run interactive setup wizard\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --config custom.json   # Use custom configuration\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Options:\n")
-		fmt.Fprintf(os.Stderr, "  --config string\n        %s\n", "Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)")
-		fmt.Fprintf(os.Stderr, "  --credentials string\n        %s\n", "Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)")
+		fmt.Fprintf(os.Stderr, "  --config string\n        %s\n", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
+		fmt.Fprintf(os.Stderr, "  --credentials string\n        %s\n", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 		fmt.Fprintf(os.Stderr, "  --setup\n        %s\n\n", "Run interactive setup wizard")
 		fmt.Fprintf(os.Stderr, "Environment Variables:\n")
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CONFIG      Override default config file path\n")
@@ -147,7 +147,7 @@ func main() {
 	var store *db.Store
 	if cfg.AISummaryCacheEnabled {
 		email, _ := gmailClient.ActiveAccountEmail(ctx)
-		baseDir := filepath.Join(os.Getenv("HOME"), ".config", "gmail-tui", "cache")
+		baseDir := config.DefaultCacheDir()
 		if cfg.AISummaryCachePath != "" {
 			baseDir = cfg.AISummaryCachePath
 		}
@@ -183,7 +183,7 @@ func main() {
 // getConfigPath returns the configuration file path using the following priority:
 // 1. CLI flag
 // 2. Environment variable GMAIL_TUI_CONFIG
-// 3. Default path ~/.config/gmail-tui/config.json
+// 3. Default path ~/.config/giztui/config.json
 func getConfigPath(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
@@ -200,7 +200,7 @@ func getConfigPath(flagValue string) string {
 // 1. CLI flag
 // 2. Environment variable GMAIL_TUI_CREDENTIALS
 // 3. Config file setting
-// 4. Default path ~/.config/gmail-tui/credentials.json
+// 4. Default path ~/.config/giztui/credentials.json
 func getCredentialsPath(flagValue, configValue string) string {
 	if flagValue != "" {
 		return flagValue
@@ -222,7 +222,7 @@ func getCredentialsPath(flagValue, configValue string) string {
 // 1. CLI flag
 // 2. Environment variable GMAIL_TUI_TOKEN
 // 3. Config file setting
-// 4. Default path ~/.config/gmail-tui/token.json
+// 4. Default path ~/.config/giztui/token.json
 func getTokenPath(flagValue, configValue string) string {
 	if flagValue != "" {
 		return flagValue

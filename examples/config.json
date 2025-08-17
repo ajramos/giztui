@@ -1,6 +1,6 @@
 {
-  "credentials": "~/.config/gmail-tui/credentials.json",
-  "token": "~/.config/gmail-tui/token.json",
+  "credentials": "~/.config/giztui/credentials.json",
+  "token": "~/.config/giztui/token.json",
   "ollama_endpoint": "http://localhost:11434",
   "ollama_model": "llama3.2:latest",
   "ollama_timeout": "30s",

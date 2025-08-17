@@ -254,17 +254,24 @@ go install github.com/ajramos/gmail-tui/cmd/gmail-tui@latest
 The application uses a unified configuration directory structure:
 
 ```
-~/.config/gmail-tui/
+~/.config/giztui/
 ├── config.json      # Application configuration
 ├── credentials.json # Gmail API credentials (OAuth2)
 └── token.json      # OAuth2 token cache
+```
+
+**Migration from gmail-tui**: If you previously used Gmail TUI with the old `~/.config/gmail-tui/` directory, simply copy your files to the new location:
+
+```bash
+# One-time migration (if you have an old gmail-tui directory)
+cp -r ~/.config/gmail-tui/* ~/.config/giztui/
 ```
 
 ### Setup Steps:
 
 1. **Create the configuration directory:**
    ```bash
-   mkdir -p ~/.config/gmail-tui
+   mkdir -p ~/.config/giztui
    ```
 
 2. **Download Gmail API credentials:**
@@ -272,12 +279,12 @@ The application uses a unified configuration directory structure:
    - Create a new project or select existing one
    - Enable the Gmail API
    - Create OAuth2 credentials (Desktop application)
-   - Download the JSON file and save it as `~/.config/gmail-tui/credentials.json`
+   - Download the JSON file and save it as `~/.config/giztui/credentials.json`
    - See `examples/credentials.json.example` for the expected format
 
 3. **Copy the example configuration:**
    ```bash
-   cp examples/config.json ~/.config/gmail-tui/config.json
+   cp examples/config.json ~/.config/giztui/config.json
    ```
 
 4. **Optional: Configure Ollama for AI features:**
@@ -309,9 +316,9 @@ For advanced users or automation:
 
 ```bash
 # Override default paths
-export GMAIL_TUI_CONFIG=~/.config/gmail-tui/config.json
-export GMAIL_TUI_CREDENTIALS=~/.config/gmail-tui/credentials.json
-export GMAIL_TUI_TOKEN=~/.config/gmail-tui/token.json
+export GMAIL_TUI_CONFIG=~/.config/giztui/config.json
+export GMAIL_TUI_CREDENTIALS=~/.config/giztui/credentials.json
+export GMAIL_TUI_TOKEN=~/.config/giztui/token.json
 
 # Run with environment settings
 ./gmail-tui
@@ -334,9 +341,9 @@ Examples:
 
 Options:
   --config string
-        Path to JSON configuration file (default: ~/.config/gmail-tui/config.json)
+        Path to JSON configuration file (default: ~/.config/giztui/config.json)
   --credentials string
-        Path to OAuth client credentials JSON (default: ~/.config/gmail-tui/credentials.json)
+        Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)
   --setup
         Run interactive setup wizard
 
@@ -604,7 +611,7 @@ Format your response with clear sections and bullet points.
 
 #### 💬 **Slack Configuration** 🆕
 
-Enable Slack integration by adding the configuration to `~/.config/gmail-tui/config.json`:
+Enable Slack integration by adding the configuration to `~/.config/giztui/config.json`:
 
 ```json
 {
@@ -662,7 +669,7 @@ All email headers and content are available as variables in your custom prompts:
 
 #### LLM Configuration (providers)
 
-You can use a pluggable LLM provider. Configure in `~/.config/gmail-tui/config.json`:
+You can use a pluggable LLM provider. Configure in `~/.config/giztui/config.json`:
 
 ```json
 {
@@ -702,7 +709,7 @@ Notes for Bedrock on-demand:
 Run with a custom config:
 
 ```bash
-AWS_PROFILE=your-profile ./gmail-tui --config ~/.config/gmail-tui/config.bedrock.json
+AWS_PROFILE=your-profile ./gmail-tui --config ~/.config/giztui/config.bedrock.json
 ```
 
 Minimal debugging example (standalone):
@@ -722,7 +729,7 @@ References: Bedrock Go v2 examples for streaming and invocation (ModelId) — se
 
 #### Prompt templates
 
-Prompts for AI features are configurable via `~/.config/gmail-tui/config.json`.
+Prompts for AI features are configurable via `~/.config/giztui/config.json`.
 
 - `summarize_prompt`: Used when pressing `y` to summarize the current email. Supports the placeholder `{{body}}` which is replaced with the email plain text.
 - `label_prompt`: Used when pressing `o` to suggest labels. Supports placeholders `{{labels}}` (comma-separated list of allowed labels) and `{{body}}` (email plain text).
@@ -745,7 +752,7 @@ Notes:
 
 The app uses an embedded SQLite database (no external server) to cache AI summaries and prompt results:
 
-- **Default location**: `~/.config/gmail-tui/cache/{account_email}.sqlite3`
+- **Default location**: `~/.config/giztui/cache/{account_email}.sqlite3`
 - **Per-account separation** by filename
 - **PRAGMAs tuned for TUI** (WAL, foreign keys, timeouts)
 - **Multiple cache types**: AI summaries, single prompts, bulk prompts
@@ -1009,7 +1016,7 @@ Notes:
 
 ### Configuration
 
-Config fields (in `~/.config/gmail-tui/config.json`):
+Config fields (in `~/.config/giztui/config.json`):
 
 ```json
 {
@@ -1031,7 +1038,7 @@ The Prompt Library system is automatically initialized with default prompts on f
 
 **Database Location:**
 - Prompts and results are stored in the same SQLite database as AI summaries
-- Location: `~/.config/gmail-tui/gmail-tui-{account}.db`
+- Location: `~/.config/giztui/gmail-tui-{account}.db`
 
 **Default Prompts:**
 The system comes with pre-configured prompts:
@@ -1045,7 +1052,7 @@ You can add your own prompt templates directly to the database using SQLite comm
 
 ```bash
 # Connect to your database (replace {your-email} with your actual email)
-sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db
+sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db
 
 # Add a custom prompt
 INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
@@ -1089,7 +1096,7 @@ The prompt library uses SQLite for storage. You can directly manage prompts usin
 **Connect to Database:**
 ```bash
 # Replace {your-email} with your actual email address
-sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db
+sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db
 ```
 
 **View Existing Prompts:**
@@ -1170,15 +1177,15 @@ UPDATE prompt_templates SET usage_count = 0;
 **Backup and Restore:**
 ```bash
 # Backup prompts to SQL file
-sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db \
   ".dump prompt_templates" > prompts_backup.sql
 
 # Restore from backup
-sqlite3 ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db \
   ".read prompts_backup.sql"
 
 # Export prompts to CSV
-sqlite3 -header -csv ~/.config/gmail-tui/gmail-tui-{your-email}.db \
+sqlite3 -header -csv ~/.config/giztui/gmail-tui-{your-email}.db \
   "SELECT * FROM prompt_templates;" > prompts.csv
 ```
 
@@ -1212,7 +1219,7 @@ sqlite3 -header -csv ~/.config/gmail-tui/gmail-tui-{your-email}.db \
 - Regular prompts are filtered out from bulk mode picker
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
-Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/gmail-tui/gmail-tui.log`.
+Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/giztui/gmail-tui.log`.
 
 ### Internals
 
@@ -1256,7 +1263,7 @@ Gmail TUI includes a powerful Obsidian integration that allows you to ingest ema
 
 ### Configuration
 
-Add this section to your `~/.config/gmail-tui/config.json`:
+Add this section to your `~/.config/giztui/config.json`:
 
 ```json
 {
@@ -1402,7 +1409,7 @@ tags: [project, update]
 
 **Database Location:**
 The ingestion history is stored in the same SQLite database as other features:
-`~/.config/gmail-tui/cache/{account_email}.sqlite3`
+`~/.config/giztui/cache/{account_email}.sqlite3`
 
 **Table Structure:**
 ```sql

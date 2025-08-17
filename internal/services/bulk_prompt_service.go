@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 )
 
@@ -347,12 +348,10 @@ func (s *BulkPromptServiceImpl) buildBulkPrompt(promptText string, combinedConte
 // savePromptToFile saves the prompt and content to a file for debugging
 func (s *BulkPromptServiceImpl) savePromptToFile(promptID int, promptName string, messageIDs []string, originalPrompt string, finalPrompt string, combinedContent string) {
 	// Use the configuration directory for saved files
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return // Silently fail if we can't get home directory
+	savedDir := config.DefaultSavedDir()
+	if savedDir == "" {
+		return // Silently fail if we can't get saved directory
 	}
-
-	savedDir := filepath.Join(homeDir, ".config", "gmail-tui", "saved")
 	if err := os.MkdirAll(savedDir, 0755); err != nil {
 		return // Silently fail if we can't create directory
 	}
