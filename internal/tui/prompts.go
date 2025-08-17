@@ -361,7 +361,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	}
 
 	// Try streaming if enabled and supported
-	if a.Config != nil && a.Config.LLMStreamEnabled {
+	if a.Config != nil && a.Config.LLM.StreamEnabled {
 		if prov, ok := a.LLM.(interface{ Name() string }); ok && prov.Name() == "ollama" {
 			if streamer, ok2 := a.LLM.(interface {
 				GenerateStream(context.Context, string, func(string)) error

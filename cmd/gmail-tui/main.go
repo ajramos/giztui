@@ -104,30 +104,20 @@ func main() {
 
 	// Initialize LLM provider
 	var llmProvider llm.Provider
-	if cfg.LLMEnabled {
-		model := cfg.LLMModel
-		if model == "" && cfg.OllamaModel != "" {
-			model = cfg.OllamaModel
-		}
-
+	if cfg.LLM.Enabled {
+		model := cfg.LLM.Model
 		timeout := cfg.GetLLMTimeout()
-		if cfg.OllamaTimeout != "" {
-			timeout = cfg.GetOllamaTimeout()
-		}
 
 		if model != "" {
-			providerName := cfg.LLMProvider
+			providerName := cfg.LLM.Provider
 			if providerName == "" {
 				providerName = "ollama"
 			}
 
-			arg := cfg.LLMEndpoint
-			if arg == "" && cfg.OllamaEndpoint != "" {
-				arg = cfg.OllamaEndpoint
-			}
+			arg := cfg.LLM.Endpoint
 
 			if providerName == "bedrock" {
-				region := cfg.LLMRegion
+				region := cfg.LLM.Region
 				if region == "" {
 					if env := os.Getenv("AWS_REGION"); env != "" {
 						region = env
@@ -136,7 +126,7 @@ func main() {
 				arg = region
 			}
 			var err error
-			llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLMAPIKey)
+			llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLM.APIKey)
 			if err != nil {
 				log.Printf("Warning: could not initialize LLM provider (%s): %v", providerName, err)
 			}
@@ -145,11 +135,11 @@ func main() {
 
 	// Optional: open database store for AI summaries and prompts
 	var store *db.Store
-	if cfg.AISummaryCacheEnabled {
+	if cfg.LLM.CacheEnabled {
 		email, _ := gmailClient.ActiveAccountEmail(ctx)
 		baseDir := config.DefaultCacheDir()
-		if cfg.AISummaryCachePath != "" {
-			baseDir = cfg.AISummaryCachePath
+		if cfg.LLM.CachePath != "" {
+			baseDir = cfg.LLM.CachePath
 		}
 		dbPath := baseDir
 		if ext := filepath.Ext(baseDir); ext == "" || ext == "." {

@@ -669,21 +669,28 @@ All email headers and content are available as variables in your custom prompts:
 
 #### LLM Configuration (providers)
 
-You can use a pluggable LLM provider. Configure in `~/.config/giztui/config.json`:
+Configure AI/LLM settings under the unified `llm` object in `~/.config/giztui/config.json`:
 
 ```json
 {
-  "llm_enabled": true,
-  "llm_provider": "ollama",          // ollama|bedrock (supported now)
-  "llm_model": "llama3.2:latest",
-  "llm_endpoint": "http://localhost:11434/api/generate",
-  "llm_api_key": "",
-  "llm_timeout": "20s",
-  "llm_stream_enabled": true
+  "llm": {
+    "enabled": true,
+    "provider": "ollama",
+    "model": "llama3.2:latest",
+    "endpoint": "http://localhost:11434/api/generate",
+    "api_key": "",
+    "timeout": "20s",
+    "stream_enabled": true,
+    "stream_chunk_ms": 60,
+    "cache_enabled": true,
+    "cache_path": "",
+    "summarize_prompt": "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
+    "reply_prompt": "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
+    "label_prompt": "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
+    "touch_up_prompt": "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
+  }
 }
 ```
-
-Ollama specific legacy fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) are still supported for backward compatibility.
 
 ##### Amazon Bedrock (on-demand)
 
@@ -691,11 +698,13 @@ To use Amazon Bedrock instead of Ollama:
 
 ```json
 {
-  "llm_enabled": true,
-  "llm_provider": "bedrock",
-  "llm_model": "us.anthropic.claude-3-5-haiku-20241022-v1:0", // on-demand ID, include region/vendor and revision :0
-  "llm_region": "us-east-1",
-  "llm_timeout": "20s"
+  "llm": {
+    "enabled": true,
+    "provider": "bedrock",
+    "model": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "region": "us-east-1",
+    "timeout": "20s"
+  }
 }
 ```
 
@@ -1236,10 +1245,6 @@ Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defa
 ### UI and Focus Issues
 - **`:slack` command focus** - When using the `:slack` command, focus doesn't automatically go to the Slack forwarding widget. Use the `K` key instead for proper focus behavior.
 - **Advanced search UI** - The advanced search scope selection has visual issues where the page doesn't update cleanly, leaving orphan letters when navigating up and down through options.
-
-### Configuration Issues
-- **LLM configuration duplication** - The configuration currently has both legacy Ollama fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) and new LLM fields (`llm_provider`, `llm_model`, `llm_timeout`). This creates confusion and inconsistent timeout values.
-- **Scattered AI configuration** - LLM settings, prompts, and cache settings are mixed throughout the config instead of being grouped under a unified `ai` or `llm` section.
 
 ### Pending Features  
 - **Slack template comments** - The `{{comment}}` variable is not yet available in Slack summary prompt templates. User messages are displayed separately above the summary.

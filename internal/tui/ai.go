@@ -281,7 +281,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 		}
 
 		// Build prompt from configuration template, with a sensible fallback
-		template := strings.TrimSpace(a.Config.SummarizePrompt)
+		template := strings.TrimSpace(a.Config.LLM.SummarizePrompt)
 		if template == "" {
 			template = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 		}
@@ -375,7 +375,7 @@ func (a *App) forceRegenerateSummary() {
 	// Remove from in-memory cache
 	delete(a.aiSummaryCache, id)
 	// Remove from SQLite cache (best-effort)
-	if a.dbStore != nil && a.Config != nil && a.Config.AISummaryCacheEnabled {
+	if a.dbStore != nil && a.Config != nil && a.Config.LLM.CacheEnabled {
 		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
 			cacheStore := db.NewCacheStore(a.dbStore)
 			_ = cacheStore.DeleteAISummary(a.ctx, strings.ToLower(email), id)
@@ -447,7 +447,7 @@ func (a *App) suggestLabel() {
 			body = string([]rune(body)[:6000])
 		}
 		// Build prompt from configuration template, with a sensible fallback
-		template := strings.TrimSpace(a.Config.LabelPrompt)
+		template := strings.TrimSpace(a.Config.LLM.LabelPrompt)
 		if template == "" {
 			template = "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
 		}

@@ -9,30 +9,24 @@ import (
 	"github.com/ajramos/gmail-tui/internal/obsidian"
 )
 
-// Config holds all configuration for the Gmail TUI application
-type Config struct {
-	Credentials    string `json:"credentials"`
-	Token          string `json:"token"`
-	OllamaEndpoint string `json:"ollama_endpoint"`
-	OllamaModel    string `json:"ollama_model"`
-	OllamaTimeout  string `json:"ollama_timeout"`
+// LLMConfig holds all LLM-related configuration
+type LLMConfig struct {
+	// Core LLM settings
+	Enabled  bool   `json:"enabled"`
+	Provider string `json:"provider"` // ollama, openai, anthropic, bedrock, custom
+	Model    string `json:"model"`
+	Endpoint string `json:"endpoint"`
+	Region   string `json:"region"`  // For AWS Bedrock
+	APIKey   string `json:"api_key"`
+	Timeout  string `json:"timeout"`
 
-	// Generic LLM configuration
-	LLMEnabled  bool   `json:"llm_enabled"`
-	LLMProvider string `json:"llm_provider"` // ollama, openai, anthropic, custom
-	LLMModel    string `json:"llm_model"`
-	LLMEndpoint string `json:"llm_endpoint"`
-	// For providers that use regions (e.g., Bedrock), prefer LLMRegion over LLMEndpoint
-	LLMRegion  string `json:"llm_region"`
-	LLMAPIKey  string `json:"llm_api_key"`
-	LLMTimeout string `json:"llm_timeout"`
-	// Streaming
-	LLMStreamEnabled bool `json:"llm_stream_enabled"`
-	LLMStreamChunkMs int  `json:"llm_stream_chunk_ms"`
+	// Streaming configuration
+	StreamEnabled bool `json:"stream_enabled"`
+	StreamChunkMs int  `json:"stream_chunk_ms"`
 
-	// AI summary cache (SQLite)
-	AISummaryCacheEnabled bool   `json:"ai_summary_cache_enabled"`
-	AISummaryCachePath    string `json:"ai_summary_cache_path"`
+	// Caching configuration
+	CacheEnabled bool   `json:"cache_enabled"`
+	CachePath    string `json:"cache_path"`
 
 	// Prompt templates for LLM interactions
 	SummarizePrompt string `json:"summarize_prompt"`
@@ -40,6 +34,15 @@ type Config struct {
 	LabelPrompt     string `json:"label_prompt"`
 	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
 	TouchUpPrompt string `json:"touch_up_prompt"`
+}
+
+// Config holds all configuration for the Gmail TUI application
+type Config struct {
+	Credentials string `json:"credentials"`
+	Token       string `json:"token"`
+
+	// LLM configuration (unified)
+	LLM LLMConfig `json:"llm"`
 
 	// Slack integration
 	Slack SlackConfig `json:"slack"`
@@ -146,24 +149,30 @@ type KeyBindings struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		OllamaTimeout:         "30s",
-		LLMEnabled:            true,
-		LLMProvider:           "ollama",
-		LLMModel:              "llama3.2:latest",
-		LLMEndpoint:           "http://localhost:11434/api/generate",
-		LLMTimeout:            "20s",
-		LLMStreamEnabled:      true,
-		LLMStreamChunkMs:      60,
-		AISummaryCacheEnabled: true,
-		AISummaryCachePath:    "",
-		SummarizePrompt:       "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
-		ReplyPrompt:           "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
-		LabelPrompt:           "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
-		TouchUpPrompt:         "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
-		Slack:                 DefaultSlackConfig(),
-		Layout:                DefaultLayoutConfig(),
-		Keys:                  DefaultKeyBindings(),
-		LogFile:               "",
+		LLM:     DefaultLLMConfig(),
+		Slack:   DefaultSlackConfig(),
+		Layout:  DefaultLayoutConfig(),
+		Keys:    DefaultKeyBindings(),
+		LogFile: "",
+	}
+}
+
+// DefaultLLMConfig returns default LLM configuration
+func DefaultLLMConfig() LLMConfig {
+	return LLMConfig{
+		Enabled:         true,
+		Provider:        "ollama",
+		Model:           "llama3.2:latest",
+		Endpoint:        "http://localhost:11434/api/generate",
+		Timeout:         "20s",
+		StreamEnabled:   true,
+		StreamChunkMs:   60,
+		CacheEnabled:    true,
+		CachePath:       "",
+		SummarizePrompt: "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
+		ReplyPrompt:     "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
+		LabelPrompt:     "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
+		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
 	}
 }
 
@@ -311,23 +320,10 @@ func (c *Config) SaveConfig(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// GetOllamaTimeout returns the parsed timeout duration
-func (c *Config) GetOllamaTimeout() time.Duration {
-	if c.OllamaTimeout == "" {
-		return 30 * time.Second
-	}
-
-	if d, err := time.ParseDuration(c.OllamaTimeout); err == nil {
-		return d
-	}
-
-	return 30 * time.Second
-}
-
-// GetLLMTimeout returns parsed timeout for generic LLM
+// GetLLMTimeout returns parsed timeout for LLM
 func (c *Config) GetLLMTimeout() time.Duration {
-	if c.LLMTimeout != "" {
-		if d, err := time.ParseDuration(c.LLMTimeout); err == nil {
+	if c.LLM.Timeout != "" {
+		if d, err := time.ParseDuration(c.LLM.Timeout); err == nil {
 			return d
 		}
 	}

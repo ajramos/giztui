@@ -197,67 +197,12 @@ func (m *Manager) GetCredentialPaths() (string, string) {
 	return credPath, tokenPath
 }
 
-// GetLLMConfig returns LLM configuration with backwards compatibility
+// GetLLMConfig returns LLM configuration
 func (m *Manager) GetLLMConfig() LLMConfig {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	cfg := m.config
-
-	// Handle backwards compatibility with Ollama-specific config
-	endpoint := cfg.LLMEndpoint
-	model := cfg.LLMModel
-	timeout := cfg.GetLLMTimeout()
-	provider := cfg.LLMProvider
-
-	if endpoint == "" && cfg.OllamaEndpoint != "" {
-		endpoint = cfg.OllamaEndpoint
-	}
-
-	if model == "" && cfg.OllamaModel != "" {
-		model = cfg.OllamaModel
-	}
-
-	if cfg.OllamaTimeout != "" {
-		timeout = cfg.GetOllamaTimeout()
-	}
-
-	if provider == "" {
-		provider = "ollama"
-	}
-
-	return LLMConfig{
-		Enabled:         cfg.LLMEnabled,
-		Provider:        provider,
-		Model:           model,
-		Endpoint:        endpoint,
-		Region:          cfg.LLMRegion,
-		APIKey:          cfg.LLMAPIKey,
-		Timeout:         timeout,
-		StreamEnabled:   cfg.LLMStreamEnabled,
-		StreamChunkMs:   cfg.LLMStreamChunkMs,
-		SummarizePrompt: cfg.SummarizePrompt,
-		ReplyPrompt:     cfg.ReplyPrompt,
-		LabelPrompt:     cfg.LabelPrompt,
-		TouchUpPrompt:   cfg.TouchUpPrompt,
-	}
-}
-
-// LLMConfig represents LLM configuration
-type LLMConfig struct {
-	Enabled         bool
-	Provider        string
-	Model           string
-	Endpoint        string
-	Region          string
-	APIKey          string
-	Timeout         time.Duration
-	StreamEnabled   bool
-	StreamChunkMs   int
-	SummarizePrompt string
-	ReplyPrompt     string
-	LabelPrompt     string
-	TouchUpPrompt   string
+	return m.config.LLM
 }
 
 // validateConfig validates the configuration
@@ -267,20 +212,14 @@ func (m *Manager) validateConfig(cfg *Config) error {
 	}
 
 	// Validate LLM configuration if enabled
-	if cfg.LLMEnabled {
-		if cfg.LLMProvider == "" && cfg.LLMModel == "" && cfg.OllamaModel == "" {
+	if cfg.LLM.Enabled {
+		if cfg.LLM.Provider == "" && cfg.LLM.Model == "" {
 			return fmt.Errorf("LLM is enabled but no model specified")
 		}
 
-		if cfg.LLMTimeout != "" {
-			if _, err := time.ParseDuration(cfg.LLMTimeout); err != nil {
+		if cfg.LLM.Timeout != "" {
+			if _, err := time.ParseDuration(cfg.LLM.Timeout); err != nil {
 				return fmt.Errorf("invalid LLM timeout: %w", err)
-			}
-		}
-
-		if cfg.OllamaTimeout != "" {
-			if _, err := time.ParseDuration(cfg.OllamaTimeout); err != nil {
-				return fmt.Errorf("invalid Ollama timeout: %w", err)
 			}
 		}
 	}
@@ -311,21 +250,21 @@ func (m *Manager) applyDefaults(cfg *Config) {
 		cfg.Layout = DefaultLayoutConfig()
 	}
 
-	// Apply default prompts if empty
-	if cfg.SummarizePrompt == "" {
-		cfg.SummarizePrompt = DefaultConfig().SummarizePrompt
+	// Apply default LLM configuration if empty
+	if cfg.LLM.SummarizePrompt == "" {
+		cfg.LLM.SummarizePrompt = DefaultLLMConfig().SummarizePrompt
 	}
 
-	if cfg.ReplyPrompt == "" {
-		cfg.ReplyPrompt = DefaultConfig().ReplyPrompt
+	if cfg.LLM.ReplyPrompt == "" {
+		cfg.LLM.ReplyPrompt = DefaultLLMConfig().ReplyPrompt
 	}
 
-	if cfg.LabelPrompt == "" {
-		cfg.LabelPrompt = DefaultConfig().LabelPrompt
+	if cfg.LLM.LabelPrompt == "" {
+		cfg.LLM.LabelPrompt = DefaultLLMConfig().LabelPrompt
 	}
 
-	if cfg.TouchUpPrompt == "" {
-		cfg.TouchUpPrompt = DefaultConfig().TouchUpPrompt
+	if cfg.LLM.TouchUpPrompt == "" {
+		cfg.LLM.TouchUpPrompt = DefaultLLMConfig().TouchUpPrompt
 	}
 }
 

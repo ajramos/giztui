@@ -61,7 +61,7 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 	}
 
 	// Build prompt
-	prompt := s.config.SummarizePrompt
+	prompt := s.config.LLM.SummarizePrompt
 	if prompt == "" {
 		prompt = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 	}
@@ -98,7 +98,7 @@ func (s *AIServiceImpl) GenerateReply(ctx context.Context, content string, optio
 	}
 
 	// Build prompt
-	prompt := s.config.ReplyPrompt
+	prompt := s.config.LLM.ReplyPrompt
 	if prompt == "" {
 		prompt = "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}"
 	}
@@ -132,7 +132,7 @@ func (s *AIServiceImpl) SuggestLabels(ctx context.Context, content string, avail
 	}
 
 	// Build prompt
-	prompt := s.config.LabelPrompt
+	prompt := s.config.LLM.LabelPrompt
 	if prompt == "" {
 		prompt = "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
 	}
@@ -185,7 +185,7 @@ func (s *AIServiceImpl) FormatContent(ctx context.Context, content string, optio
 	}
 
 	// Build prompt for content formatting
-	prompt := s.config.TouchUpPrompt
+	prompt := s.config.LLM.TouchUpPrompt
 	if prompt == "" {
 		prompt = "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
 	}
