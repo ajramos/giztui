@@ -166,8 +166,8 @@ func (s *LinkServiceImpl) extractLinksFromHTML(htmlContent string) []render.Link
 
 // extractLinksFromPlainText extracts URLs from plain text
 func (s *LinkServiceImpl) extractLinksFromPlainText(plainText string) []render.LinkRef {
-	// Use the same regex as in render/format.go
-	urlRegex := regexp.MustCompile(`(?i)\bhttps?://[\w\-\._~:/%\?#\[\]@!$&'()*+,;=]+`)
+	// Enhanced regex to support more URL schemes including ftp
+	urlRegex := regexp.MustCompile(`(?i)\b(https?|ftp|ftps)://[\w\-\._~:/%\?#\[\]@!$&'()*+,;=]+`)
 	matches := urlRegex.FindAllString(plainText, -1)
 	
 	var links []render.LinkRef

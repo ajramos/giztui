@@ -103,14 +103,19 @@ func (a *App) openLinkPicker() {
 			linkText := item.text
 
 			list.AddItem(display, secondary, 0, func() {
-				// Show URL in status line before opening
-				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", linkURL))
-				
-				// Close picker first
+				// Close picker first (synchronous)
 				a.closeLinkPicker()
 				
-				// Open link
-				go a.openSelectedLink(linkURL, linkText)
+				// Open link asynchronously
+				go func() {
+					// Show status message asynchronously
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", linkURL))
+					}()
+					
+					// Open the link
+					a.openSelectedLink(linkURL, linkText)
+				}()
 			})
 		}
 
@@ -178,9 +183,19 @@ func (a *App) openLinkPicker() {
 					num := int(e.Rune() - '0')
 					if num <= len(visible) && num > 0 {
 						item := visible[num-1]
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						go a.openSelectedLink(item.url, item.text)
+						
+						// Open link asynchronously
+						go func() {
+							// Show status message asynchronously
+							go func() {
+								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+							}()
+							
+							// Open the link
+							a.openSelectedLink(item.url, item.text)
+						}()
 						return nil
 					}
 				}
@@ -196,9 +211,19 @@ func (a *App) openLinkPicker() {
 				if key == tcell.KeyEnter {
 					if len(visible) > 0 {
 						item := visible[0]
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						go a.openSelectedLink(item.url, item.text)
+						
+						// Open link asynchronously
+						go func() {
+							// Show status message asynchronously
+							go func() {
+								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+							}()
+							
+							// Open the link
+							a.openSelectedLink(item.url, item.text)
+						}()
 					}
 				}
 			})
@@ -214,7 +239,7 @@ func (a *App) openLinkPicker() {
 
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 to open | Ctrl+C to copy | Esc to cancel ")
+			footer.SetText(" Enter/1-9 to open | Ctrl+Y to copy | Esc to cancel ")
 			footer.SetTextColor(tcell.ColorGray)
 			container.AddItem(footer, 1, 0, false)
 
@@ -230,24 +255,29 @@ func (a *App) openLinkPicker() {
 				}
 				// Show URL in status when navigating
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp {
+					// Small delay to let list update selection first
 					go func() {
-						// Small delay to let list update selection first
-						a.QueueUpdateDraw(func() {
-							currentItem := list.GetCurrentItem()
-							if currentItem >= 0 && currentItem < len(visible) {
-								item := visible[currentItem]
+						// Get current selection after navigation
+						currentItem := list.GetCurrentItem()
+						if currentItem >= 0 && currentItem < len(visible) {
+							item := visible[currentItem]
+							// Show URL in status bar asynchronously
+							go func() {
 								a.GetErrorHandler().ShowInfo(a.ctx, item.url)
-							}
-						})
+							}()
+						}
 					}()
 				}
-				// Support copying URL with Ctrl+C
-				if e.Key() == tcell.KeyCtrlC {
+				// Support copying URL with Ctrl+Y
+				if e.Key() == tcell.KeyCtrlY {
 					currentItem := list.GetCurrentItem()
 					if currentItem >= 0 && currentItem < len(visible) {
 						item := visible[currentItem]
 						a.copyToClipboard(item.url)
-						a.GetErrorHandler().ShowSuccess(a.ctx, "Link copied to clipboard")
+						// Show success message asynchronously
+						go func() {
+							a.GetErrorHandler().ShowSuccess(a.ctx, "Link copied to clipboard")
+						}()
 					}
 					return nil
 				}
@@ -256,9 +286,19 @@ func (a *App) openLinkPicker() {
 					num := int(e.Rune() - '0')
 					if num <= len(visible) && num > 0 {
 						item := visible[num-1]
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						go a.openSelectedLink(item.url, item.text)
+						
+						// Open link asynchronously
+						go func() {
+							// Show status message asynchronously
+							go func() {
+								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
+							}()
+							
+							// Open the link
+							a.openSelectedLink(item.url, item.text)
+						}()
 						return nil
 					}
 				}
