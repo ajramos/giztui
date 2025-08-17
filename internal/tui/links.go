@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/derailed/tcell/v2"
@@ -315,12 +317,23 @@ func (a *App) openLinkPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "links"
-			a.updateFocusIndicators("links")
+			a.currentFocus = "labels"  // Reuse labels focus state for consistency
+			a.updateFocusIndicators("labels")
 			a.labelsVisible = true // Reuse labels visibility state
 
 			// Initial load
 			reload("")
+			
+			// Set first item as selected for better UX
+			if list.GetItemCount() > 0 {
+				list.SetCurrentItem(0)
+				// Show first URL in status bar
+				if len(visible) > 0 {
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, visible[0].url)
+					}()
+				}
+			}
 		})
 	}()
 }
@@ -366,12 +379,45 @@ func (a *App) openSelectedLink(url, text string) {
 	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Opened: %s", displayText))
 }
 
-// copyToClipboard copies text to clipboard (simple implementation)
+// copyToClipboard copies text to clipboard using system commands
 func (a *App) copyToClipboard(text string) {
-	// This is a simplified implementation
-	// In a real implementation, you might want to use a proper clipboard library
-	// For now, we'll just show the text can be copied
-	if a.logger != nil {
-		a.logger.Printf("Copy to clipboard: %s", text)
+	// Cross-platform clipboard copy implementation
+	var cmd *exec.Cmd
+	
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		// Try xclip first, then xsel as fallback
+		if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("No clipboard utility found (xclip/xsel required on Linux)")
+			}
+			return
+		}
+	case "windows":
+		cmd = exec.Command("clip")
+	default:
+		if a.logger != nil {
+			a.logger.Printf("Clipboard not supported on platform: %s", runtime.GOOS)
+		}
+		return
+	}
+	
+	if cmd != nil {
+		cmd.Stdin = strings.NewReader(text)
+		if err := cmd.Run(); err != nil {
+			if a.logger != nil {
+				a.logger.Printf("Failed to copy to clipboard: %v", err)
+			}
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("Copied to clipboard: %s", text)
+			}
+		}
 	}
 }
