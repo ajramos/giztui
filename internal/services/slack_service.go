@@ -143,7 +143,7 @@ func (s *SlackServiceImpl) formatSummaryMessage(ctx context.Context, headers map
 		}
 
 		// Replace variables in the prompt (like PromptService does)
-		promptWithVars := s.config.Slack.SummaryPrompt
+		promptWithVars := s.config.Slack.GetSummaryPrompt()
 		for key, value := range variables {
 			placeholder := fmt.Sprintf("{{%s}}", key)
 			promptWithVars = strings.ReplaceAll(promptWithVars, placeholder, value)

@@ -39,7 +39,10 @@ type ObsidianConfig struct {
 	PreventDuplicates  bool   `json:"prevent_duplicates"`
 	MaxFileSize        int64  `json:"max_file_size"`
 	IncludeAttachments bool   `json:"include_attachments"`
-	Template           string `json:"template"` // Single configurable template
+	
+	// Template configuration (file path takes precedence over inline)
+	TemplateFile string `json:"template_file,omitempty"` // Path to template file (relative to config dir or absolute)
+	Template     string `json:"template"`                // Inline template (fallback)
 }
 
 // DefaultObsidianConfig returns the default configuration
@@ -52,6 +55,7 @@ func DefaultObsidianConfig() *ObsidianConfig {
 		PreventDuplicates:  true,
 		MaxFileSize:        1048576, // 1MB
 		IncludeAttachments: true,    // Always include attachments by default
+		TemplateFile:       "templates/obsidian/email.md",
 		Template: `---
 title: "{{subject}}"
 date: {{date}}
@@ -79,6 +83,7 @@ message_id: {{message_id}}
 *Ingested from Gmail on {{ingest_date}}*`,
 	}
 }
+
 
 // ObsidianIngestResult represents the result of an email ingestion
 type ObsidianIngestResult struct {

@@ -117,7 +117,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	if useLLM && a.LLM != nil {
 		touch = func(ctx context.Context, input string, wrapWidth int) (string, error) {
 			// Build from configurable template
-			tmpl := strings.TrimSpace(a.Config.LLM.TouchUpPrompt)
+			tmpl := strings.TrimSpace(a.Config.LLM.GetTouchUpPrompt())
 			// Default strict prompt
 			if tmpl == "" {
 				tmpl = "You are a formatting assistant. Do NOT paraphrase, translate, summarize, or remove any content. " +

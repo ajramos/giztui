@@ -46,6 +46,7 @@ type LabelService interface {
 // AIService handles AI-related operations
 type AIService interface {
 	GenerateSummary(ctx context.Context, content string, options SummaryOptions) (*SummaryResult, error)
+	GenerateSummaryStream(ctx context.Context, content string, options SummaryOptions, onToken func(string)) (*SummaryResult, error)
 	GenerateReply(ctx context.Context, content string, options ReplyOptions) (string, error)
 	SuggestLabels(ctx context.Context, content string, availableLabels []string) ([]string, error)
 	FormatContent(ctx context.Context, content string, options FormatOptions) (string, error)
@@ -124,6 +125,8 @@ type SummaryOptions struct {
 	StreamEnabled   bool
 	UseCache        bool
 	ForceRegenerate bool
+	MessageID       string
+	AccountEmail    string
 }
 
 type SummaryResult struct {

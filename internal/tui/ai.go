@@ -1,12 +1,11 @@
 package tui
 
 import (
-	"context"
 	"encoding/json"
 	"sort"
 	"strings"
 
-	"github.com/ajramos/gmail-tui/internal/db"
+	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
@@ -206,6 +205,11 @@ func (a *App) closeAISummary() {
 
 // generateOrShowSummary shows cached summary or triggers generation if missing
 func (a *App) generateOrShowSummary(messageID string) {
+	a.generateOrShowSummaryWithOptions(messageID, false)
+}
+
+// generateOrShowSummaryWithOptions shows cached summary or triggers generation with force option
+func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate bool) {
 	if a.debug {
 		a.logger.Printf("generateOrShowSummary: called for message '%s'", messageID)
 	}
@@ -217,14 +221,17 @@ func (a *App) generateOrShowSummary(messageID string) {
 		return
 	}
 
-	// Check cache first
-	if sum, ok := a.aiSummaryCache[messageID]; ok && sum != "" {
-		if a.debug {
-			a.logger.Printf("generateOrShowSummary: found cached summary for '%s'", messageID)
+	// Check cache first using cache service directly (instant lookup)
+	if !forceRegenerate {
+		_, _, _, cacheService, _, _, _ := a.GetServices()
+		if cacheService != nil {
+			accountEmail := a.getActiveAccountEmail()
+			if cached, found, err := cacheService.GetSummary(a.ctx, accountEmail, messageID); err == nil && found && cached != "" {
+				a.aiSummaryView.SetText(sanitizeForTerminal(cached))
+				a.aiSummaryView.ScrollToBeginning()
+				return
+			}
 		}
-		a.aiSummaryView.SetText(sanitizeForTerminal(sum))
-		a.aiSummaryView.ScrollToBeginning()
-		return
 	}
 
 	// Check if already processing
@@ -280,37 +287,40 @@ func (a *App) generateOrShowSummary(messageID string) {
 			body = string([]rune(body)[:8000])
 		}
 
-		// Build prompt from configuration template, with a sensible fallback
-		template := strings.TrimSpace(a.Config.LLM.SummarizePrompt)
-		if template == "" {
-			template = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
+		// Use AI service for proper template loading and caching
+		_, aiService, _, _, _, _, _ := a.GetServices()
+		if aiService == nil {
+			if a.debug {
+				a.logger.Printf("generateOrShowSummary: ERROR - AI service not available")
+			}
+			a.QueueUpdateDraw(func() {
+				a.aiSummaryView.SetText("⚠️ AI service not available")
+				a.aiSummaryView.ScrollToBeginning()
+			})
+			return
 		}
-		prompt := strings.ReplaceAll(template, "{{body}}", body)
 
 		if a.debug {
-			a.logger.Printf("generateOrShowSummary: generating summary for message '%s', prompt size=%d", id, len(prompt))
+			a.logger.Printf("generateOrShowSummary: generating summary for message '%s' using AI service", id)
 		}
 
-		// Try streaming first if supported, fallback to regular generation
+		// Prepare summary options with caching enabled
+		accountEmail := a.getActiveAccountEmail()
+		options := services.SummaryOptions{
+			MaxLength:       8000,
+			StreamEnabled:   true,
+			UseCache:        true,
+			ForceRegenerate: forceRegenerate,
+			MessageID:       id,
+			AccountEmail:    accountEmail,
+		}
+		
+
+		// Use streaming summary generation if enabled
 		var finalResult string
-
-		// Check if LLM supports streaming
-		if streamer, ok := a.LLM.(interface {
-			GenerateStream(context.Context, string, func(string)) error
-		}); ok {
-			if a.debug {
-				a.logger.Printf("generateOrShowSummary: using streaming for message '%s'", id)
-			}
-
-			var resultBuilder strings.Builder
-			ctx, cancel := context.WithCancel(a.ctx)
-			a.streamingCancel = cancel // Store cancel function for Esc handler
-			defer func() {
-				cancel()
-				a.streamingCancel = nil // Clear when done
-			}()
-			err = streamer.GenerateStream(ctx, prompt, func(token string) {
-				resultBuilder.WriteString(token)
+		if options.StreamEnabled {
+			// Set up streaming with UI updates
+			result, streamErr := aiService.GenerateSummaryStream(a.ctx, body, options, func(token string) {
 				// Update UI with each token for real-time streaming
 				a.QueueUpdateDraw(func() {
 					currentText := a.aiSummaryView.GetText(true)
@@ -324,17 +334,19 @@ func (a *App) generateOrShowSummary(messageID string) {
 					a.aiSummaryView.ScrollToEnd()
 				})
 			})
-
-			if err == nil {
-				finalResult = resultBuilder.String()
+			if streamErr != nil {
+				err = streamErr
+			} else if result != nil {
+				finalResult = result.Summary
 			}
 		} else {
-			if a.debug {
-				a.logger.Printf("generateOrShowSummary: streaming not supported, using regular generation for message '%s'", id)
+			// Use non-streaming version
+			result, genErr := aiService.GenerateSummary(a.ctx, body, options)
+			if genErr != nil {
+				err = genErr
+			} else if result != nil {
+				finalResult = result.Summary
 			}
-
-			// Fallback to regular generation
-			finalResult, err = a.LLM.Generate(prompt)
 		}
 
 		if err != nil {
@@ -348,8 +360,7 @@ func (a *App) generateOrShowSummary(messageID string) {
 			return
 		}
 
-		// Cache the final result
-		a.aiSummaryCache[id] = finalResult
+		// Caching is handled by the AI service - no need for duplicate UI cache
 
 		// If we used streaming, the UI is already updated. If not, show the final result
 		if finalResult != "" && !strings.Contains(a.aiSummaryView.GetText(true), finalResult) {
@@ -372,17 +383,12 @@ func (a *App) forceRegenerateSummary() {
 		a.showError("No message selected")
 		return
 	}
-	// Remove from in-memory cache
-	delete(a.aiSummaryCache, id)
-	// Remove from SQLite cache (best-effort)
-	if a.dbStore != nil && a.Config != nil && a.Config.LLM.CacheEnabled {
-		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-			cacheStore := db.NewCacheStore(a.dbStore)
-			_ = cacheStore.DeleteAISummary(a.ctx, strings.ToLower(email), id)
-		}
-	}
 	a.GetErrorHandler().ShowProgress(a.ctx, "Regenerating summary...")
-	go a.generateOrShowSummary(id)
+	// Force regeneration by clearing the UI and calling generateOrShowSummary with force flag
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetText("🧠 Regenerating summary…")
+	}
+	go a.generateOrShowSummaryWithOptions(id, true)
 }
 
 // suggestLabel suggests a label using LLM
@@ -447,7 +453,7 @@ func (a *App) suggestLabel() {
 			body = string([]rune(body)[:6000])
 		}
 		// Build prompt from configuration template, with a sensible fallback
-		template := strings.TrimSpace(a.Config.LLM.LabelPrompt)
+		template := strings.TrimSpace(a.Config.LLM.GetLabelPrompt())
 		if template == "" {
 			template = "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
 		}

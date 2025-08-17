@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ajramos/gmail-tui/internal/obsidian"
@@ -28,12 +29,18 @@ type LLMConfig struct {
 	CacheEnabled bool   `json:"cache_enabled"`
 	CachePath    string `json:"cache_path"`
 
-	// Prompt templates for LLM interactions
-	SummarizePrompt string `json:"summarize_prompt"`
-	ReplyPrompt     string `json:"reply_prompt"`
-	LabelPrompt     string `json:"label_prompt"`
+	// Template file paths (relative to config dir or absolute)
+	SummarizeTemplate string `json:"summarize_template"`
+	ReplyTemplate     string `json:"reply_template"`
+	LabelTemplate     string `json:"label_template"`
+	TouchUpTemplate   string `json:"touch_up_template"`
+
+	// Inline prompt overrides (optional - takes precedence over files)
+	SummarizePrompt string `json:"summarize_prompt,omitempty"`
+	ReplyPrompt     string `json:"reply_prompt,omitempty"`
+	LabelPrompt     string `json:"label_prompt,omitempty"`
 	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
-	TouchUpPrompt string `json:"touch_up_prompt"`
+	TouchUpPrompt string `json:"touch_up_prompt,omitempty"`
 }
 
 // Config holds all configuration for the Gmail TUI application
@@ -71,10 +78,13 @@ type SlackConfig struct {
 	// Defaults specifies default behavior for email forwarding
 	Defaults SlackDefaults `json:"defaults"`
 	
-	// SummaryPrompt is the AI prompt template for generating email summaries
+	// Template file path for summary prompt (relative to config dir or absolute)
+	SummaryTemplate string `json:"summary_template"`
+	
+	// Inline prompt override (optional - takes precedence over file)
 	// Available variables: {{body}}, {{subject}}, {{from}}, {{to}}, {{cc}}, {{bcc}}, 
 	// {{date}}, {{reply-to}}, {{message-id}}, {{in-reply-to}}, {{references}}, {{max_words}}
-	SummaryPrompt string `json:"summary_prompt"`
+	SummaryPrompt string `json:"summary_prompt,omitempty"`
 }
 
 // SlackChannel defines a Slack channel configuration
@@ -167,22 +177,28 @@ func DefaultLLMConfig() LLMConfig {
 		Timeout:         "20s",
 		StreamEnabled:   true,
 		StreamChunkMs:   60,
-		CacheEnabled:    true,
-		CachePath:       "",
-		SummarizePrompt: "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
-		ReplyPrompt:     "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
-		LabelPrompt:     "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
-		TouchUpPrompt:   "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. A section/paragraph counts as duplicate if its text is identical to a previous one except for whitespace or numeric link reference indices like [1], [23]. Do NOT remove unique content. Preserve quotes (> ), code/pre/PGP blocks verbatim, lists, ASCII tables, link references (text [n] + [LINKS]), and keep [ATTACHMENTS] and [IMAGES] unchanged. Output only the adjusted text.\n\n{{body}}",
+		CacheEnabled:      true,
+		CachePath:         "",
+		SummarizeTemplate: "templates/ai/summarize.md",
+		ReplyTemplate:     "templates/ai/reply.md",
+		LabelTemplate:     "templates/ai/label.md",
+		TouchUpTemplate:   "templates/ai/touch_up.md",
+		// No inline prompts in defaults - use template files
+		SummarizePrompt:   "",
+		ReplyPrompt:       "",
+		LabelPrompt:       "",
+		TouchUpPrompt:     "",
 	}
 }
 
 // DefaultSlackConfig returns default Slack configuration
 func DefaultSlackConfig() SlackConfig {
 	return SlackConfig{
-		Enabled:  false,
-		Channels: []SlackChannel{},
-		Defaults: DefaultSlackDefaults(),
-		SummaryPrompt: "You are a precise email summarizer. Extract only factual information from the email below. Do not add opinions, interpretations, or information not present in the original email.\n\nRequirements:\n- Maximum {{max_words}} words\n- Preserve exact names, dates, numbers, and technical terms\n- If forwarding urgent/important items, start with \"[URGENT]\" or \"[ACTION REQUIRED]\" only if explicitly stated\n- Do not infer emotions or intentions not explicitly stated\n- If email contains meeting details, preserve exact time/date/location\n- If email contains action items, list them exactly as written\n\nEmail to summarize:\n{{body}}\n\nProvide only the factual summary, nothing else.",
+		Enabled:         false,
+		Channels:        []SlackChannel{},
+		Defaults:        DefaultSlackDefaults(),
+		SummaryTemplate: "templates/slack/summary.md",
+		SummaryPrompt:   "You are a precise email summarizer. Extract only factual information from the email below. Do not add opinions, interpretations, or information not present in the original email.\n\nRequirements:\n- Maximum {{max_words}} words\n- Preserve exact names, dates, numbers, and technical terms\n- If forwarding urgent/important items, start with \"[URGENT]\" or \"[ACTION REQUIRED]\" only if explicitly stated\n- Do not infer emotions or intentions not explicitly stated\n- If email contains meeting details, preserve exact time/date/location\n- If email contains action items, list them exactly as written\n\nEmail to summarize:\n{{body}}\n\nProvide only the factual summary, nothing else.",
 	}
 }
 
@@ -328,4 +344,61 @@ func (c *Config) GetLLMTimeout() time.Duration {
 		}
 	}
 	return 20 * time.Second
+}
+
+// LoadTemplate loads a template with proper priority: file first, then inline, then fallback
+func LoadTemplate(templatePath, inlinePrompt, fallbackPrompt string) string {
+	// First priority: Try to load from template file if path is specified
+	if strings.TrimSpace(templatePath) != "" {
+		// Make path relative to config directory if not absolute
+		var fullPath string
+		if filepath.IsAbs(templatePath) {
+			fullPath = templatePath
+		} else {
+			configDir := filepath.Dir(DefaultConfigPath())
+			fullPath = filepath.Join(configDir, templatePath)
+		}
+		
+		if content, err := os.ReadFile(fullPath); err == nil {
+			return strings.TrimSpace(string(content))
+		}
+	}
+	
+	// Second priority: Use inline prompt if provided
+	if strings.TrimSpace(inlinePrompt) != "" {
+		return inlinePrompt
+	}
+	
+	// Final fallback: Use provided fallback prompt
+	return fallbackPrompt
+}
+
+// GetSummarizePrompt returns the summarize prompt, loading from template file if needed
+func (c *LLMConfig) GetSummarizePrompt() string {
+	fallback := "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
+	return LoadTemplate(c.SummarizeTemplate, c.SummarizePrompt, fallback)
+}
+
+// GetReplyPrompt returns the reply prompt, loading from template file if needed
+func (c *LLMConfig) GetReplyPrompt() string {
+	fallback := "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}"
+	return LoadTemplate(c.ReplyTemplate, c.ReplyPrompt, fallback)
+}
+
+// GetLabelPrompt returns the label prompt, loading from template file if needed
+func (c *LLMConfig) GetLabelPrompt() string {
+	fallback := "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
+	return LoadTemplate(c.LabelTemplate, c.LabelPrompt, fallback)
+}
+
+// GetTouchUpPrompt returns the touch-up prompt, loading from template file if needed
+func (c *LLMConfig) GetTouchUpPrompt() string {
+	fallback := "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
+	return LoadTemplate(c.TouchUpTemplate, c.TouchUpPrompt, fallback)
+}
+
+// GetSummaryPrompt returns the Slack summary prompt, loading from template file if needed
+func (c *SlackConfig) GetSummaryPrompt() string {
+	fallback := "You are a precise email summarizer. Extract only factual information from the email below. Do not add opinions, interpretations, or information not present in the original email.\n\nRequirements:\n- Maximum {{max_words}} words\n- Preserve exact names, dates, numbers, and technical terms\n- If forwarding urgent/important items, start with \"[URGENT]\" or \"[ACTION REQUIRED]\" only if explicitly stated\n- Do not infer emotions or intentions not explicitly stated\n- If email contains meeting details, preserve exact time/date/location\n- If email contains action items, list them exactly as written\n\nEmail to summarize:\n{{body}}\n\nProvide only the factual summary, nothing else."
+	return LoadTemplate(c.SummaryTemplate, c.SummaryPrompt, fallback)
 }

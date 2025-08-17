@@ -360,8 +360,15 @@ func (a *App) reinitializeServices() {
 		}
 	}
 
-	// Initialize AI service if LLM provider is available
-	if a.LLM != nil && a.aiService == nil {
+	// CRITICAL FIX: Re-create AI service if cache service was just created
+	// The existing AI service was created without cache, so we need to recreate it
+	if a.LLM != nil && a.cacheService != nil {
+		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: AI service re-created with cache: %v", a.aiService != nil)
+		}
+	} else if a.LLM != nil && a.aiService == nil {
+		// Fallback: create AI service without cache if none exists
 		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: AI service initialized: %v", a.aiService != nil)

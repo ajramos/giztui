@@ -667,6 +667,33 @@ All email headers and content are available as variables in your custom prompts:
 4. **Customize format style** and summary prompt as needed
 5. **Press `K`** in Gmail TUI to start forwarding emails
 
+#### Configuration Directory Structure
+
+GizTUI uses a unified configuration directory at `~/.config/giztui/`:
+
+```
+~/.config/giztui/               # Main configuration directory
+├── config.json                # Main configuration file
+├── credentials.json            # OAuth credentials
+├── token.json                  # OAuth token
+├── cache/                      # SQLite cache files
+└── templates/                  # Template files
+    ├── ai/                     # AI/LLM prompt templates
+    │   ├── summarize.md
+    │   ├── reply.md
+    │   ├── label.md
+    │   └── touch_up.md
+    ├── slack/                  # Slack integration templates
+    │   └── summary.md
+    └── obsidian/               # Obsidian integration templates
+        └── email.md
+```
+
+#### Path Resolution Rules
+
+- **Absolute paths**: Full paths starting with `/` or `~` (e.g., `~/.config/giztui/credentials.json`)
+- **Relative paths**: Resolved relative to the config directory `~/.config/giztui/` (e.g., `templates/ai/summarize.md` → `~/.config/giztui/templates/ai/summarize.md`)
+
 #### LLM Configuration (providers)
 
 Configure AI/LLM settings under the unified `llm` object in `~/.config/giztui/config.json`:
@@ -684,13 +711,64 @@ Configure AI/LLM settings under the unified `llm` object in `~/.config/giztui/co
     "stream_chunk_ms": 60,
     "cache_enabled": true,
     "cache_path": "",
-    "summarize_prompt": "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}",
-    "reply_prompt": "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}",
-    "label_prompt": "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}",
-    "touch_up_prompt": "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
+    "summarize_template": "templates/ai/summarize.md",
+    "reply_template": "templates/ai/reply.md",
+    "label_template": "templates/ai/label.md",
+    "touch_up_template": "templates/ai/touch_up.md"
   }
 }
 ```
+
+#### Template Files System
+
+AI prompts are now stored in external Markdown files for better editing and version control:
+
+**Directory Structure:**
+```
+~/.config/giztui/
+├── config.json
+└── templates/
+    ├── ai/
+    │   ├── summarize.md
+    │   ├── reply.md
+    │   ├── label.md
+    │   └── touch_up.md
+    └── slack/
+        └── summary.md
+```
+
+**Template Path Examples:**
+- `"summarize_template": "templates/ai/summarize.md"` → `~/.config/giztui/templates/ai/summarize.md`
+- `"summary_template": "templates/slack/summary.md"` → `~/.config/giztui/templates/slack/summary.md`
+- `"template": "templates/obsidian/email.md"` → `~/.config/giztui/templates/obsidian/email.md`
+- `"template": "/path/to/custom/template.md"` → `/path/to/custom/template.md` (absolute)
+- `"template": "~/my-templates/custom.md"` → `~/my-templates/custom.md` (home directory)
+
+**Template Loading Priority:**
+1. **Template files** (if path specified and file exists) - takes precedence
+2. **Inline prompts** (if specified in config) - fallback for simple cases
+3. **Built-in defaults** (if neither above are available)
+
+This file-first priority design ensures that when you specify a template file path, it will always be used (no need for empty `*_prompt` fields to override defaults).
+
+**Template Setup:**
+To use template files, copy the default templates from the repository:
+```bash
+# Copy default templates to your config directory
+cp -r templates/ ~/.config/giztui/
+```
+
+The repository includes ready-to-use template files in the `templates/` directory that you can customize:
+- **AI templates**: `templates/ai/` - For LLM prompts (summarize, reply, label, touch_up)
+- **Slack templates**: `templates/slack/` - For Slack integration prompts  
+- **Obsidian templates**: `templates/obsidian/` - For Obsidian note formatting
+
+**Benefits:**
+- Easy editing with proper syntax highlighting in your favorite editor
+- Better version control for custom prompts
+- Cleaner configuration files
+- Shareable template collections
+- Default templates included in repository for easy setup
 
 ##### Amazon Bedrock (on-demand)
 
@@ -1249,7 +1327,6 @@ Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defa
 ### Pending Features  
 - **Slack template comments** - The `{{comment}}` variable is not yet available in Slack summary prompt templates. User messages are displayed separately above the summary.
 - **ErrorHandler migration** - Some operations still need to be migrated to use the centralized ErrorHandler for consistent user feedback.
-- **Configuration file templates** - Move inline configuration examples to separate template files for easier maintenance.
 
 ## 📝 Obsidian Integration
 
@@ -1281,10 +1358,15 @@ Add this section to your `~/.config/giztui/config.json`:
     "prevent_duplicates": true,
     "max_file_size": 1048576,
     "include_attachments": true,
-    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+    "template": "templates/obsidian/email.md"
   }
 }
 ```
+
+**Template Configuration:**
+- **File path**: Use `"template": "templates/obsidian/email.md"` to load from `~/.config/giztui/templates/obsidian/email.md`
+- **Inline template**: Use `"template": "---\ntitle: \"{{subject}}\"...` for inline Markdown template
+- **Path resolution**: Relative paths are resolved relative to `~/.config/giztui/`
 
 ### Usage
 

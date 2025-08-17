@@ -250,21 +250,21 @@ func (m *Manager) applyDefaults(cfg *Config) {
 		cfg.Layout = DefaultLayoutConfig()
 	}
 
-	// Apply default LLM configuration if empty
-	if cfg.LLM.SummarizePrompt == "" {
-		cfg.LLM.SummarizePrompt = DefaultLLMConfig().SummarizePrompt
+	// Apply default template paths if empty (template files take precedence over inline prompts)
+	if cfg.LLM.SummarizeTemplate == "" {
+		cfg.LLM.SummarizeTemplate = DefaultLLMConfig().SummarizeTemplate
 	}
 
-	if cfg.LLM.ReplyPrompt == "" {
-		cfg.LLM.ReplyPrompt = DefaultLLMConfig().ReplyPrompt
+	if cfg.LLM.ReplyTemplate == "" {
+		cfg.LLM.ReplyTemplate = DefaultLLMConfig().ReplyTemplate
 	}
 
-	if cfg.LLM.LabelPrompt == "" {
-		cfg.LLM.LabelPrompt = DefaultLLMConfig().LabelPrompt
+	if cfg.LLM.LabelTemplate == "" {
+		cfg.LLM.LabelTemplate = DefaultLLMConfig().LabelTemplate
 	}
 
-	if cfg.LLM.TouchUpPrompt == "" {
-		cfg.LLM.TouchUpPrompt = DefaultLLMConfig().TouchUpPrompt
+	if cfg.LLM.TouchUpTemplate == "" {
+		cfg.LLM.TouchUpTemplate = DefaultLLMConfig().TouchUpTemplate
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/db"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/obsidian"
@@ -147,9 +148,36 @@ func (s *ObsidianServiceImpl) validateOptions(options obsidian.ObsidianOptions) 
 	return nil
 }
 
-// formatEmailForObsidian formats an email using the single template from config
+// formatEmailForObsidian formats an email using the template from config (file or inline)
 func (s *ObsidianServiceImpl) formatEmailForObsidian(message *gmail.Message, options obsidian.ObsidianOptions) (string, error) {
-	content := s.config.Template
+	// Use the same template loading pattern as other services
+	fallback := `---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: email
+status: inbox
+labels: {{labels}}
+message_id: {{message_id}}
+---
+
+# {{subject}}
+
+**From:** {{from}}  
+**Date:** {{date}}  
+**Labels:** {{labels}}
+
+{{comment}}
+
+---
+
+{{body}}
+
+---
+
+*Ingested from Gmail on {{ingest_date}}*`
+
+	content := config.LoadTemplate(s.config.TemplateFile, s.config.Template, fallback)
 
 	// Extract message content
 	body := message.PlainText

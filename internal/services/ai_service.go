@@ -39,9 +39,7 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 
 	// Check cache first if enabled and not forcing regeneration
 	if options.UseCache && !options.ForceRegenerate && s.cacheService != nil {
-		// We'd need messageID and accountEmail for proper caching
-		// This is a simplified version - in practice, you'd pass these in options
-		if cached, found, err := s.cacheService.GetSummary(ctx, "", ""); err == nil && found {
+		if cached, found, err := s.cacheService.GetSummary(ctx, options.AccountEmail, options.MessageID); err == nil && found {
 			return &SummaryResult{
 				Summary:   cached,
 				FromCache: true,
@@ -61,7 +59,7 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 	}
 
 	// Build prompt
-	prompt := s.config.LLM.SummarizePrompt
+	prompt := s.config.LLM.GetSummarizePrompt()
 	if prompt == "" {
 		prompt = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
 	}
@@ -76,8 +74,10 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 
 	// Cache the result if caching is enabled
 	if options.UseCache && s.cacheService != nil {
-		// In practice, you'd save with proper messageID and accountEmail
-		_ = s.cacheService.SaveSummary(ctx, "", "", summary)
+		if err := s.cacheService.SaveSummary(ctx, options.AccountEmail, options.MessageID, summary); err != nil {
+			// Save to cache failed, but don't fail the entire operation
+			// Note: Cache failures are logged within the cache service if needed
+		}
 	}
 
 	return &SummaryResult{
@@ -86,6 +86,86 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 		Language:  options.Language,
 		Duration:  time.Since(start),
 	}, nil
+}
+
+// GenerateSummaryStream generates a summary with streaming support
+func (s *AIServiceImpl) GenerateSummaryStream(ctx context.Context, content string, options SummaryOptions, onToken func(string)) (*SummaryResult, error) {
+	if s.provider == nil {
+		return nil, fmt.Errorf("AI provider not available")
+	}
+
+	if strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("content cannot be empty")
+	}
+
+	start := time.Now()
+
+	// Check cache first if enabled and not forcing regeneration
+	if options.UseCache && !options.ForceRegenerate && s.cacheService != nil {
+		if cached, found, err := s.cacheService.GetSummary(ctx, options.AccountEmail, options.MessageID); err == nil && found {
+			return &SummaryResult{
+				Summary:   cached,
+				FromCache: true,
+				Duration:  time.Since(start),
+			}, nil
+		}
+	}
+
+	// Truncate content if too long
+	maxLength := 8000
+	if options.MaxLength > 0 {
+		maxLength = options.MaxLength
+	}
+
+	if len([]rune(content)) > maxLength {
+		content = string([]rune(content)[:maxLength])
+	}
+
+	// Build prompt
+	prompt := s.config.LLM.GetSummarizePrompt()
+	if prompt == "" {
+		prompt = "Briefly summarize the following email. Keep it concise and factual.\n\n{{body}}"
+	}
+
+	prompt = strings.ReplaceAll(prompt, "{{body}}", content)
+
+	// Check if provider supports streaming
+	if streamer, ok := s.provider.(interface {
+		GenerateStream(context.Context, string, func(string)) error
+	}); ok {
+		var result strings.Builder
+
+		err := streamer.GenerateStream(ctx, prompt, func(token string) {
+			result.WriteString(token)
+			if onToken != nil {
+				onToken(token)
+			}
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate summary: %w", err)
+		}
+
+		summary := result.String()
+
+		// Cache the result if caching is enabled
+		if options.UseCache && s.cacheService != nil {
+			if err := s.cacheService.SaveSummary(ctx, options.AccountEmail, options.MessageID, summary); err != nil {
+				// Save to cache failed, but don't fail the entire operation
+				// Note: Cache failures are logged within the cache service if needed
+			}
+		}
+
+		return &SummaryResult{
+			Summary:   summary,
+			FromCache: false,
+			Language:  options.Language,
+			Duration:  time.Since(start),
+		}, nil
+	}
+
+	// Fallback to non-streaming if streaming not supported
+	return s.GenerateSummary(ctx, content, options)
 }
 
 func (s *AIServiceImpl) GenerateReply(ctx context.Context, content string, options ReplyOptions) (string, error) {
@@ -98,7 +178,7 @@ func (s *AIServiceImpl) GenerateReply(ctx context.Context, content string, optio
 	}
 
 	// Build prompt
-	prompt := s.config.LLM.ReplyPrompt
+	prompt := s.config.LLM.GetReplyPrompt()
 	if prompt == "" {
 		prompt = "Write a professional and friendly reply to the following email. Keep the same language as the input.\n\n{{body}}"
 	}
@@ -132,7 +212,7 @@ func (s *AIServiceImpl) SuggestLabels(ctx context.Context, content string, avail
 	}
 
 	// Build prompt
-	prompt := s.config.LLM.LabelPrompt
+	prompt := s.config.LLM.GetLabelPrompt()
 	if prompt == "" {
 		prompt = "From the email below, pick up to 3 labels from this list only. Return a JSON array of label names, nothing else.\n\nLabels: {{labels}}\n\nEmail:\n{{body}}"
 	}
@@ -185,7 +265,7 @@ func (s *AIServiceImpl) FormatContent(ctx context.Context, content string, optio
 	}
 
 	// Build prompt for content formatting
-	prompt := s.config.LLM.TouchUpPrompt
+	prompt := s.config.LLM.GetTouchUpPrompt()
 	if prompt == "" {
 		prompt = "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
 	}
