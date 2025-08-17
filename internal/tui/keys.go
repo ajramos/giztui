@@ -328,6 +328,13 @@ func (a *App) bindKeys() {
 			// Allow Obsidian ingestion in both normal and bulk modes
 			go a.sendEmailToObsidian()
 			return nil
+		case 'L': // Shift+L for link picker
+			if a.currentFocus == "search" {
+				return nil
+			}
+			// Open link picker for current message
+			go a.openLinkPicker()
+			return nil
 		case 'w':
 			go a.saveCurrentMessageToFile()
 			return nil

@@ -240,12 +240,16 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 
 	// First-level suggestions
 	commands := map[string][]string{
-		"l":       {"labels", "list"},
+		"l":       {"labels", "links", "list"},
 		"la":      {"labels"},
 		"lab":     {"labels"},
 		"labe":    {"labels"},
 		"label":   {"labels"},
 		"labels":  {"labels"},
+		"li":      {"links"},
+		"lin":     {"links"},
+		"link":    {"links"},
+		"links":   {"links"},
 		"s":       {"search", "slack"},
 		"sl":      {"slack"},
 		"sla":     {"slack"},
@@ -372,6 +376,8 @@ func (a *App) executeCommand(cmd string) {
 	switch command {
 	case "labels", "l":
 		a.executeLabelsCommand(args)
+	case "links", "link":
+		a.executeLinksCommand(args)
 	case "search":
 		a.executeSearchCommand(args)
 	case "slack", "sl":
@@ -533,6 +539,12 @@ func (a *App) executeLabelsCommand(args []string) {
 	default:
 		a.showError(fmt.Sprintf("Unknown labels subcommand: %s", subcommand))
 	}
+}
+
+// executeLinksCommand handles links commands
+func (a *App) executeLinksCommand(args []string) {
+	// Simple command - just open the link picker
+	go a.openLinkPicker()
 }
 
 // executeSearchCommand handles search commands
@@ -721,7 +733,7 @@ func (a *App) executeStatsCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
@@ -754,7 +766,7 @@ func (a *App) executeCacheInfo(args []string) {
 
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService, _ := a.GetServices()
+		_, _, _, _, _, promptService, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return

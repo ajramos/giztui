@@ -245,3 +245,18 @@ type ObsidianService interface {
 	GetConfig() *obsidian.ObsidianConfig
 	UpdateConfig(config *obsidian.ObsidianConfig)
 }
+
+// LinkService handles link extraction and opening operations
+type LinkService interface {
+	GetMessageLinks(ctx context.Context, messageID string) ([]LinkInfo, error)
+	OpenLink(ctx context.Context, url string) error
+	ValidateURL(url string) error
+}
+
+// LinkInfo represents a link found in an email message
+type LinkInfo struct {
+	Index int    `json:"index"` // Reference number [1], [2], etc.
+	URL   string `json:"url"`   // Full URL
+	Text  string `json:"text"`  // Link text/description
+	Type  string `json:"type"`  // "html" or "plain" or "email" or "file"
+}

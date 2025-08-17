@@ -32,7 +32,7 @@ func (a *App) openBulkPromptPicker() {
 	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Applying prompt to %d selected messages", messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("openBulkPromptPicker: prompt service not available")
@@ -364,7 +364,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Applying '%s' to %d messages...", promptName, messageCount))
 
 	// Get prompt service
-	_, _, _, _, _, promptService, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
@@ -384,7 +384,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		accountEmail := a.getActiveAccountEmail()
 		
 		// Check if we can use streaming for this bulk operation
-		_, _, _, _, _, promptService, _ := a.GetServices()
+		_, _, _, _, _, promptService, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return

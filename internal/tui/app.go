@@ -144,6 +144,7 @@ type App struct {
 	promptService     services.PromptService
 	slackService      services.SlackService
 	obsidianService   services.ObsidianService
+	linkService       services.LinkService
 	errorHandler      *ErrorHandler
 }
 
@@ -487,6 +488,12 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: email service initialized: %v", a.emailService != nil)
 	}
 
+	// Initialize link service
+	a.linkService = services.NewLinkService(a.Client, a.emailRenderer)
+	if a.logger != nil {
+		a.logger.Printf("initServices: link service initialized: %v", a.linkService != nil)
+	}
+
 	// Initialize bulk prompt service if dependencies are available
 	if a.repository != nil && a.aiService != nil && a.cacheService != nil {
 		// For now, pass nil as promptService to avoid circular dependency
@@ -757,8 +764,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService
 }
 
 // GetSlackService returns the Slack service instance
