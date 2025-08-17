@@ -403,6 +403,20 @@ func (a *App) executeCommand(cmd string) {
 		a.executeStatsCommand(args)
 	case "g", "G":
 		a.executeGoToCommand(args)
+	case "archive", "a":
+		a.executeArchiveCommand(args)
+	case "trash", "d":
+		a.executeTrashCommand(args)
+	case "read", "toggle-read", "t":
+		a.executeToggleReadCommand(args)
+	case "new":
+		a.executeComposeCommand(args) // "new" as alias for compose
+	case "reply", "r":
+		a.executeReplyCommand(args)
+	case "refresh":
+		a.executeRefreshCommand(args)
+	case "unread", "u":
+		a.executeUnreadCommand(args)
 	default:
 		// Check for numeric shortcuts like :1, :$
 		if matched := a.executeNumericShortcut(command); !matched {
@@ -769,4 +783,53 @@ func (a *App) executeNumbersCommand(args []string) {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message numbers disabled")
 		}
 	}()
+}
+
+// executeArchiveCommand handles :archive/:a commands
+func (a *App) executeArchiveCommand(args []string) {
+	// Check if we're in bulk mode with selections
+	if a.bulkMode && len(a.selected) > 0 {
+		go a.archiveSelectedBulk()
+	} else {
+		go a.archiveSelected()
+	}
+}
+
+// executeTrashCommand handles :trash/:d commands  
+func (a *App) executeTrashCommand(args []string) {
+	// Check if we're in bulk mode with selections
+	if a.bulkMode && len(a.selected) > 0 {
+		go a.trashSelectedBulk()
+	} else {
+		go a.trashSelected()
+	}
+}
+
+// executeToggleReadCommand handles :read/:toggle-read/:t commands
+func (a *App) executeToggleReadCommand(args []string) {
+	// Check if we're in bulk mode with selections
+	if a.bulkMode && len(a.selected) > 0 {
+		go a.toggleMarkReadUnreadBulk()
+	} else {
+		go a.toggleMarkReadUnread()
+	}
+}
+
+// executeReplyCommand handles :reply/:r commands
+func (a *App) executeReplyCommand(args []string) {
+	go a.replySelected()
+}
+
+// executeRefreshCommand handles :refresh commands
+func (a *App) executeRefreshCommand(args []string) {
+	if a.draftMode {
+		go a.loadDrafts()
+	} else {
+		go a.reloadMessages()
+	}
+}
+
+// executeUnreadCommand handles :unread/:u commands  
+func (a *App) executeUnreadCommand(args []string) {
+	go a.listUnreadMessages()
 }
