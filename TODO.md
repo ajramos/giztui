@@ -15,7 +15,7 @@
 - [ ] Group llm configuration under the same object in config
 - [ ] Move configuration file templates to files.
 - [ ] when using :slack command the focus doesn't go to the send to slack widget.
-- [ ] Send slack messages in bulk
+- [x] Send slack messages in bulk
 - [ ] Add comment to the template in Slack
 - [ ] Usage of the ErrorHandler in the operations
 - [x] Treat several emails in batch with one prompt.
@@ -26,6 +26,15 @@
 - [x] Investigate behavior for self-emailed messages
 - [x] After loading messages, auto-select and render the first one
 - [x] Stream LLM output instead of full response
+
+## 🆕 New Priority Items (August 2025)
+- [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
+- [ ] **Save searches** - Implement bookmark/save functionality for search queries
+- [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
+- [ ] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
+- [ ] **Update README** - Parts of README are outdated and need refresh
+- [ ] **Change configuration directory** - Migrate from `~/.config/gmail-tui/` to `~/.config/giztui/` to reflect current tool name
+- [ ] **Command parity with shortcuts** - Ensure every keyboard shortcut has an equivalent command (`:` mode)
 - Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
 
 ### Email Management

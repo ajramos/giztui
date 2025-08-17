@@ -97,93 +97,45 @@ Gmail TUI uses a **clean, service-oriented architecture** with proper separation
 
 ### 📁 Project Structure
 ```
-gmail-tui/
-├── cmd/gmail-tui/          # Main application entry point
-│   └── main.go            # Application entry point
-├── internal/               # Private application code
-│   ├── cache/             # SQLite caching system
-│   │   └── store.go       # Cache store implementation
-│   ├── calendar/          # Google Calendar integration
-│   │   └── client.go      # Calendar API client
-│   ├── config/            # Configuration management & theming
-│   │   ├── config.go      # Configuration loading & validation
-│   │   ├── colors.go      # Color scheme management
-│   │   ├── theme.go       # Theme system
-│   │   └── manager.go     # Configuration manager
-│   ├── db/                # 🆕 Database layer
-│   │   ├── store.go       # Main database store
-│   │   ├── cache_store.go # AI summary caching
-│   │   └── prompt_store.go # 🆕 Prompt library storage
-│   ├── gmail/             # Gmail API client wrapper
-│   │   └── client.go      # Gmail API client
-│   ├── llm/               # Multi-provider LLM support
-│   │   ├── factory.go     # LLM provider factory
-│   │   ├── ollama.go      # Ollama provider
-│   │   └── bedrock.go     # Amazon Bedrock provider
-│   ├── prompts/           # 🆕 Prompt system
-│   │   └── types.go       # Prompt data types
-│   ├── render/            # Email rendering & formatting
-│   │   ├── email.go       # Email renderer
-│   │   └── format.go      # Formatting utilities
-│   ├── services/          # 🆕 Business logic service layer
-│   │   ├── interfaces.go  # Service contracts
-│   │   ├── email_service.go    # Email operations
-│   │   ├── ai_service.go       # AI/LLM operations
-│   │   ├── label_service.go    # Label management
-│   │   ├── cache_service.go    # Cache operations
-│   │   ├── prompt_service.go   # 🆕 Prompt library management
-│   │   ├── slack_service.go    # 🆕 Slack integration
-│   │   └── repository.go       # Data access layer
-│   └── tui/               # Terminal User Interface
-│       ├── app.go         # Main application with service integration
-│       ├── error_handler.go   # 🆕 Centralized error handling
-│       ├── layout.go      # UI layout management
-│       ├── keys.go        # Keyboard shortcuts & input handling
-│       ├── messages.go    # Message list & content display
-│       ├── messages_actions.go # Message actions (archive, trash, etc.)
-│       ├── messages_bulk.go   # Bulk message operations
-│       ├── labels.go      # Label management UI
-│       ├── ai.go          # AI summary & LLM features
-│       ├── prompts.go     # 🆕 Prompt library UI
-│       ├── slack.go       # 🆕 Slack integration UI
-│       ├── markdown.go    # Markdown rendering & LLM touch-up
-│       ├── commands.go    # Command bar & execution
-│       ├── status.go      # Status bar & notifications
-│       ├── welcome.go     # Welcome screen
-│       ├── logging.go     # Logging setup
-│       └── list_helpers.go # List manipulation utilities
-├── pkg/                   # Reusable packages
-│   └── auth/              # OAuth2 authentication
-│       └── oauth.go       # OAuth2 implementation
-├── docs/                  # Documentation
-│   ├── ARCHITECTURE.md    # Architecture documentation
-│   ├── COLORS.md          # Color system documentation
-│   ├── gmail-filters-and-search-operators.md # Search operators
-│   └── search_ux_and_roadmap.md # Search UX roadmap
-├── scripts/               # Build & development scripts
-│   └── check-architecture.sh # Architecture compliance checker
-├── skins/                 # Theme skins
-│   ├── gmail-dark.yaml    # Dark theme
-│   ├── gmail-light.yaml   # Light theme
-│   └── custom-example.yaml # Custom theme example
-├── examples/              # Usage examples
-│   ├── config.json        # Configuration example
-│   ├── credentials.json.example # Credentials template
-│   └── theme_demo.go      # Theme demonstration
-├── .github/               # GitHub workflows
-│   └── workflows/         # CI/CD workflows
-│       └── ci.yml         # Continuous integration
-├── build/                 # Build artifacts
-├── .claude/               # Claude AI configuration
-├── .cursor/               # Cursor IDE configuration
-├── Makefile               # Build & development tasks
-├── go.mod                 # Go module definition
-├── go.sum                 # Go dependencies checksums
-├── .pre-commit-config.yaml # Pre-commit hooks
-├── .golangci.yml          # Go linter configuration
-├── CLAUDE.md              # Claude AI development notes
-├── TODO.md                # Development roadmap & tasks
-└── README.md              # This file
+giztui/
+├── cmd/                    # Application entry points
+│   └── main.go            # Main application entry
+├── internal/              # Private application packages
+│   ├── config/           # Configuration management
+│   │   └── config.go     # Config struct and loading
+│   ├── db/               # Database and caching layer
+│   │   ├── cache.go      # SQLite cache implementation
+│   │   ├── migrations.go # Database migrations
+│   │   └── obsidian_store.go # Obsidian integration storage
+│   ├── obsidian/         # Obsidian integration module
+│   │   ├── ingestion.go  # Email ingestion to Obsidian
+│   │   └── templates.go  # Template processing
+│   ├── services/         # Business logic layer
+│   │   ├── interfaces.go # Service interfaces
+│   │   ├── email_service.go      # Email operations
+│   │   ├── ai_service.go         # LLM integration
+│   │   ├── label_service.go      # Label management
+│   │   ├── cache_service.go      # Caching operations
+│   │   ├── bulk_prompt_service.go # Bulk prompt processing
+│   │   ├── slack_service.go      # Slack integration
+│   │   └── repository.go         # Data access abstraction
+│   └── tui/              # Terminal user interface
+│       ├── app.go        # Main application struct
+│       ├── keys.go       # Keyboard shortcuts
+│       ├── commands.go   # Command handling
+│       ├── ui.go         # UI layout and components
+│       ├── email.go      # Email display logic
+│       ├── labels.go     # Label management UI
+│       ├── search.go     # Search functionality
+│       ├── bulk_prompts.go # Bulk prompt operations UI
+│       ├── slack.go      # Slack integration UI
+│       └── error_handler.go # Centralized error handling
+├── examples/             # Configuration examples
+│   └── config.json      # Example configuration
+├── docs/                # Documentation and proposals
+│   ├── ARCHITECTURE.md  # Detailed architecture guide
+│   └── proposals/       # Design proposals and RFCs
+└── README.md           # This file
 ```
 
 ### 🔧 Service Architecture
@@ -196,8 +148,9 @@ The application follows a **robust, service-oriented architecture** with clear s
 - **LabelService**: Gmail label management operations
 - **CacheService**: SQLite-based caching for AI summaries
 - **PromptService**: 🆕 Prompt library management with caching and usage tracking
-- **SlackService**: 🆕 Slack integration for email forwarding with multiple format styles
 - **ObsidianService**: 🆕 Email-to-Obsidian ingestion with template support
+- **BulkPromptService**: 🆕 Bulk prompt processing with progress tracking and caching
+- **SlackService**: 🆕 Slack integration for email forwarding with multiple format styles
 - **MessageRepository**: Data access abstraction for Gmail API
 
 #### 🎯 **Key Architectural Improvements**
@@ -470,6 +423,7 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `*` | Select all visible messages |
 | `a` | Archive selected messages |
 | `d` | Move selected messages to trash |
+| `t` | 🆕 **Toggle read/unread status for selected messages** |
 | `m` | Move selected messages to label |
 | `p` | Apply AI prompt to all selected messages |
 | `K` | 🆕 **Forward selected messages to Slack** |
@@ -478,7 +432,7 @@ Bulk operations allow you to select multiple messages and perform actions on the
 
 **Bulk Mode Status Bar:**
 - Shows current selection count
-- Displays available actions: `space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit`
+- Displays available actions: `space/v=select, *=all, a=archive, d=trash, t=read/unread, m=move, p=prompt, K=slack, O=obsidian, ESC=exit`
 
 ### AI Features (LLM)
 
@@ -691,7 +645,7 @@ You can use a pluggable LLM provider. Configure in `~/.config/gmail-tui/config.j
 {
   "llm_enabled": true,
   "llm_provider": "ollama",          // ollama|bedrock (supported now)
-  "llm_model": "llama3.1:8b",
+  "llm_model": "llama3.2:latest",
   "llm_endpoint": "http://localhost:11434/api/generate",
   "llm_api_key": "",
   "llm_timeout": "20s",
@@ -1247,6 +1201,21 @@ Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defa
 
 - For up-to-date feature status and planned work, see `TODO.md`.
 
+## ⚠️ Known Issues
+
+### UI and Focus Issues
+- **`:slack` command focus** - When using the `:slack` command, focus doesn't automatically go to the Slack forwarding widget. Use the `K` key instead for proper focus behavior.
+- **Advanced search UI** - The advanced search scope selection has visual issues where the page doesn't update cleanly, leaving orphan letters when navigating up and down through options.
+
+### Configuration Issues
+- **LLM configuration duplication** - The configuration currently has both legacy Ollama fields (`ollama_endpoint`, `ollama_model`, `ollama_timeout`) and new LLM fields (`llm_provider`, `llm_model`, `llm_timeout`). This creates confusion and inconsistent timeout values.
+- **Scattered AI configuration** - LLM settings, prompts, and cache settings are mixed throughout the config instead of being grouped under a unified `ai` or `llm` section.
+
+### Pending Features  
+- **Slack template comments** - The `{{comment}}` variable is not yet available in Slack summary prompt templates. User messages are displayed separately above the summary.
+- **ErrorHandler migration** - Some operations still need to be migrated to use the centralized ErrorHandler for consistent user feedback.
+- **Configuration file templates** - Move inline configuration examples to separate template files for easier maintenance.
+
 ## 📝 Obsidian Integration
 
 Gmail TUI includes a powerful Obsidian integration that allows you to ingest emails directly to your second brain system.
@@ -1277,7 +1246,7 @@ Add this section to your `~/.config/gmail-tui/config.json`:
     "prevent_duplicates": true,
     "max_file_size": 1048576,
     "include_attachments": true,
-    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n{% if comment %}**Personal Note:** {{comment}}\n\n{% endif %}---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
   }
 }
 ```
@@ -1315,7 +1284,6 @@ Add this section to your `~/.config/gmail-tui/config.json`:
 - `{{labels}}` - Gmail labels
 - `{{message_id}}` - Gmail message ID
 - `{{ingest_date}}` - Date of ingestion
-- `{{comment}}` - **🆕 Personal comment added by user**
 
 ### Configuration Options
 
