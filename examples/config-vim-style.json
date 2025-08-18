@@ -1,0 +1,90 @@
+{
+  "_comment": "Vim-style keyboard shortcuts configuration example",
+  "_description": "This configuration demonstrates how to customize shortcuts to match Vim keybindings",
+  "credentials": "~/.config/giztui/credentials.json",
+  "token": "~/.config/giztui/token.json",
+  "llm": {
+    "enabled": true,
+    "provider": "ollama",
+    "model": "llama3.2:latest",
+    "endpoint": "http://localhost:11434/api/generate",
+    "timeout": "20s",
+    "stream_enabled": true,
+    "stream_chunk_ms": 60,
+    "cache_enabled": true,
+    "cache_path": "",
+    "summarize_template": "templates/ai/summarize.md",
+    "reply_template": "templates/ai/reply.md",
+    "label_template": "templates/ai/label.md",
+    "touch_up_template": "templates/ai/touch_up.md"
+  },
+  "slack": {
+    "enabled": false,
+    "channels": [],
+    "defaults": {
+      "format_style": "summary"
+    }
+  },
+  "layout": {
+    "auto_resize": true,
+    "wide_breakpoint": {
+      "width": 120,
+      "height": 30
+    },
+    "medium_breakpoint": {
+      "width": 80,
+      "height": 25
+    },
+    "narrow_breakpoint": {
+      "width": 60,
+      "height": 20
+    },
+    "default_layout": "auto",
+    "show_borders": true,
+    "show_titles": true,
+    "compact_mode": false,
+    "color_scheme": "default"
+  },
+  "keys": {
+    "_comment": "Vim-style shortcuts for Gmail TUI",
+    "_core_operations": "Core email operations with Vim-style keys",
+    "summarize": "ys",      // yank summary
+    "generate_reply": "gr", // generate reply
+    "suggest_label": "gl",  // suggest label
+    "reply": "r",           // reply (same as default)
+    "compose": "i",         // insert mode for new message
+    "refresh": "R",         // refresh (same as default)
+    "search": "/",          // search (like Vim)
+    "unread": "u",          // unread (same as default)
+    "toggle_read": "t",     // toggle (same as default)
+    "trash": "dd",          // delete (like Vim dd)
+    "archive": "a",         // archive (same as default)
+    "drafts": "D",          // drafts (same as default)
+    "attachments": "A",     // attachments (same as default)
+    "manage_labels": "l",   // labels (same as default)
+    "quit": ":q",           // quit (like Vim :q)
+    
+    "_additional_shortcuts": "Additional Vim-style shortcuts",
+    "obsidian": "O",        // Obsidian (same as default)
+    "slack": "K",           // Slack (same as default)
+    "markdown": "M",        // Markdown (same as default)
+    "save_message": "w",    // write (like Vim :w)
+    "save_raw": "W",        // write raw (same as default)
+    "rsvp": "V",            // RSVP (same as default)
+    "link_picker": "L",     // Link picker (same as default)
+    "bulk_mode": "v",       // visual mode (like Vim v)
+    "command_mode": ":",    // command mode (like Vim :)
+    "help": ":h"            // help (like Vim :h)
+  },
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Documents/Obsidian/MyVault",
+    "ingest_folder": "00-Inbox",
+    "filename_format": "{{date}}_{{subject_slug}}_{{from_domain}}",
+    "history_enabled": true,
+    "prevent_duplicates": true,
+    "max_file_size": 1048576,
+    "include_attachments": true,
+    "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+  }
+}

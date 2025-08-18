@@ -98,6 +98,9 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Focus switching** - Press 't' to toggle between list and text focus
 
 ### 🎯 User Experience
+- ✅ **Fully customizable keyboard shortcuts** - Configure any shortcut through config.json
+- ✅ **Multiple shortcut styles** - Support for Vim, Emacs, and custom shortcut schemes
+- ✅ **25+ configurable actions** - Customize core email operations and additional features
 - 🎨 **Inspired by `k9s`, `neomutt`, `alpine`**
 - ⌨️ **100% keyboard navigation**
 - ⚡ **Efficient and fast interface**

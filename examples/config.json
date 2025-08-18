@@ -67,6 +67,8 @@
     "color_scheme": "default"
   },
   "keys": {
+    "_comment": "Customize keyboard shortcuts to match your preferences. All shortcuts are configurable!",
+    "_core_operations": "Core email operations",
     "summarize": "y",
     "generate_reply": "g",
     "suggest_label": "o",
@@ -81,7 +83,27 @@
     "drafts": "D",
     "attachments": "A",
     "manage_labels": "l",
-    "quit": "q"
+    "quit": "q",
+    
+    "_additional_shortcuts": "Additional configurable shortcuts",
+    "obsidian": "O",
+    "slack": "K",
+    "markdown": "M",
+    "save_message": "w",
+    "save_raw": "W",
+    "rsvp": "V",
+    "link_picker": "L",
+    "bulk_mode": "v",
+    "command_mode": ":",
+    "help": "?",
+    
+    "_examples": "Example customizations (uncomment and modify as needed):",
+    "_vim_style": "Vim-style shortcuts:",
+    "_example1": "\"reply\": \"r\", \"compose\": \"i\", \"search\": \"/\", \"quit\": \":q\"",
+    "_emacs_style": "Emacs-style shortcuts:",
+    "_example2": "\"compose\": \"C-x\", \"search\": \"C-s\", \"quit\": \"C-x C-c\"",
+    "_custom_workflow": "Custom workflow shortcuts:",
+    "_example3": "\"summarize\": \"1\", \"generate_reply\": \"2\", \"suggest_label\": \"3\""
   },
   "obsidian": {
     "enabled": true,

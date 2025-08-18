@@ -8,6 +8,247 @@ import (
 	"github.com/derailed/tview"
 )
 
+// handleConfigurableKey checks if a key event matches a configurable shortcut and executes the corresponding action
+func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
+	// Only handle single character keys for configurable shortcuts
+	if event.Rune() == 0 {
+		return false
+	}
+	
+	key := string(event.Rune())
+	
+	// Check each configurable shortcut
+	switch key {
+	// Core email operations
+	case a.Keys.Summarize:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> summarize", key)
+		}
+		go a.summarizeSelected()
+		return true
+	case a.Keys.GenerateReply:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> generate_reply", key)
+		}
+		go a.generateReply()
+		return true
+	case a.Keys.SuggestLabel:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> suggest_label", key)
+		}
+		go a.suggestLabel()
+		return true
+	case a.Keys.Reply:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> reply", key)
+		}
+		go a.replySelected()
+		return true
+	case a.Keys.Compose:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> compose", key)
+		}
+		go a.composeMessage(false)
+		return true
+	case a.Keys.Refresh:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> refresh", key)
+		}
+		go a.reloadMessages()
+		return true
+	case a.Keys.Search:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> search", key)
+		}
+		a.openSearchOverlay("remote")
+		return true
+	case a.Keys.Unread:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> unread", key)
+		}
+		go a.listUnreadMessages()
+		return true
+	case a.Keys.ToggleRead:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> toggle_read", key)
+		}
+		go a.toggleMarkReadUnread()
+		return true
+	case a.Keys.Trash:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> trash", key)
+		}
+		go a.trashSelected()
+		return true
+	case a.Keys.Archive:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> archive", key)
+		}
+		go a.archiveSelected()
+		return true
+	case a.Keys.Drafts:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> drafts", key)
+		}
+		go a.loadDrafts()
+		return true
+	case a.Keys.Attachments:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> attachments", key)
+		}
+		go a.showAttachments()
+		return true
+	case a.Keys.ManageLabels:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels", key)
+		}
+		a.manageLabels()
+		return true
+	case a.Keys.Quit:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> quit", key)
+		}
+		a.cancel()
+		a.Stop()
+		return true
+	
+	// Additional configurable shortcuts
+	case a.Keys.Obsidian:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> obsidian", key)
+		}
+		go a.sendEmailToObsidian()
+		return true
+	case a.Keys.Slack:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> slack", key)
+		}
+		if a.bulkMode && len(a.selected) > 0 {
+			go a.showSlackBulkForwardDialog()
+		} else {
+			go a.showSlackForwardDialog()
+		}
+		return true
+	case a.Keys.Markdown:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> markdown", key)
+		}
+		a.toggleMarkdown()
+		return true
+	case a.Keys.SaveMessage:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> save_message", key)
+		}
+		go a.saveCurrentMessageToFile()
+		return true
+	case a.Keys.SaveRaw:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> save_raw", key)
+		}
+		go a.saveCurrentMessageRawEML()
+		return true
+	case a.Keys.RSVP:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> rsvp", key)
+		}
+		if a.rsvpVisible {
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				split.ResizeItem(a.labelsView, 0, 0)
+			}
+			a.labelsVisible = false
+			a.rsvpVisible = false
+			a.restoreFocusAfterModal()
+		} else {
+			go a.openRSVPModal()
+		}
+		return true
+	case a.Keys.LinkPicker:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> link_picker", key)
+		}
+		go a.openLinkPicker()
+		return true
+	case a.Keys.BulkMode:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> bulk_mode", key)
+		}
+		if list, ok := a.views["list"].(*tview.Table); ok {
+			if !a.bulkMode {
+				a.bulkMode = true
+				r, _ := list.GetSelection()
+				if r >= 0 && r < len(a.ids) {
+					if a.selected == nil {
+						a.selected = make(map[string]bool)
+					}
+					a.selected[a.ids[r]] = true
+				}
+				a.reformatListItems()
+				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				go func() {
+					a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
+				}()
+			} else {
+				a.bulkMode = false
+				a.selected = make(map[string]bool)
+				a.reformatListItems()
+				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				go func() {
+					a.GetErrorHandler().ClearProgress()
+				}()
+			}
+		}
+		return true
+	case a.Keys.CommandMode:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> command_mode", key)
+		}
+		a.showCommandBar()
+		return true
+	case a.Keys.Help:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> help", key)
+		}
+		a.toggleHelp()
+		return true
+	}
+	
+	return false
+}
+
+// isKeyConfigured checks if a key is already configured in the configurable shortcuts
+func (a *App) isKeyConfigured(key rune) bool {
+	if key == 0 {
+		return false
+	}
+	
+	keyStr := string(key)
+	return keyStr == a.Keys.Summarize ||
+		keyStr == a.Keys.GenerateReply ||
+		keyStr == a.Keys.SuggestLabel ||
+		keyStr == a.Keys.Reply ||
+		keyStr == a.Keys.Compose ||
+		keyStr == a.Keys.Refresh ||
+		keyStr == a.Keys.Search ||
+		keyStr == a.Keys.Unread ||
+		keyStr == a.Keys.ToggleRead ||
+		keyStr == a.Keys.Trash ||
+		keyStr == a.Keys.Archive ||
+		keyStr == a.Keys.Drafts ||
+		keyStr == a.Keys.Attachments ||
+		keyStr == a.Keys.ManageLabels ||
+		keyStr == a.Keys.Quit ||
+		keyStr == a.Keys.Obsidian ||
+		keyStr == a.Keys.Slack ||
+		keyStr == a.Keys.Markdown ||
+		keyStr == a.Keys.SaveMessage ||
+		keyStr == a.Keys.SaveRaw ||
+		keyStr == a.Keys.RSVP ||
+		keyStr == a.Keys.LinkPicker ||
+		keyStr == a.Keys.BulkMode ||
+		keyStr == a.Keys.CommandMode ||
+		keyStr == a.Keys.Help
+}
+
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
 func (a *App) bindKeys() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -76,6 +317,11 @@ func (a *App) bindKeys() {
 			a.logger.Printf("DIGIT KEY: reached main switch statement, checking for VIM sequence")
 		}
 		
+		// Check configurable shortcuts first
+		if a.handleConfigurableKey(event) {
+			return nil
+		}
+		
 		switch event.Rune() {
 		case ' ':
 			if list, ok := a.views["list"].(*tview.Table); ok {
@@ -115,36 +361,40 @@ func (a *App) bindKeys() {
 				return nil
 			}
 		case 'v':
-			// Toggle bulk mode with 'v' (visual mode - like Vim)
-			if list, ok := a.views["list"].(*tview.Table); ok {
-				if !a.bulkMode {
-					a.bulkMode = true
-					r, _ := list.GetSelection()
-					if r >= 0 && r < len(a.ids) {
-						if a.selected == nil {
-							a.selected = make(map[string]bool)
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('v') {
+				// Toggle bulk mode with 'v' (visual mode - like Vim)
+				if list, ok := a.views["list"].(*tview.Table); ok {
+					if !a.bulkMode {
+						a.bulkMode = true
+						r, _ := list.GetSelection()
+						if r >= 0 && r < len(a.ids) {
+							if a.selected == nil {
+								a.selected = make(map[string]bool)
+							}
+							a.selected[a.ids[r]] = true
 						}
-						a.selected[a.ids[r]] = true
+						a.reformatListItems()
+						// Keep focus highlight consistent (blue) even in Bulk mode
+						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						// Show status message asynchronously to avoid deadlock
+						go func() {
+							a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
+						}()
+					} else {
+						a.bulkMode = false
+						a.selected = make(map[string]bool)
+						a.reformatListItems()
+						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						// Clear status message asynchronously to avoid deadlock
+						go func() {
+							a.GetErrorHandler().ClearProgress()
+						}()
 					}
-					a.reformatListItems()
-					// Keep focus highlight consistent (blue) even in Bulk mode
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
-					// Show status message asynchronously to avoid deadlock
-					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
-					}()
-				} else {
-					a.bulkMode = false
-					a.selected = make(map[string]bool)
-					a.reformatListItems()
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
-					// Clear status message asynchronously to avoid deadlock
-					go func() {
-						a.GetErrorHandler().ClearProgress()
-					}()
+					return nil
 				}
-				return nil
 			}
+			break
 		case 'b':
 			// Toggle bulk mode with 'b' (alternative to 'v')
 			if list, ok := a.views["list"].(*tview.Table); ok {
@@ -205,93 +455,129 @@ func (a *App) bindKeys() {
 				return nil
 			}
 		case ':':
-			a.showCommandBar()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured(':') {
+				a.showCommandBar()
+				return nil
+			}
+			break
 		case '?':
-			a.toggleHelp()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('?') {
+				a.toggleHelp()
+				return nil
+			}
+			break
 		case 'q':
 			a.cancel()
 			a.Stop()
 			return nil
 		case 'r':
-			if a.draftMode {
-				go a.loadDrafts()
-			} else {
-				go a.reloadMessages()
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('r') {
+				if a.draftMode {
+					go a.loadDrafts()
+				} else {
+					go a.reloadMessages()
+				}
+				return nil
 			}
-			return nil
+			break
 		case 'n':
-			if a.currentFocus == "list" && (event.Modifiers()&tcell.ModShift) == 0 {
-				go a.loadMoreMessages()
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('n') {
+				if a.currentFocus == "list" && (event.Modifiers()&tcell.ModShift) == 0 {
+					go a.loadMoreMessages()
+					return nil
+				}
+				go a.composeMessage(false)
 				return nil
 			}
-			go a.composeMessage(false)
-			return nil
+			break
 		case 's':
-			// Check if this might be part of a VIM sequence first
-			if a.handleVimSequence(event.Rune()) {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('s') {
+				// Check if this might be part of a VIM sequence first
+				if a.handleVimSequence(event.Rune()) {
+					return nil
+				}
+				a.openSearchOverlay("remote")
 				return nil
 			}
-			a.openSearchOverlay("remote")
-			return nil
+			break
 		case '/':
 			a.openSearchOverlay("local")
 			return nil
 		case 'u':
-			go a.listUnreadMessages()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('u') {
+				go a.listUnreadMessages()
+				return nil
+			}
+			break
 		case 't':
-			if a.logger != nil {
-				a.logger.Printf("=== MAIN KEY HANDLER: 't' pressed, bulkMode=%v, selected=%d ===", a.bulkMode, len(a.selected))
-			}
-			// In bulk mode, prioritize bulk operations over VIM sequences
-			if a.bulkMode && len(a.selected) > 0 {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('t') {
 				if a.logger != nil {
-					a.logger.Printf("Main handler: bulk mode active, calling toggleMarkReadUnreadBulk")
+					a.logger.Printf("=== MAIN KEY HANDLER: 't' pressed, bulkMode=%v, selected=%d ===", a.bulkMode, len(a.selected))
 				}
-				go a.toggleMarkReadUnreadBulk()
+				// In bulk mode, prioritize bulk operations over VIM sequences
+				if a.bulkMode && len(a.selected) > 0 {
+					if a.logger != nil {
+						a.logger.Printf("Main handler: bulk mode active, calling toggleMarkReadUnreadBulk")
+					}
+					go a.toggleMarkReadUnreadBulk()
+					return nil
+				}
+				// Check if this might be part of a VIM sequence
+				if a.logger != nil {
+					a.logger.Printf("Main handler: checking VIM sequence for 't'")
+				}
+				if a.handleVimSequence(event.Rune()) {
+					if a.logger != nil {
+						a.logger.Printf("Main handler: VIM sequence handled 't', returning")
+					}
+					return nil
+				}
+				if a.logger != nil {
+					a.logger.Printf("Main handler: VIM sequence did not handle 't', calling single operation")
+				}
+				go a.toggleMarkReadUnread()
 				return nil
 			}
-			// Check if this might be part of a VIM sequence
-			if a.logger != nil {
-				a.logger.Printf("Main handler: checking VIM sequence for 't'")
-			}
-			if a.handleVimSequence(event.Rune()) {
-				if a.logger != nil {
-					a.logger.Printf("Main handler: VIM sequence handled 't', returning")
-				}
-				return nil
-			}
-			if a.logger != nil {
-				a.logger.Printf("Main handler: VIM sequence did not handle 't', calling single operation")
-			}
-			go a.toggleMarkReadUnread()
-			return nil
+			break
 		case 'd':
-			// In bulk mode, prioritize bulk operations over VIM sequences
-			if a.bulkMode && len(a.selected) > 0 {
-				go a.trashSelectedBulk()
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('d') {
+				// In bulk mode, prioritize bulk operations over VIM sequences
+				if a.bulkMode && len(a.selected) > 0 {
+					go a.trashSelectedBulk()
+					return nil
+				}
+				// Check if this might be part of a VIM sequence
+				if a.handleVimSequence(event.Rune()) {
+					return nil
+				}
+				go a.trashSelected()
 				return nil
 			}
-			// Check if this might be part of a VIM sequence
-			if a.handleVimSequence(event.Rune()) {
-				return nil
-			}
-			go a.trashSelected()
-			return nil
+			break
 		case 'a':
-			// In bulk mode, prioritize bulk operations over VIM sequences
-			if a.bulkMode && len(a.selected) > 0 {
-				go a.archiveSelectedBulk()
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('a') {
+				// In bulk mode, prioritize bulk operations over VIM sequences
+				if a.bulkMode && len(a.selected) > 0 {
+					go a.archiveSelectedBulk()
+					return nil
+				}
+				// Check if this might be part of a VIM sequence
+				if a.handleVimSequence(event.Rune()) {
+					return nil
+				}
+				go a.archiveSelected()
 				return nil
 			}
-			// Check if this might be part of a VIM sequence
-			if a.handleVimSequence(event.Rune()) {
-				return nil
-			}
-			go a.archiveSelected()
-			return nil
+			break
 		case 'R':
 			go a.replySelected()
 			return nil
@@ -314,27 +600,35 @@ func (a *App) bindKeys() {
 			go a.searchBySubjectCurrent()
 			return nil
 		case 'K':
-			// Forward to Slack
-			if a.currentFocus == "search" {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('K') {
+				// Forward to Slack
+				if a.currentFocus == "search" {
+					return nil
+				}
+				if a.bulkMode && len(a.selected) > 0 {
+					go a.showSlackBulkForwardDialog()
+				} else {
+					go a.showSlackForwardDialog()
+				}
 				return nil
 			}
-			if a.bulkMode && len(a.selected) > 0 {
-				go a.showSlackBulkForwardDialog()
-			} else {
-				go a.showSlackForwardDialog()
-			}
-			return nil
+			break
 		case 'l':
-			if a.currentFocus == "search" {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('l') {
+				if a.currentFocus == "search" {
+					return nil
+				}
+				// Check if this might be part of a VIM sequence first
+				if a.handleVimSequence(event.Rune()) {
+					return nil
+				}
+				// Toggle contextual labels panel
+				a.manageLabels()
 				return nil
 			}
-			// Check if this might be part of a VIM sequence first
-			if a.handleVimSequence(event.Rune()) {
-				return nil
-			}
-			// Toggle contextual labels panel
-			a.manageLabels()
-			return nil
+			break
 		case 'p':
 			if a.currentFocus == "search" {
 				return nil
@@ -372,24 +666,32 @@ func (a *App) bindKeys() {
 			a.openMovePanel()
 			return nil
 		case 'M':
-			a.toggleMarkdown()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('M') {
+				a.toggleMarkdown()
+				return nil
+			}
+			break
 		case 'V':
-			if a.currentFocus == "search" {
-				return nil
-			}
-			// Toggle RSVP side panel
-			if a.rsvpVisible {
-				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-					split.ResizeItem(a.labelsView, 0, 0)
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('V') {
+				if a.currentFocus == "search" {
+					return nil
 				}
-				a.labelsVisible = false
-				a.rsvpVisible = false
-				a.restoreFocusAfterModal()
+				// Toggle RSVP side panel
+				if a.rsvpVisible {
+					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+						split.ResizeItem(a.labelsView, 0, 0)
+					}
+					a.labelsVisible = false
+					a.rsvpVisible = false
+					a.restoreFocusAfterModal()
+					return nil
+				}
+				go a.openRSVPModal()
 				return nil
 			}
-			go a.openRSVPModal()
-			return nil
+			break
 		case 'o':
 			// Avoid opening suggestions while advanced search is active
 			if a.currentFocus == "search" {
@@ -403,25 +705,41 @@ func (a *App) bindKeys() {
 			go a.suggestLabel()
 			return nil
 		case 'O': // Shift+O for Obsidian ingestion
-			if a.currentFocus == "search" {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('O') {
+				if a.currentFocus == "search" {
+					return nil
+				}
+				// Allow Obsidian ingestion in both normal and bulk modes
+				go a.sendEmailToObsidian()
 				return nil
 			}
-			// Allow Obsidian ingestion in both normal and bulk modes
-			go a.sendEmailToObsidian()
-			return nil
+			break
 		case 'L': // Shift+L for link picker
-			if a.currentFocus == "search" {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('L') {
+				if a.currentFocus == "search" {
+					return nil
+				}
+				// Open link picker for current message
+				go a.openLinkPicker()
 				return nil
 			}
-			// Open link picker for current message
-			go a.openLinkPicker()
-			return nil
+			break
 		case 'w':
-			go a.saveCurrentMessageToFile()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('w') {
+				go a.saveCurrentMessageToFile()
+				return nil
+			}
+			break
 		case 'W':
-			go a.saveCurrentMessageRawEML()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('W') {
+				go a.saveCurrentMessageRawEML()
+				return nil
+			}
+			break
 		}
 
 		// ESC exits bulk mode or closes AI panel
