@@ -11,6 +11,14 @@ import (
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
 func (a *App) bindKeys() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Debug logging for all key presses
+		if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+			focusType := "nil"
+			if focus := a.GetFocus(); focus != nil {
+				focusType = fmt.Sprintf("%T", focus)
+			}
+			a.logger.Printf("=== DIGIT KEY PRESSED: '%c', focus=%s, currentFocus=%s ===", event.Rune(), focusType, a.currentFocus)
+		}
 		// If command panel is open but focus moved away, auto-hide to avoid stuck state
 		if a.cmdMode {
 			if inp, ok := a.views["cmdInput"].(*tview.InputField); ok {
@@ -31,21 +39,43 @@ func (a *App) bindKeys() {
 		}
 
 		// If focus is on form widgets (advanced/simple search), don't intercept
-		switch a.GetFocus().(type) {
+		switch focused := a.GetFocus().(type) {
 		case *tview.InputField:
+			if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+				a.logger.Printf("DIGIT KEY: early return for InputField")
+			}
 			return event
 		case *tview.DropDown:
+			if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+				a.logger.Printf("DIGIT KEY: early return for DropDown")
+			}
 			return event
 		case *tview.Form:
+			if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+				a.logger.Printf("DIGIT KEY: early return for Form")
+			}
 			return event
 		case *tview.List:
+			if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+				a.logger.Printf("DIGIT KEY: early return for List")
+			}
 			// When a modal/list picker is open, do not intercept global keys
 			return event
+		default:
+			if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+				a.logger.Printf("DIGIT KEY: no early return, focus type: %T", focused)
+			}
 		}
 
 		// Only intercept specific keys, let navigation keys pass through
 		// Ensure arrow keys navigate the currently focused pane, not the list always
 		// tview handles arrow keys per focused primitive, so we avoid overriding them here.
+		
+		// Debug: log when digit keys reach the main switch
+		if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
+			a.logger.Printf("DIGIT KEY: reached main switch statement, checking for VIM sequence")
+		}
+		
 		switch event.Rune() {
 		case ' ':
 			if list, ok := a.views["list"].(*tview.Table); ok {
@@ -199,6 +229,10 @@ func (a *App) bindKeys() {
 			go a.composeMessage(false)
 			return nil
 		case 's':
+			// Check if this might be part of a VIM sequence first
+			if a.handleVimSequence(event.Rune()) {
+				return nil
+			}
 			a.openSearchOverlay("remote")
 			return nil
 		case '/':
@@ -208,22 +242,52 @@ func (a *App) bindKeys() {
 			go a.listUnreadMessages()
 			return nil
 		case 't':
+			if a.logger != nil {
+				a.logger.Printf("=== MAIN KEY HANDLER: 't' pressed, bulkMode=%v, selected=%d ===", a.bulkMode, len(a.selected))
+			}
+			// In bulk mode, prioritize bulk operations over VIM sequences
 			if a.bulkMode && len(a.selected) > 0 {
+				if a.logger != nil {
+					a.logger.Printf("Main handler: bulk mode active, calling toggleMarkReadUnreadBulk")
+				}
 				go a.toggleMarkReadUnreadBulk()
 				return nil
+			}
+			// Check if this might be part of a VIM sequence
+			if a.logger != nil {
+				a.logger.Printf("Main handler: checking VIM sequence for 't'")
+			}
+			if a.handleVimSequence(event.Rune()) {
+				if a.logger != nil {
+					a.logger.Printf("Main handler: VIM sequence handled 't', returning")
+				}
+				return nil
+			}
+			if a.logger != nil {
+				a.logger.Printf("Main handler: VIM sequence did not handle 't', calling single operation")
 			}
 			go a.toggleMarkReadUnread()
 			return nil
 		case 'd':
+			// In bulk mode, prioritize bulk operations over VIM sequences
 			if a.bulkMode && len(a.selected) > 0 {
 				go a.trashSelectedBulk()
+				return nil
+			}
+			// Check if this might be part of a VIM sequence
+			if a.handleVimSequence(event.Rune()) {
 				return nil
 			}
 			go a.trashSelected()
 			return nil
 		case 'a':
+			// In bulk mode, prioritize bulk operations over VIM sequences
 			if a.bulkMode && len(a.selected) > 0 {
 				go a.archiveSelectedBulk()
+				return nil
+			}
+			// Check if this might be part of a VIM sequence
+			if a.handleVimSequence(event.Rune()) {
 				return nil
 			}
 			go a.archiveSelected()
@@ -264,6 +328,10 @@ func (a *App) bindKeys() {
 			if a.currentFocus == "search" {
 				return nil
 			}
+			// Check if this might be part of a VIM sequence first
+			if a.handleVimSequence(event.Rune()) {
+				return nil
+			}
 			// Toggle contextual labels panel
 			a.manageLabels()
 			return nil
@@ -276,9 +344,13 @@ func (a *App) bindKeys() {
 				a.toggleAISummary()
 				return nil
 			}
-			// If in bulk mode with selected messages, open bulk prompt picker
+			// In bulk mode, prioritize bulk operations over VIM sequences
 			if a.bulkMode && len(a.selected) > 0 {
 				go a.openBulkPromptPicker()
+				return nil
+			}
+			// Check if this might be part of a VIM sequence
+			if a.handleVimSequence(event.Rune()) {
 				return nil
 			}
 			// Otherwise, open prompt library picker for single message
@@ -288,11 +360,16 @@ func (a *App) bindKeys() {
 			if a.currentFocus == "search" {
 				return nil
 			}
+			// In bulk mode, prioritize bulk operations over VIM sequences
 			if a.bulkMode && len(a.selected) > 0 {
 				a.openMovePanelBulk()
-			} else {
-				a.openMovePanel()
+				return nil
 			}
+			// Check if this might be part of a VIM sequence
+			if a.handleVimSequence(event.Rune()) {
+				return nil
+			}
+			a.openMovePanel()
 			return nil
 		case 'M':
 			a.toggleMarkdown()
@@ -317,6 +394,10 @@ func (a *App) bindKeys() {
 			// Avoid opening suggestions while advanced search is active
 			if a.currentFocus == "search" {
 				a.showStatusMessage("🔕 Label suggestions disabled while searching")
+				return nil
+			}
+			// Check if this might be part of a VIM sequence first
+			if a.handleVimSequence(event.Rune()) {
 				return nil
 			}
 			go a.suggestLabel()
@@ -357,7 +438,15 @@ func (a *App) bindKeys() {
 				}
 				a.streamingCancel()
 				a.streamingCancel = nil
-				// Continue with other ESC actions after canceling streaming
+				
+				// After canceling streaming, always hide AI panel if visible
+				if a.aiSummaryVisible {
+					if a.logger != nil {
+						a.logger.Printf("keys: ESC - hiding AI panel after stream cancellation")
+					}
+					a.hideAIPanel()
+					return nil
+				}
 			}
 
 			// If we're in bulk mode, exit bulk mode
@@ -391,6 +480,15 @@ func (a *App) bindKeys() {
 					a.logger.Printf("keys: ESC - hiding Slack panel")
 				}
 				a.hideSlackPanel()
+				return nil
+			}
+
+			// If focus is on prompts panel, close it
+			if a.currentFocus == "prompts" && a.labelsVisible {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing prompts panel")
+				}
+				a.closePromptPicker()
 				return nil
 			}
 
@@ -447,20 +545,7 @@ func (a *App) bindKeys() {
 			return event
 		}
 
-		// VIM-style navigation shortcuts
-		switch event.Rune() {
-		case 'g':
-			if a.handleVimNavigation('g') {
-				return nil
-			}
-			// Fall through to LLM features if not VIM navigation
-		case 'G':
-			if a.handleVimNavigation('G') {
-				return nil
-			}
-		}
-
-		// LLM features
+		// LLM features (handle before VIM to avoid conflicts)
 		if a.LLM != nil {
 			switch event.Rune() {
 			case 'y':
@@ -469,15 +554,27 @@ func (a *App) bindKeys() {
 			case 'Y':
 				go a.forceRegenerateSummary()
 				return nil
-			case 'g':
-				// Only show generate reply if not handled by VIM navigation
-				if !a.isVimNavigationActive() {
-					a.showStatusMessage("💬 Generate reply: placeholder")
+			}
+		}
+
+		// VIM navigation sequences (gg, G) - these don't conflict with main keys
+		if a.handleVimNavigation(event.Rune()) {
+			return nil
+		}
+
+		// Handle digit keys for VIM sequences
+		if event.Rune() >= '0' && event.Rune() <= '9' {
+			if a.logger != nil {
+				a.logger.Printf("DIGIT KEY: checking VIM sequence for '%c'", event.Rune())
+			}
+			if a.handleVimSequence(event.Rune()) {
+				if a.logger != nil {
+					a.logger.Printf("DIGIT KEY: handled by VIM sequence")
 				}
 				return nil
-			case 'o':
-				go a.suggestLabel()
-				return nil
+			}
+			if a.logger != nil {
+				a.logger.Printf("DIGIT KEY: not handled by VIM sequence, passing through")
 			}
 		}
 
@@ -581,20 +678,54 @@ func (a *App) restoreFocusAfterModal() {
 	a.updateFocusIndicators("list")
 }
 
-// handleVimNavigation handles VIM-style navigation key sequences
-func (a *App) handleVimNavigation(key rune) bool {
-	// Check if we're in a context where VIM navigation should work
-	// Allow VIM navigation when focus is on list or when no specific focus is set
+// handleVimSequence handles VIM-style key sequences including navigation and range operations
+func (a *App) handleVimSequence(key rune) bool {
+	if a.logger != nil {
+		a.logger.Printf("=== handleVimSequence called with key='%c' ===", key)
+		a.logger.Printf("Current state: vimOperationType='%s', vimOperationCount=%d, vimSequence='%s'", a.vimOperationType, a.vimOperationCount, a.vimSequence)
+	}
+	
+	// Check if we're in a context where VIM sequences should work
+	// Allow VIM sequences when focus is on list or when no specific focus is set
 	if a.currentFocus != "" && a.currentFocus != "list" {
+		if a.logger != nil {
+			a.logger.Printf("handleVimSequence: wrong focus context '%s', returning false", a.currentFocus)
+		}
 		return false
 	}
 
 	now := time.Now()
 
-	// Clear sequence if timeout exceeded (1 second)
-	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Second {
+	// Clear sequence if timeout exceeded (2 seconds for range operations)
+	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > 2*time.Second {
+		if a.logger != nil {
+			a.logger.Printf("handleVimSequence: timeout exceeded, clearing sequence")
+		}
 		a.vimSequence = ""
+		a.vimOperationType = ""
+		a.vimOperationCount = 0
+		// Clear any status message for cancelled sequence
+		go func() {
+			a.GetErrorHandler().ClearProgress()
+		}()
 	}
+
+	// Handle navigation sequences (existing functionality)
+	if key == 'g' || key == 'G' {
+		return a.handleVimNavigation(key)
+	}
+
+	// Handle range operation sequences: {op}, {op}{digits}, {op}{digits}{op}
+	result := a.handleVimRangeOperation(key)
+	if a.logger != nil {
+		a.logger.Printf("handleVimSequence: returning %v", result)
+	}
+	return result
+}
+
+// handleVimNavigation handles traditional VIM navigation (gg, G)
+func (a *App) handleVimNavigation(key rune) bool {
+	now := time.Now()
 
 	switch key {
 	case 'g':
@@ -621,6 +752,232 @@ func (a *App) handleVimNavigation(key rune) bool {
 	return false
 }
 
+// handleVimRangeOperation handles range operations like s5s, a3a, d7d, etc.
+func (a *App) handleVimRangeOperation(key rune) bool {
+	if a.logger != nil {
+		a.logger.Printf("=== handleVimRangeOperation called with key='%c' ===", key)
+	}
+	now := time.Now()
+
+	// VIM-only operation keys (always handled by VIM)
+	vimOnlyOps := map[rune]bool{
+		's': true, // select (no conflict)
+		'a': true, // archive (no conflict)
+		'd': true, // delete/trash (no conflict)
+		't': true, // toggle read (no conflict)
+		'm': true, // move (no conflict)
+		'l': true, // label (no conflict)
+		'k': true, // slack (no conflict, using k instead of s)
+	}
+	
+	// Conflict operation keys (only handled by VIM when in sequence)
+	conflictOps := map[rune]bool{
+		'o': true, // obsidian (conflicts with 'o' for other features)
+		'p': true, // prompt (conflicts with 'p' for other features)
+	}
+	
+	// All valid operation keys
+	validOps := make(map[rune]bool)
+	for k, v := range vimOnlyOps {
+		validOps[k] = v
+	}
+	for k, v := range conflictOps {
+		validOps[k] = v
+	}
+
+	// Handle digits in sequence
+	if key >= '0' && key <= '9' {
+		if a.vimOperationType != "" {
+			// We're building a count: s5 -> s56
+			digit := int(key - '0')
+			oldCount := a.vimOperationCount
+			a.vimOperationCount = a.vimOperationCount*10 + digit
+			a.vimSequence += string(key)
+			a.vimTimeout = now.Add(2 * time.Second)
+			
+			if a.logger != nil {
+				a.logger.Printf("VIM digit pressed: %c, operation: %s, oldCount: %d, digit: %d, newCount: %d", key, a.vimOperationType, oldCount, digit, a.vimOperationCount)
+			}
+			
+			// Show status
+			go func() {
+				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s%d... (waiting for operation)", a.vimOperationType, a.vimOperationCount))
+			}()
+			return true
+		}
+		return false
+	}
+
+	// Handle operation keys
+	if !validOps[key] {
+		return false
+	}
+	
+	// For conflict keys, only handle them if we're already in a VIM sequence
+	// This allows 'p' and 'o' to work normally for prompts/obsidian when not in VIM mode
+	if conflictOps[key] && a.vimOperationType == "" {
+		return false
+	}
+
+	if a.vimOperationType == "" {
+		// Starting new sequence: s, a, d, etc.
+		a.vimOperationType = string(key)
+		a.vimOperationCount = 0
+		a.vimSequence = string(key)
+		a.vimTimeout = now.Add(2 * time.Second)
+		
+		if a.logger != nil {
+			a.logger.Printf("VIM sequence started: %c, operationType=%s, operationCount=%d", key, a.vimOperationType, a.vimOperationCount)
+		}
+		
+		// Show status and consume the key to prevent single operation
+		go func() {
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s... (enter count then %s, or wait for timeout)", string(key), string(key)))
+		}()
+		
+		// Start timeout goroutine to execute single operation if no sequence completed
+		go func() {
+			time.Sleep(2 * time.Second)
+			a.mu.Lock()
+			defer a.mu.Unlock()
+			
+			// Check if sequence is still pending (not completed or cleared)
+			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
+				if a.logger != nil {
+					a.logger.Printf("VIM timeout - executing single %s operation", string(key))
+				}
+				
+				// Clear sequence state
+				a.vimSequence = ""
+				a.vimOperationType = ""
+				a.vimTimeout = time.Time{}
+				
+				go func() {
+					a.GetErrorHandler().ClearProgress()
+				}()
+				
+				// Execute single operation
+				a.executeVimSingleOperation(string(key))
+			}
+		}()
+		
+		return true // Consume the key to prevent immediate single operation
+	} else if a.vimOperationType == string(key) {
+		// Completing sequence: s5s, a3a, etc.
+		count := a.vimOperationCount
+		if count == 0 {
+			count = 1 // Default to 1 if no count specified
+		}
+		
+		if a.logger != nil {
+			a.logger.Printf("VIM completing sequence: %s%d%s, passing count=%d to executeVimRangeOperation", string(key), count, string(key), count)
+		}
+		
+		// Clear sequence state
+		operation := a.vimOperationType
+		a.vimSequence = ""
+		a.vimOperationType = ""
+		a.vimOperationCount = 0
+		a.vimTimeout = time.Time{}
+		
+		// Execute the range operation
+		a.executeVimRangeOperation(operation, count)
+		return true
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("handleVimRangeOperation: no pattern matched, returning false")
+	}
+	return false
+}
+
+// executeVimRangeOperation executes a VIM range operation
+func (a *App) executeVimRangeOperation(operation string, count int) {
+	if a.logger != nil {
+		a.logger.Printf("executeVimRangeOperation: operation=%s, count=%d", operation, count)
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.GetErrorHandler().ShowError(a.ctx, "Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		return
+	}
+	
+	// Validate range doesn't exceed available messages
+	maxCount := len(a.ids) - startIndex
+	if count > maxCount {
+		count = maxCount
+		go func() {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Range limited to %d available messages", count))
+		}()
+	}
+	
+	switch operation {
+	case "s":
+		a.selectRange(startIndex, count)
+	case "a":
+		a.archiveRange(startIndex, count)
+	case "d":
+		a.trashRange(startIndex, count)
+	case "t":
+		a.toggleReadRange(startIndex, count)
+	case "m":
+		a.moveRange(startIndex, count)
+	case "l":
+		a.labelRange(startIndex, count)
+	case "k":
+		a.slackRange(startIndex, count)
+	case "o":
+		a.obsidianRange(startIndex, count)
+	case "p":
+		a.promptRange(startIndex, count)
+	default:
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown VIM operation: %s", operation))
+	}
+}
+
+// executeVimSingleOperation executes a single operation when VIM timeout occurs
+func (a *App) executeVimSingleOperation(operation string) {
+	switch operation {
+	case "s":
+		// For single 's', just highlight current message (no bulk mode)
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
+		}()
+	case "a":
+		// Archive current message
+		go a.archiveSelected()
+	case "d":
+		// Trash current message
+		go a.trashSelected()
+	case "t":
+		// Toggle read status of current message
+		go a.toggleMarkReadUnread()
+	case "m":
+		// Move current message
+		go a.moveSelected()
+	case "l":
+		// Show labels dialog for current message
+		a.manageLabels()
+	case "k":
+		// Show Slack dialog for current message
+		go a.showSlackForwardDialog()
+	case "o":
+		// Send current message to Obsidian
+		go a.sendEmailToObsidian()
+	case "p":
+		// Show prompts dialog for current message
+		go a.openPromptPicker()
+	}
+}
+
 // isVimNavigationActive checks if a VIM navigation sequence is currently active
 func (a *App) isVimNavigationActive() bool {
 	if a.vimSequence == "" {
@@ -634,4 +991,436 @@ func (a *App) isVimNavigationActive() bool {
 	a.vimSequence = ""
 	a.vimTimeout = time.Time{}
 	return false
+}
+
+// VIM Range Operation Functions
+
+// selectRange selects a range of messages starting from startIndex
+func (a *App) selectRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Enter bulk mode if not already in it
+	if !a.bulkMode {
+		a.bulkMode = true
+		if a.selected == nil {
+			a.selected = make(map[string]bool)
+		}
+	}
+
+	// Select the range of messages
+	selected := 0
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageID := a.ids[startIndex+i]
+		a.selected[messageID] = true
+		selected++
+	}
+
+	// Update UI
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Selected %d messages (s%ds)", selected, count))
+	}()
+}
+
+// archiveRange archives a range of messages starting from startIndex
+func (a *App) archiveRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+	
+	// Show progress
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d messages (a%da)...", actualCount, count))
+	}()
+
+	// Archive in background
+	go func() {
+		failed := 0
+		for i, messageID := range messageIDs {
+			// Progress update
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d messages...", i+1, actualCount))
+			
+			// Archive message
+			emailService, _, _, _, _, _, _, _ := a.GetServices()
+			if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
+				failed++
+				continue
+			}
+		}
+
+		// Clear progress and show result
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Archived %d messages (a%da)", actualCount, count))
+		} else {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Archived %d messages, %d failed (a%da)", actualCount-failed, failed, count))
+		}
+
+		// Remove archived messages from current view (no server reload needed)
+		a.QueueUpdateDraw(func() {
+			a.removeIDsFromCurrentList(messageIDs)
+			a.reformatListItems()
+		})
+	}()
+}
+
+// trashRange moves a range of messages to trash starting from startIndex
+func (a *App) trashRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+	
+	// Show progress
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d messages to trash (d%dd)...", actualCount, count))
+	}()
+
+	// Trash in background
+	go func() {
+		failed := 0
+		for i, messageID := range messageIDs {
+			// Progress update
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d messages...", i+1, actualCount))
+			
+			// Trash message
+			emailService, _, _, _, _, _, _, _ := a.GetServices()
+			if err := emailService.TrashMessage(a.ctx, messageID); err != nil {
+				failed++
+				continue
+			}
+		}
+
+		// Clear progress and show result
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Moved %d messages to trash (d%dd)", actualCount, count))
+		} else {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Moved %d messages to trash, %d failed (d%dd)", actualCount-failed, failed, count))
+		}
+
+		// Remove trashed messages from current view (no server reload needed)
+		a.QueueUpdateDraw(func() {
+			a.removeIDsFromCurrentList(messageIDs)
+			a.reformatListItems()
+		})
+	}()
+}
+
+// toggleReadRange toggles read status for a range of messages starting from startIndex
+func (a *App) toggleReadRange(startIndex, count int) {
+	if a.logger != nil {
+		a.logger.Printf("toggleReadRange called: startIndex=%d, count=%d", startIndex, count)
+	}
+	
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+	
+	if a.logger != nil {
+		a.logger.Printf("toggleReadRange: actualCount=%d, count=%d, will show (t%dt)", actualCount, count, count)
+	}
+	
+	// Show progress with correct VIM sequence display
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read status for %d messages (t%dt)...", actualCount, count))
+	}()
+
+	// Toggle read status in background
+	go func() {
+		failed := 0
+		emailService, _, _, _, _, _, _, _ := a.GetServices()
+		
+		for i, messageID := range messageIDs {
+			// Progress update
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read %d/%d messages...", i+1, actualCount))
+			
+			// Determine current read status by checking message meta
+			isUnread := false
+			messageIndex := startIndex + i
+			if messageIndex < len(a.messagesMeta) && a.messagesMeta[messageIndex] != nil {
+				for _, labelID := range a.messagesMeta[messageIndex].LabelIds {
+					if labelID == "UNREAD" {
+						isUnread = true
+						break
+					}
+				}
+			}
+			
+			// Toggle: if unread, mark as read; if read, mark as unread
+			var err error
+			if isUnread {
+				err = emailService.MarkAsRead(a.ctx, messageID)
+				if err == nil {
+					// Update local cache to remove UNREAD label
+					a.updateCachedMessageLabels(messageID, "UNREAD", false)
+				}
+			} else {
+				err = emailService.MarkAsUnread(a.ctx, messageID)
+				if err == nil {
+					// Update local cache to add UNREAD label
+					a.updateCachedMessageLabels(messageID, "UNREAD", true)
+				}
+			}
+			
+			if err != nil {
+				failed++
+				continue
+			}
+		}
+
+		// Clear progress and show result
+		a.GetErrorHandler().ClearProgress()
+		if failed == 0 {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Toggled read status for %d messages (t%dt)", actualCount, count))
+		} else {
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Toggled read status for %d messages, %d failed (t%dt)", actualCount-failed, failed, count))
+		}
+
+		// Update display to show updated read status (no server reload needed)
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+		})
+	}()
+}
+
+// moveRange opens move panel for a range of messages starting from startIndex
+func (a *App) moveRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+
+	// Enter bulk mode and select the messages
+	a.bulkMode = true
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	}
+	
+	// Clear previous selection and select the range
+	a.selected = make(map[string]bool)
+	for _, id := range messageIDs {
+		a.selected[id] = true
+	}
+
+	// Update UI to show selection
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status and open move panel
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📁 Selected %d messages for move operation (m%dm)", actualCount, count))
+	}()
+
+	// Open bulk move panel
+	a.openMovePanelBulk()
+}
+
+// labelRange opens label panel for a range of messages starting from startIndex  
+func (a *App) labelRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+
+	// Enter bulk mode and select the messages
+	a.bulkMode = true
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	}
+	
+	// Clear previous selection and select the range
+	a.selected = make(map[string]bool)
+	for _, id := range messageIDs {
+		a.selected[id] = true
+	}
+
+	// Update UI to show selection
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status and open labels panel
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🏷️ Selected %d messages for labeling (l%dl)", actualCount, count))
+	}()
+
+	// Open labels panel (which will work in bulk mode)
+	go a.manageLabels()
+}
+
+// slackRange sends a range of messages to Slack starting from startIndex
+func (a *App) slackRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Check if Slack is enabled
+	if !a.Config.Slack.Enabled {
+		a.GetErrorHandler().ShowError(a.ctx, "Slack integration is not enabled in configuration")
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+
+	// Enter bulk mode and select the messages
+	a.bulkMode = true
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	}
+	
+	// Clear previous selection and select the range
+	a.selected = make(map[string]bool)
+	for _, id := range messageIDs {
+		a.selected[id] = true
+	}
+
+	// Update UI to show selection
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status and open Slack bulk panel
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("💬 Selected %d messages for Slack forwarding (k%dk)", actualCount, count))
+	}()
+
+	// Open Slack bulk forwarding panel
+	go a.showSlackBulkForwardDialog()
+}
+
+// obsidianRange sends a range of messages to Obsidian starting from startIndex
+func (a *App) obsidianRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+
+	// Enter bulk mode and select the messages
+	a.bulkMode = true
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	}
+	
+	// Clear previous selection and select the range
+	a.selected = make(map[string]bool)
+	for _, id := range messageIDs {
+		a.selected[id] = true
+	}
+
+	// Update UI to show selection
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status and send to Obsidian
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📝 Sending %d messages to Obsidian (o%do)", actualCount, count))
+	}()
+
+	// Send to Obsidian (which handles bulk mode automatically)
+	go a.sendEmailToObsidian()
+}
+
+// promptRange applies AI prompts to a range of messages starting from startIndex
+func (a *App) promptRange(startIndex, count int) {
+	if count <= 0 {
+		return
+	}
+
+	// Get message IDs for the range
+	messageIDs := make([]string, 0, count)
+	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
+		messageIDs = append(messageIDs, a.ids[startIndex+i])
+	}
+
+	actualCount := len(messageIDs)
+
+	// Enter bulk mode and select the messages
+	a.bulkMode = true
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	}
+	
+	// Clear previous selection and select the range
+	a.selected = make(map[string]bool)
+	for _, id := range messageIDs {
+		a.selected[id] = true
+	}
+
+	// Update UI to show selection
+	a.reformatListItems()
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+	}
+
+	// Show status and open bulk prompt picker
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🤖 Selected %d messages for AI prompting (p%dp)", actualCount, count))
+	}()
+
+	// Open bulk prompt picker
+	go a.openBulkPromptPicker()
 }

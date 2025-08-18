@@ -145,6 +145,47 @@ a.showStatusMessage("Success!")
 a.setStatusPersistent("")
 ```
 
+### 🌊 **Streaming Callback Best Practices**
+
+**CRITICAL**: Streaming callbacks (LLM response handlers) must NEVER use `QueueUpdateDraw()` as this causes deadlocks when ESC is pressed during streaming.
+
+#### ✅ **Correct Streaming Pattern:**
+```go
+err := streamer.GenerateStream(ctx, prompt, func(token string) {
+    // Always check context first
+    select {
+    case <-ctx.Done():
+        return // Exit early if cancelled
+    default:
+    }
+    
+    // Build result
+    b.WriteString(token)
+    currentText := sanitizeForTerminal(b.String())
+    
+    // CRITICAL: Use direct UI update - NEVER QueueUpdateDraw
+    if ctx.Err() == nil && a.aiSummaryView != nil {
+        a.aiSummaryView.SetText(currentText) // Direct update
+    }
+})
+```
+
+#### ❌ **Anti-Pattern - CAUSES ESC DEADLOCK:**
+```go
+// ❌ NEVER DO THIS - Causes ESC hanging during streaming
+err := streamer.GenerateStream(ctx, prompt, func(token string) {
+    a.QueueUpdateDraw(func() {           // DEADLOCK RISK!
+        a.aiSummaryView.SetText(token)   // Queued operation blocks ESC
+    })
+})
+```
+
+#### 🔍 **Why This Causes Deadlocks:**
+1. **Streaming callback queues UI operation** via `QueueUpdateDraw()`
+2. **User presses ESC** - tries to execute synchronous cleanup
+3. **UI thread deadlock** - ESC waits for queued operations, streaming continues
+4. **Application hangs** - neither ESC nor streaming can complete
+
 #### 📋 **ErrorHandler Method Guide:**
 - `ShowProgress(ctx, msg)` - For ongoing operations (doesn't auto-clear)
 - `ClearProgress()` - Clear progress messages

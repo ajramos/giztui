@@ -282,6 +282,10 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			a.aiSummaryView.SetText("🤖 Applying prompt...")
 			a.aiSummaryView.ScrollToBeginning()
 
+			// Remove direct ESC handler from AI panel to avoid conflicts
+			// The main ESC handler in keys.go will handle all ESC events
+			a.aiSummaryView.SetInputCapture(nil)
+			
 			// Set focus to AI panel
 			a.SetFocus(a.aiSummaryView)
 			a.currentFocus = "summary"
@@ -391,19 +395,36 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 					a.logger.Printf("applyPromptToMessage: starting GenerateStream")
 				}
 				err := streamer.GenerateStream(ctx, promptText, func(tok string) {
+					// Check if context is cancelled before processing
+					select {
+					case <-ctx.Done():
+						if a.logger != nil {
+							a.logger.Printf("STREAMING CALLBACK: Context cancelled, exiting early")
+						}
+						return // Exit early if cancelled
+					default:
+					}
+					
 					b.WriteString(tok)
 					if a.logger != nil && len(b.String())%100 == 0 { // Log every 100 chars
-						a.logger.Printf("applyPromptToMessage: streaming progress: %d chars", len(b.String()))
+						a.logger.Printf("STREAMING: Progress %d chars", len(b.String()))
 					}
 					currentText := sanitizeForTerminal(b.String())
-					a.QueueUpdateDraw(func() {
-						if a.aiSummaryView != nil {
-							a.aiSummaryView.SetText(currentText)
-							if a.logger != nil && len(currentText)%200 == 0 { // Log UI updates
-								a.logger.Printf("applyPromptToMessage: UI updated with %d chars", len(currentText))
-							}
+					
+					// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks
+					// Direct UI update to prevent deadlock with ESC handler
+					if ctx.Err() == nil && a.aiSummaryView != nil {
+						if a.logger != nil && len(currentText)%200 == 0 { // Log UI updates
+							a.logger.Printf("STREAMING UI UPDATE: Direct update with %d chars", len(currentText))
 						}
-					})
+						a.aiSummaryView.SetText(currentText)
+					} else if a.logger != nil {
+						if ctx.Err() != nil {
+							a.logger.Printf("STREAMING CALLBACK: Context cancelled, skipping UI update")
+						} else {
+							a.logger.Printf("STREAMING CALLBACK: aiSummaryView is nil, skipping update")
+						}
+					}
 				})
 				if a.logger != nil {
 					a.logger.Printf("applyPromptToMessage: GenerateStream completed, result length: %d", len(b.String()))

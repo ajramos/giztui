@@ -121,6 +121,10 @@ type App struct {
 	// VIM-style navigation
 	vimSequence string    // Track VIM key sequences like "gg"
 	vimTimeout  time.Time // Timeout for key sequences
+	
+	// VIM-style range operations
+	vimOperationCount int    // Track count in sequences (e.g., "5" in "s5s")
+	vimOperationType  string // Track operation type (e.g., "s" in "s5s")
 
 	// UI lifecycle flags
 	uiReady          bool // true after first draw
@@ -898,6 +902,33 @@ func (a *App) generateHelpText() string {
 		help.WriteString("g         🤖 Generate reply\n")
 		help.WriteString("o         🏷️  Suggest label\n\n")
 	}
+
+	help.WriteString("⚡ VIM Range Operations\n")
+	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	help.WriteString("Pattern:   {operation}{count}{operation} (e.g., s5s, a3a, d7d)\n")
+	help.WriteString("s5s       ✅ Select next 5 messages\n")
+	help.WriteString("a3a       📁 Archive next 3 messages\n")
+	help.WriteString("d7d       🗑️  Delete next 7 messages\n")
+	help.WriteString("t5t       👁️  Toggle read status for next 5 messages\n")
+	help.WriteString("m4m       📦 Move next 4 messages\n")
+	help.WriteString("l6l       🏷️  Label next 6 messages\n")
+	help.WriteString("k3k       💬 Send next 3 messages to Slack\n")
+	help.WriteString("o2o       📝 Send next 2 messages to Obsidian\n")
+	help.WriteString("p8p       🤖 Apply AI prompts to next 8 messages\n")
+	help.WriteString("gg        ⬆️  Go to first message\n")
+	help.WriteString("G         ⬇️  Go to last message\n\n")
+	
+	help.WriteString("💻 Command Equivalents\n")
+	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	help.WriteString(":select 5   ✅ Same as s5s\n")
+	help.WriteString(":archive 3  📁 Same as a3a\n")
+	help.WriteString(":trash 7    🗑️  Same as d7d\n")
+	help.WriteString(":read 5     👁️  Same as t5t\n")
+	help.WriteString(":move 4     📦 Same as m4m\n")
+	help.WriteString(":label 6    🏷️  Same as l6l\n")
+	help.WriteString(":slack 3    💬 Same as k3k\n")
+	help.WriteString(":obsidian 2 📝 Same as o2o\n")
+	help.WriteString(":prompt 8   🤖 Same as p8p\n\n")
 
 	help.WriteString("⚙️  Application\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")

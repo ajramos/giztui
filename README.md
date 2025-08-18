@@ -443,7 +443,38 @@ Gmail TUI supports VIM-style navigation for efficient message browsing:
 | `G` | Jump to last message |
 | `gg` | Jump to first message (press 'g' twice quickly) |
 
+#### 🎯 VIM Range Operations
+
+Gmail TUI supports VIM-style range operations for efficient bulk actions:
+
+**Range operation syntax:** `{operation}{count}{operation}`
+
+| Range Command | Action | Example |
+|---------------|---------|---------|
+| `t3t` | Toggle read status for 3 messages | Toggles messages 1-3 |
+| `a5a` | Archive 5 messages | Archives messages 1-5 |
+| `d2d` | Delete (trash) 2 messages | Moves messages 1-2 to trash |
+| `s4s` | Select 4 messages (bulk mode) | Selects messages 1-4 |
+| `m7m` | Move 7 messages | Opens move dialog for messages 1-7 |
+| `l3l` | Label 3 messages | Opens label picker for messages 1-3 |
+
+**How it works:**
+1. **First key** - Start operation (`t`, `a`, `d`, etc.)
+2. **Number** - Specify count (`3`, `5`, `2`, etc.) 
+3. **Same key** - Complete operation (`t`, `a`, `d`, etc.)
+
 **Examples:**
+- Type `t3t` → Shows "Toggling read status for 3 messages (t3t)"
+- Type `a5a` → Shows "Archiving 5 messages (a5a)"  
+- Type `d2d` → Shows "Moving 2 messages to trash (d2d)"
+
+**Features:**
+- ✅ **Real-time feedback** - Status shows exact VIM sequence typed
+- ✅ **Range validation** - Automatically limits to available messages
+- ✅ **Timeout fallback** - Single operation if no count provided within 2 seconds
+- ✅ **ESC cancellation** - Cancel any range operation with Escape
+
+**Navigation examples:**
 - Type `:10` + Enter → Jump to message 10
 - Press `G` → Jump to last message  
 - Press `g` then `g` quickly → Jump to first message

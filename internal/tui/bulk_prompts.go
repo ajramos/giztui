@@ -309,8 +309,10 @@ func (a *App) hideAIPanel() {
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
 
-	// Clear any status message
-	a.GetErrorHandler().ClearProgress()
+	// Clear any status message asynchronously to avoid deadlock
+	go func() {
+		a.GetErrorHandler().ClearProgress()
+	}()
 
 	if a.logger != nil {
 		a.logger.Printf("hideAIPanel: completed")
@@ -402,20 +404,19 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			resultBuilder.WriteString(token)
 			currentText := resultBuilder.String()
 
-			// Update UI with streaming content
-			a.QueueUpdateDraw(func() {
-				if a.aiSummaryView != nil {
-					// Format the streaming result
-					formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
-					formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", messageCount)
-					formattedResult += "⏱️  Processing... 🔄\n"
-					formattedResult += "📝 Analysis (streaming):\n"
-					formattedResult += currentText
+			// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks
+			// Direct UI update to prevent deadlock with ESC handler
+			if ctx.Err() == nil && a.aiSummaryView != nil {
+				// Format the streaming result
+				formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
+				formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", messageCount)
+				formattedResult += "⏱️  Processing... 🔄\n"
+				formattedResult += "📝 Analysis (streaming):\n"
+				formattedResult += currentText
 
-					a.aiSummaryView.SetText(formattedResult)
-					a.aiSummaryView.ScrollToEnd()
-				}
-			})
+				a.aiSummaryView.SetText(formattedResult)
+				a.aiSummaryView.ScrollToEnd()
+			}
 		})
 
 		if err != nil {

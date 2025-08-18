@@ -302,6 +302,51 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"usa":     {"usage"},
 		"usag":    {"usage"},
 		"usage":   {"usage"},
+		"sel":     {"select"},
+		"sele":    {"select"},
+		"selec":   {"select"},
+		"select":  {"select"},
+		"m":       {"move"},
+		"mo":      {"move"},
+		"mov":     {"move"},
+		"move":    {"move"},
+		"mv":      {"move"},
+		"lbl":     {"label"},
+		"o":       {"obsidian"},
+		"ob":      {"obsidian"},
+		"obs":     {"obsidian"},
+		"obsi":    {"obsidian"},
+		"obsid":   {"obsidian"},
+		"obsidi":  {"obsidian"},
+		"obsidian": {"obsidian"},
+		"p":       {"prompt"},
+		"pr":      {"prompt"},
+		"pro":     {"prompt"},
+		"prom":    {"prompt"},
+		"promp":   {"prompt"},
+		"prompt":  {"prompt"},
+		"a":       {"archive"},
+		"ar":      {"archive"},
+		"arc":     {"archive"},
+		"arch":    {"archive"},
+		"archi":   {"archive"},
+		"archiv":  {"archive"},
+		"archive": {"archive"},
+		"d":       {"trash"},
+		"tr":      {"trash"},
+		"tra":     {"trash"},
+		"tras":    {"trash"},
+		"trash":   {"trash"},
+		"t":       {"read"},
+		"re":      {"read"},
+		"rea":     {"read"},
+		"read":    {"read"},
+		"toggle":  {"read"},
+		"toggle-": {"read"},
+		"toggle-r": {"read"},
+		"toggle-re": {"read"},
+		"toggle-rea": {"read"},
+		"toggle-read": {"read"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -423,6 +468,16 @@ func (a *App) executeCommand(cmd string) {
 		a.executeRefreshCommand(args)
 	case "unread", "u":
 		a.executeUnreadCommand(args)
+	case "select", "sel":
+		a.executeSelectCommand(args)
+	case "move", "mv":
+		a.executeMoveCommand(args)
+	case "label", "lbl":
+		a.executeLabelCommand(args)
+	case "obsidian", "obs":
+		a.executeObsidianCommand(args)
+	case "prompt", "pr":
+		a.executePromptCommand(args)
 	default:
 		// Check for numeric shortcuts like :1, :$
 		if matched := a.executeNumericShortcut(command); !matched {
@@ -800,6 +855,31 @@ func (a *App) executeNumbersCommand(args []string) {
 
 // executeArchiveCommand handles :archive/:a commands
 func (a *App) executeArchiveCommand(args []string) {
+	// Check if count argument provided for range operation
+	if len(args) > 0 {
+		count, err := strconv.Atoi(args[0])
+		if err != nil || count <= 0 {
+			a.showError("Usage: archive [count] (positive number)")
+			return
+		}
+		
+		// Get current position
+		list, ok := a.views["list"].(*tview.Table)
+		if !ok {
+			a.showError("Could not access message list")
+			return
+		}
+		
+		startIndex, _ := list.GetSelection()
+		if startIndex < 0 || startIndex >= len(a.ids) {
+			a.showError("No message selected")
+			return
+		}
+		
+		a.archiveRange(startIndex, count)
+		return
+	}
+	
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.archiveSelectedBulk()
@@ -810,6 +890,31 @@ func (a *App) executeArchiveCommand(args []string) {
 
 // executeTrashCommand handles :trash/:d commands  
 func (a *App) executeTrashCommand(args []string) {
+	// Check if count argument provided for range operation
+	if len(args) > 0 {
+		count, err := strconv.Atoi(args[0])
+		if err != nil || count <= 0 {
+			a.showError("Usage: trash [count] (positive number)")
+			return
+		}
+		
+		// Get current position
+		list, ok := a.views["list"].(*tview.Table)
+		if !ok {
+			a.showError("Could not access message list")
+			return
+		}
+		
+		startIndex, _ := list.GetSelection()
+		if startIndex < 0 || startIndex >= len(a.ids) {
+			a.showError("No message selected")
+			return
+		}
+		
+		a.trashRange(startIndex, count)
+		return
+	}
+	
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.trashSelectedBulk()
@@ -820,6 +925,31 @@ func (a *App) executeTrashCommand(args []string) {
 
 // executeToggleReadCommand handles :read/:toggle-read/:t commands
 func (a *App) executeToggleReadCommand(args []string) {
+	// Check if count argument provided for range operation
+	if len(args) > 0 {
+		count, err := strconv.Atoi(args[0])
+		if err != nil || count <= 0 {
+			a.showError("Usage: read [count] (positive number)")
+			return
+		}
+		
+		// Get current position
+		list, ok := a.views["list"].(*tview.Table)
+		if !ok {
+			a.showError("Could not access message list")
+			return
+		}
+		
+		startIndex, _ := list.GetSelection()
+		if startIndex < 0 || startIndex >= len(a.ids) {
+			a.showError("No message selected")
+			return
+		}
+		
+		a.toggleReadRange(startIndex, count)
+		return
+	}
+	
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.toggleMarkReadUnreadBulk()
@@ -845,4 +975,149 @@ func (a *App) executeRefreshCommand(args []string) {
 // executeUnreadCommand handles :unread/:u commands  
 func (a *App) executeUnreadCommand(args []string) {
 	go a.listUnreadMessages()
+}
+
+// executeSelectCommand handles :select commands for range selection
+func (a *App) executeSelectCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: select <count>")
+		return
+	}
+	
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count <= 0 {
+		a.showError("Usage: select <count> (positive number)")
+		return
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.showError("Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.showError("No message selected")
+		return
+	}
+	
+	a.selectRange(startIndex, count)
+}
+
+// executeMoveCommand handles :move commands for range move operations
+func (a *App) executeMoveCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: move <count>")
+		return
+	}
+	
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count <= 0 {
+		a.showError("Usage: move <count> (positive number)")
+		return
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.showError("Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.showError("No message selected")
+		return
+	}
+	
+	a.moveRange(startIndex, count)
+}
+
+// executeLabelCommand handles :label commands for range labeling operations
+func (a *App) executeLabelCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: label <count>")
+		return
+	}
+	
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count <= 0 {
+		a.showError("Usage: label <count> (positive number)")
+		return
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.showError("Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.showError("No message selected")
+		return
+	}
+	
+	a.labelRange(startIndex, count)
+}
+
+// executeObsidianCommand handles :obsidian commands for range Obsidian operations  
+func (a *App) executeObsidianCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: obsidian <count>")
+		return
+	}
+	
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count <= 0 {
+		a.showError("Usage: obsidian <count> (positive number)")
+		return
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.showError("Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.showError("No message selected")
+		return
+	}
+	
+	a.obsidianRange(startIndex, count)
+}
+
+// executePromptCommand handles :prompt commands for range AI prompting operations
+func (a *App) executePromptCommand(args []string) {
+	if len(args) == 0 {
+		a.showError("Usage: prompt <count>")
+		return
+	}
+	
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count <= 0 {
+		a.showError("Usage: prompt <count> (positive number)")
+		return
+	}
+	
+	// Get current position
+	list, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		a.showError("Could not access message list")
+		return
+	}
+	
+	startIndex, _ := list.GetSelection()
+	if startIndex < 0 || startIndex >= len(a.ids) {
+		a.showError("No message selected")
+		return
+	}
+	
+	a.promptRange(startIndex, count)
 }

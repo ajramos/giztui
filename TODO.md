@@ -6,32 +6,31 @@
 
 
 ### Priorities
+- [ ] Better ways to browse message cntent at the moment only line by line
+- [ ] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
+- [ ] Text search `/` inside the email body
+- [ ] Theme configuration system
 - [ ] Improve status bar experience
 - [ ] Improve legend
-- [ ] Text search `/` inside the email body
-- [ ] Open links (design UX)
-- [ ] Theme configuration system
-- [ ] Plugin system: extensible architecture to add custom functionality without touching the core
 - [ ] Create equivalent command for shortcuts: prompts
 - [ ] UI for creating new prompt templates
-- [ ] Group llm configuration under the same object in config
-- [ ] Move configuration file templates to files.
-- [ ] when using :slack command the focus doesn't go to the send to slack widget.
-- [ ] Add comment to the template in Slack
-- [ ] Usage of the ErrorHandler in the operations
 - [ ] Review look and feel of the folders, scope selection in the advance search, the page doesn't update well and leaves some orphan letters as you move up and down through the options.
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
-- [ ] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
 - [ ] Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
+- [x] Open links (design UX)
+- [x] Add comment to the template in Slack
+- [x] when using :slack command the focus doesn't go to the send to slack widget.
+- [x] Group llm configuration under the same object in config
+- [x] Move configuration file templates to files.
 
 ### 🔍 Search & Filter Enhancements
-- [ ] **Fix has:attachment filter** - Resolve issues with attachment-based email filtering
-- [ ] **Improve date range search** - Enhanced date filtering with after:/before: operators
-- [ ] **Add size-based email search** - Search emails by size (>1MB, <500KB, etc.)
-- [ ] **Local indexing for fast searches** - Build local search index for performance improvements
 - [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
+- [ ] **Improve date range search** - Enhanced date filtering with after:/before: operators
+- [ ] **Local indexing for fast searches** - Build local search index for performance improvements
+- [x] **Add size-based email search** - Search emails by size (>1MB, <500KB, etc.)
+- [x] **Fix has:attachment filter** - Resolve issues with attachment-based email filtering
 
 ### 🎨 UX & Accessibility Improvements
 - [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
@@ -39,18 +38,6 @@
 - [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
 - [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
 - [ ] **Efficient Gmail syncing** - Partial offline mode with smart sync optimization
-
-### 📊 Analytics & Telemetry
-- [ ] **Privacy-first local telemetry** - Track usage, shortcuts, timings, and errors locally only
-- [ ] **Built-in analytics dashboard** - TUI-based productivity metrics and usage statistics
-- [ ] **Telemetry export/reset** - Easy data export and privacy controls (no remote upload)
-- [ ] **Personal productivity reports** - Simple graphs for weekly/monthly email processing review
-
-### 🔧 Development & Quality
-- [ ] **Enhanced testing coverage** - Tests for complex functionalities (shortcuts, filters, AI)
-- [ ] **CI pipeline implementation** - Continuous integration for quality assurance
-- [ ] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
-- [ ] **Configurable plugin shortcuts** - Custom actions and keyboard shortcuts for plugins
 
 ### Email Management
 - [ ] **Get unread emails** - List unread emails with count and preview
@@ -60,7 +47,7 @@
 - [ ] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
-- [ ] **Search by date** - Search by date
+- [x] **Search by date** - Search by date
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
@@ -76,7 +63,7 @@
 - [ ] **List attachments** - Show attachments for specific emails
 
 ### Labels and Organization
-- [ ] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
+- [ ] [Retired] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
@@ -96,7 +83,7 @@
 - [ ] **Configurable key bindings** - Be able to setup in the configuration file your key bindings
 
 ### Interface Improvements
-- [ ] **Keyboard shortcuts display** - Show available shortcuts in status bar
+- [ ] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
 - [ ] **Progress indicators** - Show loading progress for long operations
 - [ ] **Error handling** - Better error messages and recovery
 - [ ] **Confirmation dialogs** - Confirm destructive actions
@@ -106,11 +93,11 @@
 - [ ] **Configuration for labels adding icons** Icons for each Label.
 
 ### Navigation Enhancements
-- [ ] **Quick navigation** - Jump to specific messages or labels
+- [ ] **Sort options** - Sort messages by date, sender, subject, etc.
+- [x] **Quick navigation** - Jump to specific messages or labels
 - [ ] **Bookmarks** - Bookmark important messages
 - [ ] **Recent messages** - Quick access to recently viewed messages
 - [ ] **Message filtering** - Filter messages by various criteria
-- [ ] **Sort options** - Sort messages by date, sender, subject, etc.
 
 ### Theme System
 - [ ] **Review theme loading** - Verify theme files are loaded correctly
@@ -166,6 +153,19 @@
 - [ ] **Default configuration** - Set up sensible defaults
 - [ ] **Configuration documentation** - Document all configuration options
 - [ ] **Hot reload** - Implement configuration hot reloading
+
+### 📊 Analytics & Telemetry
+- [ ] **Privacy-first local telemetry** - Track usage, shortcuts, timings, and errors locally only
+- [ ] **Built-in analytics dashboard** - TUI-based productivity metrics and usage statistics
+- [ ] **Telemetry export/reset** - Easy data export and privacy controls (no remote upload)
+- [ ] **Personal productivity reports** - Simple graphs for weekly/monthly email processing review
+
+### 🔧 Development & Quality
+- [ ] **Enhanced testing coverage** - Tests for complex functionalities (shortcuts, filters, AI)
+- [ ] **CI pipeline implementation** - Continuous integration for quality assurance
+- [x] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
+- [ ] **Configurable plugin shortcuts** - Custom actions and keyboard shortcuts for plugins
+- [ ] **Plugin system**: extensible architecture to add custom functionality without touching the core
 
 ### Deployment & Distribution
 - [ ] **Cross-platform builds** - Support builds for different platforms
