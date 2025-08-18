@@ -30,7 +30,7 @@ func (a *App) initComponents() {
 	listContainer.AddItem(list, 0, 1, true)
 
 	// Create header view (colored) and main text view inside a column container
-	header := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
+	header := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	header.SetBorder(false)
 	header.SetTextColor(tcell.ColorGreen)

@@ -374,18 +374,95 @@ func (er *EmailRenderer) FormatHeaderANSI(subject, from, to, cc string, date tim
 
 // FormatHeaderPlain returns a plain header without markup/tags
 func (er *EmailRenderer) FormatHeaderPlain(subject, from, to, cc string, date time.Time, labels []string) string {
+	return er.FormatHeaderPlainWithWidth(subject, from, to, cc, date, labels, 80)
+}
+
+// FormatHeaderPlainWithWidth returns a plain header with line wrapping for long fields
+func (er *EmailRenderer) FormatHeaderPlainWithWidth(subject, from, to, cc string, date time.Time, labels []string, width int) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Subject: %s\n", subject)
-	fmt.Fprintf(&b, "From: %s\n", from)
+	
+	// Format each header field with wrapping
+	er.writeWrappedHeaderField(&b, "Subject", subject, width)
+	er.writeWrappedHeaderField(&b, "From", from, width)
+	
 	if strings.TrimSpace(to) != "" {
-		fmt.Fprintf(&b, "To: %s\n", to)
+		er.writeWrappedHeaderField(&b, "To", to, width)
 	}
 	if strings.TrimSpace(cc) != "" {
-		fmt.Fprintf(&b, "Cc: %s\n", cc)
+		er.writeWrappedHeaderField(&b, "Cc", cc, width)
 	}
-	fmt.Fprintf(&b, "Date: %s\n", er.formatDate(date))
-	fmt.Fprintf(&b, "Labels: %s", strings.Join(labels, ", "))
-	return b.String()
+	
+	er.writeWrappedHeaderField(&b, "Date", er.formatDate(date), width)
+	er.writeWrappedHeaderField(&b, "Labels", strings.Join(labels, ", "), width)
+	
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// writeWrappedHeaderField writes a header field with proper line wrapping
+func (er *EmailRenderer) writeWrappedHeaderField(b *strings.Builder, fieldName, value string, width int) {
+	if strings.TrimSpace(value) == "" {
+		return
+	}
+	
+	prefix := fieldName + ": "
+	prefixLen := len(prefix)
+	
+	// If the entire line fits, write it as-is
+	if prefixLen+len(value) <= width {
+		fmt.Fprintf(b, "%s%s\n", prefix, value)
+		return
+	}
+	
+	// Line needs wrapping
+	availableWidth := width - prefixLen
+	if availableWidth < 20 { // Minimum reasonable wrap width
+		availableWidth = 20
+	}
+	
+	// Write first line with prefix
+	words := strings.Fields(value)
+	if len(words) == 0 {
+		fmt.Fprintf(b, "%s%s\n", prefix, value)
+		return
+	}
+	
+	currentLine := words[0]
+	wordIndex := 1
+	
+	// Add words to current line while they fit
+	for wordIndex < len(words) {
+		testLine := currentLine + " " + words[wordIndex]
+		if len(testLine) <= availableWidth {
+			currentLine = testLine
+			wordIndex++
+		} else {
+			break
+		}
+	}
+	
+	// Write first line with prefix
+	fmt.Fprintf(b, "%s%s\n", prefix, currentLine)
+	
+	// Write continuation lines with proper indentation
+	indent := strings.Repeat(" ", prefixLen)
+	for wordIndex < len(words) {
+		currentLine = words[wordIndex]
+		wordIndex++
+		
+		// Add more words to continuation line
+		for wordIndex < len(words) {
+			testLine := currentLine + " " + words[wordIndex]
+			if len(testLine) <= availableWidth {
+				currentLine = testLine
+				wordIndex++
+			} else {
+				break
+			}
+		}
+		
+		// Write continuation line
+		fmt.Fprintf(b, "%s%s\n", indent, currentLine)
+	}
 }
 
 // Helper methods

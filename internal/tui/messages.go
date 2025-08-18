@@ -2296,6 +2296,42 @@ func (a *App) getListWidth() int {
 	return 80
 }
 
+// getHeaderWidth returns the available width for header display
+func (a *App) getHeaderWidth() int {
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		_, _, w, _ := header.GetInnerRect()
+		if w > 0 {
+			return w
+		}
+	}
+	// Fallback to list width or screen width
+	return a.getListWidth()
+}
+
+// adjustHeaderHeight dynamically adjusts the header container height based on content
+func (a *App) adjustHeaderHeight(headerContent string) {
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// Count the number of lines in the header content
+			lines := strings.Count(headerContent, "\n") + 1
+			
+			// Set minimum height of 4 and maximum of 12 to prevent extreme cases
+			minHeight := 4
+			maxHeight := 12
+			
+			if lines < minHeight {
+				lines = minHeight
+			}
+			if lines > maxHeight {
+				lines = maxHeight
+			}
+			
+			// Resize the header item in the text container
+			textContainer.ResizeItem(header, lines, 0)
+		}
+	}
+}
+
 // getFormatWidth devuelve el ancho disponible para el texto de las filas
 func (a *App) getFormatWidth() int {
 	if list, ok := a.views["list"].(*tview.Table); ok {
