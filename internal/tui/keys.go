@@ -699,11 +699,13 @@ func (a *App) handleVimSequence(key rune) bool {
 	// Clear sequence if timeout exceeded (2 seconds for range operations)
 	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > 2*time.Second {
 		if a.logger != nil {
-			a.logger.Printf("handleVimSequence: timeout exceeded, clearing sequence")
+			a.logger.Printf("HANG DEBUG: VIM sequence timeout EXCEEDED - clearing state")
+			a.logger.Printf("HANG DEBUG: now=%v, vimTimeout=%v, diff=%v", now, a.vimTimeout, now.Sub(a.vimTimeout))
 		}
 		a.vimSequence = ""
 		a.vimOperationType = ""
 		a.vimOperationCount = 0
+		a.vimOriginalMessageID = ""
 		// Clear any status message for cancelled sequence
 		go func() {
 			a.GetErrorHandler().ClearProgress()
@@ -826,8 +828,28 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		a.vimSequence = string(key)
 		a.vimTimeout = now.Add(2 * time.Second)
 		
+		// CRITICAL FIX: Capture current message ID when sequence starts
+		// This prevents issues where cursor moves during the timeout delay
+		a.vimOriginalMessageID = a.GetCurrentMessageID()
+		
+		// Also get table selection for debugging
+		var tableSelection int = -1
+		var tableMessageID string = ""
+		if list, ok := a.views["list"].(*tview.Table); ok {
+			tableSelection, _ = list.GetSelection()
+			if tableSelection >= 0 && tableSelection < len(a.ids) {
+				tableMessageID = a.ids[tableSelection]
+			}
+		}
+		
 		if a.logger != nil {
+			a.logger.Printf("=== VIM SEQUENCE START DEBUG ===")
 			a.logger.Printf("VIM sequence started: %c, operationType=%s, operationCount=%d", key, a.vimOperationType, a.vimOperationCount)
+			a.logger.Printf("Captured originalMessageID: %s", a.vimOriginalMessageID)
+			a.logger.Printf("Current table selection index: %d", tableSelection)
+			a.logger.Printf("Table selection messageID: %s", tableMessageID)
+			a.logger.Printf("IDs match: %t", a.vimOriginalMessageID == tableMessageID)
+			a.logger.Printf("================================")
 		}
 		
 		// Show status and consume the key to prevent single operation
@@ -837,27 +859,61 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		
 		// Start timeout goroutine to execute single operation if no sequence completed
 		go func() {
+			if a.logger != nil {
+				a.logger.Printf("HANG DEBUG: VIM timeout goroutine started for key: %s", string(key))
+			}
 			time.Sleep(2 * time.Second)
+			if a.logger != nil {
+				a.logger.Printf("HANG DEBUG: VIM timeout goroutine woke up, acquiring mutex")
+			}
 			a.mu.Lock()
-			defer a.mu.Unlock()
+			
+			if a.logger != nil {
+				a.logger.Printf("HANG DEBUG: VIM timeout - checking state: vimOperationType='%s', vimOperationCount=%d, expected='%s'", a.vimOperationType, a.vimOperationCount, string(key))
+			}
 			
 			// Check if sequence is still pending (not completed or cleared)
 			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
 				if a.logger != nil {
-					a.logger.Printf("VIM timeout - executing single %s operation", string(key))
+					a.logger.Printf("HANG DEBUG: VIM timeout condition MET - capturing state")
 				}
+				// Capture original message ID while holding mutex
+				originalMessageID := a.vimOriginalMessageID
 				
-				// Clear sequence state
+				// Clear sequence state while holding mutex
 				a.vimSequence = ""
 				a.vimOperationType = ""
 				a.vimTimeout = time.Time{}
+				a.vimOriginalMessageID = ""
+				
+				if a.logger != nil {
+					a.logger.Printf("HANG DEBUG: VIM state cleared, releasing mutex")
+				}
+				
+				// Release mutex BEFORE accessing UI elements or executing operations
+				a.mu.Unlock()
+				
+				if a.logger != nil {
+					a.logger.Printf("HANG DEBUG: Mutex released, proceeding with execution")
+				}
 				
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
 				
-				// Execute single operation
-				a.executeVimSingleOperation(string(key))
+				// Execute single operation with original message ID (without mutex)
+				if a.logger != nil {
+					a.logger.Printf("HANG DEBUG: About to call executeVimSingleOperationWithID")
+				}
+				a.executeVimSingleOperationWithID(string(key), originalMessageID)
+				if a.logger != nil {
+					a.logger.Printf("HANG DEBUG: Returned from executeVimSingleOperationWithID")
+				}
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("HANG DEBUG: VIM timeout condition NOT MET - sequence was cleared or modified")
+				}
+				a.mu.Unlock()
 			}
 		}()
 		
@@ -879,6 +935,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		a.vimOperationType = ""
 		a.vimOperationCount = 0
 		a.vimTimeout = time.Time{}
+		a.vimOriginalMessageID = ""
 		
 		// Execute the range operation
 		a.executeVimRangeOperation(operation, count)
@@ -975,6 +1032,96 @@ func (a *App) executeVimSingleOperation(operation string) {
 	case "p":
 		// Show prompts dialog for current message
 		go a.openPromptPicker()
+	}
+}
+
+// executeVimSingleOperationWithID executes a single operation with a specific message ID
+// This is used when VIM timeout occurs to ensure operation applies to the original message
+func (a *App) executeVimSingleOperationWithID(operation string, messageID string) {
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: executeVimSingleOperationWithID ENTRY - operation: %s, messageID: %s", operation, messageID)
+	}
+	
+	if messageID == "" {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: messageID empty, falling back to executeVimSingleOperation")
+		}
+		// Fallback to current message if no ID provided
+		a.executeVimSingleOperation(operation)
+		return
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: About to enter switch statement for operation: %s", operation)
+	}
+	
+	switch operation {
+	case "s":
+		// For single 's', just show a message (no actual operation needed)
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
+		}()
+	case "a":
+		// Archive specific message - temporarily set current ID
+		go func() {
+			a.SetCurrentMessageID(messageID)
+			a.archiveSelected()
+		}()
+	case "d":
+		// Trash specific message by ID (bypasses current selection)
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: Entered 'd' case - target messageID: %s", messageID)
+			a.logger.Printf("HANG DEBUG: About to call trashSelectedByID")
+		}
+		a.trashSelectedByID(messageID)
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: Returned from trashSelectedByID")
+		}
+	case "t":
+		// Toggle read status of specific message - temporarily set current ID
+		go func() {
+			a.SetCurrentMessageID(messageID)
+			a.toggleMarkReadUnread()
+		}()
+	case "m":
+		// Move specific message - temporarily set current ID
+		go func() {
+			a.SetCurrentMessageID(messageID)
+			a.moveSelected()
+		}()
+	case "l":
+		// Show labels dialog for specific message
+		go func() {
+			currentID := a.GetCurrentMessageID()
+			a.SetCurrentMessageID(messageID)
+			a.manageLabels()
+			// Labels dialog is modal, so we can restore after
+			a.SetCurrentMessageID(currentID)
+		}()
+	case "k":
+		// Show Slack dialog for specific message
+		go func() {
+			currentID := a.GetCurrentMessageID()
+			a.SetCurrentMessageID(messageID)
+			a.showSlackForwardDialog()
+			a.SetCurrentMessageID(currentID)
+		}()
+	case "o":
+		// Send specific message to Obsidian
+		go func() {
+			currentID := a.GetCurrentMessageID()
+			a.SetCurrentMessageID(messageID)
+			a.sendEmailToObsidian()
+			a.SetCurrentMessageID(currentID)
+		}()
+	case "p":
+		// Show prompts dialog for specific message
+		go func() {
+			currentID := a.GetCurrentMessageID()
+			a.SetCurrentMessageID(messageID)
+			a.openPromptPicker()
+			a.SetCurrentMessageID(currentID)
+		}()
 	}
 }
 

@@ -6,23 +6,51 @@ import (
 	"github.com/derailed/tview"
 )
 
-// safeRemoveCurrentSelection removes the currently selected row from the list table
+// safeRemoveCurrentSelection removes the message with the given ID from the list table
 // while safely updating internal caches and adjusting the selection and content panes.
 // It must be called on the UI thread via a.QueueUpdateDraw.
 func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection ENTRY - messageID: %s", removedMessageID)
+	}
+	
 	table, ok := a.views["list"].(*tview.Table)
 	if !ok {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - could not get list table")
+		}
 		return
 	}
 	count := table.GetRowCount()
 	if count == 0 {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - table is empty")
+		}
 		return
 	}
 
-	// Determine index to remove from current selection
-	removeIndex, _ := table.GetSelection()
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - searching for messageID in %d messages", len(a.ids))
+	}
+	// Find the index of the message to remove by ID
+	removeIndex := -1
+	for i, id := range a.ids {
+		if id == removedMessageID {
+			removeIndex = i
+			break
+		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - found messageID at index: %d", removeIndex)
+	}
+	
+	// If message not found, don't remove anything
 	if removeIndex < 0 || removeIndex >= count {
-		removeIndex = 0
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - message not found or invalid index, returning")
+		}
+		return
 	}
 
 	// Preselect a different index to avoid glitches when removing the selected row
@@ -82,6 +110,10 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 				a.aiSummaryView.SetText("")
 			}
 		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection COMPLETE")
 	}
 
 	// Propagate to base snapshot if in local filter

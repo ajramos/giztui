@@ -80,6 +80,95 @@ func (a *App) archiveSelected() {
 	a.QueueUpdateDraw(func() { a.safeRemoveCurrentSelection(messageID) })
 }
 
+// trashSelectedByID moves a specific message to trash by ID
+func (a *App) trashSelectedByID(messageID string) {
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: trashSelectedByID ENTRY - messageID: %s", messageID)
+	}
+	
+	if messageID == "" {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: messageID empty, calling showError")
+		}
+		a.showError("❌ Invalid message ID")
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: returned from showError")
+		}
+		return
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: About to call Client.GetMessage")
+	}
+	// Get the current message to show confirmation
+	message, err := a.Client.GetMessage(messageID)
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: Returned from Client.GetMessage, err: %v", err)
+	}
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: GetMessage error, calling showError")
+		}
+		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: returned from showError after GetMessage error")
+		}
+		return
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: About to extract subject from headers")
+	}
+	// Extract subject for confirmation
+	subject := "Unknown subject"
+	if message.Payload != nil && message.Payload.Headers != nil {
+		for _, header := range message.Payload.Headers {
+			if header.Name == "Subject" {
+				subject = header.Value
+				break
+			}
+		}
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: Extracted subject: %s", subject)
+		a.logger.Printf("HANG DEBUG: About to call Client.TrashMessage")
+	}
+	// Move message to trash
+	err = a.Client.TrashMessage(messageID)
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: Returned from Client.TrashMessage, err: %v", err)
+	}
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: TrashMessage error, calling showError")
+		}
+		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
+		if a.logger != nil {
+			a.logger.Printf("HANG DEBUG: returned from showError after TrashMessage error")
+		}
+		return
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: TrashMessage successful, about to call showStatusMessage")
+	}
+
+	// Show success message
+	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
+	
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: Returned from showStatusMessage, about to call QueueUpdateDraw")
+	}
+
+	// Remove the message from the list and adjust selection (UI thread)
+	a.QueueUpdateDraw(func() { a.safeRemoveCurrentSelection(messageID) })
+	
+	if a.logger != nil {
+		a.logger.Printf("HANG DEBUG: Returned from QueueUpdateDraw, trashSelectedByID COMPLETE")
+	}
+}
+
 // trashSelected moves the selected message to trash
 func (a *App) trashSelected() {
 	var messageID string

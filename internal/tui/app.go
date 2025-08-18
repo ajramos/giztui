@@ -123,8 +123,9 @@ type App struct {
 	vimTimeout  time.Time // Timeout for key sequences
 	
 	// VIM-style range operations
-	vimOperationCount int    // Track count in sequences (e.g., "5" in "s5s")
-	vimOperationType  string // Track operation type (e.g., "s" in "s5s")
+	vimOperationCount   int    // Track count in sequences (e.g., "5" in "s5s")
+	vimOperationType    string // Track operation type (e.g., "s" in "s5s")
+	vimOriginalMessageID string // Store message ID when VIM sequence started
 
 	// UI lifecycle flags
 	uiReady          bool // true after first draw
