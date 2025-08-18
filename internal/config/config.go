@@ -139,6 +139,7 @@ type LayoutBreakpoint struct {
 
 // KeyBindings defines keyboard shortcuts for the TUI
 type KeyBindings struct {
+	// Core email operations
 	Summarize     string `json:"summarize"`
 	GenerateReply string `json:"generate_reply"`
 	SuggestLabel  string `json:"suggest_label"`
@@ -154,6 +155,18 @@ type KeyBindings struct {
 	Attachments   string `json:"attachments"`
 	ManageLabels  string `json:"manage_labels"`
 	Quit          string `json:"quit"`
+	
+	// Additional configurable shortcuts
+	Obsidian      string `json:"obsidian"`      // Send to Obsidian
+	Slack         string `json:"slack"`         // Forward to Slack
+	Markdown      string `json:"markdown"`      // Toggle markdown
+	SaveMessage   string `json:"save_message"`  // Save message to file
+	SaveRaw       string `json:"save_raw"`      // Save raw EML
+	RSVP          string `json:"rsvp"`          // Toggle RSVP panel
+	LinkPicker    string `json:"link_picker"`   // Open link picker
+	BulkMode      string `json:"bulk_mode"`     // Toggle bulk mode
+	CommandMode   string `json:"command_mode"`  // Open command bar
+	Help          string `json:"help"`          // Toggle help
 }
 
 // DefaultConfig returns a Config with sensible defaults
@@ -212,6 +225,7 @@ func DefaultSlackDefaults() SlackDefaults {
 // DefaultKeyBindings returns default keyboard shortcuts
 func DefaultKeyBindings() KeyBindings {
 	return KeyBindings{
+		// Core email operations
 		Summarize:     "y",
 		GenerateReply: "g",
 		SuggestLabel:  "o",
@@ -227,6 +241,18 @@ func DefaultKeyBindings() KeyBindings {
 		Attachments:   "A",
 		ManageLabels:  "l",
 		Quit:          "q",
+		
+		// Additional configurable shortcuts
+		Obsidian:      "O",
+		Slack:         "K",
+		Markdown:      "M",
+		SaveMessage:   "w",
+		SaveRaw:       "W",
+		RSVP:          "V",
+		LinkPicker:    "L",
+		BulkMode:      "v",
+		CommandMode:   ":",
+		Help:          "?",
 	}
 }
 
