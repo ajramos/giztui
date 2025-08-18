@@ -151,6 +151,8 @@ type KeyBindings struct {
 	ToggleRead    string `json:"toggle_read"`
 	Trash         string `json:"trash"`
 	Archive       string `json:"archive"`
+	Move          string `json:"move"`
+	Prompt        string `json:"prompt"`
 	Drafts        string `json:"drafts"`
 	Attachments   string `json:"attachments"`
 	ManageLabels  string `json:"manage_labels"`
@@ -237,6 +239,8 @@ func DefaultKeyBindings() KeyBindings {
 		ToggleRead:    "t",
 		Trash:         "d",
 		Archive:       "a",
+		Move:          "m",
+		Prompt:        "p",
 		Drafts:        "D",
 		Attachments:   "A",
 		ManageLabels:  "l",

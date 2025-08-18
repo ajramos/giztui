@@ -80,6 +80,8 @@
     "toggle_read": "t",
     "trash": "d",
     "archive": "a",
+    "move": "m",
+    "prompt": "p",
     "drafts": "D",
     "attachments": "A",
     "manage_labels": "l",

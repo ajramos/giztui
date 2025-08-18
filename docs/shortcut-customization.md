@@ -28,6 +28,8 @@ All shortcuts are configured in the `keys` section of your `config.json` file:
     "toggle_read": "t",
     "trash": "d",
     "archive": "a",
+    "move": "m",
+    "prompt": "p",
     "drafts": "D",
     "attachments": "A",
     "manage_labels": "l",
@@ -61,6 +63,8 @@ All shortcuts are configured in the `keys` section of your `config.json` file:
 - `toggle_read` - Mark message as read/unread
 - `trash` - Move message to trash
 - `archive` - Archive message
+- `move` - Move message to folder/label
+- `prompt` - Apply AI prompt to message
 - `drafts` - Show draft messages
 - `attachments` - Show message attachments
 - `manage_labels` - Manage message labels

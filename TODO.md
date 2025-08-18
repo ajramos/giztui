@@ -3,7 +3,8 @@
 ## 🎯 TODO - Active Roadmap
 
 ## Issues
-
+- [x] When there's a calendar invitation, when showing the options to Accept, etc., include a brief summary indicating the date and time of the event
+- [x] In the content of a message, if a header like CC: is very long because it has many people in copy, it doesn't wrap the line and the information is not visible
 
 ### Priorities
 - [ ] Better ways to browse message cntent at the moment only line by line

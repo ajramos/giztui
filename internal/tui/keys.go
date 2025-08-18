@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/derailed/tcell/v2"
@@ -24,8 +25,23 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> summarize", key)
 		}
-		go a.summarizeSelected()
+		a.toggleAISummary()
 		return true
+	}
+	
+	// Check for uppercase version of summarize key (force regenerate)
+	if a.Keys.Summarize != "" && len(a.Keys.Summarize) == 1 {
+		upperKey := strings.ToUpper(a.Keys.Summarize)
+		if key == upperKey {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> force_regenerate_summary", key)
+			}
+			go a.forceRegenerateSummary()
+			return true
+		}
+	}
+	
+	switch key {
 	case a.Keys.GenerateReply:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> generate_reply", key)
@@ -97,6 +113,17 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> attachments", key)
 		}
 		go a.showAttachments()
+		return true
+	case a.Keys.Move:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> move", key)
+		}
+		// In bulk mode, prioritize bulk operations
+		if a.bulkMode && len(a.selected) > 0 {
+			a.openMovePanelBulk()
+		} else {
+			a.openMovePanel()
+		}
 		return true
 	case a.Keys.ManageLabels:
 		if a.logger != nil {
@@ -235,6 +262,7 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.Archive ||
 		keyStr == a.Keys.Drafts ||
 		keyStr == a.Keys.Attachments ||
+		keyStr == a.Keys.Move ||
 		keyStr == a.Keys.ManageLabels ||
 		keyStr == a.Keys.Quit ||
 		keyStr == a.Keys.Obsidian ||
@@ -317,7 +345,18 @@ func (a *App) bindKeys() {
 			a.logger.Printf("DIGIT KEY: reached main switch statement, checking for VIM sequence")
 		}
 		
-		// Check configurable shortcuts first
+		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
+		// This allows f3f to work even when f is configured for toggle_read
+		if a.handleVimSequence(event.Rune()) {
+			return nil
+		}
+		
+		// VIM navigation sequences (gg, G) - these don't conflict with main keys
+		if a.handleVimNavigation(event.Rune()) {
+			return nil
+		}
+		
+		// Check configurable shortcuts after VIM sequences
 		if a.handleConfigurableKey(event) {
 			return nil
 		}
@@ -497,10 +536,6 @@ func (a *App) bindKeys() {
 		case 's':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('s') {
-				// Check if this might be part of a VIM sequence first
-				if a.handleVimSequence(event.Rune()) {
-					return nil
-				}
 				a.openSearchOverlay("remote")
 				return nil
 			}
@@ -651,20 +686,24 @@ func (a *App) bindKeys() {
 			go a.openPromptPicker()
 			return nil
 		case 'm':
-			if a.currentFocus == "search" {
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('m') {
+				if a.currentFocus == "search" {
+					return nil
+				}
+				// In bulk mode, prioritize bulk operations over VIM sequences
+				if a.bulkMode && len(a.selected) > 0 {
+					a.openMovePanelBulk()
+					return nil
+				}
+				// Check if this might be part of a VIM sequence
+				if a.handleVimSequence(event.Rune()) {
+					return nil
+				}
+				a.openMovePanel()
 				return nil
 			}
-			// In bulk mode, prioritize bulk operations over VIM sequences
-			if a.bulkMode && len(a.selected) > 0 {
-				a.openMovePanelBulk()
-				return nil
-			}
-			// Check if this might be part of a VIM sequence
-			if a.handleVimSequence(event.Rune()) {
-				return nil
-			}
-			a.openMovePanel()
-			return nil
+			break
 		case 'M':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('M') {
@@ -863,22 +902,6 @@ func (a *App) bindKeys() {
 			return event
 		}
 
-		// LLM features (handle before VIM to avoid conflicts)
-		if a.LLM != nil {
-			switch event.Rune() {
-			case 'y':
-				a.toggleAISummary()
-				return nil
-			case 'Y':
-				go a.forceRegenerateSummary()
-				return nil
-			}
-		}
-
-		// VIM navigation sequences (gg, G) - these don't conflict with main keys
-		if a.handleVimNavigation(event.Rune()) {
-			return nil
-		}
 
 		// Handle digit keys for VIM sequences
 		if event.Rune() >= '0' && event.Rune() <= '9' {
@@ -1079,21 +1102,38 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 	}
 	now := time.Now()
 
-	// VIM-only operation keys (always handled by VIM)
+	// VIM-only operation keys (always handled by VIM) - use dynamic mapping based on config
 	vimOnlyOps := map[rune]bool{
 		's': true, // select (no conflict)
-		'a': true, // archive (no conflict)
-		'd': true, // delete/trash (no conflict)
-		't': true, // toggle read (no conflict)
-		'm': true, // move (no conflict)
-		'l': true, // label (no conflict)
-		'k': true, // slack (no conflict, using k instead of s)
+	}
+	// Add configured keys dynamically to prevent hardcoding
+	if a.Keys.Archive != "" {
+		vimOnlyOps[rune(a.Keys.Archive[0])] = true // archive
+	}
+	if a.Keys.Trash != "" {
+		vimOnlyOps[rune(a.Keys.Trash[0])] = true // delete/trash
+	}
+	if a.Keys.ToggleRead != "" {
+		vimOnlyOps[rune(a.Keys.ToggleRead[0])] = true // toggle read (user's configured key)
+	}
+	if a.Keys.Move != "" {
+		vimOnlyOps[rune(a.Keys.Move[0])] = true // move
+	}
+	if a.Keys.ManageLabels != "" {
+		vimOnlyOps[rune(a.Keys.ManageLabels[0])] = true // label
+	}
+	if a.Keys.Slack != "" {
+		vimOnlyOps[rune(a.Keys.Slack[0])] = true // slack
+	}
+	if a.Keys.Prompt != "" {
+		vimOnlyOps[rune(a.Keys.Prompt[0])] = true // prompt - allow VIM sequences
 	}
 	
-	// Conflict operation keys (only handled by VIM when in sequence)
-	conflictOps := map[rune]bool{
-		'o': true, // obsidian (conflicts with 'o' for other features)
-		'p': true, // prompt (conflicts with 'p' for other features)
+	// Conflict operation keys (only handled by VIM when in sequence) - use dynamic mapping
+	conflictOps := map[rune]bool{}
+	// Add configured keys that might conflict with single-key operations
+	if a.Keys.Obsidian != "" {
+		conflictOps[rune(a.Keys.Obsidian[0])] = true // obsidian
 	}
 	
 	// All valid operation keys
@@ -1294,24 +1334,25 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 		}()
 	}
 	
+	// Use dynamic operation mapping based on configured keys
 	switch operation {
 	case "s":
 		a.selectRange(startIndex, count)
-	case "a":
+	case a.Keys.Archive:
 		a.archiveRange(startIndex, count)
-	case "d":
+	case a.Keys.Trash:
 		a.trashRange(startIndex, count)
-	case "t":
+	case a.Keys.ToggleRead:
 		a.toggleReadRange(startIndex, count)
-	case "m":
+	case a.Keys.Move:
 		a.moveRange(startIndex, count)
-	case "l":
+	case a.Keys.ManageLabels:
 		a.labelRange(startIndex, count)
-	case "k":
+	case a.Keys.Slack:
 		a.slackRange(startIndex, count)
-	case "o":
+	case a.Keys.Obsidian:
 		a.obsidianRange(startIndex, count)
-	case "p":
+	case a.Keys.Prompt:
 		a.promptRange(startIndex, count)
 	default:
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown VIM operation: %s", operation))
@@ -1320,34 +1361,35 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 
 // executeVimSingleOperation executes a single operation when VIM timeout occurs
 func (a *App) executeVimSingleOperation(operation string) {
+	// Use dynamic operation mapping based on configured keys
 	switch operation {
 	case "s":
 		// For single 's', just highlight current message (no bulk mode)
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
 		}()
-	case "a":
+	case a.Keys.Archive:
 		// Archive current message
 		go a.archiveSelected()
-	case "d":
+	case a.Keys.Trash:
 		// Trash current message
 		go a.trashSelected()
-	case "t":
+	case a.Keys.ToggleRead:
 		// Toggle read status of current message
 		go a.toggleMarkReadUnread()
-	case "m":
+	case a.Keys.Move:
 		// Move current message
 		go a.moveSelected()
-	case "l":
+	case a.Keys.ManageLabels:
 		// Show labels dialog for current message
 		a.manageLabels()
-	case "k":
+	case a.Keys.Slack:
 		// Show Slack dialog for current message
 		go a.showSlackForwardDialog()
-	case "o":
+	case a.Keys.Obsidian:
 		// Send current message to Obsidian
 		go a.sendEmailToObsidian()
-	case "p":
+	case a.Keys.Prompt:
 		// Show prompts dialog for current message
 		go a.openPromptPicker()
 	}
@@ -1379,35 +1421,35 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
 		}()
-	case "a":
+	case a.Keys.Archive:
 		// Archive specific message - temporarily set current ID
 		go func() {
 			a.SetCurrentMessageID(messageID)
 			a.archiveSelected()
 		}()
-	case "d":
+	case a.Keys.Trash:
 		// Trash specific message by ID (bypasses current selection)
 		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: Entered 'd' case - target messageID: %s", messageID)
+			a.logger.Printf("HANG DEBUG: Entered trash case - target messageID: %s", messageID)
 			a.logger.Printf("HANG DEBUG: About to call trashSelectedByID")
 		}
 		a.trashSelectedByID(messageID)
 		if a.logger != nil {
 			a.logger.Printf("HANG DEBUG: Returned from trashSelectedByID")
 		}
-	case "t":
+	case a.Keys.ToggleRead:
 		// Toggle read status of specific message - temporarily set current ID
 		go func() {
 			a.SetCurrentMessageID(messageID)
 			a.toggleMarkReadUnread()
 		}()
-	case "m":
+	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
 		go func() {
 			a.SetCurrentMessageID(messageID)
 			a.moveSelected()
 		}()
-	case "l":
+	case a.Keys.ManageLabels:
 		// Show labels dialog for specific message
 		go func() {
 			currentID := a.GetCurrentMessageID()
@@ -1416,7 +1458,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			// Labels dialog is modal, so we can restore after
 			a.SetCurrentMessageID(currentID)
 		}()
-	case "k":
+	case a.Keys.Slack:
 		// Show Slack dialog for specific message
 		go func() {
 			currentID := a.GetCurrentMessageID()
@@ -1424,7 +1466,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			a.showSlackForwardDialog()
 			a.SetCurrentMessageID(currentID)
 		}()
-	case "o":
+	case a.Keys.Obsidian:
 		// Send specific message to Obsidian
 		go func() {
 			currentID := a.GetCurrentMessageID()
@@ -1432,7 +1474,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			a.sendEmailToObsidian()
 			a.SetCurrentMessageID(currentID)
 		}()
-	case "p":
+	case a.Keys.Prompt:
 		// Show prompts dialog for specific message
 		go func() {
 			currentID := a.GetCurrentMessageID()

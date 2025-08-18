@@ -631,36 +631,56 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
 		}
 
+		// CRITICAL FIX: Set up ESC handler OUTSIDE QueueUpdateDraw to prevent deadlock
+		escHandler := func() {
+			if moveMode {
+				// Close the panel completely - all synchronous operations
+				a.labelsExpanded = false
+				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+					split.ResizeItem(a.labelsView, 0, 0)
+				}
+				a.labelsVisible = false
+				if a.bulkMode {
+					a.bulkMode = false
+					a.selected = make(map[string]bool)
+					a.reformatListItems()
+					// Use synchronous operation for list style reset
+					if list, ok := a.views["list"].(*tview.Table); ok {
+						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					}
+				}
+				a.SetFocus(a.views["list"])
+				a.currentFocus = "list"
+				a.updateFocusIndicators("list")
+				// Clear progress asynchronously to avoid deadlock
+				go func() {
+					a.GetErrorHandler().ClearProgress()
+				}()
+			} else {
+				// back to quick view - synchronous operations
+				a.labelsExpanded = false
+				if a.bulkMode {
+					a.bulkMode = false
+					a.selected = make(map[string]bool)
+					a.reformatListItems()
+					// Use synchronous operation for list style reset
+					if list, ok := a.views["list"].(*tview.Table); ok {
+						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					}
+					// Clear progress asynchronously to avoid deadlock
+					go func() {
+						a.GetErrorHandler().ClearProgress()
+					}()
+				}
+				a.populateLabelsQuickView(messageID)
+			}
+		}
+		
 		a.QueueUpdateDraw(func() {
 			input.SetDoneFunc(func(key tcell.Key) {
 				if key == tcell.KeyEscape {
-					if moveMode {
-						// Close the panel completely
-						a.labelsExpanded = false
-						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-							split.ResizeItem(a.labelsView, 0, 0)
-						}
-						a.labelsVisible = false
-						if a.bulkMode {
-							a.bulkMode = false
-							a.selected = make(map[string]bool)
-							a.reformatListItems()
-							a.GetErrorHandler().ClearProgress()
-						}
-						a.SetFocus(a.views["list"])
-						a.currentFocus = "list"
-						a.updateFocusIndicators("list")
-					} else {
-						// back to quick view
-						a.labelsExpanded = false
-						if a.bulkMode {
-							a.bulkMode = false
-							a.selected = make(map[string]bool)
-							a.reformatListItems()
-							a.GetErrorHandler().ClearProgress()
-						}
-						a.populateLabelsQuickView(messageID)
-					}
+					// Call the synchronous ESC handler
+					escHandler()
 					return
 				}
 				if key == tcell.KeyEnter {
@@ -834,6 +854,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyEscape {
+					// CRITICAL FIX: Make ESC operations synchronous to prevent deadlock
 					a.labelsExpanded = false
 					if moveMode {
 						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -844,7 +865,14 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.GetErrorHandler().ClearProgress()
+							// Use synchronous operation for list style reset
+							if list, ok := a.views["list"].(*tview.Table); ok {
+								list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+							}
+							// Clear progress asynchronously to avoid deadlock
+							go func() {
+								a.GetErrorHandler().ClearProgress()
+							}()
 						}
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
@@ -854,7 +882,14 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
 							a.reformatListItems()
-							a.GetErrorHandler().ClearProgress()
+							// Use synchronous operation for list style reset
+							if list, ok := a.views["list"].(*tview.Table); ok {
+								list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+							}
+							// Clear progress asynchronously to avoid deadlock
+							go func() {
+								a.GetErrorHandler().ClearProgress()
+							}()
 						}
 						a.populateLabelsQuickView(messageID)
 					}
@@ -1563,21 +1598,21 @@ func (a *App) removeLabelNameFromMessageCache(messageID, name string) {
 // moveSelected opens the labels picker to choose a destination label, applies it, then archives the message
 func (a *App) moveSelected() {
 	// Get the current message ID
-	messageID := a.getCurrentMessageID()
+	messageID := a.GetCurrentMessageID()
 	if messageID == "" {
-		a.showError("❌ No message selected")
+		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
 	}
 
 	// Load available labels and message metadata
 	labels, err := a.Client.ListLabels()
 	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error loading labels: %v", err))
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error loading labels: %v", err))
 		return
 	}
 	message, err := a.Client.GetMessage(messageID)
 	if err != nil {
-		a.showError(fmt.Sprintf("❌ Error getting message: %v", err))
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error getting message: %v", err))
 		return
 	}
 

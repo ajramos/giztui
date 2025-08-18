@@ -1293,18 +1293,18 @@ func formatRelativeTime(date time.Time) string {
 // summarizeSelected summarizes the selected message using LLM
 func (a *App) summarizeSelected() {
 	if a.LLM == nil {
-		a.showStatusMessage("LLM disabled")
+		a.GetErrorHandler().ShowWarning(a.ctx, "LLM disabled")
 		return
 	}
-	messageID := a.getCurrentMessageID()
+	messageID := a.GetCurrentMessageID()
 	if messageID == "" {
-		a.showError("No message selected")
+		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
 	}
 	// Load content
 	m, err := a.Client.GetMessageWithContent(messageID)
 	if err != nil {
-		a.showError("Failed to load message")
+		a.GetErrorHandler().ShowError(a.ctx, "Failed to load message")
 		return
 	}
 	body := m.PlainText
