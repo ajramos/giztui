@@ -81,6 +81,15 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Status bar preview** - See full URLs in status bar while navigating
 - ✅ **Instant feedback** - Live URL display and success messages
 
+### 📅 **Calendar Integration** 🆕
+- ✅ **Smart invitation detection** - Automatically detects calendar invitations in emails
+- ✅ **Enhanced RSVP widget** - Press `Shift+V` to respond to meeting invitations
+- ✅ **Meeting details display** - Shows title, organizer, date/time in beautiful colors
+- ✅ **iCalendar parsing** - Handles complex timezone-aware calendar data
+- ✅ **Direct calendar integration** - Updates your Google Calendar with RSVP responses
+- ✅ **Multiple response options** - Accept, Tentative, or Decline with one key press
+- ✅ **Clean visual design** - Color-coded information with proper spacing
+
 ### 📱 Adaptive Layout System
 - ✅ **Responsive design** - Automatically adapts to terminal size
 - ✅ **Multiple layout modes** - Wide, medium, narrow, and mobile layouts
