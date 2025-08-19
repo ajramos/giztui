@@ -1364,7 +1364,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 				
 				// CRITICAL: Do complex operations outside QueueUpdateDraw to avoid deadlock
 				go func() {
-					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: " + name)
+					a.GetErrorHandler().ShowSuccess(a.ctx, "Applied: " + name)
 				}()
 				go func() {
 					a.GetErrorHandler().ClearProgress()
@@ -1548,7 +1548,7 @@ func (a *App) createNewLabelFromView() {
 
 					// Show success message
 					go func() {
-						a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Created label: %s", labelName))
+						a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Created label: %s", labelName))
 					}()
 
 					// CRITICAL: Switch pages first (synchronous), then refresh (async)
@@ -2065,15 +2065,15 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		go func() {
 			if failed == 0 {
 				if action == "add" {
-					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied '%s' to %d messages", labelName, total))
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied '%s' to %d messages", labelName, total))
 				} else {
-					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Removed '%s' from %d messages", labelName, total))
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Removed '%s' from %d messages", labelName, total))
 				}
 			} else {
 				if action == "add" {
-					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("🏷️ Applied '%s' to %d/%d messages (%d failed)", labelName, successful, total, failed))
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Applied '%s' to %d/%d messages (%d failed)", labelName, successful, total, failed))
 				} else {
-					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("🏷️ Removed '%s' from %d/%d messages (%d failed)", labelName, successful, total, failed))
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Removed '%s' from %d/%d messages (%d failed)", labelName, successful, total, failed))
 				}
 			}
 		}()

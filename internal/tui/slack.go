@@ -428,7 +428,7 @@ func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwar
 		}
 		
 		// Show success message
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📧 Email forwarded to #%s", options.ChannelName))
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Email forwarded to #%s", options.ChannelName))
 	}()
 }
 
