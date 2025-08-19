@@ -57,6 +57,7 @@ type App struct {
 	cmdHistory      []string // Command history
 	cmdHistoryIndex int      // Current position in history
 	cmdSuggestion   string   // Current command suggestion
+	cmdFocusOverride string  // Override focus restoration for special commands
 	// Layout management
 	currentLayout    LayoutType
 	screenWidth      int
@@ -77,6 +78,8 @@ type App struct {
 	// AI Summary pane
 	aiSummaryView       *tview.TextView
 	aiSummaryVisible    bool
+	// Enhanced text view for content navigation and search
+	enhancedTextView    *EnhancedTextView
 	aiSummaryCache      map[string]string  // messageID -> summary
 	aiInFlight          map[string]bool    // messageID -> generating
 	aiPanelInPromptMode bool               // Track if panel is being used for prompt vs summary
@@ -150,6 +153,7 @@ type App struct {
 	slackService      services.SlackService
 	obsidianService   services.ObsidianService
 	linkService       services.LinkService
+	contentNavService services.ContentNavigationService
 	errorHandler      *ErrorHandler
 }
 
@@ -575,6 +579,12 @@ func (a *App) initServices() {
 		}
 	}
 
+	// Initialize content navigation service (no dependencies)
+	a.contentNavService = services.NewContentNavigationService()
+	if a.logger != nil {
+		a.logger.Printf("initServices: content navigation service initialized: %v", a.contentNavService != nil)
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
@@ -777,6 +787,12 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 func (a *App) GetSlackService() services.SlackService {
 	return a.slackService
 }
+
+// GetContentNavService returns the content navigation service instance
+func (a *App) GetContentNavService() services.ContentNavigationService {
+	return a.contentNavService
+}
+
 
 // applyTheme loads theme colors and updates the email renderer
 func (a *App) applyTheme() {

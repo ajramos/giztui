@@ -104,7 +104,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 				go a.generateOrShowSummary(a.ids[cur])
 			}
 		} else {
-			text.SetText("No messages")
+			a.enhancedTextView.SetContent("No messages")
 			text.ScrollToBeginning()
 			if a.aiSummaryVisible && a.aiSummaryView != nil {
 				a.aiSummaryView.SetText("")

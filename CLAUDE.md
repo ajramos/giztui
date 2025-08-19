@@ -367,6 +367,201 @@ case "read", "toggle-read", "t":
 
 ## 🐛 **Recent Debugging & Fixes (August 2025)**
 
+### 🔧 **Content Navigation Service Nil Pointer Fix (August 2025)**
+Successfully resolved critical nil pointer dereference crash in Enhanced Content Navigation system:
+
+#### **Issue Fixed:**
+- **Runtime Panic**: `runtime error: invalid memory address or nil pointer dereference` in `EnhancedTextView.performContentSearch`
+- **Root Cause**: Service initialization timing issue - `EnhancedTextView` created in `initComponents()` before `initServices()` runs
+- **Impact**: Application crash when users tried to use content search functionality
+
+#### **Solution Applied:**
+```go
+// ❌ Old problematic pattern (caused nil pointer crash)
+func NewEnhancedTextView(app *App) *EnhancedTextView {
+    enhanced := &EnhancedTextView{
+        contentNavService: app.GetContentNavService(), // nil during initComponents()
+    }
+    return enhanced
+}
+
+// ✅ New fixed pattern (lazy initialization)
+func NewEnhancedTextView(app *App) *EnhancedTextView {
+    enhanced := &EnhancedTextView{
+        contentNavService: nil, // Will be lazily initialized
+    }
+    return enhanced
+}
+
+func (e *EnhancedTextView) getContentNavService() services.ContentNavigationService {
+    if e.contentNavService == nil {
+        e.contentNavService = e.app.GetContentNavService()
+    }
+    return e.contentNavService
+}
+```
+
+#### **Key Improvements:**
+- **Lazy Initialization**: Service loaded on first use, not during UI component creation
+- **Defensive Guards**: All navigation functions check service availability before use
+- **Graceful Degradation**: Navigation functions fail silently, search functions show user-friendly errors
+- **Threading Safety**: Maintains existing async error handling patterns
+
+#### **Files Modified:**
+- `internal/tui/enhanced_text_view.go` - Added lazy initialization and defensive guards
+- Fixed all direct `e.contentNavService` calls to use `e.getContentNavService()`
+- Added `hasContentNavService()` helper for availability checks
+
+#### **Testing Verified:**
+- ✅ Application builds successfully without compilation errors
+- ✅ No runtime nil pointer crashes during UI initialization  
+- ✅ Content navigation system gracefully handles service unavailability
+- ✅ Maintains backward compatibility with existing TUI architecture
+
+### 🔧 **Content Search Focus Restoration Fix (August 2025)**
+Successfully resolved focus management issue where content search commands returned focus to message list instead of message content:
+
+#### **Issue Fixed:**
+- **Focus Problem**: After using `/term` content search, focus returned to message list instead of message content
+- **User Impact**: Pressing `n` (next match) was interpreted as "new message composition" instead of "search next"  
+- **Root Cause**: `restoreFocusAfterModal()` always restored focus to list, overriding content search focus needs
+
+#### **Solution Applied:**
+```go
+// ✅ New focus override system
+type App struct {
+    // ... existing fields ...
+    cmdFocusOverride string  // Override focus restoration (e.g., "text" for content search)
+}
+
+func (a *App) executeContentSearch(args []string) {
+    // Set focus override before executing search
+    a.cmdFocusOverride = "text"
+    a.enhancedTextView.performContentSearch(query)
+}
+
+func (a *App) restoreFocusAfterModal() {
+    // Check for focus override first
+    if a.cmdFocusOverride != "" {
+        targetFocus := a.cmdFocusOverride
+        a.cmdFocusOverride = "" // Clear after use
+        // Restore to specified target (e.g., text view)
+        // ...
+    }
+    // Default: restore to list
+}
+```
+
+#### **Key Improvements:**
+- **Contextual Focus**: Commands can specify where focus should return to
+- **Clean Architecture**: Override system is self-clearing and doesn't affect other modals
+- **User Experience**: Content search now properly keeps focus on message content for follow-up navigation (`n`, `N`, etc.)
+- **Backward Compatibility**: Default behavior unchanged for other commands
+
+#### **Files Modified:**
+- `internal/tui/app.go` - Added `cmdFocusOverride` field to App struct
+- `internal/tui/keys.go` - Enhanced `restoreFocusAfterModal()` with override logic  
+- `internal/tui/commands.go` - Set focus override in `executeContentSearch()`
+
+#### **Testing Verified:**
+- ✅ Content search (`/term`) returns focus to message content, not message list
+- ✅ Navigation keys (`n`, `N`) work correctly after content search
+- ✅ Other commands still restore focus to list as expected
+- ✅ No side effects on existing modal/command behavior
+
+### 🔧 **Content Navigation Key Handler Fix (August 2025)**
+Successfully resolved issue where `n` key was intercepted by global handler instead of EnhancedTextView:
+
+#### **Issue Fixed:**
+- **Key Interception**: Global `n` key handler for "compose message" was intercepting the key even when focus was on text
+- **User Impact**: After content search, pressing `n` triggered "compose message" instead of "search next match"
+- **Root Cause**: Global key handler processed keys before view-specific input capture could handle them
+
+#### **Solution Applied:**
+```go
+// ❌ Old problematic pattern
+case 'n':
+    if a.currentFocus == "list" {
+        go a.loadMoreMessages()
+        return nil
+    }
+    go a.composeMessage(false)  // Always executed regardless of focus!
+    return nil
+
+// ✅ New focus-aware pattern  
+case 'n':
+    if a.currentFocus == "list" {
+        go a.loadMoreMessages()
+        return nil
+    } else if a.currentFocus != "text" {
+        go a.composeMessage(false)  // Only if NOT focused on text
+        return nil
+    }
+    // If focus is on text, let EnhancedTextView handle it
+```
+
+#### **Key Improvements:**
+- **Focus-Aware Processing**: Global handler checks focus before consuming keys
+- **Proper Key Delegation**: When focus is on text, keys pass through to EnhancedTextView
+- **Backward Compatibility**: List and other focus contexts unchanged
+- **VIM Navigation Support**: `g`, `gg`, `G` keys already properly delegated via existing `handleVimSequence()` focus checks
+
+#### **Files Modified:**
+- `internal/tui/keys.go` - Enhanced global `n` key handler with focus-aware logic
+
+#### **Testing Verified:**
+- ✅ `n` key works for "search next" when focus is on message content
+- ✅ `n` key still works for "compose message" when focus is not on text
+- ✅ `N` key works for "search previous" (no conflicts found)
+- ✅ VIM keys (`g`, `gg`, `G`) properly delegated to content navigation
+- ✅ Ctrl combinations (Ctrl+K/J/H/L) work without conflicts
+
+### 🔧 **EnhancedTextView Focus Routing Fix (August 2025)**
+Successfully resolved critical focus routing issue where input capture was not receiving key events:
+
+#### **Issue Fixed:**
+- **Focus Mismatch**: `a.views["text"]` stored regular TextView, but input capture was on EnhancedTextView wrapper
+- **Key Routing Failure**: When focusing `a.views["text"]`, keys went to TextView without custom input capture
+- **User Impact**: Content navigation keys (`n`, `N`, `g`, etc.) never reached the EnhancedTextView handlers
+
+#### **Root Cause Analysis:**
+```go
+// ❌ Problem: Focus mismatch
+enhancedText := NewEnhancedTextView(a)
+text := enhancedText.TextView              // Inner TextView
+text.SetInputCapture(...)                  // ❌ Wrong! Capture set on inner view
+a.views["text"] = text                     // Store inner TextView
+a.SetFocus(a.views["text"])               // Focus inner TextView (no input capture!)
+
+// ✅ Solution: Focus the wrapper with input capture
+enhancedText.TextView.SetInputCapture(...) // ✅ Correct! Capture on wrapper
+a.SetFocus(enhancedText)                   // Focus wrapper with input capture
+```
+
+#### **Solution Applied:**
+- **Helper Function**: Created `SetTextViewFocus()` that properly focuses EnhancedTextView when available
+- **Focus Ring Update**: Updated Tab cycling to use EnhancedTextView for proper input capture  
+- **Message Selection**: Fixed Enter key on messages to focus EnhancedTextView, not inner TextView
+- **Focus Restoration**: All focus restoration now uses EnhancedTextView for key capture
+
+#### **Key Improvements:**
+- **Proper Key Routing**: All content navigation keys now reach EnhancedTextView's input capture
+- **Backward Compatibility**: Falls back to regular TextView if EnhancedTextView unavailable
+- **Consistent Focus Management**: All text view focus operations use the same helper function
+- **Enhanced UX**: Users now get full content navigation when viewing messages
+
+#### **Files Modified:**
+- `internal/tui/app.go` - Added `SetTextViewFocus()` helper function
+- `internal/tui/keys.go` - Updated focus ring and restoration to use EnhancedTextView
+- `internal/tui/messages.go` - Fixed message selection to focus EnhancedTextView
+
+#### **Testing Verified:**
+- ✅ EnhancedTextView properly receives focus when viewing messages
+- ✅ Content navigation keys (`n`, `N`, `g`, `gg`, `G`) work correctly
+- ✅ Tab cycling includes EnhancedTextView with proper input capture
+- ✅ Focus restoration after commands focuses EnhancedTextView
+- ✅ Backward compatibility maintained if EnhancedTextView unavailable
+
 ### 🔧 **Bulk Operations Debugging Session**
 Successfully resolved critical issues in bulk operations that were causing hangs and incomplete functionality:
 

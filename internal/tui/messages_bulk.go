@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -44,11 +45,16 @@ func (a *App) archiveSelectedBulk() {
 		
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, "Archived")
-		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived with %d failure(s)", failed))
-		}
+		
+		// Small delay to ensure progress message is fully cleared before showing final status
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			if failed == 0 {
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Archived")
+			} else {
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived with %d failure(s)", failed))
+			}
+		}()
 	}()
 }
 
@@ -86,11 +92,16 @@ func (a *App) trashSelectedBulk() {
 		
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, "Trashed")
-		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Trashed with %d failure(s)", failed))
-		}
+		
+		// Small delay to ensure progress message is fully cleared before showing final status
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			if failed == 0 {
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Trashed")
+			} else {
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Trashed with %d failure(s)", failed))
+			}
+		}()
 	}()
 }
 
@@ -178,18 +189,23 @@ func (a *App) toggleMarkReadUnreadBulk() {
 		
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
-			if markAsUnread {
-				a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as unread")
+		
+		// Small delay to ensure progress message is fully cleared before showing final status
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			if failed == 0 {
+				if markAsUnread {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as unread")
+				} else {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as read")
+				}
 			} else {
-				a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as read")
+				if markAsUnread {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as unread with %d failure(s)", failed))
+				} else {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as read with %d failure(s)", failed))
+				}
 			}
-		} else {
-			if markAsUnread {
-				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as unread with %d failure(s)", failed))
-			} else {
-				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as read with %d failure(s)", failed))
-			}
-		}
+		}()
 	}()
 }

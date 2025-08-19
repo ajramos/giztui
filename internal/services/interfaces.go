@@ -98,6 +98,25 @@ type PromptService interface {
 	ClearAllPromptCaches(ctx context.Context) error
 }
 
+// ContentNavigationService handles content search and navigation within message text
+type ContentNavigationService interface {
+	// Search operations
+	SearchContent(ctx context.Context, content string, query string, caseSensitive bool) (*ContentSearchResult, error)
+	FindNextMatch(ctx context.Context, searchResult *ContentSearchResult, currentPosition int) (int, error)
+	FindPreviousMatch(ctx context.Context, searchResult *ContentSearchResult, currentPosition int) (int, error)
+	
+	// Navigation operations
+	FindNextParagraph(ctx context.Context, content string, currentPosition int) (int, error)
+	FindPreviousParagraph(ctx context.Context, content string, currentPosition int) (int, error)
+	FindNextWord(ctx context.Context, content string, currentPosition int) (int, error)
+	FindPreviousWord(ctx context.Context, content string, currentPosition int) (int, error)
+	
+	// Position operations
+	GetLineFromPosition(ctx context.Context, content string, position int) (int, error)
+	GetPositionFromLine(ctx context.Context, content string, line int) (int, error)
+	GetContentLength(ctx context.Context, content string) int
+}
+
 // Data structures
 
 type QueryOptions struct {
@@ -174,6 +193,16 @@ type SearchResult struct {
 	TotalCount    int
 	Query         string
 	Duration      time.Duration
+}
+
+// ContentSearchResult holds search results for content within a message
+type ContentSearchResult struct {
+	Query         string  `json:"query"`
+	CaseSensitive bool    `json:"case_sensitive"`
+	Matches       []int   `json:"matches"`       // Positions of matches in the content
+	MatchCount    int     `json:"match_count"`   // Total number of matches
+	Content       string  `json:"-"`             // Original content (not serialized)
+	Duration      time.Duration `json:"duration"`
 }
 
 // Prompt-related data structures

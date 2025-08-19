@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -51,8 +52,13 @@ func (a *App) createCommandBar() tview.Primitive {
 
 // showCommandBar displays the command bar and enters command mode
 func (a *App) showCommandBar() {
+	a.showCommandBarWithPrefix("")
+}
+
+// showCommandBarWithPrefix displays the command bar with a prefilled command
+func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.cmdMode = true
-	a.cmdBuffer = ""
+	a.cmdBuffer = prefix
 	a.cmdSuggestion = ""
 
 	// Build prompt pieces with an emoji-safe custom box
@@ -64,7 +70,7 @@ func (a *App) showCommandBar() {
 	input.SetPlaceholderTextColor(tview.Styles.PrimaryTextColor)
 	input.SetBorder(false)
 	input.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	input.SetText("")
+	input.SetText(prefix)
 	input.SetDoneFunc(nil) // ensure we set it after capture
 	// Start at end of history
 	a.cmdHistoryIndex = len(a.cmdHistory)
@@ -240,6 +246,7 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 
 	// First-level suggestions
 	commands := map[string][]string{
+		"/":       {"/"},
 		"l":       {"labels", "links", "list"},
 		"la":      {"labels"},
 		"lab":     {"labels"},
@@ -418,11 +425,23 @@ func (a *App) executeCommand(cmd string) {
 	command := strings.ToLower(parts[0])
 	args := parts[1:]
 
+	// Special handling for content search commands that start with "/"
+	if strings.HasPrefix(command, "/") && len(command) > 1 {
+		// Extract search term from "/term" -> "term"
+		searchTerm := command[1:]
+		// Also include any additional args: "/term more words"
+		allArgs := append([]string{searchTerm}, args...)
+		a.executeContentSearch(allArgs)
+		return
+	}
+
 	switch command {
 	case "labels", "l":
 		a.executeLabelsCommand(args)
 	case "links", "link":
 		a.executeLinksCommand(args)
+	case "/":
+		a.executeContentSearch(args)
 	case "search":
 		a.executeSearchCommand(args)
 	case "slack", "sl":
@@ -603,7 +622,46 @@ func (a *App) executeLinksCommand(args []string) {
 	go a.openLinkPicker()
 }
 
-// executeSearchCommand handles search commands
+// executeContentSearch handles content search within message text
+func (a *App) executeContentSearch(args []string) {
+	if a.enhancedTextView == nil {
+		a.showError("Content search not available")
+		return
+	}
+	
+	query := strings.Join(args, " ")
+	if query == "" {
+		a.showError("Usage: /<term> for content search")
+		return
+	}
+	
+	// Use the enhanced text view's search functionality
+	a.enhancedTextView.performContentSearch(query)
+	
+	// CRITICAL: Set a flag to prevent restoreFocusAfterModal from overriding our focus
+	// We'll set focus to EnhancedTextView immediately after command execution
+	a.cmdFocusOverride = "enhanced-text"
+	
+	// DEBUGGING: Also try direct focus setting as backup
+	go func() {
+		// Wait for command bar to close, then force focus to EnhancedTextView
+		for i := 0; i < 10; i++ { // Try up to 10 times over 1 second
+			time.Sleep(100 * time.Millisecond)
+			if !a.cmdMode { // Command bar closed
+				a.QueueUpdateDraw(func() {
+					if a.enhancedTextView != nil {
+						a.SetFocus(a.enhancedTextView)
+						a.currentFocus = "text"
+						a.updateFocusIndicators("text")
+					}
+				})
+				break
+			}
+		}
+	}()
+}
+
+// executeSearchCommand handles email search commands  
 func (a *App) executeSearchCommand(args []string) {
 	if len(args) == 0 {
 		a.showError("Usage: search <query>")

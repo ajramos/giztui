@@ -35,9 +35,14 @@ func (a *App) initComponents() {
 	header.SetBorder(false)
 	header.SetTextColor(tcell.ColorGreen)
 
-	text := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
+	enhancedText := NewEnhancedTextView(a)
+	text := enhancedText.TextView
+	text.SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	text.SetBorder(false)
+	
+	// Store the enhanced text view in the app
+	a.enhancedTextView = enhancedText
 
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	textContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)

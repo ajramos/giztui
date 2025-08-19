@@ -169,6 +169,17 @@ type KeyBindings struct {
 	BulkMode      string `json:"bulk_mode"`     // Toggle bulk mode
 	CommandMode   string `json:"command_mode"`  // Open command bar
 	Help          string `json:"help"`          // Toggle help
+
+	// Content navigation shortcuts (when focused on text view)
+	ContentSearch string `json:"content_search"` // Start search within message content
+	SearchNext    string `json:"search_next"`    // Jump to next search match
+	SearchPrev    string `json:"search_prev"`    // Jump to previous search match
+	FastUp        string `json:"fast_up"`        // Fast navigation up (paragraph jump)
+	FastDown      string `json:"fast_down"`      // Fast navigation down (paragraph jump)
+	WordLeft      string `json:"word_left"`      // Word-wise navigation left
+	WordRight     string `json:"word_right"`     // Word-wise navigation right
+	GotoTop       string `json:"goto_top"`       // Jump to top of content
+	GotoBottom    string `json:"goto_bottom"`    // Jump to bottom of content
 }
 
 // DefaultConfig returns a Config with sensible defaults
@@ -257,6 +268,17 @@ func DefaultKeyBindings() KeyBindings {
 		BulkMode:      "v",
 		CommandMode:   ":",
 		Help:          "?",
+
+		// Content navigation shortcuts (vim-like for familiar UX)
+		ContentSearch: "/",      // Standard vim search
+		SearchNext:    "n",      // Standard vim next match
+		SearchPrev:    "N",      // Standard vim previous match
+		FastUp:        "ctrl+k", // Fast up navigation
+		FastDown:      "ctrl+j", // Fast down navigation
+		WordLeft:      "ctrl+h", // Word left navigation
+		WordRight:     "ctrl+l", // Word right navigation
+		GotoTop:       "gg",     // Vim-like go to top
+		GotoBottom:    "G",      // Vim-like go to bottom
 	}
 }
 

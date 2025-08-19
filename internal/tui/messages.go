@@ -1723,7 +1723,7 @@ func (a *App) showMessage(id string) {
 		} else {
 			a.setStatusPersistent("🧾 Loading message…")
 		}
-		text.SetText("Loading message…")
+		a.enhancedTextView.SetContent("Loading message…")
 		text.ScrollToBeginning()
 	}
 
@@ -1775,7 +1775,7 @@ func (a *App) showMessage(id string) {
 					// Convert ANSI → tview markup while writing
 					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
-					text.SetText(rendered)
+					a.enhancedTextView.SetContent(rendered)
 				}
 				// Scroll to the top of the text
 				text.ScrollToBeginning()
@@ -1928,7 +1928,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 		if a.debug {
 			a.logger.Printf("showMessageWithoutFocus: id=%s", id)
 		}
-		text.SetText("Loading message...")
+		a.enhancedTextView.SetContent("Loading message...")
 		text.ScrollToBeginning()
 	}
 	a.SetCurrentMessageID(id)
@@ -1975,7 +1975,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 				if isANSI {
 					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
-					text.SetText(rendered)
+					a.enhancedTextView.SetContent(rendered)
 				}
 				text.ScrollToBeginning()
 			}
@@ -2022,7 +2022,7 @@ func (a *App) refreshMessageContent(id string) {
 				if isANSI {
 					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
-					text.SetText(rendered)
+					a.enhancedTextView.SetContent(rendered)
 				}
 				text.ScrollToBeginning()
 			}
@@ -2066,7 +2066,7 @@ func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []stri
 				if isANSI {
 					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
-					text.SetText(rendered)
+					a.enhancedTextView.SetContent(rendered)
 				}
 				text.ScrollToBeginning()
 			}

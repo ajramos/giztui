@@ -61,6 +61,19 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		go a.replySelected()
 		return true
 	case a.Keys.Compose:
+		// CRITICAL: Check if this is 'n' and we're in content search context
+		if key == "n" && a.currentFocus == "text" && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> content search next (overriding compose)", key)
+			}
+			// DEBUG: Show in status bar
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: n key -> searchNext() (configurable override)")
+			}()
+			a.enhancedTextView.searchNext()
+			return true
+		}
+		
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> compose", key)
 		}
@@ -76,7 +89,11 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> search", key)
 		}
-		a.openSearchOverlay("remote")
+		// Only handle for email list search when focus is NOT on message content
+		// When focus is on "text", let EnhancedTextView handle content search if using same key
+		if a.currentFocus != "text" {
+			a.openSearchOverlay("remote")
+		}
 		return true
 	case a.Keys.Unread:
 		if a.logger != nil {
@@ -88,19 +105,51 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> toggle_read", key)
 		}
-		go a.toggleMarkReadUnread()
+		// CRITICAL: Check for bulk mode to ensure bulk operations work
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("Bulk mode active with %d selected messages, calling toggleMarkReadUnreadBulk()", len(a.selected))
+			}
+			go a.toggleMarkReadUnreadBulk()
+		} else {
+			go a.toggleMarkReadUnread()
+		}
 		return true
 	case a.Keys.Trash:
 		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> trash", key)
+			a.logger.Printf("Configurable shortcut: '%s' -> trash (bulkMode: %t, selected: %d)", key, a.bulkMode, len(a.selected))
 		}
-		go a.trashSelected()
+		// DEBUG: Show in status bar
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: trash key - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
+		}()
+		
+		// CRITICAL: Check for bulk mode to ensure bulk operations work
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Calling trashSelectedBulk() with %d messages", len(a.selected))
+			}
+			go a.trashSelectedBulk()
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Calling trashSelected() - single message operation")
+			}
+			go a.trashSelected()
+		}
 		return true
 	case a.Keys.Archive:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> archive", key)
 		}
-		go a.archiveSelected()
+		// CRITICAL: Check for bulk mode to ensure bulk operations work
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("Bulk mode active with %d selected messages, calling archiveSelectedBulk()", len(a.selected))
+			}
+			go a.archiveSelectedBulk()
+		} else {
+			go a.archiveSelected()
+		}
 		return true
 	case a.Keys.Drafts:
 		if a.logger != nil {
@@ -363,8 +412,19 @@ func (a *App) bindKeys() {
 		
 		switch event.Rune() {
 		case ' ':
+			// DEBUG: Always log when Space key is pressed
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Space key pressed - bulkMode: %t, selectedCount: %d", a.bulkMode, len(a.selected))
+			}
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: Space pressed - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
+			}()
+			
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
+					if a.logger != nil {
+						a.logger.Printf("DEBUG: Entering bulk mode for first time")
+					}
 					a.bulkMode = true
 					r, _ := list.GetSelection()
 					if r >= 0 && r < len(a.ids) {
@@ -372,6 +432,9 @@ func (a *App) bindKeys() {
 							a.selected = make(map[string]bool)
 						}
 						a.selected[a.ids[r]] = true
+						if a.logger != nil {
+							a.logger.Printf("DEBUG: Selected message %d (ID: %s)", r, a.ids[r])
+						}
 					}
 					a.reformatListItems()
 					// Keep focus highlight consistent (blue) even in Bulk mode
@@ -523,14 +586,53 @@ func (a *App) bindKeys() {
 			}
 			break
 		case 'n':
+			// DEBUGGING: Log focus state for n key
+			if a.logger != nil {
+				focusType := "nil"
+				if focus := a.GetFocus(); focus != nil {
+					focusType = fmt.Sprintf("%T", focus)
+				}
+				a.logger.Printf("=== 'n' key pressed: currentFocus=%s, actualFocus=%s ===", a.currentFocus, focusType)
+			}
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('n') {
-				if a.currentFocus == "list" && (event.Modifiers()&tcell.ModShift) == 0 {
-					go a.loadMoreMessages()
+				// Only handle 'n' for compose/load more when focus is on list
+				// When focus is on text, let the EnhancedTextView handle it for search navigation
+				if a.currentFocus == "list" {
+					if (event.Modifiers()&tcell.ModShift) == 0 {
+						if a.logger != nil {
+							a.logger.Printf("=== 'n' executing loadMoreMessages ===")
+						}
+						go a.loadMoreMessages()
+						return nil
+					}
+				} else if a.currentFocus != "text" {
+					// Only compose message if not focused on text (let text view handle 'n' for search)
+					if a.logger != nil {
+						a.logger.Printf("=== 'n' executing composeMessage (currentFocus=%s) ===", a.currentFocus)
+					}
+					go a.composeMessage(false)
 					return nil
 				}
-				go a.composeMessage(false)
-				return nil
+				// If focus is on text, check if we should handle content search navigation
+				if a.currentFocus == "text" && a.enhancedTextView != nil {
+					// Check if there's an active search in the EnhancedTextView
+					if a.enhancedTextView.HasActiveSearch() {
+						if a.logger != nil {
+							a.logger.Printf("=== 'n' delegating to EnhancedTextView.searchNext() ===")
+						}
+						// DEBUG: Show in status bar
+						go func() {
+							a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: n key -> searchNext()")
+						}()
+						a.enhancedTextView.searchNext()
+						return nil
+					}
+				}
+				// If focus is on text but no active search, let the event pass through to EnhancedTextView
+				if a.logger != nil {
+					a.logger.Printf("=== 'n' letting event pass through to EnhancedTextView (no active search) ===")
+				}
 			}
 			break
 		case 's':
@@ -541,8 +643,12 @@ func (a *App) bindKeys() {
 			}
 			break
 		case '/':
-			a.openSearchOverlay("local")
-			return nil
+			// Only handle for email list search when focus is NOT on message content
+			// When focus is on "text", let EnhancedTextView handle content search
+			if a.currentFocus != "text" {
+				a.openSearchOverlay("local")
+				return nil
+			}
 		case 'u':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('u') {
@@ -582,10 +688,21 @@ func (a *App) bindKeys() {
 			}
 			break
 		case 'd':
+			// DEBUGGING: Log bulk mode state
+			if a.logger != nil {
+				a.logger.Printf("=== 'd' key pressed: bulkMode=%v, selected=%d, currentFocus=%s ===", a.bulkMode, len(a.selected), a.currentFocus)
+			}
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('d') {
 				// In bulk mode, prioritize bulk operations over VIM sequences
 				if a.bulkMode && len(a.selected) > 0 {
+					if a.logger != nil {
+						a.logger.Printf("=== Executing bulk trash operation ===")
+					}
+					// DEBUG: Show in status bar
+					go func() {
+						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: bulk trash %d msgs", len(a.selected)))
+					}()
 					go a.trashSelectedBulk()
 					return nil
 				}
@@ -593,6 +710,13 @@ func (a *App) bindKeys() {
 				if a.handleVimSequence(event.Rune()) {
 					return nil
 				}
+				if a.logger != nil {
+					a.logger.Printf("=== Executing single trash operation ===")
+				}
+				// DEBUG: Show in status bar
+				go func() {
+					a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: single trash")
+				}()
 				go a.trashSelected()
 				return nil
 			}
@@ -974,7 +1098,8 @@ func (a *App) toggleFocus() {
 	// 2) List (always)
 	ring = append(ring, a.views["list"])
 	ringNames = append(ringNames, "list")
-	// 3) Text (always)
+	// 3) Text (always) - keep using regular text view for focus ring
+	// Only use EnhancedTextView when explicitly needed for content navigation
 	ring = append(ring, a.views["text"])
 	ringNames = append(ringNames, "text")
 	// 4) Labels (if visible)
@@ -1014,6 +1139,24 @@ func (a *App) toggleFocus() {
 
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal
 func (a *App) restoreFocusAfterModal() {
+	// Check for special focus overrides (e.g., content search)
+	if a.cmdFocusOverride != "" {
+		override := a.cmdFocusOverride
+		a.cmdFocusOverride = "" // Clear the override
+		
+		switch override {
+		case "enhanced-text":
+			// For content search, focus the EnhancedTextView directly
+			if a.enhancedTextView != nil {
+				a.SetFocus(a.enhancedTextView)
+				a.currentFocus = "text"
+				a.updateFocusIndicators("text")
+				return
+			}
+		}
+	}
+	
+	// Default behavior - restore to list
 	a.SetFocus(a.views["list"])
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
@@ -1422,27 +1565,51 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
 		}()
 	case a.Keys.Archive:
-		// Archive specific message - temporarily set current ID
-		go func() {
-			a.SetCurrentMessageID(messageID)
-			a.archiveSelected()
-		}()
-	case a.Keys.Trash:
-		// Trash specific message by ID (bypasses current selection)
-		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: Entered trash case - target messageID: %s", messageID)
-			a.logger.Printf("HANG DEBUG: About to call trashSelectedByID")
+		// CRITICAL: Check for bulk mode first - VIM 'a' should respect bulk selection
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("VIM BULK FIX: 'a' key with bulk mode - %d selected messages, calling archiveSelectedBulk()", len(a.selected))
+			}
+			go a.archiveSelectedBulk()
+		} else {
+			// Archive specific message - temporarily set current ID
+			go func() {
+				a.SetCurrentMessageID(messageID)
+				a.archiveSelected()
+			}()
 		}
-		a.trashSelectedByID(messageID)
-		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: Returned from trashSelectedByID")
+	case a.Keys.Trash:
+		// CRITICAL: Check for bulk mode first - VIM 'd' should respect bulk selection
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("VIM BULK FIX: 'd' key with bulk mode - %d selected messages, calling trashSelectedBulk()", len(a.selected))
+			}
+			go a.trashSelectedBulk()
+		} else {
+			// Trash specific message by ID (bypasses current selection) - single message only
+			if a.logger != nil {
+				a.logger.Printf("HANG DEBUG: Entered trash case - target messageID: %s (single message mode)", messageID)
+				a.logger.Printf("HANG DEBUG: About to call trashSelectedByID")
+			}
+			a.trashSelectedByID(messageID)
+			if a.logger != nil {
+				a.logger.Printf("HANG DEBUG: Returned from trashSelectedByID")
+			}
 		}
 	case a.Keys.ToggleRead:
-		// Toggle read status of specific message - temporarily set current ID
-		go func() {
-			a.SetCurrentMessageID(messageID)
-			a.toggleMarkReadUnread()
-		}()
+		// CRITICAL: Check for bulk mode first - VIM 't' should respect bulk selection  
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("VIM BULK FIX: 't' key with bulk mode - %d selected messages, calling toggleMarkReadUnreadBulk()", len(a.selected))
+			}
+			go a.toggleMarkReadUnreadBulk()
+		} else {
+			// Toggle read status of specific message - temporarily set current ID
+			go func() {
+				a.SetCurrentMessageID(messageID)
+				a.toggleMarkReadUnread()
+			}()
+		}
 	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
 		go func() {

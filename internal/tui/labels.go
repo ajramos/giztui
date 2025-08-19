@@ -1731,7 +1731,7 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 						if next >= 0 && next < len(a.ids) {
 							go a.showMessageWithoutFocus(a.ids[next])
 						} else {
-							text.SetText("No messages")
+							a.enhancedTextView.SetContent("No messages")
 							text.ScrollToBeginning()
 						}
 					}
