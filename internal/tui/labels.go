@@ -1354,16 +1354,31 @@ func (a *App) addCustomLabelInline(messageID string) {
 				a.updateCachedMessageLabels(messageID, id, true)
 				// Also update full message cache labels to reflect immediately
 				a.updateMessageCacheLabels(messageID, name, true)
+				// CRITICAL: Separate synchronous UI updates from complex operations
 				a.QueueUpdateDraw(func() {
 					if a.logger != nil {
-						a.logger.Printf("addCustomLabelInline: done, refreshing views")
+						a.logger.Printf("addCustomLabelInline: done, updating UI state")
 					}
-					a.showStatusMessage("✅ Applied: " + name)
-					a.GetErrorHandler().ClearProgress()
 					a.labelsExpanded = false
-					a.populateLabelsQuickView(messageID)
-					a.refreshMessageContent(messageID)
 				})
+				
+				// CRITICAL: Do complex operations outside QueueUpdateDraw to avoid deadlock
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: " + name)
+				}()
+				go func() {
+					a.GetErrorHandler().ClearProgress()
+				}()
+				
+				// Refresh views asynchronously
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					if a.logger != nil {
+						a.logger.Printf("addCustomLabelInline: refreshing views asynchronously")
+					}
+					a.populateLabelsQuickView(messageID)
+					go a.refreshMessageContent(messageID)
+				}()
 			}()
 		}
 	})
@@ -1545,7 +1560,13 @@ func (a *App) createNewLabelFromView() {
 					go func() {
 						// Small delay to ensure page switch completes
 						time.Sleep(50 * time.Millisecond)
+						if a.logger != nil {
+							a.logger.Printf("DEBUG: createNewLabelFromView - about to call manageLabels() after creating label '%s'", labelName)
+						}
 						a.manageLabels()
+						if a.logger != nil {
+							a.logger.Printf("DEBUG: createNewLabelFromView - manageLabels() completed")
+						}
 					}()
 				}()
 			}
