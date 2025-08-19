@@ -93,6 +93,70 @@ test-integration: ## Run integration tests
 	@echo "$(GREEN)Running integration tests...$(NC)"
 	go test -v -tags=integration ./...
 
+# Testing commands
+.PHONY: test test-unit test-integration test-tui test-coverage test-mocks test-snapshots test-all
+
+# Generate mocks for testing
+test-mocks:
+	@echo "Generating mocks for testing..."
+	mockery --config .mockery.yaml
+
+# Run unit tests
+test-unit:
+	@echo "Running unit tests..."
+	go test -v ./internal/services/... -race
+
+# Run TUI component tests
+test-tui:
+	@echo "Running TUI component tests..."
+	go test -v ./test/helpers/... -race
+
+# Run integration tests
+test-integration:
+	@echo "Running integration tests..."
+	go test -v ./test/integration/... -race
+
+# Run all tests with coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+# Update snapshots (use with caution)
+test-snapshots-update:
+	@echo "Updating test snapshots..."
+	go test -v ./test/helpers/... -update
+
+# Run all tests
+test-all: test-mocks test-unit test-tui test-integration test-coverage
+
+# Quick test run (unit + TUI)
+test: test-mocks test-unit test-tui
+
+# Test specific component
+test-messages:
+	@echo "Testing message handling..."
+	go test -v ./internal/tui/messages* -race
+
+test-labels:
+	@echo "Testing label management..."
+	go test -v ./internal/tui/labels* -race
+
+test-ai:
+	@echo "Testing AI features..."
+	go test -v ./internal/tui/ai* -race
+
+# Performance testing
+test-performance:
+	@echo "Running performance tests..."
+	go test -v -bench=. -benchmem ./test/performance/...
+
+# Load testing
+test-load:
+	@echo "Running load tests..."
+	go test -v -bench=BenchmarkBulkOperations -benchtime=30s ./test/helpers/...
+
 # Release commands
 release: clean build ## Prepare release
 	@echo "$(GREEN)Preparing release...$(NC)"
