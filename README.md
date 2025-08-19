@@ -12,6 +12,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ Manage labels (add, remove, create)
 - ✅ Load more messages (when list is focused)
 - ✅ Search and navigation support with VIM-style commands (`:5`, `G`, `gg`)
+- ✅ **Enhanced content navigation** - Fast browsing within message content with search, paragraph jumping, and word navigation
 - 🚧 WIP: Compose, Reply, Drafts, Attachments
 
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
@@ -454,6 +455,34 @@ Gmail TUI supports VIM-style navigation for efficient message browsing:
 |-----|--------|
 | `G` | Jump to last message |
 | `gg` | Jump to first message (press 'g' twice quickly) |
+
+#### 📖 **Enhanced Content Navigation** 🆕
+
+Gmail TUI provides fast navigation within individual message content for better browsability of long emails:
+
+**Content Search:**
+| Key/Command | Action |
+|-------------|--------|
+| `/searchterm` | Search within message content and highlight matches |
+| `n` | Navigate to next search match |
+| `N` | Navigate to previous search match |
+| `Esc` | Clear search highlights |
+
+**Fast Content Navigation:**
+| Key | Action |
+|-----|--------|
+| `gg` | Go to top of message content (when viewing message) |
+| `G` | Go to bottom of message content (when viewing message) |
+| `Ctrl+K` | Navigate up by paragraphs (10 lines) |
+| `Ctrl+J` | Navigate down by paragraphs (10 lines) |
+| `Ctrl+H` | Navigate left by words |
+| `Ctrl+L` | Navigate right by words |
+
+**Features:**
+- ✅ **Context-aware** - VIM keys work differently when viewing message content vs message list
+- ✅ **Visual feedback** - Shows current position and line numbers during navigation
+- ✅ **Smart search** - Highlights all matches with yellow background
+- ✅ **Boundary handling** - Graceful behavior at content edges
 
 #### 🎯 VIM Range Operations
 
