@@ -1379,7 +1379,7 @@ func (a *App) executeVimSingleOperation(operation string) {
 		go a.toggleMarkReadUnread()
 	case a.Keys.Move:
 		// Move current message
-		go a.moveSelected()
+		a.openMovePanel()
 	case a.Keys.ManageLabels:
 		// Show labels dialog for current message
 		a.manageLabels()
@@ -1447,7 +1447,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		// Move specific message - temporarily set current ID
 		go func() {
 			a.SetCurrentMessageID(messageID)
-			a.moveSelected()
+			a.openMovePanel()
 		}()
 	case a.Keys.ManageLabels:
 		// Show labels dialog for specific message
@@ -1532,7 +1532,7 @@ func (a *App) selectRange(startIndex, count int) {
 
 	// Show status
 	go func() {
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Selected %d messages (s%ds)", selected, count))
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Selected %d messages (s%ds)", selected, count))
 	}()
 }
 
@@ -1573,9 +1573,9 @@ func (a *App) archiveRange(startIndex, count int) {
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Archived %d messages (a%da)", actualCount, count))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Archived %d messages (a%da)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Archived %d messages, %d failed (a%da)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived %d messages, %d failed (a%da)", actualCount-failed, failed, count))
 		}
 
 		// Remove archived messages from current view (no server reload needed)
@@ -1623,9 +1623,9 @@ func (a *App) trashRange(startIndex, count int) {
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Moved %d messages to trash (d%dd)", actualCount, count))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Moved %d messages to trash (d%dd)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Moved %d messages to trash, %d failed (d%dd)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Moved %d messages to trash, %d failed (d%dd)", actualCount-failed, failed, count))
 		}
 
 		// Remove trashed messages from current view (no server reload needed)
@@ -1655,12 +1655,12 @@ func (a *App) toggleReadRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 	
 	if a.logger != nil {
-		a.logger.Printf("toggleReadRange: actualCount=%d, count=%d, will show (t%dt)", actualCount, count, count)
+		a.logger.Printf("toggleReadRange: actualCount=%d, count=%d, will show (%s%d%s)", actualCount, count, a.Keys.ToggleRead, count, a.Keys.ToggleRead)
 	}
 	
 	// Show progress with correct VIM sequence display
 	go func() {
-		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read status for %d messages (t%dt)...", actualCount, count))
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read status for %d messages (%s%d%s)...", actualCount, a.Keys.ToggleRead, count, a.Keys.ToggleRead))
 	}()
 
 	// Toggle read status in background
@@ -1709,9 +1709,9 @@ func (a *App) toggleReadRange(startIndex, count int) {
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Toggled read status for %d messages (t%dt)", actualCount, count))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Toggled read status for %d messages (%s%d%s)", actualCount, a.Keys.ToggleRead, count, a.Keys.ToggleRead))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠️ Toggled read status for %d messages, %d failed (t%dt)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Toggled read status for %d messages, %d failed (%s%d%s)", actualCount-failed, failed, a.Keys.ToggleRead, count, a.Keys.ToggleRead))
 		}
 
 		// Update display to show updated read status (no server reload needed)
@@ -1755,7 +1755,7 @@ func (a *App) moveRange(startIndex, count int) {
 
 	// Show status and open move panel
 	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📁 Selected %d messages for move operation (m%dm)", actualCount, count))
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📁 Selected %d messages for move operation (%s%d%s)", actualCount, a.Keys.Move, count, a.Keys.Move))
 	}()
 
 	// Open bulk move panel
@@ -1925,7 +1925,7 @@ func (a *App) promptRange(startIndex, count int) {
 
 	// Show status and open bulk prompt picker
 	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🤖 Selected %d messages for AI prompting (p%dp)", actualCount, count))
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🤖 Selected %d messages for AI prompting (%s%d%s)", actualCount, a.Keys.Prompt, count, a.Keys.Prompt))
 	}()
 
 	// Open bulk prompt picker

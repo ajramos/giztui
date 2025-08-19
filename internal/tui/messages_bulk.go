@@ -45,9 +45,9 @@ func (a *App) archiveSelectedBulk() {
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Archived")
+			a.GetErrorHandler().ShowSuccess(a.ctx, "Archived")
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Archived with %d failure(s)", failed))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived with %d failure(s)", failed))
 		}
 	}()
 }
@@ -87,9 +87,9 @@ func (a *App) trashSelectedBulk() {
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Trashed")
+			a.GetErrorHandler().ShowSuccess(a.ctx, "Trashed")
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Trashed with %d failure(s)", failed))
 		}
 	}()
 }
@@ -180,15 +180,15 @@ func (a *App) toggleMarkReadUnreadBulk() {
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
 			if markAsUnread {
-				a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Marked as unread")
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as unread")
 			} else {
-				a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Marked as read")
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Marked as read")
 			}
 		} else {
 			if markAsUnread {
-				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Marked as unread with %d failure(s)", failed))
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as unread with %d failure(s)", failed))
 			} else {
-				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Marked as read with %d failure(s)", failed))
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Marked as read with %d failure(s)", failed))
 			}
 		}
 	}()

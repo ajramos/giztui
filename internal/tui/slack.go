@@ -499,9 +499,9 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 		// Final status
 		a.GetErrorHandler().ClearProgress()
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Forwarded %d emails to #%s", messageCount, options.ChannelName))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Forwarded %d emails to #%s", messageCount, options.ChannelName))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("✅ Forwarded %d emails to #%s with %d failure(s)", messageCount-failed, options.ChannelName, failed))
+			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Forwarded %d emails to #%s with %d failure(s)", messageCount-failed, options.ChannelName, failed))
 		}
 
 		// Exit bulk mode after successful operation (following other bulk operations pattern)

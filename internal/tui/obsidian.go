@@ -449,13 +449,13 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 
 		// Show final result
 		if failed == 0 {
-			a.GetErrorHandler().ShowSuccess(a.ctx, "📚 All emails saved to your notes!")
+			a.GetErrorHandler().ShowSuccess(a.ctx, "All emails saved to your notes!")
 		} else {
 			successCount := total - failed
 			if successCount > 0 {
-				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("📚 %d emails saved (%d failed)", successCount, failed))
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("%d emails saved (%d failed)", successCount, failed))
 			} else {
-				a.GetErrorHandler().ShowError(a.ctx, "❌ Failed to save emails to notes")
+				a.GetErrorHandler().ShowError(a.ctx, "Failed to save emails to notes")
 			}
 		}
 	}()
