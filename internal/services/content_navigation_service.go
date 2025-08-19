@@ -105,7 +105,7 @@ func (s *ContentNavigationServiceImpl) FindNextParagraph(ctx context.Context, co
 		return len(content), nil
 	}
 	
-	// Find the next double newline or empty line
+	// Find the next double newline or empty line (true paragraph boundary)
 	for i := currentPosition + 1; i < len(content)-1; i++ {
 		if content[i] == '\n' {
 			// Check for empty line (two consecutive newlines)
@@ -125,6 +125,23 @@ func (s *ContentNavigationServiceImpl) FindNextParagraph(ctx context.Context, co
 		}
 	}
 	
+	// If no paragraph boundaries found, navigate forward by multiple lines (fast navigation)
+	linesDown := 0
+	targetLines := 10 // Navigate down by 10 lines for "paragraph" navigation
+	
+	for i := currentPosition + 1; i < len(content); i++ {
+		if content[i] == '\n' {
+			linesDown++
+			if linesDown >= targetLines {
+				// Found 10 lines down, return position after this newline
+				if i+1 < len(content) {
+					return i + 1, nil
+				}
+				return len(content), nil
+			}
+		}
+	}
+	
 	return len(content), nil // End of content
 }
 
@@ -134,14 +151,36 @@ func (s *ContentNavigationServiceImpl) FindPreviousParagraph(ctx context.Context
 		return 0, nil
 	}
 	
-	// Find the previous double newline or empty line
+	// Find the previous double newline or empty line (true paragraph boundary)
 	for i := currentPosition - 1; i > 0; i-- {
 		if content[i] == '\n' && i > 0 && content[i-1] == '\n' {
-			return i + 1, nil // Return position after the empty line
+			result := i + 1
+			
+			// Skip this boundary if it's the same as our current position (we're already at a boundary)
+			if result == currentPosition {
+				continue
+			}
+			
+			return result, nil
 		}
 	}
 	
-	return 0, nil // Beginning of content
+	// If no paragraph boundaries found, navigate backward by multiple lines (fast navigation)
+	linesUp := 0
+	targetLines := 10 // Navigate up by 10 lines for "paragraph" navigation
+	
+	for i := currentPosition - 1; i >= 0; i-- {
+		if content[i] == '\n' {
+			linesUp++
+			if linesUp >= targetLines {
+				// Found 10 lines up, return position after this newline
+				return i + 1, nil
+			}
+		}
+	}
+	
+	// If we have fewer than 10 lines total, go to beginning
+	return 0, nil
 }
 
 // FindNextWord finds the next word boundary

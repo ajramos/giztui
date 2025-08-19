@@ -1178,8 +1178,8 @@ func (a *App) handleVimSequence(key rune) bool {
 	}
 	
 	// Check if we're in a context where VIM sequences should work
-	// Allow VIM sequences when focus is on list or when no specific focus is set
-	if a.currentFocus != "" && a.currentFocus != "list" {
+	// Allow VIM sequences when focus is on list or text (for content navigation)
+	if a.currentFocus != "" && a.currentFocus != "list" && a.currentFocus != "text" {
 		if a.logger != nil {
 			a.logger.Printf("handleVimSequence: wrong focus context '%s', returning false", a.currentFocus)
 		}
@@ -1217,17 +1217,31 @@ func (a *App) handleVimSequence(key rune) bool {
 	return result
 }
 
-// handleVimNavigation handles traditional VIM navigation (gg, G)
+// handleVimNavigation handles traditional VIM navigation (gg, G) - focus-aware
 func (a *App) handleVimNavigation(key rune) bool {
 	now := time.Now()
 
 	switch key {
 	case 'g':
 		if a.vimSequence == "g" {
-			// Double 'g' - go to first message
+			// Double 'g' - context-dependent behavior
 			a.vimSequence = ""
 			a.vimTimeout = time.Time{}
-			a.executeGoToFirst()
+			
+			// CRITICAL: Check focus context for gg behavior
+			if a.currentFocus == "text" && a.enhancedTextView != nil {
+				// Content context: go to top of message content
+				if a.logger != nil {
+					a.logger.Printf("VIM NAVIGATION: 'gg' in text context - calling EnhancedTextView.gotoTop()")
+				}
+				a.enhancedTextView.GotoTop()
+			} else {
+				// List context: go to first message
+				if a.logger != nil {
+					a.logger.Printf("VIM NAVIGATION: 'gg' in list context - go to first message")
+				}
+				a.executeGoToFirst()
+			}
 			return true
 		} else {
 			// Start of sequence - wait for next key
@@ -1236,10 +1250,24 @@ func (a *App) handleVimNavigation(key rune) bool {
 			return true
 		}
 	case 'G':
-		// Single 'G' - go to last message
+		// Single 'G' - context-dependent behavior
 		a.vimSequence = ""
 		a.vimTimeout = time.Time{}
-		a.executeGoToCommand([]string{}) // Use working command function
+		
+		// CRITICAL: Check focus context for G behavior
+		if a.currentFocus == "text" && a.enhancedTextView != nil {
+			// Content context: go to bottom of message content
+			if a.logger != nil {
+				a.logger.Printf("VIM NAVIGATION: 'G' in text context - calling EnhancedTextView.gotoBottom()")
+			}
+			a.enhancedTextView.GotoBottom()
+		} else {
+			// List context: go to last message
+			if a.logger != nil {
+				a.logger.Printf("VIM NAVIGATION: 'G' in list context - go to last message")
+			}
+			a.executeGoToCommand([]string{}) // Use working command function
+		}
 		return true
 	}
 

@@ -131,16 +131,8 @@ func (e *EnhancedTextView) setupInputCapture() {
 			e.wordNavigateRight()
 			return nil
 			
-		// Go to top: gg (vim-style sequence)
-		case char == 'g' && e.app.Keys.GotoTop == "gg":
-			// Handle vim-style gg sequence
-			e.handleGotoTopSequence()
-			return nil
-			
-		// Go to bottom: G
-		case char == 'G' && e.app.Keys.GotoBottom == "G":
-			e.gotoBottom()
-			return nil
+		// Note: VIM navigation (gg, G) is handled at App level in handleVimNavigation
+		// These keys are not handled here to avoid conflicts
 			
 		// ESC key: clear search highlights
 		case key == tcell.KeyEscape:
@@ -323,16 +315,39 @@ func (e *EnhancedTextView) fastNavigateUp() {
 	}
 	
 	ctx := context.Background()
+	
+	if e.app.logger != nil {
+		e.app.logger.Printf("FAST NAV UP: currentPosition=%d, contentLength=%d", e.currentPosition, len(e.content))
+	}
+	
 	prevParagraph, err := e.getContentNavService().FindPreviousParagraph(ctx, e.content, e.currentPosition)
 	if err != nil {
+		if e.app.logger != nil {
+			e.app.logger.Printf("FastNavigateUp error: %v", err)
+		}
 		return
 	}
 	
+	if e.app.logger != nil {
+		e.app.logger.Printf("FAST NAV UP: FindPreviousParagraph returned %d", prevParagraph)
+	}
+	
 	if prevParagraph != e.currentPosition {
+		oldPos := e.currentPosition
 		e.currentPosition = prevParagraph
 		e.scrollToPosition(prevParagraph)
+		
+		// Get line numbers for better feedback
+		oldLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, oldPos)
+		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, prevParagraph)
+		
 		go func() {
-			e.app.GetErrorHandler().ShowInfo(ctx, "Fast navigation up")
+			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("↑ Paragraph up (line %d → %d)", oldLine, newLine))
+		}()
+	} else {
+		// At boundary - provide feedback
+		go func() {
+			e.app.GetErrorHandler().ShowInfo(ctx, "↑ Already at beginning")
 		}()
 	}
 }
@@ -367,12 +382,27 @@ func (e *EnhancedTextView) wordNavigateLeft() {
 	ctx := context.Background()
 	prevWord, err := e.getContentNavService().FindPreviousWord(ctx, e.content, e.currentPosition)
 	if err != nil {
+		if e.app.logger != nil {
+			e.app.logger.Printf("WordNavigateLeft error: %v", err)
+		}
 		return
 	}
 	
 	if prevWord != e.currentPosition {
 		e.currentPosition = prevWord
 		e.scrollToPosition(prevWord)
+		
+		// Get line for better feedback
+		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, prevWord)
+		
+		// Show brief feedback with current position
+		go func() {
+			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("← Word (line %d)", newLine))
+		}()
+	} else {
+		go func() {
+			e.app.GetErrorHandler().ShowInfo(ctx, "← Beginning of content")
+		}()
 	}
 }
 
@@ -385,12 +415,27 @@ func (e *EnhancedTextView) wordNavigateRight() {
 	ctx := context.Background()
 	nextWord, err := e.getContentNavService().FindNextWord(ctx, e.content, e.currentPosition)
 	if err != nil {
+		if e.app.logger != nil {
+			e.app.logger.Printf("WordNavigateRight error: %v", err)
+		}
 		return
 	}
 	
 	if nextWord != e.currentPosition {
 		e.currentPosition = nextWord
 		e.scrollToPosition(nextWord)
+		
+		// Get line for better feedback
+		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, nextWord)
+		
+		// Show brief feedback with current position
+		go func() {
+			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("→ Word (line %d)", newLine))
+		}()
+	} else {
+		go func() {
+			e.app.GetErrorHandler().ShowInfo(ctx, "→ End of content")
+		}()
 	}
 }
 
@@ -398,6 +443,11 @@ func (e *EnhancedTextView) wordNavigateRight() {
 func (e *EnhancedTextView) handleGotoTopSequence() {
 	// Simple implementation for now - go to top immediately
 	// TODO: Implement proper vim-style sequence handling with timeout
+	e.gotoTop()
+}
+
+// GotoTop navigates to the beginning of content (public method)
+func (e *EnhancedTextView) GotoTop() {
 	e.gotoTop()
 }
 
@@ -410,6 +460,11 @@ func (e *EnhancedTextView) gotoTop() {
 	}()
 }
 
+// GotoBottom navigates to the end of content (public method)
+func (e *EnhancedTextView) GotoBottom() {
+	e.gotoBottom()
+}
+
 // gotoBottom navigates to the end of content
 func (e *EnhancedTextView) gotoBottom() {
 	if !e.hasContentNavService() {
@@ -417,10 +472,32 @@ func (e *EnhancedTextView) gotoBottom() {
 	}
 	
 	contentLength := e.getContentNavService().GetContentLength(context.Background(), e.content)
-	e.currentPosition = contentLength
-	e.scrollToPosition(contentLength)
+	oldPos := e.currentPosition
+	
+	// Set position to the last actual character, not past the end
+	if contentLength > 0 {
+		e.currentPosition = contentLength - 1
+	} else {
+		e.currentPosition = 0
+	}
+	
+	e.scrollToPosition(e.currentPosition)
+	
+	if e.app.logger != nil {
+		e.app.logger.Printf("GOTO BOTTOM: position %d → %d (contentLength=%d)", oldPos, e.currentPosition, contentLength)
+	}
+	
+	// Also scroll to the actual last line of the TextView for better UX
+	lines := len(strings.Split(e.content, "\n"))
+	if lines > 0 {
+		e.TextView.ScrollToEnd()
+		if e.app.logger != nil {
+			e.app.logger.Printf("GOTO BOTTOM: Scrolled TextView to end, total lines=%d", lines)
+		}
+	}
+	
 	go func() {
-		e.app.GetErrorHandler().ShowInfo(context.Background(), "Bottom of content")
+		e.app.GetErrorHandler().ShowInfo(context.Background(), fmt.Sprintf("Bottom of content (pos %d)", e.currentPosition))
 	}()
 }
 
