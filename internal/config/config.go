@@ -169,6 +169,10 @@ type KeyBindings struct {
 	BulkMode      string `json:"bulk_mode"`     // Toggle bulk mode
 	CommandMode   string `json:"command_mode"`  // Open command bar
 	Help          string `json:"help"`          // Toggle help
+	
+	// VIM sequence timeouts (in milliseconds)
+	VimNavigationTimeoutMs int `json:"vim_navigation_timeout_ms"` // Timeout for gg navigation (default: 1000ms)
+	VimRangeTimeoutMs      int `json:"vim_range_timeout_ms"`      // Timeout for bulk operations like d3d (default: 2000ms)
 
 	// Content navigation shortcuts (when focused on text view)
 	ContentSearch string `json:"content_search"` // Start search within message content
@@ -268,6 +272,10 @@ func DefaultKeyBindings() KeyBindings {
 		BulkMode:      "v",
 		CommandMode:   ":",
 		Help:          "?",
+		
+		// VIM sequence timeouts (in milliseconds)
+		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation
+		VimRangeTimeoutMs:      2000, // 2 seconds for bulk operations like d3d
 
 		// Content navigation shortcuts (vim-like for familiar UX)
 		ContentSearch: "/",      // Standard vim search

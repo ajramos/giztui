@@ -1188,8 +1188,12 @@ func (a *App) handleVimSequence(key rune) bool {
 
 	now := time.Now()
 
-	// Clear sequence if timeout exceeded (2 seconds for range operations)
-	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > 2*time.Second {
+	// Clear sequence if timeout exceeded (configurable for range operations)
+	rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
+	if rangeTimeoutMs <= 0 {
+		rangeTimeoutMs = 2000 // Default fallback
+	}
+	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Duration(rangeTimeoutMs)*time.Millisecond {
 		if a.logger != nil {
 			a.logger.Printf("HANG DEBUG: VIM sequence timeout EXCEEDED - clearing state")
 			a.logger.Printf("HANG DEBUG: now=%v, vimTimeout=%v, diff=%v", now, a.vimTimeout, now.Sub(a.vimTimeout))
@@ -1246,7 +1250,13 @@ func (a *App) handleVimNavigation(key rune) bool {
 		} else {
 			// Start of sequence - wait for next key
 			a.vimSequence = "g"
-			a.vimTimeout = now.Add(time.Second)
+			
+			// Use configurable navigation timeout for gg sequence
+			navTimeoutMs := a.Keys.VimNavigationTimeoutMs
+			if navTimeoutMs <= 0 {
+				navTimeoutMs = 1000 // Default fallback
+			}
+			a.vimTimeout = now.Add(time.Duration(navTimeoutMs) * time.Millisecond)
 			return true
 		}
 	case 'G':
@@ -1332,7 +1342,12 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 			oldCount := a.vimOperationCount
 			a.vimOperationCount = a.vimOperationCount*10 + digit
 			a.vimSequence += string(key)
-			a.vimTimeout = now.Add(2 * time.Second)
+			// Use configurable range timeout for digit sequences
+			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
+			if rangeTimeoutMs <= 0 {
+				rangeTimeoutMs = 2000 // Default fallback
+			}
+			a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
 			
 			if a.logger != nil {
 				a.logger.Printf("VIM digit pressed: %c, operation: %s, oldCount: %d, digit: %d, newCount: %d", key, a.vimOperationType, oldCount, digit, a.vimOperationCount)
@@ -1363,7 +1378,12 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		a.vimOperationType = string(key)
 		a.vimOperationCount = 0
 		a.vimSequence = string(key)
-		a.vimTimeout = now.Add(2 * time.Second)
+		// Use configurable range timeout for VIM operation sequences
+		rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
+		if rangeTimeoutMs <= 0 {
+			rangeTimeoutMs = 2000 // Default fallback
+		}
+		a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
 		
 		// CRITICAL FIX: Capture current message ID when sequence starts
 		// This prevents issues where cursor moves during the timeout delay
@@ -1399,7 +1419,13 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 			if a.logger != nil {
 				a.logger.Printf("HANG DEBUG: VIM timeout goroutine started for key: %s", string(key))
 			}
-			time.Sleep(2 * time.Second)
+			
+			// Use configurable range timeout for single operation fallback
+			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
+			if rangeTimeoutMs <= 0 {
+				rangeTimeoutMs = 2000 // Default fallback
+			}
+			time.Sleep(time.Duration(rangeTimeoutMs) * time.Millisecond)
 			if a.logger != nil {
 				a.logger.Printf("HANG DEBUG: VIM timeout goroutine woke up, acquiring mutex")
 			}

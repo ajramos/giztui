@@ -68,6 +68,9 @@
   },
   "keys": {
     "_comment": "Customize keyboard shortcuts to match your preferences. All shortcuts are configurable!",
+    "_vim_timeouts": "VIM sequence timeouts in milliseconds",
+    "vim_navigation_timeout_ms": 1000,
+    "vim_range_timeout_ms": 2000,
     "_core_operations": "Core email operations",
     "summarize": "y",
     "generate_reply": "g",
@@ -98,6 +101,17 @@
     "bulk_mode": "v",
     "command_mode": ":",
     "help": "?",
+    
+    "_content_navigation": "Enhanced content navigation shortcuts",
+    "content_search": "/",
+    "search_next": "n",
+    "search_prev": "N", 
+    "fast_up": "ctrl+k",
+    "fast_down": "ctrl+j",
+    "word_left": "ctrl+h",
+    "word_right": "ctrl+l",
+    "goto_top": "gg",
+    "goto_bottom": "G",
     
     "_examples": "Example customizations (uncomment and modify as needed):",
     "_vim_style": "Vim-style shortcuts:",

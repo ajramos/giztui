@@ -512,7 +512,8 @@ Gmail TUI supports VIM-style range operations for efficient bulk actions:
 **Features:**
 - ✅ **Real-time feedback** - Status shows exact VIM sequence typed
 - ✅ **Range validation** - Automatically limits to available messages
-- ✅ **Timeout fallback** - Single operation if no count provided within 2 seconds
+- ✅ **Configurable timeouts** - Customize timing for VIM sequences (see Configuration section)
+- ✅ **Timeout fallback** - Single operation if no count provided within timeout
 - ✅ **ESC cancellation** - Cancel any range operation with Escape
 
 **Navigation examples:**
@@ -855,6 +856,39 @@ The repository includes ready-to-use template files in the `templates/` director
 - Cleaner configuration files
 - Shareable template collections
 - Default templates included in repository for easy setup
+
+#### Keyboard Configuration
+
+Customize keyboard shortcuts and VIM sequence timeouts in `~/.config/giztui/config.json`:
+
+```json
+{
+  "keys": {
+    "vim_navigation_timeout_ms": 1000,
+    "vim_range_timeout_ms": 2000,
+    "compose": "n",
+    "trash": "d", 
+    "archive": "a",
+    "toggle_read": "t",
+    "manage_labels": "l",
+    "content_search": "/",
+    "search_next": "n",
+    "search_prev": "N",
+    "fast_up": "ctrl+k",
+    "fast_down": "ctrl+j",
+    "goto_top": "gg",
+    "goto_bottom": "G"
+  }
+}
+```
+
+**VIM Timeout Configuration:**
+- `vim_navigation_timeout_ms` - Timeout for `gg` navigation sequences (default: 1000ms)
+- `vim_range_timeout_ms` - Timeout for bulk operations like `d3d` (default: 2000ms)
+
+Customize these values to make VIM sequences faster or slower based on your typing speed:
+- **Faster users**: Set lower values (e.g., 500ms for navigation, 1000ms for ranges)
+- **Slower typists**: Set higher values (e.g., 1500ms for navigation, 3000ms for ranges)
 
 ##### Amazon Bedrock (on-demand)
 

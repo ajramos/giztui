@@ -47,6 +47,9 @@
   },
   "keys": {
     "_comment": "Vim-style shortcuts for Gmail TUI",
+    "_vim_timeouts": "VIM sequence timeouts in milliseconds (faster for VIM users)",
+    "vim_navigation_timeout_ms": 800,
+    "vim_range_timeout_ms": 1500,
     "_core_operations": "Core email operations with Vim-style keys",
     "summarize": "ys",      // yank summary
     "generate_reply": "gr", // generate reply
@@ -76,7 +79,18 @@
     "link_picker": "L",     // Link picker (same as default)
     "bulk_mode": "v",       // visual mode (like Vim v)
     "command_mode": ":",    // command mode (like Vim :)
-    "help": ":h"            // help (like Vim :h)
+    "help": ":h",           // help (like Vim :h)
+    
+    "_content_navigation": "Vim-style content navigation shortcuts",
+    "content_search": "/",  // search within content (like Vim /)
+    "search_next": "n",     // next match (like Vim n)
+    "search_prev": "N",     // previous match (like Vim N)
+    "fast_up": "ctrl+k",    // fast up navigation
+    "fast_down": "ctrl+j",  // fast down navigation  
+    "word_left": "b",       // word left (like Vim b)
+    "word_right": "w",      // word right (like Vim w)
+    "goto_top": "gg",       // go to top (like Vim gg)
+    "goto_bottom": "G"      // go to bottom (like Vim G)
   },
   "obsidian": {
     "enabled": true,
