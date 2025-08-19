@@ -176,9 +176,17 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		return true
 	case a.Keys.ManageLabels:
 		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels", key)
+			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels (bulkMode: %t, selected: %d)", key, a.bulkMode, len(a.selected))
 		}
-		a.manageLabels()
+		// CRITICAL: Check for bulk mode to ensure bulk label operations work
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Bulk mode active with %d selected messages, calling manageLabelsBulk()", len(a.selected))
+			}
+			a.manageLabelsBulk()
+		} else {
+			a.manageLabels()
+		}
 		return true
 	case a.Keys.Quit:
 		if a.logger != nil {
@@ -1524,8 +1532,16 @@ func (a *App) executeVimSingleOperation(operation string) {
 		// Move current message
 		a.openMovePanel()
 	case a.Keys.ManageLabels:
-		// Show labels dialog for current message
-		a.manageLabels()
+		// CRITICAL: Check for bulk mode first - VIM 'l' should respect bulk selection
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", len(a.selected))
+			}
+			a.manageLabelsBulk()
+		} else {
+			// Show labels dialog for current message
+			a.manageLabels()
+		}
 	case a.Keys.Slack:
 		// Show Slack dialog for current message
 		go a.showSlackForwardDialog()
@@ -1617,14 +1633,22 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			a.openMovePanel()
 		}()
 	case a.Keys.ManageLabels:
-		// Show labels dialog for specific message
-		go func() {
-			currentID := a.GetCurrentMessageID()
-			a.SetCurrentMessageID(messageID)
-			a.manageLabels()
-			// Labels dialog is modal, so we can restore after
-			a.SetCurrentMessageID(currentID)
-		}()
+		// CRITICAL: Check for bulk mode first - VIM 'l' should respect bulk selection
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", len(a.selected))
+			}
+			a.manageLabelsBulk()
+		} else {
+			// Show labels dialog for specific message
+			go func() {
+				currentID := a.GetCurrentMessageID()
+				a.SetCurrentMessageID(messageID)
+				a.manageLabels()
+				// Labels dialog is modal, so we can restore after
+				a.SetCurrentMessageID(currentID)
+			}()
+		}
 	case a.Keys.Slack:
 		// Show Slack dialog for specific message
 		go func() {

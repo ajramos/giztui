@@ -92,8 +92,15 @@ func (a *App) executeLabelRemove(args []string) {
 
 // manageLabels opens the labels management view for the currently selected message
 func (a *App) manageLabels() {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: manageLabels() called - labelsVisible: %t", a.labelsVisible)
+	}
+	
 	// Toggle contextual panel like AI Summary
 	if a.labelsVisible {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: manageLabels() - hiding labels panel")
+		}
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
@@ -101,14 +108,22 @@ func (a *App) manageLabels() {
 		a.SetFocus(a.views["text"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
-		a.showStatusMessage("🙈 Labels ocultas")
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, "🙈 Labels hidden")
+		}()
 		return
 	}
 
 	messageID := a.getCurrentMessageID()
 	if messageID == "" {
-		a.showError("❌ No message selected")
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "❌ No message selected")
+		}()
 		return
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: manageLabels() - showing labels panel for message: %s", messageID)
 	}
 
 	// Ensure message content is shown without stealing focus
@@ -122,6 +137,10 @@ func (a *App) manageLabels() {
 	a.labelsExpanded = false
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
+	
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: manageLabels() - about to call populateLabelsQuickView")
+	}
 	a.populateLabelsQuickView(messageID)
 }
 
@@ -376,7 +395,10 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					a.GetErrorHandler().ClearProgress()
+					// CRITICAL: Clear progress asynchronously to avoid ESC deadlock
+					go func() {
+						a.GetErrorHandler().ClearProgress()
+					}()
 					if tbl, ok := a.views["list"].(*tview.Table); ok {
 						tbl.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 					}
@@ -1195,6 +1217,43 @@ func (a *App) openMovePanelBulk() {
 	a.expandLabelsBrowseWithMode(mid, true)
 }
 
+// manageLabelsBulk opens labels management for all selected messages  
+func (a *App) manageLabelsBulk() {
+	// If nothing selected fallback to single
+	if len(a.selected) == 0 {
+		a.manageLabels()
+		return
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: manageLabelsBulk() - managing labels for %d selected messages", len(a.selected))
+	}
+	
+	// Ensure panel visible
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.labelsVisible = true
+	a.currentFocus = "labels"
+	a.updateFocusIndicators("labels")
+	
+	// Use any selected message to populate current labels; choose the current focus message if selected, else any
+	mid := a.getCurrentMessageID()
+	if mid == "" || !a.selected[mid] {
+		for id := range a.selected {
+			mid = id
+			break
+		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: manageLabelsBulk() - using message %s as reference for label display", mid)
+	}
+	
+	// Use browse mode (not move mode) for bulk label management
+	a.expandLabelsBrowseWithMode(mid, false)
+}
+
 // addCustomLabelInline prompts for a name and applies/creates it
 func (a *App) addCustomLabelInline(messageID string) {
 	a.labelsExpanded = true
@@ -1465,18 +1524,29 @@ func (a *App) createNewLabelFromView() {
 				go func() {
 					_, err := a.Client.CreateLabel(labelName)
 					if err != nil {
-						a.showError(fmt.Sprintf("❌ Error creating label: %v", err))
+						// Use ErrorHandler instead of deprecated showError
+						go func() {
+							a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("❌ Error creating label: %v", err))
+						}()
 						return
 					}
 
-					a.showStatusMessage(fmt.Sprintf("🏷️  Created label: %s", labelName))
+					// Show success message
+					go func() {
+						a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Created label: %s", labelName))
+					}()
 
-					// Return to labels view and refresh
+					// CRITICAL: Switch pages first (synchronous), then refresh (async)
 					a.QueueUpdateDraw(func() {
 						a.Pages.SwitchToPage("labels")
-						// Refresh the labels view
-						go a.manageLabels()
 					})
+					
+					// CRITICAL: Call manageLabels outside QueueUpdateDraw to avoid deadlock
+					go func() {
+						// Small delay to ensure page switch completes
+						time.Sleep(50 * time.Millisecond)
+						a.manageLabels()
+					}()
 				}()
 			}
 		case tcell.KeyEscape:
