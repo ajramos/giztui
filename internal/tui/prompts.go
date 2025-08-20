@@ -19,6 +19,10 @@ func (a *App) openPromptPicker() {
 		return
 	}
 
+	if a.logger != nil {
+		a.logger.Printf("openPromptPicker: *** ENTERING SINGLE PROMPT PICKER *** for message: %s", messageID)
+	}
+
 	// Get message content for prompt processing
 	message, err := a.Client.GetMessageWithContent(messageID)
 	if err != nil {

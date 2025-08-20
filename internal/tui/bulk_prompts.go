@@ -107,7 +107,7 @@ func (a *App) openBulkPromptPicker() {
 	// Load prompts in background
 	go func() {
 		if a.logger != nil {
-			a.logger.Printf("bulk prompt picker: loading prompts")
+			a.logger.Printf("bulk prompt picker: loading prompts for bulk mode=%v, selected=%d", a.bulkMode, len(a.selected))
 		}
 
 		prompts, err := promptService.ListPrompts(a.ctx, "")
@@ -119,6 +119,13 @@ func (a *App) openBulkPromptPicker() {
 		a.QueueUpdateDraw(func() {
 			all = make([]promptItem, 0, len(prompts))
 
+			if a.logger != nil {
+				a.logger.Printf("bulk prompt picker: received %d total prompts", len(prompts))
+				for i, p := range prompts {
+					a.logger.Printf("bulk prompt picker: prompt[%d] name='%s' category='%s' ID=%d", i, p.Name, p.Category, p.ID)
+				}
+			}
+
 			// Only show bulk_analysis prompts for bulk operations
 			for _, p := range prompts {
 				if p.Category == "bulk_analysis" {
@@ -128,6 +135,9 @@ func (a *App) openBulkPromptPicker() {
 						description: p.Description,
 						category:    p.Category,
 					})
+					if a.logger != nil {
+						a.logger.Printf("bulk prompt picker: ADDED bulk_analysis prompt: '%s'", p.Name)
+					}
 				}
 			}
 
@@ -139,6 +149,7 @@ func (a *App) openBulkPromptPicker() {
 					}
 				}
 				a.logger.Printf("bulk prompt picker: loaded %d bulk_analysis prompts out of %d total", bulkCount, len(prompts))
+				a.logger.Printf("bulk prompt picker: final 'all' array has %d items", len(all))
 			}
 
 			reload("")

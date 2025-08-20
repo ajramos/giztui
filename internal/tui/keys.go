@@ -402,6 +402,49 @@ func (a *App) bindKeys() {
 			a.logger.Printf("DIGIT KEY: reached main switch statement, checking for VIM sequence")
 		}
 
+		// CRITICAL FIX: Check bulk mode operations BEFORE VIM sequences
+		// This ensures bulk operations like 'p' work correctly in bulk mode
+		if a.bulkMode && len(a.selected) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("Bulk mode active with %d selected - checking for bulk operations first", len(a.selected))
+			}
+			// Handle bulk-specific operations before VIM processing
+			switch event.Rune() {
+			case 'p':
+				if a.Keys.Prompt != "" && string(event.Rune()) == a.Keys.Prompt {
+					if a.logger != nil {
+						a.logger.Printf("Bulk mode: 'p' key intercepted for bulk prompt operation")
+					}
+					go a.openBulkPromptPicker()
+					return nil
+				}
+			case 'm':
+				if a.Keys.Move != "" && string(event.Rune()) == a.Keys.Move {
+					if a.logger != nil {
+						a.logger.Printf("Bulk mode: 'm' key intercepted for bulk move operation")
+					}
+					a.openMovePanelBulk()
+					return nil
+				}
+			case 'K':
+				if a.Keys.Slack != "" && string(event.Rune()) == a.Keys.Slack {
+					if a.logger != nil {
+						a.logger.Printf("Bulk mode: 'K' key intercepted for bulk Slack operation")
+					}
+					a.showSlackBulkForwardDialog()
+					return nil
+				}
+			case 'O':
+				if a.Keys.Obsidian != "" && string(event.Rune()) == a.Keys.Obsidian {
+					if a.logger != nil {
+						a.logger.Printf("Bulk mode: 'O' key intercepted for bulk Obsidian operation")
+					}
+					a.openBulkObsidianPanel()
+					return nil
+				}
+			}
+		}
+
 		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
 		// This allows f3f to work even when f is configured for toggle_read
 		if a.handleVimSequence(event.Rune()) {
@@ -805,16 +848,15 @@ func (a *App) bindKeys() {
 				a.toggleAISummary()
 				return nil
 			}
-			// In bulk mode, prioritize bulk operations over VIM sequences
-			if a.bulkMode && len(a.selected) > 0 {
-				go a.openBulkPromptPicker()
-				return nil
-			}
+			// Bulk mode is now handled above, before VIM sequences
 			// Check if this might be part of a VIM sequence
 			if a.handleVimSequence(event.Rune()) {
 				return nil
 			}
 			// Otherwise, open prompt library picker for single message
+			if a.logger != nil {
+				a.logger.Printf("keys.go: 'p' pressed in single mode - calling openPromptPicker()")
+			}
 			go a.openPromptPicker()
 			return nil
 		case 'm':
@@ -823,11 +865,7 @@ func (a *App) bindKeys() {
 				if a.currentFocus == "search" {
 					return nil
 				}
-				// In bulk mode, prioritize bulk operations over VIM sequences
-				if a.bulkMode && len(a.selected) > 0 {
-					a.openMovePanelBulk()
-					return nil
-				}
+				// Bulk mode is now handled above, before VIM sequences
 				// Check if this might be part of a VIM sequence
 				if a.handleVimSequence(event.Rune()) {
 					return nil
@@ -1174,6 +1212,7 @@ func (a *App) handleVimSequence(key rune) bool {
 	if a.logger != nil {
 		a.logger.Printf("=== handleVimSequence called with key='%c' ===", key)
 		a.logger.Printf("Current state: vimOperationType='%s', vimOperationCount=%d, vimSequence='%s'", a.vimOperationType, a.vimOperationCount, a.vimSequence)
+		a.logger.Printf("Bulk mode: %v, selected count: %d", a.bulkMode, len(a.selected))
 	}
 
 	// Check if we're in a context where VIM sequences should work
