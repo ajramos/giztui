@@ -146,6 +146,28 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 	// Check cache first via prompt service
 	if s.promptService != nil {
 		if cachedResult, err := s.promptService.GetCachedBulkResult(ctx, accountEmail, messageIDs, promptID); err == nil && cachedResult != nil {
+			// For cached results, simulate streaming by calling onToken with the full result
+			if onToken != nil {
+				// Split result into tokens to simulate streaming effect for cached results
+				words := strings.Fields(cachedResult.Summary)
+				for i, word := range words {
+					select {
+					case <-ctx.Done():
+						return cachedResult, nil // User cancelled, return what we have
+					default:
+					}
+					
+					// Add word with space, except for last word
+					token := word
+					if i < len(words)-1 {
+						token += " "
+					}
+					onToken(token)
+					
+					// Small delay to make streaming effect visible (increased for better UX)
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
 			return cachedResult, nil
 		}
 	}
@@ -187,7 +209,15 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 	s.savePromptToFile(promptID, promptTemplate.Name, successfulIDs, promptTemplate.PromptText, finalPrompt, combinedContent)
 
 	// Use streaming AI service
-	result, err := s.aiService.ApplyCustomPromptStream(ctx, combinedContent, finalPrompt, variables, onToken)
+	if s.promptService != nil {
+		// Access logger through app context if possible - for now use simple logging
+	}
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, combinedContent, finalPrompt, variables, func(token string) {
+		// Call the original callback
+		if onToken != nil {
+			onToken(token)
+		}
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply bulk prompt with streaming: %w", err)
 	}

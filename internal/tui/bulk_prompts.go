@@ -403,6 +403,10 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			return
 		}
 
+		if a.logger != nil {
+			a.logger.Printf("BULK_PROMPT: Starting bulk prompt operation - promptID=%d, messageCount=%d", promptID, messageCount)
+		}
+
 		// Try streaming bulk prompt first
 		result, err := promptService.ApplyBulkPromptStream(ctx, accountEmail, messageIDs, promptID, map[string]string{}, func(token string) {
 			// Check if context was canceled
