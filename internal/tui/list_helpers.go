@@ -82,6 +82,29 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	} else {
 		if removeIndex >= 0 && removeIndex < table.GetRowCount() {
 			table.RemoveRow(removeIndex)
+			
+			// CRITICAL FIX: Ensure table row count matches a.ids length
+			// Sometimes RemoveRow doesn't properly sync, so force a refresh
+			actualTableRows := table.GetRowCount()
+			expectedRows := len(a.ids)
+			if actualTableRows != expectedRows {
+				if a.logger != nil {
+					a.logger.Printf("TABLE SYNC BUG: table has %d rows but a.ids has %d entries, forcing table rebuild", actualTableRows, expectedRows)
+				}
+				// Force rebuild the table to sync with a.ids
+				table.Clear()
+				for i := range a.ids {
+					if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
+						table.SetCell(i, 0, tview.NewTableCell(fmt.Sprintf("Loading message %d...", i+1)))
+						continue
+					}
+					msg := a.messagesMeta[i]
+					text, _ := a.emailRenderer.FormatEmailList(msg, a.getFormatWidth())
+					// Create cell with proper styling
+					cell := tview.NewTableCell(text).SetExpansion(1)
+					table.SetCell(i, 0, cell)
+				}
+			}
 		}
 		// Keep the same visual position when possible
 		desired := removeIndex

@@ -3,13 +3,9 @@
 ## 🎯 TODO - Active Roadmap
 
 ## Issues
-- [ ] make timeout configurable
-- [x] p prompt doesnt stream the llm response
-- [ ] Something is working weird, when I delete on bulk or move emails, they are removed from the list but still I see 50 messages, it looks like two emails are repeated in the end
+- [x] Something is working weird, when I move emails, they are removed from the list but still I see 50 messages, it looks like the last X emails are repeated in the end of the list when X is the number of moved emails..
 
 ### Priorities
-- [ ] Better ways to browse message cntent at the moment only line by line
-- [ ] Text search `/` inside the email body
 - [ ] Theme configuration system
 - [ ] Improve status bar experience
 - [ ] Improve legend
@@ -20,6 +16,10 @@
 - [ ] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
+- [x] make timeout configurable
+- [x] p prompt doesnt stream the llm response
+- [x] Better ways to browse message cntent at the moment only line by line
+- [x] Text search `/` inside the email body
 - [x] When there's a calendar invitation, when showing the options to Accept, etc., include a brief summary indicating the date and time of the event
 - [x] In the content of a message, if a header like CC: is very long because it has many people in copy, it doesn't wrap the line and the information is not visible
 - [x] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
