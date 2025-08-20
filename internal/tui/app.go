@@ -52,12 +52,12 @@ type App struct {
 	currentFocus  string // Track current focus: "list" or "text"
 	previousFocus string // Track previous focus before modal
 	// Command system (k9s style)
-	cmdMode         bool     // Whether we're in command mode
-	cmdBuffer       string   // Current command buffer
-	cmdHistory      []string // Command history
-	cmdHistoryIndex int      // Current position in history
-	cmdSuggestion   string   // Current command suggestion
-	cmdFocusOverride string  // Override focus restoration for special commands
+	cmdMode          bool     // Whether we're in command mode
+	cmdBuffer        string   // Current command buffer
+	cmdHistory       []string // Command history
+	cmdHistoryIndex  int      // Current position in history
+	cmdSuggestion    string   // Current command suggestion
+	cmdFocusOverride string   // Override focus restoration for special commands
 	// Layout management
 	currentLayout    LayoutType
 	screenWidth      int
@@ -76,8 +76,8 @@ type App struct {
 	baseNextPageToken string
 	baseSelectionID   string
 	// AI Summary pane
-	aiSummaryView       *tview.TextView
-	aiSummaryVisible    bool
+	aiSummaryView    *tview.TextView
+	aiSummaryVisible bool
 	// Enhanced text view for content navigation and search
 	enhancedTextView    *EnhancedTextView
 	aiSummaryCache      map[string]string  // messageID -> summary
@@ -110,7 +110,7 @@ type App struct {
 	labelsView     *tview.Flex
 	labelsVisible  bool
 	labelsExpanded bool
-	
+
 	// Slack contextual panel
 	slackView    *tview.Flex
 	slackVisible bool
@@ -124,10 +124,10 @@ type App struct {
 	// VIM-style navigation
 	vimSequence string    // Track VIM key sequences like "gg"
 	vimTimeout  time.Time // Timeout for key sequences
-	
+
 	// VIM-style range operations
-	vimOperationCount   int    // Track count in sequences (e.g., "5" in "s5s")
-	vimOperationType    string // Track operation type (e.g., "s" in "s5s")
+	vimOperationCount    int    // Track count in sequences (e.g., "5" in "s5s")
+	vimOperationType     string // Track operation type (e.g., "s" in "s5s")
 	vimOriginalMessageID string // Store message ID when VIM sequence started
 
 	// UI lifecycle flags
@@ -568,7 +568,7 @@ func (a *App) initServices() {
 				a.logger.Printf("initServices: using default Obsidian config")
 			}
 		}
-		
+
 		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
 		if a.logger != nil {
 			a.logger.Printf("initServices: obsidian service initialized: %v", a.obsidianService != nil)
@@ -793,7 +793,6 @@ func (a *App) GetContentNavService() services.ContentNavigationService {
 	return a.contentNavService
 }
 
-
 // applyTheme loads theme colors and updates the email renderer
 func (a *App) applyTheme() {
 	// Try to load theme from skins directory; fallback to defaults
@@ -934,7 +933,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("p8p       🤖 Apply AI prompts to next 8 messages\n")
 	help.WriteString("gg        ⬆️  Go to first message\n")
 	help.WriteString("G         ⬇️  Go to last message\n\n")
-	
+
 	help.WriteString("💻 Command Equivalents\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	help.WriteString(":select 5   ✅ Same as s5s\n")

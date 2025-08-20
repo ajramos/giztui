@@ -68,14 +68,14 @@ func (a *App) reformatListItems() {
 
 		// Build prefixes
 		var prefix string
-		
+
 		// Add message number if enabled (leftmost position)
 		if a.showMessageNumbers {
 			maxNumber := len(a.ids)
 			width := len(fmt.Sprintf("%d", maxNumber))
 			prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
 		}
-		
+
 		if a.bulkMode {
 			if a.selected != nil && a.selected[a.ids[i]] {
 				prefix += "☑ "
@@ -206,14 +206,14 @@ func (a *App) restoreLocalBaseSnapshot() {
 					}
 				}
 				var prefix string
-				
+
 				// Add message number if enabled (leftmost position)
 				if a.showMessageNumbers {
 					maxNumber := len(a.ids)
 					width := len(fmt.Sprintf("%d", maxNumber))
 					prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
 				}
-				
+
 				// Add read/unread indicator
 				if unread {
 					prefix += "● "
@@ -265,7 +265,7 @@ func (a *App) exitSearch() {
 func (a *App) reloadMessages() {
 	// Set loading state
 	a.SetMessagesLoading(true)
-	
+
 	// Reset modes/state with minimal locking
 	a.mu.Lock()
 	a.draftMode = false
@@ -466,7 +466,7 @@ func (a *App) reloadMessages() {
 
 	// Do not steal focus if user moved to another pane (e.g., labels/summary/text)
 	// Keep currentFocus list during loading; focus is enforced above on completion
-	
+
 	// Mark loading as complete
 	a.SetMessagesLoading(false)
 }
@@ -1677,7 +1677,7 @@ func (a *App) applyLocalFilter(expr string) {
 					width := len(fmt.Sprintf("%d", maxNumber))
 					prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering for filtered results
 				}
-				
+
 				// Add read/unread indicator
 				if i < len(filteredMeta) && filteredMeta[i] != nil {
 					unread := false
@@ -1693,7 +1693,7 @@ func (a *App) applyLocalFilter(expr string) {
 						prefix += "○ "
 					}
 				}
-				
+
 				table.SetCell(i, 0, tview.NewTableCell(prefix+text).SetExpansion(1))
 			}
 			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
@@ -2080,27 +2080,27 @@ func (a *App) getCurrentMessageID() string {
 	if a.views == nil {
 		return ""
 	}
-	
+
 	// Safety check: ensure list view exists
 	table, ok := a.views["list"]
 	if !ok || table == nil {
 		return ""
 	}
-	
+
 	// Type assertion with safety check
 	tableView, ok := table.(*tview.Table)
 	if !ok {
 		return ""
 	}
-	
+
 	// Get selection safely
 	row, _ := tableView.GetSelection()
-	
+
 	// Safety check: ensure ids slice exists and is not nil
 	if a.ids == nil || row < 0 || row >= len(a.ids) {
 		return ""
 	}
-	
+
 	return a.ids[row]
 }
 
@@ -2314,18 +2314,18 @@ func (a *App) adjustHeaderHeight(headerContent string) {
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			// Count the number of lines in the header content
 			lines := strings.Count(headerContent, "\n") + 1
-			
+
 			// Set minimum height of 4 and maximum of 12 to prevent extreme cases
 			minHeight := 4
 			maxHeight := 12
-			
+
 			if lines < minHeight {
 				lines = minHeight
 			}
 			if lines > maxHeight {
 				lines = maxHeight
 			}
-			
+
 			// Resize the header item in the text container
 			textContainer.ResizeItem(header, lines, 0)
 		}
@@ -2402,21 +2402,21 @@ func (a *App) detectCalendarInvite(msg *gmailapi.Message) (Invite, bool) {
 				if strings.Contains(strings.ToUpper(s), "METHOD:REQUEST") {
 					methodReq = true
 				}
-				
+
 				// Debug: log the raw iCalendar data
 				if a.logger != nil {
 					a.logger.Printf("ICAL DEBUG: Raw calendar data:\n%s", s)
 				}
-				
+
 				out.UID = scanICSField(s, "UID")
 				out.Summary = scanICSField(s, "SUMMARY")
 				out.Organizer = scanICSField(s, "ORGANIZER")
 				out.DtStart = scanICSField(s, "DTSTART")
 				out.DtEnd = scanICSField(s, "DTEND")
-				
+
 				// Debug: log the extracted values
 				if a.logger != nil {
-					a.logger.Printf("ICAL DEBUG: Extracted - UID='%s', Summary='%s', DtStart='%s', DtEnd='%s'", 
+					a.logger.Printf("ICAL DEBUG: Extracted - UID='%s', Summary='%s', DtStart='%s', DtEnd='%s'",
 						out.UID, out.Summary, out.DtStart, out.DtEnd)
 				}
 			}
@@ -2489,13 +2489,13 @@ func extractRSVPLinksFromHTML(htmlStr string) (yes, no, maybe string) {
 
 func scanICSField(s, key string) string {
 	lines := strings.Split(s, "\n")
-	
+
 	// Find the VEVENT section first
 	inVEvent := false
-	
+
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		// Track when we're inside a VEVENT section
 		if line == "BEGIN:VEVENT" {
 			inVEvent = true
@@ -2505,12 +2505,12 @@ func scanICSField(s, key string) string {
 			inVEvent = false
 			continue
 		}
-		
+
 		// Only look for fields inside the VEVENT section
 		if !inVEvent {
 			continue
 		}
-		
+
 		// Check if line starts with our key
 		if strings.HasPrefix(line, key) {
 			// Handle parameters like DTSTART;TZID=Europe/Madrid:20250818T163000
@@ -2518,7 +2518,7 @@ func scanICSField(s, key string) string {
 			if colonIdx > 0 {
 				// Extract everything after the colon, including timezone parameter
 				fullValue := strings.TrimSpace(line[colonIdx+1:])
-				
+
 				// Handle multiline values (continuation lines start with space/tab)
 				for j := i + 1; j < len(lines); j++ {
 					nextLine := lines[j]
@@ -2529,7 +2529,7 @@ func scanICSField(s, key string) string {
 						break // Not a continuation
 					}
 				}
-				
+
 				// For DTSTART/DTEND, we want to preserve the timezone parameter
 				// Return the full line including parameters: ";TZID=Europe/Madrid:20250818T163000"
 				if key == "DTSTART" || key == "DTEND" {
@@ -2540,12 +2540,12 @@ func scanICSField(s, key string) string {
 						return params + ":" + fullValue
 					}
 				}
-				
+
 				return fullValue
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -2576,7 +2576,7 @@ func (a *App) openRSVPModal() {
 
 	// Create meeting details sections - separate TextView for each line to control colors
 	meetingContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	
+
 	// Meeting title
 	titleView := tview.NewTextView().SetWordWrap(true)
 	if inv.Summary != "" {
@@ -2586,7 +2586,7 @@ func (a *App) openRSVPModal() {
 	}
 	titleView.SetTextColor(tcell.ColorYellow)
 	meetingContainer.AddItem(titleView, 1, 0, false)
-	
+
 	// Organizer
 	if inv.Organizer != "" {
 		organizerName := formatOrganizerName(inv.Organizer)
@@ -2595,7 +2595,7 @@ func (a *App) openRSVPModal() {
 		organizerView.SetTextColor(tcell.ColorBlue)
 		meetingContainer.AddItem(organizerView, 1, 0, false)
 	}
-	
+
 	// Date and time
 	if inv.DtStart != "" {
 		// Debug logging to see what we actually get
@@ -2613,7 +2613,7 @@ func (a *App) openRSVPModal() {
 			meetingContainer.AddItem(timeView, 1, 0, false)
 		}
 	}
-	
+
 	// Build RSVP options list
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
@@ -2623,7 +2623,7 @@ func (a *App) openRSVPModal() {
 	if list.GetItemCount() > 0 {
 		list.SetCurrentItem(0)
 	}
-	
+
 	// Footer with instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to respond | Esc to close ")
@@ -2633,17 +2633,17 @@ func (a *App) openRSVPModal() {
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(tcell.ColorYellow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	
+
 	// Add meeting info section (fixed height)
 	container.AddItem(meetingContainer, 3, 0, false)
-	
+
 	// Add blank line between meeting details and RSVP options
 	spacer := tview.NewTextView()
 	container.AddItem(spacer, 1, 0, false)
-	
+
 	// Add RSVP options list (flexible height)
 	container.AddItem(list, 0, 1, true)
-	
+
 	// Add footer
 	container.AddItem(footer, 1, 0, false)
 
@@ -2799,16 +2799,16 @@ func formatICalDateTime(dtStr string) string {
 	if dtStr == "" {
 		return ""
 	}
-	
+
 	// Common iCalendar datetime formats:
 	// DTSTART:20250115T100000Z (UTC)
 	// DTSTART;VALUE=DATE:20250115 (date only)
 	// DTSTART;TZID=America/New_York:20250115T100000
 	// ;TZID=Europe/Madrid:20250818T170000 (from scanICSField)
-	
+
 	// Clean up the datetime string - handle timezone parameters properly
 	cleanDt := dtStr
-	
+
 	// Handle format like ";TZID=Europe/Madrid:20250818T170000"
 	if strings.HasPrefix(cleanDt, ";") && strings.Contains(cleanDt, ":") {
 		// Extract the datetime part after the last colon
@@ -2821,12 +2821,12 @@ func formatICalDateTime(dtStr string) string {
 			cleanDt = cleanDt[colonIdx+1:]
 		}
 	}
-	
+
 	// Validate that we have a reasonable date format
 	if len(cleanDt) < 8 {
 		return dtStr // Return original if too short
 	}
-	
+
 	// Try different parsing formats
 	formats := []string{
 		"20060102T150405Z",     // UTC format: 20250115T100000Z
@@ -2840,14 +2840,14 @@ func formatICalDateTime(dtStr string) string {
 		"2006-01-02T15:04",     // RFC format short without Z
 		"2006-01-02",           // Date with dashes
 	}
-	
+
 	for _, format := range formats {
 		if t, err := time.Parse(format, cleanDt); err == nil {
 			// Sanity check: reject dates before 1990 or after 2050 (likely parsing errors)
 			if t.Year() < 1990 || t.Year() > 2050 {
 				continue
 			}
-			
+
 			// For date-only format, don't show time
 			if format == "20060102" {
 				return t.Format("Mon, Jan 2 2006")
@@ -2856,7 +2856,7 @@ func formatICalDateTime(dtStr string) string {
 			return t.Format("Mon, Jan 2 2006, 3:04 PM")
 		}
 	}
-	
+
 	// If parsing fails, return a cleaned version of original
 	return strings.TrimSpace(strings.ReplaceAll(dtStr, "DTSTART:", ""))
 }
@@ -2865,22 +2865,22 @@ func formatICalDateTime(dtStr string) string {
 func formatMeetingTimeRange(dtStart, dtEnd string) string {
 	startStr := formatICalDateTime(dtStart)
 	endStr := formatICalDateTime(dtEnd)
-	
+
 	// If start parsing failed, try to show something meaningful
 	if startStr == "" || strings.Contains(startStr, "T") || len(startStr) < 10 {
 		// Return a generic message if we can't parse the dates
 		return "Meeting time details not available"
 	}
-	
+
 	// If no end time, just show start
 	if endStr == "" || strings.Contains(endStr, "T") || len(endStr) < 10 {
 		return startStr
 	}
-	
+
 	// Try to parse both to see if they're on the same date
 	startTime := parseICalDateTime(dtStart)
 	endTime := parseICalDateTime(dtEnd)
-	
+
 	if !startTime.IsZero() && !endTime.IsZero() {
 		// Same date - show "Mon, Jan 2 2006, 10:00 AM - 11:00 AM"
 		if startTime.Format("20060102") == endTime.Format("20060102") {
@@ -2889,7 +2889,7 @@ func formatMeetingTimeRange(dtStart, dtEnd string) string {
 		// Different dates - show full date/time for both
 		return startStr + " - " + endStr
 	}
-	
+
 	// Fallback - just show start if we have it
 	return startStr
 }
@@ -2899,10 +2899,10 @@ func parseICalDateTime(dtStr string) time.Time {
 	if dtStr == "" {
 		return time.Time{}
 	}
-	
+
 	// Clean up the datetime string - handle timezone parameters properly
 	cleanDt := dtStr
-	
+
 	// Handle format like ";TZID=Europe/Madrid:20250818T170000"
 	if strings.HasPrefix(cleanDt, ";") && strings.Contains(cleanDt, ":") {
 		// Extract the datetime part after the last colon
@@ -2915,12 +2915,12 @@ func parseICalDateTime(dtStr string) time.Time {
 			cleanDt = cleanDt[colonIdx+1:]
 		}
 	}
-	
+
 	// Validate minimum length
 	if len(cleanDt) < 8 {
 		return time.Time{}
 	}
-	
+
 	formats := []string{
 		"20060102T150405Z",     // UTC format: 20250115T100000Z
 		"20060102T150405",      // Local format: 20250115T100000
@@ -2933,7 +2933,7 @@ func parseICalDateTime(dtStr string) time.Time {
 		"2006-01-02T15:04",     // RFC format short without Z
 		"2006-01-02",           // Date with dashes
 	}
-	
+
 	for _, format := range formats {
 		if t, err := time.Parse(format, cleanDt); err == nil {
 			// Sanity check: reject dates before 1990 or after 2050
@@ -2943,7 +2943,7 @@ func parseICalDateTime(dtStr string) time.Time {
 			return t
 		}
 	}
-	
+
 	return time.Time{}
 }
 
@@ -2952,9 +2952,9 @@ func formatOrganizerName(organizer string) string {
 	if organizer == "" {
 		return ""
 	}
-	
+
 	// iCalendar organizer format: "CN=John Doe:MAILTO:john@example.com" or just "MAILTO:john@example.com"
-	
+
 	// Try to extract Common Name (CN)
 	if cnIdx := strings.Index(organizer, "CN="); cnIdx >= 0 {
 		cnStart := cnIdx + 3
@@ -2963,7 +2963,7 @@ func formatOrganizerName(organizer string) string {
 			return strings.TrimSpace(organizer[cnStart : cnStart+cnEnd])
 		}
 	}
-	
+
 	// Try to extract email from MAILTO
 	if mailtoIdx := strings.Index(strings.ToUpper(organizer), "MAILTO:"); mailtoIdx >= 0 {
 		emailStart := mailtoIdx + 7
@@ -2974,12 +2974,12 @@ func formatOrganizerName(organizer string) string {
 		}
 		return strings.TrimSpace(email)
 	}
-	
+
 	// If it looks like just an email, return it
 	if strings.Contains(organizer, "@") && !strings.Contains(organizer, " ") {
 		return organizer
 	}
-	
+
 	// Return cleaned up original
 	return strings.TrimSpace(organizer)
 }

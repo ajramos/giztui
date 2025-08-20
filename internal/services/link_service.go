@@ -141,12 +141,12 @@ func (s *LinkServiceImpl) extractLinksFromMessage(message *gmail.Message) []rend
 // extractLinksFromHTML extracts links from HTML content
 func (s *LinkServiceImpl) extractLinksFromHTML(htmlContent string) []render.LinkRef {
 	var links []render.LinkRef
-	
+
 	// Use regex to find href attributes (simplified approach)
 	// In a full implementation, you'd want to use an HTML parser
 	hrefRegex := regexp.MustCompile(`(?i)href\s*=\s*["']([^"']+)["'][^>]*>([^<]+)</a>`)
 	matches := hrefRegex.FindAllStringSubmatch(htmlContent, -1)
-	
+
 	for i, match := range matches {
 		if len(match) >= 3 {
 			url := strings.TrimSpace(match[1])
@@ -169,10 +169,10 @@ func (s *LinkServiceImpl) extractLinksFromPlainText(plainText string) []render.L
 	// Enhanced regex to support more URL schemes including ftp
 	urlRegex := regexp.MustCompile(`(?i)\b(https?|ftp|ftps)://[\w\-\._~:/%\?#\[\]@!$&'()*+,;=]+`)
 	matches := urlRegex.FindAllString(plainText, -1)
-	
+
 	var links []render.LinkRef
 	seen := make(map[string]bool)
-	
+
 	for i, match := range matches {
 		if !seen[match] {
 			links = append(links, render.LinkRef{

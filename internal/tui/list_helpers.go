@@ -13,7 +13,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection ENTRY - messageID: %s", removedMessageID)
 	}
-	
+
 	table, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		if a.logger != nil {
@@ -40,11 +40,11 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 			break
 		}
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - found messageID at index: %d", removeIndex)
 	}
-	
+
 	// If message not found, don't remove anything
 	if removeIndex < 0 || removeIndex >= count {
 		if a.logger != nil {
@@ -111,7 +111,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 			}
 		}
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection COMPLETE")
 	}

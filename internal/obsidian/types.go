@@ -39,7 +39,7 @@ type ObsidianConfig struct {
 	PreventDuplicates  bool   `json:"prevent_duplicates"`
 	MaxFileSize        int64  `json:"max_file_size"`
 	IncludeAttachments bool   `json:"include_attachments"`
-	
+
 	// Template configuration (file path takes precedence over inline)
 	TemplateFile string `json:"template_file,omitempty"` // Path to template file (relative to config dir or absolute)
 	Template     string `json:"template"`                // Inline template (fallback)
@@ -83,7 +83,6 @@ message_id: {{message_id}}
 *Ingested from Gmail on {{ingest_date}}*`,
 	}
 }
-
 
 // ObsidianIngestResult represents the result of an email ingestion
 type ObsidianIngestResult struct {

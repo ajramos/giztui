@@ -15,9 +15,9 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	if event.Rune() == 0 {
 		return false
 	}
-	
+
 	key := string(event.Rune())
-	
+
 	// Check each configurable shortcut
 	switch key {
 	// Core email operations
@@ -28,7 +28,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		a.toggleAISummary()
 		return true
 	}
-	
+
 	// Check for uppercase version of summarize key (force regenerate)
 	if a.Keys.Summarize != "" && len(a.Keys.Summarize) == 1 {
 		upperKey := strings.ToUpper(a.Keys.Summarize)
@@ -40,7 +40,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			return true
 		}
 	}
-	
+
 	switch key {
 	case a.Keys.GenerateReply:
 		if a.logger != nil {
@@ -73,7 +73,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.enhancedTextView.searchNext()
 			return true
 		}
-		
+
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> compose", key)
 		}
@@ -123,7 +123,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: trash key - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
 		}()
-		
+
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
 		if a.bulkMode && len(a.selected) > 0 {
 			if a.logger != nil {
@@ -195,7 +195,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		a.cancel()
 		a.Stop()
 		return true
-	
+
 	// Additional configurable shortcuts
 	case a.Keys.Obsidian:
 		if a.logger != nil {
@@ -295,7 +295,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		a.toggleHelp()
 		return true
 	}
-	
+
 	return false
 }
 
@@ -304,7 +304,7 @@ func (a *App) isKeyConfigured(key rune) bool {
 	if key == 0 {
 		return false
 	}
-	
+
 	keyStr := string(key)
 	return keyStr == a.Keys.Summarize ||
 		keyStr == a.Keys.GenerateReply ||
@@ -396,28 +396,28 @@ func (a *App) bindKeys() {
 		// Only intercept specific keys, let navigation keys pass through
 		// Ensure arrow keys navigate the currently focused pane, not the list always
 		// tview handles arrow keys per focused primitive, so we avoid overriding them here.
-		
+
 		// Debug: log when digit keys reach the main switch
 		if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
 			a.logger.Printf("DIGIT KEY: reached main switch statement, checking for VIM sequence")
 		}
-		
+
 		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
 		// This allows f3f to work even when f is configured for toggle_read
 		if a.handleVimSequence(event.Rune()) {
 			return nil
 		}
-		
+
 		// VIM navigation sequences (gg, G) - these don't conflict with main keys
 		if a.handleVimNavigation(event.Rune()) {
 			return nil
 		}
-		
+
 		// Check configurable shortcuts after VIM sequences
 		if a.handleConfigurableKey(event) {
 			return nil
 		}
-		
+
 		switch event.Rune() {
 		case ' ':
 			// DEBUG: Always log when Space key is pressed
@@ -427,7 +427,7 @@ func (a *App) bindKeys() {
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: Space pressed - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
 			}()
-			
+
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
 					if a.logger != nil {
@@ -607,7 +607,7 @@ func (a *App) bindKeys() {
 				// Only handle 'n' for compose/load more when focus is on list
 				// When focus is on text, let the EnhancedTextView handle it for search navigation
 				if a.currentFocus == "list" {
-					if (event.Modifiers()&tcell.ModShift) == 0 {
+					if (event.Modifiers() & tcell.ModShift) == 0 {
 						if a.logger != nil {
 							a.logger.Printf("=== 'n' executing loadMoreMessages ===")
 						}
@@ -927,7 +927,7 @@ func (a *App) bindKeys() {
 				}
 				a.streamingCancel()
 				a.streamingCancel = nil
-				
+
 				// After canceling streaming, always hide AI panel if visible
 				if a.aiSummaryVisible {
 					if a.logger != nil {
@@ -1033,7 +1033,6 @@ func (a *App) bindKeys() {
 		case *tview.InputField, *tview.List:
 			return event
 		}
-
 
 		// Handle digit keys for VIM sequences
 		if event.Rune() >= '0' && event.Rune() <= '9' {
@@ -1151,7 +1150,7 @@ func (a *App) restoreFocusAfterModal() {
 	if a.cmdFocusOverride != "" {
 		override := a.cmdFocusOverride
 		a.cmdFocusOverride = "" // Clear the override
-		
+
 		switch override {
 		case "enhanced-text":
 			// For content search, focus the EnhancedTextView directly
@@ -1163,7 +1162,7 @@ func (a *App) restoreFocusAfterModal() {
 			}
 		}
 	}
-	
+
 	// Default behavior - restore to list
 	a.SetFocus(a.views["list"])
 	a.currentFocus = "list"
@@ -1176,7 +1175,7 @@ func (a *App) handleVimSequence(key rune) bool {
 		a.logger.Printf("=== handleVimSequence called with key='%c' ===", key)
 		a.logger.Printf("Current state: vimOperationType='%s', vimOperationCount=%d, vimSequence='%s'", a.vimOperationType, a.vimOperationCount, a.vimSequence)
 	}
-	
+
 	// Check if we're in a context where VIM sequences should work
 	// Allow VIM sequences when focus is on list or text (for content navigation)
 	if a.currentFocus != "" && a.currentFocus != "list" && a.currentFocus != "text" {
@@ -1231,7 +1230,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 			// Double 'g' - context-dependent behavior
 			a.vimSequence = ""
 			a.vimTimeout = time.Time{}
-			
+
 			// CRITICAL: Check focus context for gg behavior
 			if a.currentFocus == "text" && a.enhancedTextView != nil {
 				// Content context: go to top of message content
@@ -1250,7 +1249,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 		} else {
 			// Start of sequence - wait for next key
 			a.vimSequence = "g"
-			
+
 			// Use configurable navigation timeout for gg sequence
 			navTimeoutMs := a.Keys.VimNavigationTimeoutMs
 			if navTimeoutMs <= 0 {
@@ -1263,7 +1262,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 		// Single 'G' - context-dependent behavior
 		a.vimSequence = ""
 		a.vimTimeout = time.Time{}
-		
+
 		// CRITICAL: Check focus context for G behavior
 		if a.currentFocus == "text" && a.enhancedTextView != nil {
 			// Content context: go to bottom of message content
@@ -1317,14 +1316,14 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 	if a.Keys.Prompt != "" {
 		vimOnlyOps[rune(a.Keys.Prompt[0])] = true // prompt - allow VIM sequences
 	}
-	
+
 	// Conflict operation keys (only handled by VIM when in sequence) - use dynamic mapping
 	conflictOps := map[rune]bool{}
 	// Add configured keys that might conflict with single-key operations
 	if a.Keys.Obsidian != "" {
 		conflictOps[rune(a.Keys.Obsidian[0])] = true // obsidian
 	}
-	
+
 	// All valid operation keys
 	validOps := make(map[rune]bool)
 	for k, v := range vimOnlyOps {
@@ -1348,11 +1347,11 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				rangeTimeoutMs = 2000 // Default fallback
 			}
 			a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
-			
+
 			if a.logger != nil {
 				a.logger.Printf("VIM digit pressed: %c, operation: %s, oldCount: %d, digit: %d, newCount: %d", key, a.vimOperationType, oldCount, digit, a.vimOperationCount)
 			}
-			
+
 			// Show status
 			go func() {
 				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s%d... (waiting for operation)", a.vimOperationType, a.vimOperationCount))
@@ -1366,7 +1365,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 	if !validOps[key] {
 		return false
 	}
-	
+
 	// For conflict keys, only handle them if we're already in a VIM sequence
 	// This allows 'p' and 'o' to work normally for prompts/obsidian when not in VIM mode
 	if conflictOps[key] && a.vimOperationType == "" {
@@ -1384,11 +1383,11 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 			rangeTimeoutMs = 2000 // Default fallback
 		}
 		a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
-		
+
 		// CRITICAL FIX: Capture current message ID when sequence starts
 		// This prevents issues where cursor moves during the timeout delay
 		a.vimOriginalMessageID = a.GetCurrentMessageID()
-		
+
 		// Also get table selection for debugging
 		var tableSelection int = -1
 		var tableMessageID string = ""
@@ -1398,7 +1397,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				tableMessageID = a.ids[tableSelection]
 			}
 		}
-		
+
 		if a.logger != nil {
 			a.logger.Printf("=== VIM SEQUENCE START DEBUG ===")
 			a.logger.Printf("VIM sequence started: %c, operationType=%s, operationCount=%d", key, a.vimOperationType, a.vimOperationCount)
@@ -1408,18 +1407,18 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 			a.logger.Printf("IDs match: %t", a.vimOriginalMessageID == tableMessageID)
 			a.logger.Printf("================================")
 		}
-		
+
 		// Show status and consume the key to prevent single operation
 		go func() {
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s... (enter count then %s, or wait for timeout)", string(key), string(key)))
 		}()
-		
+
 		// Start timeout goroutine to execute single operation if no sequence completed
 		go func() {
 			if a.logger != nil {
 				a.logger.Printf("HANG DEBUG: VIM timeout goroutine started for key: %s", string(key))
 			}
-			
+
 			// Use configurable range timeout for single operation fallback
 			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
 			if rangeTimeoutMs <= 0 {
@@ -1430,11 +1429,11 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				a.logger.Printf("HANG DEBUG: VIM timeout goroutine woke up, acquiring mutex")
 			}
 			a.mu.Lock()
-			
+
 			if a.logger != nil {
 				a.logger.Printf("HANG DEBUG: VIM timeout - checking state: vimOperationType='%s', vimOperationCount=%d, expected='%s'", a.vimOperationType, a.vimOperationCount, string(key))
 			}
-			
+
 			// Check if sequence is still pending (not completed or cleared)
 			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
 				if a.logger != nil {
@@ -1442,28 +1441,28 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				}
 				// Capture original message ID while holding mutex
 				originalMessageID := a.vimOriginalMessageID
-				
+
 				// Clear sequence state while holding mutex
 				a.vimSequence = ""
 				a.vimOperationType = ""
 				a.vimTimeout = time.Time{}
 				a.vimOriginalMessageID = ""
-				
+
 				if a.logger != nil {
 					a.logger.Printf("HANG DEBUG: VIM state cleared, releasing mutex")
 				}
-				
+
 				// Release mutex BEFORE accessing UI elements or executing operations
 				a.mu.Unlock()
-				
+
 				if a.logger != nil {
 					a.logger.Printf("HANG DEBUG: Mutex released, proceeding with execution")
 				}
-				
+
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
-				
+
 				// Execute single operation with original message ID (without mutex)
 				if a.logger != nil {
 					a.logger.Printf("HANG DEBUG: About to call executeVimSingleOperationWithID")
@@ -1479,7 +1478,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				a.mu.Unlock()
 			}
 		}()
-		
+
 		return true // Consume the key to prevent immediate single operation
 	} else if a.vimOperationType == string(key) {
 		// Completing sequence: s5s, a3a, etc.
@@ -1487,11 +1486,11 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		if count == 0 {
 			count = 1 // Default to 1 if no count specified
 		}
-		
+
 		if a.logger != nil {
 			a.logger.Printf("VIM completing sequence: %s%d%s, passing count=%d to executeVimRangeOperation", string(key), count, string(key), count)
 		}
-		
+
 		// Clear sequence state
 		operation := a.vimOperationType
 		a.vimSequence = ""
@@ -1499,7 +1498,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		a.vimOperationCount = 0
 		a.vimTimeout = time.Time{}
 		a.vimOriginalMessageID = ""
-		
+
 		// Execute the range operation
 		a.executeVimRangeOperation(operation, count)
 		return true
@@ -1516,20 +1515,20 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 	if a.logger != nil {
 		a.logger.Printf("executeVimRangeOperation: operation=%s, count=%d", operation, count)
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.GetErrorHandler().ShowError(a.ctx, "Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
 	}
-	
+
 	// Validate range doesn't exceed available messages
 	maxCount := len(a.ids) - startIndex
 	if count > maxCount {
@@ -1538,7 +1537,7 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Range limited to %d available messages", count))
 		}()
 	}
-	
+
 	// Use dynamic operation mapping based on configured keys
 	switch operation {
 	case "s":
@@ -1614,7 +1613,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: executeVimSingleOperationWithID ENTRY - operation: %s, messageID: %s", operation, messageID)
 	}
-	
+
 	if messageID == "" {
 		if a.logger != nil {
 			a.logger.Printf("HANG DEBUG: messageID empty, falling back to executeVimSingleOperation")
@@ -1623,11 +1622,11 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		a.executeVimSingleOperation(operation)
 		return
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: About to enter switch statement for operation: %s", operation)
 	}
-	
+
 	switch operation {
 	case "s":
 		// For single 's', just show a message (no actual operation needed)
@@ -1667,7 +1666,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			}
 		}
 	case a.Keys.ToggleRead:
-		// CRITICAL: Check for bulk mode first - VIM 't' should respect bulk selection  
+		// CRITICAL: Check for bulk mode first - VIM 't' should respect bulk selection
 		if a.bulkMode && len(a.selected) > 0 {
 			if a.logger != nil {
 				a.logger.Printf("VIM BULK FIX: 't' key with bulk mode - %d selected messages, calling toggleMarkReadUnreadBulk()", len(a.selected))
@@ -1794,7 +1793,7 @@ func (a *App) archiveRange(startIndex, count int) {
 	}
 
 	actualCount := len(messageIDs)
-	
+
 	// Show progress
 	go func() {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d messages (a%da)...", actualCount, count))
@@ -1806,7 +1805,7 @@ func (a *App) archiveRange(startIndex, count int) {
 		for i, messageID := range messageIDs {
 			// Progress update
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d messages...", i+1, actualCount))
-			
+
 			// Archive message
 			emailService, _, _, _, _, _, _, _ := a.GetServices()
 			if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
@@ -1844,7 +1843,7 @@ func (a *App) trashRange(startIndex, count int) {
 	}
 
 	actualCount := len(messageIDs)
-	
+
 	// Show progress
 	go func() {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d messages to trash (d%dd)...", actualCount, count))
@@ -1856,7 +1855,7 @@ func (a *App) trashRange(startIndex, count int) {
 		for i, messageID := range messageIDs {
 			// Progress update
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d messages...", i+1, actualCount))
-			
+
 			// Trash message
 			emailService, _, _, _, _, _, _, _ := a.GetServices()
 			if err := emailService.TrashMessage(a.ctx, messageID); err != nil {
@@ -1886,7 +1885,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 	if a.logger != nil {
 		a.logger.Printf("toggleReadRange called: startIndex=%d, count=%d", startIndex, count)
 	}
-	
+
 	if count <= 0 {
 		return
 	}
@@ -1898,11 +1897,11 @@ func (a *App) toggleReadRange(startIndex, count int) {
 	}
 
 	actualCount := len(messageIDs)
-	
+
 	if a.logger != nil {
 		a.logger.Printf("toggleReadRange: actualCount=%d, count=%d, will show (%s%d%s)", actualCount, count, a.Keys.ToggleRead, count, a.Keys.ToggleRead)
 	}
-	
+
 	// Show progress with correct VIM sequence display
 	go func() {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read status for %d messages (%s%d%s)...", actualCount, a.Keys.ToggleRead, count, a.Keys.ToggleRead))
@@ -1912,11 +1911,11 @@ func (a *App) toggleReadRange(startIndex, count int) {
 	go func() {
 		failed := 0
 		emailService, _, _, _, _, _, _, _ := a.GetServices()
-		
+
 		for i, messageID := range messageIDs {
 			// Progress update
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read %d/%d messages...", i+1, actualCount))
-			
+
 			// Determine current read status by checking message meta
 			isUnread := false
 			messageIndex := startIndex + i
@@ -1928,7 +1927,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 					}
 				}
 			}
-			
+
 			// Toggle: if unread, mark as read; if read, mark as unread
 			var err error
 			if isUnread {
@@ -1944,7 +1943,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 					a.updateCachedMessageLabels(messageID, "UNREAD", true)
 				}
 			}
-			
+
 			if err != nil {
 				failed++
 				continue
@@ -1985,7 +1984,7 @@ func (a *App) moveRange(startIndex, count int) {
 	if a.selected == nil {
 		a.selected = make(map[string]bool)
 	}
-	
+
 	// Clear previous selection and select the range
 	a.selected = make(map[string]bool)
 	for _, id := range messageIDs {
@@ -2007,7 +2006,7 @@ func (a *App) moveRange(startIndex, count int) {
 	a.openMovePanelBulk()
 }
 
-// labelRange opens label panel for a range of messages starting from startIndex  
+// labelRange opens label panel for a range of messages starting from startIndex
 func (a *App) labelRange(startIndex, count int) {
 	if count <= 0 {
 		return
@@ -2026,7 +2025,7 @@ func (a *App) labelRange(startIndex, count int) {
 	if a.selected == nil {
 		a.selected = make(map[string]bool)
 	}
-	
+
 	// Clear previous selection and select the range
 	a.selected = make(map[string]bool)
 	for _, id := range messageIDs {
@@ -2073,7 +2072,7 @@ func (a *App) slackRange(startIndex, count int) {
 	if a.selected == nil {
 		a.selected = make(map[string]bool)
 	}
-	
+
 	// Clear previous selection and select the range
 	a.selected = make(map[string]bool)
 	for _, id := range messageIDs {
@@ -2114,7 +2113,7 @@ func (a *App) obsidianRange(startIndex, count int) {
 	if a.selected == nil {
 		a.selected = make(map[string]bool)
 	}
-	
+
 	// Clear previous selection and select the range
 	a.selected = make(map[string]bool)
 	for _, id := range messageIDs {
@@ -2155,7 +2154,7 @@ func (a *App) promptRange(startIndex, count int) {
 	if a.selected == nil {
 		a.selected = make(map[string]bool)
 	}
-	
+
 	// Clear previous selection and select the range
 	a.selected = make(map[string]bool)
 	for _, id := range messageIDs {

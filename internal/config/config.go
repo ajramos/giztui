@@ -17,7 +17,7 @@ type LLMConfig struct {
 	Provider string `json:"provider"` // ollama, openai, anthropic, bedrock, custom
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint"`
-	Region   string `json:"region"`  // For AWS Bedrock
+	Region   string `json:"region"` // For AWS Bedrock
 	APIKey   string `json:"api_key"`
 	Timeout  string `json:"timeout"`
 
@@ -71,18 +71,18 @@ type Config struct {
 type SlackConfig struct {
 	// Enabled controls whether Slack integration is available
 	Enabled bool `json:"enabled"`
-	
+
 	// Channels defines the list of available Slack channels for forwarding
 	Channels []SlackChannel `json:"channels"`
-	
+
 	// Defaults specifies default behavior for email forwarding
 	Defaults SlackDefaults `json:"defaults"`
-	
+
 	// Template file path for summary prompt (relative to config dir or absolute)
 	SummaryTemplate string `json:"summary_template"`
-	
+
 	// Inline prompt override (optional - takes precedence over file)
-	// Available variables: {{body}}, {{subject}}, {{from}}, {{to}}, {{cc}}, {{bcc}}, 
+	// Available variables: {{body}}, {{subject}}, {{from}}, {{to}}, {{cc}}, {{bcc}},
 	// {{date}}, {{reply-to}}, {{message-id}}, {{in-reply-to}}, {{references}}, {{max_words}}
 	SummaryPrompt string `json:"summary_prompt,omitempty"`
 }
@@ -91,16 +91,16 @@ type SlackConfig struct {
 type SlackChannel struct {
 	// ID is a unique internal identifier for the channel
 	ID string `json:"id"`
-	
+
 	// Name is the display name shown in the UI (e.g., "team-updates", "personal-dm")
 	Name string `json:"name"`
-	
+
 	// WebhookURL is the Slack webhook URL for posting messages to this channel
 	WebhookURL string `json:"webhook_url"`
-	
+
 	// Default indicates if this channel should be pre-selected in the UI
 	Default bool `json:"default"`
-	
+
 	// Description provides optional additional context for the channel
 	Description string `json:"description"`
 }
@@ -157,19 +157,19 @@ type KeyBindings struct {
 	Attachments   string `json:"attachments"`
 	ManageLabels  string `json:"manage_labels"`
 	Quit          string `json:"quit"`
-	
+
 	// Additional configurable shortcuts
-	Obsidian      string `json:"obsidian"`      // Send to Obsidian
-	Slack         string `json:"slack"`         // Forward to Slack
-	Markdown      string `json:"markdown"`      // Toggle markdown
-	SaveMessage   string `json:"save_message"`  // Save message to file
-	SaveRaw       string `json:"save_raw"`      // Save raw EML
-	RSVP          string `json:"rsvp"`          // Toggle RSVP panel
-	LinkPicker    string `json:"link_picker"`   // Open link picker
-	BulkMode      string `json:"bulk_mode"`     // Toggle bulk mode
-	CommandMode   string `json:"command_mode"`  // Open command bar
-	Help          string `json:"help"`          // Toggle help
-	
+	Obsidian    string `json:"obsidian"`     // Send to Obsidian
+	Slack       string `json:"slack"`        // Forward to Slack
+	Markdown    string `json:"markdown"`     // Toggle markdown
+	SaveMessage string `json:"save_message"` // Save message to file
+	SaveRaw     string `json:"save_raw"`     // Save raw EML
+	RSVP        string `json:"rsvp"`         // Toggle RSVP panel
+	LinkPicker  string `json:"link_picker"`  // Open link picker
+	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
+	CommandMode string `json:"command_mode"` // Open command bar
+	Help        string `json:"help"`         // Toggle help
+
 	// VIM sequence timeouts (in milliseconds)
 	VimNavigationTimeoutMs int `json:"vim_navigation_timeout_ms"` // Timeout for gg navigation (default: 1000ms)
 	VimRangeTimeoutMs      int `json:"vim_range_timeout_ms"`      // Timeout for bulk operations like d3d (default: 2000ms)
@@ -200,13 +200,13 @@ func DefaultConfig() *Config {
 // DefaultLLMConfig returns default LLM configuration
 func DefaultLLMConfig() LLMConfig {
 	return LLMConfig{
-		Enabled:         true,
-		Provider:        "ollama",
-		Model:           "llama3.2:latest",
-		Endpoint:        "http://localhost:11434/api/generate",
-		Timeout:         "20s",
-		StreamEnabled:   true,
-		StreamChunkMs:   60,
+		Enabled:           true,
+		Provider:          "ollama",
+		Model:             "llama3.2:latest",
+		Endpoint:          "http://localhost:11434/api/generate",
+		Timeout:           "20s",
+		StreamEnabled:     true,
+		StreamChunkMs:     60,
 		CacheEnabled:      true,
 		CachePath:         "",
 		SummarizeTemplate: "templates/ai/summarize.md",
@@ -214,10 +214,10 @@ func DefaultLLMConfig() LLMConfig {
 		LabelTemplate:     "templates/ai/label.md",
 		TouchUpTemplate:   "templates/ai/touch_up.md",
 		// No inline prompts in defaults - use template files
-		SummarizePrompt:   "",
-		ReplyPrompt:       "",
-		LabelPrompt:       "",
-		TouchUpPrompt:     "",
+		SummarizePrompt: "",
+		ReplyPrompt:     "",
+		LabelPrompt:     "",
+		TouchUpPrompt:   "",
 	}
 }
 
@@ -260,19 +260,19 @@ func DefaultKeyBindings() KeyBindings {
 		Attachments:   "A",
 		ManageLabels:  "l",
 		Quit:          "q",
-		
+
 		// Additional configurable shortcuts
-		Obsidian:      "O",
-		Slack:         "K",
-		Markdown:      "M",
-		SaveMessage:   "w",
-		SaveRaw:       "W",
-		RSVP:          "V",
-		LinkPicker:    "L",
-		BulkMode:      "v",
-		CommandMode:   ":",
-		Help:          "?",
-		
+		Obsidian:    "O",
+		Slack:       "K",
+		Markdown:    "M",
+		SaveMessage: "w",
+		SaveRaw:     "W",
+		RSVP:        "V",
+		LinkPicker:  "L",
+		BulkMode:    "v",
+		CommandMode: ":",
+		Help:        "?",
+
 		// VIM sequence timeouts (in milliseconds)
 		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation
 		VimRangeTimeoutMs:      2000, // 2 seconds for bulk operations like d3d
@@ -418,17 +418,17 @@ func LoadTemplate(templatePath, inlinePrompt, fallbackPrompt string) string {
 			configDir := filepath.Dir(DefaultConfigPath())
 			fullPath = filepath.Join(configDir, templatePath)
 		}
-		
+
 		if content, err := os.ReadFile(fullPath); err == nil {
 			return strings.TrimSpace(string(content))
 		}
 	}
-	
+
 	// Second priority: Use inline prompt if provided
 	if strings.TrimSpace(inlinePrompt) != "" {
 		return inlinePrompt
 	}
-	
+
 	// Final fallback: Use provided fallback prompt
 	return fallbackPrompt
 }

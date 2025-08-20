@@ -46,7 +46,7 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 
 	// Format the statistics content
 	var content strings.Builder
-	
+
 	// Summary section
 	content.WriteString("[yellow]📊 USAGE SUMMARY[white]\n\n")
 	content.WriteString(fmt.Sprintf("[blue]Total Prompt Uses:[white] %d\n", stats.TotalUsage))
@@ -79,7 +79,7 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 			}
 
 			content.WriteString(fmt.Sprintf("[green]%d.[white] %s %s%s\n", i+1, icon, prompt.Name, favoriteIcon))
-			content.WriteString(fmt.Sprintf("    [dim]Uses: %d | Category: %s | Last: %s[white]\n", 
+			content.WriteString(fmt.Sprintf("    [dim]Uses: %d | Category: %s | Last: %s[white]\n",
 				prompt.UsageCount, prompt.Category, prompt.LastUsed))
 			content.WriteString("\n")
 		}
@@ -106,7 +106,7 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 			}
 
 			content.WriteString(fmt.Sprintf("• %s %s\n", icon, prompt.Name))
-			content.WriteString(fmt.Sprintf("  [dim]Uses: %d | Category: %s[white]\n", 
+			content.WriteString(fmt.Sprintf("  [dim]Uses: %d | Category: %s[white]\n",
 				prompt.UsageCount, prompt.Category))
 		}
 		content.WriteString("\n")

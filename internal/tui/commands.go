@@ -246,113 +246,113 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 
 	// First-level suggestions
 	commands := map[string][]string{
-		"/":       {"/"},
-		"l":       {"labels", "links", "list"},
-		"la":      {"labels"},
-		"lab":     {"labels"},
-		"labe":    {"labels"},
-		"label":   {"labels"},
-		"labels":  {"labels"},
-		"li":      {"links"},
-		"lin":     {"links"},
-		"link":    {"links"},
-		"links":   {"links"},
-		"s":       {"search", "slack"},
-		"sl":      {"slack"},
-		"sla":     {"slack"},
-		"slac":    {"slack"},
-		"slack":   {"slack"},
-		"se":      {"search"},
-		"sea":     {"search"},
-		"sear":    {"search"},
-		"searc":   {"search"},
-		"search":  {"search"},
-		"i":       {"inbox"},
-		"in":      {"inbox"},
-		"inb":     {"inbox"},
-		"inbo":    {"inbox"},
-		"inbox":   {"inbox"},
-		"c":       {"compose"},
-		"co":      {"compose"},
-		"com":     {"compose"},
-		"comp":    {"compose"},
-		"compo":   {"compose"},
-		"compos":  {"compose"},
-		"compose": {"compose"},
-		"h":       {"help"},
-		"he":      {"help"},
-		"hel":     {"help"},
-		"help":    {"help"},
-		"n":       {"numbers"},
-		"nu":      {"numbers"},
-		"num":     {"numbers"},
-		"numb":    {"numbers"},
-		"numbe":   {"numbers"},
-		"number":  {"numbers"},
-		"numbers": {"numbers"},
-		"q":       {"quit"},
-		"qu":      {"quit"},
-		"qui":     {"quit"},
-		"quit":    {"quit"},
-		"g":       {"G"},
-		"G":       {"G"},
-		"1":       {"1"},
-		"$":       {"$"},
-		"5":       {"5"},
-		"10":      {"10"},
-		"st":      {"stats"},
-		"sta":     {"stats"},
-		"stat":    {"stats"},
-		"stats":   {"stats"},
-		"u":       {"usage"},
-		"us":      {"usage"},
-		"usa":     {"usage"},
-		"usag":    {"usage"},
-		"usage":   {"usage"},
-		"sel":     {"select"},
-		"sele":    {"select"},
-		"selec":   {"select"},
-		"select":  {"select"},
-		"m":       {"move"},
-		"mo":      {"move"},
-		"mov":     {"move"},
-		"move":    {"move"},
-		"mv":      {"move"},
-		"lbl":     {"label"},
-		"o":       {"obsidian"},
-		"ob":      {"obsidian"},
-		"obs":     {"obsidian"},
-		"obsi":    {"obsidian"},
-		"obsid":   {"obsidian"},
-		"obsidi":  {"obsidian"},
-		"obsidian": {"obsidian"},
-		"p":       {"prompt"},
-		"pr":      {"prompt"},
-		"pro":     {"prompt"},
-		"prom":    {"prompt"},
-		"promp":   {"prompt"},
-		"prompt":  {"prompt"},
-		"a":       {"archive"},
-		"ar":      {"archive"},
-		"arc":     {"archive"},
-		"arch":    {"archive"},
-		"archi":   {"archive"},
-		"archiv":  {"archive"},
-		"archive": {"archive"},
-		"d":       {"trash"},
-		"tr":      {"trash"},
-		"tra":     {"trash"},
-		"tras":    {"trash"},
-		"trash":   {"trash"},
-		"t":       {"read"},
-		"re":      {"read"},
-		"rea":     {"read"},
-		"read":    {"read"},
-		"toggle":  {"read"},
-		"toggle-": {"read"},
-		"toggle-r": {"read"},
-		"toggle-re": {"read"},
-		"toggle-rea": {"read"},
+		"/":           {"/"},
+		"l":           {"labels", "links", "list"},
+		"la":          {"labels"},
+		"lab":         {"labels"},
+		"labe":        {"labels"},
+		"label":       {"labels"},
+		"labels":      {"labels"},
+		"li":          {"links"},
+		"lin":         {"links"},
+		"link":        {"links"},
+		"links":       {"links"},
+		"s":           {"search", "slack"},
+		"sl":          {"slack"},
+		"sla":         {"slack"},
+		"slac":        {"slack"},
+		"slack":       {"slack"},
+		"se":          {"search"},
+		"sea":         {"search"},
+		"sear":        {"search"},
+		"searc":       {"search"},
+		"search":      {"search"},
+		"i":           {"inbox"},
+		"in":          {"inbox"},
+		"inb":         {"inbox"},
+		"inbo":        {"inbox"},
+		"inbox":       {"inbox"},
+		"c":           {"compose"},
+		"co":          {"compose"},
+		"com":         {"compose"},
+		"comp":        {"compose"},
+		"compo":       {"compose"},
+		"compos":      {"compose"},
+		"compose":     {"compose"},
+		"h":           {"help"},
+		"he":          {"help"},
+		"hel":         {"help"},
+		"help":        {"help"},
+		"n":           {"numbers"},
+		"nu":          {"numbers"},
+		"num":         {"numbers"},
+		"numb":        {"numbers"},
+		"numbe":       {"numbers"},
+		"number":      {"numbers"},
+		"numbers":     {"numbers"},
+		"q":           {"quit"},
+		"qu":          {"quit"},
+		"qui":         {"quit"},
+		"quit":        {"quit"},
+		"g":           {"G"},
+		"G":           {"G"},
+		"1":           {"1"},
+		"$":           {"$"},
+		"5":           {"5"},
+		"10":          {"10"},
+		"st":          {"stats"},
+		"sta":         {"stats"},
+		"stat":        {"stats"},
+		"stats":       {"stats"},
+		"u":           {"usage"},
+		"us":          {"usage"},
+		"usa":         {"usage"},
+		"usag":        {"usage"},
+		"usage":       {"usage"},
+		"sel":         {"select"},
+		"sele":        {"select"},
+		"selec":       {"select"},
+		"select":      {"select"},
+		"m":           {"move"},
+		"mo":          {"move"},
+		"mov":         {"move"},
+		"move":        {"move"},
+		"mv":          {"move"},
+		"lbl":         {"label"},
+		"o":           {"obsidian"},
+		"ob":          {"obsidian"},
+		"obs":         {"obsidian"},
+		"obsi":        {"obsidian"},
+		"obsid":       {"obsidian"},
+		"obsidi":      {"obsidian"},
+		"obsidian":    {"obsidian"},
+		"p":           {"prompt"},
+		"pr":          {"prompt"},
+		"pro":         {"prompt"},
+		"prom":        {"prompt"},
+		"promp":       {"prompt"},
+		"prompt":      {"prompt"},
+		"a":           {"archive"},
+		"ar":          {"archive"},
+		"arc":         {"archive"},
+		"arch":        {"archive"},
+		"archi":       {"archive"},
+		"archiv":      {"archive"},
+		"archive":     {"archive"},
+		"d":           {"trash"},
+		"tr":          {"trash"},
+		"tra":         {"trash"},
+		"tras":        {"trash"},
+		"trash":       {"trash"},
+		"t":           {"read"},
+		"re":          {"read"},
+		"rea":         {"read"},
+		"read":        {"read"},
+		"toggle":      {"read"},
+		"toggle-":     {"read"},
+		"toggle-r":    {"read"},
+		"toggle-re":   {"read"},
+		"toggle-rea":  {"read"},
 		"toggle-read": {"read"},
 	}
 
@@ -514,7 +514,7 @@ func (a *App) executeSlackCommand(args []string) {
 	}
 
 	var messageID string
-	
+
 	// Handle optional message number argument
 	if len(args) > 0 {
 		// Parse message number (1-based like :5 command)
@@ -524,18 +524,18 @@ func (a *App) executeSlackCommand(args []string) {
 				a.showError("No messages loaded")
 				return
 			}
-			
+
 			// Convert 1-based user input to 0-based array index
 			maxMessage := len(a.ids)
 			if num > maxMessage {
 				a.showError(fmt.Sprintf("Message %d not found (only %d messages loaded)", num, maxMessage))
 				return
 			}
-			
+
 			// Get message ID from the specified position
 			messageIndex := num - 1 // Convert to 0-based index
 			messageID = a.ids[messageIndex]
-			
+
 			// Also select the message in the UI for consistency
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.Select(messageIndex, 0)
@@ -553,7 +553,7 @@ func (a *App) executeSlackCommand(args []string) {
 		}
 	}
 
-	// Show the Slack forwarding panel  
+	// Show the Slack forwarding panel
 	// Ensure proper focus management like keyboard shortcut
 	go a.showSlackForwardDialog()
 }
@@ -628,20 +628,20 @@ func (a *App) executeContentSearch(args []string) {
 		a.showError("Content search not available")
 		return
 	}
-	
+
 	query := strings.Join(args, " ")
 	if query == "" {
 		a.showError("Usage: /<term> for content search")
 		return
 	}
-	
+
 	// Use the enhanced text view's search functionality
 	a.enhancedTextView.performContentSearch(query)
-	
+
 	// CRITICAL: Set a flag to prevent restoreFocusAfterModal from overriding our focus
 	// We'll set focus to EnhancedTextView immediately after command execution
 	a.cmdFocusOverride = "enhanced-text"
-	
+
 	// DEBUGGING: Also try direct focus setting as backup
 	go func() {
 		// Wait for command bar to close, then force focus to EnhancedTextView
@@ -661,7 +661,7 @@ func (a *App) executeContentSearch(args []string) {
 	}()
 }
 
-// executeSearchCommand handles email search commands  
+// executeSearchCommand handles email search commands
 func (a *App) executeSearchCommand(args []string) {
 	if len(args) == 0 {
 		a.showError("Usage: search <query>")
@@ -899,7 +899,7 @@ func (a *App) executeCacheInfo(args []string) {
 func (a *App) executeNumbersCommand(args []string) {
 	// Toggle the display of message numbers
 	a.showMessageNumbers = !a.showMessageNumbers
-	
+
 	// Trigger UI redraw in a goroutine to avoid hanging
 	go func() {
 		a.reformatListItems()
@@ -920,24 +920,24 @@ func (a *App) executeArchiveCommand(args []string) {
 			a.showError("Usage: archive [count] (positive number)")
 			return
 		}
-		
+
 		// Get current position
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("Could not access message list")
 			return
 		}
-		
+
 		startIndex, _ := list.GetSelection()
 		if startIndex < 0 || startIndex >= len(a.ids) {
 			a.showError("No message selected")
 			return
 		}
-		
+
 		a.archiveRange(startIndex, count)
 		return
 	}
-	
+
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.archiveSelectedBulk()
@@ -946,7 +946,7 @@ func (a *App) executeArchiveCommand(args []string) {
 	}
 }
 
-// executeTrashCommand handles :trash/:d commands  
+// executeTrashCommand handles :trash/:d commands
 func (a *App) executeTrashCommand(args []string) {
 	// Check if count argument provided for range operation
 	if len(args) > 0 {
@@ -955,24 +955,24 @@ func (a *App) executeTrashCommand(args []string) {
 			a.showError("Usage: trash [count] (positive number)")
 			return
 		}
-		
+
 		// Get current position
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("Could not access message list")
 			return
 		}
-		
+
 		startIndex, _ := list.GetSelection()
 		if startIndex < 0 || startIndex >= len(a.ids) {
 			a.showError("No message selected")
 			return
 		}
-		
+
 		a.trashRange(startIndex, count)
 		return
 	}
-	
+
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.trashSelectedBulk()
@@ -990,24 +990,24 @@ func (a *App) executeToggleReadCommand(args []string) {
 			a.showError("Usage: read [count] (positive number)")
 			return
 		}
-		
+
 		// Get current position
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("Could not access message list")
 			return
 		}
-		
+
 		startIndex, _ := list.GetSelection()
 		if startIndex < 0 || startIndex >= len(a.ids) {
 			a.showError("No message selected")
 			return
 		}
-		
+
 		a.toggleReadRange(startIndex, count)
 		return
 	}
-	
+
 	// Check if we're in bulk mode with selections
 	if a.bulkMode && len(a.selected) > 0 {
 		go a.toggleMarkReadUnreadBulk()
@@ -1030,7 +1030,7 @@ func (a *App) executeRefreshCommand(args []string) {
 	}
 }
 
-// executeUnreadCommand handles :unread/:u commands  
+// executeUnreadCommand handles :unread/:u commands
 func (a *App) executeUnreadCommand(args []string) {
 	go a.listUnreadMessages()
 }
@@ -1041,26 +1041,26 @@ func (a *App) executeSelectCommand(args []string) {
 		a.showError("Usage: select <count>")
 		return
 	}
-	
+
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
 		a.showError("Usage: select <count> (positive number)")
 		return
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.showError("No message selected")
 		return
 	}
-	
+
 	a.selectRange(startIndex, count)
 }
 
@@ -1070,26 +1070,26 @@ func (a *App) executeMoveCommand(args []string) {
 		a.showError("Usage: move <count>")
 		return
 	}
-	
+
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
 		a.showError("Usage: move <count> (positive number)")
 		return
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.showError("No message selected")
 		return
 	}
-	
+
 	a.moveRange(startIndex, count)
 }
 
@@ -1099,55 +1099,55 @@ func (a *App) executeLabelCommand(args []string) {
 		a.showError("Usage: label <count>")
 		return
 	}
-	
+
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
 		a.showError("Usage: label <count> (positive number)")
 		return
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.showError("No message selected")
 		return
 	}
-	
+
 	a.labelRange(startIndex, count)
 }
 
-// executeObsidianCommand handles :obsidian commands for range Obsidian operations  
+// executeObsidianCommand handles :obsidian commands for range Obsidian operations
 func (a *App) executeObsidianCommand(args []string) {
 	if len(args) == 0 {
 		a.showError("Usage: obsidian <count>")
 		return
 	}
-	
+
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
 		a.showError("Usage: obsidian <count> (positive number)")
 		return
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.showError("No message selected")
 		return
 	}
-	
+
 	a.obsidianRange(startIndex, count)
 }
 
@@ -1157,25 +1157,25 @@ func (a *App) executePromptCommand(args []string) {
 		a.showError("Usage: prompt <count>")
 		return
 	}
-	
+
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
 		a.showError("Usage: prompt <count> (positive number)")
 		return
 	}
-	
+
 	// Get current position
 	list, ok := a.views["list"].(*tview.Table)
 	if !ok {
 		a.showError("Could not access message list")
 		return
 	}
-	
+
 	startIndex, _ := list.GetSelection()
 	if startIndex < 0 || startIndex >= len(a.ids) {
 		a.showError("No message selected")
 		return
 	}
-	
+
 	a.promptRange(startIndex, count)
 }

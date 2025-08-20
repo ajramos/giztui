@@ -13,18 +13,18 @@ import (
 // EnhancedTextView wraps tview.TextView with content navigation and search capabilities
 type EnhancedTextView struct {
 	*tview.TextView
-	
+
 	// Services
 	contentNavService services.ContentNavigationService
-	
+
 	// Content and search state
-	content            string
+	content             string
 	currentSearchResult *services.ContentSearchResult
-	currentMatchIndex  int  // Current match being highlighted
-	
+	currentMatchIndex   int // Current match being highlighted
+
 	// Navigation state
-	currentPosition    int  // Current cursor position in content
-	
+	currentPosition int // Current cursor position in content
+
 	// App reference for keyboard config and error handling
 	app *App
 }
@@ -35,18 +35,18 @@ func NewEnhancedTextView(app *App) *EnhancedTextView {
 		SetDynamicColors(true).
 		SetWrap(true).
 		SetScrollable(true)
-		
+
 	enhanced := &EnhancedTextView{
 		TextView:          textView,
 		contentNavService: nil, // Will be lazily initialized
-		app:              app,
+		app:               app,
 		currentPosition:   0,
 		currentMatchIndex: -1,
 	}
-	
+
 	// Set up input capture for content navigation
 	enhanced.setupInputCapture()
-	
+
 	return enhanced
 }
 
@@ -90,56 +90,56 @@ func (e *EnhancedTextView) setupInputCapture() {
 		if e.app.currentFocus != "text" {
 			return event
 		}
-		
+
 		key := event.Key()
 		char := event.Rune()
-		
+
 		// Handle different key combinations
 		switch {
 		// Content search: /
 		case char == '/' && e.app.Keys.ContentSearch == "/":
 			e.startContentSearchCommand()
 			return nil
-			
+
 		// Search next: n
 		case char == 'n' && e.app.Keys.SearchNext == "n":
 			e.searchNext()
 			return nil
-			
+
 		// Search previous: N
 		case char == 'N' && e.app.Keys.SearchPrev == "N":
 			e.searchPrevious()
 			return nil
-			
+
 		// Fast navigation up: Ctrl+K
 		case key == tcell.KeyCtrlK && e.app.Keys.FastUp == "ctrl+k":
 			e.fastNavigateUp()
 			return nil
-			
+
 		// Fast navigation down: Ctrl+J
 		case key == tcell.KeyCtrlJ && e.app.Keys.FastDown == "ctrl+j":
 			e.fastNavigateDown()
 			return nil
-			
+
 		// Word navigation left: Ctrl+H
 		case key == tcell.KeyCtrlH && e.app.Keys.WordLeft == "ctrl+h":
 			e.wordNavigateLeft()
 			return nil
-			
-		// Word navigation right: Ctrl+L  
+
+		// Word navigation right: Ctrl+L
 		case key == tcell.KeyCtrlL && e.app.Keys.WordRight == "ctrl+l":
 			e.wordNavigateRight()
 			return nil
-			
+
 		// Note: VIM navigation (gg, G) is handled at App level in handleVimNavigation
 		// These keys are not handled here to avoid conflicts
-			
+
 		// ESC key: clear search highlights
 		case key == tcell.KeyEscape:
 			e.clearSearch()
 			// Don't return nil - let ESC propagate for other handlers
 		}
-		
+
 		// Return the event to allow normal text view navigation
 		return event
 	})
@@ -153,14 +153,14 @@ func (e *EnhancedTextView) startContentSearchCommand() {
 		}()
 		return
 	}
-	
+
 	if e.content == "" {
 		go func() {
 			e.app.GetErrorHandler().ShowWarning(context.Background(), "No content to search")
 		}()
 		return
 	}
-	
+
 	// Open command bar with content search prefix - using "/" for content search
 	e.app.showCommandBarWithPrefix("/")
 }
@@ -168,26 +168,26 @@ func (e *EnhancedTextView) startContentSearchCommand() {
 // openContentSearchOverlay creates a search overlay for content search
 func (e *EnhancedTextView) openContentSearchOverlay() {
 	title := "🔍 Search Content"
-	
+
 	// Create input field for search query
 	input := tview.NewInputField().
 		SetLabel("🔍 ").
 		SetLabelColor(tcell.ColorYellow).
 		SetFieldWidth(0).
 		SetPlaceholder("Enter search term...")
-	
+
 	// Store input reference for cleanup
 	e.app.views["contentSearchInput"] = input
-	
+
 	// Create help text
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
 	help.SetTextColor(tcell.ColorGray)
 	help.SetText("Enter=search, ESC=cancel | After search: n=next, N=previous")
-	
+
 	// Create the overlay container
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
 	box.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
-	
+
 	// Layout: spacer, input, help, spacer
 	topSpacer := tview.NewBox()
 	bottomSpacer := tview.NewBox()
@@ -195,7 +195,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 	box.AddItem(input, 1, 0, true)
 	box.AddItem(help, 1, 0, false)
 	box.AddItem(bottomSpacer, 0, 1, false)
-	
+
 	// Set up input handling
 	input.SetDoneFunc(func(key tcell.Key) {
 		switch key {
@@ -209,7 +209,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 			e.closeContentSearchOverlay()
 		}
 	})
-	
+
 	// Handle input capture for additional controls
 	input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
@@ -218,22 +218,22 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 		}
 		return event
 	})
-	
+
 	// Show the overlay by adding it to the content split area temporarily
 	if split, ok := e.app.views["contentSplit"].(*tview.Flex); ok {
 		// Store the current labels view if any
 		e.app.previousFocus = e.app.currentFocus
-		
+
 		// Hide any existing side panels
 		if e.app.labelsVisible && e.app.labelsView != nil {
 			split.RemoveItem(e.app.labelsView)
 		}
-		
+
 		// Add the search overlay
 		e.app.labelsView = box
 		split.AddItem(e.app.labelsView, 0, 1, true)
 		split.ResizeItem(e.app.labelsView, 0, 1)
-		
+
 		// Set focus and update state
 		e.app.currentFocus = "contentSearch"
 		e.app.labelsVisible = true
@@ -250,14 +250,14 @@ func (e *EnhancedTextView) searchNext() {
 		}()
 		return
 	}
-	
+
 	if e.currentSearchResult == nil || e.currentSearchResult.MatchCount == 0 {
 		go func() {
 			e.app.GetErrorHandler().ShowWarning(context.Background(), "No active search - use / to search")
 		}()
 		return
 	}
-	
+
 	ctx := context.Background()
 	nextPos, err := e.getContentNavService().FindNextMatch(ctx, e.currentSearchResult, e.currentPosition)
 	if err != nil {
@@ -266,7 +266,7 @@ func (e *EnhancedTextView) searchNext() {
 		}()
 		return
 	}
-	
+
 	if nextPos != -1 {
 		e.currentPosition = nextPos
 		e.updateMatchIndex()
@@ -283,14 +283,14 @@ func (e *EnhancedTextView) searchPrevious() {
 		}()
 		return
 	}
-	
+
 	if e.currentSearchResult == nil || e.currentSearchResult.MatchCount == 0 {
 		go func() {
 			e.app.GetErrorHandler().ShowWarning(context.Background(), "No active search - use / to search")
 		}()
 		return
 	}
-	
+
 	ctx := context.Background()
 	prevPos, err := e.getContentNavService().FindPreviousMatch(ctx, e.currentSearchResult, e.currentPosition)
 	if err != nil {
@@ -299,7 +299,7 @@ func (e *EnhancedTextView) searchPrevious() {
 		}()
 		return
 	}
-	
+
 	if prevPos != -1 {
 		e.currentPosition = prevPos
 		e.updateMatchIndex()
@@ -313,13 +313,13 @@ func (e *EnhancedTextView) fastNavigateUp() {
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	ctx := context.Background()
-	
+
 	if e.app.logger != nil {
 		e.app.logger.Printf("FAST NAV UP: currentPosition=%d, contentLength=%d", e.currentPosition, len(e.content))
 	}
-	
+
 	prevParagraph, err := e.getContentNavService().FindPreviousParagraph(ctx, e.content, e.currentPosition)
 	if err != nil {
 		if e.app.logger != nil {
@@ -327,20 +327,20 @@ func (e *EnhancedTextView) fastNavigateUp() {
 		}
 		return
 	}
-	
+
 	if e.app.logger != nil {
 		e.app.logger.Printf("FAST NAV UP: FindPreviousParagraph returned %d", prevParagraph)
 	}
-	
+
 	if prevParagraph != e.currentPosition {
 		oldPos := e.currentPosition
 		e.currentPosition = prevParagraph
 		e.scrollToPosition(prevParagraph)
-		
+
 		// Get line numbers for better feedback
 		oldLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, oldPos)
 		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, prevParagraph)
-		
+
 		go func() {
 			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("↑ Paragraph up (line %d → %d)", oldLine, newLine))
 		}()
@@ -357,13 +357,13 @@ func (e *EnhancedTextView) fastNavigateDown() {
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	ctx := context.Background()
 	nextParagraph, err := e.getContentNavService().FindNextParagraph(ctx, e.content, e.currentPosition)
 	if err != nil {
 		return
 	}
-	
+
 	if nextParagraph != e.currentPosition {
 		e.currentPosition = nextParagraph
 		e.scrollToPosition(nextParagraph)
@@ -378,7 +378,7 @@ func (e *EnhancedTextView) wordNavigateLeft() {
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	ctx := context.Background()
 	prevWord, err := e.getContentNavService().FindPreviousWord(ctx, e.content, e.currentPosition)
 	if err != nil {
@@ -387,14 +387,14 @@ func (e *EnhancedTextView) wordNavigateLeft() {
 		}
 		return
 	}
-	
+
 	if prevWord != e.currentPosition {
 		e.currentPosition = prevWord
 		e.scrollToPosition(prevWord)
-		
+
 		// Get line for better feedback
 		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, prevWord)
-		
+
 		// Show brief feedback with current position
 		go func() {
 			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("← Word (line %d)", newLine))
@@ -411,7 +411,7 @@ func (e *EnhancedTextView) wordNavigateRight() {
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	ctx := context.Background()
 	nextWord, err := e.getContentNavService().FindNextWord(ctx, e.content, e.currentPosition)
 	if err != nil {
@@ -420,14 +420,14 @@ func (e *EnhancedTextView) wordNavigateRight() {
 		}
 		return
 	}
-	
+
 	if nextWord != e.currentPosition {
 		e.currentPosition = nextWord
 		e.scrollToPosition(nextWord)
-		
+
 		// Get line for better feedback
 		newLine, _ := e.getContentNavService().GetLineFromPosition(ctx, e.content, nextWord)
-		
+
 		// Show brief feedback with current position
 		go func() {
 			e.app.GetErrorHandler().ShowInfo(ctx, fmt.Sprintf("→ Word (line %d)", newLine))
@@ -470,23 +470,23 @@ func (e *EnhancedTextView) gotoBottom() {
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	contentLength := e.getContentNavService().GetContentLength(context.Background(), e.content)
 	oldPos := e.currentPosition
-	
+
 	// Set position to the last actual character, not past the end
 	if contentLength > 0 {
 		e.currentPosition = contentLength - 1
 	} else {
 		e.currentPosition = 0
 	}
-	
+
 	e.scrollToPosition(e.currentPosition)
-	
+
 	if e.app.logger != nil {
 		e.app.logger.Printf("GOTO BOTTOM: position %d → %d (contentLength=%d)", oldPos, e.currentPosition, contentLength)
 	}
-	
+
 	// Also scroll to the actual last line of the TextView for better UX
 	lines := len(strings.Split(e.content, "\n"))
 	if lines > 0 {
@@ -495,7 +495,7 @@ func (e *EnhancedTextView) gotoBottom() {
 			e.app.logger.Printf("GOTO BOTTOM: Scrolled TextView to end, total lines=%d", lines)
 		}
 	}
-	
+
 	go func() {
 		e.app.GetErrorHandler().ShowInfo(context.Background(), fmt.Sprintf("Bottom of content (pos %d)", e.currentPosition))
 	}()
@@ -519,17 +519,17 @@ func (e *EnhancedTextView) scrollToPosition(position int) {
 	if position < 0 || position > len(e.content) {
 		return
 	}
-	
+
 	if !e.hasContentNavService() {
 		return // Fail silently for navigation functions
 	}
-	
+
 	ctx := context.Background()
 	line, err := e.getContentNavService().GetLineFromPosition(ctx, e.content, position)
 	if err != nil {
 		return
 	}
-	
+
 	// Scroll to the line (tview uses 0-based indexing)
 	e.TextView.ScrollTo(line-1, 0)
 }
@@ -539,7 +539,7 @@ func (e *EnhancedTextView) updateMatchIndex() {
 	if e.currentSearchResult == nil {
 		return
 	}
-	
+
 	for i, pos := range e.currentSearchResult.Matches {
 		if pos == e.currentPosition {
 			e.currentMatchIndex = i
@@ -553,13 +553,13 @@ func (e *EnhancedTextView) showMatchStatus() {
 	if e.currentSearchResult == nil || e.currentSearchResult.MatchCount == 0 {
 		return
 	}
-	
+
 	matchNum := e.currentMatchIndex + 1
 	totalMatches := e.currentSearchResult.MatchCount
 	query := e.currentSearchResult.Query
-	
+
 	go func() {
-		e.app.GetErrorHandler().ShowInfo(context.Background(), 
+		e.app.GetErrorHandler().ShowInfo(context.Background(),
 			fmt.Sprintf("Match %d/%d for '%s'", matchNum, totalMatches, query))
 	}()
 }
@@ -571,21 +571,21 @@ func (e *EnhancedTextView) closeContentSearchOverlay() {
 		if e.app.labelsView != nil {
 			split.RemoveItem(e.app.labelsView)
 		}
-		
+
 		// Clear the search overlay state
 		e.app.labelsView = nil
 		e.app.labelsVisible = false
-		
+
 		// Restore focus to the text view
 		e.app.currentFocus = e.app.previousFocus
 		if e.app.currentFocus == "" {
 			e.app.currentFocus = "text"
 		}
-		
+
 		// Update focus indicators and set focus
 		e.app.updateFocusIndicators(e.app.currentFocus)
 		e.app.SetFocus(e.TextView)
-		
+
 		// Clean up the input reference
 		delete(e.app.views, "contentSearchInput")
 	}
@@ -599,7 +599,7 @@ func (e *EnhancedTextView) performContentSearch(query string) {
 		}()
 		return
 	}
-	
+
 	if query == "" {
 		go func() {
 			e.app.GetErrorHandler().ShowWarning(context.Background(), "Empty search query")
@@ -608,7 +608,7 @@ func (e *EnhancedTextView) performContentSearch(query string) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Perform the search using the content navigation service
 	searchResult, err := e.getContentNavService().SearchContent(ctx, e.content, query, false) // Default to case insensitive
 	if err != nil {
@@ -642,16 +642,16 @@ func (e *EnhancedTextView) performContentSearch(query string) {
 		e.currentPosition = firstMatch
 		e.updateMatchIndex()
 		e.scrollToPosition(firstMatch)
-		
+
 		// Highlight the search results in the content
 		e.highlightSearchResults(query, searchResult.Matches)
-		
+
 		// Show search status
 		go func() {
-			e.app.GetErrorHandler().ShowSuccess(ctx, 
+			e.app.GetErrorHandler().ShowSuccess(ctx,
 				fmt.Sprintf("Found %d matches for '%s'", searchResult.MatchCount, query))
 		}()
-		
+
 		// Show current match status
 		e.showMatchStatus()
 	}
@@ -666,22 +666,22 @@ func (e *EnhancedTextView) highlightSearchResults(query string, matches []int) {
 	// Create highlighted content with tview color tags
 	highlightedContent := e.content
 	queryLen := len(query)
-	
+
 	// Process matches in reverse order to avoid position shifts
 	for i := len(matches) - 1; i >= 0; i-- {
 		pos := matches[i]
 		if pos+queryLen <= len(e.content) {
 			// Extract the actual text at this position (preserve original case)
 			actualText := e.content[pos : pos+queryLen]
-			
+
 			// Wrap with tview highlight colors
 			highlighted := fmt.Sprintf("[black:yellow:b]%s[white:-:-]", actualText)
-			
+
 			// Replace in the content
 			highlightedContent = highlightedContent[:pos] + highlighted + highlightedContent[pos+queryLen:]
 		}
 	}
-	
+
 	// Update the text view with highlighted content
 	e.TextView.SetText(highlightedContent)
 }

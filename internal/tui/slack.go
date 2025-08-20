@@ -105,7 +105,7 @@ func (a *App) populateSlackPanel(messageID string) {
 	}
 
 	channelList := a.createSlackPanel(messageID, channels)
-	
+
 	// Set focus after panel is fully created and populated
 	a.SetFocus(channelList)
 }
@@ -133,7 +133,7 @@ func (a *App) populateSlackBulkPanel() {
 
 	messageCount := len(a.selected)
 	channelList := a.createSlackBulkPanel(messageCount, channels)
-	
+
 	// Set focus after panel is fully created and populated
 	a.SetFocus(channelList)
 }
@@ -171,7 +171,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Add spacing between optional message and instructions
 	spacer := tview.NewTextView()
 	spacer.SetText("\n")
-	
+
 	// Instructions
 	instructions := tview.NewTextView()
 	instructions.SetText("Enter to Send | Esc to Close")
@@ -182,7 +182,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	channelList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 		selectedChannel := channels[index]
 		userMessage := strings.TrimSpace(userMessageInput.GetText())
-		
+
 		options := services.SlackForwardOptions{
 			ChannelID:   selectedChannel.ID,
 			WebhookURL:  selectedChannel.WebhookURL,
@@ -192,7 +192,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 		}
 
 		a.forwardEmailToSlack(messageID, options)
-		
+
 		// Hide the Slack panel
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.slackView, 0, 0)
@@ -211,7 +211,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 			if index >= 0 && index < len(channels) {
 				selectedChannel := channels[index]
 				userMessage := strings.TrimSpace(userMessageInput.GetText())
-				
+
 				options := services.SlackForwardOptions{
 					ChannelID:   selectedChannel.ID,
 					WebhookURL:  selectedChannel.WebhookURL,
@@ -221,7 +221,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 				}
 
 				a.forwardEmailToSlack(messageID, options)
-				
+
 				// Hide the Slack panel
 				a.hideSlackPanel()
 			}
@@ -305,7 +305,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	channelList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 		selectedChannel := channels[index]
 		userMessage := strings.TrimSpace(userMessageInput.GetText())
-		
+
 		options := services.SlackForwardOptions{
 			ChannelID:   selectedChannel.ID,
 			WebhookURL:  selectedChannel.WebhookURL,
@@ -315,7 +315,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 		}
 
 		a.forwardBulkEmailsToSlack(options)
-		
+
 		// Hide the Slack panel
 		a.hideSlackPanel()
 	})
@@ -328,7 +328,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 			if index >= 0 && index < len(channels) {
 				selectedChannel := channels[index]
 				userMessage := strings.TrimSpace(userMessageInput.GetText())
-				
+
 				options := services.SlackForwardOptions{
 					ChannelID:   selectedChannel.ID,
 					WebhookURL:  selectedChannel.WebhookURL,
@@ -338,7 +338,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 				}
 
 				a.forwardBulkEmailsToSlack(options)
-				
+
 				// Hide the Slack panel
 				a.hideSlackPanel()
 			}
@@ -384,7 +384,6 @@ func (a *App) hideSlackPanel() {
 	a.updateFocusIndicators("text")
 }
 
-
 // forwardEmailToSlack forwards the email using the Slack service
 func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwardOptions) {
 	slackService := a.GetSlackService()
@@ -426,7 +425,7 @@ func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwar
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to forward email to Slack: %v", err))
 			return
 		}
-		
+
 		// Show success message
 		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Email forwarded to #%s", options.ChannelName))
 	}()
@@ -461,14 +460,14 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 	// Process bulk forwarding in background
 	go func() {
 		failed := 0
-		
+
 		for i, messageID := range messageIDs {
 			// Update progress
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Forwarding %d/%d to #%s...", i+1, messageCount, options.ChannelName))
-			
+
 			// Create a copy of options for this specific message
 			messageOptions := options
-			
+
 			// For "full" format, get the TUI-processed content for this specific message
 			if options.FormatStyle == "full" {
 				if cached, ok := a.messageCache[messageID]; ok {
@@ -487,7 +486,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 					}
 				}
 			}
-			
+
 			err := slackService.ForwardEmail(a.ctx, messageID, messageOptions)
 			if err != nil {
 				failed++
@@ -521,14 +520,14 @@ func (a *App) cleanContentForSlack(content string) string {
 	// Remove tview color markup like [red], [yellow], etc.
 	// Simple regex-based cleanup for common tview markup patterns
 	cleaned := content
-	
+
 	// Remove tview color tags [color] and [color:background]
 	colorRegex := regexp.MustCompile(`\[[a-zA-Z0-9#:]*\]`)
 	cleaned = colorRegex.ReplaceAllString(cleaned, "")
-	
+
 	// Remove ANSI escape sequences if any
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	cleaned = ansiRegex.ReplaceAllString(cleaned, "")
-	
+
 	return strings.TrimSpace(cleaned)
 }

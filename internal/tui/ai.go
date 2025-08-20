@@ -180,7 +180,7 @@ func (a *App) closeAISummary() {
 	}
 	a.aiSummaryVisible = false
 	a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
-	
+
 	// Cancel any active streaming operations when hiding panel
 	if a.streamingCancel != nil {
 		a.streamingCancel()
@@ -314,7 +314,6 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 			MessageID:       id,
 			AccountEmail:    accountEmail,
 		}
-		
 
 		// Use streaming summary generation if enabled
 		var finalResult string

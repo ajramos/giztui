@@ -148,7 +148,7 @@ func (ps *PromptStore) SaveBulkPromptResult(ctx context.Context, accountEmail, c
 	}
 
 	messageIDsStr := strings.Join(messageIDs, ",")
-	
+
 	_, err := ps.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO bulk_prompt_results (account_email, cache_key, prompt_id, message_count, message_ids, result_text, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,

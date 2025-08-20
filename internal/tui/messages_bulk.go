@@ -42,10 +42,10 @@ func (a *App) archiveSelectedBulk() {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
 		})
-		
+
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		
+
 		// Small delay to ensure progress message is fully cleared before showing final status
 		go func() {
 			time.Sleep(100 * time.Millisecond)
@@ -89,10 +89,10 @@ func (a *App) trashSelectedBulk() {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
 		})
-		
+
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		
+
 		// Small delay to ensure progress message is fully cleared before showing final status
 		go func() {
 			time.Sleep(100 * time.Millisecond)
@@ -110,13 +110,13 @@ func (a *App) toggleMarkReadUnreadBulk() {
 	if len(a.selected) == 0 {
 		return
 	}
-	
+
 	// Snapshot selection
 	ids := make([]string, 0, len(a.selected))
 	for id := range a.selected {
 		ids = append(ids, id)
 	}
-	
+
 	// Determine the action by checking the majority state of selected messages
 	// If majority are unread, mark all as read. If majority are read, mark all as unread.
 	unreadCount := 0
@@ -135,20 +135,20 @@ func (a *App) toggleMarkReadUnreadBulk() {
 			}
 		}
 	}
-	
+
 	// Decide action: if majority are unread, mark all as read; otherwise mark all as unread
 	markAsUnread := unreadCount <= len(ids)/2
 	action := "read"
 	if markAsUnread {
 		action = "unread"
 	}
-	
+
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Marking %d message(s) as %s…", len(ids), action))
-	
+
 	go func() {
 		failed := 0
 		total := len(ids)
-		
+
 		for i, id := range ids {
 			var err error
 			if markAsUnread {
@@ -156,17 +156,17 @@ func (a *App) toggleMarkReadUnreadBulk() {
 			} else {
 				err = a.Client.MarkAsRead(id)
 			}
-			
+
 			if err != nil {
 				failed++
 				continue
 			}
-			
+
 			// Progress update
 			idx := i + 1
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Marking %d/%d as %s…", idx, total, action))
 		}
-		
+
 		// Update UI after all operations complete
 		a.QueueUpdateDraw(func() {
 			// Update cache for all processed messages
@@ -177,7 +177,7 @@ func (a *App) toggleMarkReadUnreadBulk() {
 					a.updateCachedMessageLabels(id, "UNREAD", false)
 				}
 			}
-			
+
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
@@ -186,10 +186,10 @@ func (a *App) toggleMarkReadUnreadBulk() {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
 			}
 		})
-		
+
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
 		a.GetErrorHandler().ClearProgress()
-		
+
 		// Small delay to ensure progress message is fully cleared before showing final status
 		go func() {
 			time.Sleep(100 * time.Millisecond)

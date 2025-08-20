@@ -109,7 +109,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 		headerWidth := a.getHeaderWidth()
 		headerContent := a.emailRenderer.FormatHeaderPlainWithWidth(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels, headerWidth)
 		hv.SetText(headerContent)
-		
+
 		// Dynamically adjust header height based on content
 		a.adjustHeaderHeight(headerContent)
 	}

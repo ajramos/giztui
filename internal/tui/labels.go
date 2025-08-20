@@ -95,7 +95,7 @@ func (a *App) manageLabels() {
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: manageLabels() called - labelsVisible: %t", a.labelsVisible)
 	}
-	
+
 	// Toggle contextual panel like AI Summary
 	if a.labelsVisible {
 		if a.logger != nil {
@@ -137,7 +137,7 @@ func (a *App) manageLabels() {
 	a.labelsExpanded = false
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
-	
+
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: manageLabels() - about to call populateLabelsQuickView")
 	}
@@ -554,7 +554,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					// Aplicar etiqueta y archivar (Gmail ignora duplicados en ApplyLabel)
 					failed := 0
-					
+
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 					for _, mid := range idsToMove {
 						if err := a.Client.ApplyLabel(mid, id); err != nil {
@@ -572,35 +572,35 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						}
 						a.labelsVisible = false
 						a.labelsExpanded = false
-						
+
 						// Exit bulk mode
 						a.selected = make(map[string]bool)
 						a.bulkMode = false
 						a.reformatListItems()
-						
+
 						// Restore focus
 						a.SetFocus(a.views["list"])
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
 					})
-					
+
 					// Do complex operations outside QueueUpdateDraw to avoid hanging
 					go func() {
 						time.Sleep(100 * time.Millisecond) // Let UI update complete first
-						
+
 						if listView, ok := a.views["list"].(*tview.Table); ok {
 							// Remove messages from internal data structures
 							rm := make(map[string]bool, len(idsToMove))
 							for _, mid := range idsToMove {
 								rm[mid] = true
 							}
-							
+
 							// Remove message IDs using thread-safe helper
 							a.RemoveMessageIDsInPlace(rm)
-							
+
 							// Update UI list in a separate queue operation
 							a.QueueUpdateDraw(func() {
-								// Remove from messagesMeta 
+								// Remove from messagesMeta
 								newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
 								for _, msg := range a.messagesMeta {
 									if msg != nil && !rm[msg.Id] {
@@ -608,19 +608,19 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								a.messagesMeta = newMeta
-								
+
 								// Update list title
 								listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-								
+
 								// Refresh the list display to show the updated data
 								a.reformatListItems()
-								
+
 								// No need to reload - local removal is sufficient
 								// The messages are already removed from a.ids and a.messagesMeta
 							})
 						}
 					}()
-					
+
 					// Simple status update without complex threading
 					if len(idsToMove) <= 1 && failed == 0 {
 						a.showStatusMessage("📦 Moved to: " + name)
@@ -697,7 +697,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				a.populateLabelsQuickView(messageID)
 			}
 		}
-		
+
 		a.QueueUpdateDraw(func() {
 			input.SetDoneFunc(func(key tcell.Key) {
 				if key == tcell.KeyEscape {
@@ -746,7 +746,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								failed := 0
-								
+
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 								for _, mid := range idsToMove {
 									if err := a.Client.ApplyLabel(mid, id); err != nil {
@@ -764,35 +764,35 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 									a.labelsVisible = false
 									a.labelsExpanded = false
-									
+
 									// Exit bulk mode
 									a.selected = make(map[string]bool)
 									a.bulkMode = false
 									a.reformatListItems()
-									
+
 									// Restore focus
 									a.SetFocus(a.views["list"])
 									a.currentFocus = "list"
 									a.updateFocusIndicators("list")
 								})
-								
+
 								// Do complex operations outside QueueUpdateDraw to avoid hanging
 								go func() {
 									time.Sleep(100 * time.Millisecond) // Let UI update complete first
-									
+
 									if listView, ok := a.views["list"].(*tview.Table); ok {
 										// Remove messages from internal data structures
 										rm := make(map[string]bool, len(idsToMove))
 										for _, mid := range idsToMove {
 											rm[mid] = true
 										}
-										
+
 										// Remove message IDs using thread-safe helper
 										a.RemoveMessageIDsInPlace(rm)
-										
+
 										// Update UI list in a separate queue operation
 										a.QueueUpdateDraw(func() {
-											// Remove from messagesMeta 
+											// Remove from messagesMeta
 											newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
 											for _, msg := range a.messagesMeta {
 												if msg != nil && !rm[msg.Id] {
@@ -800,19 +800,19 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 												}
 											}
 											a.messagesMeta = newMeta
-											
+
 											// Update list title
 											listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-											
+
 											// Refresh the list display to show the updated data
 											a.reformatListItems()
-											
+
 											// No need to reload - local removal is sufficient
 											// The messages are already removed from a.ids and a.messagesMeta
 										})
 									}
 								}()
-								
+
 								// Simple status update without complex threading
 								if len(idsToMove) <= 1 && failed == 0 {
 									a.showStatusMessage("📦 Moved to: " + name)
@@ -1217,18 +1217,18 @@ func (a *App) openMovePanelBulk() {
 	a.expandLabelsBrowseWithMode(mid, true)
 }
 
-// manageLabelsBulk opens labels management for all selected messages  
+// manageLabelsBulk opens labels management for all selected messages
 func (a *App) manageLabelsBulk() {
 	// If nothing selected fallback to single
 	if len(a.selected) == 0 {
 		a.manageLabels()
 		return
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: manageLabelsBulk() - managing labels for %d selected messages", len(a.selected))
 	}
-	
+
 	// Ensure panel visible
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
@@ -1236,7 +1236,7 @@ func (a *App) manageLabelsBulk() {
 	a.labelsVisible = true
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
-	
+
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
 	mid := a.getCurrentMessageID()
 	if mid == "" || !a.selected[mid] {
@@ -1245,11 +1245,11 @@ func (a *App) manageLabelsBulk() {
 			break
 		}
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: manageLabelsBulk() - using message %s as reference for label display", mid)
 	}
-	
+
 	// Use browse mode (not move mode) for bulk label management
 	a.expandLabelsBrowseWithMode(mid, false)
 }
@@ -1361,15 +1361,15 @@ func (a *App) addCustomLabelInline(messageID string) {
 					}
 					a.labelsExpanded = false
 				})
-				
+
 				// CRITICAL: Do complex operations outside QueueUpdateDraw to avoid deadlock
 				go func() {
-					a.GetErrorHandler().ShowSuccess(a.ctx, "Applied: " + name)
+					a.GetErrorHandler().ShowSuccess(a.ctx, "Applied: "+name)
 				}()
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
-				
+
 				// Refresh views asynchronously
 				go func() {
 					time.Sleep(50 * time.Millisecond)
@@ -1555,7 +1555,7 @@ func (a *App) createNewLabelFromView() {
 					a.QueueUpdateDraw(func() {
 						a.Pages.SwitchToPage("labels")
 					})
-					
+
 					// CRITICAL: Call manageLabels outside QueueUpdateDraw to avoid deadlock
 					go func() {
 						// Small delay to ensure page switch completes
@@ -1989,11 +1989,17 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 	for id := range a.selected {
 		messageIDs = append(messageIDs, id)
 	}
-	
+
 	// Debug logging
 	if a.logger != nil {
-		a.logger.Printf("applyLabelToBulkSelection: processing %d messages, labelID=%s, action=%s", 
-			len(messageIDs), labelID, func() string { if currentlyApplied { return "remove" } else { return "add" } }())
+		a.logger.Printf("applyLabelToBulkSelection: processing %d messages, labelID=%s, action=%s",
+			len(messageIDs), labelID, func() string {
+				if currentlyApplied {
+					return "remove"
+				} else {
+					return "add"
+				}
+			}())
 		for i, id := range messageIDs {
 			a.logger.Printf("applyLabelToBulkSelection: messageIDs[%d] = %s", i, id)
 		}
@@ -2013,7 +2019,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		}
 		a.labelsVisible = false
 		a.labelsExpanded = false
-		
+
 		// Stay in bulk mode (don't exit like move operations do)
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
@@ -2024,20 +2030,20 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 	go func() {
 		failed := 0
 		total := len(messageIDs)
-		
+
 		// Apply the label operation to all selected messages
 		for i, messageID := range messageIDs {
 			if a.logger != nil {
 				a.logger.Printf("applyLabelToBulkSelection: processing message %d/%d, messageID=%s", i+1, len(messageIDs), messageID)
 			}
-			
+
 			var err error
 			if action == "add" {
 				err = a.Client.ApplyLabel(messageID, labelID)
 			} else {
 				err = a.Client.RemoveLabel(messageID, labelID)
 			}
-			
+
 			if err != nil {
 				if a.logger != nil {
 					a.logger.Printf("applyLabelToBulkSelection: FAILED to %s label for message %s: %v", action, messageID, err)

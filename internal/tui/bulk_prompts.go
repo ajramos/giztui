@@ -384,7 +384,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		}()
 
 		accountEmail := a.getActiveAccountEmail()
-		
+
 		// Check if we can use streaming for this bulk operation
 		_, _, _, _, _, promptService, _, _ := a.GetServices()
 		if promptService == nil {
@@ -449,7 +449,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			}
 		})
 
-		// Clear progress and show success asynchronously to avoid hanging 
+		// Clear progress and show success asynchronously to avoid hanging
 		go func() {
 			// Small delay to ensure UI update completes first
 			time.Sleep(10 * time.Millisecond)

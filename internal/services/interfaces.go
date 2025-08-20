@@ -82,6 +82,7 @@ type PromptService interface {
 	ListPrompts(ctx context.Context, category string) ([]*PromptTemplate, error)
 	GetPrompt(ctx context.Context, id int) (*PromptTemplate, error)
 	ApplyPrompt(ctx context.Context, messageContent string, promptID int, variables map[string]string) (*PromptResult, error)
+	ApplyPromptStream(ctx context.Context, messageContent string, promptID int, variables map[string]string, onToken func(string)) (*PromptResult, error)
 	GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error)
 	IncrementUsage(ctx context.Context, promptID int) error
 	GetUsageStats(ctx context.Context) (*UsageStats, error)
@@ -104,13 +105,13 @@ type ContentNavigationService interface {
 	SearchContent(ctx context.Context, content string, query string, caseSensitive bool) (*ContentSearchResult, error)
 	FindNextMatch(ctx context.Context, searchResult *ContentSearchResult, currentPosition int) (int, error)
 	FindPreviousMatch(ctx context.Context, searchResult *ContentSearchResult, currentPosition int) (int, error)
-	
+
 	// Navigation operations
 	FindNextParagraph(ctx context.Context, content string, currentPosition int) (int, error)
 	FindPreviousParagraph(ctx context.Context, content string, currentPosition int) (int, error)
 	FindNextWord(ctx context.Context, content string, currentPosition int) (int, error)
 	FindPreviousWord(ctx context.Context, content string, currentPosition int) (int, error)
-	
+
 	// Position operations
 	GetLineFromPosition(ctx context.Context, content string, position int) (int, error)
 	GetPositionFromLine(ctx context.Context, content string, line int) (int, error)
@@ -197,11 +198,11 @@ type SearchResult struct {
 
 // ContentSearchResult holds search results for content within a message
 type ContentSearchResult struct {
-	Query         string  `json:"query"`
-	CaseSensitive bool    `json:"case_sensitive"`
-	Matches       []int   `json:"matches"`       // Positions of matches in the content
-	MatchCount    int     `json:"match_count"`   // Total number of matches
-	Content       string  `json:"-"`             // Original content (not serialized)
+	Query         string        `json:"query"`
+	CaseSensitive bool          `json:"case_sensitive"`
+	Matches       []int         `json:"matches"`     // Positions of matches in the content
+	MatchCount    int           `json:"match_count"` // Total number of matches
+	Content       string        `json:"-"`           // Original content (not serialized)
 	Duration      time.Duration `json:"duration"`
 }
 
@@ -238,12 +239,12 @@ type UsageStats struct {
 
 // PromptUsageStat represents usage statistics for a single prompt
 type PromptUsageStat struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Category    string `json:"category"`
-	UsageCount  int    `json:"usage_count"`
-	IsFavorite  bool   `json:"is_favorite"`
-	LastUsed    string `json:"last_used"`
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	Category   string `json:"category"`
+	UsageCount int    `json:"usage_count"`
+	IsFavorite bool   `json:"is_favorite"`
+	LastUsed   string `json:"last_used"`
 }
 
 // Slack-related data structures

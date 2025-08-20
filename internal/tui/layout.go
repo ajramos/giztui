@@ -40,7 +40,7 @@ func (a *App) initComponents() {
 	text.SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	text.SetBorder(false)
-	
+
 	// Store the enhanced text view in the app
 	a.enhancedTextView = enhancedText
 

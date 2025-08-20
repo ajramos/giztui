@@ -85,7 +85,7 @@ func (a *App) trashSelectedByID(messageID string) {
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: trashSelectedByID ENTRY - messageID: %s", messageID)
 	}
-	
+
 	if messageID == "" {
 		if a.logger != nil {
 			a.logger.Printf("HANG DEBUG: messageID empty, calling showError")
@@ -156,14 +156,14 @@ func (a *App) trashSelectedByID(messageID string) {
 
 	// Show success message
 	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
-	
+
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: Returned from showStatusMessage, about to call QueueUpdateDraw")
 	}
 
 	// Remove the message from the list and adjust selection (UI thread)
 	a.QueueUpdateDraw(func() { a.safeRemoveCurrentSelection(messageID) })
-	
+
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: Returned from QueueUpdateDraw, trashSelectedByID COMPLETE")
 	}

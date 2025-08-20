@@ -20,7 +20,7 @@ func NewContentNavigationService() *ContentNavigationServiceImpl {
 // SearchContent searches for a query within content and returns all match positions
 func (s *ContentNavigationServiceImpl) SearchContent(ctx context.Context, content string, query string, caseSensitive bool) (*ContentSearchResult, error) {
 	start := time.Now()
-	
+
 	if query == "" {
 		return &ContentSearchResult{
 			Query:         query,
@@ -31,17 +31,17 @@ func (s *ContentNavigationServiceImpl) SearchContent(ctx context.Context, conten
 			Duration:      time.Since(start),
 		}, nil
 	}
-	
+
 	var matches []int
 	searchText := content
 	searchQuery := query
-	
+
 	// Handle case sensitivity
 	if !caseSensitive {
 		searchText = strings.ToLower(content)
 		searchQuery = strings.ToLower(query)
 	}
-	
+
 	// Find all matches
 	pos := 0
 	for {
@@ -53,7 +53,7 @@ func (s *ContentNavigationServiceImpl) SearchContent(ctx context.Context, conten
 		matches = append(matches, actualPos)
 		pos = actualPos + 1 // Move past this match to find overlapping matches
 	}
-	
+
 	return &ContentSearchResult{
 		Query:         query,
 		CaseSensitive: caseSensitive,
@@ -69,14 +69,14 @@ func (s *ContentNavigationServiceImpl) FindNextMatch(ctx context.Context, search
 	if searchResult == nil || searchResult.MatchCount == 0 {
 		return -1, nil
 	}
-	
+
 	// Find the first match after currentPosition
 	for _, pos := range searchResult.Matches {
 		if pos > currentPosition {
 			return pos, nil
 		}
 	}
-	
+
 	// If no match found after currentPosition, wrap to first match
 	return searchResult.Matches[0], nil
 }
@@ -86,7 +86,7 @@ func (s *ContentNavigationServiceImpl) FindPreviousMatch(ctx context.Context, se
 	if searchResult == nil || searchResult.MatchCount == 0 {
 		return -1, nil
 	}
-	
+
 	// Find the last match before currentPosition (search backwards)
 	for i := len(searchResult.Matches) - 1; i >= 0; i-- {
 		pos := searchResult.Matches[i]
@@ -94,7 +94,7 @@ func (s *ContentNavigationServiceImpl) FindPreviousMatch(ctx context.Context, se
 			return pos, nil
 		}
 	}
-	
+
 	// If no match found before currentPosition, wrap to last match
 	return searchResult.Matches[len(searchResult.Matches)-1], nil
 }
@@ -104,7 +104,7 @@ func (s *ContentNavigationServiceImpl) FindNextParagraph(ctx context.Context, co
 	if currentPosition >= len(content) {
 		return len(content), nil
 	}
-	
+
 	// Find the next double newline or empty line (true paragraph boundary)
 	for i := currentPosition + 1; i < len(content)-1; i++ {
 		if content[i] == '\n' {
@@ -124,11 +124,11 @@ func (s *ContentNavigationServiceImpl) FindNextParagraph(ctx context.Context, co
 			}
 		}
 	}
-	
+
 	// If no paragraph boundaries found, navigate forward by multiple lines (fast navigation)
 	linesDown := 0
 	targetLines := 10 // Navigate down by 10 lines for "paragraph" navigation
-	
+
 	for i := currentPosition + 1; i < len(content); i++ {
 		if content[i] == '\n' {
 			linesDown++
@@ -141,7 +141,7 @@ func (s *ContentNavigationServiceImpl) FindNextParagraph(ctx context.Context, co
 			}
 		}
 	}
-	
+
 	return len(content), nil // End of content
 }
 
@@ -150,25 +150,25 @@ func (s *ContentNavigationServiceImpl) FindPreviousParagraph(ctx context.Context
 	if currentPosition <= 0 {
 		return 0, nil
 	}
-	
+
 	// Find the previous double newline or empty line (true paragraph boundary)
 	for i := currentPosition - 1; i > 0; i-- {
 		if content[i] == '\n' && i > 0 && content[i-1] == '\n' {
 			result := i + 1
-			
+
 			// Skip this boundary if it's the same as our current position (we're already at a boundary)
 			if result == currentPosition {
 				continue
 			}
-			
+
 			return result, nil
 		}
 	}
-	
+
 	// If no paragraph boundaries found, navigate backward by multiple lines (fast navigation)
 	linesUp := 0
 	targetLines := 10 // Navigate up by 10 lines for "paragraph" navigation
-	
+
 	for i := currentPosition - 1; i >= 0; i-- {
 		if content[i] == '\n' {
 			linesUp++
@@ -178,7 +178,7 @@ func (s *ContentNavigationServiceImpl) FindPreviousParagraph(ctx context.Context
 			}
 		}
 	}
-	
+
 	// If we have fewer than 10 lines total, go to beginning
 	return 0, nil
 }
@@ -188,7 +188,7 @@ func (s *ContentNavigationServiceImpl) FindNextWord(ctx context.Context, content
 	if currentPosition >= len(content) {
 		return len(content), nil
 	}
-	
+
 	// Skip current word
 	i := currentPosition
 	for i < len(content) && !unicode.IsSpace(rune(content[i])) {
@@ -198,7 +198,7 @@ func (s *ContentNavigationServiceImpl) FindNextWord(ctx context.Context, content
 	for i < len(content) && unicode.IsSpace(rune(content[i])) {
 		i++
 	}
-	
+
 	return i, nil
 }
 
@@ -207,7 +207,7 @@ func (s *ContentNavigationServiceImpl) FindPreviousWord(ctx context.Context, con
 	if currentPosition <= 0 {
 		return 0, nil
 	}
-	
+
 	// Skip whitespace backwards
 	i := currentPosition - 1
 	for i >= 0 && unicode.IsSpace(rune(content[i])) {
@@ -217,7 +217,7 @@ func (s *ContentNavigationServiceImpl) FindPreviousWord(ctx context.Context, con
 	for i >= 0 && !unicode.IsSpace(rune(content[i])) {
 		i--
 	}
-	
+
 	return i + 1, nil
 }
 
@@ -226,14 +226,14 @@ func (s *ContentNavigationServiceImpl) GetLineFromPosition(ctx context.Context, 
 	if position < 0 || position > len(content) {
 		return 1, nil
 	}
-	
+
 	line := 1
 	for i := 0; i < position && i < len(content); i++ {
 		if content[i] == '\n' {
 			line++
 		}
 	}
-	
+
 	return line, nil
 }
 
@@ -242,7 +242,7 @@ func (s *ContentNavigationServiceImpl) GetPositionFromLine(ctx context.Context, 
 	if line <= 1 {
 		return 0, nil
 	}
-	
+
 	currentLine := 1
 	for i := 0; i < len(content); i++ {
 		if content[i] == '\n' {
@@ -252,7 +252,7 @@ func (s *ContentNavigationServiceImpl) GetPositionFromLine(ctx context.Context, 
 			}
 		}
 	}
-	
+
 	return len(content), nil // If line number is beyond content, return end
 }
 

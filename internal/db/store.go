@@ -225,7 +225,7 @@ VALUES (?, ?, ?, 'bulk_analysis', ?, TRUE)`,
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = tx.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS bulk_prompt_results (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS bulk_prompt_results (
   FOREIGN KEY (prompt_id) REFERENCES prompt_templates(id),
   UNIQUE(account_email, cache_key)
 );`)
-		
+
 		if err == nil {
 			_, err = tx.ExecContext(ctx, "PRAGMA user_version=5;")
 		}

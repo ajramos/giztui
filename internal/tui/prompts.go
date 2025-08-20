@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/derailed/tcell/v2"
@@ -285,7 +286,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			// Remove direct ESC handler from AI panel to avoid conflicts
 			// The main ESC handler in keys.go will handle all ESC events
 			a.aiSummaryView.SetInputCapture(nil)
-			
+
 			// Set focus to AI panel
 			a.SetFocus(a.aiSummaryView)
 			a.currentFocus = "summary"
@@ -364,103 +365,105 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 		promptText = strings.ReplaceAll(promptText, placeholder, value)
 	}
 
-	// Try streaming if enabled and supported
+	// Try streaming first
 	if a.Config != nil && a.Config.LLM.StreamEnabled {
-		if prov, ok := a.LLM.(interface{ Name() string }); ok && prov.Name() == "ollama" {
-			if streamer, ok2 := a.LLM.(interface {
-				GenerateStream(context.Context, string, func(string)) error
-			}); ok2 {
-				if a.logger != nil {
-					a.logger.Printf("applyPromptToMessage: using streaming")
-				}
+		if a.logger != nil {
+			a.logger.Printf("applyPromptToMessage: attempting streaming via prompt service - StreamEnabled=%v", a.Config.LLM.StreamEnabled)
+		}
 
-				// Show streaming progress in status bar
-				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Streaming prompt: %s...", promptName))
+		// Show streaming progress in status bar
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Streaming prompt: %s...", promptName))
 
-				var b strings.Builder
-				a.QueueUpdateDraw(func() {
-					if a.aiSummaryView != nil {
-						// Show loading message before starting streaming
-						a.aiSummaryView.SetText("🤖 Processing prompt...")
-					}
-				})
-
-				ctx, cancel := context.WithCancel(a.ctx)
-				a.streamingCancel = cancel // Store cancel function for Esc handler
-				defer func() {
-					cancel()
-					a.streamingCancel = nil // Clear when done
-				}()
-				if a.logger != nil {
-					a.logger.Printf("applyPromptToMessage: starting GenerateStream")
-				}
-				err := streamer.GenerateStream(ctx, promptText, func(tok string) {
-					// Check if context is cancelled before processing
-					select {
-					case <-ctx.Done():
-						if a.logger != nil {
-							a.logger.Printf("STREAMING CALLBACK: Context cancelled, exiting early")
-						}
-						return // Exit early if cancelled
-					default:
-					}
-					
-					b.WriteString(tok)
-					if a.logger != nil && len(b.String())%100 == 0 { // Log every 100 chars
-						a.logger.Printf("STREAMING: Progress %d chars", len(b.String()))
-					}
-					currentText := sanitizeForTerminal(b.String())
-					
-					// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks
-					// Direct UI update to prevent deadlock with ESC handler
-					if ctx.Err() == nil && a.aiSummaryView != nil {
-						if a.logger != nil && len(currentText)%200 == 0 { // Log UI updates
-							a.logger.Printf("STREAMING UI UPDATE: Direct update with %d chars", len(currentText))
-						}
-						a.aiSummaryView.SetText(currentText)
-					} else if a.logger != nil {
-						if ctx.Err() != nil {
-							a.logger.Printf("STREAMING CALLBACK: Context cancelled, skipping UI update")
-						} else {
-							a.logger.Printf("STREAMING CALLBACK: aiSummaryView is nil, skipping update")
-						}
-					}
-				})
-				if a.logger != nil {
-					a.logger.Printf("applyPromptToMessage: GenerateStream completed, result length: %d", len(b.String()))
-				}
-
-				if err != nil {
-					a.GetErrorHandler().ClearProgress()
-					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to apply prompt: %v", err))
-					return
-				}
-
-				result := b.String()
-
-				// Final UI update to ensure result is shown
-				a.QueueUpdateDraw(func() {
-					if a.aiSummaryView != nil {
-						finalText := sanitizeForTerminal(result)
-						a.aiSummaryView.SetText(finalText)
-						a.aiSummaryView.ScrollToBeginning()
-						if a.logger != nil {
-							a.logger.Printf("applyPromptToMessage: final UI update, text length: %d", len(finalText))
-						}
-					}
-				})
-
-				// Save result for history
-				_ = promptService.SaveResult(a.ctx, accountEmail, messageID, promptID, result)
-
-				// Increment usage count
-				_ = promptService.IncrementUsage(a.ctx, promptID)
-
-				// Clear progress and show success
-				a.GetErrorHandler().ClearProgress()
-				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied: %s", promptName))
-				return
+		// Show loading message before starting streaming
+		a.QueueUpdateDraw(func() {
+			if a.aiSummaryView != nil {
+				a.aiSummaryView.SetText("🤖 Processing prompt...")
 			}
+		})
+
+		ctx, cancel := context.WithCancel(a.ctx)
+		a.streamingCancel = cancel // Store cancel function for Esc handler
+		defer func() {
+			cancel()
+			a.streamingCancel = nil // Clear when done
+		}()
+		
+		// Throttling for visible streaming effect
+		var lastUpdate time.Time
+		var b strings.Builder
+		chunkDelayMs := a.Config.LLM.StreamChunkMs
+		if chunkDelayMs <= 0 {
+			chunkDelayMs = 150 // Default 150ms for smooth streaming
+		}
+		chunkDelay := time.Duration(chunkDelayMs) * time.Millisecond
+		
+		if a.logger != nil {
+			a.logger.Printf("applyPromptToMessage: using %dms chunk delay", chunkDelayMs)
+		}
+
+		result, err := promptService.ApplyPromptStream(ctx, content, promptID, map[string]string{
+			"from":    a.extractHeader(message, "From"),
+			"subject": a.extractHeader(message, "Subject"),
+			"date":    a.extractHeader(message, "Date"),
+		}, func(token string) {
+			// Check if context is cancelled before processing
+			select {
+			case <-ctx.Done():
+				if a.logger != nil {
+					a.logger.Printf("STREAMING CALLBACK: Context cancelled, exiting early")
+				}
+				return // Exit early if cancelled
+			default:
+			}
+
+			b.WriteString(token)
+			
+			
+			// Throttle UI updates for visible streaming effect
+			now := time.Now()
+			if now.Sub(lastUpdate) >= chunkDelay || lastUpdate.IsZero() {
+				lastUpdate = now
+				currentText := sanitizeForTerminal(b.String())
+
+				// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks
+				// Direct UI update to prevent deadlock with ESC handler
+				if ctx.Err() == nil && a.aiSummaryView != nil {
+					a.aiSummaryView.SetText(currentText)
+					a.aiSummaryView.ScrollToEnd()
+					
+					// Force tview to refresh the screen for visible streaming
+					a.ForceDraw()
+				}
+				
+				// Add small sleep to ensure UI updates are visible
+				time.Sleep(time.Duration(chunkDelayMs/2) * time.Millisecond)
+			}
+		})
+
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("applyPromptToMessage: streaming failed, falling back to non-streaming: %v", err)
+			}
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Streaming failed: %v", err))
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("applyPromptToMessage: streaming completed successfully")
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied: %s", promptName))
+
+			// Final UI update to ensure result is shown
+			a.QueueUpdateDraw(func() {
+				if a.aiSummaryView != nil {
+					finalText := sanitizeForTerminal(result.ResultText)
+					a.aiSummaryView.SetText(finalText)
+					a.aiSummaryView.ScrollToBeginning()
+				}
+			})
+
+			// Clear progress and show success
+			a.GetErrorHandler().ClearProgress()
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied: %s", promptName))
+			return
 		}
 	}
 
@@ -468,6 +471,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	if a.logger != nil {
 		a.logger.Printf("applyPromptToMessage: using non-streaming fallback")
 	}
+	a.GetErrorHandler().ShowWarning(a.ctx, "Using non-streaming fallback")
 
 	result, err := promptService.ApplyPrompt(a.ctx, content, promptID, map[string]string{
 		"from":    a.extractHeader(message, "From"),

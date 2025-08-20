@@ -23,7 +23,7 @@ func main() {
 	configPathFlag := flag.String("config", "", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
 	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
-	
+
 	// Override flag usage text to show clean, simple usage
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Gmail TUI - Terminal-based Gmail client\n\n")
@@ -43,9 +43,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_TOKEN       Override default token file path\n\n")
 		fmt.Fprintf(os.Stderr, "For all other settings (LLM, timeouts, etc.), edit the config file.\n")
 	}
-	
+
 	flag.Parse()
-	
+
 	// Handle setup mode
 	if *setupFlag {
 		runSetupWizard()
@@ -54,7 +54,7 @@ func main() {
 
 	// Load configuration with smart defaults and environment variable support
 	configPath := getConfigPath(*configPathFlag)
-	
+
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Printf("Warning: could not load configuration: %v", err)
@@ -178,11 +178,11 @@ func getConfigPath(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	
+
 	if envPath := os.Getenv("GMAIL_TUI_CONFIG"); envPath != "" {
 		return expandPath(envPath)
 	}
-	
+
 	return config.DefaultConfigPath()
 }
 
@@ -195,15 +195,15 @@ func getCredentialsPath(flagValue, configValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	
+
 	if envPath := os.Getenv("GMAIL_TUI_CREDENTIALS"); envPath != "" {
 		return expandPath(envPath)
 	}
-	
+
 	if configValue != "" {
 		return expandPath(configValue)
 	}
-	
+
 	credPath, _ := config.DefaultCredentialPaths()
 	return credPath
 }
@@ -217,15 +217,15 @@ func getTokenPath(flagValue, configValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	
+
 	if envPath := os.Getenv("GMAIL_TUI_TOKEN"); envPath != "" {
 		return expandPath(envPath)
 	}
-	
+
 	if configValue != "" {
 		return expandPath(configValue)
 	}
-	
+
 	_, tokenPath := config.DefaultCredentialPaths()
 	return tokenPath
 }
@@ -235,16 +235,16 @@ func expandPath(path string) string {
 	if !strings.HasPrefix(path, "~") {
 		return path
 	}
-	
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return path
 	}
-	
+
 	if path == "~" {
 		return home
 	}
-	
+
 	return filepath.Join(home, path[2:])
 }
 
@@ -253,17 +253,17 @@ func runSetupWizard() {
 	fmt.Println("📧 Gmail TUI Setup Wizard")
 	fmt.Println("=======================")
 	fmt.Println()
-	
+
 	// Check if default config already exists
 	defaultConfigPath := config.DefaultConfigPath()
 	credPath, tokenPath := config.DefaultCredentialPaths()
-	
+
 	if _, err := os.Stat(defaultConfigPath); err == nil {
 		fmt.Printf("✅ Configuration file already exists: %s\n", defaultConfigPath)
 	} else {
 		fmt.Printf("📝 Will create configuration file: %s\n", defaultConfigPath)
 	}
-	
+
 	if _, err := os.Stat(credPath); err == nil {
 		fmt.Printf("✅ Credentials file found: %s\n", credPath)
 	} else {
@@ -278,21 +278,21 @@ func runSetupWizard() {
 		fmt.Printf("   %s\n", credPath)
 		fmt.Println()
 	}
-	
+
 	if _, err := os.Stat(tokenPath); err == nil {
 		fmt.Printf("✅ Token file exists: %s\n", tokenPath)
 	} else {
 		fmt.Printf("🔐 Token will be created on first login: %s\n", tokenPath)
 	}
-	
+
 	// Create default config if it doesn't exist
 	if _, err := os.Stat(defaultConfigPath); os.IsNotExist(err) {
 		fmt.Println()
 		fmt.Print("📄 Create default configuration file? [Y/n]: ")
-		
+
 		var response string
 		fmt.Scanln(&response)
-		
+
 		if response == "" || strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
 			cfg := config.DefaultConfig()
 			if err := cfg.SaveConfig(defaultConfigPath); err != nil {
@@ -302,7 +302,7 @@ func runSetupWizard() {
 			fmt.Printf("✅ Created configuration file: %s\n", defaultConfigPath)
 		}
 	}
-	
+
 	fmt.Println()
 	fmt.Println("🚀 Setup complete! You can now run:")
 	fmt.Printf("   %s\n", os.Args[0])

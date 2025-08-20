@@ -228,35 +228,35 @@ func (s *Store) ListPromptTemplates(ctx context.Context, category string) ([]*Pr
 	if s == nil || s.db == nil {
 		return nil, fmt.Errorf("cache store not initialized")
 	}
-	
+
 	query := `SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
 	          FROM prompt_templates`
 	args := []interface{}{}
-	
+
 	if category != "" {
 		query += ` WHERE category = ?`
 		args = append(args, category)
 	}
-	
+
 	query += ` ORDER BY is_favorite DESC, usage_count DESC, name ASC`
-	
+
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var templates []*PromptTemplate
 	for rows.Next() {
 		t := &PromptTemplate{}
-		err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category, 
-		                 &t.CreatedAt, &t.IsFavorite, &t.UsageCount)
+		err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
+			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)
 		if err != nil {
 			return nil, err
 		}
 		templates = append(templates, t)
 	}
-	
+
 	return templates, rows.Err()
 }
 
@@ -265,21 +265,21 @@ func (s *Store) GetPromptTemplate(ctx context.Context, id int) (*PromptTemplate,
 	if s == nil || s.db == nil {
 		return nil, fmt.Errorf("cache store not initialized")
 	}
-	
+
 	t := &PromptTemplate{}
-	err := s.db.QueryRowContext(ctx, 
+	err := s.db.QueryRowContext(ctx,
 		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
 		 FROM prompt_templates WHERE id = ?`, id).
-		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category, 
-		     &t.CreatedAt, &t.IsFavorite, &t.UsageCount)
-	
+		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
+			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)
+
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("prompt template not found")
 	}
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return t, nil
 }
 
@@ -288,8 +288,8 @@ func (s *Store) IncrementPromptUsage(ctx context.Context, promptID int) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("cache store not initialized")
 	}
-	
-	_, err := s.db.ExecContext(ctx, 
+
+	_, err := s.db.ExecContext(ctx,
 		`UPDATE prompt_templates SET usage_count = usage_count + 1 WHERE id = ?`, promptID)
 	return err
 }
@@ -299,15 +299,15 @@ func (s *Store) SavePromptResult(ctx context.Context, accountEmail, messageID st
 	if s == nil || s.db == nil {
 		return fmt.Errorf("cache store not initialized")
 	}
-	
+
 	if strings.TrimSpace(accountEmail) == "" || strings.TrimSpace(messageID) == "" || strings.TrimSpace(resultText) == "" {
 		return fmt.Errorf("invalid prompt result inputs")
 	}
-	
-	_, err := s.db.ExecContext(ctx, 
+
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO prompt_results (account_email, message_id, prompt_id, result_text, created_at)
-		 VALUES (?, ?, ?, ?, ?)`, 
+		 VALUES (?, ?, ?, ?, ?)`,
 		accountEmail, messageID, promptID, resultText, time.Now().Unix())
-	
+
 	return err
 }

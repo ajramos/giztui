@@ -87,6 +87,52 @@ func (s *PromptServiceImpl) ApplyPrompt(ctx context.Context, messageContent stri
 	}, nil
 }
 
+// ApplyPromptStream applies a prompt with streaming support
+func (s *PromptServiceImpl) ApplyPromptStream(ctx context.Context, messageContent string, promptID int, variables map[string]string, onToken func(string)) (*PromptResult, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("cache store not available")
+	}
+
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+
+	// Get the prompt template
+	template, err := s.store.GetPromptTemplate(ctx, promptID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prompt template: %w", err)
+	}
+
+	// Replace variables in the prompt
+	prompt := template.PromptText
+
+	// Always replace {{body}} with the message content
+	if variables == nil {
+		variables = make(map[string]string)
+	}
+	variables["body"] = messageContent
+
+	// Replace all variables in the prompt
+	for key, value := range variables {
+		placeholder := fmt.Sprintf("{{%s}}", key)
+		prompt = strings.ReplaceAll(prompt, placeholder, value)
+	}
+
+	// Apply the prompt using the AI service with streaming
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, messageContent, prompt, variables, onToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply prompt: %w", err)
+	}
+
+	// Increment usage count
+	_ = s.store.IncrementPromptUsage(ctx, promptID)
+
+	return &PromptResult{
+		PromptID:   promptID,
+		ResultText: result,
+	}, nil
+}
+
 func (s *PromptServiceImpl) IncrementUsage(ctx context.Context, promptID int) error {
 	if s.store == nil {
 		return fmt.Errorf("cache store not available")

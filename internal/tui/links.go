@@ -107,14 +107,14 @@ func (a *App) openLinkPicker() {
 			list.AddItem(display, secondary, 0, func() {
 				// Close picker first (synchronous)
 				a.closeLinkPicker()
-				
+
 				// Open link asynchronously
 				go func() {
 					// Show status message asynchronously
 					go func() {
 						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", linkURL))
 					}()
-					
+
 					// Open the link
 					a.openSelectedLink(linkURL, linkText)
 				}()
@@ -149,7 +149,7 @@ func (a *App) openLinkPicker() {
 			if strings.TrimSpace(link.URL) == "" {
 				continue
 			}
-			
+
 			text := link.Text
 			if text == "" || text == link.URL {
 				// Extract domain for display if no meaningful text
@@ -161,7 +161,7 @@ func (a *App) openLinkPicker() {
 					}
 				}
 			}
-			
+
 			all = append(all, linkItem{
 				index: link.Index,
 				url:   link.URL,
@@ -187,14 +187,14 @@ func (a *App) openLinkPicker() {
 						item := visible[num-1]
 						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						
+
 						// Open link asynchronously
 						go func() {
 							// Show status message asynchronously
 							go func() {
 								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
 							}()
-							
+
 							// Open the link
 							a.openSelectedLink(item.url, item.text)
 						}()
@@ -215,14 +215,14 @@ func (a *App) openLinkPicker() {
 						item := visible[0]
 						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						
+
 						// Open link asynchronously
 						go func() {
 							// Show status message asynchronously
 							go func() {
 								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
 							}()
-							
+
 							// Open the link
 							a.openSelectedLink(item.url, item.text)
 						}()
@@ -290,14 +290,14 @@ func (a *App) openLinkPicker() {
 						item := visible[num-1]
 						// Close picker first (synchronous)
 						a.closeLinkPicker()
-						
+
 						// Open link asynchronously
 						go func() {
 							// Show status message asynchronously
 							go func() {
 								a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Opening: %s", item.url))
 							}()
-							
+
 							// Open the link
 							a.openSelectedLink(item.url, item.text)
 						}()
@@ -317,13 +317,13 @@ func (a *App) openLinkPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "labels"  // Reuse labels focus state for consistency
+			a.currentFocus = "labels" // Reuse labels focus state for consistency
 			a.updateFocusIndicators("labels")
 			a.labelsVisible = true // Reuse labels visibility state
 
 			// Initial load
 			reload("")
-			
+
 			// Set first item as selected for better UX
 			if list.GetItemCount() > 0 {
 				list.SetCurrentItem(0)
@@ -383,7 +383,7 @@ func (a *App) openSelectedLink(url, text string) {
 func (a *App) copyToClipboard(text string) {
 	// Cross-platform clipboard copy implementation
 	var cmd *exec.Cmd
-	
+
 	switch runtime.GOOS {
 	case "darwin":
 		cmd = exec.Command("pbcopy")
@@ -407,7 +407,7 @@ func (a *App) copyToClipboard(text string) {
 		}
 		return
 	}
-	
+
 	if cmd != nil {
 		cmd.Stdin = strings.NewReader(text)
 		if err := cmd.Run(); err != nil {
