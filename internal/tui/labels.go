@@ -588,37 +588,26 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					go func() {
 						time.Sleep(100 * time.Millisecond) // Let UI update complete first
 
-						if listView, ok := a.views["list"].(*tview.Table); ok {
+						// CRITICAL FIX: Perform all data structure updates within a single UI operation
+						// to prevent race conditions between a.ids and a.messagesMeta
+						a.QueueUpdateDraw(func() {
 							// Remove messages from internal data structures
 							rm := make(map[string]bool, len(idsToMove))
 							for _, mid := range idsToMove {
 								rm[mid] = true
 							}
 
-							// Remove message IDs using thread-safe helper
-							a.RemoveMessageIDsInPlace(rm)
+							// Use the existing thread-safe helper that removes from both a.ids and table
+							a.removeIDsFromCurrentList(idsToMove)
 
-							// Update UI list in a separate queue operation
-							a.QueueUpdateDraw(func() {
-								// Remove from messagesMeta
-								newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
-								for _, msg := range a.messagesMeta {
-									if msg != nil && !rm[msg.Id] {
-										newMeta = append(newMeta, msg)
-									}
-								}
-								a.messagesMeta = newMeta
-
-								// Update list title
-								listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-
-								// Refresh the list display to show the updated data
-								a.reformatListItems()
-
-								// No need to reload - local removal is sufficient
-								// The messages are already removed from a.ids and a.messagesMeta
-							})
-						}
+							// The removeIDsFromCurrentList function handles:
+							// - Removing from a.ids 
+							// - Removing from a.messagesMeta
+							// - Updating the table view
+							// - Adjusting selection and content
+							// - Updating title count
+							// All operations are synchronized within this UI thread
+						})
 					}()
 
 					// Simple status update without complex threading
@@ -780,37 +769,26 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								go func() {
 									time.Sleep(100 * time.Millisecond) // Let UI update complete first
 
-									if listView, ok := a.views["list"].(*tview.Table); ok {
+									// CRITICAL FIX: Perform all data structure updates within a single UI operation
+									// to prevent race conditions between a.ids and a.messagesMeta
+									a.QueueUpdateDraw(func() {
 										// Remove messages from internal data structures
 										rm := make(map[string]bool, len(idsToMove))
 										for _, mid := range idsToMove {
 											rm[mid] = true
 										}
 
-										// Remove message IDs using thread-safe helper
-										a.RemoveMessageIDsInPlace(rm)
+										// Use the existing thread-safe helper that removes from both a.ids and table
+										a.removeIDsFromCurrentList(idsToMove)
 
-										// Update UI list in a separate queue operation
-										a.QueueUpdateDraw(func() {
-											// Remove from messagesMeta
-											newMeta := make([]*gmailapi.Message, 0, len(a.messagesMeta))
-											for _, msg := range a.messagesMeta {
-												if msg != nil && !rm[msg.Id] {
-													newMeta = append(newMeta, msg)
-												}
-											}
-											a.messagesMeta = newMeta
-
-											// Update list title
-											listView.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-
-											// Refresh the list display to show the updated data
-											a.reformatListItems()
-
-											// No need to reload - local removal is sufficient
-											// The messages are already removed from a.ids and a.messagesMeta
-										})
-									}
+										// The removeIDsFromCurrentList function handles:
+										// - Removing from a.ids 
+										// - Removing from a.messagesMeta
+										// - Updating the table view
+										// - Adjusting selection and content
+										// - Updating title count
+										// All operations are synchronized within this UI thread
+									})
 								}()
 
 								// Simple status update without complex threading
