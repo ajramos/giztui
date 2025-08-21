@@ -1147,10 +1147,15 @@ func (a *App) toggleFocus() {
 	// Only use EnhancedTextView when explicitly needed for content navigation
 	ring = append(ring, a.views["text"])
 	ringNames = append(ringNames, "text")
-	// 4) Labels (if visible)
+	// 4) Labels/Prompts (if visible)
 	if a.labelsVisible {
 		ring = append(ring, a.labelsView)
-		ringNames = append(ringNames, "labels")
+		// Use more specific name based on current focus state
+		if a.currentFocus == "prompts" {
+			ringNames = append(ringNames, "prompts")
+		} else {
+			ringNames = append(ringNames, "labels")
+		}
 	}
 	// 5) Summary (if visible)
 	if a.aiSummaryVisible {
@@ -1177,9 +1182,20 @@ func (a *App) toggleFocus() {
 		next = (idx + 1) % len(ring)
 	}
 	// Apply focus and indicators
+	targetName := ringNames[next]
+	
+	// Special handling for prompt picker - focus will be handled by the container's default behavior
+	// The container should automatically focus the first focusable child (input field)
+	if targetName == "prompts" {
+		a.SetFocus(ring[next])
+		a.currentFocus = "prompts"
+		a.updateFocusIndicators("prompts")
+		return
+	}
+	
 	a.SetFocus(ring[next])
-	a.currentFocus = ringNames[next]
-	a.updateFocusIndicators(ringNames[next])
+	a.currentFocus = targetName
+	a.updateFocusIndicators(targetName)
 }
 
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal

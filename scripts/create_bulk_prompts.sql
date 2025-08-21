@@ -158,6 +158,69 @@ Format with clear event details and next steps.',
     1
 );
 
+-- 6. Amazon AI Analysis
+INSERT OR REPLACE INTO prompt_templates (
+    name, 
+    description, 
+    prompt_text, 
+    category, 
+    is_favorite
+) VALUES (
+    'Amazon AI Analysis',
+    'Analyze emails related to Amazon AI tools and services (Bedrock, Nova, etc.)',
+    'You are analyzing a collection of emails related to Amazon AI tools and services. Focus on extracting and summarizing information about Amazon''s AI offerings, particularly Amazon Bedrock, Amazon Nova, and other AI-related services.
+
+Emails to analyze:
+{{messages}}
+
+Please provide a comprehensive analysis including:
+
+## 🚀 **Amazon AI Services Overview**
+- **Amazon Bedrock**: Document any updates, new models, features, or capabilities
+- **Amazon Nova**: Note any mentions, updates, or new features
+- **Other AI Services**: Identify any other Amazon AI tools or services mentioned
+
+## 🔧 **Technical Updates**
+- **New Models**: List any new AI models or model versions announced
+- **API Changes**: Document any API updates, new endpoints, or integration changes
+- **Performance Improvements**: Note any performance enhancements or optimizations
+- **New Features**: Highlight any new capabilities or functionality
+
+## 💰 **Business & Pricing**
+- **Pricing Updates**: Note any pricing changes, new pricing models, or cost optimizations
+- **Availability**: Document any new region launches or availability changes
+- **Enterprise Features**: Identify any enterprise-focused capabilities or updates
+
+## 🔗 **Integrations & Partnerships**
+- **Third-party Integrations**: List any new integrations with external tools or services
+- **AWS Service Integration**: Note how these AI services integrate with other AWS services
+- **Partner Ecosystem**: Document any partner announcements or collaborations
+
+## 📊 **Use Cases & Applications**
+- **Industry Applications**: Identify specific industries or use cases mentioned
+- **Customer Success Stories**: Note any customer implementations or case studies
+- **Best Practices**: Document any recommended practices or guidelines
+
+## 🔒 **Security & Compliance**
+- **Security Features**: Note any security enhancements or new security capabilities
+- **Compliance Updates**: Document any compliance certifications or regulatory updates
+- **Privacy Features**: Identify any privacy-related capabilities or improvements
+
+## 📈 **Market Position & Competition**
+- **Competitive Advantages**: Note any features that differentiate Amazon''s AI offerings
+- **Market Trends**: Identify any broader AI market trends mentioned
+- **Future Roadmap**: Document any hints about upcoming features or direction
+
+## 🎯 **Action Items & Recommendations**
+- **Key Takeaways**: Summarize the 3-5 most important points
+- **Follow-up Required**: Identify any items requiring attention or further research
+- **Strategic Implications**: Note any business or technical implications
+
+Format your response clearly with bullet points, sections, and actionable insights. Focus on providing value for someone managing or evaluating Amazon AI services for their organization.',
+    'bulk_analysis',
+    1
+);
+
 -- Verify the prompts were created
 SELECT id, name, description, category FROM prompt_templates WHERE category = 'bulk_analysis';
 

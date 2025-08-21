@@ -44,6 +44,13 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Split-view interface** - Prompt picker appears like labels (not full-screen modal)
 - ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items, etc.)
 - ✅ **Usage tracking** - Monitor which prompts are used most frequently
+- ✅ **CRUD management** - Create, update, export, and delete prompt templates via commands
+- ✅ **YAML front matter** - Standard Markdown format with metadata headers
+- ✅ **Management interface** - Browse all prompts including bulk analysis templates
+- ✅ **Prompt details view** - Full template preview with metadata and usage stats
+- ✅ **Command shortcuts** - `:prompt`, `:pr`, `:p` for quick management access
+- ✅ **File operations** - Export prompts to Markdown files, import from YAML
+- ✅ **Dynamic headers** - Message headers adapt to content size during prompt viewing
 
 ### 🔥 **Bulk Operations** 🆕
 - ✅ **Multi-email analysis** - Apply prompts to multiple emails simultaneously

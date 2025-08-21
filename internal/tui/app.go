@@ -58,6 +58,8 @@ type App struct {
 	cmdHistoryIndex  int      // Current position in history
 	cmdSuggestion    string   // Current command suggestion
 	cmdFocusOverride string   // Override focus restoration for special commands
+	// Prompt details state
+	originalHeaderHeight int   // Store original header height before hiding
 	// Layout management
 	currentLayout    LayoutType
 	screenWidth      int

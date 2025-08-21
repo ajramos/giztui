@@ -1,13 +1,17 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/ajramos/gmail-tui/internal/db"
+	"gopkg.in/yaml.v3"
 )
 
 // PromptServiceImpl implements PromptService
@@ -311,4 +315,208 @@ func (s *PromptServiceImpl) GetUsageStats(ctx context.Context) (*UsageStats, err
 		LastUsed:        lastUsed,
 		FavoritePrompts: favoritePrompts,
 	}, nil
+}
+
+// PromptFrontMatter represents the YAML front matter in a prompt markdown file
+type PromptFrontMatter struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Category    string `yaml:"category"`
+}
+
+// CreatePrompt creates a new prompt template
+func (s *PromptServiceImpl) CreatePrompt(ctx context.Context, name, description, promptText, category string) (int, error) {
+	if s.store == nil {
+		return 0, fmt.Errorf("store not available")
+	}
+	return s.store.CreatePromptTemplate(ctx, name, description, promptText, category)
+}
+
+// UpdatePrompt updates an existing prompt template
+func (s *PromptServiceImpl) UpdatePrompt(ctx context.Context, id int, name, description, promptText, category string) error {
+	if s.store == nil {
+		return fmt.Errorf("store not available")
+	}
+	return s.store.UpdatePromptTemplate(ctx, id, name, description, promptText, category)
+}
+
+// DeletePrompt deletes a prompt template
+func (s *PromptServiceImpl) DeletePrompt(ctx context.Context, id int) error {
+	if s.store == nil {
+		return fmt.Errorf("store not available")
+	}
+	return s.store.DeletePromptTemplate(ctx, id)
+}
+
+// FindPromptByName finds a prompt template by name
+func (s *PromptServiceImpl) FindPromptByName(ctx context.Context, name string) (*PromptTemplate, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("store not available")
+	}
+	return s.store.FindPromptByName(ctx, name)
+}
+
+// CreateFromFile creates a prompt template from a markdown file with front matter
+func (s *PromptServiceImpl) CreateFromFile(ctx context.Context, filePath string) (int, error) {
+	if s.store == nil {
+		return 0, fmt.Errorf("store not available")
+	}
+
+	// Expand tilde in path
+	if strings.HasPrefix(filePath, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return 0, fmt.Errorf("cannot get home directory: %w", err)
+		}
+		if filePath == "~" {
+			filePath = home
+		} else {
+			filePath = filepath.Join(home, filePath[2:])
+		}
+	}
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	// Parse front matter and content
+	frontMatter, promptText, err := s.parseFrontMatter(content)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse front matter in %s: %w", filePath, err)
+	}
+
+	// Validate required fields
+	if strings.TrimSpace(frontMatter.Name) == "" {
+		return 0, fmt.Errorf("prompt name is required in front matter")
+	}
+	if strings.TrimSpace(frontMatter.Category) == "" {
+		return 0, fmt.Errorf("prompt category is required in front matter")
+	}
+	if strings.TrimSpace(promptText) == "" {
+		return 0, fmt.Errorf("prompt content cannot be empty")
+	}
+
+	// Check if prompt with same name already exists
+	existing, err := s.store.FindPromptByName(ctx, frontMatter.Name)
+	if err == nil && existing != nil {
+		// Prompt exists, update it
+		return existing.ID, s.store.UpdatePromptTemplate(ctx, existing.ID, frontMatter.Name, frontMatter.Description, promptText, frontMatter.Category)
+	}
+
+	// Create new prompt
+	return s.store.CreatePromptTemplate(ctx, frontMatter.Name, frontMatter.Description, promptText, frontMatter.Category)
+}
+
+// ExportToFile exports a prompt template to a markdown file with front matter
+func (s *PromptServiceImpl) ExportToFile(ctx context.Context, id int, filePath string) error {
+	if s.store == nil {
+		return fmt.Errorf("store not available")
+	}
+
+	// Get the prompt template
+	prompt, err := s.store.GetPromptTemplate(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get prompt template: %w", err)
+	}
+
+	// Expand tilde in path
+	if strings.HasPrefix(filePath, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("cannot get home directory: %w", err)
+		}
+		if filePath == "~" {
+			filePath = home
+		} else {
+			filePath = filepath.Join(home, filePath[2:])
+		}
+	}
+
+	// Create front matter
+	frontMatter := PromptFrontMatter{
+		Name:        prompt.Name,
+		Description: prompt.Description,
+		Category:    prompt.Category,
+	}
+
+	// Generate markdown content
+	content, err := s.generateMarkdownContent(frontMatter, prompt.PromptText)
+	if err != nil {
+		return fmt.Errorf("failed to generate markdown content: %w", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Write file
+	if err := os.WriteFile(filePath, content, 0644); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", filePath, err)
+	}
+
+	return nil
+}
+
+// parseFrontMatter parses YAML front matter from markdown content
+func (s *PromptServiceImpl) parseFrontMatter(content []byte) (PromptFrontMatter, string, error) {
+	var frontMatter PromptFrontMatter
+
+	// Convert to string for parsing
+	text := string(content)
+
+	// Check if file starts with front matter
+	if !strings.HasPrefix(text, "---\n") && !strings.HasPrefix(text, "---\r\n") {
+		return frontMatter, "", fmt.Errorf("file must start with YAML front matter (---)")
+	}
+
+	// Find the end of front matter
+	lines := strings.Split(text, "\n")
+	endIdx := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			endIdx = i
+			break
+		}
+	}
+
+	if endIdx == -1 {
+		return frontMatter, "", fmt.Errorf("front matter not properly closed with ---")
+	}
+
+	// Extract front matter YAML
+	yamlContent := strings.Join(lines[1:endIdx], "\n")
+	if err := yaml.Unmarshal([]byte(yamlContent), &frontMatter); err != nil {
+		return frontMatter, "", fmt.Errorf("failed to parse YAML front matter: %w", err)
+	}
+
+	// Extract prompt content (everything after front matter)
+	promptLines := lines[endIdx+1:]
+	promptText := strings.Join(promptLines, "\n")
+	promptText = strings.TrimSpace(promptText)
+
+	return frontMatter, promptText, nil
+}
+
+// generateMarkdownContent generates markdown content with front matter
+func (s *PromptServiceImpl) generateMarkdownContent(frontMatter PromptFrontMatter, promptText string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Write front matter
+	buf.WriteString("---\n")
+	yamlData, err := yaml.Marshal(frontMatter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal front matter: %w", err)
+	}
+	buf.Write(yamlData)
+	buf.WriteString("---\n\n")
+
+	// Write prompt content
+	buf.WriteString(promptText)
+	buf.WriteString("\n")
+
+	return buf.Bytes(), nil
 }

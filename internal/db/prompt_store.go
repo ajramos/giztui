@@ -249,3 +249,112 @@ func (ps *PromptStore) ClearAllPromptCaches(ctx context.Context) error {
 
 	return nil
 }
+
+// CreatePromptTemplate creates a new prompt template
+func (ps *PromptStore) CreatePromptTemplate(ctx context.Context, name, description, promptText, category string) (int, error) {
+	if ps == nil || ps.db == nil {
+		return 0, fmt.Errorf("prompt store not initialized")
+	}
+
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(promptText) == "" || strings.TrimSpace(category) == "" {
+		return 0, fmt.Errorf("name, prompt text, and category cannot be empty")
+	}
+
+	result, err := ps.db.ExecContext(ctx,
+		`INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite, usage_count)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		name, description, promptText, category, time.Now().Unix(), false, 0)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to create prompt template: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get created prompt ID: %w", err)
+	}
+
+	return int(id), nil
+}
+
+// UpdatePromptTemplate updates an existing prompt template
+func (ps *PromptStore) UpdatePromptTemplate(ctx context.Context, id int, name, description, promptText, category string) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(promptText) == "" || strings.TrimSpace(category) == "" {
+		return fmt.Errorf("name, prompt text, and category cannot be empty")
+	}
+
+	result, err := ps.db.ExecContext(ctx,
+		`UPDATE prompt_templates 
+		 SET name = ?, description = ?, prompt_text = ?, category = ?
+		 WHERE id = ?`,
+		name, description, promptText, category, id)
+
+	if err != nil {
+		return fmt.Errorf("failed to update prompt template: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("prompt template with ID %d not found", id)
+	}
+
+	return nil
+}
+
+// DeletePromptTemplate deletes a prompt template
+func (ps *PromptStore) DeletePromptTemplate(ctx context.Context, id int) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+
+	result, err := ps.db.ExecContext(ctx, `DELETE FROM prompt_templates WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete prompt template: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("prompt template with ID %d not found", id)
+	}
+
+	return nil
+}
+
+// FindPromptByName finds a prompt template by name
+func (ps *PromptStore) FindPromptByName(ctx context.Context, name string) (*prompts.PromptTemplate, error) {
+	if ps == nil || ps.db == nil {
+		return nil, fmt.Errorf("prompt store not initialized")
+	}
+
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("prompt name cannot be empty")
+	}
+
+	t := &prompts.PromptTemplate{}
+	err := ps.db.QueryRowContext(ctx,
+		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+		 FROM prompt_templates WHERE name = ?`, name).
+		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
+			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("prompt template with name '%s' not found", name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to find prompt template: %w", err)
+	}
+
+	return t, nil
+}

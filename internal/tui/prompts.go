@@ -62,8 +62,7 @@ func (a *App) openPromptPicker() {
 		list.Clear()
 		visible = visible[:0]
 		for _, item := range all {
-			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) &&
-				!strings.Contains(strings.ToLower(item.description), strings.ToLower(filter)) {
+			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
 				continue
 			}
 			visible = append(visible, item)
@@ -220,7 +219,24 @@ func (a *App) closePromptPicker() {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
 	a.labelsVisible = false
-	// Restore focus to text view
+	
+	// Restore original text container title and show headers
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📄 Message Content ")
+		textContainer.SetTitleColor(tcell.ColorYellow)
+		
+		// Restore message headers by resizing header back to original height
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// Use stored original height if available, otherwise fallback to default
+			height := a.originalHeaderHeight
+			if height == 0 {
+				height = 6 // Fallback to default height
+			}
+			textContainer.ResizeItem(header, height, 0)
+			a.originalHeaderHeight = 0 // Reset the stored height
+		}
+	}
+	
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
 		a.currentFocus = "text"
@@ -518,4 +534,342 @@ func (a *App) extractHeader(message *gmail.Message, headerName string) string {
 		}
 	}
 	return ""
+}
+
+// openPromptPickerForManagement opens an enhanced prompt picker for management operations
+func (a *App) openPromptPickerForManagement() {
+	// Get prompt service
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available - check LLM and cache configuration")
+		return
+	}
+
+	// Create picker UI similar to regular prompt picker
+	input := tview.NewInputField().
+		SetLabel("🔍 Search: ").
+		SetFieldWidth(30)
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(false)
+
+	type promptItem struct {
+		id          int
+		name        string
+		description string
+		category    string
+		usageCount  int
+	}
+
+	var all []promptItem
+	var visible []promptItem
+
+	// Reload function for filtering
+	reload := func(filter string) {
+		list.Clear()
+		visible = visible[:0]
+		for _, item := range all {
+			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
+				continue
+			}
+			visible = append(visible, item)
+
+			// Category icon and usage count display
+			icon := "📄"
+			switch item.category {
+			case "bulk_analysis":
+				icon = "🚀"
+			case "summary":
+				icon = "📄"
+			case "analysis":
+				icon = "📊"
+			case "reply":
+				icon = "💬"
+			default:
+				icon = "📝"
+			}
+
+			display := fmt.Sprintf("%s %s", icon, item.name)
+			secondary := fmt.Sprintf("Category: %s | Used: %d times", item.category, item.usageCount)
+
+			// Capture variables for closure
+			promptID := item.id
+			promptName := item.name
+
+			list.AddItem(display, secondary, 0, func() {
+				// Show full prompt details in text view
+				a.showPromptDetails(promptID, promptName)
+			})
+		}
+	}
+
+	// Load prompts in background
+	go func() {
+		prompts, err := promptService.ListPrompts(a.ctx, "")
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load prompts: %v", err))
+			return
+		}
+
+		a.QueueUpdateDraw(func() {
+			// Show ALL prompts (no category filtering for management)
+			all = make([]promptItem, 0, len(prompts))
+			for _, p := range prompts {
+				all = append(all, promptItem{
+					id:          p.ID,
+					name:        p.Name,
+					description: p.Description,
+					category:    p.Category,
+					usageCount:  p.UsageCount,
+				})
+			}
+
+			reload("")
+
+			// Set up input field
+			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
+
+			// Handle input events
+			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				switch event.Key() {
+				case tcell.KeyEscape:
+					a.closePromptManager()
+					return nil
+				case tcell.KeyDown, tcell.KeyUp, tcell.KeyPgDn, tcell.KeyPgUp:
+					a.SetFocus(list)
+					return event
+				}
+				return event
+			})
+
+			// Enhanced list input capture with management keys
+			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
+					a.SetFocus(input)
+					return nil
+				}
+				if e.Key() == tcell.KeyEscape {
+					a.closePromptManager()
+					return nil
+				}
+
+				// Management key bindings
+				switch e.Rune() {
+				case 'e':
+					// Export prompt - ask for file path
+					if len(visible) > 0 {
+						currentIndex := list.GetCurrentItem()
+						if currentIndex >= 0 && currentIndex < len(visible) {
+							item := visible[currentIndex]
+							go a.promptForExportPath(item.id, item.name)
+						}
+					}
+					return nil
+				case 'd':
+					// Delete prompt with confirmation
+					if len(visible) > 0 {
+						currentIndex := list.GetCurrentItem()
+						if currentIndex >= 0 && currentIndex < len(visible) {
+							item := visible[currentIndex]
+							go a.confirmDeletePrompt(item.id, item.name)
+						}
+					}
+					return nil
+				}
+				return e
+			})
+
+			// Handle enter in input field (select first match)
+			input.SetDoneFunc(func(key tcell.Key) {
+				if key == tcell.KeyEscape {
+					a.closePromptManager()
+					return
+				}
+				if key == tcell.KeyEnter {
+					if len(visible) > 0 {
+						v := visible[0]
+						a.showPromptDetails(v.id, v.name)
+					}
+				}
+			})
+		})
+	}()
+
+	// Create container
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBorder(true)
+	container.SetTitle(" 📚 Prompt Library Manager ")
+	container.SetTitleColor(tcell.ColorYellow)
+	container.AddItem(input, 3, 0, true)
+	container.AddItem(list, 0, 1, true)
+
+	// Enhanced footer with management instructions
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Enter: view | e: export | d: delete | Esc: close ")
+	footer.SetTextColor(tcell.ColorGray)
+	container.AddItem(footer, 1, 0, false)
+
+	// Add to content split
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.SetFocus(input)
+	a.currentFocus = "prompts"
+	a.updateFocusIndicators("prompts")
+	a.labelsVisible = true
+}
+
+// closePromptManager closes the prompt manager and restores the original view
+func (a *App) closePromptManager() {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+	}
+	a.labelsVisible = false
+	
+	// Restore original text container title and show headers
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📄 Message Content ")
+		textContainer.SetTitleColor(tcell.ColorYellow)
+		
+		// Restore message headers by resizing header back to original height
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// Use stored original height if available, otherwise fallback to default
+			height := a.originalHeaderHeight
+			if height == 0 {
+				height = 6 // Fallback to default height
+			}
+			textContainer.ResizeItem(header, height, 0)
+			a.originalHeaderHeight = 0 // Reset the stored height
+		}
+	}
+	
+	a.SetFocus(a.views["list"])
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+}
+
+// showPromptDetails displays the full prompt in the text view
+func (a *App) showPromptDetails(promptID int, promptName string) {
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+
+	go func() {
+		prompt, err := promptService.GetPrompt(a.ctx, promptID)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to get prompt details: %v", err))
+			return
+		}
+
+		// Format prompt details for display
+		details := fmt.Sprintf("📝 Prompt: %s\n", prompt.Name)
+		details += fmt.Sprintf("📁 Category: %s\n", prompt.Category)
+		details += fmt.Sprintf("📊 Usage Count: %d\n", prompt.UsageCount)
+		if prompt.Description != "" {
+			details += fmt.Sprintf("📄 Description: %s\n", prompt.Description)
+		}
+		details += fmt.Sprintf("🆔 ID: %d\n", prompt.ID)
+		details += "\nTemplate:\n\n"
+		details += prompt.PromptText
+
+		// Show in text view with improved UX
+		a.QueueUpdateDraw(func() {
+			// Update the text container title and hide headers
+			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+				textContainer.SetTitle(" 📝 Prompt Details ")
+				textContainer.SetTitleColor(tcell.ColorYellow)
+				
+				// Store the current header height before hiding it
+				if header, ok := a.views["header"].(*tview.TextView); ok {
+					// Calculate current header height based on its content
+					headerContent := header.GetText(false)
+					a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+					
+					// Hide message headers by resizing header to 0 height
+					textContainer.ResizeItem(header, 0, 0)
+				}
+				
+				// Debug: Log that we're setting the title
+				if a.logger != nil {
+					a.logger.Printf("TITLE DEBUG: Set title to 'Prompt Details' and hid headers for prompt: %s (original height: %d)", promptName, a.originalHeaderHeight)
+				}
+			}
+			
+			if textView, ok := a.views["text"].(*tview.TextView); ok {
+				textView.SetText(details)
+				textView.ScrollToBeginning()
+				
+				// Set focus to text view for scrolling (use EnhancedTextView if available)
+				if a.enhancedTextView != nil {
+					a.SetFocus(a.enhancedTextView)
+				} else {
+					a.SetFocus(textView)
+				}
+				a.currentFocus = "text"
+				a.updateFocusIndicators("text")
+			}
+			// Also update enhanced text view if available
+			if a.enhancedTextView != nil {
+				a.enhancedTextView.SetContent(details)
+			}
+		})
+
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Showing details for: %s | Tab: back to picker", promptName))
+		}()
+	}()
+}
+
+// promptForExportPath prompts user for export path via input dialog
+func (a *App) promptForExportPath(promptID int, promptName string) {
+	// For now, use a simple naming pattern - in a real implementation you might want a file picker
+	defaultPath := fmt.Sprintf("~/prompt_%s.md", strings.ReplaceAll(strings.ToLower(promptName), " ", "_"))
+	
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+
+	// Export to the default path
+	err := promptService.ExportToFile(a.ctx, promptID, defaultPath)
+	if err != nil {
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to export prompt: %v", err))
+		return
+	}
+
+	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Exported '%s' to %s", promptName, defaultPath))
+}
+
+// confirmDeletePrompt asks for confirmation before deleting a prompt
+func (a *App) confirmDeletePrompt(promptID int, promptName string) {
+	// For now, delete directly - in a real implementation you might want a confirmation dialog
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+
+	// Delete the prompt
+	err := promptService.DeletePrompt(a.ctx, promptID)
+	if err != nil {
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete prompt: %v", err))
+		return
+	}
+
+	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
+	
+	// Refresh the prompt manager
+	go a.openPromptPickerForManagement()
 }

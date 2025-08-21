@@ -1713,6 +1713,12 @@ func (a *App) applyLocalFilter(expr string) {
 
 // showMessage displays a message in the text view
 func (a *App) showMessage(id string) {
+	// Restore text container title when viewing messages
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📄 Message Content ")
+		textContainer.SetTitleColor(tcell.ColorYellow)
+	}
+
 	// Show loading message immediately
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		if a.debug {
@@ -1923,6 +1929,12 @@ func sanitizeFilename(s string) string {
 
 // showMessageWithoutFocus loads the message content but does not change focus
 func (a *App) showMessageWithoutFocus(id string) {
+	// Restore text container title when viewing messages
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📄 Message Content ")
+		textContainer.SetTitleColor(tcell.ColorYellow)
+	}
+
 	// Show loading message
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		if a.debug {
@@ -3258,4 +3270,20 @@ func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemente
 // composeMessage placeholder
 func (a *App) composeMessage(draft bool) {
 	a.showInfo("Compose message functionality not yet implemented")
+}
+
+// calculateHeaderHeight calculates the height needed for header content (same logic as adjustHeaderHeight)
+func (a *App) calculateHeaderHeight(headerContent string) int {
+	// Count the number of lines in the header content
+	lines := strings.Count(headerContent, "\n") + 1
+	// Set minimum height of 4 and maximum of 12 to prevent extreme cases
+	minHeight := 4
+	maxHeight := 12
+	if lines < minHeight {
+		lines = minHeight
+	}
+	if lines > maxHeight {
+		lines = maxHeight
+	}
+	return lines
 }

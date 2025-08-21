@@ -97,6 +97,16 @@ type PromptService interface {
 	// Cache management
 	ClearPromptCache(ctx context.Context, accountEmail string) error
 	ClearAllPromptCaches(ctx context.Context) error
+	
+	// CRUD operations for prompt templates
+	CreatePrompt(ctx context.Context, name, description, promptText, category string) (int, error)
+	UpdatePrompt(ctx context.Context, id int, name, description, promptText, category string) error
+	DeletePrompt(ctx context.Context, id int) error
+	FindPromptByName(ctx context.Context, name string) (*PromptTemplate, error)
+	
+	// File operations for prompt templates
+	CreateFromFile(ctx context.Context, filePath string) (int, error)
+	ExportToFile(ctx context.Context, id int, filePath string) error
 }
 
 // ContentNavigationService handles content search and navigation within message text

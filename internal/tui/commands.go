@@ -1,13 +1,17 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
+	"gopkg.in/yaml.v3"
 )
 
 // emojiBox draws a single piece of text (emoji-safe) at its top-left without markup.
@@ -495,7 +499,7 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLabelCommand(args)
 	case "obsidian", "obs":
 		a.executeObsidianCommand(args)
-	case "prompt", "pr":
+	case "prompt", "pr", "p":
 		a.executePromptCommand(args)
 	default:
 		// Check for numeric shortcuts like :1, :$
@@ -1151,31 +1155,339 @@ func (a *App) executeObsidianCommand(args []string) {
 	a.obsidianRange(startIndex, count)
 }
 
-// executePromptCommand handles :prompt commands for range AI prompting operations
+// executePromptCommand handles :prompt commands for prompt template management
 func (a *App) executePromptCommand(args []string) {
 	if len(args) == 0 {
-		a.showError("Usage: prompt <count>")
+		// Default to list command
+		a.openPromptManager()
 		return
 	}
 
-	count, err := strconv.Atoi(args[0])
-	if err != nil || count <= 0 {
-		a.showError("Usage: prompt <count> (positive number)")
+	subCommand := strings.ToLower(args[0])
+	subArgs := args[1:]
+
+	switch subCommand {
+	case "list", "l":
+		a.openPromptManager()
+	case "create", "c":
+		a.executePromptCreate(subArgs)
+	case "update", "u":
+		a.executePromptUpdate(subArgs)
+	case "export", "e":
+		a.executePromptExport(subArgs)
+	case "delete", "d":
+		a.executePromptDelete(subArgs)
+	default:
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown prompt command: %s. Use 'list', 'create', 'update', 'export', or 'delete'", subCommand))
+		}()
+	}
+}
+
+// openPromptManager opens the enhanced prompt picker for management
+func (a *App) openPromptManager() {
+	go a.openPromptPickerForManagement()
+}
+
+// executePromptCreate creates a prompt from a markdown file
+func (a *App) executePromptCreate(args []string) {
+	if len(args) == 0 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: prompt create <file_path>")
+		}()
 		return
 	}
 
-	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("Could not access message list")
+	filePath := args[0]
+	
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		}()
 		return
 	}
 
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
-		a.showError("No message selected")
+	go func() {
+		// Add timeout protection for file operations
+		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+		defer cancel()
+		
+		id, err := promptService.CreateFromFile(ctx, filePath)
+		if err != nil {
+			// Use separate goroutine for ErrorHandler to avoid potential deadlocks
+			go func() {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to create prompt: %v", err))
+			}()
+			return
+		}
+		
+		// Use separate goroutine for ErrorHandler to avoid potential deadlocks
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Created prompt with ID %d", id))
+		}()
+	}()
+}
+
+// executePromptUpdate updates an existing prompt from a markdown file
+func (a *App) executePromptUpdate(args []string) {
+	if len(args) < 2 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: prompt update <id|name> <file_path>")
+		}()
 		return
 	}
 
-	a.promptRange(startIndex, count)
+	identifier := args[0]
+	filePath := args[1]
+	
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		}()
+		return
+	}
+
+	go func() {
+		var promptID int
+		var promptName string
+
+		// Try to parse as ID first
+		if id, parseErr := strconv.Atoi(identifier); parseErr == nil {
+			promptID = id
+			// Get prompt to show name in confirmation
+			if prompt, err := promptService.GetPrompt(a.ctx, id); err == nil {
+				promptName = prompt.Name
+			} else {
+				promptName = fmt.Sprintf("ID %d", id)
+			}
+		} else {
+			// Try to find by name
+			prompt, findErr := promptService.FindPromptByName(a.ctx, identifier)
+			if findErr != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Prompt not found: %s", identifier))
+				return
+			}
+			promptID = prompt.ID
+			promptName = prompt.Name
+		}
+
+		// Read and parse the new file content
+		// Expand tilde in path
+		if strings.HasPrefix(filePath, "~") {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Cannot get home directory: %v", err))
+				return
+			}
+			if filePath == "~" {
+				filePath = home
+			} else {
+				filePath = filepath.Join(home, filePath[2:])
+			}
+		}
+
+		// Read file content
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to read file %s: %v", filePath, err))
+			return
+		}
+
+		// Parse front matter manually (same logic as in service)
+		text := string(content)
+		if !strings.HasPrefix(text, "---\n") && !strings.HasPrefix(text, "---\r\n") {
+			a.GetErrorHandler().ShowError(a.ctx, "File must start with YAML front matter (---)")
+			return
+		}
+
+		// Find the end of front matter
+		lines := strings.Split(text, "\n")
+		endIdx := -1
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" {
+				endIdx = i
+				break
+			}
+		}
+
+		if endIdx == -1 {
+			a.GetErrorHandler().ShowError(a.ctx, "Front matter not properly closed with ---")
+			return
+		}
+
+		// Extract front matter YAML
+		yamlContent := strings.Join(lines[1:endIdx], "\n")
+		var frontMatter struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+			Category    string `yaml:"category"`
+		}
+		
+		if err := yaml.Unmarshal([]byte(yamlContent), &frontMatter); err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to parse YAML front matter: %v", err))
+			return
+		}
+
+		// Extract prompt content
+		promptLines := lines[endIdx+1:]
+		promptText := strings.Join(promptLines, "\n")
+		promptText = strings.TrimSpace(promptText)
+
+		// Validate required fields
+		if strings.TrimSpace(frontMatter.Name) == "" {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt name is required in front matter")
+			return
+		}
+		if strings.TrimSpace(frontMatter.Category) == "" {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt category is required in front matter")
+			return
+		}
+		if strings.TrimSpace(promptText) == "" {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt content cannot be empty")
+			return
+		}
+
+		// Update the prompt
+		if err := promptService.UpdatePrompt(a.ctx, promptID, frontMatter.Name, frontMatter.Description, promptText, frontMatter.Category); err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to update prompt: %v", err))
+			return
+		}
+		
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated prompt: %s", promptName))
+	}()
+}
+
+// executePromptExport exports a prompt to a markdown file
+func (a *App) executePromptExport(args []string) {
+	if len(args) < 2 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: prompt export <id|name> <file_path>")
+		}()
+		return
+	}
+
+	identifier := args[0]
+	filePath := args[1]
+
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		}()
+		return
+	}
+
+	go func() {
+		// Add timeout protection for file operations
+		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+		defer cancel()
+		
+		var promptID int
+		var err error
+
+		// Try to parse as ID first
+		if id, parseErr := strconv.Atoi(identifier); parseErr == nil {
+			promptID = id
+			// Validate that the ID exists by trying to get the prompt
+			if _, validateErr := promptService.GetPrompt(ctx, promptID); validateErr != nil {
+				go func() {
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Prompt with ID %d not found", promptID))
+				}()
+				return
+			}
+		} else {
+			// Try to find by name
+			prompt, findErr := promptService.FindPromptByName(ctx, identifier)
+			if findErr != nil {
+				go func() {
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Prompt not found: %s", identifier))
+				}()
+				return
+			}
+			promptID = prompt.ID
+		}
+
+		if err = promptService.ExportToFile(ctx, promptID, filePath); err != nil {
+			go func() {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to export prompt: %v", err))
+			}()
+			return
+		}
+
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Exported prompt to %s", filePath))
+		}()
+	}()
+}
+
+// executePromptDelete deletes a prompt
+func (a *App) executePromptDelete(args []string) {
+	if len(args) == 0 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: prompt delete <id|name>")
+		}()
+		return
+	}
+
+	identifier := args[0]
+
+	// Get services
+	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	if promptService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		}()
+		return
+	}
+
+	go func() {
+		// Add timeout protection for database operations
+		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+		defer cancel()
+		
+		var promptID int
+		var promptName string
+
+		// Try to parse as ID first
+		if id, parseErr := strconv.Atoi(identifier); parseErr == nil {
+			promptID = id
+			// Get prompt to show name in confirmation and validate existence
+			if prompt, err := promptService.GetPrompt(ctx, id); err == nil {
+				promptName = prompt.Name
+			} else {
+				go func() {
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Prompt with ID %d not found", id))
+				}()
+				return
+			}
+		} else {
+			// Try to find by name
+			prompt, findErr := promptService.FindPromptByName(ctx, identifier)
+			if findErr != nil {
+				go func() {
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Prompt not found: %s", identifier))
+				}()
+				return
+			}
+			promptID = prompt.ID
+			promptName = prompt.Name
+		}
+
+		// Delete the prompt
+		if err := promptService.DeletePrompt(ctx, promptID); err != nil {
+			go func() {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete prompt: %v", err))
+			}()
+			return
+		}
+
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
+		}()
+	}()
 }
