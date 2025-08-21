@@ -55,15 +55,15 @@ func (a *App) reformatListItems() {
 		}
 
 		// Determine base color by priority (as tcell.Color for Table)
-		var textColor tcell.Color = tcell.ColorWhite
+		var textColor tcell.Color = a.currentTheme.UI.InfoColor.Color()
 		if yellowStar {
-			textColor = tcell.ColorYellow
+			textColor = a.GetStatusColor("warning")
 		} else if starred {
-			textColor = tcell.ColorGreen
+			textColor = a.GetStatusColor("success")
 		} else if important {
-			textColor = tcell.ColorRed
+			textColor = a.GetStatusColor("error")
 		} else if !unread { // read
-			textColor = tcell.ColorGray
+			textColor = a.currentTheme.UI.FooterColor.Color()
 		}
 
 		// Build prefixes
@@ -101,10 +101,10 @@ func (a *App) reformatListItems() {
 				if cur == i {
 					cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 				} else {
-					cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+					cell.SetTextColor(a.currentTheme.Body.BgColor.Color()).SetBackgroundColor(a.currentTheme.UI.SelectionFgColor.Color())
 				}
 			} else {
-				cell.SetTextColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite)
+				cell.SetTextColor(a.currentTheme.Body.BgColor.Color()).SetBackgroundColor(a.currentTheme.UI.SelectionFgColor.Color())
 			}
 		} else {
 			cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -1487,9 +1487,9 @@ func (a *App) openAdvancedSearchForm() {
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
 		sp.Clear()
 		sp.SetBorder(true).
-			SetBorderColor(tcell.ColorYellow).
+			SetBorderColor(a.currentTheme.UI.TitleColor.Color()).
 			SetTitle("🔎 Advanced Search").
-			SetTitleColor(tcell.ColorYellow).
+			SetTitleColor(a.currentTheme.UI.TitleColor.Color()).
 			SetTitleAlign(tview.AlignCenter)
 		twoCol := tview.NewFlex().SetDirection(tview.FlexColumn)
 		a.views["searchTwoCol"] = twoCol
@@ -2596,7 +2596,7 @@ func (a *App) openRSVPModal() {
 	} else {
 		titleView.SetText("📅 Meeting Invitation")
 	}
-	titleView.SetTextColor(tcell.ColorYellow)
+	titleView.SetTextColor(a.currentTheme.UI.TitleColor.Color())
 	meetingContainer.AddItem(titleView, 1, 0, false)
 
 	// Organizer
@@ -2604,7 +2604,7 @@ func (a *App) openRSVPModal() {
 		organizerName := formatOrganizerName(inv.Organizer)
 		organizerView := tview.NewTextView().SetWordWrap(true)
 		organizerView.SetText(fmt.Sprintf("👤 %s", organizerName))
-		organizerView.SetTextColor(tcell.ColorBlue)
+		organizerView.SetTextColor(a.GetStatusColor("info"))
 		meetingContainer.AddItem(organizerView, 1, 0, false)
 	}
 
@@ -2621,7 +2621,7 @@ func (a *App) openRSVPModal() {
 		if timeRange != "" {
 			timeView := tview.NewTextView().SetWordWrap(true)
 			timeView.SetText(fmt.Sprintf("🕐 %s", timeRange))
-			timeView.SetTextColor(tcell.ColorGreen)
+			timeView.SetTextColor(a.GetStatusColor("success"))
 			meetingContainer.AddItem(timeView, 1, 0, false)
 		}
 	}

@@ -19,16 +19,30 @@ type EmailColorer struct {
 	ImportantColor tcell.Color
 	SentColor      tcell.Color
 	DraftColor     tcell.Color
+	DefaultColor   tcell.Color
 }
 
-// NewEmailColorer creates a new email colorer with default colors
-func NewEmailColorer() *EmailColorer {
+// NewEmailColorer creates a new email colorer with theme-aware colors
+func NewEmailColorer(unreadColor, readColor, importantColor, sentColor, draftColor, defaultColor tcell.Color) *EmailColorer {
+	return &EmailColorer{
+		UnreadColor:    unreadColor,
+		ReadColor:      readColor,
+		ImportantColor: importantColor,
+		SentColor:      sentColor,
+		DraftColor:     draftColor,
+		DefaultColor:   defaultColor,
+	}
+}
+
+// NewEmailColorerDefault creates a new email colorer with default fallback colors
+func NewEmailColorerDefault() *EmailColorer {
 	return &EmailColorer{
 		UnreadColor:    tcell.ColorOrange,
 		ReadColor:      tcell.ColorGray,
 		ImportantColor: tcell.ColorRed,
 		SentColor:      tcell.ColorGreen,
 		DraftColor:     tcell.ColorYellow,
+		DefaultColor:   tcell.ColorWhite,
 	}
 }
 
@@ -49,7 +63,7 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 			if ec.isUnread(message) {
 				return ec.UnreadColor // orange for unread
 			}
-			return tcell.ColorWhite
+			return ec.DefaultColor
 
 		case "SUBJECT":
 			if ec.isDraft(message) {
@@ -59,11 +73,11 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 				return ec.SentColor // 🟢 Verde para enviado
 			}
 			if ec.isUnread(message) {
-				return tcell.ColorWhite // ⚪ Blanco brillante
+				return ec.DefaultColor // ⚪ Blanco brillante
 			}
 			return ec.ReadColor // gray for read
 		}
-		return tcell.ColorWhite
+		return ec.DefaultColor
 	}
 }
 
@@ -130,7 +144,7 @@ type EmailRenderer struct {
 // NewEmailRenderer creates a new email renderer
 func NewEmailRenderer() *EmailRenderer {
 	return &EmailRenderer{
-		colorer:                NewEmailColorer(),
+		colorer:                NewEmailColorerDefault(),
 		headerKeyTag:           "[yellow]",
 		labelIdToName:          make(map[string]string),
 		showSystemLabelsInList: false,
@@ -149,6 +163,11 @@ func (er *EmailRenderer) SetLabelMap(m map[string]string) {
 // SetShowSystemLabelsInList toggles whether system labels (Inbox, Sent, Spam, etc.)
 // should be rendered as chips in the list view.
 func (er *EmailRenderer) SetShowSystemLabelsInList(v bool) { er.showSystemLabelsInList = v }
+
+// UpdateColorer updates the email colorer with theme-aware colors
+func (er *EmailRenderer) UpdateColorer(unreadColor, readColor, importantColor, sentColor, draftColor, defaultColor tcell.Color) {
+	er.colorer = NewEmailColorer(unreadColor, readColor, importantColor, sentColor, draftColor, defaultColor)
+}
 
 // FormatEmailList formats an email for list display
 func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth int) (string, tcell.Color) {
@@ -194,7 +213,7 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	formatted := fmt.Sprintf("%s | %s%s | %s", senderText, subjectText, suffix, dateText)
 
 	// Devolvemos color neutro para simplificar (sin estilos)
-	textColor := tcell.ColorWhite
+	textColor := er.colorer.DefaultColor
 
 	return formatted, textColor
 }

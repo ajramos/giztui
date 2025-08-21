@@ -208,12 +208,21 @@ func NewFlash() *Flash {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
 		SetBorder(true).
-		SetBorderColor(tcell.ColorYellow)
+		SetBorderColor(tcell.ColorYellow) // Will be updated by theme
 
 	flash := &Flash{
 		textView: textView,
 	}
 	return flash
+}
+
+// UpdateBorderColor updates the flash border color with theme color
+func (f *Flash) UpdateBorderColor(color tcell.Color) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if textView, ok := f.textView.(*tview.TextView); ok {
+		textView.SetBorderColor(color)
+	}
 }
 
 // KeyActions manages keyboard shortcuts
@@ -902,6 +911,19 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	
 	// Cache current theme for helper functions
 	a.currentTheme = theme
+	
+	// Update email renderer with theme colors
+	a.emailRenderer.UpdateColorer(
+		a.GetStatusColor("progress"),              // UnreadColor - orange/progress color
+		a.currentTheme.UI.FooterColor.Color(),      // ReadColor - gray for read messages
+		a.GetStatusColor("error"),                 // ImportantColor - red for important
+		a.GetStatusColor("success"),               // SentColor - green for sent
+		a.GetStatusColor("warning"),               // DraftColor - yellow for drafts
+		a.currentTheme.Body.FgColor.Color(),        // DefaultColor - theme text color
+	)
+	
+	// Update flash border color with theme
+	a.flash.UpdateBorderColor(a.currentTheme.UI.TitleColor.Color())
 	
 	// Update config if theme name is available
 	if theme.Name != "" && a.Config != nil {
