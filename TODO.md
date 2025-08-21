@@ -11,6 +11,8 @@ make: *** [run] Error 1
 2. Grant access to the application
 3. You will be redirected automatically
 - [ ] Remove el prefijo "VIM:" que aparece
+- [ ] Be able to hide the headers from the email dynamically
+- [ ] Fetch next 50 messages doesn't have any shortcut any more
 
 ## 📋 PENDING - What's Left to Do
 

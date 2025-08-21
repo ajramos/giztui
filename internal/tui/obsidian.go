@@ -66,7 +66,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// Comment input field
 	commentLabel := tview.NewTextView().SetText("💬 Pre-message:")
-	commentLabel.SetTextColor(tcell.ColorYellow)
+	commentLabel.SetTextColor(a.getTitleColor())
 
 	commentInput := tview.NewInputField()
 	commentInput.SetLabel("")
@@ -80,7 +80,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter to ingest | Esc to cancel")
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	// Create a horizontal flex for label and input alignment
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -440,7 +440,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 		})
 
@@ -500,7 +500,7 @@ func (a *App) openBulkObsidianPanel() {
 
 	// Comment input field for bulk operation
 	commentLabel := tview.NewTextView().SetText("💬 Bulk comment:")
-	commentLabel.SetTextColor(tcell.ColorYellow)
+	commentLabel.SetTextColor(a.getTitleColor())
 
 	commentInput := tview.NewInputField()
 	commentInput.SetLabel("")
@@ -514,7 +514,7 @@ func (a *App) openBulkObsidianPanel() {
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter to ingest all | Esc to cancel")
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	// Create a horizontal flex for label and input alignment
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)

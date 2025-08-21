@@ -164,14 +164,14 @@ func (a *App) openPromptPicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🤖 Prompt Library ")
-			container.SetTitleColor(tcell.ColorYellow)
+			container.SetTitleColor(a.getTitleColor())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply | Esc to cancel ")
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.getFooterColor())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list
@@ -223,7 +223,7 @@ func (a *App) closePromptPicker() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(tcell.ColorYellow)
+		textContainer.SetTitleColor(a.getTitleColor())
 		
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -699,14 +699,14 @@ func (a *App) openPromptPickerForManagement() {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📚 Prompt Library Manager ")
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.getTitleColor())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(list, 0, 1, true)
 
 	// Enhanced footer with management instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter: view | e: export | d: delete | Esc: close ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split
@@ -736,7 +736,7 @@ func (a *App) closePromptManager() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(tcell.ColorYellow)
+		textContainer.SetTitleColor(a.getTitleColor())
 		
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -787,7 +787,7 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 			// Update the text container title and hide headers
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 📝 Prompt Details ")
-				textContainer.SetTitleColor(tcell.ColorYellow)
+				textContainer.SetTitleColor(a.getTitleColor())
 				
 				// Store the current header height before hiding it
 				if header, ok := a.views["header"].(*tview.TextView); ok {

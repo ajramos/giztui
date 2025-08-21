@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
 
@@ -39,7 +38,7 @@ func (a *App) archiveSelectedBulk() {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 		})
 
@@ -86,7 +85,7 @@ func (a *App) trashSelectedBulk() {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 		})
 
@@ -183,7 +182,7 @@ func (a *App) toggleMarkReadUnreadBulk() {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 		})
 

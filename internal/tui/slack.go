@@ -164,7 +164,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(tcell.ColorYellow)
+	userMessageInput.SetLabelColor(a.getLabelColor())
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
 
@@ -176,7 +176,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	instructions := tview.NewTextView()
 	instructions.SetText("Enter to Send | Esc to Close")
 	instructions.SetTextAlign(tview.AlignRight)
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	// Set up Enter key handler for sending
 	channelList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
@@ -279,7 +279,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 
 	// Comment input field for bulk operation (like Obsidian)
 	commentLabel := tview.NewTextView().SetText(fmt.Sprintf("💬 Bulk comment (%d emails):", messageCount))
-	commentLabel.SetTextColor(tcell.ColorYellow)
+	commentLabel.SetTextColor(a.getTitleColor())
 
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("")
@@ -294,7 +294,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	instructions := tview.NewTextView()
 	instructions.SetText(fmt.Sprintf("Enter to Send %d emails | Esc to Close | Tab to navigate", messageCount))
 	instructions.SetTextAlign(tview.AlignCenter)
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	// Create a horizontal flex for label and input alignment (like Obsidian)
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -509,7 +509,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 		})
 	}()

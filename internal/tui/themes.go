@@ -140,14 +140,14 @@ func (a *App) openThemePicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🎨 Theme Picker ")
-			container.SetTitleColor(tcell.ColorYellow)
+			container.SetTitleColor(a.getTitleColor())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter: preview | Space: apply | Esc: cancel ")
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.getFooterColor())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list
@@ -239,7 +239,7 @@ func (a *App) showThemePreview(themeName string) {
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 🎨 Theme Preview ")
 				// Use standard yellow for consistency with other titles
-				textContainer.SetTitleColor(tcell.ColorYellow)
+				textContainer.SetTitleColor(a.getTitleColor())
 
 				// Store the current header height before hiding it
 				if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -340,7 +340,7 @@ func (a *App) closeThemePicker() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(tcell.ColorYellow)
+		textContainer.SetTitleColor(a.getTitleColor())
 		
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {

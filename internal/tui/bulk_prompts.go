@@ -219,7 +219,7 @@ func (a *App) openBulkPromptPicker() {
 	// Footer
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply | Esc to cancel ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split like individual prompt picker
@@ -272,7 +272,7 @@ func (a *App) exitBulkMode() {
 
 	// Reset list selection style to normal
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Hide AI panel if it's visible
@@ -547,7 +547,7 @@ func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName
 
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText(fmt.Sprintf("📊 Bulk Prompt Result: %s", promptName))
-	title.SetTextColor(tcell.ColorYellow)
+	title.SetTextColor(a.getTitleColor())
 	title.SetBorder(true)
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)

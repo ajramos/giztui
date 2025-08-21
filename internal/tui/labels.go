@@ -255,13 +255,13 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	// Title with message subject
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText(fmt.Sprintf("🏷️  Labels for: %s", subject))
-	title.SetTextColor(tcell.ColorYellow)
+	title.SetTextColor(a.getTitleColor())
 	title.SetBorder(true)
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter: Toggle label | n: Create new label | r: Refresh | ESC: Back")
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	labelsView.AddItem(title, 3, 0, false)
 	labelsView.AddItem(labelsList, 0, 1, true)
@@ -400,7 +400,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 						a.GetErrorHandler().ClearProgress()
 					}()
 					if tbl, ok := a.views["list"].(*tview.Table); ok {
-						tbl.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						tbl.SetSelectedStyle(a.getSelectionStyle())
 					}
 				}
 				// Restore list navigation
@@ -424,13 +424,13 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container := tview.NewFlex().SetDirection(tview.FlexRow)
 		container.SetBorder(true)
 		container.SetTitle(" 🏷️  Message Labels ")
-		container.SetTitleColor(tcell.ColorYellow)
+		container.SetTitleColor(a.getTitleColor())
 		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		container.AddItem(body, 0, 1, true)
 		// Footer hint: quick view uses ESC to close panel
 		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 		footer.SetText(" Esc to back ")
-		footer.SetTextColor(tcell.ColorGray)
+		footer.SetTextColor(a.getFooterColor())
 		container.AddItem(footer, 1, 0, false)
 
 		if a.logger != nil {
@@ -657,7 +657,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					a.reformatListItems()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
-						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						list.SetSelectedStyle(a.getSelectionStyle())
 					}
 				}
 				a.SetFocus(a.views["list"])
@@ -676,7 +676,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					a.reformatListItems()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
-						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						list.SetSelectedStyle(a.getSelectionStyle())
 					}
 					// Clear progress asynchronously to avoid deadlock
 					go func() {
@@ -831,7 +831,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}
 			}
 			container.SetTitle(titleText)
-			container.SetTitleColor(tcell.ColorYellow)
+			container.SetTitleColor(a.getTitleColor())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 			// Footer hint (bottom-right)
@@ -843,7 +843,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			} else {
 				footer.SetText(" Enter to apply 1st match  |  Esc to back ")
 			}
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.getFooterColor())
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -867,7 +867,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.reformatListItems()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
-								list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+								list.SetSelectedStyle(a.getSelectionStyle())
 							}
 							// Clear progress asynchronously to avoid deadlock
 							go func() {
@@ -884,7 +884,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.reformatListItems()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
-								list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+								list.SetSelectedStyle(a.getSelectionStyle())
 							}
 							// Clear progress asynchronously to avoid deadlock
 							go func() {
@@ -1003,12 +1003,12 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(title)
-			container.SetTitleColor(tcell.ColorYellow)
+			container.SetTitleColor(a.getTitleColor())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to pick 1st match  |  Esc to back ")
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.getFooterColor())
 			container.AddItem(footer, 1, 0, false)
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				if a.labelsView != nil {
@@ -1048,12 +1048,12 @@ func (a *App) editLabelInline(labelID, name string) {
 		SetFieldWidth(30)
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to rename  |  Esc to back ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📝 Edit label ")
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.getTitleColor())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(footer, 1, 0, false)
 	input.SetDoneFunc(func(key tcell.Key) {
@@ -1104,12 +1104,12 @@ func (a *App) confirmDeleteLabel(labelID, name string) {
 	text.SetText("Delete label ‘" + name + "’? This cannot be undone.")
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to confirm  |  Esc to back ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 🗑 Remove label ")
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.getTitleColor())
 	container.AddItem(text, 0, 1, true)
 	container.AddItem(footer, 1, 0, false)
 	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -1247,13 +1247,13 @@ func (a *App) addCustomLabelInline(messageID string) {
 
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply  |  Esc to back ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" ➕ Add custom label ")
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.getTitleColor())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(footer, 1, 0, false)
 
@@ -1497,12 +1497,12 @@ func (a *App) createNewLabelFromView() {
 
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText("🏷️  Create New Label")
-	title.SetTextColor(tcell.ColorYellow)
+	title.SetTextColor(a.getTitleColor())
 	title.SetBorder(true)
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText(" Enter to apply  |  Esc to back ")
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.getFooterColor())
 
 	modal.AddItem(title, 3, 0, false)
 	modal.AddItem(inputField, 3, 0, true)

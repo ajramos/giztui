@@ -627,7 +627,7 @@ func (a *App) openSearchOverlay(mode string) {
 	}
 	input := tview.NewInputField().
 		SetLabel("🔍 ").
-		SetLabelColor(tcell.ColorYellow).
+		SetLabelColor(a.getLabelColor()).
 		SetFieldWidth(0).
 		SetPlaceholder(ph)
 	// expose input so Tab from list can focus it
@@ -3135,7 +3135,7 @@ func (a *App) archiveSelectedBulk() {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {
@@ -3177,7 +3177,7 @@ func (a *App) trashSelectedBulk() {
 			a.bulkMode = false
 			a.reformatListItems()
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {

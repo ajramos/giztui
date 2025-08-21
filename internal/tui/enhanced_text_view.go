@@ -172,7 +172,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 	// Create input field for search query
 	input := tview.NewInputField().
 		SetLabel("🔍 ").
-		SetLabelColor(tcell.ColorYellow).
+		SetLabelColor(e.app.getLabelColor()).
 		SetFieldWidth(0).
 		SetPlaceholder("Enter search term...")
 
@@ -181,12 +181,12 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 
 	// Create help text
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(tcell.ColorGray)
+	help.SetTextColor(e.app.getFooterColor())
 	help.SetText("Enter=search, ESC=cancel | After search: n=next, N=previous")
 
 	// Create the overlay container
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+	box.SetBorder(true).SetTitle(title).SetTitleColor(e.app.getTitleColor())
 
 	// Layout: spacer, input, help, spacer
 	topSpacer := tview.NewBox()

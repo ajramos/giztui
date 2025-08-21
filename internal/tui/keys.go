@@ -273,7 +273,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 					a.selected[a.ids[r]] = true
 				}
 				a.reformatListItems()
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 				go func() {
 					a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 				}()
@@ -281,7 +281,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 				a.bulkMode = false
 				a.selected = make(map[string]bool)
 				a.reformatListItems()
-				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+				list.SetSelectedStyle(a.getSelectionStyle())
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
@@ -496,7 +496,7 @@ func (a *App) bindKeys() {
 					}
 					a.reformatListItems()
 					// Keep focus highlight consistent (blue) even in Bulk mode
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					list.SetSelectedStyle(a.getSelectionStyle())
 					// Show status message asynchronously to avoid deadlock
 					go func() {
 						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
@@ -536,7 +536,7 @@ func (a *App) bindKeys() {
 						}
 						a.reformatListItems()
 						// Keep focus highlight consistent (blue) even in Bulk mode
-						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						list.SetSelectedStyle(a.getSelectionStyle())
 						// Show status message asynchronously to avoid deadlock
 						go func() {
 							a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
@@ -545,7 +545,7 @@ func (a *App) bindKeys() {
 						a.bulkMode = false
 						a.selected = make(map[string]bool)
 						a.reformatListItems()
-						list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+						list.SetSelectedStyle(a.getSelectionStyle())
 						// Clear status message asynchronously to avoid deadlock
 						go func() {
 							a.GetErrorHandler().ClearProgress()
@@ -569,7 +569,7 @@ func (a *App) bindKeys() {
 					}
 					a.reformatListItems()
 					// Keep focus highlight consistent (blue) even in Bulk mode
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					list.SetSelectedStyle(a.getSelectionStyle())
 					// Show status message asynchronously to avoid deadlock
 					go func() {
 						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
@@ -578,7 +578,7 @@ func (a *App) bindKeys() {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
 					a.reformatListItems()
-					list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+					list.SetSelectedStyle(a.getSelectionStyle())
 					// Clear status message asynchronously to avoid deadlock
 					go func() {
 						a.GetErrorHandler().ClearProgress()
@@ -1833,7 +1833,7 @@ func (a *App) selectRange(startIndex, count int) {
 	// Update UI
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status
@@ -2056,7 +2056,7 @@ func (a *App) moveRange(startIndex, count int) {
 	// Update UI to show selection
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status and open move panel
@@ -2097,7 +2097,7 @@ func (a *App) labelRange(startIndex, count int) {
 	// Update UI to show selection
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status and open labels panel
@@ -2144,7 +2144,7 @@ func (a *App) slackRange(startIndex, count int) {
 	// Update UI to show selection
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status and open Slack bulk panel
@@ -2185,7 +2185,7 @@ func (a *App) obsidianRange(startIndex, count int) {
 	// Update UI to show selection
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status and send to Obsidian
@@ -2226,7 +2226,7 @@ func (a *App) promptRange(startIndex, count int) {
 	// Update UI to show selection
 	a.reformatListItems()
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetSelectedStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue))
+		list.SetSelectedStyle(a.getSelectionStyle())
 	}
 
 	// Show status and open bulk prompt picker

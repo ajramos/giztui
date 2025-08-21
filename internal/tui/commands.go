@@ -91,7 +91,7 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	hint.SetBorder(false)
 	hint.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	hint.SetText("")
-	hint.SetTextColor(tcell.ColorGray)
+	hint.SetTextColor(a.getHintColor())
 
 	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch ev.Key() {
