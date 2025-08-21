@@ -54,7 +54,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📥 Send to Obsidian ")
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
 
 	// Show the configurable template
 	templateContent := a.getObsidianTemplate()
@@ -74,8 +74,8 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	commentInput.SetPlaceholder("Add a personal note about this email...")
 	commentInput.SetFieldWidth(50)
 	commentInput.SetBorder(false)                         // No border for cleaner look
-	commentInput.SetFieldBackgroundColor(tcell.ColorBlue) // Blue background when focused
-	commentInput.SetFieldTextColor(tcell.ColorDarkGreen)  // Dark green text like in the image
+	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Accent.Color()) // Blue background when focused
+	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())  // Dark green text like in the image
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -488,7 +488,7 @@ func (a *App) openBulkObsidianPanel() {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
 
 	// Show bulk template info
 	templateContent := a.getBulkObsidianTemplate(messageCount)
@@ -508,8 +508,8 @@ func (a *App) openBulkObsidianPanel() {
 	commentInput.SetPlaceholder("Add a note for all emails in this batch...")
 	commentInput.SetFieldWidth(50)
 	commentInput.SetBorder(false)
-	commentInput.SetFieldBackgroundColor(tcell.ColorBlue)
-	commentInput.SetFieldTextColor(tcell.ColorDarkGreen)
+	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Accent.Color())
+	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)

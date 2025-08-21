@@ -13,6 +13,7 @@ make: *** [run] Error 1
 - [ ] Remove el prefijo "VIM:" que aparece
 - [ ] Be able to hide the headers from the email dynamically
 - [ ] Fetch next 50 messages doesn't have any shortcut any more
+- [ ] Explore the same component as the Picker for the message content
 
 ## 📋 PENDING - What's Left to Do
 

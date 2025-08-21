@@ -212,7 +212,7 @@ func (a *App) openBulkPromptPicker() {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 🤖 Bulk Prompt Library (%d messages) ", messageCount))
-	container.SetTitleColor(tcell.ColorYellow)
+	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(list, 0, 1, true)
 
@@ -552,7 +552,7 @@ func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText(" Enter to save  |  Esc to close ")
-	instructions.SetTextColor(tcell.ColorGray)
+	instructions.SetTextColor(a.GetComponentColors("prompts").Accent.Color())
 
 	modal.AddItem(title, 3, 0, false)
 	modal.AddItem(resultView, 0, 1, false)
@@ -573,13 +573,13 @@ func (a *App) createBulkPromptResultView(result *services.BulkPromptResult, prom
 
 	// Format the result display
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("[yellow]Bulk Prompt Result: %s[white]\n", promptName))
-	content.WriteString(fmt.Sprintf("[blue]Messages Analyzed: %d[white]\n", result.MessageCount))
-	content.WriteString(fmt.Sprintf("[blue]Processing Time: %v[white]\n", result.Duration))
+	content.WriteString(fmt.Sprintf("%sBulk Prompt Result: %s%s\n", a.GetColorTag("title"), promptName, a.GetEndTag()))
+	content.WriteString(fmt.Sprintf("%sMessages Analyzed: %d%s\n", a.GetColorTag("link"), result.MessageCount, a.GetEndTag()))
+	content.WriteString(fmt.Sprintf("%sProcessing Time: %v%s\n", a.GetColorTag("link"), result.Duration, a.GetEndTag()))
 	if result.FromCache {
-		content.WriteString("[green]Result from cache[white]\n")
+		content.WriteString(a.FormatHeader("Result from cache") + "\n")
 	}
-	content.WriteString("\n[cyan]Analysis:[white]\n")
+	content.WriteString("\n" + a.FormatEmphasis("Analysis:") + "\n")
 	content.WriteString(result.Summary)
 
 	textView.SetText(content.String())

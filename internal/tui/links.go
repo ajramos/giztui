@@ -235,14 +235,14 @@ func (a *App) openLinkPicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🔗 Links in Message ")
-			container.SetTitleColor(tcell.ColorBlue)
+			container.SetTitleColor(a.GetComponentColors("links").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter/1-9 to open | Ctrl+Y to copy | Esc to cancel ")
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.GetComponentColors("links").Accent.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list

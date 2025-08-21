@@ -287,8 +287,8 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	userMessageInput.SetPlaceholder("Add a message that will be included with all forwarded emails...")
 	userMessageInput.SetFieldWidth(50)
 	userMessageInput.SetBorder(false)
-	userMessageInput.SetFieldBackgroundColor(tcell.ColorBlue)
-	userMessageInput.SetFieldTextColor(tcell.ColorDarkGreen)
+	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Accent.Color())
+	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Instructions
 	instructions := tview.NewTextView()

@@ -157,6 +157,7 @@ type App struct {
 	linkService       services.LinkService
 	contentNavService services.ContentNavigationService
 	themeService      services.ThemeService
+	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler      *ErrorHandler
 }
 
@@ -590,8 +591,8 @@ func (a *App) initServices() {
 
 	// Initialize theme service
 	customThemeDir := ""
-	if a.Config != nil && a.Config.Layout.ThemeDir != "" {
-		customThemeDir = a.Config.Layout.ThemeDir
+	if a.Config != nil && a.Config.Layout.CustomThemeDir != "" {
+		customThemeDir = a.Config.Layout.CustomThemeDir
 	}
 	
 	// Determine the built-in themes directory path
@@ -621,6 +622,29 @@ func (a *App) initServices() {
 	a.themeService = services.NewThemeService(builtinThemesDir, customThemeDir, applyThemeFunc)
 	if a.logger != nil {
 		a.logger.Printf("initServices: theme service initialized: %v", a.themeService != nil)
+	}
+
+	// Load theme from config with fallbacks
+	themeName := "gmail-dark" // Default fallback
+	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
+		themeName = a.Config.Layout.CurrentTheme
+	}
+	
+	if a.themeService != nil {
+		if err := a.themeService.ApplyTheme(a.ctx, themeName); err != nil {
+			if a.logger != nil {
+				a.logger.Printf("Failed to load configured theme %s: %v", themeName, err)
+			}
+			// Try default theme as fallback
+			if err := a.themeService.ApplyTheme(a.ctx, "gmail-dark"); err != nil {
+				if a.logger != nil {
+					a.logger.Printf("Failed to load default theme: %v", err)
+				}
+				// Continue with hardcoded colors as final fallback
+			}
+		} else if a.logger != nil {
+			a.logger.Printf("Successfully loaded theme: %s", themeName)
+		}
 	}
 
 	if a.logger != nil {
@@ -876,6 +900,20 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		return fmt.Errorf("theme configuration is nil")
 	}
 	
+	// Cache current theme for helper functions
+	a.currentTheme = theme
+	
+	// Update config if theme name is available
+	if theme.Name != "" && a.Config != nil {
+		a.Config.Layout.CurrentTheme = theme.Name
+		// Async save to avoid blocking UI
+		go func() {
+			if err := a.saveConfigAsync(); err != nil && a.logger != nil {
+				a.logger.Printf("Failed to save theme preference: %v", err)
+			}
+		}()
+	}
+	
 	// Update email renderer
 	a.emailRenderer.UpdateFromConfig(theme)
 	
@@ -907,102 +945,62 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	return nil
 }
 
+// saveConfigAsync saves the configuration asynchronously
+func (a *App) saveConfigAsync() error {
+	if a.Config == nil {
+		return fmt.Errorf("config is nil")
+	}
+	configPath := config.DefaultConfigPath()
+	return a.Config.SaveConfig(configPath)
+}
+
 // Theme-aware color helper functions
 
 // getTitleColor returns the theme's title color or fallback to yellow
 func (a *App) getTitleColor() tcell.Color {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				return tcell.GetColor(themeConfig.UIColors.TitleColor)
-			}
-		}
+	if a.currentTheme == nil {
+		return tcell.ColorYellow // Fallback
 	}
-	return tcell.ColorYellow // Fallback to hardcoded color
+	return a.currentTheme.UI.TitleColor.Color()
 }
 
 // getFooterColor returns the theme's footer color or fallback to gray
 func (a *App) getFooterColor() tcell.Color {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				return tcell.GetColor(themeConfig.UIColors.FooterColor)
-			}
-		}
+	if a.currentTheme == nil {
+		return tcell.ColorGray // Fallback
 	}
-	return tcell.ColorGray // Fallback to hardcoded color
+	return a.currentTheme.UI.FooterColor.Color()
 }
 
 // getHintColor returns the theme's hint color or fallback to gray
 func (a *App) getHintColor() tcell.Color {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				return tcell.GetColor(themeConfig.UIColors.HintColor)
-			}
-		}
+	if a.currentTheme == nil {
+		return tcell.ColorGray // Fallback
 	}
-	return tcell.ColorGray // Fallback to hardcoded color
+	return a.currentTheme.UI.HintColor.Color()
 }
 
 // getSelectionStyle returns the theme's selection style or fallback
 func (a *App) getSelectionStyle() tcell.Style {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				bgColor := tcell.GetColor(themeConfig.UIColors.SelectionBgColor)
-				fgColor := tcell.GetColor(themeConfig.UIColors.SelectionFgColor)
-				return tcell.StyleDefault.Foreground(fgColor).Background(bgColor)
-			}
-		}
+	if a.currentTheme == nil {
+		return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
 	}
-	// Fallback to hardcoded style
-	return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+	bgColor := a.currentTheme.UI.SelectionBgColor.Color()
+	fgColor := a.currentTheme.UI.SelectionFgColor.Color()
+	return tcell.StyleDefault.Foreground(fgColor).Background(bgColor)
 }
 
 // getLabelColor returns the theme's label color or fallback to yellow
 func (a *App) getLabelColor() tcell.Color {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				return tcell.GetColor(themeConfig.UIColors.LabelColor)
-			}
-		}
+	if a.currentTheme == nil {
+		return tcell.ColorYellow // Fallback
 	}
-	return tcell.ColorYellow // Fallback to hardcoded color
+	return a.currentTheme.UI.LabelColor.Color()
 }
 
 // getStatusColor returns theme-aware colors for different status levels
 func (a *App) getStatusColor(level string) tcell.Color {
-	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
-		if themeService := a.GetThemeService(); themeService != nil {
-			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
-				switch level {
-				case "error":
-					return tcell.GetColor(themeConfig.UIColors.ErrorColor)
-				case "success":
-					return tcell.GetColor(themeConfig.UIColors.SuccessColor)
-				case "warning":
-					return tcell.GetColor(themeConfig.UIColors.WarningColor)
-				case "info":
-					return tcell.GetColor(themeConfig.UIColors.InfoColor)
-				}
-			}
-		}
-	}
-	// Fallback to hardcoded colors
-	switch level {
-	case "error":
-		return tcell.ColorRed
-	case "success":
-		return tcell.ColorGreen
-	case "warning":
-		return tcell.ColorYellow
-	case "info":
-		return tcell.ColorBlue
-	default:
-		return tcell.ColorWhite
-	}
+	return a.GetStatusColor(level) // Use the new helper function
 }
 
 // (moved to messages.go)

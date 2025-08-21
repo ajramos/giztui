@@ -149,7 +149,7 @@ func (a *App) toggleAISummary() {
 	if a.aiSummaryView != nil {
 		a.SetFocus(a.aiSummaryView)
 		a.currentFocus = "summary"
-		a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+		a.aiSummaryView.SetBorderColor(a.GetComponentColors("ai").Border.Color())
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		// Reset title to AI Summary when switching from prompt mode
 		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
@@ -603,13 +603,13 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
 			container.SetBorder(true)
 			container.SetTitle(" 🏷️  Suggested Labels ")
-			container.SetTitleColor(tcell.ColorYellow)
+			container.SetTitleColor(a.GetComponentColors("ai").Title.Color())
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.AddItem(body, 0, 1, true)
 			// Footer hint
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply  |  Esc to back ")
-			footer.SetTextColor(tcell.ColorGray)
+			footer.SetTextColor(a.GetComponentColors("ai").Accent.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

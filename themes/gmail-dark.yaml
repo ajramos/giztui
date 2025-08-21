@@ -1,6 +1,10 @@
 # Gmail TUI Dark Theme
 # Based on Dracula color scheme
 
+name: "Gmail Dark"
+description: "Dark theme based on Dracula color scheme"
+version: "1.0"
+
 gmailTUI:
   body:
     fgColor: "#f8f8f2"          # Main text color
@@ -53,4 +57,65 @@ gmailTUI:
     inputBgColor: "#44475a"     # Input field background
     inputFgColor: "#f8f8f2"     # Input field text
     labelColor: "#f1fa8c"       # Input field labels
+
+  # Color tags for text markup (replaces hardcoded [color] tags)
+  tags:
+    title: "#f1fa8c"            # Yellow for titles - replaces [yellow]
+    header: "#50fa7b"           # Green for headers - replaces [green]
+    emphasis: "#ffb86c"         # Orange for emphasis - replaces [orange]
+    secondary: "#6272a4"        # Gray for secondary text - replaces [dim]/[gray]
+    link: "#8be9fd"             # Cyan for links - replaces [blue]
+    code: "#bd93f9"             # Purple for code - replaces [purple]
+
+  # Status message colors (replaces hardcoded tcell.Color* constants)
+  status:
+    error: "#ff5555"            # Red for errors - replaces tcell.ColorRed
+    success: "#50fa7b"          # Green for success - replaces tcell.ColorGreen
+    warning: "#f1fa8c"          # Yellow for warnings - replaces tcell.ColorYellow
+    info: "#8be9fd"             # Cyan for info - replaces tcell.ColorBlue
+    progress: "#ffb86c"         # Orange for progress - replaces tcell.ColorOrange
+
+  # Component-specific colors (replaces hardcoded component colors)
+  components:
+    ai:
+      border: "#bd93f9"         # Purple border for AI
+      title: "#bd93f9"          # Purple title for AI
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#ff79c6"         # Pink accent
+      
+    slack:
+      border: "#50fa7b"         # Green border for Slack
+      title: "#50fa7b"          # Green title for Slack
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#8be9fd"         # Cyan accent
+      
+    obsidian:
+      border: "#ffb86c"         # Orange border for Obsidian
+      title: "#ffb86c"          # Orange title for Obsidian
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#f1fa8c"         # Yellow accent
+      
+    links:
+      border: "#8be9fd"         # Cyan border for links
+      title: "#8be9fd"          # Cyan title for links
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#50fa7b"         # Green accent
+      
+    stats:
+      border: "#f1fa8c"         # Yellow border for stats
+      title: "#f1fa8c"          # Yellow title for stats
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#bd93f9"         # Purple accent
+      
+    prompts:
+      border: "#ff79c6"         # Pink border for prompts
+      title: "#ff79c6"          # Pink title for prompts
+      background: "#282a36"     # Dark background
+      text: "#f8f8f2"           # Light text
+      accent: "#ffb86c"         # Orange accent
 

@@ -42,24 +42,24 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 
 	statsView.SetBorder(true)
 	statsView.SetTitle(" 📊 Prompt Usage Statistics ")
-	statsView.SetTitleColor(tcell.ColorYellow)
+	statsView.SetTitleColor(a.GetComponentColors("stats").Title.Color())
 
 	// Format the statistics content
 	var content strings.Builder
 
 	// Summary section
-	content.WriteString("[yellow]📊 USAGE SUMMARY[white]\n\n")
-	content.WriteString(fmt.Sprintf("[blue]Total Prompt Uses:[white] %d\n", stats.TotalUsage))
-	content.WriteString(fmt.Sprintf("[blue]Active Prompts:[white] %d\n", stats.UniquePrompts))
-	content.WriteString(fmt.Sprintf("[blue]Favorite Prompts:[white] %d\n", len(stats.FavoritePrompts)))
+	content.WriteString(a.FormatTitle("📊 USAGE SUMMARY") + "\n\n")
+	content.WriteString(fmt.Sprintf("%sTotal Prompt Uses:%s %d\n", a.GetColorTag("link"), a.GetEndTag(), stats.TotalUsage))
+	content.WriteString(fmt.Sprintf("%sActive Prompts:%s %d\n", a.GetColorTag("link"), a.GetEndTag(), stats.UniquePrompts))
+	content.WriteString(fmt.Sprintf("%sFavorite Prompts:%s %d\n", a.GetColorTag("link"), a.GetEndTag(), len(stats.FavoritePrompts)))
 	if !stats.LastUsed.IsZero() {
-		content.WriteString(fmt.Sprintf("[blue]Last Used:[white] %s\n", stats.LastUsed.Format("2006-01-02 15:04")))
+		content.WriteString(fmt.Sprintf("%sLast Used:%s %s\n", a.GetColorTag("link"), a.GetEndTag(), stats.LastUsed.Format("2006-01-02 15:04")))
 	}
 	content.WriteString("\n")
 
 	// Top prompts section
 	if len(stats.TopPrompts) > 0 {
-		content.WriteString("[yellow]🏆 TOP PROMPTS[white]\n\n")
+		content.WriteString(a.FormatTitle("🏆 TOP PROMPTS") + "\n\n")
 		for i, prompt := range stats.TopPrompts {
 			icon := "📝"
 			switch prompt.Category {
@@ -78,20 +78,20 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 				favoriteIcon = " ⭐"
 			}
 
-			content.WriteString(fmt.Sprintf("[green]%d.[white] %s %s%s\n", i+1, icon, prompt.Name, favoriteIcon))
-			content.WriteString(fmt.Sprintf("    [dim]Uses: %d | Category: %s | Last: %s[white]\n",
-				prompt.UsageCount, prompt.Category, prompt.LastUsed))
+			content.WriteString(fmt.Sprintf("%s%d.%s %s %s%s\n", a.GetColorTag("header"), i+1, a.GetEndTag(), icon, prompt.Name, favoriteIcon))
+			content.WriteString(fmt.Sprintf("    %sUses: %d | Category: %s | Last: %s%s\n",
+				a.GetColorTag("secondary"), prompt.UsageCount, prompt.Category, prompt.LastUsed, a.GetEndTag()))
 			content.WriteString("\n")
 		}
 	} else {
-		content.WriteString("[yellow]🏆 TOP PROMPTS[white]\n\n")
-		content.WriteString("[dim]No prompt usage recorded yet.[white]\n")
-		content.WriteString("[dim]Start using prompts to see statistics here![white]\n\n")
+		content.WriteString(a.FormatTitle("🏆 TOP PROMPTS") + "\n\n")
+		content.WriteString(a.FormatSecondary("No prompt usage recorded yet.") + "\n")
+		content.WriteString(a.FormatSecondary("Start using prompts to see statistics here!") + "\n\n")
 	}
 
 	// Favorites section (if different from top)
 	if len(stats.FavoritePrompts) > 0 && len(stats.FavoritePrompts) != len(stats.TopPrompts) {
-		content.WriteString("[yellow]⭐ FAVORITE PROMPTS[white]\n\n")
+		content.WriteString(a.FormatTitle("⭐ FAVORITE PROMPTS") + "\n\n")
 		for _, prompt := range stats.FavoritePrompts {
 			icon := "📝"
 			switch prompt.Category {
@@ -106,14 +106,14 @@ func (a *App) createUsageStatsModal(stats *services.UsageStats) {
 			}
 
 			content.WriteString(fmt.Sprintf("• %s %s\n", icon, prompt.Name))
-			content.WriteString(fmt.Sprintf("  [dim]Uses: %d | Category: %s[white]\n",
-				prompt.UsageCount, prompt.Category))
+			content.WriteString(fmt.Sprintf("  %sUses: %d | Category: %s%s\n",
+				a.GetColorTag("secondary"), prompt.UsageCount, prompt.Category, a.GetEndTag()))
 		}
 		content.WriteString("\n")
 	}
 
 	// Help text
-	content.WriteString("[dim]Press Esc to close | Use :stats to refresh[white]")
+	content.WriteString(a.FormatSecondary("Press Esc to close | Use :stats to refresh"))
 
 	statsView.SetText(content.String())
 

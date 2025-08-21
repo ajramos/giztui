@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
@@ -24,44 +25,69 @@ func (a *App) openThemePicker() {
 		return
 	}
 
-	// Create picker UI similar to prompts
+	// Create enhanced picker UI with theme-aware colors
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
-		SetFieldWidth(30)
-	list := tview.NewList().ShowSecondaryText(false)
+		SetFieldWidth(30).
+		SetLabelColor(a.GetComponentColors("themes").Accent.Color()).
+		SetFieldBackgroundColor(a.GetComponentColors("themes").Background.Color())
+	
+	list := tview.NewList().ShowSecondaryText(true) // Enable secondary text for descriptions
 	list.SetBorder(false)
 
 	type themeItem struct {
 		name        string
 		description string
+		version     string
 		current     bool
+		valid       bool  // NEW: Theme validation status
+		builtin     bool  // NEW: Built-in vs user theme
 	}
 
 	var all []themeItem
 	var visible []themeItem
 
-	// Reload function for filtering
+	// Enhanced reload function with better formatting
 	reload := func(filter string) {
 		list.Clear()
 		visible = visible[:0]
+		
 		for _, item := range all {
 			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
 				continue
 			}
 			visible = append(visible, item)
 
-			// Active indicator like labels picker (○ unselected, ✅ selected)
-			var displayText string
+			// Enhanced display with validation and type indicators
+			var statusIcon, typeIcon string
 			if item.current {
-				displayText = fmt.Sprintf("✅ %s", item.name)
+				statusIcon = "✅"
 			} else {
-				displayText = fmt.Sprintf("○ %s", item.name)
+				statusIcon = "○"
+			}
+			
+			if !item.valid {
+				statusIcon = "❌" // Invalid theme
+			}
+			
+			if item.builtin {
+				typeIcon = "📦" // Built-in theme
+			} else {
+				typeIcon = "👤" // User theme
+			}
+
+			displayText := fmt.Sprintf("%s %s %s", statusIcon, typeIcon, item.name)
+			secondaryText := fmt.Sprintf("%s | v%s", item.description, item.version)
+			
+			// Color-code based on status
+			if !item.valid {
+				secondaryText = "⚠️ Invalid theme file"
 			}
 
 			// Capture variables for closure
 			themeName := item.name
 
-			list.AddItem(displayText, "Enter: preview | Space: apply", 0, func() {
+			list.AddItem(displayText, secondaryText, 0, func() {
 				if a.logger != nil {
 					a.logger.Printf("theme picker: selected theme=%s", themeName)
 				}
@@ -91,20 +117,30 @@ func (a *App) openThemePicker() {
 		}
 
 		a.QueueUpdateDraw(func() {
-			// Convert themes to themeItems
+			// Convert themes to themeItems with validation
 			all = make([]themeItem, 0, len(themes))
 			for _, themeName := range themes {
-				// Get theme description from config
-				description := "Theme configuration"
-				if themeConfig, err := themeService.GetThemeConfig(a.ctx, themeName); err == nil && themeConfig != nil {
-					description = themeConfig.Description
+				item := themeItem{
+					name:    themeName,
+					current: themeName == currentTheme,
+					builtin: a.isBuiltinTheme(themeName),
 				}
 
-				all = append(all, themeItem{
-					name:        themeName,
-					description: description,
-					current:     themeName == currentTheme,
-				})
+				// Validate theme and get metadata
+				if themeConfig, err := themeService.GetThemeConfig(a.ctx, themeName); err == nil && themeConfig != nil {
+					item.valid = true
+					item.description = themeConfig.Description
+					item.version = "1.0" // ThemeConfig doesn't have version field
+					if item.description == "" {
+						item.description = "Theme configuration"
+					}
+				} else {
+					item.valid = false
+					item.description = "Invalid theme"
+					item.version = "?"
+				}
+
+				all = append(all, item)
 			}
 
 			reload("")
@@ -210,28 +246,31 @@ func (a *App) showThemePreview(themeName string) {
 			return
 		}
 
-		// Format theme details for display (simple approach first)
-		details := fmt.Sprintf("🎨 Theme: %s\n", themeName)
-		if themeConfig.Description != "" {
-			details += fmt.Sprintf("📄 Description: %s\n", themeConfig.Description)
-		}
-		details += "\n📧 Email Colors:\n"
-		details += fmt.Sprintf("  • Unread: %s\n", themeConfig.EmailColors.UnreadColor)
-		details += fmt.Sprintf("  • Read: %s\n", themeConfig.EmailColors.ReadColor)
-		details += fmt.Sprintf("  • Important: %s\n", themeConfig.EmailColors.ImportantColor)
-		details += fmt.Sprintf("  • Sent: %s\n", themeConfig.EmailColors.SentColor)
-		details += fmt.Sprintf("  • Draft: %s\n", themeConfig.EmailColors.DraftColor)
+		// Enhanced preview with actual color samples
+		details := fmt.Sprintf("🎨 Theme: %s\n", themeConfig.Name)
+		details += fmt.Sprintf("📄 Description: %s\n", themeConfig.Description)
+		details += fmt.Sprintf("🏷️  Version: 1.0\n\n")
+
+		// Color samples using actual theme colors from service ThemeConfig
+		details += "📧 Email Colors:\n"
+		details += a.formatColorSampleString("Unread", themeConfig.EmailColors.UnreadColor)
+		details += a.formatColorSampleString("Read", themeConfig.EmailColors.ReadColor)
+		details += a.formatColorSampleString("Important", themeConfig.EmailColors.ImportantColor)
+		details += a.formatColorSampleString("Sent", themeConfig.EmailColors.SentColor)
+		details += a.formatColorSampleString("Draft", themeConfig.EmailColors.DraftColor)
 
 		details += "\n🎨 UI Colors:\n"
-		details += fmt.Sprintf("  • Text: %s\n", themeConfig.UIColors.FgColor)
-		details += fmt.Sprintf("  • Background: %s\n", themeConfig.UIColors.BgColor)
-		details += fmt.Sprintf("  • Border: %s\n", themeConfig.UIColors.BorderColor)
-		details += fmt.Sprintf("  • Focus: %s\n", themeConfig.UIColors.FocusColor)
+		details += a.formatColorSampleString("Background", themeConfig.UIColors.BgColor)
+		details += a.formatColorSampleString("Text", themeConfig.UIColors.FgColor)
+		details += a.formatColorSampleString("Borders", themeConfig.UIColors.BorderColor)
+		details += a.formatColorSampleString("Focus", themeConfig.UIColors.FocusColor)
 
-		details += "\n💡 Press Space in theme picker to apply this theme"
+		details += "\n🏷️  Status Colors:\n"
+		details += a.formatColorSampleString("Error", themeConfig.UIColors.ErrorColor)
+		details += a.formatColorSampleString("Success", themeConfig.UIColors.SuccessColor)
+		details += a.formatColorSampleString("Warning", themeConfig.UIColors.WarningColor)
 
-		// TODO: Add visual color swatches - need to investigate tview color tag format
-		details += "\n\n[yellow]Note: Color visualization coming soon...[-]"
+		details += "\n💡 Press Space to apply this theme | Tab to return to picker"
 
 		// Show in text view with improved UX (same pattern as showPromptDetails)
 		a.QueueUpdateDraw(func() {
@@ -385,6 +424,31 @@ func (a *App) closeThemePicker() {
 	if a.logger != nil {
 		a.logger.Printf("closeThemePicker: theme picker closed")
 	}
+}
+
+// isBuiltinTheme checks if a theme is built-in
+func (a *App) isBuiltinTheme(themeName string) bool {
+	builtinThemes := []string{"gmail-dark", "gmail-light"}
+	for _, builtin := range builtinThemes {
+		if themeName == builtin {
+			return true
+		}
+	}
+	return false
+}
+
+// formatColorSample formats a color sample with actual colors (for config.Color)
+func (a *App) formatColorSample(name string, colorValue config.Color) string {
+	// Create color tag from hex value
+	colorTag := fmt.Sprintf("[%s]", colorValue.String())
+	return fmt.Sprintf("  %s● %s%s (%s)\n", colorTag, name, "[-]", colorValue.String())
+}
+
+// formatColorSampleString formats a color sample with actual colors (for string hex values)
+func (a *App) formatColorSampleString(name string, colorValue string) string {
+	// Create color tag from hex value
+	colorTag := fmt.Sprintf("[%s]", colorValue)
+	return fmt.Sprintf("  %s● %s%s (%s)\n", colorTag, name, "[-]", colorValue)
 }
 
 // parseColorFromTheme parses a color string from theme config

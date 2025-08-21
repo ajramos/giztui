@@ -173,7 +173,7 @@ func (a *App) hideCommandBar() {
 
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")
-		cmdBar.SetBorderColor(tcell.ColorBlue)
+		cmdBar.SetBorderColor(a.GetStatusColor("info"))
 	}
 	// Hide cmdPanel by clearing its content and resizing to height 0
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
@@ -1593,7 +1593,7 @@ func (a *App) executeThemeList() {
 			// Update the text container title
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 🎨 Theme List ")
-				textContainer.SetTitleColor(tcell.ColorPurple)
+				textContainer.SetTitleColor(a.GetStatusColor("warning"))
 				
 				// Store and hide message headers
 				if header, ok := a.views["header"].(*tview.TextView); ok {

@@ -633,7 +633,7 @@ func (a *App) openSearchOverlay(mode string) {
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(tcell.ColorGray)
+	help.SetTextColor(a.getHintColor())
 	if mode == "remote" {
 		help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 	} else {
@@ -641,7 +641,7 @@ func (a *App) openSearchOverlay(mode string) {
 	}
 
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+	box.SetBorder(true).SetTitle(title).SetTitleColor(a.getTitleColor())
 	// vertical center input; place help at bottom
 	topSpacer := tview.NewBox()
 	bottomSpacer := tview.NewBox()
@@ -794,7 +794,7 @@ func (a *App) openSearchOverlay(mode string) {
 		sp.Clear()
 		// Ensure container does not intercept ESC here; let input handle hiding
 		sp.SetInputCapture(nil)
-		sp.SetBorder(true).SetBorderColor(tcell.ColorYellow).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+		sp.SetBorder(true).SetBorderColor(a.getTitleColor()).SetTitle(title).SetTitleColor(a.getTitleColor())
 		sp.AddItem(topSpacer, 0, 1, false)
 		sp.AddItem(input, 1, 0, true)
 		sp.AddItem(bottomSpacer, 0, 2, false)
@@ -1043,7 +1043,7 @@ func (a *App) openAdvancedSearchForm() {
 		// Container con borde para incluir picker + lista
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
 		box.SetBorder(true).SetTitle(" 📂 Search options ")
-		box.SetBorderColor(tcell.ColorYellow)
+		box.SetBorderColor(a.getTitleColor())
 		acts := make([]func(), 0, 256)
 		apply := func(q string) {
 			ql := strings.ToLower(strings.TrimSpace(q))
@@ -1556,7 +1556,7 @@ func (a *App) openAdvancedSearchForm() {
 
 	// Fallback modal if searchPanel not present
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-	modal.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(tcell.ColorYellow)
+	modal.SetBorder(true).SetTitle("🔎 Advanced Search").SetTitleColor(a.getTitleColor())
 	modal.AddItem(form, 0, 1, true)
 	a.Pages.AddPage("advancedSearch", modal, true, true)
 	a.SetFocus(form)
@@ -1716,7 +1716,7 @@ func (a *App) showMessage(id string) {
 	// Restore text container title when viewing messages
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(tcell.ColorYellow)
+		textContainer.SetTitleColor(a.getTitleColor())
 	}
 
 	// Show loading message immediately
@@ -1932,7 +1932,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 	// Restore text container title when viewing messages
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(tcell.ColorYellow)
+		textContainer.SetTitleColor(a.getTitleColor())
 	}
 
 	// Show loading message
@@ -2639,11 +2639,11 @@ func (a *App) openRSVPModal() {
 	// Footer with instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to respond | Esc to close ")
-	footer.SetTextColor(tcell.ColorGray)
+	footer.SetTextColor(a.getFooterColor())
 
 	// Create container with meeting info at top
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(tcell.ColorYellow)
+	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.getTitleColor())
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 
 	// Add meeting info section (fixed height)

@@ -125,11 +125,11 @@ type LayoutConfig struct {
 	DefaultLayout string `json:"default_layout"`
 
 	// UI customization
-	ShowBorders bool   `json:"show_borders"`
-	ShowTitles  bool   `json:"show_titles"`
-	CompactMode bool   `json:"compact_mode"`
-	ColorScheme string `json:"color_scheme"`
-	ThemeDir    string `json:"theme_dir"`
+	ShowBorders    bool   `json:"show_borders"`
+	ShowTitles     bool   `json:"show_titles"`
+	CompactMode    bool   `json:"compact_mode"`
+	CurrentTheme   string `json:"current_theme"`      // Active theme name (e.g., "gmail-dark")
+	CustomThemeDir string `json:"custom_theme_dir"`   // Custom themes directory (empty = default)
 }
 
 // LayoutBreakpoint defines minimum dimensions for layout types
@@ -309,12 +309,12 @@ func DefaultLayoutConfig() LayoutConfig {
 			Width:  60,
 			Height: 20,
 		},
-		DefaultLayout: "auto",
-		ShowBorders:   true,
-		ShowTitles:    true,
-		CompactMode:   false,
-		ColorScheme:   "gmail-dark",
-		ThemeDir:      "",
+		DefaultLayout:  "auto",
+		ShowBorders:    true,
+		ShowTitles:     true,
+		CompactMode:    false,
+		CurrentTheme:   "gmail-dark",
+		CustomThemeDir: "",
 	}
 }
 
