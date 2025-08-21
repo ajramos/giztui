@@ -252,6 +252,12 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.openLinkPicker()
 		return true
+	case a.Keys.ThemePicker:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> theme_picker", key)
+		}
+		go a.openThemePicker()
+		return true
 	case a.Keys.BulkMode:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> bulk_mode", key)
@@ -329,6 +335,7 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.SaveRaw ||
 		keyStr == a.Keys.RSVP ||
 		keyStr == a.Keys.LinkPicker ||
+		keyStr == a.Keys.ThemePicker ||
 		keyStr == a.Keys.BulkMode ||
 		keyStr == a.Keys.CommandMode ||
 		keyStr == a.Keys.Help

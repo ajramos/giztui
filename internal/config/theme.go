@@ -10,20 +10,20 @@ import (
 
 // ThemeLoader handles loading and applying themes
 type ThemeLoader struct {
-	skinsDir string
+	themesDir string
 }
 
 // NewThemeLoader creates a new theme loader
-func NewThemeLoader(skinsDir string) *ThemeLoader {
+func NewThemeLoader(themesDir string) *ThemeLoader {
 	return &ThemeLoader{
-		skinsDir: skinsDir,
+		themesDir: themesDir,
 	}
 }
 
 // LoadThemeFromFile loads a theme from a YAML file
 func (tl *ThemeLoader) LoadThemeFromFile(filename string) (*ColorsConfig, error) {
-	// Try to load from skins directory first
-	filepath := filepath.Join(tl.skinsDir, filename)
+	// Try to load from themes directory first
+	filepath := filepath.Join(tl.themesDir, filename)
 	if !fileExists(filepath) {
 		// Try absolute path
 		filepath = filename
@@ -56,9 +56,9 @@ func (tl *ThemeLoader) LoadThemeFromFile(filename string) (*ColorsConfig, error)
 func (tl *ThemeLoader) ListAvailableThemes() ([]string, error) {
 	var themes []string
 
-	entries, err := os.ReadDir(tl.skinsDir)
+	entries, err := os.ReadDir(tl.themesDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read skins directory: %w", err)
+		return nil, fmt.Errorf("failed to read themes directory: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -72,12 +72,12 @@ func (tl *ThemeLoader) ListAvailableThemes() ([]string, error) {
 
 // SaveThemeToFile saves a theme configuration to a YAML file
 func (tl *ThemeLoader) SaveThemeToFile(theme *ColorsConfig, filename string) error {
-	// Ensure skins directory exists
-	if err := os.MkdirAll(tl.skinsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create skins directory: %w", err)
+	// Ensure themes directory exists
+	if err := os.MkdirAll(tl.themesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create themes directory: %w", err)
 	}
 
-	filepath := filepath.Join(tl.skinsDir, filename)
+	filepath := filepath.Join(tl.themesDir, filename)
 
 	// Create theme structure
 	themeData := struct {
@@ -127,7 +127,7 @@ func (tl *ThemeLoader) ValidateTheme(theme *ColorsConfig) error {
 // CreateDefaultTheme creates a default theme if none exists
 func (tl *ThemeLoader) CreateDefaultTheme() error {
 	// Check if default theme already exists
-	defaultThemePath := filepath.Join(tl.skinsDir, "gmail-dark.yaml")
+	defaultThemePath := filepath.Join(tl.themesDir, "gmail-dark.yaml")
 	if fileExists(defaultThemePath) {
 		return nil // Theme already exists
 	}

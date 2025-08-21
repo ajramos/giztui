@@ -1198,11 +1198,68 @@ You can customize the layout behavior in your `config.json`:
 - **🎯 Smart focus**: Press 't' to switch focus between list and text areas
 - **⚡ Performance**: Optimized rendering for each layout type
 
-## 🎨 Themes and Color System
+## 🎨 Theme Configuration
 
-- Skins are stored in `skins/` (`gmail-dark.yaml`, `gmail-light.yaml`, `custom-example.yaml`).
-- See the detailed documentation in `docs/COLORS.md`.
-- Email list rendering colors are driven by message state (unread, important, sent, draft) and are configurable.
+Gmail TUI supports customizable color themes to personalize your email experience with runtime theme switching.
+
+### Available Commands
+- `:theme` or `:th` - Show current theme  
+- `:theme list` - List all available themes
+- `:theme set <name>` - Switch to specified theme
+- `:theme preview <name>` - Preview theme before applying
+
+### Built-in Themes
+- **gmail-dark** - Dark theme based on Dracula color scheme ⭐ (default)
+- **gmail-light** - Clean light theme for bright environments
+- **custom-example** - Demo custom theme showing customization possibilities
+
+### Theme Management
+```bash
+# List available themes
+:theme list
+
+# Switch to light theme  
+:theme set gmail-light
+
+# Preview a theme before applying
+:theme preview gmail-dark
+
+# Check current active theme
+:theme
+```
+
+### Custom Themes
+1. **Built-in themes** - Located in `themes/` directory (shipped with application)
+2. **User themes** - Place custom themes in `~/.config/giztui/themes/`
+3. **Custom directory** - Configure `theme_dir` in config.json for alternate location
+
+**Create custom theme:**
+```bash
+# Copy existing theme as template
+cp themes/gmail-dark.yaml ~/.config/giztui/themes/my-theme.yaml
+# Edit colors in YAML file
+# Apply with :theme set my-theme
+```
+
+### Configuration
+Set default theme and custom theme directory in `config.json`:
+```json
+{
+  "layout": {
+    "color_scheme": "gmail-dark",
+    "theme_dir": "/path/to/custom/themes"  
+  }
+}
+```
+
+### Theme Features
+- ✅ **Runtime switching** - Change themes instantly without restart
+- ✅ **Visual preview** - See colors before applying themes
+- ✅ **Command parity** - Every UI action has equivalent command  
+- ✅ **Multi-directory support** - Built-in + user custom + configurable themes
+- ✅ **Developer guidelines** - Maintain theme consistency (`docs/THEME_DEVELOPMENT.md`)
+
+See detailed documentation: `docs/COLORS.md` | `docs/THEME_DEVELOPMENT.md` | `docs/THEME_TESTING.md`
 
 ## Terminal rendering: deterministic + optional LLM touch-up
 

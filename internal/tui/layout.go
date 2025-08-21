@@ -16,7 +16,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📧 Messages ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 		// Search panel placeholder (hidden by default)
 	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -33,7 +33,7 @@ func (a *App) initComponents() {
 	header := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	header.SetBorder(false)
-	header.SetTextColor(tcell.ColorGreen)
+	header.SetTextColor(a.getTitleColor()) // Use theme title color for headers
 
 	enhancedText := NewEnhancedTextView(a)
 	text := enhancedText.TextView
@@ -50,7 +50,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 
 	// Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
@@ -64,7 +64,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🤖 AI Summary ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 
 		// Store components
@@ -83,7 +83,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🏷️ Labels ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 	a.labelsView = labelsFlex
 
@@ -94,7 +94,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 💬 Send to Slack channel ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 	a.slackView = slackFlex
 
@@ -105,7 +105,7 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🐶 Command ").
-		SetTitleColor(tcell.ColorYellow).
+		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
 	a.views["cmdPanel"] = cmdPanel
 }
@@ -180,70 +180,72 @@ func (a *App) createMainLayout() tview.Primitive {
 
 // updateFocusIndicators updates the visual indicators for the focused view
 func (a *App) updateFocusIndicators(focusedView string) {
-	// Reset all borders to default
+	// Reset all borders to theme's default border color
+	unfocusedColor := tview.Styles.BorderColor // Use theme's border color
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		list.SetBorderColor(tcell.ColorGray)
+		list.SetBorderColor(unfocusedColor)
 	}
 	if text, ok := a.views["text"].(*tview.TextView); ok {
-		text.SetBorderColor(tcell.ColorGray)
+		text.SetBorderColor(unfocusedColor)
 	}
 	if a.aiSummaryView != nil {
-		a.aiSummaryView.SetBorderColor(tcell.ColorGray)
+		a.aiSummaryView.SetBorderColor(unfocusedColor)
 	}
 	if a.labelsView != nil {
-		a.labelsView.SetBorderColor(tcell.ColorGray)
+		a.labelsView.SetBorderColor(unfocusedColor)
 	}
 	if a.slackView != nil {
-		a.slackView.SetBorderColor(tcell.ColorGray)
+		a.slackView.SetBorderColor(unfocusedColor)
 	}
 	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
 		// Subtle unfocused border to keep contour visible but not contrasty
-		tc.SetBorderColor(tcell.ColorGray)
+		tc.SetBorderColor(unfocusedColor)
 	}
 	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-		sp.SetBorderColor(tcell.ColorGray)
+		sp.SetBorderColor(unfocusedColor)
 	}
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
-		cp.SetBorderColor(tcell.ColorGray)
+		cp.SetBorderColor(unfocusedColor)
 	}
 
-	// Set focused view border to bright color
+	// Set focused view border to theme's focus color
+	focusedColor := tview.Styles.FocusColor // Use theme's focus color
 	switch focusedView {
 	case "list":
 		if list, ok := a.views["list"].(*tview.Table); ok {
-			list.SetBorderColor(tcell.ColorYellow)
+			list.SetBorderColor(focusedColor)
 		}
 	case "text":
 		if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
-			tc.SetBorderColor(tcell.ColorYellow)
+			tc.SetBorderColor(focusedColor)
 		}
 	case "summary":
 		if a.aiSummaryView != nil {
-			a.aiSummaryView.SetBorderColor(tcell.ColorYellow)
+			a.aiSummaryView.SetBorderColor(focusedColor)
 		}
 	case "labels":
 		if a.labelsView != nil {
-			a.labelsView.SetBorderColor(tcell.ColorYellow)
+			a.labelsView.SetBorderColor(focusedColor)
 		}
 	case "slack":
 		if a.slackView != nil {
-			a.slackView.SetBorderColor(tcell.ColorYellow)
+			a.slackView.SetBorderColor(focusedColor)
 		}
 	case "prompts":
 		if a.labelsView != nil {
-			a.labelsView.SetBorderColor(tcell.ColorYellow)
+			a.labelsView.SetBorderColor(focusedColor)
 		}
 	case "search":
 		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-			sp.SetBorderColor(tcell.ColorYellow)
+			sp.SetBorderColor(focusedColor)
 		}
 	case "cmd":
 		if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
-			cp.SetBorderColor(tcell.ColorYellow)
+			cp.SetBorderColor(focusedColor)
 		}
 	case "obsidian":
 		if a.labelsView != nil {
-			a.labelsView.SetBorderColor(tcell.ColorYellow)
+			a.labelsView.SetBorderColor(focusedColor)
 		}
 	}
 }
@@ -275,7 +277,7 @@ func (a *App) createSearchView() tview.Primitive {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(50).
 		SetPlaceholder("Enter search terms (e.g., from:user@example.com, subject:meeting)").
-		SetPlaceholderTextColor(tcell.ColorGray)
+		SetPlaceholderTextColor(a.getHintColor())
 
 	searchInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {

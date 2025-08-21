@@ -100,12 +100,36 @@ type BodyColors struct {
 	LogoColor Color `yaml:"logoColor"`
 }
 
+// UIColors defines colors for UI components (previously hardcoded)
+type UIColors struct {
+	// Panel and text colors
+	TitleColor  Color `yaml:"titleColor"`  // Panel titles
+	FooterColor Color `yaml:"footerColor"` // Footer/instruction text
+	HintColor   Color `yaml:"hintColor"`   // Hint text color
+	
+	// Selection colors
+	SelectionBgColor Color `yaml:"selectionBgColor"` // List selection background
+	SelectionFgColor Color `yaml:"selectionFgColor"` // List selection text
+	
+	// Status message colors
+	ErrorColor   Color `yaml:"errorColor"`   // Error messages
+	SuccessColor Color `yaml:"successColor"` // Success messages
+	WarningColor Color `yaml:"warningColor"` // Warning messages
+	InfoColor    Color `yaml:"infoColor"`    // Info messages
+	
+	// Input field colors
+	InputBgColor Color `yaml:"inputBgColor"` // Input field background
+	InputFgColor Color `yaml:"inputFgColor"` // Input field text
+	LabelColor   Color `yaml:"labelColor"`   // Input field labels
+}
+
 // ColorsConfig defines the complete color configuration
 type ColorsConfig struct {
 	Body  BodyColors  `yaml:"body"`
 	Frame FrameColors `yaml:"frame"`
 	Table TableColors `yaml:"table"`
 	Email EmailColors `yaml:"email"`
+	UI    UIColors    `yaml:"ui"`    // UI component colors (previously hardcoded)
 }
 
 // DefaultColors returns the default color configuration
@@ -150,6 +174,27 @@ func DefaultColors() *ColorsConfig {
 			ImportantColor: NewColor("#ff5555"),
 			SentColor:      NewColor("#50fa7b"),
 			DraftColor:     NewColor("#f1fa8c"),
+		},
+		UI: UIColors{
+			// Panel and text colors
+			TitleColor:  NewColor("#f1fa8c"), // Yellow for titles
+			FooterColor: NewColor("#6272a4"), // Gray for footer text
+			HintColor:   NewColor("#6272a4"), // Gray for hints
+			
+			// Selection colors
+			SelectionBgColor: NewColor("#44475a"), // Dark selection background
+			SelectionFgColor: NewColor("#f8f8f2"), // Light selection text
+			
+			// Status message colors
+			ErrorColor:   NewColor("#ff5555"), // Red for errors
+			SuccessColor: NewColor("#50fa7b"), // Green for success
+			WarningColor: NewColor("#f1fa8c"), // Yellow for warnings
+			InfoColor:    NewColor("#8be9fd"), // Cyan for info
+			
+			// Input field colors
+			InputBgColor: NewColor("#44475a"), // Dark input background
+			InputFgColor: NewColor("#f8f8f2"), // Light input text
+			LabelColor:   NewColor("#f1fa8c"), // Yellow for labels
 		},
 	}
 }

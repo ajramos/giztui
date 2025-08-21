@@ -300,3 +300,63 @@ type LinkInfo struct {
 	Text  string `json:"text"`  // Link text/description
 	Type  string `json:"type"`  // "html" or "plain" or "email" or "file"
 }
+
+// ThemeService handles theme operations
+type ThemeService interface {
+	// Theme discovery and listing
+	ListAvailableThemes(ctx context.Context) ([]string, error)
+	GetCurrentTheme(ctx context.Context) (string, error)
+	
+	// Theme application
+	ApplyTheme(ctx context.Context, name string) error
+	
+	// Theme preview and information
+	PreviewTheme(ctx context.Context, name string) (*ThemeConfig, error)
+	GetThemeConfig(ctx context.Context, name string) (*ThemeConfig, error)
+	
+	// Theme validation
+	ValidateTheme(ctx context.Context, name string) error
+}
+
+// ThemeConfig represents a theme configuration for preview and display
+type ThemeConfig struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	
+	// Color information for preview
+	EmailColors struct {
+		UnreadColor    string `json:"unread_color"`
+		ReadColor      string `json:"read_color"`
+		ImportantColor string `json:"important_color"`
+		SentColor      string `json:"sent_color"`
+		DraftColor     string `json:"draft_color"`
+	} `json:"email_colors"`
+	
+	UIColors struct {
+		// Basic UI colors
+		FgColor        string `json:"fg_color"`
+		BgColor        string `json:"bg_color"`
+		BorderColor    string `json:"border_color"`
+		FocusColor     string `json:"focus_color"`
+		
+		// Component colors (previously hardcoded)
+		TitleColor     string `json:"title_color"`
+		FooterColor    string `json:"footer_color"`
+		HintColor      string `json:"hint_color"`
+		
+		// Selection colors
+		SelectionBgColor string `json:"selection_bg_color"`
+		SelectionFgColor string `json:"selection_fg_color"`
+		
+		// Status colors
+		ErrorColor     string `json:"error_color"`
+		SuccessColor   string `json:"success_color"`
+		WarningColor   string `json:"warning_color"`
+		InfoColor      string `json:"info_color"`
+		
+		// Input colors
+		InputBgColor   string `json:"input_bg_color"`
+		InputFgColor   string `json:"input_fg_color"`
+		LabelColor     string `json:"label_color"`
+	} `json:"ui_colors"`
+}

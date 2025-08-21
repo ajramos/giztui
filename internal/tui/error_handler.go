@@ -179,19 +179,19 @@ func (eh *ErrorHandler) levelToString(level LogLevel) string {
 	}
 }
 
-// levelToColor converts LogLevel to tcell.Color
+// levelToColor converts LogLevel to theme-aware tcell.Color
 func (eh *ErrorHandler) levelToColor(level LogLevel) tcell.Color {
 	switch level {
 	case LogLevelInfo:
-		return tcell.ColorBlue
+		return eh.appRef.getStatusColor("info")
 	case LogLevelWarning:
-		return tcell.ColorYellow
+		return eh.appRef.getStatusColor("warning")
 	case LogLevelError:
-		return tcell.ColorRed
+		return eh.appRef.getStatusColor("error")
 	case LogLevelSuccess:
-		return tcell.ColorGreen
+		return eh.appRef.getStatusColor("success")
 	default:
-		return tcell.ColorWhite
+		return eh.appRef.getStatusColor("info") // Default to info color
 	}
 }
 

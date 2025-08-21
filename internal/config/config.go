@@ -129,6 +129,7 @@ type LayoutConfig struct {
 	ShowTitles  bool   `json:"show_titles"`
 	CompactMode bool   `json:"compact_mode"`
 	ColorScheme string `json:"color_scheme"`
+	ThemeDir    string `json:"theme_dir"`
 }
 
 // LayoutBreakpoint defines minimum dimensions for layout types
@@ -166,6 +167,7 @@ type KeyBindings struct {
 	SaveRaw     string `json:"save_raw"`     // Save raw EML
 	RSVP        string `json:"rsvp"`         // Toggle RSVP panel
 	LinkPicker  string `json:"link_picker"`  // Open link picker
+	ThemePicker string `json:"theme_picker"` // Open theme picker
 	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
 	CommandMode string `json:"command_mode"` // Open command bar
 	Help        string `json:"help"`         // Toggle help
@@ -269,6 +271,7 @@ func DefaultKeyBindings() KeyBindings {
 		SaveRaw:     "W",
 		RSVP:        "V",
 		LinkPicker:  "L",
+		ThemePicker: "H",
 		BulkMode:    "v",
 		CommandMode: ":",
 		Help:        "?",
@@ -310,7 +313,8 @@ func DefaultLayoutConfig() LayoutConfig {
 		ShowBorders:   true,
 		ShowTitles:    true,
 		CompactMode:   false,
-		ColorScheme:   "default",
+		ColorScheme:   "gmail-dark",
+		ThemeDir:      "",
 	}
 }
 

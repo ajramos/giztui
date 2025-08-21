@@ -80,7 +80,7 @@ dev: ## Development mode (build and run)
 	@make run
 
 # Examples / Demos
-theme-demo: deps ## Run the theme system demo (preview and validate skins)
+theme-demo: deps ## Run the theme system demo (preview and validate themes)
 	@echo "$(GREEN)Running theme demo...$(NC)"
 	go run ./examples/theme_demo.go
 

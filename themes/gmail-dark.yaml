@@ -1,0 +1,56 @@
+# Gmail TUI Dark Theme
+# Based on Dracula color scheme
+
+gmailTUI:
+  body:
+    fgColor: "#f8f8f2"          # Main text color
+    bgColor: "#282a36"          # Main background color
+    logoColor: "#bd93f9"        # Logo color
+
+  frame:
+    border:
+      fgColor: "#44475a"        # Normal border color
+      focusColor: "#6272a4"     # Focused border color
+    
+    title:
+      fgColor: "#f8f8f2"        # Title color
+      bgColor: "#282a36"        # Title background
+      highlightColor: "#f1fa8c" # Highlight color
+      counterColor: "#50fa7b"   # Counter color
+      filterColor: "#8be9fd"    # Filter color
+
+  table:
+    fgColor: "#f8f8f2"          # Table text color
+    bgColor: "#282a36"          # Table background
+    headerFgColor: "#50fa7b"    # Header color
+    headerBgColor: "#282a36"    # Header background
+
+  # Specific colors for emails
+  email:
+    unreadColor: "#ffb86c"      # Orange for unread
+    readColor: "#6272a4"        # Gray for read
+    importantColor: "#ff5555"   # Red for important
+    sentColor: "#50fa7b"        # Green for sent
+    draftColor: "#f1fa8c"       # Yellow for drafts
+
+  # UI component colors (previously hardcoded)
+  ui:
+    titleColor: "#f1fa8c"       # Panel titles (was tcell.ColorYellow)
+    footerColor: "#6272a4"      # Footer/instruction text (was tcell.ColorGray)
+    hintColor: "#6272a4"        # Hint text color
+    
+    # Selection colors
+    selectionBgColor: "#44475a"  # List selection background (was tcell.ColorBlue)
+    selectionFgColor: "#f8f8f2"  # List selection text (was tcell.ColorWhite)
+    
+    # Status message colors
+    errorColor: "#ff5555"       # Error messages (was tcell.ColorRed)
+    successColor: "#50fa7b"     # Success messages (was tcell.ColorGreen)
+    warningColor: "#f1fa8c"     # Warning messages (was tcell.ColorYellow)
+    infoColor: "#8be9fd"        # Info messages (was tcell.ColorBlue)
+    
+    # Input field colors
+    inputBgColor: "#44475a"     # Input field background
+    inputFgColor: "#f8f8f2"     # Input field text
+    labelColor: "#f1fa8c"       # Input field labels
+

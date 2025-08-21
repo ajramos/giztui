@@ -1,0 +1,56 @@
+# Gmail TUI Light Theme
+# Based on light color scheme
+
+gmailTUI:
+  body:
+    fgColor: "#2c3e50"          # Main text color
+    bgColor: "#ecf0f1"          # Main background color
+    logoColor: "#3498db"        # Logo color
+
+  frame:
+    border:
+      fgColor: "#bdc3c7"        # Normal border color
+      focusColor: "#3498db"     # Focused border color
+    
+    title:
+      fgColor: "#2c3e50"        # Title color
+      bgColor: "#ecf0f1"        # Title background
+      highlightColor: "#f39c12" # Highlight color
+      counterColor: "#27ae60"   # Counter color
+      filterColor: "#3498db"    # Filter color
+
+  table:
+    fgColor: "#2c3e50"          # Table text color
+    bgColor: "#ecf0f1"          # Table background
+    headerFgColor: "#27ae60"    # Header color
+    headerBgColor: "#ecf0f1"    # Header background
+
+  # Specific colors for emails
+  email:
+    unreadColor: "#e67e22"      # Orange for unread
+    readColor: "#7f8c8d"        # Gray for read
+    importantColor: "#e74c3c"   # Red for important
+    sentColor: "#27ae60"        # Green for sent
+    draftColor: "#f39c12"       # Yellow for drafts
+
+  # UI component colors (previously hardcoded)
+  ui:
+    titleColor: "#f39c12"       # Panel titles (was tcell.ColorYellow)
+    footerColor: "#7f8c8d"      # Footer/instruction text (was tcell.ColorGray)
+    hintColor: "#7f8c8d"        # Hint text color
+    
+    # Selection colors
+    selectionBgColor: "#3498db"  # List selection background (was tcell.ColorBlue)
+    selectionFgColor: "#ffffff"  # List selection text (was tcell.ColorWhite)
+    
+    # Status message colors
+    errorColor: "#e74c3c"       # Error messages (was tcell.ColorRed)
+    successColor: "#27ae60"     # Success messages (was tcell.ColorGreen)
+    warningColor: "#f39c12"     # Warning messages (was tcell.ColorYellow)
+    infoColor: "#3498db"        # Info messages (was tcell.ColorBlue)
+    
+    # Input field colors
+    inputBgColor: "#ecf0f1"     # Input field background
+    inputFgColor: "#2c3e50"     # Input field text
+    labelColor: "#f39c12"       # Input field labels
+

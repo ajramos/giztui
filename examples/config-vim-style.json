@@ -77,6 +77,7 @@
     "save_raw": "W",        // write raw (same as default)
     "rsvp": "V",            // RSVP (same as default)
     "link_picker": "L",     // Link picker (same as default)
+    "theme_picker": "H",    // Theme picker
     "bulk_mode": "v",       // visual mode (like Vim v)
     "command_mode": ":",    // command mode (like Vim :)
     "help": ":h",           // help (like Vim :h)

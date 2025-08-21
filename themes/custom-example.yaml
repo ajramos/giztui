@@ -1,0 +1,47 @@
+gmailTUI:
+    body:
+        fgColor: '#2c3e50'
+        bgColor: '#ecf0f1'
+        logoColor: '#3498db'
+    frame:
+        border:
+            fgColor: '#bdc3c7'
+            focusColor: '#3498db'
+        title:
+            fgColor: '#2c3e50'
+            bgColor: '#ecf0f1'
+            highlightColor: '#f39c12'
+            counterColor: '#27ae60'
+            filterColor: '#3498db'
+    table:
+        fgColor: '#2c3e50'
+        bgColor: '#ecf0f1'
+        headerFgColor: '#27ae60'
+        headerBgColor: '#ecf0f1'
+    email:
+        unreadColor: '#e67e22'
+        readColor: '#7f8c8d'
+        importantColor: '#e74c3c'
+        sentColor: '#27ae60'
+        draftColor: '#f39c12'
+    
+    # UI component colors (previously hardcoded)
+    ui:
+        titleColor: '#f39c12'       # Panel titles
+        footerColor: '#7f8c8d'      # Footer/instruction text
+        hintColor: '#7f8c8d'        # Hint text color
+        
+        # Selection colors
+        selectionBgColor: '#3498db'  # List selection background
+        selectionFgColor: '#ffffff'  # List selection text
+        
+        # Status message colors
+        errorColor: '#e74c3c'       # Error messages
+        successColor: '#27ae60'     # Success messages
+        warningColor: '#f39c12'     # Warning messages
+        infoColor: '#3498db'        # Info messages
+        
+        # Input field colors
+        inputBgColor: '#ecf0f1'     # Input field background
+        inputFgColor: '#2c3e50'     # Input field text
+        labelColor: '#f39c12'       # Input field labels

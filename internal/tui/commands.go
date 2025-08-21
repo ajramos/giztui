@@ -501,6 +501,13 @@ func (a *App) executeCommand(cmd string) {
 		a.executeObsidianCommand(args)
 	case "prompt", "pr", "p":
 		a.executePromptCommand(args)
+	case "theme", "th":
+		if len(args) == 0 {
+			// Open theme picker UI if no subcommands
+			go a.openThemePicker()
+		} else {
+			a.executeThemeCommand(args)
+		}
 	default:
 		// Check for numeric shortcuts like :1, :$
 		if matched := a.executeNumericShortcut(command); !matched {
@@ -1489,5 +1496,191 @@ func (a *App) executePromptDelete(args []string) {
 		go func() {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
 		}()
+	}()
+}
+
+// executeThemeCommand handles :theme commands for theme management
+func (a *App) executeThemeCommand(args []string) {
+	themeService := a.GetThemeService()
+	if themeService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Theme service not available")
+		}()
+		return
+	}
+
+	if len(args) == 0 {
+		// Default: show current theme
+		go func() {
+			if currentTheme, err := themeService.GetCurrentTheme(a.ctx); err == nil {
+				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Current theme: %s", currentTheme))
+			} else {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to get current theme: %v", err))
+			}
+		}()
+		return
+	}
+
+	subCommand := strings.ToLower(args[0])
+	subArgs := args[1:]
+
+	switch subCommand {
+	case "list", "l":
+		a.executeThemeList()
+	case "set", "s":
+		if len(subArgs) > 0 {
+			a.executeThemeSet(subArgs[0])
+		} else {
+			go func() {
+				a.GetErrorHandler().ShowError(a.ctx, "Usage: theme set <theme-name>")
+			}()
+		}
+	case "preview", "p":
+		if len(subArgs) > 0 {
+			a.executeThemePreview(subArgs[0])
+		} else {
+			go func() {
+				a.GetErrorHandler().ShowError(a.ctx, "Usage: theme preview <theme-name>")
+			}()
+		}
+	default:
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown theme command: %s. Use 'list', 'set', or 'preview'", subCommand))
+		}()
+	}
+}
+
+// executeThemeList lists all available themes
+func (a *App) executeThemeList() {
+	themeService := a.GetThemeService()
+	if themeService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Theme service not available")
+		}()
+		return
+	}
+
+	go func() {
+		themes, err := themeService.ListAvailableThemes(a.ctx)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to list themes: %v", err))
+			return
+		}
+
+		currentTheme, _ := themeService.GetCurrentTheme(a.ctx)
+
+		output := "🎨 Available Themes\n"
+		output += "==================\n\n"
+		for _, theme := range themes {
+			marker := "○"
+			if theme == currentTheme {
+				marker = "✅"
+			}
+			output += fmt.Sprintf("  %s %s", marker, theme)
+			if theme == currentTheme {
+				output += " (current)"
+			}
+			output += "\n"
+		}
+		output += "\n💡 Commands:\n"
+		output += "   :theme set <name>     - Switch to theme\n"
+		output += "   :theme preview <name> - Preview theme\n"
+		output += "   :theme                - Open theme picker\n"
+		output += "   H                     - Open theme picker (shortcut)\n"
+
+		// Display in text view like theme preview
+		a.QueueUpdateDraw(func() {
+			// Update the text container title
+			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+				textContainer.SetTitle(" 🎨 Theme List ")
+				textContainer.SetTitleColor(tcell.ColorPurple)
+				
+				// Store and hide message headers
+				if header, ok := a.views["header"].(*tview.TextView); ok {
+					headerContent := header.GetText(false)
+					a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+					textContainer.ResizeItem(header, 0, 0)
+				}
+			}
+			
+			if textView, ok := a.views["text"].(*tview.TextView); ok {
+				textView.SetText(output)
+				textView.ScrollToBeginning()
+				a.SetFocus(textView)
+				a.currentFocus = "text"
+				a.updateFocusIndicators("text")
+			}
+			// Also update enhanced text view if available
+			if a.enhancedTextView != nil {
+				a.enhancedTextView.SetContent(output)
+			}
+		})
+
+		// Show info in status
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Listed %d themes | Press :theme to open picker", len(themes)))
+		}()
+	}()
+}
+
+// executeThemeSet switches to the specified theme
+func (a *App) executeThemeSet(themeName string) {
+	themeService := a.GetThemeService()
+	if themeService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Theme service not available")
+		}()
+		return
+	}
+
+	go func() {
+		if err := themeService.ApplyTheme(a.ctx, themeName); err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to apply theme '%s': %v", themeName, err))
+			return
+		}
+
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🎨 Applied theme: %s", themeName))
+	}()
+}
+
+// executeThemePreview shows a preview of the specified theme
+func (a *App) executeThemePreview(themeName string) {
+	themeService := a.GetThemeService()
+	if themeService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Theme service not available")
+		}()
+		return
+	}
+
+	go func() {
+		themeConfig, err := themeService.PreviewTheme(a.ctx, themeName)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to preview theme '%s': %v", themeName, err))
+			return
+		}
+
+		// Create preview text
+		preview := fmt.Sprintf("🎨 Theme Preview: %s\n\n", themeConfig.Name)
+		if themeConfig.Description != "" {
+			preview += fmt.Sprintf("Description: %s\n\n", themeConfig.Description)
+		}
+
+		preview += "📧 Email Colors:\n"
+		preview += fmt.Sprintf("  🔵 Unread:     %s\n", themeConfig.EmailColors.UnreadColor)
+		preview += fmt.Sprintf("  ⚪ Read:       %s\n", themeConfig.EmailColors.ReadColor)
+		preview += fmt.Sprintf("  🔴 Important:  %s\n", themeConfig.EmailColors.ImportantColor)
+		preview += fmt.Sprintf("  🟢 Sent:       %s\n", themeConfig.EmailColors.SentColor)
+		preview += fmt.Sprintf("  🟡 Draft:      %s\n", themeConfig.EmailColors.DraftColor)
+
+		preview += "\n🎨 UI Colors:\n"
+		preview += fmt.Sprintf("  📝 Text:       %s\n", themeConfig.UIColors.FgColor)
+		preview += fmt.Sprintf("  🖼️  Background: %s\n", themeConfig.UIColors.BgColor)
+		preview += fmt.Sprintf("  🔲 Border:     %s\n", themeConfig.UIColors.BorderColor)
+		preview += fmt.Sprintf("  ✨ Focus:      %s\n", themeConfig.UIColors.FocusColor)
+
+		preview += fmt.Sprintf("\n💡 Use ':theme set %s' to apply this theme", themeName)
+
+		a.GetErrorHandler().ShowInfo(a.ctx, preview)
 	}()
 }

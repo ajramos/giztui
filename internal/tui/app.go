@@ -156,6 +156,7 @@ type App struct {
 	obsidianService   services.ObsidianService
 	linkService       services.LinkService
 	contentNavService services.ContentNavigationService
+	themeService      services.ThemeService
 	errorHandler      *ErrorHandler
 }
 
@@ -587,6 +588,41 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: content navigation service initialized: %v", a.contentNavService != nil)
 	}
 
+	// Initialize theme service
+	customThemeDir := ""
+	if a.Config != nil && a.Config.Layout.ThemeDir != "" {
+		customThemeDir = a.Config.Layout.ThemeDir
+	}
+	
+	// Determine the built-in themes directory path
+	// Check if we have an absolute path or need to resolve relative to executable location
+	builtinThemesDir := "themes"
+	if _, err := os.Stat(builtinThemesDir); os.IsNotExist(err) {
+		// If themes directory doesn't exist in current dir, try relative to parent
+		builtinThemesDir = "../themes"
+		if _, err := os.Stat(builtinThemesDir); os.IsNotExist(err) {
+			// If that doesn't exist either, try to find it relative to the executable
+			if exe, err := os.Executable(); err == nil {
+				exeDir := filepath.Dir(exe)
+				builtinThemesDir = filepath.Join(exeDir, "..", "themes")
+				if _, err := os.Stat(builtinThemesDir); os.IsNotExist(err) {
+					// Last resort - try themes in the same directory as executable
+					builtinThemesDir = filepath.Join(exeDir, "themes")
+				}
+			}
+		}
+	}
+	
+	// Create theme apply function that calls the app's applyTheme method
+	applyThemeFunc := func(themeConfig *config.ColorsConfig) error {
+		return a.applyThemeConfig(themeConfig)
+	}
+	
+	a.themeService = services.NewThemeService(builtinThemesDir, customThemeDir, applyThemeFunc)
+	if a.logger != nil {
+		a.logger.Printf("initServices: theme service initialized: %v", a.themeService != nil)
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
@@ -785,6 +821,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService
 }
 
+// GetThemeService returns the theme service instance
+func (a *App) GetThemeService() services.ThemeService {
+	return a.themeService
+}
+
 // GetSlackService returns the Slack service instance
 func (a *App) GetSlackService() services.SlackService {
 	return a.slackService
@@ -797,8 +838,8 @@ func (a *App) GetContentNavService() services.ContentNavigationService {
 
 // applyTheme loads theme colors and updates the email renderer
 func (a *App) applyTheme() {
-	// Try to load theme from skins directory; fallback to defaults
-	loader := config.NewThemeLoader("skins")
+	// Try to load theme from themes directory; fallback to defaults
+	loader := config.NewThemeLoader("themes")
 	if theme, err := loader.LoadThemeFromFile("gmail-dark.yaml"); err == nil {
 		a.emailRenderer.UpdateFromConfig(theme)
 		// Aplicar a estilos globales
@@ -826,6 +867,141 @@ func (a *App) applyTheme() {
 	}
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+}
+
+// applyThemeConfig applies a specific theme configuration to the app
+func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
+	if theme == nil {
+		return fmt.Errorf("theme configuration is nil")
+	}
+	
+	// Update email renderer
+	a.emailRenderer.UpdateFromConfig(theme)
+	
+	// Apply global styles
+	tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
+	tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
+	tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
+	tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+	
+	// Update existing widget colors
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		// Force table to refresh content with new email renderer colors
+		if a.messagesMeta != nil && len(a.messagesMeta) > 0 {
+			// Trigger reformatting of list items to apply new theme colors
+			a.reformatListItems()
+		}
+	}
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	if a.aiSummaryView != nil {
+		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	
+	return nil
+}
+
+// Theme-aware color helper functions
+
+// getTitleColor returns the theme's title color or fallback to yellow
+func (a *App) getTitleColor() tcell.Color {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				return tcell.GetColor(themeConfig.UIColors.TitleColor)
+			}
+		}
+	}
+	return tcell.ColorYellow // Fallback to hardcoded color
+}
+
+// getFooterColor returns the theme's footer color or fallback to gray
+func (a *App) getFooterColor() tcell.Color {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				return tcell.GetColor(themeConfig.UIColors.FooterColor)
+			}
+		}
+	}
+	return tcell.ColorGray // Fallback to hardcoded color
+}
+
+// getHintColor returns the theme's hint color or fallback to gray
+func (a *App) getHintColor() tcell.Color {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				return tcell.GetColor(themeConfig.UIColors.HintColor)
+			}
+		}
+	}
+	return tcell.ColorGray // Fallback to hardcoded color
+}
+
+// getSelectionStyle returns the theme's selection style or fallback
+func (a *App) getSelectionStyle() tcell.Style {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				bgColor := tcell.GetColor(themeConfig.UIColors.SelectionBgColor)
+				fgColor := tcell.GetColor(themeConfig.UIColors.SelectionFgColor)
+				return tcell.StyleDefault.Foreground(fgColor).Background(bgColor)
+			}
+		}
+	}
+	// Fallback to hardcoded style
+	return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+}
+
+// getLabelColor returns the theme's label color or fallback to yellow
+func (a *App) getLabelColor() tcell.Color {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				return tcell.GetColor(themeConfig.UIColors.LabelColor)
+			}
+		}
+	}
+	return tcell.ColorYellow // Fallback to hardcoded color
+}
+
+// getStatusColor returns theme-aware colors for different status levels
+func (a *App) getStatusColor(level string) tcell.Color {
+	if a.Config != nil && a.Config.Layout.ColorScheme != "" {
+		if themeService := a.GetThemeService(); themeService != nil {
+			if themeConfig, err := themeService.GetThemeConfig(a.ctx, a.Config.Layout.ColorScheme); err == nil {
+				switch level {
+				case "error":
+					return tcell.GetColor(themeConfig.UIColors.ErrorColor)
+				case "success":
+					return tcell.GetColor(themeConfig.UIColors.SuccessColor)
+				case "warning":
+					return tcell.GetColor(themeConfig.UIColors.WarningColor)
+				case "info":
+					return tcell.GetColor(themeConfig.UIColors.InfoColor)
+				}
+			}
+		}
+	}
+	// Fallback to hardcoded colors
+	switch level {
+	case "error":
+		return tcell.ColorRed
+	case "success":
+		return tcell.ColorGreen
+	case "warning":
+		return tcell.ColorYellow
+	case "info":
+		return tcell.ColorBlue
+	default:
+		return tcell.ColorWhite
 	}
 }
 

@@ -6,7 +6,7 @@ Gmail TUI implements a dynamic, k9s-inspired color system that allows full custo
 
 ### Configuration Layers
 
-1. **Theme YAML files** (`skins/`)
+1. **Theme YAML files** (`themes/`)
    - Colors defined in YAML
    - Predefined themes (dark, light)
    - Full customization
@@ -25,7 +25,7 @@ Gmail TUI implements a dynamic, k9s-inspired color system that allows full custo
 
 ```
 gmail-tui/
-├── skins/
+├── themes/
 │   ├── gmail-dark.yaml     # Dark (Dracula-inspired)
 │   └── gmail-light.yaml    # Light
 ├── internal/
@@ -200,7 +200,7 @@ Designed for daylight and bright environments.
 
 1. **Copy an existing theme**:
    ```bash
-   cp skins/gmail-dark.yaml skins/my-theme.yaml
+   cp themes/gmail-dark.yaml themes/my-theme.yaml
    ```
 
 2. **Edit colors**:
@@ -213,7 +213,7 @@ Designed for daylight and bright environments.
 
 3. **Apply the theme**:
    ```go
-   colors := config.LoadColorsFromFile("skins/my-theme.yaml")
+   colors := config.LoadColorsFromFile("themes/my-theme.yaml")
    app.emailRenderer.UpdateFromConfig(colors)
    ```
 

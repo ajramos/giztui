@@ -1,47 +1,38 @@
 # TODO List - GizTUI Project
 
 ## 🎯 TODO - Active Roadmap
+- [ ] when token expires it doesn't handle the request of a new one... It raises the following error:
+./build/gmail-tui
+2025/08/21 09:02:18 Could not initialize Gmail service: could not refresh token: oauth2: "invalid_grant" "Token has been expired or revoked."
+make: *** [run] Error 1
+- [ ] the instructions to get the token contain color labels that don't work properly:
+[bold]Authorization required[reset]
+1. Open this link: [blue]https://accounts.google.com/o/oauth2/auth?access_type=offline&client_id=420480303874-me950drigguet0fakg0aobsm4o4616p4.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A8080&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.compose+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events&state=state-token[reset]
+2. Grant access to the application
+3. You will be redirected automatically
+- [ ] Remove el prefijo "VIM:" que aparece
 
-## Issues
-- [x] Something is working weird, when I move emails, they are removed from the list but still I see 50 messages, it looks like the last X emails are repeated in the end of the list when X is the number of moved emails..
+## 📋 PENDING - What's Left to Do
 
-### Priorities
-- [ ] Theme configuration system
-- [ ] Improve status bar experience
-- [ ] Improve legend
-- [ ] Create equivalent command for shortcuts: prompts
-- [ ] UI for creating new prompt templates
-- [ ] Review look and feel of the folders, scope selection in the advance search, the page doesn't update well and leaves some orphan letters as you move up and down through the options.
+### High Priority
+- [ ] Bulk select s2s is not configurable.
+- [ ] **Theme configuration system** - Implement customizable themes
+- [ ] **Status bar experience** - Improve status bar functionality and UX
+- [ ] **Legend improvements** - Enhance help/legend system
+- [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
-- [ ] Contextual menu for messages actions: at this moment we can operate over th emessage with several things: Labels, archive, delete, apply prompt, do summary... maybe we want a contextual menu.
-- [x] make timeout configurable
-- [x] p prompt doesnt stream the llm response
-- [x] Better ways to browse message cntent at the moment only line by line
-- [x] Text search `/` inside the email body
-- [x] When there's a calendar invitation, when showing the options to Accept, etc., include a brief summary indicating the date and time of the event
-- [x] In the content of a message, if a header like CC: is very long because it has many people in copy, it doesn't wrap the line and the information is not visible
-- [x] **Enhanced bulk keyboard shortcuts** - Implement advanced bulk operations like `d5d` (delete next 5 messages), `a3a` (archive next 3), etc.
-- [x] Open links (design UX)
-- [x] Add comment to the template in Slack
-- [x] when using :slack command the focus doesn't go to the send to slack widget.
-- [x] Group llm configuration under the same object in config
-- [x] Move configuration file templates to files.
+- [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
 
-### 🔍 Search & Filter Enhancements
+### Medium Priority
+- [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
+- [ ] **UI for creating new prompt templates** - Build interface for template creation
+
+### Search & Filter Enhancements
 - [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
 - [ ] **Improve date range search** - Enhanced date filtering with after:/before: operators
 - [ ] **Local indexing for fast searches** - Build local search index for performance improvements
-- [x] **Add size-based email search** - Search emails by size (>1MB, <500KB, etc.)
-- [x] **Fix has:attachment filter** - Resolve issues with attachment-based email filtering
-
-### 🎨 UX & Accessibility Improvements
-- [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
-- [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
-- [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
-- [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
-- [ ] **Efficient Gmail syncing** - Partial offline mode with smart sync optimization
 
 ### Email Management
 - [ ] **Get unread emails** - List unread emails with count and preview
@@ -51,7 +42,6 @@
 - [ ] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
-- [x] **Search by date** - Search by date
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
@@ -65,9 +55,6 @@
 - [ ] **Get attachment** - Download email attachments
 - [ ] **Bulk save attachments** - Save multiple attachments at once
 - [ ] **List attachments** - Show attachments for specific emails
-
-### Labels and Organization
-- [ ] [Retired] **Labels assignation rules engine** - Define rules to suggest labels (similar to filters in gmail)
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
@@ -95,10 +82,14 @@
 - [ ] **Search highlighting** - Highlight search terms in results
 - [ ] **Message threading** - Show message threads and conversations
 - [ ] **Configuration for labels adding icons** Icons for each Label.
+- [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
+- [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
+- [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
+- [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
+- [ ] **Efficient Gmail syncing** - Partial offline mode with smart sync optimization
 
 ### Navigation Enhancements
 - [ ] **Sort options** - Sort messages by date, sender, subject, etc.
-- [x] **Quick navigation** - Jump to specific messages or labels
 - [ ] **Bookmarks** - Bookmark important messages
 - [ ] **Recent messages** - Quick access to recently viewed messages
 - [ ] **Message filtering** - Filter messages by various criteria
@@ -167,7 +158,6 @@
 ### 🔧 Development & Quality
 - [ ] **Enhanced testing coverage** - Tests for complex functionalities (shortcuts, filters, AI)
 - [ ] **CI pipeline implementation** - Continuous integration for quality assurance
-- [x] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
 - [ ] **Configurable plugin shortcuts** - Custom actions and keyboard shortcuts for plugins
 - [ ] **Plugin system**: extensible architecture to add custom functionality without touching the core
 
@@ -183,20 +173,33 @@
 
 ---
 
+## 🚧 Issues & Bugs
+
+### Known Issues
+- [x] Something is working weird, when I move emails, they are removed from the list but still I see 50 messages, it looks like the last X emails are repeated in the end of the list when X is the number of moved emails..
+
+---
+
 ## ✅ DONE - Completed Features
 
-### Core Priorities (Completed)
-- [x] Think about sending items to Obsidian and Slack
-- [x] Send slack messages in bulk
-- [x] Treat several emails in batch with one prompt.
-- [x] Review execution parameters, there are some duplication with llm and ollama.
-- [x] Fix AI SUmmary, Prompt Application (Single and bulk) issue with Escape. (it hangs when pressing Esc)
-- [x] Fix unnecessary message list reload after move operations (August 2025)
-- [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
-- [x] Investigate behavior for self-emailed messages
-- [x] After loading messages, auto-select and render the first one
-- [x] Stream LLM output instead of full response
-- [x] **Update README** - Parts of README are outdated and need refresh
+### Core Functionality
+- [x] Create equivalent command for shortcuts: prompts
+- [x] Make timeout configurable
+- [x] Fix p prompt streaming - LLM response now streams properly
+- [x] **Enhanced message content navigation** - Implemented better ways to browse message content beyond line-by-line navigation
+- [x] **Text search functionality** - Added `/` search inside email body with navigation
+- [x] **Calendar invitation enhancements** - Added date/time summary when showing Accept/Decline options
+- [x] **Message header wrapping** - Fixed long CC/BCC headers that didn't wrap properly
+- [x] **Enhanced bulk keyboard shortcuts** - Implemented advanced bulk operations like `d5d` (delete next 5), `a3a` (archive next 3), etc.
+- [x] **Link opening functionality** - Designed and implemented UX for opening links from emails
+- [x] **Slack integration improvements** - Added comment support to Slack templates
+- [x] **Slack command focus fix** - Fixed focus management when using :slack command
+- [x] **Configuration improvements** - Grouped LLM configuration under single object and moved templates to files
+
+### Search & Filter Features
+- [x] **Size-based email search** - Added search by email size (>1MB, <500KB, etc.)
+- [x] **Attachment filter fix** - Resolved issues with has:attachment filter
+- [x] **Search by date** - Search by date
 
 ### Email Management (Completed)
 - [x] **Query emails** - Search and query emails with Gmail search syntax
@@ -241,6 +244,7 @@
 - [x] **Visualization of important labels as colors in the message lists** Each label should have a a color
 
 ### Navigation Enhancements (Completed)
+- [x] **Quick navigation** - Jump to specific messages or labels
 - [x] **Bulk operations** - Select multiple messages for bulk actions
 - [x] **Keyboard navigation** - Tab cycles panes; arrows respect focused pane
 
@@ -248,6 +252,25 @@
 - [x] ~~Markdown rendering for HTML messages~~.(Substituted by a process)
 - [x] Remove hyperlinks and add them at the end as references.
 - [x] Be able to render the original raw message. (It can be saved with W)
+
+### Core Priorities (Completed)
+- [x] Think about sending items to Obsidian and Slack
+- [x] Send slack messages in bulk
+- [x] Treat several emails in batch with one prompt.
+- [x] Review execution parameters, there are some duplication with llm and ollama.
+- [x] Fix AI SUmmary, Prompt Application (Single and bulk) issue with Escape. (it hangs when pressing Esc)
+- [x] Fix unnecessary message list reload after move operations (August 2025)
+- [x] Add 'v' key as alternative to 'b' for entering bulk mode (Vim-style visual mode)
+- [x] Investigate behavior for self-emailed messages
+- [x] After loading messages, auto-select and render the first one
+- [x] Stream LLM output instead of full response
+- [x] **Update README** - Parts of README are outdated and need refresh
+
+### Plugin System (Completed)
+- [x] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
+
+### Bug Fixes (Completed)
+- [x] **Message list duplication bug** - Fixed issue where moved emails were removed but count remained at 50, causing duplicate messages
 
 ### Architectural Refactoring (Completed - December 2024)
 - [x] **Service Layer Architecture** - Extracted business logic into dedicated services
