@@ -169,9 +169,7 @@ func (a *App) initViews() {
 	// Add main view
 	a.Pages.AddPage("main", mainLayout, true, true)
 
-	// Add help view
-	helpView := a.createHelpView()
-	a.Pages.AddPage("help", helpView, true, false)
+	// Help is now displayed in message content area, no separate page needed
 
 	// Add search view
 	searchView := a.createSearchView()
@@ -306,16 +304,7 @@ func (a *App) createStatusBar() tview.Primitive {
 	return status
 }
 
-// createHelpView creates the help view
-func (a *App) createHelpView() tview.Primitive {
-	help := tview.NewTextView().
-		SetDynamicColors(true).
-		SetWrap(true).
-		SetScrollable(true)
-
-	help.SetText(a.generateHelpText())
-	return help
-}
+// Help is now displayed directly in message content area
 
 // createSearchView creates the search view
 func (a *App) createSearchView() tview.Primitive {

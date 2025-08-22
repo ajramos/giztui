@@ -48,6 +48,9 @@ type App struct {
 	draftMode     bool
 	draftIDs      []string
 	showHelp      bool
+	helpBackupText   string // Backup of text content before showing help
+	helpBackupHeader string // Backup of header content before showing help
+	helpBackupTitle  string // Backup of text container title before showing help
 	currentView   string
 	currentFocus  string // Track current focus: "list" or "text"
 	previousFocus string // Track previous focus before modal
@@ -1084,93 +1087,151 @@ func NewCmdBuff() *CmdBuff {
 func (a *App) generateHelpText() string {
 	var help strings.Builder
 
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("🐕 GizTUI - Help & Shortcuts\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
-
-	help.WriteString("🧭 Navigation\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("Enter     👁️  View selected message\n")
-	help.WriteString("r         🔄 Refresh messages\n")
-	help.WriteString("s         🔍 Search messages\n")
-	help.WriteString("F         📫 Quick search: from current sender\n")
-	help.WriteString("T         📤 Quick search: to current sender (includes Sent)\n")
-	help.WriteString("S         🧵 Quick search: by current subject\n")
-	help.WriteString("u         🔴 Show unread messages\n")
-	help.WriteString("D         📝 View drafts\n")
-	help.WriteString("A         📎 Show attachments\n")
-	help.WriteString("l         🏷️  Manage labels\n\n")
-
-	help.WriteString("✉️  Message Actions\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("R         💬 Reply to message\n")
-	help.WriteString("c         ✏️  Compose new message\n")
-	help.WriteString("N         ⬇️  Load next 50 messages\n")
-	help.WriteString("t         👁️  Toggle read/unread\n")
-	help.WriteString("d         🗑️  Move to trash\n")
-	help.WriteString("a         📁 Archive message\n")
-	help.WriteString("m         📦 Move message\n")
-	if a.Config.Slack.Enabled {
-		help.WriteString("K         💬 Forward to Slack\n")
+	// Show current status
+	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
+		help.WriteString(fmt.Sprintf("🎨 Theme: %s\n", a.Config.Layout.CurrentTheme))
 	}
-	help.WriteString("\n")
-
-	help.WriteString("📦 Bulk Operations\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString(fmt.Sprintf("%s/%s   ✅ Enter bulk mode & select message\n", a.Keys.BulkMode, a.Keys.BulkSelect))
-	help.WriteString(fmt.Sprintf("%s     ➕ Toggle message selection (in bulk mode)\n", a.Keys.BulkSelect))
-	help.WriteString("*         🌟 Select all visible messages\n")
-	help.WriteString("a         📁 Archive selected messages\n")
-	help.WriteString("d         🗑️  Delete selected messages\n")
-	help.WriteString("m         📦 Move selected messages\n")
-	help.WriteString("p         🎯 Apply bulk prompt to selected\n")
-	help.WriteString("Esc       ❌ Exit bulk mode\n\n")
-
 	if a.LLM != nil {
-		help.WriteString("🤖 AI Features\n")
-		help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-		help.WriteString("y         📝 Summarize message\n")
-		help.WriteString("Y         🔄 Regenerate summary (force refresh)\n")
-		help.WriteString("p         🎯 Open Prompt Library\n")
-		help.WriteString("g         🤖 Generate reply\n")
-		help.WriteString("o         🏷️  Suggest label\n\n")
+		help.WriteString("🤖 AI: Enabled\n")
+	}
+	
+	// Add separator line before navigation instructions
+	help.WriteString("\n")
+	help.WriteString("📖 NAVIGATION: Use /term to search, n/N for next/previous match, g/gg/G for navigation\n")
+	help.WriteString("\n")
+	help.WriteString(fmt.Sprintf("💡 Press '%s' or 'Esc' to return to main view\n\n", a.Keys.Help))
+
+	// Quick Start Section
+	help.WriteString("🚀 GETTING STARTED\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  ❓  Toggle this help screen\n", a.Keys.Help))
+	help.WriteString(fmt.Sprintf("    %-8s  👁️   View selected message\n", "Enter"))
+	help.WriteString(fmt.Sprintf("    %-8s  🚪  Quit application\n", a.Keys.Quit))
+	help.WriteString(fmt.Sprintf("    %-8s  💻  Command mode (type commands like :search, :help)\n\n", a.Keys.CommandMode))
+
+	// Essential Operations
+	help.WriteString("📧 MESSAGE BASICS\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  💬  Reply to message\n", a.Keys.Reply))
+	help.WriteString(fmt.Sprintf("    %-8s  ✏️   Compose new message\n", a.Keys.Compose))
+	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive message\n", a.Keys.Archive))
+	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Move to trash\n", a.Keys.Trash))
+	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
+	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
+	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n\n", a.Keys.ManageLabels))
+
+	// Navigation & Search
+	help.WriteString("🧭 NAVIGATION & SEARCH\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  🔄  Refresh messages\n", a.Keys.Refresh))
+	help.WriteString(fmt.Sprintf("    %-8s  🔍  Search messages\n", a.Keys.Search))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Load next 50 messages\n", a.Keys.LoadMore))
+	help.WriteString(fmt.Sprintf("    %-8s  🔴  Show unread messages\n", a.Keys.Unread))
+	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n", a.Keys.Drafts))
+	help.WriteString(fmt.Sprintf("    %-8s  📎  Show attachments\n", a.Keys.Attachments))
+	help.WriteString("    F         📫  Quick search: from current sender\n")
+	help.WriteString("    T         📤  Quick search: to current sender (includes Sent)\n")
+	help.WriteString("    S         🧵  Quick search: by current subject\n\n")
+
+	// Content Navigation
+	help.WriteString("📖 CONTENT NAVIGATION (When Viewing Message)\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  🔍  Search within message content\n", a.Keys.ContentSearch))
+	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Next search match\n", a.Keys.SearchNext))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬅️   Previous search match\n", a.Keys.SearchPrev))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Go to top of message\n", a.Keys.GotoTop))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Go to bottom of message\n", a.Keys.GotoBottom))
+	help.WriteString(fmt.Sprintf("    %-8s  🚀  Fast scroll up\n", a.Keys.FastUp))
+	help.WriteString(fmt.Sprintf("    %-8s  🚀  Fast scroll down\n", a.Keys.FastDown))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬅️   Word left\n", a.Keys.WordLeft))
+	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Word right\n", a.Keys.WordRight))
+	help.WriteString(fmt.Sprintf("    %-8s  📄  Toggle header visibility\n\n", a.Keys.ToggleHeaders))
+
+	// Bulk Operations
+	bulkStatus := "OFF"
+	if a.bulkMode {
+		bulkStatus = fmt.Sprintf("ON (%d selected)", len(a.selected))
+	}
+	help.WriteString(fmt.Sprintf("📦 BULK OPERATIONS (Currently: %s)\n\n", bulkStatus))
+	help.WriteString(fmt.Sprintf("    %-8s  ✅  Enter bulk mode\n", a.Keys.BulkMode))
+	help.WriteString(fmt.Sprintf("    %-8s  ➕  Toggle message selection (in bulk mode)\n", a.Keys.BulkSelect))
+	help.WriteString("    *         🌟  Select all visible messages\n")
+	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive selected messages\n", a.Keys.Archive))
+	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Delete selected messages\n", a.Keys.Trash))
+	help.WriteString(fmt.Sprintf("    %-8s  📦  Move selected messages\n", a.Keys.Move))
+	help.WriteString(fmt.Sprintf("    %-8s  🎯  Apply bulk prompt to selected\n", a.Keys.Prompt))
+	if a.Config.Slack.Enabled {
+		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward selected to Slack\n", a.Keys.Slack))
+	}
+	if a.Config.Obsidian.Enabled {
+		help.WriteString(fmt.Sprintf("    %-8s  📝  Send selected to Obsidian\n", a.Keys.Obsidian))
+	}
+	help.WriteString("    Esc       ❌  Exit bulk mode\n\n")
+
+	// AI Features (if enabled)
+	if a.LLM != nil {
+		help.WriteString("🤖 AI FEATURES (✅ Available)\n\n")
+		help.WriteString(fmt.Sprintf("    %-8s  📝  Summarize message\n", a.Keys.Summarize))
+		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
+		help.WriteString(fmt.Sprintf("    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt))
+		help.WriteString(fmt.Sprintf("    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply))
+		help.WriteString(fmt.Sprintf("    %-8s  🏷️   AI suggest label\n\n", a.Keys.SuggestLabel))
 	}
 
-	help.WriteString("⚡ VIM Range Operations\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("Pattern:   {operation}{count}{operation} (e.g., s5s, a3a, d7d)\n")
-	help.WriteString("s5s       ✅ Select next 5 messages\n")
-	help.WriteString("a3a       📁 Archive next 3 messages\n")
-	help.WriteString("d7d       🗑️  Delete next 7 messages\n")
-	help.WriteString("t5t       👁️  Toggle read status for next 5 messages\n")
-	help.WriteString("m4m       📦 Move next 4 messages\n")
-	help.WriteString("l6l       🏷️  Label next 6 messages\n")
-	help.WriteString("k3k       💬 Send next 3 messages to Slack\n")
-	help.WriteString("o2o       📝 Send next 2 messages to Obsidian\n")
-	help.WriteString("p8p       🤖 Apply AI prompts to next 8 messages\n")
-	help.WriteString("gg        ⬆️  Go to first message\n")
-	help.WriteString("G         ⬇️  Go to last message\n\n")
+	// VIM Power Operations
+	help.WriteString("⚡ VIM POWER OPERATIONS\n\n")
+	help.WriteString("    Pattern:  {operation}{count}{operation} (e.g., s5s, a3a, d7d)\n\n")
+	help.WriteString(fmt.Sprintf("    %s5%s       ✅  Select next 5 messages\n", a.Keys.BulkSelect, a.Keys.BulkSelect))
+	help.WriteString(fmt.Sprintf("    %s3%s       📁  Archive next 3 messages\n", a.Keys.Archive, a.Keys.Archive))
+	help.WriteString(fmt.Sprintf("    %s7%s       🗑️   Delete next 7 messages\n", a.Keys.Trash, a.Keys.Trash))
+	help.WriteString(fmt.Sprintf("    %s5%s       👁️   Toggle read status for next 5 messages\n", a.Keys.ToggleRead, a.Keys.ToggleRead))
+	help.WriteString(fmt.Sprintf("    %s4%s       📦  Move next 4 messages\n", a.Keys.Move, a.Keys.Move))
+	help.WriteString(fmt.Sprintf("    %s6%s       🏷️   Label next 6 messages\n", a.Keys.ManageLabels, a.Keys.ManageLabels))
+	if a.Config.Slack.Enabled {
+		help.WriteString(fmt.Sprintf("    %s3%s       💬  Send next 3 messages to Slack\n", a.Keys.Slack, a.Keys.Slack))
+	}
+	if a.Config.Obsidian.Enabled {
+		help.WriteString(fmt.Sprintf("    %s2%s       📝  Send next 2 messages to Obsidian\n", a.Keys.Obsidian, a.Keys.Obsidian))
+	}
+	if a.LLM != nil {
+		help.WriteString(fmt.Sprintf("    %s8%s       🤖  Apply AI prompts to next 8 messages\n", a.Keys.Prompt, a.Keys.Prompt))
+	}
+	help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Go to first message\n", a.Keys.GotoTop))
+	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Go to last message\n\n", a.Keys.GotoBottom))
 
-	help.WriteString("💻 Command Equivalents\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString(":select 5   ✅ Same as s5s\n")
-	help.WriteString(":archive 3  📁 Same as a3a\n")
-	help.WriteString(":trash 7    🗑️  Same as d7d\n")
-	help.WriteString(":read 5     👁️  Same as t5t\n")
-	help.WriteString(":move 4     📦 Same as m4m\n")
-	help.WriteString(":label 6    🏷️  Same as l6l\n")
-	help.WriteString(":slack 3    💬 Same as k3k\n")
-	help.WriteString(":obsidian 2 📝 Same as o2o\n")
-	help.WriteString(":prompt 8   🤖 Same as p8p\n\n")
+	// Additional Features
+	help.WriteString("🔧 ADDITIONAL FEATURES\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail))
+	help.WriteString(fmt.Sprintf("    %-8s  💾  Save message content\n", a.Keys.SaveMessage))
+	help.WriteString(fmt.Sprintf("    %-8s  📄  Save raw message\n", a.Keys.SaveRaw))
+	help.WriteString(fmt.Sprintf("    %-8s  📅  RSVP to calendar event\n", a.Keys.RSVP))
+	help.WriteString(fmt.Sprintf("    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker))
+	help.WriteString(fmt.Sprintf("    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker))
+	if a.Config.Obsidian.Enabled {
+		help.WriteString(fmt.Sprintf("    %-8s  📝  Send to Obsidian\n", a.Keys.Obsidian))
+	}
+	if a.Config.Slack.Enabled {
+		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward to Slack\n", a.Keys.Slack))
+	}
+	help.WriteString(fmt.Sprintf("    %-8s  📋  Export as Markdown\n\n", a.Keys.Markdown))
 
-	help.WriteString("⚙️  Application\n")
-	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString(":         💻 Command mode (e.g., :search, :cache, :help)\n")
-	help.WriteString(":numbers  🔢 Toggle message number display\n")
-	help.WriteString(fmt.Sprintf("%s         📄 Toggle header visibility (:headers)\n", a.Keys.ToggleHeaders))
-	help.WriteString("q         🚪 Quit application\n")
-	help.WriteString("?         ❓ Toggle this help screen\n")
+	// Command Equivalents
+	help.WriteString("💻 COMMAND EQUIVALENTS\n\n")
+	help.WriteString("    Every keyboard shortcut has a command equivalent:\n\n")
+	help.WriteString(fmt.Sprintf("    :select 5     ✅  Same as %s5%s (select next 5)\n", a.Keys.BulkSelect, a.Keys.BulkSelect))
+	help.WriteString(fmt.Sprintf("    :archive 3    📁  Same as %s3%s (archive next 3)\n", a.Keys.Archive, a.Keys.Archive))
+	help.WriteString(fmt.Sprintf("    :trash 7      🗑️   Same as %s7%s (delete next 7)\n", a.Keys.Trash, a.Keys.Trash))
+	help.WriteString("    :search term  🔍  Search for 'term'\n")
+	help.WriteString("    :theme        🎨  Open theme picker\n")
+	help.WriteString("    :headers      📄  Toggle header visibility\n")
+	help.WriteString("    :numbers      🔢  Toggle message numbers\n")
+	help.WriteString("    :help         ❓  Show this help\n\n")
 
+	// Footer with tips
+	help.WriteString("💡 TIPS\n\n")
+	help.WriteString("    • All shortcuts are configurable in ~/.config/giztui/config.json\n")
+	help.WriteString("    • Use Tab to cycle between panes (list ↔ content)\n")
+	help.WriteString("    • Press Esc to cancel most operations or exit modes\n")
+	help.WriteString("    • VIM range operations work with any action (s5s, a3a, d7d, etc.)\n")
+	help.WriteString("    • Content search (/) highlights matches and enables n/N navigation\n")
+	help.WriteString("    • Bulk mode allows selecting multiple messages for batch operations\n")
+	
 	return help.String()
 }
 
@@ -1236,14 +1297,110 @@ func (a *App) getActiveAccountEmail() string {
 // completeCommand completes the current command with the suggestion
 // (moved to commands.go) completeCommand
 
-// toggleHelp toggles the help display
+// toggleHelp toggles the help display in the message content area
 func (a *App) toggleHelp() {
 	if a.showHelp {
-		a.Pages.SwitchToPage("main")
+		// Restore previous content
 		a.showHelp = false
+		
+		// Restore text content through enhanced text view
+		if a.enhancedTextView != nil && a.helpBackupText != "" {
+			a.enhancedTextView.SetContent(a.helpBackupText)
+			a.enhancedTextView.TextView.SetDynamicColors(true)
+			a.enhancedTextView.TextView.ScrollToBeginning()
+		} else {
+			// Fallback to regular text view
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.Clear()
+				text.SetText(a.helpBackupText)
+				text.ScrollToBeginning()
+			}
+		}
+		
+		// Restore header content and visibility
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			header.SetDynamicColors(true)
+			header.SetText(a.helpBackupHeader)
+		}
+		
+		// Restore header height (make it visible again)
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			if header, ok := a.views["header"].(*tview.TextView); ok {
+				textContainer.ResizeItem(header, a.originalHeaderHeight, 0)
+			}
+		}
+		
+		// Restore text container title
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			textContainer.SetTitle(a.helpBackupTitle)
+			textContainer.SetTitleColor(a.getTitleColor())
+		}
+		
+		// Clear backup content
+		a.helpBackupText = ""
+		a.helpBackupHeader = ""
+		a.helpBackupTitle = ""
+		
+		// Update focus state and set focus to text view
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		a.updateFocusIndicators("text")
 	} else {
-		a.Pages.SwitchToPage("help")
+		// Save current content before showing help
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			a.helpBackupText = text.GetText(false)
+		}
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			a.helpBackupHeader = header.GetText(false)
+		}
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			a.helpBackupTitle = textContainer.GetTitle()
+		}
+		
+		// Show help content
 		a.showHelp = true
+		
+		// Store current header height and hide header section
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			if header, ok := a.views["header"].(*tview.TextView); ok {
+				// Calculate current header height before hiding it
+				headerContent := header.GetText(false)
+				a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+				
+				// Clear header content and hide it completely
+				header.SetDynamicColors(true)
+				header.SetText("")
+				textContainer.ResizeItem(header, 0, 0)
+			}
+		}
+		
+		// Display help title in text container border
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			textContainer.SetTitle(" 📚 Help & Shortcuts ")
+			textContainer.SetTitleColor(a.getTitleColor())
+		}
+		
+		// Display help content in enhanced text view with proper content setting
+		helpContent := a.generateHelpText()
+		if a.enhancedTextView != nil {
+			a.enhancedTextView.SetContent(helpContent)
+			a.enhancedTextView.TextView.SetDynamicColors(true)
+			a.enhancedTextView.TextView.ScrollToBeginning()
+		} else {
+			// Fallback to regular text view if enhanced view not available
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.Clear()
+				text.SetText(helpContent)
+				text.ScrollToBeginning()
+			}
+		}
+		
+		// Update focus state and set focus to text view so users can search immediately
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		a.updateFocusIndicators("text")
 	}
 }
 

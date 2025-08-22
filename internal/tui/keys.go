@@ -943,11 +943,20 @@ func (a *App) bindKeys() {
 			break
 		}
 
-		// ESC exits bulk mode or closes AI panel
+		// ESC exits bulk mode, closes panels, or exits help screen
 		if event.Key() == tcell.KeyEscape {
 			if a.logger != nil {
-				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v, streaming=%v",
-					a.bulkMode, a.currentFocus, a.aiSummaryVisible, a.streamingCancel != nil)
+				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v, streaming=%v, showHelp=%v",
+					a.bulkMode, a.currentFocus, a.aiSummaryVisible, a.streamingCancel != nil, a.showHelp)
+			}
+
+			// If help screen is showing, close it first
+			if a.showHelp {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing help screen")
+				}
+				a.toggleHelp()
+				return nil
 			}
 
 			// FIRST: Cancel any active streaming operations (this fixes the hanging issue)

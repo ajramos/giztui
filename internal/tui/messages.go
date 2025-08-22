@@ -1774,10 +1774,12 @@ func (a *App) applyLocalFilter(expr string) {
 
 // showMessage displays a message in the text view
 func (a *App) showMessage(id string) {
-	// Restore text container title when viewing messages
-	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(a.getTitleColor())
+	// Restore text container title when viewing messages (but not when in help mode)
+	if !a.showHelp {
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			textContainer.SetTitle(" 📄 Message Content ")
+			textContainer.SetTitleColor(a.getTitleColor())
+		}
 	}
 
 	// Show loading message immediately
@@ -1990,10 +1992,12 @@ func sanitizeFilename(s string) string {
 
 // showMessageWithoutFocus loads the message content but does not change focus
 func (a *App) showMessageWithoutFocus(id string) {
-	// Restore text container title when viewing messages
-	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(a.getTitleColor())
+	// Restore text container title when viewing messages (but not when in help mode)
+	if !a.showHelp {
+		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+			textContainer.SetTitle(" 📄 Message Content ")
+			textContainer.SetTitleColor(a.getTitleColor())
+		}
 	}
 
 	// Show loading message
@@ -2089,15 +2093,18 @@ func (a *App) refreshMessageContent(id string) {
 		}
 		rendered, isANSI := a.renderMessageContent(m)
 		a.QueueUpdateDraw(func() {
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				text.SetDynamicColors(true)
-				text.Clear()
-				if isANSI {
-					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
-				} else {
-					a.enhancedTextView.SetContent(rendered)
+			// Don't update content when in help mode to preserve help content
+			if !a.showHelp {
+				if text, ok := a.views["text"].(*tview.TextView); ok {
+					text.SetDynamicColors(true)
+					text.Clear()
+					if isANSI {
+						fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
+					} else {
+						a.enhancedTextView.SetContent(rendered)
+					}
+					text.ScrollToBeginning()
 				}
-				text.ScrollToBeginning()
 			}
 		})
 	}()
