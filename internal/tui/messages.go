@@ -3335,8 +3335,10 @@ func (a *App) toggleMarkReadUnread() {
 	}(!isUnread)
 }
 
-// listUnreadMessages placeholder
-func (a *App) listUnreadMessages() { a.showInfo("Unread messages functionality not yet implemented") }
+// listUnreadMessages searches for all unread messages using is:unread query
+func (a *App) listUnreadMessages() {
+	a.performSearch("is:unread")
+}
 
 // loadDrafts placeholder
 func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemented") }
