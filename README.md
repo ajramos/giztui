@@ -1,6 +1,6 @@
 # 📨 Gmail TUI - Gmail Client with Local AI
 
-A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses the **Gmail API** via OAuth2 and features **local AI integration** through Ollama.
+A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses the **Gmail API** via OAuth2 and features **local AI integration** through Ollama.
 
 ## ✨ Features
 
