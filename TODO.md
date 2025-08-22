@@ -1,11 +1,11 @@
 # TODO List - GizTUI Project
 
 ## 🎯 TODO - Active Roadmap
-- [ ] when token expires it doesn't handle the request of a new one... It raises the following error:
+- [x] when token expires it doesn't handle the request of a new one... It raises the following error:
 ./build/gmail-tui
 2025/08/21 09:02:18 Could not initialize Gmail service: could not refresh token: oauth2: "invalid_grant" "Token has been expired or revoked."
 make: *** [run] Error 1
-- [ ] the instructions to get the token contain color labels that don't work properly:
+- [x] the instructions to get the token contain color labels that don't work properly:
 [bold]Authorization required[reset]
 1. Open this link: [blue]https://accounts.google.com/o/oauth2/auth?access_type=offline&client_id=420480303874-me950drigguet0fakg0aobsm4o4616p4.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A8080&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.compose+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events&state=state-token[reset]
 2. Grant access to the application

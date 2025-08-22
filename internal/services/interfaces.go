@@ -301,6 +301,13 @@ type LinkInfo struct {
 	Type  string `json:"type"`  // "html" or "plain" or "email" or "file"
 }
 
+// GmailWebService handles opening Gmail messages in web interface
+type GmailWebService interface {
+	OpenMessageInWeb(ctx context.Context, messageID string) error
+	ValidateMessageID(messageID string) error
+	GenerateGmailWebURL(messageID string) string
+}
+
 // ThemeService handles theme operations
 type ThemeService interface {
 	// Theme discovery and listing

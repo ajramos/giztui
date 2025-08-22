@@ -155,6 +155,7 @@ type App struct {
 	slackService      services.SlackService
 	obsidianService   services.ObsidianService
 	linkService       services.LinkService
+	gmailWebService   services.GmailWebService
 	contentNavService services.ContentNavigationService
 	themeService      services.ThemeService
 	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
@@ -516,6 +517,12 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: link service initialized: %v", a.linkService != nil)
 	}
 
+	// Initialize Gmail web service
+	a.gmailWebService = services.NewGmailWebService(a.linkService)
+	if a.logger != nil {
+		a.logger.Printf("initServices: gmail web service initialized: %v", a.gmailWebService != nil)
+	}
+
 	// Initialize bulk prompt service if dependencies are available
 	if a.repository != nil && a.aiService != nil && a.cacheService != nil {
 		// For now, pass nil as promptService to avoid circular dependency
@@ -850,8 +857,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService
 }
 
 // GetThemeService returns the theme service instance

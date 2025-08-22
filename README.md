@@ -89,6 +89,15 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ **Status bar preview** - See full URLs in status bar while navigating
 - ✅ **Instant feedback** - Live URL display and success messages
 
+### 🌐 **Gmail Web Integration** 🆕
+- ✅ **Open in Gmail** - Press `O` to open current message in Gmail web interface
+- ✅ **Complex message handling** - Perfect for messages better viewed in full Gmail UI
+- ✅ **Cross-platform browser opening** - Native browser launching on macOS, Linux, Windows
+- ✅ **Command parity** - Use `:gmail`, `:web`, `:open-web`, or `:o` commands
+- ✅ **Smart URL generation** - Direct links to specific Gmail messages
+- ✅ **Configurable shortcut** - Customize the keyboard shortcut via `open_gmail` in config
+- ✅ **Seamless workflow** - Select message in TUI, open in web for detailed work
+
 ### 📅 **Calendar Integration** 🆕
 - ✅ **Smart invitation detection** - Automatically detects calendar invitations in emails
 - ✅ **Enhanced RSVP widget** - Press `Shift+V` to respond to meeting invitations
@@ -584,6 +593,15 @@ Bulk operations allow you to select multiple messages and perform actions on the
 - Numbers appear at the leftmost position and are right-aligned for clean formatting
 - Use with navigation commands like `:5` (jump to message 5) or `:slack 10` (forward message 10)
 - Perfect for quickly referencing specific messages by their position
+
+### 🌐 **Gmail Web & Link Commands** 🆕
+
+| Key | Action |
+|-----|--------|
+| `O` | Open current message in Gmail web interface |
+| `L` | Open link picker for message links |
+| `:gmail`, `:web`, `:open-web`, `:o` | Open current message in Gmail web (command equivalents) |
+| `:links` or `:link` | Open link picker (command equivalent) |
 
 **Single Email Usage:**
 1. **Select a message** in the message list

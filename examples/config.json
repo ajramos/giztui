@@ -92,7 +92,8 @@
     "quit": "q",
     
     "_additional_shortcuts": "Additional configurable shortcuts",
-    "obsidian": "O",
+    "obsidian": "Shift+O",
+    "open_gmail": "O",
     "slack": "K",
     "markdown": "M",
     "save_message": "w",

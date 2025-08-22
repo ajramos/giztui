@@ -223,7 +223,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 
 	// Check cache first using cache service directly (instant lookup)
 	if !forceRegenerate {
-		_, _, _, cacheService, _, _, _, _ := a.GetServices()
+		_, _, _, cacheService, _, _, _, _, _ := a.GetServices()
 		if cacheService != nil {
 			accountEmail := a.getActiveAccountEmail()
 			if cached, found, err := cacheService.GetSummary(a.ctx, accountEmail, messageID); err == nil && found && cached != "" {
@@ -288,7 +288,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 		}
 
 		// Use AI service for proper template loading and caching
-		_, aiService, _, _, _, _, _, _ := a.GetServices()
+		_, aiService, _, _, _, _, _, _, _ := a.GetServices()
 		if aiService == nil {
 			if a.debug {
 				a.logger.Printf("generateOrShowSummary: ERROR - AI service not available")

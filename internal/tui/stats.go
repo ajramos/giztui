@@ -12,7 +12,7 @@ import (
 // showUsageStats displays prompt usage statistics
 func (a *App) showUsageStats() {
 	// Get prompt service
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return

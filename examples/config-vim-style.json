@@ -71,7 +71,8 @@
     "quit": ":q",           // quit (like Vim :q)
     
     "_additional_shortcuts": "Additional Vim-style shortcuts",
-    "obsidian": "O",        // Obsidian (same as default)
+    "obsidian": "Shift+O",  // Obsidian (changed from O)
+    "open_gmail": "O",      // Open in Gmail web UI (new feature)
     "slack": "K",           // Slack (same as default)
     "markdown": "M",        // Markdown (same as default)
     "save_message": "w",    // write (like Vim :w)

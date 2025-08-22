@@ -168,6 +168,7 @@ type KeyBindings struct {
 	RSVP        string `json:"rsvp"`         // Toggle RSVP panel
 	LinkPicker  string `json:"link_picker"`  // Open link picker
 	ThemePicker string `json:"theme_picker"` // Open theme picker
+	OpenGmail   string `json:"open_gmail"`   // Open message in Gmail web UI
 	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
 	CommandMode string `json:"command_mode"` // Open command bar
 	Help        string `json:"help"`         // Toggle help
@@ -273,6 +274,7 @@ func DefaultKeyBindings() KeyBindings {
 		RSVP:        "V",
 		LinkPicker:  "L",
 		ThemePicker: "H",
+		OpenGmail:   "O",
 		BulkMode:    "v",
 		CommandMode: ":",
 		Help:        "?",

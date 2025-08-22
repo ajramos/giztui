@@ -451,6 +451,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLabelsCommand(args)
 	case "links", "link":
 		a.executeLinksCommand(args)
+	case "gmail", "web", "open-web", "o":
+		a.executeGmailWebCommand(args)
 	case "/":
 		a.executeContentSearch(args)
 	case "search":
@@ -640,6 +642,11 @@ func (a *App) executeLabelsCommand(args []string) {
 func (a *App) executeLinksCommand(args []string) {
 	// Simple command - just open the link picker
 	go a.openLinkPicker()
+}
+
+// executeGmailWebCommand handles opening Gmail in web interface
+func (a *App) executeGmailWebCommand(args []string) {
+	go a.openEmailInGmail()
 }
 
 // executeContentSearch handles content search within message text
@@ -867,7 +874,7 @@ func (a *App) executeStatsCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
@@ -900,7 +907,7 @@ func (a *App) executeCacheInfo(args []string) {
 
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService, _, _ := a.GetServices()
+		_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return
@@ -1227,7 +1234,7 @@ func (a *App) executePromptCreate(args []string) {
 	filePath := args[0]
 	
 	// Get services
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1269,7 +1276,7 @@ func (a *App) executePromptUpdate(args []string) {
 	filePath := args[1]
 	
 	// Get services
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1400,7 +1407,7 @@ func (a *App) executePromptExport(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1463,7 +1470,7 @@ func (a *App) executePromptDelete(args []string) {
 	identifier := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")

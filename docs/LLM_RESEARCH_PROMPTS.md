@@ -2,111 +2,189 @@
 
 This document contains detailed research prompts for investigating complex technical issues that require deep analysis.
 
-## tview Border Rendering Inconsistency Research
+## tview Color Tag Processing in Theme Preview Research
 
 ### Background Context
-**Issue**: Different tview component types (Table vs Flex) render borders with inconsistent visual appearance despite identical styling configuration.
+**Issue**: Theme preview in Theme Picker displays tview color tags as literal text instead of rendering them as colored text.
 
 **Environment**:
 - Framework: `github.com/derailed/tview v0.8.5` 
 - Terminal: `github.com/derailed/tcell/v2 v2.3.1-rc.4`
 - Language: Go
-- Application: Terminal-based email client with complex UI layouts
+- Application: Terminal-based email client with dynamic theme system
 
 ### Research Prompt
 
 ```
-I need you to conduct deep research into a tview framework border rendering inconsistency. Here's the detailed problem:
+I need you to conduct comprehensive research into a tview framework color tag processing issue. Here's the detailed problem:
 
 ## Problem Statement
-In a Go application using the tview TUI framework, we're experiencing inconsistent border rendering between different component types:
+In a Go application using the tview TUI framework, we're experiencing color tags not being processed in theme preview context:
 
-1. **tview.Table components**: Borders appear "filled/solid" - the border area has the same color as the component background
-2. **tview.Flex components**: Borders appear "hollow/transparent" - the border area shows through to underlying backgrounds
+1. **Expected behavior**: Color tags like `[#ffb86c]Primary Color[-]` should render as colored text
+2. **Actual behavior**: Color tags display as literal text: "[#ffb86c]Primary Color[-]"
+3. **Context**: This occurs specifically in theme preview functionality within a Theme Picker component
 
-Both component types use identical styling:
-```go
-component.SetBorder(true).
-    SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
-    SetBorderAttributes(tcell.AttrBold)
-```
+The issue affects user experience by showing raw color codes instead of visual color samples.
 
 ## Technical Details
 - **Library Version**: github.com/derailed/tview v0.8.5 (fork of rivo/tview)
 - **Terminal Library**: github.com/derailed/tcell/v2 v2.3.1-rc.4
-- **Configuration**: All components use `tview.Styles.PrimitiveBackgroundColor` for border color
-- **Theme System**: Dynamic theme loading that updates `tview.Styles.*` values at runtime
+- **Component Type**: TextView with SetDynamicColors(true) enabled
+- **Theme System**: Dynamic theme loading that updates tview.Styles.* values at runtime
+- **Content Generation**: Programmatically generated text with color tags
+
+## Code Context & UI Hierarchy Integration
+
+### Theme Preview TextView Integration:
+**CRITICAL CONTEXT**: The theme preview reuses the existing main message content TextView instead of creating a fresh TextView. Here's the exact integration:
+
+1. **UI Hierarchy**: 
+   ```
+   main -> Pages -> textContainer (Flex) -> text (TextView)
+   ```
+
+2. **TextView Reuse Pattern**:
+   ```go
+   // In showThemePreview() - reuses existing TextView
+   a.QueueUpdateDraw(func() {
+       if textView, ok := a.views["text"].(*tview.TextView); ok {
+           textView.SetText(details) // Overwrites existing message content
+           textView.ScrollToBeginning()
+       }
+   })
+   ```
+
+3. **TextView Initialization** (from layout.go):
+   ```go
+   enhancedText := NewEnhancedTextView(a)
+   text := enhancedText.TextView
+   text.SetDynamicColors(true).SetWrap(true).SetScrollable(true)
+   text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+   a.views["text"] = text // Stored for reuse
+   ```
+
+4. **Container Hierarchy**:
+   ```go
+   textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+   textContainer.SetBorder(true)
+   textContainer.AddItem(header, 6, 0, false)
+   textContainer.AddItem(text, 0, 1, false) // TextView embedded in Flex
+   ```
+
+5. **Color Sample Generation**:
+   ```go
+   func (a *App) formatColorSampleString(name string, colorValue string) string {
+       namedColor := a.hexToNamedColor(colorValue)
+       if namedColor != "" {
+           return fmt.Sprintf("  [%s]●[-] [%s]%s[-] (%s)\n", namedColor, namedColor, name, colorValue)
+       }
+       return fmt.Sprintf("  ● %s (%s)\n", name, colorValue) // Fallback without color tags
+   }
+   ```
+
+**Key Integration Details**:
+- **Reused TextView**: Same TextView that displays email content is reused for theme preview
+- **Embedded in Flex**: TextView is inside a bordered Flex container (textContainer)
+- **Dynamic Content**: Color-tagged content is generated programmatically and set via SetText()
+- **Container Manipulation**: Theme preview modifies the parent container's title during preview
+- **Focus Management**: Preview focuses the TextView/EnhancedTextView for scrolling
 
 ## Failed Approaches
-We attempted multiple solutions:
-1. Component-level styling modifications (different border colors, attributes)
-2. Wrapper container hierarchies for background inheritance
-3. Root-level background application
-4. Theme YAML file modifications
-5. Global tview.Styles overrides at runtime
+Multiple solutions were attempted:
 
-None achieved consistent border appearance between Table and Flex components.
+1. **Hex-to-named color mapping**: Converted hex values (#ffb86c) to tview named colors (orange)
+2. **Dynamic color verification**: Confirmed SetDynamicColors(true) was properly configured
+3. **Color tag syntax testing**: Tested both hex `[#ffb86c]` and named `[orange]` formats
+4. **TextView attribute validation**: Ensured proper setup of all color processing attributes
+5. **Content formatting variations**: Tried different string generation approaches
+
+**Result**: None achieved color tag processing in the theme preview context.
 
 ## Research Objectives
 Please investigate and provide detailed analysis on:
 
 ### 1. Root Cause Analysis
-- Examine tview source code differences between Table and Flex border rendering
-- Identify specific code paths that cause different visual behavior
-- Analyze how SetBorderColor() is implemented differently across component types
-- Investigate terminal rendering differences (tcell layer interactions)
+- Examine tview TextView color tag processing requirements and limitations
+- Identify specific conditions required for dynamic color rendering to work
+- Analyze why color tags work in some tview contexts but not others
+- Investigate terminal-specific rendering differences that might affect color processing
 
 ### 2. Technical Deep Dive
-- How does tview handle border drawing at the tcell level?
-- Are there component-specific override methods for border rendering?
-- What role does the component's internal layout system play in border appearance?
-- Are there undocumented styling methods or properties that could help?
+- How does tview handle color tag parsing and rendering internally?
+- Are there TextView initialization parameters or state that affects color processing?
+- What role does the parent container or layout context play in color rendering?
+- Are there undocumented methods or configuration options for color processing?
 
-### 3. Community Solutions
+### 3. Context-Specific Investigation
+**SPECIFIC TO OUR INTEGRATION**:
+- Why don't color tags work when TextView is reused and content is set dynamically via SetText()?
+- Does embedding TextView inside a Flex container affect color tag processing?
+- Are there state issues when the same TextView transitions from message content to theme preview?
+- Does the QueueUpdateDraw() wrapper affect color tag parsing timing?
+- Is there something about the EnhancedTextView wrapper that interferes with color processing?
+- Do container title changes or focus management affect color rendering?
+
+**GENERAL INVESTIGATION**:
+- Why do color tags work in other parts of the application but not theme preview?
+- Is there something special about dynamic content generation vs static content?
+- Do nested containers or complex layouts interfere with color processing?
+- Are there timing issues with when color tags are parsed vs when content is rendered?
+
+### 4. Community Solutions & Patterns
 - Search for similar issues in tview/rivo communities (GitHub issues, discussions)
-- Look for forks or patches that address border rendering inconsistencies
-- Check for documented workarounds or best practices
-- Identify if this is a known limitation or bug
+- Look for successful implementations of color tags in similar contexts
+- Check for known workarounds or best practices for dynamic color content
+- Identify if this is a documented limitation or undiscovered bug
 
-### 4. Alternative Approaches
-- Suggest technical workarounds that don't require library modification
-- Evaluate feasibility of custom border drawing implementations
-- Consider component architecture changes that could unify appearance
-- Propose minimal patches to the tview library if needed
+### 5. Alternative Implementation Strategies
+- Suggest technical approaches that don't rely on color tag processing
+- Evaluate feasibility of custom color rendering implementations
+- Consider alternative UI patterns for theme preview that would be more reliable
+- Propose minimal changes to achieve visual color representation
 
-### 5. Version Analysis
-- Check if this issue exists in different tview versions (rivo/tview vs derailed/tview)
-- Identify any recent commits or PRs related to border rendering
-- Analyze changelog entries for border-related fixes or changes
+### 6. Version and Compatibility Analysis
+- Check if this issue exists across different tview versions (rivo/tview vs derailed/tview)
+- Identify any recent commits or PRs related to color tag processing
+- Analyze changelog entries for color-related fixes or changes
+- Compare behavior with different terminal emulators and color capabilities
 
 ## Expected Deliverables
-1. **Detailed technical explanation** of why this inconsistency occurs
-2. **Specific code references** from tview source showing the differences
-3. **Ranked list of solution approaches** with complexity/risk assessment
-4. **Proof-of-concept code** for the most promising solution
-5. **Testing strategy** to validate any proposed fixes
+1. **Detailed technical explanation** of why color tags don't process in this context
+2. **Specific code references** from tview source showing the color processing logic
+3. **Ranked list of solution approaches** with feasibility assessment
+4. **Proof-of-concept code** for the most promising alternative approach
+5. **Testing strategy** to validate any proposed fixes across different terminals
 
-## Code Context
-The application uses a complex layout with:
-- Message list (Table) with per-row styling
-- Message content area (Flex) with nested components  
-- Theme picker (Flex) added dynamically to content splits
-- Global theme system that updates all styling dynamically
+## Specific Code Areas to Investigate
+The issue occurs in theme preview generation within:
+- Theme picker component with dynamic content
+- TextView components with programmatically set content
+- Complex nested layout structures
+- Runtime theme switching functionality
 
-Focus your research on understanding the fundamental differences in how these component types handle the visual rendering of their border areas, particularly when border color matches component background color.
+## Success Criteria
+An ideal solution would:
+- Enable visual color representation in theme previews
+- Work reliably across different terminal environments  
+- Not require major architectural changes to the theme system
+- Maintain compatibility with existing tview patterns
+- Be maintainable and well-documented
+
+Focus your research on understanding the fundamental differences in how tview processes color tags in different contexts, and provide actionable solutions that could be implemented without extensive framework modifications.
 ```
 
 ### Usage Instructions
 1. Copy the research prompt above to your preferred LLM (Claude, GPT-4, etc.)
-2. Include relevant code snippets or tview documentation if available
-3. Request follow-up analysis on specific findings
-4. Validate any proposed solutions against the application requirements
+2. Include relevant tview documentation or source code if available
+3. Request follow-up analysis on specific technical findings
+4. Validate any proposed solutions against the application's theme system requirements
 
 ### Research Notes
-- Focus on the `github.com/derailed/tview` fork specifically, as it may have different behavior than `rivo/tview`
-- Consider terminal-specific rendering differences that might affect border appearance
-- Look for component lifecycle methods that could be overridden for custom border handling
-- Investigate if the issue is related to the complex nested layout structure used in the application
+- Focus on the `github.com/derailed/tview` fork specifically, as behavior may differ from `rivo/tview`
+- Consider that the theme system dynamically updates `tview.Styles.*` values at runtime
+- Look for TextView lifecycle methods that could be leveraged for color processing
+- Investigate if the issue is related to the timing of when color tags are parsed vs content rendering
 
 ---
 
