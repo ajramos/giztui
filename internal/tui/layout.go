@@ -7,6 +7,36 @@ import (
 	"github.com/derailed/tview"
 )
 
+// ForceFilledBorderFlex forces a Flex container to use a filled background by replacing
+// its internal Box with a fresh Box (dontClear=false) and reapplying styling.
+// This ensures borders appear solid like Table borders instead of hollow.
+func ForceFilledBorderFlex(f *tview.Flex) {
+	// Only process Flex containers that have borders enabled
+	// We need to check the Box's border state by looking at the current styling
+	// Since Flex embeds Box, we can access Box methods directly
+	
+	// Store current styling before replacing the Box
+	backgroundColor := f.GetBackgroundColor()
+	borderColor := f.GetBorderColor()
+	borderAttributes := f.GetBorderAttributes()
+	title := f.GetTitle()
+	// For title color and alignment, we'll use the current theme values
+	// since these are not directly accessible from the Box
+	
+	// Replace the internal Box with a fresh one that has dontClear=false
+	// This ensures the Flex will clear/fill its background area like Table does
+	f.Box = tview.NewBox()
+	
+	// Reapply all the styling to the new Box
+	f.SetBackgroundColor(backgroundColor)
+	f.SetBorder(true)
+	f.SetBorderColor(borderColor)
+	f.SetBorderAttributes(borderAttributes)
+	f.SetTitle(title)
+	// Note: Title color and alignment will be set by the calling code
+	// since we can't retrieve them from the original Box
+}
+
 // initComponents initializes the main UI components
 func (a *App) initComponents() {
 	// Create main list component as Table to support per-row colors
@@ -52,6 +82,10 @@ func (a *App) initComponents() {
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(textContainer)
+	// Reapply title styling since the helper can't preserve it
+	textContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
 
 	// Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
 	textContainer.AddItem(header, 6, 0, false)
@@ -85,6 +119,10 @@ func (a *App) initComponents() {
 		SetTitle(" 🏷️ Labels ").
 		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(labelsFlex)
+	// Reapply title styling since the helper can't preserve it
+	labelsFlex.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
 	a.labelsView = labelsFlex
 
 	// Slack contextual panel container (hidden by default)
@@ -96,6 +134,10 @@ func (a *App) initComponents() {
 		SetTitle(" 💬 Send to Slack channel ").
 		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(slackFlex)
+	// Reapply title styling since the helper can't preserve it
+	slackFlex.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
 	a.slackView = slackFlex
 
 	// Command panel (hidden by default)
@@ -107,6 +149,10 @@ func (a *App) initComponents() {
 		SetTitle(" 🐶 Command ").
 		SetTitleColor(a.getTitleColor()).
 		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(cmdPanel)
+	// Reapply title styling since the helper can't preserve it
+	cmdPanel.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
 	a.views["cmdPanel"] = cmdPanel
 }
 
@@ -295,4 +341,33 @@ func (a *App) createSearchView() tview.Primitive {
 		}
 	})
 	return searchInput
+}
+
+// RefreshBordersForFilledFlexes refreshes the background and border colors
+// for all Flex containers that have been forced to use filled backgrounds.
+// This should be called when themes change to ensure consistent styling.
+func (a *App) RefreshBordersForFilledFlexes() {
+	// Update textContainer
+	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
+		tc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		tc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	
+	// Update labelsFlex
+	if a.labelsView != nil {
+		a.labelsView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		a.labelsView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	
+	// Update slackFlex
+	if a.slackView != nil {
+		a.slackView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		a.slackView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+	
+	// Update cmdPanel
+	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+		cp.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		cp.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
 }
