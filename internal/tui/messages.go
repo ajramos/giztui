@@ -627,9 +627,9 @@ func (a *App) openSearchOverlay(mode string) {
 	}
 	input := tview.NewInputField().
 		SetLabel("🔍 ").
-		SetLabelColor(a.getLabelColor()).
 		SetFieldWidth(0).
 		SetPlaceholder(ph)
+	a.ConfigureInputFieldTheme(input, "overlay")
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
@@ -817,23 +817,59 @@ func (a *App) openSearchOverlay(mode string) {
 func (a *App) openAdvancedSearchForm() {
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
-	fromField := tview.NewInputField().SetLabel("👤 From").SetPlaceholder("user@example.com")
+	
+	// Apply theme-aware styling to override form defaults and match simple search
+	bgColor, _ := a.GetInputFieldColors()
+	form.SetBackgroundColor(bgColor).SetBorder(false)
+	fromField := tview.NewInputField().
+		SetLabel("👤 From").
+		SetPlaceholder("user@example.com").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(fromField, "advanced")
 	// Expose for focus restoration while background loads complete
 	a.views["advFrom"] = fromField
-	toField := tview.NewInputField().SetLabel("📩 To").SetPlaceholder("person@example.com")
-	subjectField := tview.NewInputField().SetLabel("🧾 Subject").SetPlaceholder("exact words or phrase")
-	hasField := tview.NewInputField().SetLabel("🔎 Has the words").SetPlaceholder("words here")
-	notField := tview.NewInputField().SetLabel("🚫 Doesn't have").SetPlaceholder("exclude words")
+	toField := tview.NewInputField().
+		SetLabel("📩 To").
+		SetPlaceholder("person@example.com").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(toField, "advanced")
+	
+	subjectField := tview.NewInputField().
+		SetLabel("🧾 Subject").
+		SetPlaceholder("exact words or phrase").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(subjectField, "advanced")
+	
+	hasField := tview.NewInputField().
+		SetLabel("🔎 Has the words").
+		SetPlaceholder("words here").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(hasField, "advanced")
+	
+	notField := tview.NewInputField().
+		SetLabel("🚫 Doesn't have").
+		SetPlaceholder("exclude words").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(notField, "advanced")
 	form.AddFormItem(fromField)
 	form.AddFormItem(toField)
 	form.AddFormItem(subjectField)
 	form.AddFormItem(hasField)
 	form.AddFormItem(notField)
 	// Size single expression, e.g. "<2MB" or ">500KB"
-	sizeExprField := tview.NewInputField().SetLabel("📦 Size").SetPlaceholder("e.g., <2MB or >500KB")
+	sizeExprField := tview.NewInputField().
+		SetLabel("📦 Size").
+		SetPlaceholder("e.g., <2MB or >500KB").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(sizeExprField, "advanced")
 	form.AddFormItem(sizeExprField)
+	
 	// Date within single token, e.g. "2d", "3w", "1m", "4h", "6y"
-	dateWithinField := tview.NewInputField().SetLabel("⏱️  Date within").SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y")
+	dateWithinField := tview.NewInputField().
+		SetLabel("⏱️  Date within").
+		SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(dateWithinField, "advanced")
 	form.AddFormItem(dateWithinField)
 	// Scope
 	baseScopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
@@ -845,7 +881,9 @@ func (a *App) openAdvancedSearchForm() {
 	scopeField := tview.NewInputField().
 		SetLabel("📂 Search").
 		SetText(scopeVal).
-		SetPlaceholder("Press Enter to pick scope/label")
+		SetPlaceholder("Press Enter to pick scope/label").
+		SetFieldWidth(50)
+	a.ConfigureInputFieldTheme(scopeField, "advanced")
 	form.AddFormItem(scopeField)
 	// Expose fields for global navigation handling by storing the form itself
 	a.views["advForm"] = form

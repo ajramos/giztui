@@ -29,8 +29,9 @@ func (a *App) openThemePicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.GetComponentColors("themes").Accent.Color()).
-		SetFieldBackgroundColor(a.GetComponentColors("themes").Background.Color())
+		SetLabelColor(a.getTitleColor()).
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	
 	list := tview.NewList().ShowSecondaryText(true) // Enable secondary text for descriptions
 	list.SetBorder(false)

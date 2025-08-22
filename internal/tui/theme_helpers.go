@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/derailed/tcell/v2"
+	"github.com/derailed/tview"
 	"github.com/ajramos/gmail-tui/internal/config"
 )
 
@@ -123,6 +124,14 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		return a.currentTheme.Components.Stats
 	case "prompts":
 		return a.currentTheme.Components.Prompts
+	case "labels": // For label picker
+		return config.ComponentColorSet{
+			Border:     a.currentTheme.Frame.Border.FgColor,
+			Title:      a.currentTheme.UI.TitleColor,
+			Background: a.currentTheme.Body.BgColor,
+			Text:       a.currentTheme.Body.FgColor,
+			Accent:     a.currentTheme.UI.LabelColor, // Use theme's label color
+		}
 	case "themes": // For theme picker itself
 		return config.ComponentColorSet{
 			Border:     a.currentTheme.Frame.Border.FgColor,
@@ -211,4 +220,43 @@ func (a *App) getThemeHintColor() tcell.Color {
 // Additional helper for backward compatibility with existing error handler integration
 func (a *App) getStatusColorCompat(level string) tcell.Color {
 	return a.GetStatusColor(level)
+}
+
+// GetInputFieldColors returns theme-aware colors for input fields
+func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
+	if a.currentTheme == nil {
+		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor
+	}
+	return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color()
+}
+
+// ConfigureInputFieldTheme applies consistent theme colors to input fields
+func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string) *tview.InputField {
+	bgColor, textColor := a.GetInputFieldColors()
+	
+	// Configure basic field colors
+	field.SetFieldBackgroundColor(bgColor).
+		SetFieldTextColor(textColor).
+		SetLabelColor(a.getTitleColor()).
+		SetPlaceholderTextColor(a.getHintColor())
+	
+	return field
+}
+
+// GetSearchFieldColors returns component-specific colors for search fields
+func (a *App) GetSearchFieldColors(component string) (bgColor, textColor, labelColor tcell.Color) {
+	if a.currentTheme == nil {
+		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor, tcell.ColorYellow
+	}
+	
+	switch component {
+	case "advanced":
+		// Advanced search uses slightly different styling
+		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
+	case "simple", "overlay":
+		// Simple search and overlay search
+		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
+	default:
+		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
+	}
 }

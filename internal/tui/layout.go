@@ -276,8 +276,10 @@ func (a *App) createSearchView() tview.Primitive {
 	searchInput := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(50).
-		SetPlaceholder("Enter search terms (e.g., from:user@example.com, subject:meeting)").
-		SetPlaceholderTextColor(a.getHintColor())
+		SetPlaceholder("Enter search terms (e.g., from:user@example.com, subject:meeting)")
+
+	// Apply consistent theme colors
+	a.ConfigureInputFieldTheme(searchInput, "simple")
 
 	searchInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {

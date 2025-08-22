@@ -489,7 +489,10 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	a.labelsExpanded = true
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
-		SetFieldWidth(30)
+		SetFieldWidth(30).
+		SetLabelColor(a.getTitleColor()).
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 
@@ -934,7 +937,10 @@ func (a *App) browseLabelForRemove(messageID string) {
 func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id, name string)) {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
-		SetFieldWidth(30)
+		SetFieldWidth(30).
+		SetLabelColor(a.getTitleColor()).
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 

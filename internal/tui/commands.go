@@ -71,9 +71,9 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	input := tview.NewInputField()
 	input.SetFieldWidth(0)
 	input.SetPlaceholder("")
-	input.SetPlaceholderTextColor(tview.Styles.PrimaryTextColor)
 	input.SetBorder(false)
 	input.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	a.ConfigureInputFieldTheme(input, "command")
 	input.SetText(prefix)
 	input.SetDoneFunc(nil) // ensure we set it after capture
 	// Start at end of history
