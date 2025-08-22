@@ -1,12 +1,13 @@
 # Known Issues
 
-## Border Rendering Inconsistency in tview Components
+## ✅ Border Rendering Inconsistency in tview Components (RESOLVED)
 
 ### Issue Description
 **Type**: Visual Bug  
 **Severity**: Low (Cosmetic)  
-**Status**: Deferred  
+**Status**: ✅ RESOLVED  
 **Date Identified**: August 22, 2025  
+**Date Resolved**: August 22, 2025  
 
 The application exhibits inconsistent border rendering between different tview component types, specifically:
 
@@ -62,19 +63,25 @@ This appears to be a **library-level bug** in the tview framework where:
 - `internal/tui/themes.go` - Theme picker component  
 - `themes/*.yaml` - Theme configuration files
 
-### Deferred Resolution
-This issue has been **deferred** due to:
-- Low priority (cosmetic only)
-- High complexity of potential fixes
-- Risk of breaking existing functionality
-- More important features requiring attention
+### ✅ Resolution Implemented
+This issue has been **resolved** using a targeted workaround:
 
-### Future Investigation
-Consider revisiting when:
-- Upgrading to newer tview versions
-- Major UI refactoring is planned
-- Community solutions become available
-- User feedback indicates higher priority
+**Solution**: `ForceFilledBorderFlex()` function in `internal/tui/layout.go`
+- **Approach**: Replaces internal Box of Flex components with fresh `tview.NewBox()` (dontClear=false)
+- **Root cause**: Table uses `dontClear=false` while Flex uses `dontClear=true` internally
+- **Applied to**: textContainer, labelsFlex, slackFlex, cmdPanel
+- **Theme integration**: `RefreshBordersForFilledFlexes()` ensures consistency across theme changes
+
+**Benefits**:
+- ✅ Consistent border appearance between Table and Flex components
+- ✅ Non-intrusive workaround (no tview source modification required)
+- ✅ Integrated with theme system for dynamic updates
+- ✅ Well-documented implementation with clear technical reasoning
+
+**Trade-offs**:
+- ⚠️ Direct manipulation of tview internals (maintainability risk)
+- ⚠️ Requires manual title styling reapplication
+- ⚠️ May need updates if tview internal structure changes
 
 ---
 
