@@ -819,8 +819,15 @@ func (a *App) openAdvancedSearchForm() {
 	form := tview.NewForm()
 	
 	// Apply theme-aware styling to override form defaults and match simple search
-	bgColor, _ := a.GetInputFieldColors()
+	bgColor, textColor := a.GetInputFieldColors()
 	form.SetBackgroundColor(bgColor).SetBorder(false)
+	
+	// Try to override form's internal styling by setting button colors as well
+	form.SetButtonBackgroundColor(bgColor)
+	form.SetButtonTextColor(textColor)
+	form.SetLabelColor(a.getTitleColor())
+	form.SetFieldBackgroundColor(bgColor)
+	form.SetFieldTextColor(textColor)
 	fromField := tview.NewInputField().
 		SetLabel("👤 From").
 		SetPlaceholder("user@example.com").
@@ -856,6 +863,9 @@ func (a *App) openAdvancedSearchForm() {
 	form.AddFormItem(subjectField)
 	form.AddFormItem(hasField)
 	form.AddFormItem(notField)
+	
+	// Remove duplicate theme applications - already applied above
+	
 	// Size single expression, e.g. "<2MB" or ">500KB"
 	sizeExprField := tview.NewInputField().
 		SetLabel("📦 Size").
@@ -885,6 +895,8 @@ func (a *App) openAdvancedSearchForm() {
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(scopeField, "advanced")
 	form.AddFormItem(scopeField)
+	
+	// Remove duplicate theme applications - already applied above
 	// Expose fields for global navigation handling by storing the form itself
 	a.views["advForm"] = form
 	// Enable arrow-key navigation between fields

@@ -240,6 +240,14 @@ func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string
 		SetLabelColor(a.getTitleColor()).
 		SetPlaceholderTextColor(a.getHintColor())
 	
+	// For advanced search, apply more aggressive styling to override form defaults
+	if component == "advanced" {
+		// Force the background color and remove any borders that might cause color issues
+		field.SetBackgroundColor(bgColor).
+			SetBorder(false).
+			SetBorderColor(bgColor)
+	}
+	
 	return field
 }
 
