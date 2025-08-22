@@ -397,7 +397,8 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `d` | `:trash` or `:d` | Move to trash |
 | `t` | `:read` or `:toggle-read` or `:t` | Toggle read/unread status |
 | `r` | `:reply` or `:r` | Reply to message |
-| `n` | `:compose` or `:new` | Compose new message |
+| `c` | `:compose` or `:new` | Compose new message |
+| `N` | `:load` or `:more` or `:next` | Load next 50 messages |
 | `u` | `:unread` or `:u` | Show unread messages |
 | `R` | `:refresh` | Refresh message list |
 | `s` | `:search` | Search messages |
@@ -417,7 +418,8 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 |-----|--------|
 | `Enter` | View selected message |
 | `r` | Refresh (in drafts mode, reload drafts) |
-| `n` | Load more when list is focused; otherwise compose new (WIP) |
+| `c` | Compose new message (WIP) |
+| `N` | Load next 50 messages (when list is focused) |
 | `R` | Reply (WIP) |
 | `s` | Search |
 | `/` | Local filter |

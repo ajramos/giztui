@@ -300,6 +300,15 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		a.toggleHelp()
 		return true
+	case a.Keys.LoadMore:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> load_more", key)
+		}
+		// Only handle when focus is on list
+		if a.currentFocus == "list" {
+			go a.loadMoreMessages()
+		}
+		return true
 	}
 
 	return false
@@ -338,7 +347,8 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.ThemePicker ||
 		keyStr == a.Keys.BulkMode ||
 		keyStr == a.Keys.CommandMode ||
-		keyStr == a.Keys.Help
+		keyStr == a.Keys.Help ||
+		keyStr == a.Keys.LoadMore
 }
 
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules

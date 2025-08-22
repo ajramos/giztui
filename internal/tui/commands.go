@@ -287,7 +287,6 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"he":          {"help"},
 		"hel":         {"help"},
 		"help":        {"help"},
-		"n":           {"numbers"},
 		"nu":          {"numbers"},
 		"num":         {"numbers"},
 		"numb":        {"numbers"},
@@ -317,12 +316,20 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"sele":        {"select"},
 		"selec":       {"select"},
 		"select":      {"select"},
-		"m":           {"move"},
-		"mo":          {"move"},
+		"m":           {"move", "more"},
 		"mov":         {"move"},
 		"move":        {"move"},
 		"mv":          {"move"},
 		"lbl":         {"label"},
+		"lo":          {"load"},
+		"loa":         {"load"},
+		"load":        {"load"},
+		"mor":         {"more"},
+		"more":        {"more"},
+		"n":           {"next", "numbers"},
+		"ne":          {"next"},
+		"nex":         {"next"},
+		"next":        {"next"},
 		"o":           {"obsidian"},
 		"ob":          {"obsidian"},
 		"obs":         {"obsidian"},
@@ -489,6 +496,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeReplyCommand(args)
 	case "refresh":
 		a.executeRefreshCommand(args)
+	case "load", "more", "next":
+		a.executeLoadMoreCommand(args)
 	case "unread", "u":
 		a.executeUnreadCommand(args)
 	case "select", "sel":
@@ -1038,6 +1047,16 @@ func (a *App) executeRefreshCommand(args []string) {
 		go a.loadDrafts()
 	} else {
 		go a.reloadMessages()
+	}
+}
+
+// executeLoadMoreCommand handles :load/:more/:next commands
+func (a *App) executeLoadMoreCommand(args []string) {
+	// Only load more when focused on list
+	if a.currentFocus == "list" {
+		go a.loadMoreMessages()
+	} else {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Load more only available when message list is focused")
 	}
 }
 

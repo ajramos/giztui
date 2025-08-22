@@ -57,6 +57,7 @@ All shortcuts are configured in the `keys` section of your `config.json` file:
 - `suggest_label` - Get AI label suggestions
 - `reply` - Reply to selected message
 - `compose` - Compose new message
+- `load_more` - Load next 50 messages
 - `refresh` - Refresh message list
 - `search` - Open search overlay
 - `unread` - Show unread messages

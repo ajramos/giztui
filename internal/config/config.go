@@ -171,6 +171,7 @@ type KeyBindings struct {
 	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
 	CommandMode string `json:"command_mode"` // Open command bar
 	Help        string `json:"help"`         // Toggle help
+	LoadMore    string `json:"load_more"`    // Load next 50 messages
 
 	// VIM sequence timeouts (in milliseconds)
 	VimNavigationTimeoutMs int `json:"vim_navigation_timeout_ms"` // Timeout for gg navigation (default: 1000ms)
@@ -249,7 +250,7 @@ func DefaultKeyBindings() KeyBindings {
 		GenerateReply: "g",
 		SuggestLabel:  "o",
 		Reply:         "r",
-		Compose:       "n",
+		Compose:       "c",
 		Refresh:       "R",
 		Search:        "s",
 		Unread:        "u",
@@ -275,6 +276,7 @@ func DefaultKeyBindings() KeyBindings {
 		BulkMode:    "v",
 		CommandMode: ":",
 		Help:        "?",
+		LoadMore:    "N",  // Shift+N for load more (n is used for search next)
 
 		// VIM sequence timeouts (in milliseconds)
 		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation
