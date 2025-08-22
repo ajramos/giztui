@@ -180,8 +180,8 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 	}
 
 	authURL := localConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("\n[bold]Authorization required[reset]\n")
-	fmt.Printf("1. Open this link: [blue]%s[reset]\n", authURL)
+	fmt.Printf("\n🔐 Authorization required\n")
+	fmt.Printf("1. Open this link: %s\n", authURL)
 	fmt.Printf("2. Grant access to the application\n")
 	fmt.Printf("3. You will be redirected automatically\n")
 	fmt.Printf("\nWaiting for authorization...\n")
@@ -208,7 +208,7 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 		return nil, fmt.Errorf("could not exchange authorization code for token: %w", err)
 	}
 
-	fmt.Printf("[green]Authorization successful![reset]\n")
+	fmt.Printf("✅ Authorization successful!\n")
 	return token, nil
 }
 
