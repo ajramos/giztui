@@ -1642,7 +1642,7 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 
 	// Use dynamic operation mapping based on configured keys
 	switch operation {
-	case "s":
+	case a.Keys.BulkSelect:
 		a.selectRange(startIndex, count)
 	case a.Keys.Archive:
 		a.archiveRange(startIndex, count)
@@ -1669,8 +1669,8 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 func (a *App) executeVimSingleOperation(operation string) {
 	// Use dynamic operation mapping based on configured keys
 	switch operation {
-	case "s":
-		// For single 's', just highlight current message (no bulk mode)
+	case a.Keys.BulkSelect:
+		// For single bulk select key, just highlight current message (no bulk mode)
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
 		}()
@@ -1730,8 +1730,8 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 	}
 
 	switch operation {
-	case "s":
-		// For single 's', just show a message (no actual operation needed)
+	case a.Keys.BulkSelect:
+		// For single bulk select key, just show a message (no actual operation needed)
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message selected")
 		}()
