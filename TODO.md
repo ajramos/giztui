@@ -10,10 +10,10 @@ make: *** [run] Error 1
 1. Open this link: [blue]https://accounts.google.com/o/oauth2/auth?access_type=offline&client_id=420480303874-me950drigguet0fakg0aobsm4o4616p4.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A8080&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.compose+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events&state=state-token[reset]
 2. Grant access to the application
 3. You will be redirected automatically
-- [ ] Remove el prefijo "VIM:" que aparece
+- [x] Remove el prefijo "VIM:" que aparece
 - [ ] Be able to hide the headers from the email dynamically
-- [ ] Fetch next 50 messages doesn't have any shortcut any more
-- [ ] Explore the same component as the Picker for the message content
+- [x] Fetch next 50 messages doesn't have any shortcut any more
+- [x] Explore the same component as the Picker for the message content
 
 ## 📋 PENDING - What's Left to Do
 
@@ -42,7 +42,7 @@ make: *** [run] Error 1
 - [ ] **List archived emails** - Show archived emails
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [ ] **Delete email permanently** - Permanently delete emails from trash
-- [ ] **Open email in browser** - Given a email open it in the browser
+- [x] **Open email in browser** - Given a email open it in the browser
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
 
