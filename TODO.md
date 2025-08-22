@@ -14,15 +14,15 @@ make: *** [run] Error 1
 - [x] Be able to hide the headers from the email dynamically
 - [x] Fetch next 50 messages doesn't have any shortcut any more
 - [x] Explore the same component as the Picker for the message content
-- [ ] Space for select is not in the shortcuts in config
-- [ ] sXs is not configurable for bulk operations in the config
+- [x] Space for select is not in the shortcuts in config
+- [x] sXs is not configurable for bulk operations in the config
 - [ ] add a prompt to make an analysis of the inbox itself
 
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] Bulk select s2s is not configurable.
-- [ ] **Theme configuration system** - Implement customizable themes
+- [x] Bulk select s2s is not configurable.
+- [x] **Theme configuration system** - Implement customizable themes
 - [ ] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Legend improvements** - Enhance help/legend system
 - [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
@@ -33,11 +33,11 @@ make: *** [run] Error 1
 
 ### Medium Priority
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
-- [ ] **UI for creating new prompt templates** - Build interface for template creation
+- [x] **UI for creating new prompt templates** - Build interface for template creation
 
 ### Search & Filter Enhancements
 - [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
-- [ ] **Improve date range search** - Enhanced date filtering with after:/before: operators
+- [x] **Improve date range search** - Enhanced date filtering with after:/before: operators
 - [ ] **Local indexing for fast searches** - Build local search index for performance improvements
 
 ### Email Management
@@ -77,7 +77,7 @@ make: *** [run] Error 1
 - [ ] **Command aliases** - Support custom command aliases
 - [ ] **Command help** - Show help for specific commands
 - [ ] **Command validation** - Validate commands before execution
-- [ ] **Configurable key bindings** - Be able to setup in the configuration file your key bindings
+- [x] **Configurable key bindings** - Be able to setup in the configuration file your key bindings
 
 ### Interface Improvements
 - [ ] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
