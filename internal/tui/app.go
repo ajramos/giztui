@@ -964,6 +964,10 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	}
 	
+	// Refresh borders for Flex containers that have been forced to use filled backgrounds
+	// This ensures consistent border rendering when themes change
+	a.RefreshBordersForFilledFlexes()
+	
 	return nil
 }
 
