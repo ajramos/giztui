@@ -447,9 +447,73 @@ func (a *App) formatColorSample(name string, colorValue config.Color) string {
 
 // formatColorSampleString formats a color sample with actual colors (for string hex values)
 func (a *App) formatColorSampleString(name string, colorValue string) string {
-	// Create color tag from hex value
-	colorTag := fmt.Sprintf("[%s]", colorValue)
-	return fmt.Sprintf("  %s● %s%s (%s)\n", colorTag, name, "[-]", colorValue)
+	// Use the closest named color that tview supports
+	namedColor := a.hexToNamedColor(colorValue)
+	
+	if namedColor != "" {
+		// Format: colored bullet point + colored name + hex value in parentheses
+		return fmt.Sprintf("  [%s]●[-] [%s]%s[-] (%s)\n", namedColor, namedColor, name, colorValue)
+	}
+	
+	// Fallback: no color formatting if we can't map to a named color
+	return fmt.Sprintf("  ● %s (%s)\n", name, colorValue)
+}
+
+// hexToNamedColor converts hex colors to the closest tview named color
+func (a *App) hexToNamedColor(hexColor string) string {
+	// Map common hex colors to tview named colors
+	colorMap := map[string]string{
+		"#ff5555": "red",
+		"#50fa7b": "green", 
+		"#f1fa8c": "yellow",
+		"#8be9fd": "cyan",
+		"#bd93f9": "purple",
+		"#ffb86c": "orange",
+		"#6272a4": "blue",
+		"#44475a": "gray",
+		"#f8f8f2": "white",
+		"#282a36": "black",
+		// Light theme colors
+		"#e74c3c": "red",
+		"#27ae60": "green",
+		"#f39c12": "yellow", 
+		"#3498db": "blue",
+		"#2c3e50": "black",
+		"#ecf0f1": "white",
+		"#7f8c8d": "gray",
+		"#e67e22": "orange",
+	}
+	
+	if named, exists := colorMap[hexColor]; exists {
+		return named
+	}
+	
+	// For unknown colors, try to guess based on hex values
+	if len(hexColor) == 7 && hexColor[0] == '#' {
+		// Simple heuristic based on RGB values
+		hex := hexColor[1:]
+		if len(hex) == 6 {
+			// Parse RGB components (simplified)
+			switch {
+			case hex[0:2] > hex[2:4] && hex[0:2] > hex[4:6]: // Red dominant
+				return "red"
+			case hex[2:4] > hex[0:2] && hex[2:4] > hex[4:6]: // Green dominant  
+				return "green"
+			case hex[4:6] > hex[0:2] && hex[4:6] > hex[2:4]: // Blue dominant
+				return "blue"
+			case hex[0:2] == hex[2:4] && hex[2:4] == hex[4:6]: // Grayscale
+				if hex[0:2] > "80" {
+					return "white"
+				} else {
+					return "gray"
+				}
+			default:
+				return "white" // Default fallback
+			}
+		}
+	}
+	
+	return "" // No suitable named color found
 }
 
 // parseColorFromTheme parses a color string from theme config
