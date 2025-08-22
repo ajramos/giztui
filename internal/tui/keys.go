@@ -101,6 +101,30 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.listUnreadMessages()
 		return true
+	case a.Keys.Archived:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> archived", key)
+		}
+		go a.listArchivedMessages()
+		return true
+	case a.Keys.SearchFrom:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> search_from", key)
+		}
+		go a.searchByFromCurrent()
+		return true
+	case a.Keys.SearchTo:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> search_to", key)
+		}
+		go a.searchByToCurrent()
+		return true
+	case a.Keys.SearchSubject:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> search_subject", key)
+		}
+		go a.searchBySubjectCurrent()
+		return true
 	case a.Keys.ToggleRead:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> toggle_read", key)
@@ -789,18 +813,30 @@ func (a *App) bindKeys() {
 		case 'A':
 			go a.showAttachments()
 			return nil
+		case 'B':
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('B') {
+				go a.listArchivedMessages()
+				return nil
+			}
 		case 'F':
-			// Search by sender of current message (Inbox scope by default)
-			go a.searchByFromCurrent()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('F') {
+				go a.searchByFromCurrent()
+				return nil
+			}
 		case 'T':
-			// Search messages addressed to this sender (include Sent)
-			go a.searchByToCurrent()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('T') {
+				go a.searchByToCurrent()
+				return nil
+			}
 		case 'S':
-			// Search by exact subject of current message
-			go a.searchBySubjectCurrent()
-			return nil
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured('S') {
+				go a.searchBySubjectCurrent()
+				return nil
+			}
 		case 'K':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('K') {
@@ -1039,6 +1075,7 @@ func (a *App) bindKeys() {
 			a.openAdvancedSearchForm()
 			return nil
 		}
+
 
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {

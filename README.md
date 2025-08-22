@@ -410,6 +410,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `c` | `:compose` or `:new` | Compose new message |
 | `N` | `:load` or `:more` or `:next` | Load next 50 messages |
 | `u` | `:unread` or `:u` | Show unread messages |
+| `B` | `:archived` or `:b` | Show archived messages |
 | `R` | `:refresh` | Refresh message list |
 | `s` | `:search` | Search messages |
 | `l` | `:labels` or `:l` | Manage labels |
@@ -438,6 +439,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `F` | Quick search: from current sender |
 | `T` | Quick search: to current sender (includes Sent) |
 | `S` | Quick search: by current subject |
+| `B` | Quick search: archived messages |
 | `:` | Open command bar (k9s-style) |
 | `u` | Show unread |
 | `t` | Toggle read/unread |

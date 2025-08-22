@@ -1126,9 +1126,11 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  🔴  Show unread messages\n", a.Keys.Unread))
 	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n", a.Keys.Drafts))
 	help.WriteString(fmt.Sprintf("    %-8s  📎  Show attachments\n", a.Keys.Attachments))
-	help.WriteString("    F         📫  Quick search: from current sender\n")
-	help.WriteString("    T         📤  Quick search: to current sender (includes Sent)\n")
-	help.WriteString("    S         🧵  Quick search: by current subject\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  📫  Quick search: from current sender\n", a.Keys.SearchFrom))
+	help.WriteString(fmt.Sprintf("    %-8s  📤  Quick search: to current sender (includes Sent)\n", a.Keys.SearchTo))
+	help.WriteString(fmt.Sprintf("    %-8s  🧵  Quick search: by current subject\n", a.Keys.SearchSubject))
+	help.WriteString(fmt.Sprintf("    %-8s  📦  Quick search: archived messages\n", a.Keys.Archived))
+	help.WriteString("\n")
 
 	// Content Navigation
 	help.WriteString("📖 CONTENT NAVIGATION (When Viewing Message)\n\n")

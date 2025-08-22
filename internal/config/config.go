@@ -149,6 +149,10 @@ type KeyBindings struct {
 	Refresh       string `json:"refresh"`
 	Search        string `json:"search"`
 	Unread        string `json:"unread"`
+	Archived      string `json:"archived"`
+	SearchFrom    string `json:"search_from"`    // Quick search: from current sender
+	SearchTo      string `json:"search_to"`      // Quick search: to current sender
+	SearchSubject string `json:"search_subject"` // Quick search: by current subject
 	ToggleRead    string `json:"toggle_read"`
 	Trash         string `json:"trash"`
 	Archive       string `json:"archive"`
@@ -257,6 +261,10 @@ func DefaultKeyBindings() KeyBindings {
 		Refresh:       "R",
 		Search:        "s",
 		Unread:        "u",
+		Archived:      "B",
+		SearchFrom:    "F",
+		SearchTo:      "T",
+		SearchSubject: "S",
 		ToggleRead:    "t",
 		Trash:         "d",
 		Archive:       "a",

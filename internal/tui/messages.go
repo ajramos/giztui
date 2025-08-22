@@ -3340,6 +3340,11 @@ func (a *App) listUnreadMessages() {
 	a.performSearch("is:unread")
 }
 
+// listArchivedMessages searches for all archived messages using in:archive query
+func (a *App) listArchivedMessages() {
+	a.performSearch("in:archive")
+}
+
 // loadDrafts placeholder
 func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemented") }
 

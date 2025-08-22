@@ -355,6 +355,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"archi":       {"archive"},
 		"archiv":      {"archive"},
 		"archive":     {"archive"},
+		"archived":    {"archived"},
+		"b":           {"archived"},
+		"unr":         {"unread"},
+		"unre":        {"unread"},
+		"unrea":       {"unread"},
+		"unread":      {"unread"},
 		"d":           {"trash"},
 		"tr":          {"trash"},
 		"tra":         {"trash"},
@@ -516,6 +522,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLoadMoreCommand(args)
 	case "unread", "u":
 		a.executeUnreadCommand(args)
+	case "archived", "arch-search", "b":
+		a.executeArchivedCommand(args)
 	case "select", "sel":
 		a.executeSelectCommand(args)
 	case "move", "mv":
@@ -1089,6 +1097,11 @@ func (a *App) executeLoadMoreCommand(args []string) {
 // executeUnreadCommand handles :unread/:u commands
 func (a *App) executeUnreadCommand(args []string) {
 	go a.listUnreadMessages()
+}
+
+// executeArchivedCommand handles :archived/:arch-search commands
+func (a *App) executeArchivedCommand(args []string) {
+	go a.listArchivedMessages()
 }
 
 // executeSelectCommand handles :select commands for range selection

@@ -60,6 +60,10 @@
     "refresh": "R",         // refresh (same as default)
     "search": "/",          // search (like Vim)
     "unread": "u",          // unread (same as default)
+    "archived": "B",        // browse archived messages
+    "search_from": "F",     // find by sender (same as default)
+    "search_to": "T",       // find messages to sender (same as default)
+    "search_subject": "S",  // find by subject (same as default)
     "toggle_read": "t",     // toggle (same as default)
     "trash": "dd",          // delete (like Vim dd)
     "archive": "a",         // archive (same as default)
