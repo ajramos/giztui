@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -98,7 +99,20 @@ func (c *OAuth2Config) GetToken(ctx context.Context) (*oauth2.Token, error) {
 	if !token.Valid() {
 		token, err = c.refreshToken(ctx, config, token)
 		if err != nil {
-			return nil, err
+			// Check if refresh token is invalid (expired or revoked)
+			if strings.Contains(err.Error(), "invalid_grant") || 
+			   strings.Contains(err.Error(), "Token has been expired or revoked") {
+				// Refresh token is invalid, need to re-authenticate
+				fmt.Println("\n⚠️  Your Gmail access token has expired or been revoked.")
+				fmt.Println("🔐 Re-authentication is required to continue using Gmail TUI.\n")
+				token, err = c.authenticate(ctx, config)
+				if err != nil {
+					return nil, fmt.Errorf("re-authentication failed: %w", err)
+				}
+				fmt.Println("✅ Successfully re-authenticated! Gmail TUI is ready to use.\n")
+			} else {
+				return nil, fmt.Errorf("token refresh failed: %w", err)
+			}
 		}
 	}
 
