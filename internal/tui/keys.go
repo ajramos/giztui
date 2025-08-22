@@ -1426,7 +1426,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 			// Show status
 			go func() {
-				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s%d... (waiting for operation)", a.vimOperationType, a.vimOperationCount))
+				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("%s%d... (waiting for operation)", a.vimOperationType, a.vimOperationCount))
 			}()
 			return true
 		}
@@ -1482,7 +1482,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 		// Show status and consume the key to prevent single operation
 		go func() {
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("VIM: %s... (enter count then %s, or wait for timeout)", string(key), string(key)))
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("%s... (enter count then %s, or wait for timeout)", string(key), string(key)))
 		}()
 
 		// Start timeout goroutine to execute single operation if no sequence completed
