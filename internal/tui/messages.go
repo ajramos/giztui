@@ -1088,12 +1088,23 @@ func (a *App) openAdvancedSearchForm() {
 		filter := tview.NewInputField().SetLabel("🔎 ")
 		filter.SetPlaceholder("filter options…")
 		filter.SetFieldWidth(30)
+		// Apply consistent theme styling to filter field
+		a.ConfigureInputFieldTheme(filter, "advanced")
+		
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(false)
+		// Apply theme styling to list
+		bgColor, textColor := a.GetInputFieldColors()
+		list.SetBackgroundColor(bgColor)
+		list.SetMainTextColor(textColor)
+		list.SetSelectedBackgroundColor(a.getTitleColor())
+		list.SetSelectedTextColor(bgColor)
+		
 		// Container con borde para incluir picker + lista
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
 		box.SetBorder(true).SetTitle(" 📂 Search options ")
 		box.SetBorderColor(a.getTitleColor())
+		box.SetBackgroundColor(bgColor)
 		acts := make([]func(), 0, 256)
 		apply := func(q string) {
 			ql := strings.ToLower(strings.TrimSpace(q))
