@@ -102,6 +102,7 @@
     "link_picker": "L",
     "theme_picker": "H",
     "bulk_mode": "v",
+    "bulk_select": "space",
     "command_mode": ":",
     "help": "?",
     "toggle_headers": "h",

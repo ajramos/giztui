@@ -11,9 +11,12 @@ make: *** [run] Error 1
 2. Grant access to the application
 3. You will be redirected automatically
 - [x] Remove el prefijo "VIM:" que aparece
-- [ ] Be able to hide the headers from the email dynamically
+- [x] Be able to hide the headers from the email dynamically
 - [x] Fetch next 50 messages doesn't have any shortcut any more
 - [x] Explore the same component as the Picker for the message content
+- [ ] Space for select is not in the shortcuts in config
+- [ ] sXs is not configurable for bulk operations in the config
+- [ ] add a prompt to make an analysis of the inbox itself
 
 ## 📋 PENDING - What's Left to Do
 

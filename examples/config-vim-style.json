@@ -81,6 +81,7 @@
     "link_picker": "L",     // Link picker (same as default)
     "theme_picker": "H",    // Theme picker
     "bulk_mode": "v",       // visual mode (like Vim v)
+    "bulk_select": "space", // select/toggle selection (space is standard)
     "command_mode": ":",    // command mode (like Vim :)
     "help": ":h",           // help (like Vim :h)
     "toggle_headers": "zh", // toggle headers (like Vim folding zh)

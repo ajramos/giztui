@@ -415,6 +415,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `l` | `:labels` or `:l` | Manage labels |
 | `L` | `:links` or `:link` | Open link picker |
 | `h` | `:headers` or `:toggle-headers` | Toggle header visibility |
+| `space` | N/A | Select/deselect message in bulk mode (configurable via `bulk_select`) |
 | `K` | `:slack` | Forward to Slack |
 
 **Features:**

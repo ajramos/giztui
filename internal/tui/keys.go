@@ -321,6 +321,11 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.toggleHeaderVisibility()
 		return true
+	case a.Keys.BulkSelect:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> bulk_select", key)
+		}
+		return a.handleBulkSelect()
 	}
 
 	return false
@@ -359,9 +364,11 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.ThemePicker ||
 		keyStr == a.Keys.OpenGmail ||
 		keyStr == a.Keys.BulkMode ||
+		keyStr == a.Keys.BulkSelect ||
 		keyStr == a.Keys.CommandMode ||
 		keyStr == a.Keys.Help ||
-		keyStr == a.Keys.LoadMore
+		keyStr == a.Keys.LoadMore ||
+		keyStr == a.Keys.ToggleHeaders
 }
 
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
@@ -493,54 +500,9 @@ func (a *App) bindKeys() {
 
 		switch event.Rune() {
 		case ' ':
-			// DEBUG: Always log when Space key is pressed
-			if a.logger != nil {
-				a.logger.Printf("DEBUG: Space key pressed - bulkMode: %t, selectedCount: %d", a.bulkMode, len(a.selected))
-			}
-			go func() {
-				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: Space pressed - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
-			}()
-
-			if list, ok := a.views["list"].(*tview.Table); ok {
-				if !a.bulkMode {
-					if a.logger != nil {
-						a.logger.Printf("DEBUG: Entering bulk mode for first time")
-					}
-					a.bulkMode = true
-					r, _ := list.GetSelection()
-					if r >= 0 && r < len(a.ids) {
-						if a.selected == nil {
-							a.selected = make(map[string]bool)
-						}
-						a.selected[a.ids[r]] = true
-						if a.logger != nil {
-							a.logger.Printf("DEBUG: Selected message %d (ID: %s)", r, a.ids[r])
-						}
-					}
-					a.reformatListItems()
-					// Keep focus highlight consistent (blue) even in Bulk mode
-					list.SetSelectedStyle(a.getSelectionStyle())
-					// Show status message asynchronously to avoid deadlock
-					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
-					}()
-					return nil
-				}
-				// toggle selection
-				r, _ := list.GetSelection()
-				if r >= 0 && r < len(a.ids) {
-					mid := a.ids[r]
-					if a.selected[mid] {
-						delete(a.selected, mid)
-					} else {
-						a.selected[mid] = true
-					}
-					a.reformatListItems()
-					// Show status message asynchronously to avoid deadlock
-					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
-					}()
-				}
+			// Only handle if not configured as a configurable shortcut
+			if !a.isKeyConfigured(' ') {
+				a.handleBulkSelect()
 				return nil
 			}
 		case 'v':
@@ -1151,6 +1113,61 @@ func (a *App) bindKeys() {
 			}
 		})
 	}
+}
+
+// handleBulkSelect handles bulk selection logic (entering bulk mode or toggling selection)
+func (a *App) handleBulkSelect() bool {
+	// DEBUG: Always log when bulk select is pressed
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: Bulk select pressed - bulkMode: %t, selectedCount: %d", a.bulkMode, len(a.selected))
+	}
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: Bulk select pressed - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
+	}()
+
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		if !a.bulkMode {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Entering bulk mode for first time")
+			}
+			a.bulkMode = true
+			r, _ := list.GetSelection()
+			if r >= 0 && r < len(a.ids) {
+				if a.selected == nil {
+					a.selected = make(map[string]bool)
+				}
+				a.selected[a.ids[r]] = true
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: Selected message %d (ID: %s)", r, a.ids[r])
+				}
+			}
+			a.reformatListItems()
+			// Keep focus highlight consistent (blue) even in Bulk mode
+			list.SetSelectedStyle(a.getSelectionStyle())
+			// Show status message asynchronously to avoid deadlock
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
+			}()
+			return true
+		}
+		// toggle selection
+		r, _ := list.GetSelection()
+		if r >= 0 && r < len(a.ids) {
+			mid := a.ids[r]
+			if a.selected[mid] {
+				delete(a.selected, mid)
+			} else {
+				a.selected[mid] = true
+			}
+			a.reformatListItems()
+			// Show status message asynchronously to avoid deadlock
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
+			}()
+		}
+		return true
+	}
+	return false
 }
 
 // toggleFocus switches focus between list and text view

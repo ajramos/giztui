@@ -170,6 +170,7 @@ type KeyBindings struct {
 	ThemePicker string `json:"theme_picker"` // Open theme picker
 	OpenGmail   string `json:"open_gmail"`   // Open message in Gmail web UI
 	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
+	BulkSelect  string `json:"bulk_select"`  // Select/deselect message in bulk mode
 	CommandMode string `json:"command_mode"` // Open command bar
 	Help          string `json:"help"`           // Toggle help
 	LoadMore      string `json:"load_more"`      // Load next 50 messages
@@ -276,8 +277,9 @@ func DefaultKeyBindings() KeyBindings {
 		LinkPicker:  "L",
 		ThemePicker: "H",
 		OpenGmail:   "O",
-		BulkMode:    "v",
-		CommandMode: ":",
+		BulkMode:      "v",
+		BulkSelect:    "space", // Space key for bulk selection
+		CommandMode:   ":",
 		Help:          "?",
 		LoadMore:      "N",  // Shift+N for load more (n is used for search next)
 		ToggleHeaders: "h",  // Toggle header visibility

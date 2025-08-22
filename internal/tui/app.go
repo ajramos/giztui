@@ -1117,8 +1117,8 @@ func (a *App) generateHelpText() string {
 
 	help.WriteString("📦 Bulk Operations\n")
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	help.WriteString("v/space   ✅ Enter bulk mode & select message\n")
-	help.WriteString("space     ➕ Toggle message selection (in bulk mode)\n")
+	help.WriteString(fmt.Sprintf("%s/%s   ✅ Enter bulk mode & select message\n", a.Keys.BulkMode, a.Keys.BulkSelect))
+	help.WriteString(fmt.Sprintf("%s     ➕ Toggle message selection (in bulk mode)\n", a.Keys.BulkSelect))
 	help.WriteString("*         🌟 Select all visible messages\n")
 	help.WriteString("a         📁 Archive selected messages\n")
 	help.WriteString("d         🗑️  Delete selected messages\n")
