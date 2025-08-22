@@ -284,7 +284,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"compos":      {"compose"},
 		"compose":     {"compose"},
 		"h":           {"help"},
-		"he":          {"help"},
+		"he":          {"help", "headers"},
+		"hea":         {"headers"},
+		"head":        {"headers"},
+		"heade":       {"headers"},
+		"header":      {"headers"},
+		"headers":     {"headers"},
 		"hel":         {"help"},
 		"help":        {"help"},
 		"nu":          {"numbers"},
@@ -359,12 +364,19 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"re":          {"read"},
 		"rea":         {"read"},
 		"read":        {"read"},
-		"toggle":      {"read"},
-		"toggle-":     {"read"},
-		"toggle-r":    {"read"},
-		"toggle-re":   {"read"},
-		"toggle-rea":  {"read"},
-		"toggle-read": {"read"},
+		"toggle":       {"read"},
+		"toggle-":      {"read", "headers"},
+		"toggle-h":     {"headers"},
+		"toggle-he":    {"headers"},
+		"toggle-hea":   {"headers"},
+		"toggle-head":  {"headers"},
+		"toggle-heade": {"headers"},
+		"toggle-header":  {"headers"},
+		"toggle-headers": {"headers"},
+		"toggle-r":     {"read"},
+		"toggle-re":    {"read"},
+		"toggle-rea":   {"read"},
+		"toggle-read":  {"read"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -474,6 +486,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeInboxCommand(args)
 	case "compose", "c":
 		a.executeComposeCommand(args)
+	case "headers", "toggle-headers":
+		a.executeToggleHeadersCommand(args)
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
 	case "numbers", "n":
@@ -758,6 +772,11 @@ func (a *App) executeHelpCommand(args []string) {
 	a.toggleHelp()
 }
 
+// executeToggleHeadersCommand handles header toggle commands
+func (a *App) executeToggleHeadersCommand(args []string) {
+	a.toggleHeaderVisibility()
+}
+
 // executeQuitCommand handles quit commands
 func (a *App) executeQuitCommand(args []string) {
 	a.cancel()
@@ -874,7 +893,7 @@ func (a *App) executeStatsCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
@@ -907,7 +926,7 @@ func (a *App) executeCacheInfo(args []string) {
 
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+		_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return
@@ -1234,7 +1253,7 @@ func (a *App) executePromptCreate(args []string) {
 	filePath := args[0]
 	
 	// Get services
-	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1276,7 +1295,7 @@ func (a *App) executePromptUpdate(args []string) {
 	filePath := args[1]
 	
 	// Get services
-	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1407,7 +1426,7 @@ func (a *App) executePromptExport(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1470,7 +1489,7 @@ func (a *App) executePromptDelete(args []string) {
 	identifier := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")

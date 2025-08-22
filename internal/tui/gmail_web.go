@@ -13,7 +13,7 @@ func (a *App) openEmailInGmail() {
 	}
 
 	// Get Gmail web service
-	_, _, _, _, _, _, _, _, gmailWebService := a.GetServices()
+	_, _, _, _, _, _, _, _, gmailWebService, _ := a.GetServices()
 	if gmailWebService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Gmail web service not available")
 		return

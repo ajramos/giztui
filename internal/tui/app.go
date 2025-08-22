@@ -158,6 +158,7 @@ type App struct {
 	gmailWebService   services.GmailWebService
 	contentNavService services.ContentNavigationService
 	themeService      services.ThemeService
+	displayService    services.DisplayService
 	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler      *ErrorHandler
 }
@@ -640,6 +641,12 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: theme service initialized: %v", a.themeService != nil)
 	}
 
+	// Initialize display service (no dependencies)
+	a.displayService = services.NewDisplayService()
+	if a.logger != nil {
+		a.logger.Printf("initServices: display service initialized: %v", a.displayService != nil)
+	}
+
 	// Load theme from config with fallbacks
 	themeName := "gmail-dark" // Default fallback
 	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
@@ -857,8 +864,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.DisplayService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.displayService
 }
 
 // GetThemeService returns the theme service instance
@@ -1160,6 +1167,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	help.WriteString(":         💻 Command mode (e.g., :search, :cache, :help)\n")
 	help.WriteString(":numbers  🔢 Toggle message number display\n")
+	help.WriteString(fmt.Sprintf("%s         📄 Toggle header visibility (:headers)\n", a.Keys.ToggleHeaders))
 	help.WriteString("q         🚪 Quit application\n")
 	help.WriteString("?         ❓ Toggle this help screen\n")
 

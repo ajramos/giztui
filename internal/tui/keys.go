@@ -315,6 +315,12 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			go a.loadMoreMessages()
 		}
 		return true
+	case a.Keys.ToggleHeaders:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> toggle_headers", key)
+		}
+		go a.toggleHeaderVisibility()
+		return true
 	}
 
 	return false
@@ -1886,7 +1892,7 @@ func (a *App) archiveRange(startIndex, count int) {
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d messages...", i+1, actualCount))
 
 			// Archive message
-			emailService, _, _, _, _, _, _, _, _ := a.GetServices()
+			emailService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 			if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
 				failed++
 				continue
@@ -1936,7 +1942,7 @@ func (a *App) trashRange(startIndex, count int) {
 			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d messages...", i+1, actualCount))
 
 			// Trash message
-			emailService, _, _, _, _, _, _, _, _ := a.GetServices()
+			emailService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 			if err := emailService.TrashMessage(a.ctx, messageID); err != nil {
 				failed++
 				continue
@@ -1989,7 +1995,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 	// Toggle read status in background
 	go func() {
 		failed := 0
-		emailService, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 		for i, messageID := range messageIDs {
 			// Progress update

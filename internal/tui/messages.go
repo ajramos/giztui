@@ -2385,6 +2385,12 @@ func (a *App) getHeaderWidth() int {
 func (a *App) adjustHeaderHeight(headerContent string) {
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// If header content is empty (headers hidden), set height to 0
+			if strings.TrimSpace(headerContent) == "" {
+				textContainer.ResizeItem(header, 0, 0)
+				return
+			}
+			
 			// Count the number of lines in the header content
 			lines := strings.Count(headerContent, "\n") + 1
 
@@ -3347,4 +3353,38 @@ func (a *App) calculateHeaderHeight(headerContent string) int {
 		lines = maxHeight
 	}
 	return lines
+}
+
+// toggleHeaderVisibility toggles the visibility of email headers and refreshes the current message display
+func (a *App) toggleHeaderVisibility() {
+	// Get DisplayService
+	_, _, _, _, _, _, _, _, _, displayService := a.GetServices()
+	if displayService == nil {
+		if a.logger != nil {
+			a.logger.Printf("toggleHeaderVisibility: displayService is nil")
+		}
+		return
+	}
+
+	// Toggle visibility and get new state
+	newState := displayService.ToggleHeaderVisibility()
+	
+	// Refresh the current message to apply the change
+	messageID := a.GetCurrentMessageID()
+	if messageID != "" {
+		a.refreshMessageContent(messageID)
+	}
+
+	// Show user feedback
+	go func() {
+		if newState {
+			a.GetErrorHandler().ShowInfo(a.ctx, "📄 Headers visible")
+		} else {
+			a.GetErrorHandler().ShowInfo(a.ctx, "📄 Headers hidden - more space for content")
+		}
+	}()
+	
+	if a.logger != nil {
+		a.logger.Printf("toggleHeaderVisibility: headers now %v", map[bool]string{true: "visible", false: "hidden"}[newState])
+	}
 }

@@ -83,6 +83,7 @@
     "bulk_mode": "v",       // visual mode (like Vim v)
     "command_mode": ":",    // command mode (like Vim :)
     "help": ":h",           // help (like Vim :h)
+    "toggle_headers": "zh", // toggle headers (like Vim folding zh)
     
     "_content_navigation": "Vim-style content navigation shortcuts",
     "content_search": "/",  // search within content (like Vim /)

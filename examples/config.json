@@ -104,6 +104,7 @@
     "bulk_mode": "v",
     "command_mode": ":",
     "help": "?",
+    "toggle_headers": "h",
     
     "_content_navigation": "Enhanced content navigation shortcuts",
     "content_search": "/",

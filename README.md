@@ -13,6 +13,7 @@ A **TUI (Text-based User Interface)** Gmail client developed in **Go** that uses
 - ✅ Load more messages (when list is focused)
 - ✅ Search and navigation support with VIM-style commands (`:5`, `G`, `gg`)
 - ✅ **Enhanced content navigation** - Fast browsing within message content with search, paragraph jumping, and word navigation
+- ✅ **Dynamic header visibility** 🆕 - Toggle email headers to maximize content space for complex messages
 - 🚧 WIP: Compose, Reply, Drafts, Attachments
 
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
@@ -413,6 +414,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `s` | `:search` | Search messages |
 | `l` | `:labels` or `:l` | Manage labels |
 | `L` | `:links` or `:link` | Open link picker |
+| `h` | `:headers` or `:toggle-headers` | Toggle header visibility |
 | `K` | `:slack` | Forward to Slack |
 
 **Features:**
@@ -448,6 +450,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `L` | 🆕 **Open link picker** |
 | `m` | Move message (choose label) |
 | `M` | Toggle Markdown rendering |
+| `h` | 🆕 **Toggle header visibility** - Hide/show email headers to maximize content space |
 | `y` | Toggle AI summary |
 | `Y` | Regenerate AI summary (force refresh; ignores cache) |
 | `g` | Generate reply (experimental) |

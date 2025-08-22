@@ -171,8 +171,9 @@ type KeyBindings struct {
 	OpenGmail   string `json:"open_gmail"`   // Open message in Gmail web UI
 	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
 	CommandMode string `json:"command_mode"` // Open command bar
-	Help        string `json:"help"`         // Toggle help
-	LoadMore    string `json:"load_more"`    // Load next 50 messages
+	Help          string `json:"help"`           // Toggle help
+	LoadMore      string `json:"load_more"`      // Load next 50 messages
+	ToggleHeaders string `json:"toggle_headers"` // Toggle header visibility
 
 	// VIM sequence timeouts (in milliseconds)
 	VimNavigationTimeoutMs int `json:"vim_navigation_timeout_ms"` // Timeout for gg navigation (default: 1000ms)
@@ -277,8 +278,9 @@ func DefaultKeyBindings() KeyBindings {
 		OpenGmail:   "O",
 		BulkMode:    "v",
 		CommandMode: ":",
-		Help:        "?",
-		LoadMore:    "N",  // Shift+N for load more (n is used for search next)
+		Help:          "?",
+		LoadMore:      "N",  // Shift+N for load more (n is used for search next)
+		ToggleHeaders: "h",  // Toggle header visibility
 
 		// VIM sequence timeouts (in milliseconds)
 		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation

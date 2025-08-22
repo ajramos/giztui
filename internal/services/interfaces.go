@@ -367,3 +367,11 @@ type ThemeConfig struct {
 		LabelColor     string `json:"label_color"`
 	} `json:"ui_colors"`
 }
+
+// DisplayService handles display and UI state operations
+type DisplayService interface {
+	// Header visibility management
+	ToggleHeaderVisibility() bool
+	SetHeaderVisibility(visible bool)
+	IsHeaderVisible() bool
+}
