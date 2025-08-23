@@ -249,10 +249,11 @@ func (s *UndoServiceImpl) undoMarkUnread(ctx context.Context, action *UndoableAc
 
 func (s *UndoServiceImpl) undoLabelAdd(ctx context.Context, action *UndoableAction) error {
 	// To undo label add, remove the labels that were added
+	// Use Gmail client directly to avoid circular undo recording
 	if labelsToRemove, exists := action.ExtraData["added_labels"].([]string); exists {
 		for _, messageID := range action.MessageIDs {
 			for _, labelID := range labelsToRemove {
-				if err := s.labelService.RemoveLabel(ctx, messageID, labelID); err != nil {
+				if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
 					return fmt.Errorf("failed to remove label %s from message %s: %v", labelID, messageID, err)
 				}
 			}
@@ -263,10 +264,11 @@ func (s *UndoServiceImpl) undoLabelAdd(ctx context.Context, action *UndoableActi
 
 func (s *UndoServiceImpl) undoLabelRemove(ctx context.Context, action *UndoableAction) error {
 	// To undo label remove, re-add the labels that were removed
+	// Use Gmail client directly to avoid circular undo recording
 	if labelsToAdd, exists := action.ExtraData["removed_labels"].([]string); exists {
 		for _, messageID := range action.MessageIDs {
 			for _, labelID := range labelsToAdd {
-				if err := s.labelService.ApplyLabel(ctx, messageID, labelID); err != nil {
+				if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
 					return fmt.Errorf("failed to re-add label %s to message %s: %v", labelID, messageID, err)
 				}
 			}
@@ -288,10 +290,10 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 			return fmt.Errorf("failed to unarchive moved message %s: %v", messageID, err)
 		}
 
-		// Then, remove the applied label
+		// Then, remove the applied label using Gmail client directly
 		if appliedLabels, exists := action.ExtraData["applied_labels"].([]string); exists {
 			for _, labelID := range appliedLabels {
-				if err := s.labelService.RemoveLabel(ctx, messageID, labelID); err != nil {
+				if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
 					return fmt.Errorf("failed to remove applied label %s from message %s: %v", labelID, messageID, err)
 				}
 			}

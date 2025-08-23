@@ -161,7 +161,7 @@ Consider revisiting when:
 **Status**: Documented Limitation  
 **Date Identified**: August 23, 2025  
 
-The undo functionality has two known limitations affecting label-related operations:
+The undo functionality has one remaining limitation affecting move operations:
 
 #### 1. Move Operation Undo Limitation
 **Problem**: Move operation undo only restores message to inbox, does not remove the applied label.
@@ -177,29 +177,31 @@ The undo functionality has two known limitations affecting label-related operati
 - `EmailService.ArchiveMessage()` records `UndoActionArchive` (overwrites the first)
 - Only the archive action gets recorded for undo
 
-#### 2. Label Operations Undo Silent Failure  
-**Problem**: Adding or removing labels individually appears to record undo actions but undo fails silently with no feedback.
+#### 2. Label Operations Undo (RESOLVED)  
+**Problem**: Adding or removing labels individually was recording undo actions but undo failed silently.
 
 **Example Flow**:
 1. Select message and press `l` to open label manager
 2. Add or remove a label
 3. Press `U` to undo
-4. ❌ Nothing happens - no message, no undo, silent failure
+4. ❌ Nothing happened - no message, no undo, silent failure
 
-**Root Cause**: Label operations may be recording undo actions but the undo execution is failing silently, possibly due to:
-- Incorrect action data structure
-- Missing required fields for label undo operations
-- Service call failures that are not being reported to the user
+**Root Cause**: Circular dependency in undo architecture:
+- UndoService called LabelService to reverse operations
+- LabelService recorded new undo actions, overwriting original
+- Created infinite loop causing silent failure
+
+**Solution Applied**: Modified undo operations to use Gmail client directly instead of service layer, bypassing circular dependency issue.
 
 ### Impact Assessment
 - **Move Undo**: Partial functionality - message restored but manual cleanup needed
-- **Label Undo**: No functionality - labels changes cannot be undone
-- **User Experience**: Inconsistent undo behavior across operations
-- **Workaround Available**: Manual label management using `l` key
+- **Label Undo**: ✅ **RESOLVED** - Label operations can now be undone properly
+- **User Experience**: Mostly consistent undo behavior, only move operations have limitations
+- **Workaround Available**: Manual label management using `l` key for move operations
 
 ### Workaround
 1. **For Move Undo**: After pressing `U`, manually remove unwanted labels using `l` key
-2. **For Label Operations**: Be careful with label changes as they cannot be undone
+2. **For Label Operations**: ✅ **NO WORKAROUND NEEDED** - Undo now works correctly
 
 ### Dependencies
 - **Architecture**: Service layer undo recording system
