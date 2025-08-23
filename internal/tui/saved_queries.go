@@ -398,6 +398,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	nameInput.SetBorder(false)                         // No border for cleaner look
 	nameInput.SetFieldBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background (not accent)
 	nameInput.SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())  // Component text color
+	nameInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
 
 	// Generate default name
 	if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
@@ -412,7 +413,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 
 	// Create a horizontal flex for label and input alignment with controlled spacing
 	nameRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-	nameRow.AddItem(nameLabel, 15, 0, false)   // Fixed width for label (15 chars)
+	nameRow.AddItem(nameLabel, 17, 0, false)   // Fixed width for label (17 chars for "💾 Query name:")
 	nameRow.AddItem(nameInput, 50, 0, false)   // Fixed width for input (50 chars)
 	nameRow.AddItem(tview.NewBox(), 0, 1, false) // Spacer takes remaining space
 
