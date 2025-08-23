@@ -92,7 +92,13 @@ func (a *App) openAttachmentPicker() {
 			} else if sizeStr != "" {
 				secondary = sizeStr
 			} else if item.mimeType != "" {
+				// Always show MIME type, even if size is unknown
 				secondary = item.mimeType
+			}
+			
+			// If no secondary text, show a default indicator
+			if secondary == "" {
+				secondary = "attachment"
 			}
 
 			// Capture variables for closure
@@ -370,16 +376,109 @@ func (a *App) downloadAndOpenAttachment(messageID, attachmentID, filename, fileT
 	}
 }
 
-// saveAttachmentAs prompts for save location and downloads attachment
+// saveAttachmentAs opens input panel for custom save location
 func (a *App) saveAttachmentAs(messageID, attachmentID, filename string) {
-	// For now, use default download with a message
-	// In the future, this could be enhanced with a file picker
-	go func() {
-		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, "Saving to default download directory...")
-		}()
-		a.downloadAndOpenAttachment(messageID, attachmentID, filename, "")
-	}()
+	// Close current attachment picker
+	a.closeAttachmentPicker()
+
+	// Get attachment service for default path
+	_, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
+	defaultPath := ""
+	if attachmentService != nil {
+		defaultPath = filepath.Join(attachmentService.GetDefaultDownloadPath(), filename)
+	}
+
+	// Create title
+	title := tview.NewTextView().
+		SetText(fmt.Sprintf("Save Attachment: %s", filename)).
+		SetTextAlign(tview.AlignCenter).
+		SetTextColor(a.GetComponentColors("attachments").Title.Color())
+
+	// Create path input with default value
+	pathInput := tview.NewInputField().
+		SetLabel("Save to: ").
+		SetText(defaultPath).
+		SetFieldWidth(0).
+		SetLabelColor(a.GetComponentColors("attachments").Text.Color()).
+		SetFieldBackgroundColor(a.GetComponentColors("attachments").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("attachments").Text.Color())
+
+	// Create instructions
+	instructions := tview.NewTextView().
+		SetText("Press Enter to save | Tab to edit | Esc to cancel").
+		SetTextAlign(tview.AlignCenter).
+		SetTextColor(a.GetComponentColors("attachments").Accent.Color())
+
+	// Handle input
+	pathInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.closeSaveAsPanel()
+			return
+		}
+		if key == tcell.KeyEnter {
+			customPath := strings.TrimSpace(pathInput.GetText())
+			a.closeSaveAsPanel()
+			
+			// Download with custom path
+			go func() {
+				go func() {
+					a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Saving '%s'...", filename))
+				}()
+				
+				if attachmentService != nil {
+					downloadPath, err := attachmentService.DownloadAttachmentWithFilename(a.ctx, messageID, attachmentID, customPath, filename)
+					if err != nil {
+						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save: %v", err))
+						return
+					}
+					
+					displayName := filepath.Base(downloadPath)
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Saved: %s", displayName))
+				}
+			}()
+		}
+	})
+
+	// Create container
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(a.GetComponentColors("attachments").Background.Color())
+	container.SetBorder(true)
+	container.SetTitle(" 💾 Save Attachment As ")
+	container.SetTitleColor(a.GetComponentColors("attachments").Title.Color())
+
+	// Add components
+	container.AddItem(title, 2, 0, false)
+	container.AddItem(pathInput, 3, 0, true)
+	container.AddItem(instructions, 1, 0, false)
+
+	// Add to content split
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+
+	a.SetFocus(pathInput)
+	a.currentFocus = "labels"
+	a.updateFocusIndicators("labels")
+	a.labelsVisible = true
+}
+
+// closeSaveAsPanel closes the save as panel and restores focus
+func (a *App) closeSaveAsPanel() {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		split.ResizeItem(a.labelsView, 0, 0)
+	}
+	a.labelsVisible = false
+	// Restore focus to text view
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		a.SetFocus(text)
+		a.currentFocus = "text"
+		a.updateFocusIndicators("text")
+	}
 }
 
 // getAttachmentIcon returns an icon based on attachment type
@@ -409,7 +508,7 @@ func (a *App) getAttachmentIcon(attachmentType string) string {
 // formatFileSize formats file size in human-readable format
 func formatFileSize(size int64) string {
 	if size == 0 {
-		return ""
+		return "size unknown"
 	}
 	
 	const unit = 1024
