@@ -340,7 +340,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Layout the panel with search input at top (3 lines for spacing like other pickers)
 	a.slackView.AddItem(input, 3, 0, false)
 	a.slackView.AddItem(channelList, 0, 1, true)
-	a.slackView.AddItem(userMessageInput, 1, 0, false)
+	a.slackView.AddItem(userMessageInput, 2, 0, false)  // 2 lines for spacing like Obsidian
 	a.slackView.AddItem(instructions, 1, 0, false)
 
 	// Initial load of channels
