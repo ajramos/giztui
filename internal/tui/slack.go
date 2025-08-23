@@ -104,10 +104,10 @@ func (a *App) populateSlackPanel(messageID string) {
 		return
 	}
 
-	channelList := a.createSlackPanel(messageID, channels)
+	searchInput := a.createSlackPanel(messageID, channels)
 
 	// Set focus after panel is fully created and populated
-	a.SetFocus(channelList)
+	a.SetFocus(searchInput)
 }
 
 // populateSlackBulkPanel populates the Slack forwarding panel for bulk operations
@@ -132,43 +132,83 @@ func (a *App) populateSlackBulkPanel() {
 	}
 
 	messageCount := len(a.selected)
-	channelList := a.createSlackBulkPanel(messageCount, channels)
+	searchInput := a.createSlackBulkPanel(messageCount, channels)
 
 	// Set focus after panel is fully created and populated
-	a.SetFocus(channelList)
+	a.SetFocus(searchInput)
 }
 
-// createSlackPanel creates the Slack forwarding contextual panel and returns the channel list for focus setting
-func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) *tview.List {
+// createSlackPanel creates the Slack forwarding contextual panel and returns the search input for focus setting
+func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
 
-	// No title needed - removing "🔗 Available channels" as requested
+	// Create search input field like other pickers
+	input := tview.NewInputField().
+		SetLabel("🔍 Search: ").
+		SetFieldWidth(30).
+		SetLabelColor(a.getTitleColor()).
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 
 	// Channel selection list
 	channelList := tview.NewList()
 	channelList.ShowSecondaryText(false)
 	channelList.SetBorder(false)
 
-	// Find default channel
-	defaultIndex := 0
-	for i, channel := range channels {
-		displayName := fmt.Sprintf("📺 %s", channel.Name)
-		channelList.AddItem(displayName, "", 0, nil)
-		if channel.Default {
-			defaultIndex = i
+	// Data structures for filtering
+	var allChannels []services.SlackChannel
+	var visibleChannels []services.SlackChannel
+	allChannels = append(allChannels, channels...)
+
+	// Find default channel index
+	findDefaultIndex := func(channels []services.SlackChannel) int {
+		for i, channel := range channels {
+			if channel.Default {
+				return i
+			}
+		}
+		return 0
+	}
+
+	// Reload function for filtering
+	reload := func(filter string) {
+		channelList.Clear()
+		visibleChannels = visibleChannels[:0]
+		
+		for _, channel := range allChannels {
+			if filter != "" && !strings.Contains(strings.ToLower(channel.Name), strings.ToLower(filter)) {
+				continue
+			}
+			visibleChannels = append(visibleChannels, channel)
+			
+			displayName := fmt.Sprintf("📺 %s", channel.Name)
+			channelList.AddItem(displayName, "", 0, nil)
+		}
+		
+		// Set default selection after filtering
+		if len(visibleChannels) > 0 {
+			defaultIndex := findDefaultIndex(visibleChannels)
+			channelList.SetCurrentItem(defaultIndex)
+		}
+
+		// Update search label with count
+		if len(allChannels) > 0 {
+			input.SetLabel(fmt.Sprintf("🔍 Search (%d/%d): ", len(visibleChannels), len(allChannels)))
+		} else {
+			input.SetLabel("🔍 Search: ")
 		}
 	}
-	channelList.SetCurrentItem(defaultIndex)
 
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(a.GetComponentColors("slack").Accent.Color())           // Component accent for label
+	userMessageInput.SetLabelColor(a.getTitleColor())                                     // Match search label color
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())        // Component text color
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
+	userMessageInput.SetPlaceholderTextColor(a.getHintColor())                            // Consistent placeholder color
 
 	// Add spacing between optional message and instructions
 	spacer := tview.NewTextView()
@@ -180,29 +220,74 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	instructions.SetTextAlign(tview.AlignRight)
 	instructions.SetTextColor(a.getFooterColor())
 
+	// Set up search functionality
+	input.SetChangedFunc(func(text string) { 
+		reload(strings.TrimSpace(text)) 
+	})
+
 	// Set up Enter key handler for sending
 	channelList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-		selectedChannel := channels[index]
-		userMessage := strings.TrimSpace(userMessageInput.GetText())
+		if index >= 0 && index < len(visibleChannels) {
+			selectedChannel := visibleChannels[index]
+			userMessage := strings.TrimSpace(userMessageInput.GetText())
 
-		options := services.SlackForwardOptions{
-			ChannelID:   selectedChannel.ID,
-			WebhookURL:  selectedChannel.WebhookURL,
-			ChannelName: selectedChannel.Name,
-			UserMessage: userMessage,
-			FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			options := services.SlackForwardOptions{
+				ChannelID:   selectedChannel.ID,
+				WebhookURL:  selectedChannel.WebhookURL,
+				ChannelName: selectedChannel.Name,
+				UserMessage: userMessage,
+				FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			}
+
+			a.forwardEmailToSlack(messageID, options)
+
+			// Hide the Slack panel
+			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+				split.ResizeItem(a.slackView, 0, 0)
+			}
+			a.slackVisible = false
+			a.SetFocus(a.views["text"])
+			a.currentFocus = "text"
+			a.updateFocusIndicators("text")
 		}
+	})
 
-		a.forwardEmailToSlack(messageID, options)
-
-		// Hide the Slack panel
-		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			split.ResizeItem(a.slackView, 0, 0)
+	// Add navigation support for search input
+	input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp {
+			a.SetFocus(channelList)
+			return e
+		} else if e.Key() == tcell.KeyEscape {
+			a.hideSlackPanel()
+			return nil
+		} else if e.Key() == tcell.KeyTab {
+			a.SetFocus(userMessageInput)
+			return nil
 		}
-		a.slackVisible = false
-		a.SetFocus(a.views["text"])
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		return e
+	})
+
+	// Handle enter in search input (select first match)
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.hideSlackPanel()
+			return
+		}
+		if key == tcell.KeyEnter && len(visibleChannels) > 0 {
+			selectedChannel := visibleChannels[0]
+			userMessage := strings.TrimSpace(userMessageInput.GetText())
+
+			options := services.SlackForwardOptions{
+				ChannelID:   selectedChannel.ID,
+				WebhookURL:  selectedChannel.WebhookURL,
+				ChannelName: selectedChannel.Name,
+				UserMessage: userMessage,
+				FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			}
+
+			a.forwardEmailToSlack(messageID, options)
+			a.hideSlackPanel()
+		}
 	})
 
 	// Handle input field enter key for sending
@@ -210,8 +295,8 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 		if key == tcell.KeyEnter {
 			// Trigger the same send logic
 			index := channelList.GetCurrentItem()
-			if index >= 0 && index < len(channels) {
-				selectedChannel := channels[index]
+			if index >= 0 && index < len(visibleChannels) {
+				selectedChannel := visibleChannels[index]
 				userMessage := strings.TrimSpace(userMessageInput.GetText())
 
 				options := services.SlackForwardOptions{
@@ -238,7 +323,10 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 
 	// Handle tab navigation from channel list to input field
 	channelList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab {
+		if event.Key() == tcell.KeyUp && channelList.GetCurrentItem() == 0 {
+			a.SetFocus(input)
+			return nil
+		} else if event.Key() == tcell.KeyTab {
 			a.SetFocus(userMessageInput)
 			return nil
 		} else if event.Key() == tcell.KeyEscape {
@@ -249,35 +337,80 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 		return event
 	})
 
-	// Layout the panel
+	// Layout the panel with search input at top (3 lines for spacing like other pickers)
+	a.slackView.AddItem(input, 3, 0, false)
 	a.slackView.AddItem(channelList, 0, 1, true)
 	a.slackView.AddItem(userMessageInput, 1, 0, false)
 	a.slackView.AddItem(instructions, 1, 0, false)
 
-	// Return channelList for focus setting
-	return channelList
+	// Initial load of channels
+	reload("")
+
+	// Return search input for focus setting (start with search like other pickers)
+	return input
 }
 
 // createSlackBulkPanel creates the Slack forwarding panel for bulk operations
-func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackChannel) *tview.List {
+func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
+
+	// Create search input field like other pickers
+	input := tview.NewInputField().
+		SetLabel("🔍 Search: ").
+		SetFieldWidth(30).
+		SetLabelColor(a.getTitleColor()).
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 
 	// Channel selection list
 	channelList := tview.NewList()
 	channelList.ShowSecondaryText(false)
 	channelList.SetBorder(false)
 
-	// Find default channel
-	defaultIndex := 0
-	for i, channel := range channels {
-		displayName := fmt.Sprintf("📺 %s", channel.Name)
-		channelList.AddItem(displayName, "", 0, nil)
-		if channel.Default {
-			defaultIndex = i
+	// Data structures for filtering
+	var allChannels []services.SlackChannel
+	var visibleChannels []services.SlackChannel
+	allChannels = append(allChannels, channels...)
+
+	// Find default channel index
+	findDefaultIndex := func(channels []services.SlackChannel) int {
+		for i, channel := range channels {
+			if channel.Default {
+				return i
+			}
+		}
+		return 0
+	}
+
+	// Reload function for filtering
+	reload := func(filter string) {
+		channelList.Clear()
+		visibleChannels = visibleChannels[:0]
+		
+		for _, channel := range allChannels {
+			if filter != "" && !strings.Contains(strings.ToLower(channel.Name), strings.ToLower(filter)) {
+				continue
+			}
+			visibleChannels = append(visibleChannels, channel)
+			
+			displayName := fmt.Sprintf("📺 %s", channel.Name)
+			channelList.AddItem(displayName, "", 0, nil)
+		}
+		
+		// Set default selection after filtering
+		if len(visibleChannels) > 0 {
+			defaultIndex := findDefaultIndex(visibleChannels)
+			channelList.SetCurrentItem(defaultIndex)
+		}
+
+		// Update search label with count
+		if len(allChannels) > 0 {
+			input.SetLabel(fmt.Sprintf("🔍 Search (%d/%d): ", len(visibleChannels), len(allChannels)))
+		} else {
+			input.SetLabel("🔍 Search: ")
 		}
 	}
-	channelList.SetCurrentItem(defaultIndex)
 
 	// Comment input field for bulk operation (like Obsidian)
 	commentLabel := tview.NewTextView().SetText(fmt.Sprintf("💬 Bulk comment (%d emails):", messageCount))
@@ -291,6 +424,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background (not accent)
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
+	userMessageInput.SetPlaceholderTextColor(a.getHintColor())                            // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView()
@@ -303,23 +437,68 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	commentRow.AddItem(commentLabel, 0, 1, false)
 	commentRow.AddItem(userMessageInput, 0, 1, false)
 
+	// Set up search functionality
+	input.SetChangedFunc(func(text string) { 
+		reload(strings.TrimSpace(text)) 
+	})
+
+	// Add navigation support for search input
+	input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp {
+			a.SetFocus(channelList)
+			return e
+		} else if e.Key() == tcell.KeyEscape {
+			a.hideSlackPanel()
+			return nil
+		} else if e.Key() == tcell.KeyTab {
+			a.SetFocus(userMessageInput)
+			return nil
+		}
+		return e
+	})
+
+	// Handle enter in search input (select first match)
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.hideSlackPanel()
+			return
+		}
+		if key == tcell.KeyEnter && len(visibleChannels) > 0 {
+			selectedChannel := visibleChannels[0]
+			userMessage := strings.TrimSpace(userMessageInput.GetText())
+
+			options := services.SlackForwardOptions{
+				ChannelID:   selectedChannel.ID,
+				WebhookURL:  selectedChannel.WebhookURL,
+				ChannelName: selectedChannel.Name,
+				UserMessage: userMessage,
+				FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			}
+
+			a.forwardBulkEmailsToSlack(options)
+			a.hideSlackPanel()
+		}
+	})
+
 	// Set up Enter key handler for sending bulk messages
 	channelList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-		selectedChannel := channels[index]
-		userMessage := strings.TrimSpace(userMessageInput.GetText())
+		if index >= 0 && index < len(visibleChannels) {
+			selectedChannel := visibleChannels[index]
+			userMessage := strings.TrimSpace(userMessageInput.GetText())
 
-		options := services.SlackForwardOptions{
-			ChannelID:   selectedChannel.ID,
-			WebhookURL:  selectedChannel.WebhookURL,
-			ChannelName: selectedChannel.Name,
-			UserMessage: userMessage,
-			FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			options := services.SlackForwardOptions{
+				ChannelID:   selectedChannel.ID,
+				WebhookURL:  selectedChannel.WebhookURL,
+				ChannelName: selectedChannel.Name,
+				UserMessage: userMessage,
+				FormatStyle: a.Config.Slack.Defaults.FormatStyle,
+			}
+
+			a.forwardBulkEmailsToSlack(options)
+
+			// Hide the Slack panel
+			a.hideSlackPanel()
 		}
-
-		a.forwardBulkEmailsToSlack(options)
-
-		// Hide the Slack panel
-		a.hideSlackPanel()
 	})
 
 	// Handle input field enter key for sending
@@ -327,8 +506,8 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 		if key == tcell.KeyEnter {
 			// Trigger the same send logic
 			index := channelList.GetCurrentItem()
-			if index >= 0 && index < len(channels) {
-				selectedChannel := channels[index]
+			if index >= 0 && index < len(visibleChannels) {
+				selectedChannel := visibleChannels[index]
 				userMessage := strings.TrimSpace(userMessageInput.GetText())
 
 				options := services.SlackForwardOptions{
@@ -355,7 +534,10 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 
 	// Handle tab navigation from channel list to input field
 	channelList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab {
+		if event.Key() == tcell.KeyUp && channelList.GetCurrentItem() == 0 {
+			a.SetFocus(input)
+			return nil
+		} else if event.Key() == tcell.KeyTab {
 			a.SetFocus(userMessageInput)
 			return nil
 		} else if event.Key() == tcell.KeyEscape {
@@ -366,13 +548,17 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 		return event
 	})
 
-	// Layout the panel (bulk version)
+	// Layout the panel (bulk version) with search input at top (3 lines for spacing like other pickers)
+	a.slackView.AddItem(input, 3, 0, false)
 	a.slackView.AddItem(channelList, 0, 1, true)
 	a.slackView.AddItem(commentRow, 2, 0, false)
 	a.slackView.AddItem(instructions, 1, 0, false)
 
-	// Return channelList for focus setting, but can navigate to comment input with Tab
-	return channelList
+	// Initial load of channels
+	reload("")
+
+	// Return search input for focus setting (start with search like other pickers)
+	return input
 }
 
 // hideSlackPanel hides the Slack panel (synchronous operation like hideAIPanel)
