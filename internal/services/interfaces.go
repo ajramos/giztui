@@ -483,8 +483,11 @@ type UndoableAction struct {
 
 // UndoResult represents the result of an undo operation
 type UndoResult struct {
-	Success      bool     `json:"success"`       // Whether undo was successful
-	Description  string   `json:"description"`   // Description of what was undone
-	MessageCount int      `json:"message_count"` // Number of messages affected
-	Errors       []string `json:"errors"`        // Any errors that occurred
+	Success      bool                   `json:"success"`       // Whether undo was successful
+	Description  string                 `json:"description"`   // Description of what was undone
+	MessageCount int                    `json:"message_count"` // Number of messages affected
+	Errors       []string               `json:"errors"`        // Any errors that occurred
+	ActionType   UndoActionType         `json:"action_type"`   // Type of action that was undone
+	MessageIDs   []string               `json:"message_ids"`   // IDs of messages affected
+	ExtraData    map[string]interface{} `json:"extra_data"`    // Additional data for cache updates
 }

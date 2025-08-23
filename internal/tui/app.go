@@ -1026,8 +1026,9 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			a.reformatListItems()
 		})
 		return
-	} else if strings.Contains(result.Description, "label") {
-		// Label changes - refresh UI and labels
+	} else if result.ActionType == services.UndoActionLabelAdd || result.ActionType == services.UndoActionLabelRemove {
+		// Label changes - update cache immediately and refresh UI
+		a.updateCacheAfterLabelUndo(result)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
 			if a.labelsExpanded {
@@ -1046,6 +1047,48 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			time.Sleep(200 * time.Millisecond)
 			a.reloadMessages()
 		}()
+	}
+}
+
+// updateCacheAfterLabelUndo updates local cache immediately after label undo operations
+func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
+	if result.ExtraData == nil {
+		return
+	}
+
+	// Get label name mapping for cache updates
+	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	labels, err := labelService.ListLabels(a.ctx)
+	if err != nil {
+		return // Silently fail, will refresh from server later
+	}
+	labelIDToName := make(map[string]string)
+	for _, label := range labels {
+		labelIDToName[label.Id] = label.Name
+	}
+
+	for _, messageID := range result.MessageIDs {
+		if result.ActionType == services.UndoActionLabelAdd {
+			// We undid a label add, so we removed labels
+			if labelsRemoved, ok := result.ExtraData["added_labels"].([]string); ok {
+				for _, labelID := range labelsRemoved {
+					a.updateCachedMessageLabels(messageID, labelID, false)
+					if labelName, exists := labelIDToName[labelID]; exists {
+						a.updateMessageCacheLabels(messageID, labelName, false)
+					}
+				}
+			}
+		} else if result.ActionType == services.UndoActionLabelRemove {
+			// We undid a label remove, so we added labels back
+			if labelsAdded, ok := result.ExtraData["removed_labels"].([]string); ok {
+				for _, labelID := range labelsAdded {
+					a.updateCachedMessageLabels(messageID, labelID, true)
+					if labelName, exists := labelIDToName[labelID]; exists {
+						a.updateMessageCacheLabels(messageID, labelName, true)
+					}
+				}
+			}
+		}
 	}
 }
 

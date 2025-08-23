@@ -71,6 +71,9 @@ func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, erro
 		Success:      true,
 		MessageCount: len(action.MessageIDs),
 		Errors:       []string{},
+		ActionType:   action.Type,
+		MessageIDs:   action.MessageIDs,
+		ExtraData:    action.ExtraData,
 	}
 
 	// Perform undo based on action type
