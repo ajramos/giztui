@@ -559,11 +559,13 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					failed := 0
 
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
+					// Get services for undo support
+					emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 					for _, mid := range idsToMove {
-						if err := a.Client.ApplyLabel(mid, id); err != nil {
+						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 							failed++
 						}
-						if err := a.Client.ArchiveMessage(mid); err != nil {
+						if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
 							failed++
 						}
 					}
@@ -740,11 +742,13 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								failed := 0
 
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
+								// Get services for undo support
+								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 								for _, mid := range idsToMove {
-									if err := a.Client.ApplyLabel(mid, id); err != nil {
+									if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 										failed++
 									}
-									if err := a.Client.ArchiveMessage(mid); err != nil {
+									if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
 										failed++
 									}
 								}
@@ -1721,15 +1725,18 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					}
 				}
 				if !has {
-					if err := a.Client.ApplyLabel(message.Id, labelID); err != nil {
+					// Apply label using LabelService for undo support
+					_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+					if err := labelService.ApplyLabel(a.ctx, message.Id, labelID); err != nil {
 						a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
 						return
 					}
 					// Update cache
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
-				// Archive (remove INBOX)
-				if err := a.Client.ArchiveMessage(message.Id); err != nil {
+				// Archive using EmailService for undo support
+				emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+				if err := emailService.ArchiveMessage(a.ctx, message.Id); err != nil {
 					a.showError(fmt.Sprintf("❌ Error archiving: %v", err))
 					return
 				}

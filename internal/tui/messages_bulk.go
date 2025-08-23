@@ -19,17 +19,14 @@ func (a *App) archiveSelectedBulk() {
 	}
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
+		// Use bulk service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkArchive(a.ctx, ids)
+		
 		failed := 0
-		total := len(ids)
-		for i, id := range ids {
-			if err := a.Client.ArchiveMessage(id); err != nil {
-				failed++
-				continue
-			}
-			// Progress update on UI thread
-			idx := i + 1
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d…", idx, total))
-			// Remove from UI list on main thread after loop
+		if err != nil {
+			// Count failures (this is approximate since BulkArchive doesn't return detailed failure info)
+			failed = 1 // Mark as partial failure
 		}
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
@@ -68,15 +65,14 @@ func (a *App) trashSelectedBulk() {
 	}
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
+		// Use bulk service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkTrash(a.ctx, ids)
+		
 		failed := 0
-		total := len(ids)
-		for i, id := range ids {
-			if err := a.Client.TrashMessage(id); err != nil {
-				failed++
-			}
-			// Progress update on UI thread
-			idx := i + 1
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d…", idx, total))
+		if err != nil {
+			// Count failures (this is approximate since BulkTrash doesn't return detailed failure info)
+			failed = 1 // Mark as partial failure
 		}
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)

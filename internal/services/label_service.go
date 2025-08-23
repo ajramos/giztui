@@ -12,6 +12,7 @@ import (
 // LabelServiceImpl implements LabelService
 type LabelServiceImpl struct {
 	gmailClient *gmail.Client
+	undoService UndoService // Optional - for recording undo actions
 }
 
 // NewLabelService creates a new label service
@@ -19,6 +20,12 @@ func NewLabelService(gmailClient *gmail.Client) *LabelServiceImpl {
 	return &LabelServiceImpl{
 		gmailClient: gmailClient,
 	}
+}
+
+// SetUndoService sets the undo service for recording undo actions
+// This is called after initialization to avoid circular dependencies
+func (s *LabelServiceImpl) SetUndoService(undoService UndoService) {
+	s.undoService = undoService
 }
 
 func (s *LabelServiceImpl) ListLabels(ctx context.Context) ([]*gmail_v1.Label, error) {
@@ -73,6 +80,20 @@ func (s *LabelServiceImpl) ApplyLabel(ctx context.Context, messageID, labelID st
 		return fmt.Errorf("messageID and labelID cannot be empty")
 	}
 
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		action := &UndoableAction{
+			Type:        UndoActionLabelAdd,
+			MessageIDs:  []string{messageID},
+			Description: fmt.Sprintf("Apply label"),
+			IsBulk:      false,
+			ExtraData: map[string]interface{}{
+				"added_labels": []string{labelID},
+			},
+		}
+		s.undoService.RecordAction(ctx, action)
+	}
+
 	if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
 		return fmt.Errorf("failed to apply label: %w", err)
 	}
@@ -83,6 +104,20 @@ func (s *LabelServiceImpl) ApplyLabel(ctx context.Context, messageID, labelID st
 func (s *LabelServiceImpl) RemoveLabel(ctx context.Context, messageID, labelID string) error {
 	if strings.TrimSpace(messageID) == "" || strings.TrimSpace(labelID) == "" {
 		return fmt.Errorf("messageID and labelID cannot be empty")
+	}
+
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		action := &UndoableAction{
+			Type:        UndoActionLabelRemove,
+			MessageIDs:  []string{messageID},
+			Description: fmt.Sprintf("Remove label"),
+			IsBulk:      false,
+			ExtraData: map[string]interface{}{
+				"removed_labels": []string{labelID},
+			},
+		}
+		s.undoService.RecordAction(ctx, action)
 	}
 
 	if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {

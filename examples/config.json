@@ -86,6 +86,7 @@
     "search_to": "T", 
     "search_subject": "S",
     "toggle_read": "t",
+    "undo": "U",
     "trash": "d",
     "archive": "a",
     "move": "m",

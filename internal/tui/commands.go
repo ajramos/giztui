@@ -372,6 +372,10 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"unre":        {"unread"},
 		"unrea":       {"unread"},
 		"unread":      {"unread"},
+		"un":          {"undo", "unread"},
+		"und":         {"undo"},
+		"undo":        {"undo"},
+		"U":           {"undo"},
 		"d":           {"trash"},
 		"tr":          {"trash"},
 		"tra":         {"trash"},
@@ -596,6 +600,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLoadMoreCommand(args)
 	case "unread", "u":
 		a.executeUnreadCommand(args)
+	case "undo", "U":
+		a.executeUndoCommand(args)
 	case "archived", "arch-search", "b":
 		a.executeArchivedCommand(args)
 	case "select", "sel":
@@ -1183,6 +1189,11 @@ func (a *App) executeLoadMoreCommand(args []string) {
 // executeUnreadCommand handles :unread/:u commands
 func (a *App) executeUnreadCommand(args []string) {
 	go a.listUnreadMessages()
+}
+
+// executeUndoCommand handles :undo command
+func (a *App) executeUndoCommand(args []string) {
+	go a.performUndo()
 }
 
 // executeArchivedCommand handles :archived/:arch-search commands

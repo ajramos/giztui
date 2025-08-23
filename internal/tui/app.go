@@ -164,6 +164,7 @@ type App struct {
 	themeService      services.ThemeService
 	displayService    services.DisplayService
 	queryService      services.QueryService
+	undoService       services.UndoService
 	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler      *ErrorHandler
 }
@@ -681,6 +682,39 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: display service initialized: %v", a.displayService != nil)
 	}
 
+	// Initialize undo service (needs repository, labelService, and gmailClient)
+	if a.repository != nil && a.labelService != nil && a.Client != nil {
+		a.undoService = services.NewUndoService(a.repository, a.labelService, a.Client)
+		if a.logger != nil {
+			a.logger.Printf("initServices: undo service initialized: %v", a.undoService != nil)
+		}
+		
+		// Wire undo service to email service to enable undo recording
+		if a.emailService != nil {
+			if emailServiceImpl, ok := a.emailService.(*services.EmailServiceImpl); ok {
+				emailServiceImpl.SetUndoService(a.undoService)
+				if a.logger != nil {
+					a.logger.Printf("initServices: undo service wired to email service")
+				}
+			}
+		}
+		
+		// Wire undo service to label service to enable undo recording
+		if a.labelService != nil {
+			if labelServiceImpl, ok := a.labelService.(*services.LabelServiceImpl); ok {
+				labelServiceImpl.SetUndoService(a.undoService)
+				if a.logger != nil {
+					a.logger.Printf("initServices: undo service wired to label service")
+				}
+			}
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: undo service NOT initialized - repository=%v labelService=%v Client=%v",
+				a.repository != nil, a.labelService != nil, a.Client != nil)
+		}
+	}
+
 	// Load theme from config with fallbacks
 	themeName := "gmail-dark" // Default fallback
 	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
@@ -900,6 +934,87 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 // GetServices returns the service instances for business logic operations
 func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+}
+
+// GetUndoService returns the undo service instance
+func (a *App) GetUndoService() services.UndoService {
+	return a.undoService
+}
+
+// performUndo performs the undo operation and provides user feedback
+func (a *App) performUndo() {
+	if a.undoService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Undo service not available")
+		return
+	}
+
+	if !a.undoService.HasUndoableAction() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "No action to undo")
+		return
+	}
+
+	// Perform the undo operation
+	result, err := a.undoService.UndoLastAction(a.ctx)
+	if err != nil {
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Undo failed: %v", err))
+		return
+	}
+
+	// Provide user feedback and handle UI updates
+	if result.Success {
+		// Show success message
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🔄 Undone: %s", result.Description))
+		
+		// Smart UI update: restore messages to current view if appropriate
+		a.handleUndoUIRestore(result)
+	} else {
+		// Show clear error - operation failed completely
+		if len(result.Errors) > 0 {
+			errorMsg := fmt.Sprintf("❌ Undo failed: %s", strings.Join(result.Errors, "; "))
+			a.GetErrorHandler().ShowError(a.ctx, errorMsg)
+		} else {
+			a.GetErrorHandler().ShowError(a.ctx, "❌ Undo failed for unknown reason")
+		}
+	}
+}
+
+// handleUndoUIRestore handles smart UI restoration after undo operations
+func (a *App) handleUndoUIRestore(result *services.UndoResult) {
+	// For bulk operations, safer to reload
+	if result.MessageCount > 3 {
+		go a.reloadMessages()
+		return
+	}
+	
+	// For archive undo: if we're viewing inbox, try to restore messages to UI
+	if result.Description == "Unarchived message" || result.Description == "Unarchived 1 messages" {
+		a.attemptArchiveUndoRestore(result)
+	} else if result.Description == "Restored from trash message" || result.Description == "Restored from trash 1 messages" {  
+		a.attemptTrashUndoRestore(result)
+	} else {
+		// For other operations, no immediate UI update needed
+		// Gmail state is already updated, user can refresh when ready
+	}
+}
+
+// attemptArchiveUndoRestore attempts to restore archived messages back to the inbox view
+func (a *App) attemptArchiveUndoRestore(result *services.UndoResult) {
+	// For archive undo: if we're viewing inbox and it's a small operation, reload to show restored messages
+	if a.currentQuery == "" && result.MessageCount <= 2 {
+		// We're in default inbox view and it's a small operation - safe to reload
+		go a.reloadMessages()
+	}
+	// Otherwise: don't reload automatically - user can refresh ('R') when ready
+}
+
+// attemptTrashUndoRestore attempts to restore trashed messages back to the appropriate view  
+func (a *App) attemptTrashUndoRestore(result *services.UndoResult) {
+	// For trash undo: if we're viewing inbox and it's a small operation, reload to show restored messages
+	if a.currentQuery == "" && result.MessageCount <= 2 {
+		// We're in default inbox view and it's a small operation - safe to reload
+		go a.reloadMessages()
+	}
+	// Otherwise: don't reload automatically - user can refresh ('R') when ready
 }
 
 // GetThemeService returns the theme service instance
@@ -1164,6 +1279,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive message\n", a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Move to trash\n", a.Keys.Trash))
 	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
+	help.WriteString(fmt.Sprintf("    %-8s  ↩️   Undo last action\n", a.Keys.Undo))
 	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
 	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n\n", a.Keys.ManageLabels))
 
@@ -1270,6 +1386,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    :select 5     ✅  Same as %s5%s (select next 5)\n", a.Keys.BulkSelect, a.Keys.BulkSelect))
 	help.WriteString(fmt.Sprintf("    :archive 3    📁  Same as %s3%s (archive next 3)\n", a.Keys.Archive, a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    :trash 7      🗑️   Same as %s7%s (delete next 7)\n", a.Keys.Trash, a.Keys.Trash))
+	help.WriteString(fmt.Sprintf("    :undo         ↩️   Same as %s (undo last action)\n", a.Keys.Undo))
 	help.WriteString("    :search term  🔍  Search for 'term'\n")
 	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
 	help.WriteString("    :bookmarks    📚  Browse saved query bookmarks\n")

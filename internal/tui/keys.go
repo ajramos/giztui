@@ -847,6 +847,16 @@ func (a *App) bindKeys() {
 				go a.searchByToCurrent()
 				return nil
 			}
+		case 'U':
+			// Undo last action
+			if a.undoService != nil && a.undoService.HasUndoableAction() {
+				go a.performUndo()
+			} else {
+				go func() {
+					a.GetErrorHandler().ShowInfo(a.ctx, "No action to undo")
+				}()
+			}
+			return nil
 		case 'S':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('S') {
@@ -1963,27 +1973,18 @@ func (a *App) archiveRange(startIndex, count int) {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d messages (a%da)...", actualCount, count))
 	}()
 
-	// Archive in background
+	// Archive in background using bulk service for proper undo recording
 	go func() {
-		failed := 0
-		for i, messageID := range messageIDs {
-			// Progress update
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d messages...", i+1, actualCount))
-
-			// Archive message
-			emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-			if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
-				failed++
-				continue
-			}
-		}
+		// Use bulk archive service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkArchive(a.ctx, messageIDs)
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
+		if err == nil {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Archived %d messages (a%da)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived %d messages, %d failed (a%da)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to archive some messages (a%da): %v", count, err))
 		}
 
 		// Remove archived messages from current view (no server reload needed)
@@ -2013,27 +2014,18 @@ func (a *App) trashRange(startIndex, count int) {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d messages to trash (d%dd)...", actualCount, count))
 	}()
 
-	// Trash in background
+	// Trash in background using bulk service for proper undo recording
 	go func() {
-		failed := 0
-		for i, messageID := range messageIDs {
-			// Progress update
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d messages...", i+1, actualCount))
-
-			// Trash message
-			emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-			if err := emailService.TrashMessage(a.ctx, messageID); err != nil {
-				failed++
-				continue
-			}
-		}
+		// Use bulk trash service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkTrash(a.ctx, messageIDs)
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
+		if err == nil {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Moved %d messages to trash (d%dd)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Moved %d messages to trash, %d failed (d%dd)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to trash some messages (d%dd): %v", count, err))
 		}
 
 		// Remove trashed messages from current view (no server reload needed)

@@ -213,6 +213,9 @@ type KeyBindings struct {
 	WordRight     string `json:"word_right"`     // Word-wise navigation right
 	GotoTop       string `json:"goto_top"`       // Jump to top of content
 	GotoBottom    string `json:"goto_bottom"`    // Jump to bottom of content
+	
+	// Undo functionality
+	Undo          string `json:"undo"`           // Undo last action
 }
 
 // DefaultConfig returns a Config with sensible defaults
@@ -329,6 +332,9 @@ func DefaultKeyBindings() KeyBindings {
 		WordRight:     "ctrl+l", // Word right navigation
 		GotoTop:       "gg",     // Vim-like go to top
 		GotoBottom:    "G",      // Vim-like go to bottom
+		
+		// Undo functionality
+		Undo:          "U",      // Undo last action
 	}
 }
 

@@ -17,6 +17,7 @@ type EmailServiceImpl struct {
 	repo        MessageRepository
 	gmailClient *gmail.Client
 	renderer    *render.EmailRenderer
+	undoService UndoService // Optional - for recording undo actions
 }
 
 // NewEmailService creates a new email service
@@ -28,9 +29,33 @@ func NewEmailService(repo MessageRepository, gmailClient *gmail.Client, renderer
 	}
 }
 
+// SetUndoService sets the undo service for recording undo actions
+// This is called after initialization to avoid circular dependencies
+func (s *EmailServiceImpl) SetUndoService(undoService UndoService) {
+	s.undoService = undoService
+}
+
 func (s *EmailServiceImpl) MarkAsRead(ctx context.Context, messageID string) error {
 	if messageID == "" {
 		return fmt.Errorf("messageID cannot be empty")
+	}
+
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		// Capture current state for undo
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionMarkRead,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: "Mark as read",
+					IsBulk:      false,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
 	}
 
 	updates := MessageUpdates{
@@ -45,6 +70,24 @@ func (s *EmailServiceImpl) MarkAsUnread(ctx context.Context, messageID string) e
 		return fmt.Errorf("messageID cannot be empty")
 	}
 
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		// Capture current state for undo
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionMarkUnread,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: "Mark as unread",
+					IsBulk:      false,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
 	updates := MessageUpdates{
 		AddLabels: []string{"UNREAD"},
 	}
@@ -57,6 +100,24 @@ func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string)
 		return fmt.Errorf("messageID cannot be empty")
 	}
 
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		// Capture current state for undo
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionArchive,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: "Archive message",
+					IsBulk:      false,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
 	updates := MessageUpdates{
 		RemoveLabels: []string{"INBOX"},
 	}
@@ -67,6 +128,24 @@ func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string)
 func (s *EmailServiceImpl) TrashMessage(ctx context.Context, messageID string) error {
 	if messageID == "" {
 		return fmt.Errorf("messageID cannot be empty")
+	}
+
+	// Record undo action before performing the operation
+	if s.undoService != nil {
+		// Capture current state for undo
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionTrash,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: "Trash message",
+					IsBulk:      false,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
 	}
 
 	return s.gmailClient.TrashMessage(messageID)
@@ -95,9 +174,38 @@ func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string)
 		return fmt.Errorf("no message IDs provided")
 	}
 
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			// Capture state for all messages
+			prevStates := make(map[string]ActionState)
+			for _, id := range messageIDs {
+				if prevState, err := undoServiceImpl.CaptureMessageState(ctx, id); err == nil {
+					prevStates[id] = prevState
+				}
+			}
+			
+			// Record single bulk undo action
+			if len(prevStates) > 0 {
+				action := &UndoableAction{
+					Type:        UndoActionArchive,
+					MessageIDs:  messageIDs,
+					PrevState:   prevStates,
+					Description: "Archive messages",
+					IsBulk:      true,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
+	// Perform the actual archiving using repository directly (to avoid double undo recording)
 	var errs []string
 	for _, id := range messageIDs {
-		if err := s.ArchiveMessage(ctx, id); err != nil {
+		updates := MessageUpdates{
+			RemoveLabels: []string{"INBOX"},
+		}
+		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to archive %s: %v", id, err))
 		}
 	}
@@ -114,9 +222,35 @@ func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string) e
 		return fmt.Errorf("no message IDs provided")
 	}
 
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			// Capture state for all messages
+			prevStates := make(map[string]ActionState)
+			for _, id := range messageIDs {
+				if prevState, err := undoServiceImpl.CaptureMessageState(ctx, id); err == nil {
+					prevStates[id] = prevState
+				}
+			}
+			
+			// Record single bulk undo action
+			if len(prevStates) > 0 {
+				action := &UndoableAction{
+					Type:        UndoActionTrash,
+					MessageIDs:  messageIDs,
+					PrevState:   prevStates,
+					Description: "Trash messages",
+					IsBulk:      true,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
+	// Perform the actual trashing using Gmail client directly (to avoid double undo recording)
 	var errs []string
 	for _, id := range messageIDs {
-		if err := s.TrashMessage(ctx, id); err != nil {
+		if err := s.gmailClient.TrashMessage(id); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to trash %s: %v", id, err))
 		}
 	}

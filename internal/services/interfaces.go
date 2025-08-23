@@ -427,3 +427,62 @@ type SavedQueryInfo struct {
 	LastUsed    int64  `json:"last_used"`
 	CreatedAt   int64  `json:"created_at"`
 }
+
+// UndoService handles undo operations for reversible actions
+type UndoService interface {
+	// Record an action for potential undo
+	RecordAction(ctx context.Context, action *UndoableAction) error
+	
+	// Undo the last recorded action
+	UndoLastAction(ctx context.Context) (*UndoResult, error)
+	
+	// Check if undo is available
+	HasUndoableAction() bool
+	
+	// Get description of what will be undone
+	GetUndoDescription() string
+	
+	// Clear undo history (e.g., after app restart)
+	ClearUndoHistory() error
+}
+
+// UndoActionType represents the type of action that can be undone
+type UndoActionType string
+
+const (
+	UndoActionArchive     UndoActionType = "archive"
+	UndoActionUnarchive   UndoActionType = "unarchive"
+	UndoActionTrash       UndoActionType = "trash"
+	UndoActionRestore     UndoActionType = "restore"
+	UndoActionMarkRead    UndoActionType = "mark_read"
+	UndoActionMarkUnread  UndoActionType = "mark_unread"
+	UndoActionLabelAdd    UndoActionType = "label_add"
+	UndoActionLabelRemove UndoActionType = "label_remove"
+)
+
+// ActionState represents the previous state of a message for undo operations
+type ActionState struct {
+	Labels   []string `json:"labels"`   // Previous labels
+	IsRead   bool     `json:"is_read"`  // Previous read state
+	IsInInbox bool    `json:"is_inbox"` // Whether message was in inbox
+}
+
+// UndoableAction represents an action that can be undone
+type UndoableAction struct {
+	ID          string                    `json:"id"`          // Unique action ID
+	Type        UndoActionType           `json:"type"`        // Type of action
+	MessageIDs  []string                 `json:"message_ids"` // Affected message IDs
+	Timestamp   time.Time                `json:"timestamp"`   // When action was performed
+	PrevState   map[string]ActionState   `json:"prev_state"`  // Previous state for reversal
+	Description string                   `json:"description"` // Human-readable description
+	IsBulk      bool                     `json:"is_bulk"`     // Whether it was a bulk operation
+	ExtraData   map[string]interface{}   `json:"extra_data"`  // Additional data for specific action types
+}
+
+// UndoResult represents the result of an undo operation
+type UndoResult struct {
+	Success      bool     `json:"success"`       // Whether undo was successful
+	Description  string   `json:"description"`   // Description of what was undone
+	MessageCount int      `json:"message_count"` // Number of messages affected
+	Errors       []string `json:"errors"`        // Any errors that occurred
+}

@@ -70,7 +70,9 @@ func (a *App) archiveSelected() {
 		}
 	}
 
-	if err := a.Client.ArchiveMessage(messageID); err != nil {
+	// Archive message using EmailService for undo support
+	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
 		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
 		return
 	}
@@ -132,12 +134,13 @@ func (a *App) trashSelectedByID(messageID string) {
 
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: Extracted subject: %s", subject)
-		a.logger.Printf("HANG DEBUG: About to call Client.TrashMessage")
+		a.logger.Printf("HANG DEBUG: About to call EmailService.TrashMessage")
 	}
-	// Move message to trash
-	err = a.Client.TrashMessage(messageID)
+	// Move message to trash using EmailService for undo support
+	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	err = emailService.TrashMessage(a.ctx, messageID)
 	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: Returned from Client.TrashMessage, err: %v", err)
+		a.logger.Printf("HANG DEBUG: Returned from EmailService.TrashMessage, err: %v", err)
 	}
 	if err != nil {
 		if a.logger != nil {
@@ -246,8 +249,9 @@ func (a *App) trashSelected() {
 		}
 	}
 
-	// Move message to trash
-	err = a.Client.TrashMessage(messageID)
+	// Move message to trash using EmailService for undo support
+	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	err = emailService.TrashMessage(a.ctx, messageID)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
 		return
