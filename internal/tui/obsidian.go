@@ -54,7 +54,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📥 Send to Obsidian ")
-	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
+	container.SetTitleColor(a.getTitleColor())
 
 	// Show the configurable template
 	templateContent := a.getObsidianTemplate()
@@ -76,6 +76,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	commentInput.SetBorder(false)                         // No border for cleaner look
 	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
 	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())  // Component text color
+	commentInput.SetPlaceholderTextColor(a.getHintColor())                         // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -488,7 +489,7 @@ func (a *App) openBulkObsidianPanel() {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
-	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
+	container.SetTitleColor(a.getTitleColor())
 
 	// Show bulk template info
 	templateContent := a.getBulkObsidianTemplate(messageCount)
@@ -510,6 +511,7 @@ func (a *App) openBulkObsidianPanel() {
 	commentInput.SetBorder(false)
 	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
 	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
+	commentInput.SetPlaceholderTextColor(a.getHintColor())                         // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
