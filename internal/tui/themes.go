@@ -33,7 +33,7 @@ func (a *App) openThemePicker() {
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	
-	list := tview.NewList().ShowSecondaryText(true) // Enable secondary text for descriptions
+	list := tview.NewList().ShowSecondaryText(false) // Keep clean list display
 	list.SetBorder(false)
 
 	type themeItem struct {
