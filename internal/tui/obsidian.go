@@ -74,8 +74,8 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	commentInput.SetPlaceholder("Add a personal note about this email...")
 	commentInput.SetFieldWidth(50)
 	commentInput.SetBorder(false)                         // No border for cleaner look
-	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Accent.Color()) // Blue background when focused
-	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())  // Dark green text like in the image
+	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
+	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())  // Component text color
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -508,7 +508,7 @@ func (a *App) openBulkObsidianPanel() {
 	commentInput.SetPlaceholder("Add a note for all emails in this batch...")
 	commentInput.SetFieldWidth(50)
 	commentInput.SetBorder(false)
-	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Accent.Color())
+	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
 	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
 
 	// Instructions

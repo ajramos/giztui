@@ -555,7 +555,7 @@ func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText(" Enter to save  |  Esc to close ")
-	instructions.SetTextColor(a.GetComponentColors("prompts").Accent.Color())
+	instructions.SetTextColor(a.getFooterColor()) // Standardized footer color
 
 	modal.AddItem(title, 3, 0, false)
 	modal.AddItem(resultView, 0, 1, false)

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"gopkg.in/yaml.v3"
@@ -393,6 +394,32 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"toggle-re":    {"read"},
 		"toggle-rea":   {"read"},
 		"toggle-read":  {"read"},
+		"sa":          {"save-query"},
+		"sav":         {"save-query"},
+		"save":        {"save-query"},
+		"save-":       {"save-query"},
+		"save-q":      {"save-query"},
+		"save-qu":     {"save-query"},
+		"save-que":    {"save-query"},
+		"save-quer":   {"save-query"},
+		"save-query":  {"save-query"},
+		"sq":          {"save-query"},
+		"bo":          {"bookmarks"},
+		"boo":         {"bookmarks"},
+		"book":        {"bookmarks"},
+		"bookm":       {"bookmarks"},
+		"bookma":      {"bookmarks"},
+		"bookmar":     {"bookmarks"},
+		"bookmark":    {"bookmark", "bookmarks"},
+		"bookmarks":   {"bookmarks"},
+		"bm":          {"bookmarks"},
+		"que":         {"queries", "query"},
+		"quer":        {"queries", "query"},
+		"queri":       {"queries"},
+		"querie":      {"queries"},
+		"queries":     {"queries"},
+		"query":       {"query"},
+		"qb":          {"bookmarks"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -553,6 +580,12 @@ func (a *App) executeCommand(cmd string) {
 		} else {
 			a.executeThemeCommand(args)
 		}
+	case "save-query", "save", "sq":
+		a.executeSaveQueryCommand(args)
+	case "bookmarks", "queries", "bm", "qb":
+		a.executeBookmarksCommand(args)
+	case "bookmark", "query":
+		a.executeBookmarkCommand(args)
 	default:
 		// Check for numeric shortcuts like :1, :$
 		if matched := a.executeNumericShortcut(command); !matched {
@@ -1759,4 +1792,62 @@ func (a *App) executeThemePreview(themeName string) {
 
 		a.GetErrorHandler().ShowInfo(a.ctx, preview)
 	}()
+}
+
+// executeSaveQueryCommand handles :save-query commands
+func (a *App) executeSaveQueryCommand(args []string) {
+	// Optional: accept name as argument
+	if len(args) > 0 {
+		// Save with provided name
+		name := strings.Join(args, " ")
+		currentQuery := a.getCurrentSearchQuery()
+		if strings.TrimSpace(currentQuery) == "" {
+			a.showError("No current search to save. Perform a search first.")
+			return
+		}
+		
+		// Get query service
+		queryService := a.GetQueryService()
+		if queryService == nil {
+			a.showError("Query service not available")
+			return
+		}
+
+		// Set account email if available
+		if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
+			if email := a.getCurrentEmail(); email != "" {
+				queryServiceImpl.SetAccountEmail(email)
+			}
+		}
+
+		go func() {
+			_, err := queryService.SaveQuery(a.ctx, name, currentQuery, "", "general")
+			if err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save query: %v", err))
+			} else {
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Saved query: %s", name))
+			}
+		}()
+	} else {
+		// Open save dialog
+		a.showSaveCurrentQueryDialog()
+	}
+}
+
+// executeBookmarksCommand handles :bookmarks commands
+func (a *App) executeBookmarksCommand(args []string) {
+	// Use the existing showSavedQueriesPicker method which handles loading and display
+	a.showSavedQueriesPicker()
+}
+
+// executeBookmarkCommand handles :bookmark <name> commands
+func (a *App) executeBookmarkCommand(args []string) {
+	if len(args) == 0 {
+		// If no name provided, open bookmarks picker
+		a.executeBookmarksCommand(args)
+		return
+	}
+
+	name := strings.Join(args, " ")
+	a.executeQueryByName(name)
 }

@@ -194,6 +194,10 @@ type KeyBindings struct {
 	Help          string `json:"help"`           // Toggle help
 	LoadMore      string `json:"load_more"`      // Load next 50 messages
 	ToggleHeaders string `json:"toggle_headers"` // Toggle header visibility
+	
+	// Saved queries
+	SaveQuery     string `json:"save_query"`     // Save current search as query
+	QueryBookmarks string `json:"query_bookmarks"` // Browse saved queries
 
 	// VIM sequence timeouts (in milliseconds)
 	VimNavigationTimeoutMs int `json:"vim_navigation_timeout_ms"` // Timeout for gg navigation (default: 1000ms)
@@ -306,6 +310,10 @@ func DefaultKeyBindings() KeyBindings {
 		Help:          "?",
 		LoadMore:      "N",  // Shift+N for load more (n is used for search next)
 		ToggleHeaders: "h",  // Toggle header visibility
+		
+		// Saved queries
+		SaveQuery:     "Z",  // Save current search as query
+		QueryBookmarks: "Q",  // Browse saved queries
 
 		// VIM sequence timeouts (in milliseconds)
 		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation

@@ -2,11 +2,18 @@
 
 ## 🎯 TODO - Active Roadmap
 - [ ] add a prompt to make an analysis of the inbox itself
+- [ ] screen garbage
+- [ ] Chat with an email
+inconsistencias look and feel the picker (tiene que ser consistente con theme):
+- title de Links
+- dejar un par de espacios al seleccionar el canal de slack
+- pre-message in slack and obsidian have different colors
+- el placeholder color no es consistente en el search simple y en los pre-message
 
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] **Save searches** - Implement bookmark/save functionality for search queries
+- [x] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Undo functionality** - Undo last action
 - [ ] **Message threading** - Show message threads and conversations

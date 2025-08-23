@@ -396,3 +396,34 @@ type DisplayService interface {
 	SetHeaderVisibility(visible bool)
 	IsHeaderVisible() bool
 }
+
+// QueryService handles saved query operations
+type QueryService interface {
+	// Query management
+	SaveQuery(ctx context.Context, name, query, description, category string) (*SavedQueryInfo, error)
+	GetQuery(ctx context.Context, name string) (*SavedQueryInfo, error)
+	GetQueryByID(ctx context.Context, id int64) (*SavedQueryInfo, error)
+	ListQueries(ctx context.Context, category string) ([]*SavedQueryInfo, error)
+	SearchQueries(ctx context.Context, searchTerm string) ([]*SavedQueryInfo, error)
+	DeleteQuery(ctx context.Context, id int64) error
+	DeleteQueryByName(ctx context.Context, name string) error
+	
+	// Query usage tracking
+	RecordQueryUsage(ctx context.Context, id int64) error
+	
+	// Query organization
+	GetCategories(ctx context.Context) ([]string, error)
+	UpdateQueryCategory(ctx context.Context, id int64, category string) error
+}
+
+// SavedQueryInfo represents information about a saved query
+type SavedQueryInfo struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Query       string `json:"query"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	UseCount    int    `json:"use_count"`
+	LastUsed    int64  `json:"last_used"`
+	CreatedAt   int64  `json:"created_at"`
+}

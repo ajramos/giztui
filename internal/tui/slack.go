@@ -164,7 +164,9 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(a.getLabelColor())
+	userMessageInput.SetLabelColor(a.GetComponentColors("slack").Accent.Color())           // Component accent for label
+	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background
+	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())        // Component text color
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
 
@@ -287,7 +289,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	userMessageInput.SetPlaceholder("Add a message that will be included with all forwarded emails...")
 	userMessageInput.SetFieldWidth(50)
 	userMessageInput.SetBorder(false)
-	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Accent.Color())
+	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background (not accent)
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Instructions

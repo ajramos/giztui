@@ -253,6 +253,40 @@ CREATE TABLE IF NOT EXISTS bulk_prompt_results (
 		ver = 5
 	}
 
+	// v6: saved queries table
+	if ver == 5 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS saved_queries (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  query         TEXT NOT NULL,
+  description   TEXT,
+  created_at    INTEGER NOT NULL,
+  last_used     INTEGER NOT NULL,
+  use_count     INTEGER DEFAULT 0,
+  category      TEXT DEFAULT 'general',
+  UNIQUE(account_email, name)
+);`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=6;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v6: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 6
+	}
+
 	return nil
 }
 

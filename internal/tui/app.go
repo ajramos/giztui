@@ -163,6 +163,7 @@ type App struct {
 	contentNavService services.ContentNavigationService
 	themeService      services.ThemeService
 	displayService    services.DisplayService
+	queryService      services.QueryService
 	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler      *ErrorHandler
 }
@@ -435,6 +436,29 @@ func (a *App) reinitializeServices() {
 		// We need to update the bulk prompt service to include the prompt service
 		// This is a bit of a hack, but it's the cleanest way to handle the circular dependency
 		a.bulkPromptService.SetPromptService(a.promptService)
+	}
+
+	// Initialize query service if database store is available
+	if a.dbStore != nil && a.queryService == nil {
+		queryStore := db.NewQueryStore(a.dbStore)
+		a.queryService = services.NewQueryService(queryStore, a.Config)
+		
+		// Set account email if available
+		if queryServiceImpl, ok := a.queryService.(*services.QueryServiceImpl); ok {
+			// Try to get account email, use fallback if not available
+			email := a.getActiveAccountEmail()
+			if email == "" {
+				email = "user@example.com" // Safe fallback
+			}
+			queryServiceImpl.SetAccountEmail(email)
+			if a.logger != nil {
+				a.logger.Printf("reinitializeServices: query service account email set to: %s", email)
+			}
+		}
+		
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: query service initialized: %v", a.queryService != nil)
+		}
 	}
 
 	// Initialize Obsidian service if database store is available
@@ -883,9 +907,19 @@ func (a *App) GetThemeService() services.ThemeService {
 	return a.themeService
 }
 
+// GetQueryService returns the query service instance
+func (a *App) GetQueryService() services.QueryService {
+	return a.queryService
+}
+
 // GetSlackService returns the Slack service instance
 func (a *App) GetSlackService() services.SlackService {
 	return a.slackService
+}
+
+// GetCurrentQuery returns the current search query
+func (a *App) GetCurrentQuery() string {
+	return a.currentQuery
 }
 
 // GetContentNavService returns the content navigation service instance
@@ -1206,6 +1240,8 @@ func (a *App) generateHelpText() string {
 
 	// Additional Features
 	help.WriteString("🔧 ADDITIONAL FEATURES\n\n")
+	help.WriteString(fmt.Sprintf("    %-8s  💾  Save current search as bookmark\n", a.Keys.SaveQuery))
+	help.WriteString(fmt.Sprintf("    %-8s  📚  Browse saved query bookmarks\n", a.Keys.QueryBookmarks))
 	help.WriteString(fmt.Sprintf("    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail))
 	help.WriteString(fmt.Sprintf("    %-8s  💾  Save message content\n", a.Keys.SaveMessage))
 	help.WriteString(fmt.Sprintf("    %-8s  📄  Save raw message\n", a.Keys.SaveRaw))
@@ -1227,6 +1263,9 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    :archive 3    📁  Same as %s3%s (archive next 3)\n", a.Keys.Archive, a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    :trash 7      🗑️   Same as %s7%s (delete next 7)\n", a.Keys.Trash, a.Keys.Trash))
 	help.WriteString("    :search term  🔍  Search for 'term'\n")
+	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
+	help.WriteString("    :bookmarks    📚  Browse saved query bookmarks\n")
+	help.WriteString("    :bookmark name 🔍  Execute saved query by name\n")
 	help.WriteString("    :theme        🎨  Open theme picker\n")
 	help.WriteString("    :headers      📄  Toggle header visibility\n")
 	help.WriteString("    :numbers      🔢  Toggle message numbers\n")
