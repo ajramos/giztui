@@ -463,6 +463,41 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		}
 	}
 
+	// Contextual arguments for 'bookmark' commands - complete query names
+	if strings.HasPrefix(buffer, "bookmark ") || strings.HasPrefix(buffer, "query ") {
+		// Get the partial query name
+		prefix := "bookmark "
+		if strings.HasPrefix(buffer, "query ") {
+			prefix = "query "
+		}
+		
+		partialName := strings.TrimSpace(strings.TrimPrefix(buffer, prefix))
+		
+		// Get query service and list saved queries
+		queryService := a.GetQueryService()
+		if queryService != nil {
+			// Set account email if available
+			if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
+				if email := a.getActiveAccountEmail(); email != "" {
+					queryServiceImpl.SetAccountEmail(email)
+				}
+			}
+			
+			// Get saved queries
+			queries, err := queryService.ListQueries(a.ctx, "")
+			if err == nil && len(queries) > 0 {
+				// Find first query name that starts with the partial name (case-insensitive)
+				partialLower := strings.ToLower(partialName)
+				for _, query := range queries {
+					queryNameLower := strings.ToLower(query.Name)
+					if strings.HasPrefix(queryNameLower, partialLower) {
+						return prefix + query.Name
+					}
+				}
+			}
+		}
+	}
+
 	// Contextual help for G command
 	if strings.HasPrefix(buffer, "G ") {
 		return "G <message_number>"
@@ -1825,7 +1860,7 @@ func (a *App) executeSaveQueryCommand(args []string) {
 			if err != nil {
 				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save query: %v", err))
 			} else {
-				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✅ Saved query: %s", name))
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Saved query: %s", name))
 			}
 		}()
 	} else {

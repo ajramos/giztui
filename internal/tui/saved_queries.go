@@ -407,7 +407,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	}
 
 	// Instructions
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText("Enter to save | Esc to cancel")
 	instructions.SetTextColor(a.getFooterColor())
 
