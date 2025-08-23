@@ -1,22 +1,11 @@
 # TODO List - GizTUI Project
 
-## 🎯 TODO - Active Roadmap
-- [ ] add a prompt to make an analysis of the inbox itself
-- [ ] screen garbage
-- [ ] Chat with an email
-inconsistencias look and feel the picker (tiene que ser consistente con theme):
-- title de Links
-- dejar un par de espacios al seleccionar el canal de slack
-
-### Saved Queries - Future Enhancements
-- [ ] **Query categories and filtering** - Add category-based organization for saved queries
-- [ ] **Edit saved queries functionality** - Allow editing of existing saved query names and content
-- [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
-
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [x] **Save searches** - Implement bookmark/save functionality for search queries
+- [ ] add a prompt to make an analysis of the inbox itself
+- [ ] screen garbage
+- [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Undo functionality** - Undo last action
 - [ ] **Message threading** - Show message threads and conversations
@@ -31,6 +20,11 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 ### Search & Filter Enhancements
 - [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
 - [ ] **Local indexing for fast searches** - Build local search index for performance improvements
+
+### Saved Queries - Future Enhancements
+- [ ] **Query categories and filtering** - Add category-based organization for saved queries
+- [ ] **Edit saved queries functionality** - Allow editing of existing saved query names and content
+- [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
 
 ### Email Management
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
@@ -47,7 +41,6 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - [ ] **List drafts** - Show all draft emails
 
 ### Attachments
-- [x] **Get attachment** - Download email attachments *(Core functionality complete)*
 - [ ] **Advanced attachment search filters** - `type:image`, `type:pdf`, `size:>1mb` filtering
 - [ ] **Bulk attachment operations** - Multi-select and bulk download attachments
 - [ ] **Attachment preview support** - Image thumbnails, text preview, PDF first-page preview
@@ -73,11 +66,8 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - [ ] **Command validation** - Validate commands before execution
 
 ### Interface Improvements
-- [x] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
-- [x] **Progress indicators** - Show loading progress for long operations
 - [ ] **Error handling** - Better error messages and recovery
 - [ ] **Confirmation dialogs** - Confirm destructive actions
-- [x] **Search highlighting** - Highlight search terms in results
 - [ ] **Configuration for labels adding icons** Icons for each Label.
 - [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
 - [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
@@ -104,15 +94,10 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - [ ] **Theme documentation** - Document theme format and options
 
 ### Help System
-- [x] **Review help content** - Check existing help documentation
-- [x] **Keyboard shortcuts** - Document all keyboard shortcuts
-- [x] **Command reference** - Create comprehensive command reference
 - [ ] **Troubleshooting guide** - Add troubleshooting section
 - [ ] **FAQ section** - Create frequently asked questions
 - [ ] **Help navigation** - Implement help navigation within TUI
 - [ ] **Contextual help** - Show context-specific help
-- [x] **Help search** - Add search functionality to help system
-- [x] **Help formatting** - Ensure help text is properly formatted
 - [ ] **Mantain a in-app log system** - A list of performed actions
 
 ### Testing
@@ -256,6 +241,9 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - [x] **Quick navigation** - Jump to specific messages or labels
 - [x] **Bulk operations** - Select multiple messages for bulk actions
 - [x] **Vim-style visual mode** - Added 'v' key as alternative to 'b' for entering bulk mode
+- [x] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
+- [x] **Progress indicators** - Show loading progress for long operations
+- [x] **Search highlighting** - Highlight search terms in results
 
 ### Message Rendering
 - [x] **HTML message processing** - Substituted markdown rendering with improved HTML processing
@@ -276,6 +264,14 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 
 ### Help & Legend System
 - [x] **Legend improvements** - Enhanced help/legend system
+- [x] **Review help content** - Check existing help documentation
+- [x] **Keyboard shortcuts** - Document all keyboard shortcuts
+- [x] **Command reference** - Create comprehensive command reference
+- [x] **Help search** - Add search functionality to help system
+- [x] **Help formatting** - Ensure help text is properly formatted
+
+### Attachments
+- [x] **Get attachment** - Download email attachments *(Core functionality complete)*
 
 ### Infrastructure & Polish
 - [x] **Service Layer Architecture** - Extracted business logic into dedicated services
