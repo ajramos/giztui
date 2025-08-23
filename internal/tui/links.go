@@ -238,7 +238,7 @@ func (a *App) openLinkPicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🔗 Links in Message ")
-			container.SetTitleColor(a.GetComponentColors("links").Title.Color())
+			container.SetTitleColor(a.getTitleColor())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
