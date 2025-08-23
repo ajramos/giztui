@@ -65,6 +65,9 @@ type Config struct {
 
 	// Obsidian integration
 	Obsidian *obsidian.ObsidianConfig `json:"obsidian"`
+
+	// Attachments configuration
+	Attachments AttachmentsConfig `json:"attachments"`
 }
 
 // SlackConfig contains all Slack integration settings
@@ -136,6 +139,18 @@ type LayoutConfig struct {
 type LayoutBreakpoint struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`
+}
+
+// AttachmentsConfig defines attachment handling settings
+type AttachmentsConfig struct {
+	// DownloadPath specifies where to save downloaded attachments
+	DownloadPath string `json:"download_path"`
+	
+	// AutoOpen automatically opens attachments after download
+	AutoOpen bool `json:"auto_open"`
+	
+	// MaxDownloadSize limits the maximum size for automatic downloads (in MB)
+	MaxDownloadSize int64 `json:"max_download_size"`
 }
 
 // KeyBindings defines keyboard shortcuts for the TUI

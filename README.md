@@ -90,6 +90,19 @@ A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses t
 - ✅ **Status bar preview** - See full URLs in status bar while navigating
 - ✅ **Instant feedback** - Live URL display and success messages
 
+### 📎 **Attachment Picker** 🆕
+- ✅ **Smart attachment detection** - Automatically extract attachments from email MIME structure
+- ✅ **Quick access** - Press `A` to open attachment picker or use `:attachments` command
+- ✅ **Cross-platform downloads** - Native file handling on macOS, Linux, Windows
+- ✅ **Advanced search** - Filter attachments by name, type (`type:image`), or size
+- ✅ **Visual categorization** - Icons for different file types (📄 docs, 🖼️ images, 📊 spreadsheets, 📦 archives)
+- ✅ **Keyboard navigation** - Arrow keys to browse, Enter to download, 1-9 for quick access
+- ✅ **Multiple file types** - Support for documents, images, archives, audio, video, and more
+- ✅ **Save controls** - Download to default location or use `Ctrl+S` to save as
+- ✅ **Smart file naming** - Automatic filename conflict resolution with incremental numbering
+- ✅ **Auto-open option** - Configurable automatic opening of downloaded files
+- ✅ **Size-aware display** - Human-readable file sizes (KB, MB, GB) with MIME type info
+
 ### 🌐 **Gmail Web Integration** 🆕
 - ✅ **Open in Gmail** - Press `O` to open current message in Gmail web interface
 - ✅ **Complex message handling** - Perfect for messages better viewed in full Gmail UI
@@ -415,6 +428,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `s` | `:search` | Search messages |
 | `l` | `:labels` or `:l` | Manage labels |
 | `L` | `:links` or `:link` | Open link picker |
+| `A` | `:attachments` or `:attach` | Open attachment picker |
 | `h` | `:headers` or `:toggle-headers` | Toggle header visibility |
 | `space` | N/A | Select/deselect message in bulk mode (configurable via `bulk_select`) |
 | `K` | `:slack` | Forward to Slack |
@@ -606,8 +620,10 @@ Bulk operations allow you to select multiple messages and perform actions on the
 |-----|--------|
 | `O` | Open current message in Gmail web interface |
 | `L` | Open link picker for message links |
+| `A` | Open attachment picker for message attachments |
 | `:gmail`, `:web`, `:open-web`, `:o` | Open current message in Gmail web (command equivalents) |
 | `:links` or `:link` | Open link picker (command equivalent) |
+| `:attachments` or `:attach` | Open attachment picker (command equivalent) |
 
 **Single Email Usage:**
 1. **Select a message** in the message list

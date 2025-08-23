@@ -478,9 +478,11 @@ func (c *Client) GetAttachment(messageID, attachmentID string) ([]byte, string, 
 	if err == nil && msg.Payload != nil {
 		var find func(part *gmail.MessagePart)
 		find = func(part *gmail.MessagePart) {
-			if part.Body != nil && part.Body.AttachmentId == attachmentID && part.Filename != "" {
-				filename = part.Filename
-				return
+			if part.Body != nil && part.Body.AttachmentId == attachmentID {
+				if part.Filename != "" {
+					filename = part.Filename
+					return
+				}
 			}
 			for _, p := range part.Parts {
 				find(p)

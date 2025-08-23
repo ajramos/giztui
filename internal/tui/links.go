@@ -19,7 +19,7 @@ func (a *App) openLinkPicker() {
 	}
 
 	// Get link service
-	_, _, _, _, _, _, _, linkService, _, _ := a.GetServices()
+	_, _, _, _, _, _, _, linkService, _, _, _ := a.GetServices()
 	if linkService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Link service not available")
 		return
@@ -358,7 +358,7 @@ func (a *App) closeLinkPicker() {
 // openSelectedLink opens a link using the link service
 func (a *App) openSelectedLink(url, text string) {
 	// Get link service
-	_, _, _, _, _, _, _, linkService, _, _ := a.GetServices()
+	_, _, _, _, _, _, _, linkService, _, _, _ := a.GetServices()
 	if linkService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Link service not available")
 		return

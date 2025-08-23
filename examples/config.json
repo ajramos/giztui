@@ -140,5 +140,10 @@
     "max_file_size": 1048576,
     "include_attachments": true,
     "template": "---\ntitle: \"{{subject}}\"\ndate: {{date}}\nfrom: {{from}}\ntype: email\nstatus: inbox\nlabels: {{labels}}\nmessage_id: {{message_id}}\n---\n\n# {{subject}}\n\n**From:** {{from}}  \n**Date:** {{date}}  \n**Labels:** {{labels}}\n\n---\n\n{{body}}\n\n---\n\n*Ingested from Gmail on {{ingest_date}}*"
+  },
+  "attachments": {
+    "download_path": "~/Downloads/gmail-attachments",
+    "auto_open": true,
+    "max_download_size": 52428800
   }
 }

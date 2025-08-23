@@ -301,6 +301,27 @@ type LinkInfo struct {
 	Type  string `json:"type"`  // "html" or "plain" or "email" or "file"
 }
 
+// AttachmentService handles attachment extraction and download operations
+type AttachmentService interface {
+	GetMessageAttachments(ctx context.Context, messageID string) ([]AttachmentInfo, error)
+	DownloadAttachment(ctx context.Context, messageID, attachmentID, savePath string) (string, error)
+	DownloadAttachmentWithFilename(ctx context.Context, messageID, attachmentID, savePath, suggestedFilename string) (string, error)
+	OpenAttachment(ctx context.Context, filePath string) error
+	GetDefaultDownloadPath() string
+}
+
+// AttachmentInfo represents an attachment found in an email message
+type AttachmentInfo struct {
+	Index        int    `json:"index"`         // Reference number [1], [2], etc.
+	AttachmentID string `json:"attachment_id"` // Gmail attachment ID
+	Filename     string `json:"filename"`      // Original filename
+	MimeType     string `json:"mime_type"`     // MIME type (application/pdf, image/png, etc.)
+	Size         int64  `json:"size"`          // Size in bytes
+	Type         string `json:"type"`          // Category: "document", "image", "archive", "spreadsheet", etc.
+	Inline       bool   `json:"inline"`        // Whether it's an inline image/attachment
+	ContentID    string `json:"content_id"`    // Content-ID for inline attachments
+}
+
 // GmailWebService handles opening Gmail messages in web interface
 type GmailWebService interface {
 	OpenMessageInWeb(ctx context.Context, messageID string) error

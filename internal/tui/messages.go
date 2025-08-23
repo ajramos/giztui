@@ -3267,8 +3267,10 @@ func (a *App) trashSelectedBulk() {
 // replySelected replies to the selected message (placeholder)
 func (a *App) replySelected() { a.showInfo("Reply functionality not yet implemented") }
 
-// showAttachments shows attachments (placeholder)
-func (a *App) showAttachments() { a.showInfo("Attachments functionality not yet implemented") }
+// showAttachments opens the attachment picker for the current message
+func (a *App) showAttachments() { 
+	go a.openAttachmentPicker() 
+}
 
 // toggleMarkReadUnread toggles UNREAD label on selected message
 func (a *App) toggleMarkReadUnread() {
@@ -3372,7 +3374,7 @@ func (a *App) calculateHeaderHeight(headerContent string) int {
 // toggleHeaderVisibility toggles the visibility of email headers and refreshes the current message display
 func (a *App) toggleHeaderVisibility() {
 	// Get DisplayService
-	_, _, _, _, _, _, _, _, _, displayService := a.GetServices()
+	_, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
 	if displayService == nil {
 		if a.logger != nil {
 			a.logger.Printf("toggleHeaderVisibility: displayService is nil")

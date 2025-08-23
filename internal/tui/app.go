@@ -158,6 +158,7 @@ type App struct {
 	slackService      services.SlackService
 	obsidianService   services.ObsidianService
 	linkService       services.LinkService
+	attachmentService services.AttachmentService
 	gmailWebService   services.GmailWebService
 	contentNavService services.ContentNavigationService
 	themeService      services.ThemeService
@@ -521,6 +522,12 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: link service initialized: %v", a.linkService != nil)
 	}
 
+	// Initialize attachment service
+	a.attachmentService = services.NewAttachmentService(a.Client, a.Config)
+	if a.logger != nil {
+		a.logger.Printf("initServices: attachment service initialized: %v", a.attachmentService != nil)
+	}
+
 	// Initialize Gmail web service
 	a.gmailWebService = services.NewGmailWebService(a.linkService)
 	if a.logger != nil {
@@ -867,8 +874,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.DisplayService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.displayService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
 }
 
 // GetThemeService returns the theme service instance
@@ -1125,7 +1132,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Load next 50 messages\n", a.Keys.LoadMore))
 	help.WriteString(fmt.Sprintf("    %-8s  🔴  Show unread messages\n", a.Keys.Unread))
 	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n", a.Keys.Drafts))
-	help.WriteString(fmt.Sprintf("    %-8s  📎  Show attachments\n", a.Keys.Attachments))
+	help.WriteString(fmt.Sprintf("    %-8s  📎  Attachment picker (view/download message attachments)\n", a.Keys.Attachments))
 	help.WriteString(fmt.Sprintf("    %-8s  📫  Quick search: from current sender\n", a.Keys.SearchFrom))
 	help.WriteString(fmt.Sprintf("    %-8s  📤  Quick search: to current sender (includes Sent)\n", a.Keys.SearchTo))
 	help.WriteString(fmt.Sprintf("    %-8s  🧵  Quick search: by current subject\n", a.Keys.SearchSubject))

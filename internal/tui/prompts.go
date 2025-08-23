@@ -31,7 +31,7 @@ func (a *App) openPromptPicker() {
 	}
 
 	// Get prompt service
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("openPromptPicker: prompt service is nil")
@@ -262,7 +262,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	})
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		if a.logger != nil {
 			a.logger.Printf("applyPromptToMessage: prompt service not available")
@@ -542,7 +542,7 @@ func (a *App) extractHeader(message *gmail.Message, headerName string) string {
 // openPromptPickerForManagement opens an enhanced prompt picker for management operations
 func (a *App) openPromptPickerForManagement() {
 	// Get prompt service
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available - check LLM and cache configuration")
 		return
@@ -764,7 +764,7 @@ func (a *App) closePromptManager() {
 // showPromptDetails displays the full prompt in the text view
 func (a *App) showPromptDetails(promptID int, promptName string) {
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
@@ -842,7 +842,7 @@ func (a *App) promptForExportPath(promptID int, promptName string) {
 	defaultPath := fmt.Sprintf("~/prompt_%s.md", strings.ReplaceAll(strings.ToLower(promptName), " ", "_"))
 	
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
@@ -861,7 +861,7 @@ func (a *App) promptForExportPath(promptID int, promptName string) {
 // confirmDeletePrompt asks for confirmation before deleting a prompt
 func (a *App) confirmDeletePrompt(promptID int, promptName string) {
 	// For now, delete directly - in a real implementation you might want a confirmation dialog
-	_, _, _, _, _, promptService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
