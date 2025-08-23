@@ -6,9 +6,6 @@
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] **Get attachment** - Download email attachments
-- [ ] **Bulk save attachments** - Save multiple attachments at once
-- [ ] **List attachments** - Show attachments for specific emails
 - [ ] **Save searches** - Implement bookmark/save functionality for search queries
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Undo functionality** - Undo last action
@@ -40,6 +37,14 @@
 - [ ] **List drafts** - Show all draft emails
 
 ### Attachments
+- [x] **Get attachment** - Download email attachments *(Core functionality complete)*
+- [ ] **Advanced attachment search filters** - `type:image`, `type:pdf`, `size:>1mb` filtering
+- [ ] **Bulk attachment operations** - Multi-select and bulk download attachments
+- [ ] **Attachment preview support** - Image thumbnails, text preview, PDF first-page preview
+- [ ] **Obsidian attachment integration** - Send attachments to Obsidian with note creation
+- [ ] **Slack attachment integration** - Send attachments to Slack with message creation
+- [ ] **Enhanced attachment metadata** - Creation dates, detailed MIME info, compression ratios
+- [ ] **Download queue management** - Progress bars, pause/resume, background downloads
 
 ### Calendar Integration
 - [ ] **List calendars** - Show all available calendars
