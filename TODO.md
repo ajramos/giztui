@@ -7,8 +7,11 @@
 inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - title de Links
 - dejar un par de espacios al seleccionar el canal de slack
-- pre-message in slack and obsidian have different colors
-- el placeholder color no es consistente en el search simple y en los pre-message
+
+### Saved Queries - Future Enhancements
+- [ ] **Query categories and filtering** - Add category-based organization for saved queries
+- [ ] **Edit saved queries functionality** - Allow editing of existing saved query names and content
+- [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
 
 ## 📋 PENDING - What's Left to Do
 
@@ -199,6 +202,7 @@ inconsistencias look and feel the picker (tiene que ser consistente con theme):
 - [x] **Slack command focus fix** - Fixed focus management when using :slack command
 - [x] **UI for creating new prompt templates** - Built interface for template creation
 - [x] **Bulk select s2s configuration** - Made bulk select operations configurable
+- [x] **Save searches functionality** - Complete saved queries/bookmarks system with UI patterns, keyboard shortcuts, commands, and database persistence
 
 ### Email Management
 - [x] **Query emails** - Search and query emails with Gmail search syntax
