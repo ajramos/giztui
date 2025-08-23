@@ -45,11 +45,15 @@ func (a *App) executeLabelAdd(args []string) {
 				return
 			}
 		}
-		if err := a.Client.ApplyLabel(messageID, label.Id); err != nil {
+		// Use LabelService for undo support
+		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		if err := labelService.ApplyLabel(a.ctx, messageID, label.Id); err != nil {
 			a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
 			return
 		}
-		a.showStatusMessage(fmt.Sprintf("🏷️  Applied label: %s", labelName))
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied label: %s", labelName))
+		}()
 	}()
 }
 
@@ -82,13 +86,16 @@ func (a *App) executeLabelRemove(args []string) {
 			a.showError(fmt.Sprintf("❌ Label not found: %s", labelName))
 			return
 		}
-		if err := a.Client.RemoveLabel(messageID, labelID); err != nil {
+		// Use LabelService for undo support
+		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		if err := labelService.RemoveLabel(a.ctx, messageID, labelID); err != nil {
 			a.showError(fmt.Sprintf("❌ Error removing label: %v", err))
 			return
 		}
 		a.showStatusMessage(fmt.Sprintf("🏷️  Removed label: %s", labelName))
 	}()
 }
+
 
 // manageLabels opens the labels management view for the currently selected message
 func (a *App) manageLabels() {
@@ -559,7 +566,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					failed := 0
 
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
-					// Get services for undo support
+					// Get services for undo support (keep individual operations for now)
 					emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 					for _, mid := range idsToMove {
 						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
@@ -742,7 +749,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								failed := 0
 
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
-								// Get services for undo support
+								// Get services for undo support (keep individual operations for now)
 								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 								for _, mid := range idsToMove {
 									if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
@@ -1332,7 +1339,9 @@ func (a *App) addCustomLabelInline(messageID string) {
 				if a.logger != nil {
 					a.logger.Printf("addCustomLabelInline: ApplyLabel mid=%s id=%s", messageID, id)
 				}
-				if err := a.Client.ApplyLabel(messageID, id); err != nil {
+				// Use LabelService for undo support
+				_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+				if err := labelService.ApplyLabel(a.ctx, messageID, id); err != nil {
 					if a.logger != nil {
 						a.logger.Printf("addCustomLabelInline: ApplyLabel error: %v", err)
 					}
@@ -1391,22 +1400,29 @@ func (a *App) addCustomLabelInline(messageID string) {
 // toggleLabelForMessage toggles a label asynchronously and invokes onDone when finished
 func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurrentlyApplied bool, onDone func(newApplied bool, err error)) {
 	go func() {
+		// Use LabelService for undo support
+		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		
 		if isCurrentlyApplied {
-			if err := a.Client.RemoveLabel(messageID, labelID); err != nil {
+			if err := labelService.RemoveLabel(a.ctx, messageID, labelID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error removing label %s: %v", labelName, err))
 				onDone(isCurrentlyApplied, err)
 				return
 			}
-			a.showStatusMessage(fmt.Sprintf("🏷️  Removed label: %s", labelName))
+			go func() {
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Removed label: %s", labelName))
+			}()
 			onDone(false, nil)
 			return
 		}
-		if err := a.Client.ApplyLabel(messageID, labelID); err != nil {
+		if err := labelService.ApplyLabel(a.ctx, messageID, labelID); err != nil {
 			a.showError(fmt.Sprintf("❌ Error applying label %s: %v", labelName, err))
 			onDone(isCurrentlyApplied, err)
 			return
 		}
-		a.showStatusMessage(fmt.Sprintf("🏷️  Applied label: %s", labelName))
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied label: %s", labelName))
+		}()
 		onDone(true, nil)
 	}()
 }
@@ -1725,22 +1741,28 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					}
 				}
 				if !has {
-					// Apply label using LabelService for undo support
-					_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
-					if err := labelService.ApplyLabel(a.ctx, message.Id, labelID); err != nil {
-						a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
-						return
-					}
-					// Update cache
+					// Update cache for immediate UI feedback
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
-				// Archive using EmailService for undo support
+				
+				// Apply label and archive using services for undo support (revert to simple approach)
+				_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+				if !has {
+					if err := labelService.ApplyLabel(a.ctx, message.Id, labelID); err != nil {
+						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error applying label: %v", err))
+						return
+					}
+					a.updateCachedMessageLabels(message.Id, labelID, true)
+				}
 				emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 				if err := emailService.ArchiveMessage(a.ctx, message.Id); err != nil {
-					a.showError(fmt.Sprintf("❌ Error archiving: %v", err))
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving: %v", err))
 					return
 				}
-				a.showStatusMessage(fmt.Sprintf("📦 Moved to: %s", labelName))
+				
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📦 Moved to: %s", labelName))
+				}()
 
 				// Remove from current list (safe removal pattern) since we show INBOX only
 				a.QueueUpdateDraw(func() {
@@ -1924,7 +1946,9 @@ func (a *App) showAllLabelsPicker(messageID string) {
 		list.AddItem(display, "", 0, func() {
 			if id, ok := nameToID[lbl]; ok {
 				a.applyLabelAndRefresh(messageID, id, lbl)
-				a.showStatusMessage("✅ Applied: " + lbl)
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: " + lbl)
+				}()
 				a.Pages.SwitchToPage("main")
 				a.restoreFocusAfterModal()
 			}
@@ -2028,11 +2052,13 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 				a.logger.Printf("applyLabelToBulkSelection: processing message %d/%d, messageID=%s", i+1, len(messageIDs), messageID)
 			}
 
+			// Use LabelService for undo support
+			_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 			var err error
 			if action == "add" {
-				err = a.Client.ApplyLabel(messageID, labelID)
+				err = labelService.ApplyLabel(a.ctx, messageID, labelID)
 			} else {
-				err = a.Client.RemoveLabel(messageID, labelID)
+				err = labelService.RemoveLabel(a.ctx, messageID, labelID)
 			}
 
 			if err != nil {

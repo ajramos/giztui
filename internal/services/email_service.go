@@ -35,6 +35,41 @@ func (s *EmailServiceImpl) SetUndoService(undoService UndoService) {
 	s.undoService = undoService
 }
 
+// ArchiveMessageAsMove archives a message and records it as a move operation for undo
+func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, labelID, labelName string) error {
+	if messageID == "" {
+		return fmt.Errorf("messageID cannot be empty")
+	}
+
+	// Record move undo action before performing the operation
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionMove,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: fmt.Sprintf("Moved to %s", labelName),
+					IsBulk:      false,
+					ExtraData: map[string]interface{}{
+						"applied_labels": []string{labelID},
+						"label_name":     labelName,
+					},
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
+	// Perform the archive operation
+	updates := MessageUpdates{
+		RemoveLabels: []string{"INBOX"},
+	}
+
+	return s.repo.UpdateMessage(ctx, messageID, updates)
+}
+
 func (s *EmailServiceImpl) MarkAsRead(ctx context.Context, messageID string) error {
 	if messageID == "" {
 		return fmt.Errorf("messageID cannot be empty")
@@ -110,7 +145,7 @@ func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string)
 					Type:        UndoActionArchive,
 					MessageIDs:  []string{messageID},
 					PrevState:   map[string]ActionState{messageID: prevState},
-					Description: "Archive message",
+					Description: "Archive message", 
 					IsBulk:      false,
 				}
 				s.undoService.RecordAction(ctx, action)

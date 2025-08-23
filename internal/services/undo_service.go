@@ -123,6 +123,15 @@ func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, erro
 			result.Errors = append(result.Errors, err.Error())
 		}
 
+	case UndoActionMove:
+		// For now, just treat as archive undo to avoid hanging issues
+		result.Description = s.formatUndoDescription("Undid move", action)
+		err := s.undoArchive(ctx, action)
+		if err != nil {
+			result.Success = false
+			result.Errors = append(result.Errors, err.Error())
+		}
+
 	default:
 		result.Success = false
 		result.Errors = append(result.Errors, fmt.Sprintf("Unknown action type: %s", action.Type))
@@ -259,6 +268,31 @@ func (s *UndoServiceImpl) undoLabelRemove(ctx context.Context, action *UndoableA
 			for _, labelID := range labelsToAdd {
 				if err := s.labelService.ApplyLabel(ctx, messageID, labelID); err != nil {
 					return fmt.Errorf("failed to re-add label %s to message %s: %v", labelID, messageID, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) error {
+	// Move operation consists of: apply label + archive
+	// To undo: restore from archive (add INBOX) + remove applied label
+	for _, messageID := range action.MessageIDs {
+		// First, restore from archive (add INBOX label)
+		updates := MessageUpdates{
+			AddLabels: []string{"INBOX"},
+		}
+
+		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+			return fmt.Errorf("failed to unarchive moved message %s: %v", messageID, err)
+		}
+
+		// Then, remove the applied label
+		if appliedLabels, exists := action.ExtraData["applied_labels"].([]string); exists {
+			for _, labelID := range appliedLabels {
+				if err := s.labelService.RemoveLabel(ctx, messageID, labelID); err != nil {
+					return fmt.Errorf("failed to remove applied label %s from message %s: %v", labelID, messageID, err)
 				}
 			}
 		}

@@ -24,6 +24,7 @@ type EmailService interface {
 	MarkAsRead(ctx context.Context, messageID string) error
 	MarkAsUnread(ctx context.Context, messageID string) error
 	ArchiveMessage(ctx context.Context, messageID string) error
+	ArchiveMessageAsMove(ctx context.Context, messageID, labelID, labelName string) error
 	TrashMessage(ctx context.Context, messageID string) error
 	SendMessage(ctx context.Context, from, to, subject, body string) error
 	ReplyToMessage(ctx context.Context, originalID, replyBody string, send bool, cc []string) error
@@ -458,6 +459,7 @@ const (
 	UndoActionMarkUnread  UndoActionType = "mark_unread"
 	UndoActionLabelAdd    UndoActionType = "label_add"
 	UndoActionLabelRemove UndoActionType = "label_remove"
+	UndoActionMove        UndoActionType = "move"
 )
 
 // ActionState represents the previous state of a message for undo operations

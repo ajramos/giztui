@@ -962,11 +962,18 @@ func (a *App) performUndo() {
 
 	// Provide user feedback and handle UI updates
 	if result.Success {
-		// Show success message
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🔄 Undone: %s", result.Description))
+		// Show success message with refresh guidance
+		message := a.getUndoStatusMessage(result)
+		// Add label removal hint for archive undos (which might be move operations)
+		if strings.Contains(result.Description, "Archive") {
+			message += " (Note: Labels remain - remove manually if needed)"
+		}
+		go func() {
+			a.GetErrorHandler().ShowSuccess(a.ctx, message)
+		}()
 		
-		// Smart UI update: restore messages to current view if appropriate
-		a.handleUndoUIRestore(result)
+		// Smart reload: only when necessary to show restored messages
+		a.smartUndoReload(result)
 	} else {
 		// Show clear error - operation failed completely
 		if len(result.Errors) > 0 {
@@ -978,7 +985,71 @@ func (a *App) performUndo() {
 	}
 }
 
-// handleUndoUIRestore handles smart UI restoration after undo operations
+// getUndoStatusMessage returns appropriate status message with refresh hints
+func (a *App) getUndoStatusMessage(result *services.UndoResult) string {
+	baseMessage := fmt.Sprintf("Undone: %s", result.Description)
+	
+	// Add refresh guidance based on operation type and current view
+	if strings.Contains(result.Description, "Unarchived") && a.currentView == "INBOX" {
+		return baseMessage // Auto-refreshes, no hint needed
+	} else if strings.Contains(result.Description, "Restored from trash") && a.currentView == "INBOX" {
+		return baseMessage // Auto-refreshes, no hint needed
+	} else if strings.Contains(result.Description, "Unarchived") || strings.Contains(result.Description, "Restored from trash") {
+		return baseMessage + " (Press R to refresh if not visible)"
+	} else if strings.Contains(result.Description, "label") {
+		return baseMessage // UI updates immediately, no refresh needed
+	} else if strings.Contains(result.Description, "marked as") {
+		return baseMessage // UI updates immediately, no refresh needed  
+	} else {
+		return baseMessage + " (Press R to refresh)"
+	}
+}
+
+// smartUndoReload only reloads when necessary to show restored messages
+func (a *App) smartUndoReload(result *services.UndoResult) {
+	if result == nil {
+		return
+	}
+
+	// Determine if we need to reload based on operation type and current view
+	needsReload := false
+	
+	if strings.Contains(result.Description, "Unarchived") && a.currentView == "INBOX" {
+		// Unarchived messages need to show in inbox - reload needed
+		needsReload = true
+	} else if strings.Contains(result.Description, "Restored from trash") && a.currentView == "INBOX" {
+		// Restored from trash messages need to show in inbox - reload needed  
+		needsReload = true
+	} else if strings.Contains(result.Description, "marked as unread") || strings.Contains(result.Description, "marked as read") {
+		// Read state changes - just refresh UI formatting
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+		})
+		return
+	} else if strings.Contains(result.Description, "label") {
+		// Label changes - refresh UI and labels
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+			if a.labelsExpanded {
+				currentMsg := a.GetCurrentMessageID()
+				if currentMsg != "" {
+					a.expandLabelsBrowse(currentMsg)
+				}
+			}
+		})
+		return
+	}
+
+	if needsReload {
+		go func() {
+			// Small delay to let success message show first
+			time.Sleep(200 * time.Millisecond)
+			a.reloadMessages()
+		}()
+	}
+}
+
+// handleUndoUIRestore handles smart UI restoration after undo operations (legacy function)
 func (a *App) handleUndoUIRestore(result *services.UndoResult) {
 	// For bulk operations, safer to reload
 	if result.MessageCount > 3 {

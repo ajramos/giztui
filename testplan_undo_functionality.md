@@ -24,7 +24,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 6. Verify success message shows "✅ Unarchived message"
 
 **Expected Result**: Message returns to inbox, undo succeeds
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+it undoes well but the system reloads the messages from the server, the message should appear back without reloading from the server.
 
 #### **Test Case: Trash Undo**
 **Objective**: Verify that trashing a message can be undone
@@ -36,7 +39,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify message is restored to original location
 
 **Expected Result**: Message restored from trash with all original labels
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+same as previous
 
 #### **Test Case: Mark Read Undo**
 **Objective**: Verify that marking a message as read can be undone
@@ -48,7 +54,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify message is back to unread state
 
 **Expected Result**: Message returns to unread state
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+does not work, it says no action to undo, but since i have a toggle function i wouldnt implement the undo for this non destructive actions.
 
 #### **Test Case: Mark Unread Undo**
 **Objective**: Verify that marking a message as unread can be undone
@@ -60,7 +69,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify message is back to read state
 
 **Expected Result**: Message returns to read state
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+does not work, it says no action to undo, but since i have a toggle function i wouldnt implement the undo for this non destructive actions.->
 
 ### **2. Command Parity**
 
@@ -75,7 +87,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 6. Verify both methods produce identical results
 
 **Expected Result**: Both `:undo` and `U` work identically
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+it undoes well but the system reloads the messages from the server, the message should appear back without reloading from the server.
 
 #### **Test Case: Command Autocompletion**
 **Objective**: Verify that undo command has proper autocompletion
@@ -86,7 +101,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 4. Type `:U` and verify it suggests "undo"
 
 **Expected Result**: Autocompletion works for "un", "und", "undo", "U"
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+no comments
 
 ### **3. Edge Cases and Error Handling**
 
@@ -100,7 +118,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify same behavior
 
 **Expected Result**: Shows "No action to undo" message
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+however, it says no actio to undo, is the spelling correct??? 
 
 #### **Test Case: Undo After Successful Undo**
 **Objective**: Verify that undo history is cleared after successful undo
@@ -111,7 +132,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 4. Verify "No action to undo" message
 
 **Expected Result**: Second undo shows no action available (single-level undo)
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+no comments
 
 #### **Test Case: Message State Changed Externally**
 **Objective**: Test undo behavior when message state changed outside TUI
@@ -122,7 +146,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 4. Verify appropriate error handling
 
 **Expected Result**: Graceful error handling with informative message
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [fail]
+
+**Comentarios**:
+if i delete from the web ui, then i try to delete from TUI, it works, but when I press U to undo it says the UNDO was correct however the message never comes back after refresh
 
 #### **Test Case: Network Failure During Undo**
 **Objective**: Test undo behavior during network issues
@@ -136,6 +163,9 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 **Expected Result**: Error message shown, retry works after reconnection
 **Status**: [PASS/FAIL/BLOCKED]
 
+**Comentarios**:
+didnt try
+
 ### **4. Label Operations**
 
 #### **Test Case: Label Addition Undo**
@@ -148,7 +178,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify label is removed
 
 **Expected Result**: Added label is removed from message
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+It doesnt work, it says no action to undo
 
 #### **Test Case: Label Removal Undo**
 **Objective**: Verify that removing labels can be undone
@@ -160,7 +193,59 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify label is re-added
 
 **Expected Result**: Removed label is restored to message
+**Status**: [FAIL]
+
+**Comentarios**:
+same as previous 
+
+#### **Test Case: Move Operation Undo**
+**Objective**: Verify that move operations (apply label + archive) can be undone
+**Steps**:
+1. Select a message in inbox
+2. Press move key (default: `m`)
+3. Select a destination label (e.g., "Work")
+4. Verify message is moved (labeled + archived)
+5. Press `U` to undo
+6. Verify message is restored to inbox without the applied label
+
+**Expected Result**: Message restored to inbox, applied label removed
 **Status**: [PASS/FAIL/BLOCKED]
+
+**Comentarios**:
+<!-- Add test results here -->
+
+#### **Test Case: Bulk Move Operation Undo**
+**Objective**: Verify that bulk move operations can be undone
+**Steps**:
+1. Enter bulk mode (default: `v`)
+2. Select multiple messages (3-5 messages)
+3. Press move key to open bulk move panel
+4. Select a destination label
+5. Verify all messages are moved (labeled + archived)
+6. Press `U` to undo
+7. Verify all messages restored to inbox without applied labels
+
+**Expected Result**: All moved messages restored to original state
+**Status**: [PASS/FAIL/BLOCKED]
+
+**Comentarios**:
+<!-- Add test results here -->
+
+#### **Test Case: VIM Range Move Undo (m3m)**
+**Objective**: Verify that VIM range move operations can be undone
+**Steps**:
+1. Position cursor on first message to move
+2. Press `m3m` (move 3 messages)
+3. Select destination label
+4. Verify 3 messages are moved
+5. Press `U` to undo
+6. Verify all 3 messages restored to inbox
+
+**Expected Result**: All 3 messages restored from single undo action
+**Status**: [PASS/FAIL/BLOCKED]
+
+**Comentarios**:
+<!-- Add test results here -->
 
 ### **5. Bulk Operations**
 
@@ -174,7 +259,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify all messages are restored to inbox
 
 **Expected Result**: All bulk-archived messages restored
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+It shows a message saying the undo was succesful but i cannot see the messages back in the list until i refresh manually from the server. By the way there is a small cosmetic issue, of emoji duplication, on undoing success it says "✅ 🔄 Undone: Unarchived 2 messages" you dont need the second emoji.
 
 #### **Test Case: Bulk Trash Undo**  
 **Objective**: Verify that bulk trash operations can be undone
@@ -186,7 +274,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify all messages are restored from trash
 
 **Expected Result**: All bulk-trashed messages restored with original labels
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+same as previous
 
 ### **6. UI and Help Integration**
 
@@ -200,7 +291,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Verify help text is accurate and clear
 
 **Expected Result**: Undo functionality properly documented and searchable
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+no comments
 
 #### **Test Case: Status Message Integration**
 **Objective**: Verify undo operations show appropriate status messages
@@ -212,7 +306,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Test with trash, read/unread operations
 
 **Expected Result**: Clear, helpful status messages for all operations
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [FAIL]
+
+**Comentarios**:
+messages are similar but on the archival it doesnt mention the undo
 
 ### **7. Performance and Threading**
 
@@ -226,7 +323,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 5. Test during high message load scenarios
 
 **Expected Result**: UI remains responsive, no race conditions
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+
 
 #### **Test Case: Concurrent Operations**
 **Objective**: Test undo with concurrent UI operations
@@ -237,7 +337,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 4. Test with searches, refreshes during undo
 
 **Expected Result**: Undo works correctly with concurrent operations
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+
 
 ### **8. Configuration and Customization**
 
@@ -252,7 +355,10 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 6. Verify help shows correct custom key
 
 **Expected Result**: Custom key binding works, help updated accordingly
-**Status**: [PASS/FAIL/BLOCKED]
+**Status**: [PASS]
+
+**Comentarios**:
+<!-- Añade aquí tus comentarios, observaciones o problemas encontrados -->
 
 ### **9. Integration Tests**
 
@@ -268,6 +374,9 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 **Expected Result**: Only last action (archive) is undone
 **Status**: [PASS/FAIL/BLOCKED]
 
+**Comentarios**:
+<!-- Añade aquí tus comentarios, observaciones o problemas encontrados -->
+
 #### **Test Case: Refresh After Undo**
 **Objective**: Verify message list updates correctly after undo
 **Steps**:
@@ -279,6 +388,9 @@ Testing the comprehensive undo functionality that allows users to reverse email 
 
 **Expected Result**: Message list and states remain consistent after refresh
 **Status**: [PASS/FAIL/BLOCKED]
+
+**Comentarios**:
+<!-- Añade aquí tus comentarios, observaciones o problemas encontrados -->
 
 ## 🔧 **Setup Instructions**
 1. Ensure test Gmail account has at least 10 messages in various states

@@ -73,10 +73,12 @@ func (a *App) archiveSelected() {
 	// Archive message using EmailService for undo support
 	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
-		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving message: %v", err))
 		return
 	}
-	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📥 Archived: %s", subject))
+	}()
 
 	// Safe UI removal (preselect another index before removing)
 	a.QueueUpdateDraw(func() { a.safeRemoveCurrentSelection(messageID) })
@@ -158,7 +160,9 @@ func (a *App) trashSelectedByID(messageID string) {
 	}
 
 	// Show success message
-	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🗑️ Moved to trash: %s", subject))
+	}()
 
 	if a.logger != nil {
 		a.logger.Printf("HANG DEBUG: Returned from showStatusMessage, about to call QueueUpdateDraw")
@@ -258,7 +262,9 @@ func (a *App) trashSelected() {
 	}
 
 	// Show success message
-	a.showStatusMessage(fmt.Sprintf("🗑️  Moved to trash: %s", subject))
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🗑️ Moved to trash: %s", subject))
+	}()
 
 	// Remove the message from the list and adjust selection (UI thread)
 	if selectedIndex >= 0 && selectedIndex < len(a.ids) {

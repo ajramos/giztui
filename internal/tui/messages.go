@@ -3168,7 +3168,9 @@ func (a *App) archiveSelected() {
 		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
 		return
 	}
-	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📥 Archived: %s", subject))
+	}()
 
     // Safe UI removal (preselect another index before removing)
     a.QueueUpdateDraw(func() {
@@ -3213,9 +3215,13 @@ func (a *App) archiveSelectedBulk() {
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {
-				a.showStatusMessage("✅ Archived")
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Archived")
+				}()
 			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Archived with %d failure(s)", failed))
+				go func() {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived with %d failure(s)", failed))
+				}()
 			}
 		})
 	}()
@@ -3255,9 +3261,13 @@ func (a *App) trashSelectedBulk() {
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {
-				a.showStatusMessage("✅ Trashed")
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Trashed")
+				}()
 			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
+				go func() {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Trashed with %d failure(s)", failed))
+				}()
 			}
 		})
 	}()

@@ -7,7 +7,11 @@
 - [ ] screen garbage
 - [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
-- [ ] **Undo functionality** - Undo last action
+- [x] **Undo functionality** - Undo last action ✅ **COMPLETED** 
+  - ⚠️ **Known limitation**: Move undo only restores to inbox, doesn't remove applied label
+  - **Workaround**: Manually remove labels using label manager (`l` key) after move undo
+  - **Root cause**: Move = LabelService.ApplyLabel + EmailService.ArchiveMessage, but only last action recorded for undo
+  - **Status**: Complex architectural fix would risk application stability
 - [ ] **Message threading** - Show message threads and conversations
 - [ ] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues

@@ -153,4 +153,64 @@ Consider revisiting when:
 
 ---
 
+## ⚠️ Undo Functionality Limitations
+
+### Issue Description
+**Type**: Functional Limitation  
+**Severity**: Medium  
+**Status**: Documented Limitation  
+**Date Identified**: August 23, 2025  
+
+The undo functionality has two known limitations affecting label-related operations:
+
+#### 1. Move Operation Undo Limitation
+**Problem**: Move operation undo only restores message to inbox, does not remove the applied label.
+
+**Example Flow**:
+1. Move message to "Work" label (applies "Work" label + archives message)
+2. Press `U` to undo
+3. ✅ Message returns to inbox 
+4. ❌ "Work" label remains on the message
+
+**Root Cause**: Move operations consist of two separate service calls:
+- `LabelService.ApplyLabel()` records `UndoActionLabelAdd`  
+- `EmailService.ArchiveMessage()` records `UndoActionArchive` (overwrites the first)
+- Only the archive action gets recorded for undo
+
+#### 2. Label Operations Undo Silent Failure  
+**Problem**: Adding or removing labels individually appears to record undo actions but undo fails silently with no feedback.
+
+**Example Flow**:
+1. Select message and press `l` to open label manager
+2. Add or remove a label
+3. Press `U` to undo
+4. ❌ Nothing happens - no message, no undo, silent failure
+
+**Root Cause**: Label operations may be recording undo actions but the undo execution is failing silently, possibly due to:
+- Incorrect action data structure
+- Missing required fields for label undo operations
+- Service call failures that are not being reported to the user
+
+### Impact Assessment
+- **Move Undo**: Partial functionality - message restored but manual cleanup needed
+- **Label Undo**: No functionality - labels changes cannot be undone
+- **User Experience**: Inconsistent undo behavior across operations
+- **Workaround Available**: Manual label management using `l` key
+
+### Workaround
+1. **For Move Undo**: After pressing `U`, manually remove unwanted labels using `l` key
+2. **For Label Operations**: Be careful with label changes as they cannot be undone
+
+### Dependencies
+- **Architecture**: Service layer undo recording system
+- **Files Affected**: 
+  - `internal/tui/labels.go` - Label UI operations
+  - `internal/services/undo_service.go` - Undo logic
+  - `internal/services/label_service.go` - Label business logic
+
+### Status
+**Documented Limitation** - Complex architectural changes required to fix properly without introducing application stability issues.
+
+---
+
 *For additional context and research approaches, see the LLM research prompt in this directory.*

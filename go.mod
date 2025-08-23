@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.35.0
 	github.com/derailed/tcell/v2 v2.3.1-rc.4
 	github.com/derailed/tview v0.8.5
+	github.com/google/uuid v1.6.0
 	github.com/mattn/go-runewidth v0.0.16
 	golang.org/x/net v0.42.0
 	golang.org/x/oauth2 v0.30.0
@@ -38,7 +39,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
