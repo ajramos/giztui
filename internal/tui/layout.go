@@ -63,7 +63,7 @@ func (a *App) initComponents() {
 	header := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	header.SetBorder(false)
-	header.SetTextColor(a.getTitleColor()) // Use theme title color for headers
+	header.SetTextColor(a.getMessageHeaderColor()) // Use theme header color for email message headers
 
 	enhancedText := NewEnhancedTextView(a)
 	text := enhancedText.TextView

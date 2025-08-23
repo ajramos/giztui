@@ -1082,6 +1082,14 @@ func (a *App) getLabelColor() tcell.Color {
 	return a.currentTheme.UI.LabelColor.Color()
 }
 
+// getMessageHeaderColor returns the theme's header color for email message headers
+func (a *App) getMessageHeaderColor() tcell.Color {
+	if a.currentTheme == nil {
+		return tcell.ColorGreen // Fallback to green (traditional email header color)
+	}
+	return a.currentTheme.Tags.Header.Color()
+}
+
 // getStatusColor returns theme-aware colors for different status levels
 func (a *App) getStatusColor(level string) tcell.Color {
 	return a.GetStatusColor(level) // Use the new helper function
