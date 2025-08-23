@@ -830,3 +830,4 @@ Always update:
 ---
 
 **Remember**: This architecture exists to make the codebase maintainable, testable, and robust. Follow these patterns consistently, and the code will remain high-quality as it grows.
+- please do not include your signature on git commits
