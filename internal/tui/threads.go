@@ -68,7 +68,7 @@ func (a *App) ToggleThreadingMode() error {
 	if currentMode == ThreadViewFlat {
 		a.SetCurrentThreadViewMode(ThreadViewThread)
 		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, "📧 Switched to threaded view")
+			a.GetErrorHandler().ShowInfo(a.ctx, "Switched to threaded view")
 		}()
 		
 		// Refresh the view to show threads
@@ -136,17 +136,23 @@ func (a *App) refreshThreadView() {
 		a.logger.Printf("refreshThreadView: GetThreads succeeded, got %d threads", len(threadPage.Threads))
 	}
 
-	// Clear progress and show success
+	// Show progress before processing threads
 	go func() {
-		a.GetErrorHandler().ClearProgress()
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📧 Loaded %d conversations", len(threadPage.Threads)))
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d conversations...", len(threadPage.Threads)))
 	}()
-
+	
 	// Update the UI with thread data
 	if a.logger != nil {
 		a.logger.Printf("refreshThreadView: calling displayThreads")
 	}
 	a.displayThreads(threadPage.Threads)
+	
+	// Clear progress and show success after processing with longer delay
+	go func() {
+		time.Sleep(1000 * time.Millisecond) // Allow 1 second for progress message to be visible
+		a.GetErrorHandler().ClearProgress()
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Loaded %d conversations", len(threadPage.Threads)))
+	}()
 }
 
 // refreshFlatView refreshes the display to show flat message list
@@ -333,32 +339,36 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		}
 	}
 	
-	// Unified icon system - single expansion icon for visual consistency
-	if isExpanded {
-		builder.WriteString("▼️ ")
-		if a.logger != nil {
-			a.logger.Printf("formatThreadForList: showing ▼️ for thread %s", thread.ThreadID)
+	// Emoji markers: 📧 for single messages, ▶️/▼️ for threads
+	if thread.MessageCount > 1 {
+		// Multi-message thread - use expansion icons
+		if isExpanded {
+			builder.WriteString("▼️ ")
+			if a.logger != nil {
+				a.logger.Printf("formatThreadForList: showing ▼️ for expanded thread %s", thread.ThreadID)
+			}
+		} else {
+			builder.WriteString("▶️ ")
+			if a.logger != nil {
+				a.logger.Printf("formatThreadForList: showing ▶️ for collapsed thread %s", thread.ThreadID)
+			}
 		}
 	} else {
-		builder.WriteString("▶️ ")
+		// Single message - use email icon
+		builder.WriteString("📧 ")
 		if a.logger != nil {
-			a.logger.Printf("formatThreadForList: showing ▶️ for thread %s", thread.ThreadID)
+			a.logger.Printf("formatThreadForList: showing 📧 for single message %s", thread.ThreadID)
 		}
 	}
 	
-	// Add unread indicator
+	// Add unread indicator with proper spacing
 	if thread.UnreadCount > 0 {
 		builder.WriteString("● ")
 	} else {
 		builder.WriteString("○ ")
 	}
 	
-	// Add attachment indicator
-	if thread.HasAttachment {
-		builder.WriteString("📎 ")
-	}
-	
-	// Add subject with participant info
+	// Get subject and participant info
 	subject := thread.Subject
 	if subject == "" {
 		subject = "(No Subject)"
@@ -367,17 +377,7 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 	// Get primary participant (exclude self)
 	var primaryParticipant string
 	if len(thread.Participants) > 0 {
-		// For now, just take the first participant
-		// TODO: Implement logic to exclude self and show the most relevant participant
 		primaryParticipant = thread.Participants[0]
-		// Adjust participant field length based on expansion state
-		maxParticipantLen := 30
-		if thread.MessageCount > 1 && isExpanded {
-			maxParticipantLen = 20 // Shorter to make room for expansion text
-		}
-		if len(primaryParticipant) > maxParticipantLen {
-			primaryParticipant = primaryParticipant[:maxParticipantLen-3] + "..."
-		}
 	}
 	
 	// Add thread count in brackets after sender for multi-message threads
@@ -390,65 +390,41 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		}
 	}
 
-	// Format the main content with improved spacing
+	// Format sender with thread count
+	var senderWithCount string
 	if primaryParticipant != "" {
-		// Use fixed width for better alignment
-		senderWithCount := primaryParticipant + countSuffix
-		if len(senderWithCount) > 25 {
-			// Truncate sender but keep count visible
-			senderLen := 25 - len(countSuffix) - 3 // Account for "..." and count
-			if senderLen > 0 {
-				senderWithCount = primaryParticipant[:senderLen] + "..." + countSuffix
-			}
-		}
-		builder.WriteString(fmt.Sprintf("%-25s %s", senderWithCount, subject))
+		senderWithCount = primaryParticipant + countSuffix
 	} else {
-		subjectWithCount := subject + countSuffix
-		builder.WriteString(subjectWithCount)
+		senderWithCount = "(No sender)" + countSuffix
 	}
 	
-	// Add improved date formatting
+	// Build attachment indicator
+	var attachmentIcon string
+	if thread.HasAttachment {
+		attachmentIcon = "📎"
+	}
+	
+	// Format date
 	var dateStr string
 	now := time.Now()
 	threadTime := thread.LatestDate
 	
 	if threadTime.After(now.Add(-24 * time.Hour)) {
-		// Today - show time
 		dateStr = threadTime.Format("3:04 PM")
 	} else if threadTime.After(now.Add(-7 * 24 * time.Hour)) {
-		// This week - show day and time
 		dateStr = threadTime.Format("Mon 3:04 PM")
 	} else if threadTime.Year() == now.Year() {
-		// This year - show month and day
 		dateStr = threadTime.Format("Jan 02")
 	} else {
-		// Older - show year
 		dateStr = threadTime.Format("2006")
 	}
 	
-	// Pad to align date to the right
-	currentLen := len(builder.String())
-	expansionText := ""
-	if thread.MessageCount > 1 && isExpanded {
-		expansionText = " [▼ EXPANDED]"
-	}
-	
-	targetWidth := a.screenWidth - 10 // Leave some margin
-	if currentLen < targetWidth {
-		padding := targetWidth - currentLen - len(dateStr) - len(expansionText)
-		if padding > 0 {
-			builder.WriteString(strings.Repeat(" ", padding))
-		}
-	}
-	builder.WriteString(dateStr)
-	
-	// Add expansion status text for expanded threads
-	if expansionText != "" {
-		builder.WriteString(expansionText)
-	}
+	// Simple format: [marker] [status] [sender] [subject] [attachment] [date]
+	builder.WriteString(fmt.Sprintf("%s %s %s | %s", senderWithCount, subject, attachmentIcon, dateStr))
 	
 	return builder.String()
 }
+
 
 // fetchThreadMessages retrieves individual messages for a thread
 func (a *App) fetchThreadMessages(ctx context.Context, threadID string) ([]*gmailapi.Message, error) {
@@ -772,32 +748,46 @@ func (a *App) replaceLoadingWithError(table *tview.Table, loadingIndex int, thre
 // collapseThreadMessages removes all child messages of a thread
 func (a *App) collapseThreadMessages(table *tview.Table, threadRowIndex int, threadID string) {
 	if a.logger != nil {
-		a.logger.Printf("collapseThreadMessages: collapsing thread at index %d", threadRowIndex)
+		a.logger.Printf("collapseThreadMessages: collapsing thread at index %d for threadID %s", threadRowIndex, threadID)
 	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// Find all rows that belong to this thread (consecutive rows after thread header)
+	// Find all expanded message rows that belong to this thread
+	// They are consecutive rows after the thread header with empty IDs (individual messages)
 	rowsToRemove := 0
-	for i := threadRowIndex + 1; i < len(a.ids); i++ {
-		// If we hit another thread ID (not empty and not a message ID), stop
-		if a.ids[i] != "" && a.messagesMeta[i] != nil {
-			meta := a.messagesMeta[i]
-			if meta.ThreadId == threadID || meta.ThreadId == "" {
-				// This is a message in our thread or thread header
-				rowsToRemove++
-			} else {
-				// Hit a different thread, stop
-				break
-			}
-		} else {
-			rowsToRemove++
+	for i := threadRowIndex + 1; i < len(a.ids) && i < len(a.messagesMeta); i++ {
+		// Stop when we hit another thread (non-empty ID that matches a thread pattern)
+		if a.ids[i] != "" {
+			// This is another thread header, stop here
+			break
 		}
+		
+		// This is an expanded message row (empty ID), remove it
+		rowsToRemove++
+		if a.logger != nil {
+			a.logger.Printf("collapseThreadMessages: marking row %d for removal", i)
+		}
+		
+		// Safety check: don't remove more than 50 rows (prevent infinite loop)
+		if rowsToRemove > 50 {
+			if a.logger != nil {
+				a.logger.Printf("collapseThreadMessages: safety break, too many rows to remove")
+			}
+			break
+		}
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("collapseThreadMessages: removing %d rows", rowsToRemove)
 	}
 
 	// Remove rows in reverse order to maintain indices
 	for i := threadRowIndex + rowsToRemove; i > threadRowIndex; i-- {
+		if a.logger != nil {
+			a.logger.Printf("collapseThreadMessages: removing row %d", i)
+		}
 		a.removeTableRow(table, i)
 	}
 }
@@ -894,11 +884,11 @@ func (a *App) ExpandThread() error {
 	// Show feedback
 	if newExpandedState {
 		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, "▼️ Thread expanded")
+			a.GetErrorHandler().ShowInfo(a.ctx, "Thread expanded")
 		}()
 	} else {
 		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, "▶️ Thread collapsed")
+			a.GetErrorHandler().ShowInfo(a.ctx, "Thread collapsed")
 		}()
 	}
 
