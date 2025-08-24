@@ -13,6 +13,17 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// threadMessageCache represents cached thread messages with TTL
+type threadMessageCache struct {
+	messages  []*gmailapi.Message
+	timestamp time.Time
+	ttl       time.Duration
+}
+
+func (c *threadMessageCache) isExpired() bool {
+	return time.Since(c.timestamp) > c.ttl
+}
+
 // ThreadServiceImpl implements ThreadService
 type ThreadServiceImpl struct {
 	gmailClient *gmail.Client
@@ -21,6 +32,9 @@ type ThreadServiceImpl struct {
 	
 	// In-memory state tracking when database is not available
 	memoryState sync.Map // key: "accountEmail:threadID" -> value: bool (expanded state)
+	
+	// Message cache for improved performance
+	messageCache sync.Map // key: "threadID" -> value: *threadMessageCache
 }
 
 // NewThreadService creates a new thread service
@@ -30,6 +44,16 @@ func NewThreadService(gmailClient *gmail.Client, dbStore *db.Store, aiService AI
 		dbStore:     dbStore,
 		aiService:   aiService,
 	}
+}
+
+// ClearMessageCache removes expired entries from the message cache
+func (s *ThreadServiceImpl) ClearMessageCache() {
+	s.messageCache.Range(func(key, value interface{}) bool {
+		if cache, ok := value.(*threadMessageCache); ok && cache.isExpired() {
+			s.messageCache.Delete(key)
+		}
+		return true
+	})
 }
 
 // GetThreads retrieves conversation threads from Gmail
@@ -86,12 +110,28 @@ func (s *ThreadServiceImpl) GetThreads(ctx context.Context, opts ThreadQueryOpti
 	}, nil
 }
 
-// GetThreadMessages retrieves all messages in a thread
+// GetThreadMessages retrieves all messages in a thread with smart caching
 func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID string, opts MessageQueryOptions) ([]*gmailapi.Message, error) {
 	if threadID == "" {
 		return nil, fmt.Errorf("threadID cannot be empty")
 	}
 
+	// Check cache first (5 minute TTL for thread messages)
+	if cached, ok := s.messageCache.Load(threadID); ok {
+		if cache, ok := cached.(*threadMessageCache); ok && !cache.isExpired() {
+			// Return cached messages, sorted as requested
+			messages := make([]*gmailapi.Message, len(cache.messages))
+			copy(messages, cache.messages)
+			
+			// Apply sorting
+			s.sortMessages(messages, opts.SortOrder)
+			return messages, nil
+		}
+		// Cache expired, remove it
+		s.messageCache.Delete(threadID)
+	}
+
+	// Cache miss or expired - fetch from Gmail API
 	thread, err := s.gmailClient.Service.Users.Threads.Get("me", threadID).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get thread messages: %w", err)
@@ -99,18 +139,31 @@ func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID stri
 
 	messages := thread.Messages
 	
-	// Sort messages by date if requested
-	if opts.SortOrder == "asc" {
+	// Cache the messages for future use (5 minute TTL)
+	cache := &threadMessageCache{
+		messages:  make([]*gmailapi.Message, len(messages)),
+		timestamp: time.Now(),
+		ttl:       5 * time.Minute,
+	}
+	copy(cache.messages, messages)
+	s.messageCache.Store(threadID, cache)
+	
+	// Apply sorting to the returned messages
+	s.sortMessages(messages, opts.SortOrder)
+	return messages, nil
+}
+
+// sortMessages applies the requested sort order to messages
+func (s *ThreadServiceImpl) sortMessages(messages []*gmailapi.Message, sortOrder string) {
+	if sortOrder == "asc" {
 		sort.Slice(messages, func(i, j int) bool {
 			return extractInternalDate(messages[i]) < extractInternalDate(messages[j])
 		})
-	} else if opts.SortOrder == "desc" {
+	} else if sortOrder == "desc" {
 		sort.Slice(messages, func(i, j int) bool {
 			return extractInternalDate(messages[i]) > extractInternalDate(messages[j])
 		})
 	}
-
-	return messages, nil
 }
 
 // GetThreadInfo retrieves metadata about a specific thread

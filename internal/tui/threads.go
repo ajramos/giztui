@@ -319,40 +319,31 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		builder.WriteString(fmt.Sprintf("%3d ", index+1))
 	}
 	
-	// Add expansion indicator for multi-message threads
+	// Add unified expansion indicator for all messages/threads
 	var isExpanded bool
-	if thread.MessageCount > 1 {
-		// Check actual thread expansion state from service
-		threadService := a.getThreadService()
-		if threadService != nil {
-			accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
-			if accountEmail != "" {
-				var err error
-				isExpanded, err = threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
-				if a.logger != nil {
-					a.logger.Printf("formatThreadForList: thread %s, accountEmail=%s, isExpanded=%v, err=%v", thread.ThreadID, accountEmail, isExpanded, err)
-				}
-			}
-		} else {
+	threadService := a.getThreadService()
+	if threadService != nil && thread.MessageCount > 1 {
+		accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
+		if accountEmail != "" {
+			var err error
+			isExpanded, err = threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
 			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: threadService is nil for thread %s", thread.ThreadID)
+				a.logger.Printf("formatThreadForList: thread %s, accountEmail=%s, isExpanded=%v, err=%v", thread.ThreadID, accountEmail, isExpanded, err)
 			}
 		}
-		
-		if isExpanded {
-			builder.WriteString("▼️ ")
-			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: showing ▼️ for thread %s", thread.ThreadID)
-			}
-		} else {
-			builder.WriteString("▶️ ")
-			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: showing ▶️ for thread %s", thread.ThreadID)
-			}
+	}
+	
+	// Unified icon system - single expansion icon for visual consistency
+	if isExpanded {
+		builder.WriteString("▼️ ")
+		if a.logger != nil {
+			a.logger.Printf("formatThreadForList: showing ▼️ for thread %s", thread.ThreadID)
 		}
-		builder.WriteString(fmt.Sprintf("📧 %d ", thread.MessageCount))
 	} else {
-		builder.WriteString("📧 1 ")
+		builder.WriteString("▶️ ")
+		if a.logger != nil {
+			a.logger.Printf("formatThreadForList: showing ▶️ for thread %s", thread.ThreadID)
+		}
 	}
 	
 	// Add unread indicator
@@ -389,25 +380,50 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		}
 	}
 	
-	// Format the main content
-	if primaryParticipant != "" {
-		// Use dynamic width for participant field
-		maxParticipantLen := 30
-		if thread.MessageCount > 1 && isExpanded {
-			maxParticipantLen = 20
+	// Add thread count in brackets after sender for multi-message threads
+	var countSuffix string
+	if thread.MessageCount > 1 {
+		if thread.MessageCount >= 100 {
+			countSuffix = " [99+]"
+		} else {
+			countSuffix = fmt.Sprintf(" [%d]", thread.MessageCount)
 		}
-		builder.WriteString(fmt.Sprintf("%-*s %s", maxParticipantLen, primaryParticipant, subject))
+	}
+
+	// Format the main content with improved spacing
+	if primaryParticipant != "" {
+		// Use fixed width for better alignment
+		senderWithCount := primaryParticipant + countSuffix
+		if len(senderWithCount) > 25 {
+			// Truncate sender but keep count visible
+			senderLen := 25 - len(countSuffix) - 3 // Account for "..." and count
+			if senderLen > 0 {
+				senderWithCount = primaryParticipant[:senderLen] + "..." + countSuffix
+			}
+		}
+		builder.WriteString(fmt.Sprintf("%-25s %s", senderWithCount, subject))
 	} else {
-		builder.WriteString(subject)
+		subjectWithCount := subject + countSuffix
+		builder.WriteString(subjectWithCount)
 	}
 	
-	// Add date
-	dateStr := thread.LatestDate.Format("Jan 02")
-	if thread.LatestDate.Year() != time.Now().Year() {
-		dateStr = thread.LatestDate.Format("2006")
-	}
-	if thread.LatestDate.After(time.Now().Add(-24 * time.Hour)) {
-		dateStr = thread.LatestDate.Format("15:04")
+	// Add improved date formatting
+	var dateStr string
+	now := time.Now()
+	threadTime := thread.LatestDate
+	
+	if threadTime.After(now.Add(-24 * time.Hour)) {
+		// Today - show time
+		dateStr = threadTime.Format("3:04 PM")
+	} else if threadTime.After(now.Add(-7 * 24 * time.Hour)) {
+		// This week - show day and time
+		dateStr = threadTime.Format("Mon 3:04 PM")
+	} else if threadTime.Year() == now.Year() {
+		// This year - show month and day
+		dateStr = threadTime.Format("Jan 02")
+	} else {
+		// Older - show year
+		dateStr = threadTime.Format("2006")
 	}
 	
 	// Pad to align date to the right
@@ -566,23 +582,30 @@ func (a *App) formatThreadMessageForList(message *gmailapi.Message, messageIndex
 	// Add formatted content
 	builder.WriteString(fmt.Sprintf("%-20s %s", fromField, subjectField))
 	
-	// Add date (simplified for thread messages)
+	// Add improved date formatting for thread messages
 	if message.InternalDate > 0 {
 		timestamp := message.InternalDate / 1000 // Convert from milliseconds
 		messageTime := time.Unix(timestamp, 0)
+		now := time.Now()
 		
 		var dateStr string
-		if messageTime.After(time.Now().Add(-24 * time.Hour)) {
-			dateStr = messageTime.Format("15:04")
-		} else if messageTime.After(time.Now().Add(-7*24*time.Hour)) {
+		if messageTime.After(now.Add(-24 * time.Hour)) {
+			// Today - show time only
+			dateStr = messageTime.Format("3:04 PM")
+		} else if messageTime.After(now.Add(-7*24*time.Hour)) {
+			// This week - show day only (shorter for indented display)
 			dateStr = messageTime.Format("Mon")
-		} else {
+		} else if messageTime.Year() == now.Year() {
+			// This year - show month and day
 			dateStr = messageTime.Format("Jan 02")
+		} else {
+			// Older - show year
+			dateStr = messageTime.Format("2006")
 		}
 		
 		// Right-align date with less padding for indented messages
 		currentLen := len(builder.String())
-		targetWidth := a.screenWidth - 20 // Less margin for indented content
+		targetWidth := a.screenWidth - 25 // More margin for indented content
 		if currentLen < targetWidth {
 			padding := targetWidth - currentLen - len(dateStr)
 			if padding > 0 {
@@ -593,6 +616,237 @@ func (a *App) formatThreadMessageForList(message *gmailapi.Message, messageIndex
 	}
 	
 	return builder.String()
+}
+
+// expandThreadAsync handles thread expansion without full UI refresh to preserve cursor position
+func (a *App) expandThreadAsync(threadID string, isExpanded bool) {
+	if a.logger != nil {
+		a.logger.Printf("expandThreadAsync: threadID=%s, isExpanded=%v", threadID, isExpanded)
+	}
+
+	table, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		if a.logger != nil {
+			a.logger.Printf("expandThreadAsync: list view is not a table")
+		}
+		return
+	}
+
+	// Find the thread row in the current display
+	threadRowIndex := -1
+	a.mu.Lock()
+	for i, id := range a.ids {
+		if id == threadID {
+			threadRowIndex = i
+			break
+		}
+	}
+	a.mu.Unlock()
+
+	if threadRowIndex == -1 {
+		if a.logger != nil {
+			a.logger.Printf("expandThreadAsync: thread %s not found in current display", threadID)
+		}
+		return
+	}
+
+	if isExpanded {
+		// Add loading placeholder immediately
+		a.QueueUpdateDraw(func() {
+			a.insertThreadLoadingPlaceholder(table, threadRowIndex+1, threadID)
+		})
+
+		// Fetch messages asynchronously
+		go func() {
+			messages, err := a.fetchThreadMessages(a.ctx, threadID)
+			if err != nil {
+				if a.logger != nil {
+					a.logger.Printf("expandThreadAsync: failed to fetch messages: %v", err)
+				}
+				// Replace loading with error
+				a.QueueUpdateDraw(func() {
+					a.replaceLoadingWithError(table, threadRowIndex+1, threadID)
+				})
+				return
+			}
+
+			// Replace loading with actual messages
+			a.QueueUpdateDraw(func() {
+				a.replaceLoadingWithMessages(table, threadRowIndex+1, threadID, messages)
+			})
+			
+			// Clear progress status
+			go func() {
+				a.GetErrorHandler().ClearProgress()
+			}()
+		}()
+	} else {
+		// Collapse: remove all child messages immediately
+		a.QueueUpdateDraw(func() {
+			a.collapseThreadMessages(table, threadRowIndex, threadID)
+		})
+	}
+}
+
+// insertThreadLoadingPlaceholder adds a loading indicator below the thread
+func (a *App) insertThreadLoadingPlaceholder(table *tview.Table, insertIndex int, threadID string) {
+	if a.logger != nil {
+		a.logger.Printf("insertThreadLoadingPlaceholder: inserting at index %d for thread %s", insertIndex, threadID)
+	}
+
+	// Shift existing rows down
+	rowCount := table.GetRowCount()
+	for i := rowCount; i > insertIndex; i-- {
+		if i-1 >= 0 {
+			cell := table.GetCell(i-1, 0)
+			if cell != nil {
+				table.SetCell(i, 0, cell)
+			}
+		}
+	}
+
+	// Insert loading placeholder
+	loadingText := "    ⏳ Loading thread messages..."
+	loadingCell := tview.NewTableCell(loadingText).
+		SetExpansion(1).
+		SetAlign(tview.AlignLeft).
+		SetTextColor(a.currentTheme.UI.InfoColor.Color())
+	
+	table.SetCell(insertIndex, 0, loadingCell)
+
+	// Update app state
+	a.mu.Lock()
+	// Insert placeholder in IDs and metadata
+	a.ids = append(a.ids[:insertIndex], append([]string{""}, a.ids[insertIndex:]...)...)
+	placeholderMsg := &gmailapi.Message{Id: "", Snippet: "Loading..."}
+	a.messagesMeta = append(a.messagesMeta[:insertIndex], append([]*gmailapi.Message{placeholderMsg}, a.messagesMeta[insertIndex:]...)...)
+	a.mu.Unlock()
+
+	// Show progress message
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, "📧 Loading thread messages...")
+	}()
+}
+
+// replaceLoadingWithMessages replaces the loading placeholder with actual thread messages
+func (a *App) replaceLoadingWithMessages(table *tview.Table, loadingIndex int, threadID string, messages []*gmailapi.Message) {
+	if a.logger != nil {
+		a.logger.Printf("replaceLoadingWithMessages: replacing loading at index %d with %d messages", loadingIndex, len(messages))
+	}
+
+	// Remove the loading placeholder first
+	a.removeTableRow(table, loadingIndex)
+
+	// Insert actual message rows
+	for i, message := range messages {
+		insertIndex := loadingIndex + i
+		messageText := a.formatThreadMessageForList(message, i, len(messages))
+		
+		messageCell := tview.NewTableCell(messageText).
+			SetExpansion(1).
+			SetAlign(tview.AlignLeft).
+			SetTextColor(a.currentTheme.UI.FooterColor.Color())
+
+		a.insertTableRow(table, insertIndex, messageCell, message.Id, message)
+	}
+}
+
+// replaceLoadingWithError replaces loading placeholder with error message
+func (a *App) replaceLoadingWithError(table *tview.Table, loadingIndex int, threadID string) {
+	errorText := "    ⚠️  Failed to load thread messages"
+	errorCell := tview.NewTableCell(errorText).
+		SetExpansion(1).
+		SetAlign(tview.AlignLeft).
+		SetTextColor(tcell.ColorOrange)
+
+	table.SetCell(loadingIndex, 0, errorCell)
+
+	// Update metadata
+	a.mu.Lock()
+	if loadingIndex < len(a.messagesMeta) {
+		a.messagesMeta[loadingIndex] = &gmailapi.Message{Id: "", Snippet: "Error loading thread messages"}
+	}
+	a.mu.Unlock()
+}
+
+// collapseThreadMessages removes all child messages of a thread
+func (a *App) collapseThreadMessages(table *tview.Table, threadRowIndex int, threadID string) {
+	if a.logger != nil {
+		a.logger.Printf("collapseThreadMessages: collapsing thread at index %d", threadRowIndex)
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Find all rows that belong to this thread (consecutive rows after thread header)
+	rowsToRemove := 0
+	for i := threadRowIndex + 1; i < len(a.ids); i++ {
+		// If we hit another thread ID (not empty and not a message ID), stop
+		if a.ids[i] != "" && a.messagesMeta[i] != nil {
+			meta := a.messagesMeta[i]
+			if meta.ThreadId == threadID || meta.ThreadId == "" {
+				// This is a message in our thread or thread header
+				rowsToRemove++
+			} else {
+				// Hit a different thread, stop
+				break
+			}
+		} else {
+			rowsToRemove++
+		}
+	}
+
+	// Remove rows in reverse order to maintain indices
+	for i := threadRowIndex + rowsToRemove; i > threadRowIndex; i-- {
+		a.removeTableRow(table, i)
+	}
+}
+
+// Helper functions for table manipulation
+func (a *App) insertTableRow(table *tview.Table, index int, cell *tview.TableCell, id string, meta *gmailapi.Message) {
+	// Shift existing rows down
+	rowCount := table.GetRowCount()
+	for i := rowCount; i > index; i-- {
+		if i-1 >= 0 {
+			existingCell := table.GetCell(i-1, 0)
+			if existingCell != nil {
+				table.SetCell(i, 0, existingCell)
+			}
+		}
+	}
+
+	// Insert new row
+	table.SetCell(index, 0, cell)
+
+	// Update app state
+	a.mu.Lock()
+	a.ids = append(a.ids[:index], append([]string{id}, a.ids[index:]...)...)
+	a.messagesMeta = append(a.messagesMeta[:index], append([]*gmailapi.Message{meta}, a.messagesMeta[index:]...)...)
+	a.mu.Unlock()
+}
+
+func (a *App) removeTableRow(table *tview.Table, index int) {
+	// Shift rows up
+	rowCount := table.GetRowCount()
+	for i := index; i < rowCount-1; i++ {
+		cell := table.GetCell(i+1, 0)
+		if cell != nil {
+			table.SetCell(i, 0, cell)
+		}
+	}
+	
+	// Remove last row
+	table.RemoveRow(rowCount - 1)
+
+	// Update app state
+	a.mu.Lock()
+	if index < len(a.ids) {
+		a.ids = append(a.ids[:index], a.ids[index+1:]...)
+	}
+	if index < len(a.messagesMeta) {
+		a.messagesMeta = append(a.messagesMeta[:index], a.messagesMeta[index+1:]...)
+	}
+	a.mu.Unlock()
 }
 
 // ExpandThread expands a thread to show its messages
@@ -634,9 +888,8 @@ func (a *App) ExpandThread() error {
 		a.logger.Printf("ExpandThread: set threadID=%s to expanded=%v", threadID, newExpandedState)
 	}
 
-	// Instead of trying to update individual cells, refresh the entire thread view
-	// This ensures state consistency and proper visual updates
-	go a.refreshThreadView()
+	// Instead of full refresh, expand thread asynchronously to preserve cursor position
+	go a.expandThreadAsync(threadID, newExpandedState)
 	
 	// Show feedback
 	if newExpandedState {
