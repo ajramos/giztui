@@ -345,6 +345,26 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.toggleHeaderVisibility()
 		return true
+	
+	// Threading shortcuts
+	case a.Keys.ToggleThreading:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> toggle_threading", key)
+		}
+		go a.ToggleThreadingMode()
+		return true
+	case a.Keys.ExpandAllThreads:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> expand_all_threads", key)
+		}
+		go a.ExpandAllThreads()
+		return true
+	case a.Keys.CollapseAllThreads:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> collapse_all_threads", key)
+		}
+		go a.CollapseAllThreads()
+		return true
 	case a.Keys.BulkSelect:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> bulk_select", key)
@@ -1091,6 +1111,40 @@ func (a *App) bindKeys() {
 			a.openAdvancedSearchForm()
 			return nil
 		}
+		
+		// Threading special key handlers
+		// Handle Shift+T for thread summary
+		if event.Key() == tcell.KeyRune && (event.Modifiers()&tcell.ModShift) != 0 && event.Rune() == 'T' {
+			if a.logger != nil {
+				a.logger.Printf("Special key: Shift+T -> thread_summary")
+			}
+			go a.GenerateThreadSummary()
+			return nil
+		}
+		
+		// Handle Ctrl+N for next thread
+		if (event.Key() == tcell.KeyCtrlN) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'n') {
+			if a.logger != nil {
+				a.logger.Printf("Special key: Ctrl+N -> next_thread")
+			}
+			// TODO: Implement next thread navigation
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, "Next thread navigation - not yet implemented")
+			}()
+			return nil
+		}
+		
+		// Handle Ctrl+P for previous thread
+		if (event.Key() == tcell.KeyCtrlP) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'p') {
+			if a.logger != nil {
+				a.logger.Printf("Special key: Ctrl+P -> prev_thread")
+			}
+			// TODO: Implement previous thread navigation
+			go func() {
+				a.GetErrorHandler().ShowInfo(a.ctx, "Previous thread navigation - not yet implemented")
+			}()
+			return nil
+		}
 
 
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
@@ -1149,7 +1203,14 @@ func (a *App) bindKeys() {
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		table.SetSelectedFunc(func(row, column int) {
 			if row < len(a.ids) {
-				go a.showMessage(a.ids[row])
+				// Check if we're in threading mode
+				if a.GetCurrentThreadViewMode() == ThreadViewThread {
+					// In thread mode, Enter expands/collapses threads
+					go a.ExpandThread()
+				} else {
+					// In flat mode, Enter shows the message
+					go a.showMessage(a.ids[row])
+				}
 			}
 		})
 		table.SetSelectionChangedFunc(func(row, column int) {

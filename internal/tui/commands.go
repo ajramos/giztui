@@ -568,6 +568,19 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args)
 	case "headers", "toggle-headers":
 		a.executeToggleHeadersCommand(args)
+	
+	// Threading commands
+	case "threads", "thr":
+		a.executeThreadsCommand(args)
+	case "flatten", "flat":
+		a.executeFlattenCommand(args)
+	case "thread-summary", "th-sum":
+		a.executeThreadSummaryCommand(args)
+	case "expand-all", "expand":
+		a.executeExpandAllCommand(args)
+	case "collapse-all", "collapse":
+		a.executeCollapseAllCommand(args)
+	
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
 	case "numbers", "n":
@@ -1885,4 +1898,102 @@ func (a *App) executeBookmarkCommand(args []string) {
 
 	name := strings.Join(args, " ")
 	a.executeQueryByName(name)
+}
+
+// Threading command implementations
+
+// executeThreadsCommand handles :threads command
+func (a *App) executeThreadsCommand(args []string) {
+	if !a.IsThreadingEnabled() {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Threading is disabled in configuration")
+		}()
+		return
+	}
+	
+	// Set focus state like the keyboard shortcut
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+	
+	// Switch to thread mode
+	a.SetCurrentThreadViewMode(ThreadViewThread)
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "📧 Switched to threaded view")
+	}()
+	
+	// Refresh the view to show threads
+	go a.refreshThreadView()
+}
+
+// executeFlattenCommand handles :flatten command
+func (a *App) executeFlattenCommand(args []string) {
+	// Set focus state like the keyboard shortcut
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+	
+	// Switch to flat mode
+	a.SetCurrentThreadViewMode(ThreadViewFlat)
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "📄 Switched to flat view")
+	}()
+	
+	// Refresh the view to show flat messages
+	go a.refreshFlatView()
+}
+
+// executeThreadSummaryCommand handles :thread-summary command
+func (a *App) executeThreadSummaryCommand(args []string) {
+	if !a.IsThreadingEnabled() {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Threading is disabled in configuration")
+		}()
+		return
+	}
+	
+	if a.GetCurrentThreadViewMode() != ThreadViewThread {
+		go func() {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Thread summary only available in threaded view")
+		}()
+		return
+	}
+	
+	go a.GenerateThreadSummary()
+}
+
+// executeExpandAllCommand handles :expand-all command
+func (a *App) executeExpandAllCommand(args []string) {
+	if !a.IsThreadingEnabled() {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Threading is disabled in configuration")
+		}()
+		return
+	}
+	
+	if a.GetCurrentThreadViewMode() != ThreadViewThread {
+		go func() {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Thread expansion only available in threaded view")
+		}()
+		return
+	}
+	
+	go a.ExpandAllThreads()
+}
+
+// executeCollapseAllCommand handles :collapse-all command
+func (a *App) executeCollapseAllCommand(args []string) {
+	if !a.IsThreadingEnabled() {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Threading is disabled in configuration")
+		}()
+		return
+	}
+	
+	if a.GetCurrentThreadViewMode() != ThreadViewThread {
+		go func() {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Thread collapse only available in threaded view")
+		}()
+		return
+	}
+	
+	go a.CollapseAllThreads()
 }

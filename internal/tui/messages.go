@@ -29,6 +29,11 @@ func (a *App) reformatListItems() {
 	if !ok || len(a.ids) == 0 {
 		return
 	}
+	
+	// Skip reformatting in thread mode - threads have their own formatting
+	if a.GetCurrentThreadViewMode() == ThreadViewThread {
+		return
+	}
 	for i := range a.ids {
 		if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
 			continue
