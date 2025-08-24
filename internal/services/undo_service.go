@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ type UndoServiceImpl struct {
 	gmailClient   *gmail.Client
 	lastAction    *UndoableAction
 	mu            sync.RWMutex
+	logger        *log.Logger // Optional - for debug logging
 }
 
 // NewUndoService creates a new undo service
@@ -26,6 +28,11 @@ func NewUndoService(repo MessageRepository, labelService LabelService, gmailClie
 		labelService: labelService,
 		gmailClient:  gmailClient,
 	}
+}
+
+// SetLogger sets the logger for debug output
+func (s *UndoServiceImpl) SetLogger(logger *log.Logger) {
+	s.logger = logger
 }
 
 // RecordAction records an action for potential undo
@@ -127,9 +134,9 @@ func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, erro
 		}
 
 	case UndoActionMove:
-		// For now, just treat as archive undo to avoid hanging issues
+		// Use proper move undo that removes applied labels
 		result.Description = s.formatUndoDescription("Undid move", action)
-		err := s.undoArchive(ctx, action)
+		err := s.undoMove(ctx, action)
 		if err != nil {
 			result.Success = false
 			result.Errors = append(result.Errors, err.Error())
@@ -283,24 +290,61 @@ func (s *UndoServiceImpl) undoLabelRemove(ctx context.Context, action *UndoableA
 func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) error {
 	// Move operation consists of: apply label + archive
 	// To undo: restore from archive (add INBOX) + remove applied label
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMove starting for %d messages", len(action.MessageIDs))
+		s.logger.Printf("DEBUG: undoMove ExtraData: %+v", action.ExtraData)
+	}
+	
 	for _, messageID := range action.MessageIDs {
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMove processing messageID: %s", messageID)
+		}
+		
 		// First, restore from archive (add INBOX label)
 		updates := MessageUpdates{
 			AddLabels: []string{"INBOX"},
 		}
 
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMove adding INBOX label to message %s", messageID)
+		}
 		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMove failed to add INBOX label: %v", err)
+			}
 			return fmt.Errorf("failed to unarchive moved message %s: %v", messageID, err)
+		}
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMove successfully added INBOX label")
 		}
 
 		// Then, remove the applied label using Gmail client directly
 		if appliedLabels, exists := action.ExtraData["applied_labels"].([]string); exists {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMove found applied_labels: %v", appliedLabels)
+			}
 			for _, labelID := range appliedLabels {
+				if s.logger != nil {
+					s.logger.Printf("DEBUG: undoMove removing label %s from message %s", labelID, messageID)
+				}
 				if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("DEBUG: undoMove failed to remove label %s: %v", labelID, err)
+					}
 					return fmt.Errorf("failed to remove applied label %s from message %s: %v", labelID, messageID, err)
 				}
+				if s.logger != nil {
+					s.logger.Printf("DEBUG: undoMove successfully removed label %s", labelID)
+				}
+			}
+		} else {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMove no applied_labels found in ExtraData")
 			}
 		}
+	}
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMove completed successfully")
 	}
 	return nil
 }

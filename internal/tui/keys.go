@@ -1855,8 +1855,14 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}
 	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: VIM move operation starting for messageID: %s", messageID)
+		}
 		go func() {
 			a.SetCurrentMessageID(messageID)
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: VIM move operation calling openMovePanel")
+			}
 			a.openMovePanel()
 		}()
 	case a.Keys.ManageLabels:

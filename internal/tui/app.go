@@ -540,6 +540,10 @@ func (a *App) initServices() {
 	if a.logger != nil {
 		a.logger.Printf("initServices: email service initialized: %v", a.emailService != nil)
 	}
+	// Wire logger to email service for debug output
+	if emailServiceImpl, ok := a.emailService.(*services.EmailServiceImpl); ok && a.logger != nil {
+		emailServiceImpl.SetLogger(a.logger)
+	}
 
 	// Initialize link service
 	a.linkService = services.NewLinkService(a.Client, a.emailRenderer)
@@ -687,6 +691,11 @@ func (a *App) initServices() {
 		a.undoService = services.NewUndoService(a.repository, a.labelService, a.Client)
 		if a.logger != nil {
 			a.logger.Printf("initServices: undo service initialized: %v", a.undoService != nil)
+		}
+		
+		// Wire logger to undo service for debug output
+		if undoServiceImpl, ok := a.undoService.(*services.UndoServiceImpl); ok && a.logger != nil {
+			undoServiceImpl.SetLogger(a.logger)
 		}
 		
 		// Wire undo service to email service to enable undo recording
@@ -1014,12 +1023,20 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 	// Determine if we need to reload based on operation type and current view
 	needsReload := false
 	
-	if strings.Contains(result.Description, "Unarchived") && a.currentView == "INBOX" {
-		// Unarchived messages need to show in inbox - reload needed
-		needsReload = true
-	} else if strings.Contains(result.Description, "Restored from trash") && a.currentView == "INBOX" {
-		// Restored from trash messages need to show in inbox - reload needed  
-		needsReload = true
+	if result.ActionType == services.UndoActionArchive && a.currentView == "INBOX" {
+		// Archive undo - restore message to inbox list
+		a.restoreMessagesToInboxList(result.MessageIDs)
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+		})
+		return
+	} else if result.ActionType == services.UndoActionTrash && a.currentView == "INBOX" {
+		// Trash undo - restore message to inbox list
+		a.restoreMessagesToInboxList(result.MessageIDs)
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+		})
+		return
 	} else if strings.Contains(result.Description, "marked as unread") || strings.Contains(result.Description, "marked as read") {
 		// Read state changes - just refresh UI formatting
 		a.QueueUpdateDraw(func() {
@@ -1039,6 +1056,20 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			}
 		})
 		return
+	} else if result.ActionType == services.UndoActionMove {
+		// Move changes - restore message to list and update cache
+		a.restoreMessagesToInboxList(result.MessageIDs)
+		a.updateCacheAfterMoveUndo(result)
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+			if a.labelsExpanded {
+				currentMsg := a.GetCurrentMessageID()
+				if currentMsg != "" {
+					a.expandLabelsBrowse(currentMsg)
+				}
+			}
+		})
+		return
 	}
 
 	if needsReload {
@@ -1048,6 +1079,123 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			a.reloadMessages()
 		}()
 	}
+}
+
+// restoreMessagesToInboxList restores messages to the inbox view after undo operations
+func (a *App) restoreMessagesToInboxList(messageIDs []string) {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: restoreMessagesToInboxList called with %d messages", len(messageIDs))
+	}
+	
+	// Only restore if we're viewing INBOX
+	if a.currentView != "INBOX" {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: restoreMessagesToInboxList skipping - not in INBOX view (current: %s)", a.currentView)
+		}
+		return
+	}
+
+	for _, messageID := range messageIDs {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: restoreMessagesToInboxList restoring message: %s", messageID)
+		}
+		
+		// Check if message is already in the list
+		found := false
+		for _, existingID := range a.ids {
+			if existingID == messageID {
+				found = true
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: restoreMessagesToInboxList message %s already in list", messageID)
+				}
+				break
+			}
+		}
+		
+		if !found {
+			// Fetch the message metadata using Gmail client directly
+			message, err := a.Client.GetMessage(messageID)
+			if err != nil {
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: restoreMessagesToInboxList failed to get metadata for %s: %v", messageID, err)
+				}
+				continue
+			}
+			
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: restoreMessagesToInboxList adding message %s to front of list", messageID)
+			}
+			// Add to front of list (most recent)
+			a.ids = append([]string{messageID}, a.ids...)
+			a.messagesMeta = append([]*gmailapi.Message{message}, a.messagesMeta...)
+		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: restoreMessagesToInboxList completed - list now has %d messages", len(a.ids))
+	}
+}
+
+// updateCacheAfterMoveUndo updates local cache immediately after move undo operations
+func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo starting")
+		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo MessageIDs: %v", result.MessageIDs)
+		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo ExtraData: %+v", result.ExtraData)
+	}
+	
+	if result.ExtraData == nil {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: updateCacheAfterMoveUndo no ExtraData, returning")
+		}
+		return
+	}
+
+	// Get label name mapping for cache updates
+	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	labels, err := labelService.ListLabels(a.ctx)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: updateCacheAfterMoveUndo failed to get labels: %v", err)
+		}
+		return // Silently fail, will refresh from server later
+	}
+	labelIDToName := make(map[string]string)
+	for _, label := range labels {
+		labelIDToName[label.Id] = label.Name
+	}
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo loaded %d labels", len(labelIDToName))
+	}
+
+	for _, messageID := range result.MessageIDs {
+		fmt.Printf("DEBUG: updateCacheAfterMoveUndo processing messageID: %s\n", messageID)
+		
+		// Move undo: add back INBOX label and remove applied labels
+		fmt.Printf("DEBUG: updateCacheAfterMoveUndo adding INBOX label to cache\n")
+		a.updateCachedMessageLabels(messageID, "INBOX", true)
+		a.updateMessageCacheLabels(messageID, "INBOX", true)
+		
+		// Remove the applied labels
+		if appliedLabels, ok := result.ExtraData["applied_labels"].([]string); ok {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: updateCacheAfterMoveUndo found applied_labels: %v", appliedLabels)
+			}
+			for _, labelID := range appliedLabels {
+				fmt.Printf("DEBUG: updateCacheAfterMoveUndo removing label %s from cache\n", labelID)
+				a.updateCachedMessageLabels(messageID, labelID, false)
+				if labelName, exists := labelIDToName[labelID]; exists {
+					fmt.Printf("DEBUG: updateCacheAfterMoveUndo removing label name %s from cache\n", labelName)
+					a.updateMessageCacheLabels(messageID, labelName, false)
+				} else {
+					fmt.Printf("DEBUG: updateCacheAfterMoveUndo no label name found for ID %s\n", labelID)
+				}
+			}
+		} else {
+			fmt.Printf("DEBUG: updateCacheAfterMoveUndo no applied_labels found in ExtraData\n")
+		}
+	}
+	fmt.Printf("DEBUG: updateCacheAfterMoveUndo completed\n")
 }
 
 // updateCacheAfterLabelUndo updates local cache immediately after label undo operations

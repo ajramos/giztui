@@ -493,6 +493,9 @@ func (a *App) expandLabelsBrowse(messageID string) {
 // If moveMode is true, selecting a label will move the message (apply + archive)
 // and then close the panel.
 func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: expandLabelsBrowseWithMode called - messageID: %s, moveMode: %v", messageID, moveMode)
+	}
 	a.labelsExpanded = true
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
@@ -512,6 +515,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	var visible []labelItem
 	var reload func(filter string)
 	reload = func(filter string) {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: reload function called - filter: '%s', moveMode: %v, total labels: %d", filter, moveMode, len(all))
+		}
 		list.Clear()
 		visible = visible[:0]
 		for _, it := range all {
@@ -527,6 +533,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			name := it.name
 			applied := it.applied
 			list.AddItem(display, "Enter: toggle", 0, func() {
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: Label item selected in expandLabelsBrowseWithMode - label: %s, moveMode: %v", name, moveMode)
+				}
 				if !moveMode {
 					// Check if we need to apply to bulk selection
 					if a.bulkMode && len(a.selected) > 0 {
@@ -553,6 +562,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					return
 				}
 				// Move mode: aplicar etiqueta y archivar para todos los seleccionados (o el actual)
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: MOVE MODE TRIGGERED - label: %s, messageID: %s", name, messageID)
+				}
 				go func() {
 					// Construir conjunto de mensajes a mover
 					idsToMove := []string{messageID}
@@ -566,13 +578,20 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					failed := 0
 
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
-					// Get services for undo support (keep individual operations for now)
+					// Get services for undo support - use proper move function
 					emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+					if a.logger != nil {
+						a.logger.Printf("DEBUG: Move operation in expandLabelsBrowseWithMode - processing %d messages", len(idsToMove))
+					}
 					for _, mid := range idsToMove {
+						if a.logger != nil {
+							a.logger.Printf("DEBUG: Move operation applying label %s and archiving message %s", id, mid)
+						}
 						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 							failed++
 						}
-						if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
+						// Use ArchiveMessageAsMove to record proper move undo action
+						if err := emailService.ArchiveMessageAsMove(a.ctx, mid, id, name); err != nil {
 							failed++
 						}
 					}
@@ -631,18 +650,33 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}()
 			})
 		}
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: reload function completed - added %d visible items to list", len(visible))
+		}
 	}
 
 	go func() {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode loading labels for messageID: %s", messageID)
+		}
 		msg, err := a.Client.GetMessage(messageID)
 		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Failed to load message %s: %v", messageID, err)
+			}
 			a.showError("❌ Error loading message")
 			return
 		}
 		labels, err := a.Client.ListLabels()
 		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Failed to load labels: %v", err)
+			}
 			a.showError("❌ Error loading labels")
 			return
+		}
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode loaded %d labels", len(labels))
 		}
 		current := make(map[string]bool)
 		for _, lid := range msg.LabelIds {
@@ -652,6 +686,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 		all = make([]labelItem, 0, len(filtered))
 		for _, l := range filtered {
 			all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
+		}
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode will display %d filtered labels", len(all))
 		}
 
 		// CRITICAL FIX: Set up ESC handler OUTSIDE QueueUpdateDraw to prevent deadlock
@@ -920,7 +957,13 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}
 				return e
 			})
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: expandLabelsBrowseWithMode calling reload to populate UI")
+			}
 			reload("")
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: expandLabelsBrowseWithMode reload completed, setting focus to input")
+			}
 			a.SetFocus(input)
 			a.currentFocus = "labels"
 			a.updateFocusIndicators("labels")
@@ -1175,6 +1218,9 @@ func (a *App) openMovePanel() {
 		a.showError("❌ No message selected")
 		return
 	}
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: openMovePanel called for messageID: %s", messageID)
+	}
 	// Ensure panel is visible
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
@@ -1182,6 +1228,9 @@ func (a *App) openMovePanel() {
 	a.labelsVisible = true
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: openMovePanel calling expandLabelsBrowseWithMode in move mode")
+	}
 	// Open browse in move mode
 	a.expandLabelsBrowseWithMode(messageID, true)
 }
@@ -1716,6 +1765,9 @@ func (a *App) moveSelected() {
 
 // showMoveLabelsView lets user choose a label to apply and then archives the message (move semantics)
 func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Message) {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: showMoveLabelsView called for message: %s", message.Id)
+	}
 	picker := tview.NewList().ShowSecondaryText(false)
 	picker.SetBorder(true)
 	picker.SetTitle(" 📦 Move to label ")
@@ -1745,8 +1797,8 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
 				
-				// Apply label and archive using services for undo support (revert to simple approach)
-				_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+				// Apply label and archive using dedicated move function for undo support
+				emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 				if !has {
 					if err := labelService.ApplyLabel(a.ctx, message.Id, labelID); err != nil {
 						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error applying label: %v", err))
@@ -1754,8 +1806,11 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					}
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
-				emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-				if err := emailService.ArchiveMessage(a.ctx, message.Id); err != nil {
+				// Use ArchiveMessageAsMove to record proper move undo action
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: Move operation using ArchiveMessageAsMove")
+				}
+				if err := emailService.ArchiveMessageAsMove(a.ctx, message.Id, labelID, labelName); err != nil {
 					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving: %v", err))
 					return
 				}

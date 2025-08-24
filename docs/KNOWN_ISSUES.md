@@ -158,24 +158,26 @@ Consider revisiting when:
 ### Issue Description
 **Type**: Functional Limitation  
 **Severity**: Medium  
-**Status**: Documented Limitation  
+**Status**: ✅ RESOLVED  
 **Date Identified**: August 23, 2025  
 
-The undo functionality has one remaining limitation affecting move operations:
+The undo functionality had limitations that have been resolved:
 
-#### 1. Move Operation Undo Limitation
-**Problem**: Move operation undo only restores message to inbox, does not remove the applied label.
+#### 1. Move Operation Undo (RESOLVED)
+**Problem**: Move operation undo was only restoring message to inbox, did not remove the applied label.
 
 **Example Flow**:
 1. Move message to "Work" label (applies "Work" label + archives message)
 2. Press `U` to undo
 3. ✅ Message returns to inbox 
-4. ❌ "Work" label remains on the message
+4. ✅ "Work" label is now properly removed
 
-**Root Cause**: Move operations consist of two separate service calls:
-- `LabelService.ApplyLabel()` records `UndoActionLabelAdd`  
-- `EmailService.ArchiveMessage()` records `UndoActionArchive` (overwrites the first)
-- Only the archive action gets recorded for undo
+**Root Cause**: Move operations were using simplified archive undo instead of proper move undo logic.
+
+**Solution Applied**: 
+- Modified move undo to use proper undoMove() function that removes applied labels
+- Added immediate cache updates for move operations
+- Messages now appear immediately in inbox with applied labels removed
 
 #### 2. Label Operations Undo (RESOLVED)  
 **Problem**: Adding or removing labels individually was recording undo actions but undo failed silently.
@@ -194,14 +196,13 @@ The undo functionality has one remaining limitation affecting move operations:
 **Solution Applied**: Modified undo operations to use Gmail client directly instead of service layer, bypassing circular dependency issue.
 
 ### Impact Assessment
-- **Move Undo**: Partial functionality - message restored but manual cleanup needed
+- **Move Undo**: ✅ **RESOLVED** - Messages restored to inbox with applied labels removed
 - **Label Undo**: ✅ **RESOLVED** - Label operations can now be undone properly
-- **User Experience**: Mostly consistent undo behavior, only move operations have limitations
-- **Workaround Available**: Manual label management using `l` key for move operations
+- **User Experience**: ✅ **CONSISTENT** - All undo operations now work correctly
+- **Workaround Available**: ✅ **NO WORKAROUNDS NEEDED** - All functionality works as expected
 
 ### Workaround
-1. **For Move Undo**: After pressing `U`, manually remove unwanted labels using `l` key
-2. **For Label Operations**: ✅ **NO WORKAROUND NEEDED** - Undo now works correctly
+✅ **NO WORKAROUNDS NEEDED** - All undo functionality now works correctly with immediate cache updates
 
 ### Dependencies
 - **Architecture**: Service layer undo recording system
