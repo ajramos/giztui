@@ -43,6 +43,14 @@ type LabelService interface {
 	GetMessageLabels(ctx context.Context, messageID string) ([]string, error)
 }
 
+// LabelVisibility defines label visibility options
+type LabelVisibility string
+
+const (
+	LabelVisibilityShow LabelVisibility = "labelShow"
+	LabelVisibilityHide LabelVisibility = "labelHide"
+)
+
 // AIService handles AI-related operations
 type AIService interface {
 	GenerateSummary(ctx context.Context, content string, options SummaryOptions) (*SummaryResult, error)
@@ -131,6 +139,13 @@ type ContentNavigationService interface {
 // Data structures
 
 type QueryOptions struct {
+	MaxResults int64
+	PageToken  string
+	LabelIDs   []string
+	Query      string
+}
+
+type MessageQueryOptions struct {
 	MaxResults int64
 	PageToken  string
 	LabelIDs   []string

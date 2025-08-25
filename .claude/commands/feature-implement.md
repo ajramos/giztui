@@ -125,6 +125,15 @@ Implement the following feature for Gmail TUI with complete architectural compli
 
 ### 17. Testing & Validation
 - **Create comprehensive test plan**: `testplan_[feature_name].md`  
+- **Use the testing framework in `test/helpers/`** for automated testing
+- **Unit tests**: Test service logic using mock dependencies
+- **Component tests**: Test TUI components with test harness and SimulationScreen
+- **Integration tests**: Test complete workflows using the integration test framework
+- **Visual regression tests**: Test UI consistency with snapshot testing
+- **Async operation tests**: Test goroutine management and cancellation patterns
+- **Bulk operation tests**: Test multi-message operation validation
+- **Keyboard shortcut tests**: Test user interaction simulation
+- **Performance tests**: Test critical operation benchmarks
 - Test all functionality: happy path, edge cases, error conditions
 - Test keyboard shortcuts and command equivalents
 - Test bulk mode support
@@ -133,6 +142,7 @@ Implement the following feature for Gmail TUI with complete architectural compli
 - Test theming integration
 - Test external service integration
 - **Run build verification**: `make build`
+- **Run test framework**: `make test-all` or `make test-unit` for service tests
 - Run linting: `make lint`, `make fmt` if available
 
 ## Documentation Requirements
@@ -196,7 +206,13 @@ Before considering complete, verify ALL of these:
 - [ ] README.md updated
 - [ ] Configuration support added
 - [ ] Test plan created and ready for execution
+- [ ] Automated tests written using testing framework in `test/helpers/`
+- [ ] Service unit tests with mock dependencies 
+- [ ] Component tests with test harness and SimulationScreen
+- [ ] Integration tests for complete workflows
+- [ ] Visual regression tests for UI consistency
 - [ ] Build successful (`make build`)
+- [ ] All tests passing (`make test-all`)
 - [ ] No linting errors
 
 ## Reference Files & Patterns
@@ -212,6 +228,15 @@ Before considering complete, verify ALL of these:
 - `internal/tui/threads.go` - Logging patterns and async operations
 - `internal/config/config.go` - Configuration and key binding structure
 - `docs/FOCUS_MANAGEMENT.md` - Side panel picker architecture
+
+**Testing Framework References:**
+- `test/helpers/test_harness.go` - Central testing utility with tcell.SimulationScreen
+- `test/helpers/integration_test.go` - End-to-end workflow testing patterns
+- `test/helpers/visual_regression_test.go` - UI consistency testing with snapshots
+- `test/helpers/bulk_operations_test.go` - Multi-message operation testing
+- `test/helpers/async_operations_test.go` - Goroutine and cancellation testing
+- `test/helpers/keyboard_shortcuts_test.go` - User interaction testing
+- `docs/testing-framework.md` - Comprehensive testing framework documentation
 
 **CRITICAL:** Read `CLAUDE.md` thoroughly - it contains the essential architectural patterns, debugging lessons, and "tricks" that prevent bugs and ensure features integrate seamlessly.
 

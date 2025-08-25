@@ -104,6 +104,14 @@ Debug and resolve the following issue in Gmail TUI using systematic analysis and
   - Proper ESC key handling
   - Comprehensive logging of changes
 - **Add safeguards** to prevent similar issues
+- **Use testing framework for verification**:
+  - Write unit tests for service fixes using mock dependencies
+  - Create component tests with test harness and SimulationScreen  
+  - Add integration tests for end-to-end workflow validation
+  - Use visual regression tests to catch UI inconsistencies
+  - Test async operations and goroutine management
+  - Validate bulk operation behavior
+  - Test keyboard shortcut functionality
 - **Test thoroughly** including edge cases and bulk operations
 - **Verify no regressions** in related functionality
 
@@ -119,6 +127,37 @@ grep "error\|failed\|Error" app.log
 
 # Trace specific user actions
 grep "focusManager\|keyHandler" app.log
+```
+
+### **Testing Framework for Debugging**
+```bash
+# Run relevant tests to reproduce and verify fixes
+make test-unit          # Test service logic in isolation
+make test-tui           # Test TUI components with simulation
+make test-integration   # Test end-to-end workflows
+make test-all          # Run comprehensive test suite
+
+# Test specific components during debugging
+go test ./test/helpers -run TestBulkOperations    # Bulk operation issues
+go test ./test/helpers -run TestKeyboardShortcuts # Keyboard shortcut problems
+go test ./test/helpers -run TestAsyncOperations   # Async/goroutine issues
+go test ./test/helpers -run TestVisualRegression  # UI display problems
+```
+
+### **Test Harness for Issue Reproduction**
+Use the test harness to reproduce issues in isolation:
+```go
+// Create isolated test environment
+harness := helpers.NewTestHarness(t)
+defer harness.Cleanup()
+
+// Simulate problematic user interactions
+harness.SimulateKeyEvent(tcell.KeyEscape, 0, tcell.ModNone)
+harness.SimulateTyping("problematic input")
+
+// Capture screen state for analysis
+content := harness.GetScreenContent()
+assert.Contains(t, content, "expected behavior")
 ```
 
 ### **Code Investigation Checklist**
@@ -161,23 +200,35 @@ grep "focusManager\|keyHandler" app.log
 - Update test plans if needed
 
 ### **Testing & Validation**
+- **Use testing framework for comprehensive validation**:
+  - Write unit tests to prevent regression of the specific issue
+  - Create component tests to verify TUI behavior  
+  - Add integration tests for end-to-end workflow validation
+  - Use visual regression tests for UI-related fixes
 - Test the specific issue reproduction case
 - Test related functionality for regressions
 - Test bulk operations if applicable
 - Test different themes and configurations
 - Verify ESC key behavior
-- Run `make build` and linting
+- Run `make build` and testing commands: `make test-all`
+- Run linting
 
 ## Post-Debug Checklist
 
 - [ ] Root cause clearly identified and documented
 - [ ] Fix addresses cause, not just symptoms
 - [ ] No architectural violations introduced
+- [ ] Automated tests added using testing framework in `test/helpers/`
+- [ ] Unit tests written for service fixes with mock dependencies
+- [ ] Component tests created with test harness for TUI behavior
+- [ ] Integration tests added for end-to-end validation
+- [ ] Visual regression tests included for UI-related fixes
 - [ ] Comprehensive logging added for future debugging
 - [ ] ESC key handling verified correct
 - [ ] Bulk operations tested if applicable
 - [ ] No regressions in related features
 - [ ] Build successful and linting clean
+- [ ] All tests passing (`make test-all`)
 - [ ] Lessons learned documented in CLAUDE.md
 
 ## Reference Files for Debugging
@@ -188,6 +239,13 @@ grep "focusManager\|keyHandler" app.log
 - `internal/tui/labels.go` - Side panel picker debugging
 - `internal/tui/keys.go` - ESC key handling patterns
 - `CLAUDE.md` - Historical debugging sessions and solutions
+
+**Testing Framework for Debugging:**
+- `test/helpers/test_harness.go` - Test harness for isolated issue reproduction
+- `test/helpers/integration_test.go` - End-to-end workflow testing patterns
+- `test/helpers/visual_regression_test.go` - UI consistency testing
+- `test/helpers/bulk_operations_test.go` - Bulk operation debugging patterns
+- `test/helpers/async_operations_test.go` - Goroutine and cancellation testing
 
 **Log Analysis Tools:**
 - `a.logger.Printf()` - Current logging approach
