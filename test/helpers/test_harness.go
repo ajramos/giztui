@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/ajramos/gmail-tui/internal/services/mocks"
 	"github.com/ajramos/gmail-tui/internal/tui"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
+	"github.com/derailed/tcell/v2"
+	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
@@ -50,14 +52,25 @@ func NewTestHarness(t *testing.T) *TestHarness {
 	mockRepo := &mocks.MessageRepository{}
 	mockSearch := &mocks.SearchService{}
 
-	// Note: We'll create a simplified test app since NewTestApp may not exist yet
-	// This will need to be implemented in the TUI package or we'll use a different approach
-	var app *tui.App
-	// TODO: Implement proper test app creation after validating existing functionality
+	// Create test configuration
+	testConfig := &config.Config{
+		Keys: config.DefaultKeyBindings(),
+	}
+
+	// Create minimal Gmail client for testing
+	// Note: This will have nil service, but that's okay for pure TUI testing
+	testClient := gmail.NewClient(nil)
+
+	// Create test app with minimal dependencies
+	// The app will initialize its own services via initServices()
+	testApp := tui.NewApp(testClient, nil, nil, testConfig)
+
+	// Note: We can't override the app's screen directly, so we'll use the simulation screen
+	// independently for UI component testing
 
 	return &TestHarness{
 		Screen:     screen,
-		App:        app,
+		App:        testApp,
 		MockEmail:  mockEmail,
 		MockAI:     mockAI,
 		MockLabel:  mockLabel,
@@ -91,8 +104,20 @@ func (h *TestHarness) SimulateKeyEvent(key tcell.Key, ch rune, mod tcell.ModMask
 func (h *TestHarness) SimulateKeySequence(keys []tcell.Key) {
 	for _, key := range keys {
 		event := h.SimulateKeyEvent(key, 0, tcell.ModNone)
-		// TODO: Implement key event handling when App methods are available
-		_ = event
+		// Send event to app if available (this will work once app event handling is ready)
+		if h.App != nil {
+			h.App.QueueEvent(event)
+		}
+	}
+}
+
+// SimulateTyping simulates typing a string of characters
+func (h *TestHarness) SimulateTyping(text string) {
+	for _, ch := range text {
+		event := h.SimulateKeyEvent(tcell.KeyRune, ch, tcell.ModNone)
+		if h.App != nil {
+			h.App.QueueEvent(event)
+		}
 	}
 }
 
@@ -154,4 +179,108 @@ func (h *TestHarness) SetupMockExpectations() {
 		Messages: h.GenerateTestMessages(10),
 		NextPageToken: "",
 	}, nil)
+}
+
+// Advanced testing methods for Phase 4
+
+// WaitForUIUpdate waits for UI updates to complete
+func (h *TestHarness) WaitForUIUpdate(timeout time.Duration) bool {
+	return h.WaitForCondition(func() bool {
+		// Allow time for any queued UI updates to process
+		time.Sleep(10 * time.Millisecond)
+		return true
+	}, timeout)
+}
+
+// AssertScreenRegion checks content in a specific screen region
+func (h *TestHarness) AssertScreenRegion(t *testing.T, x, y, width, height int, expectedText string) {
+	content := h.GetScreenRegion(x, y, width, height)
+	assert.Contains(t, content, expectedText)
+}
+
+// GetScreenRegion captures content from a specific screen region
+func (h *TestHarness) GetScreenRegion(x, y, width, height int) string {
+	var output string
+	for row := y; row < y+height; row++ {
+		for col := x; col < x+width; col++ {
+			char, _, _, _ := h.Screen.GetContent(col, row)
+			output += string(char)
+		}
+		output += "\n"
+	}
+	return output
+}
+
+// SimulateMouseClick simulates a mouse click at specified coordinates
+func (h *TestHarness) SimulateMouseClick(x, y int) *tcell.EventMouse {
+	event := tcell.NewEventMouse(x, y, tcell.Button1, tcell.ModNone)
+	if h.App != nil {
+		h.App.QueueEvent(event)
+	}
+	return event
+}
+
+// GetScreenSnapshot returns a structured snapshot of the screen for comparison
+func (h *TestHarness) GetScreenSnapshot() *ScreenSnapshot {
+	width, height := h.Screen.Size()
+	cells := make([][]ScreenCell, height)
+	
+	for y := 0; y < height; y++ {
+		cells[y] = make([]ScreenCell, width)
+		for x := 0; x < width; x++ {
+			char, _, style, _ := h.Screen.GetContent(x, y)
+			cells[y][x] = ScreenCell{
+				Char:  char,
+				Style: style,
+			}
+		}
+	}
+	
+	return &ScreenSnapshot{
+		Width:  width,
+		Height: height,
+		Cells:  cells,
+	}
+}
+
+// ScreenSnapshot represents a snapshot of the screen for testing
+type ScreenSnapshot struct {
+	Width  int
+	Height int
+	Cells  [][]ScreenCell
+}
+
+// ScreenCell represents a single cell in the terminal screen
+type ScreenCell struct {
+	Char  rune
+	Style tcell.Style
+}
+
+// Equals compares two screen snapshots for equality
+func (s *ScreenSnapshot) Equals(other *ScreenSnapshot) bool {
+	if s.Width != other.Width || s.Height != other.Height {
+		return false
+	}
+	
+	for y := 0; y < s.Height; y++ {
+		for x := 0; x < s.Width; x++ {
+			if s.Cells[y][x] != other.Cells[y][x] {
+				return false
+			}
+		}
+	}
+	
+	return true
+}
+
+// GetContentString returns the snapshot as a readable string
+func (s *ScreenSnapshot) GetContentString() string {
+	var output string
+	for y := 0; y < s.Height; y++ {
+		for x := 0; x < s.Width; x++ {
+			output += string(s.Cells[y][x].Char)
+		}
+		output += "\n"
+	}
+	return output
 }
