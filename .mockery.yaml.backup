@@ -1,0 +1,21 @@
+# Mockery configuration for Gmail TUI services
+# Run: mockery --config .mockery.yaml
+
+with-expecter: true
+packages:
+  github.com/ajramos/gmail-tui/internal/services:
+    interfaces:
+      - EmailService
+      - LabelService
+      - AIService
+      - CacheService
+      - SlackService
+      - SearchService
+      - PromptService
+      - MessageRepository
+    config:
+      dir: internal/services/mocks
+      filename: "{{.InterfaceName}}.go"
+      mockname: "Mock{{.InterfaceName}}"
+      outpkg: mocks
+      inpackage: false

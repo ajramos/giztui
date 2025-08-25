@@ -39,7 +39,7 @@ install: ## Install the application
 
 test: ## Run tests
 	@echo "$(GREEN)Running tests...$(NC)"
-	go test -v ./...
+	go test -v ./internal/... ./test/helpers ./test ./pkg/...
 
 test-race: ## Run tests with race detector
 	@echo "$(GREEN)Running tests with race detector...$(NC)"
@@ -138,8 +138,80 @@ update-deps: ## Update dependencies
 	go get -u ./...
 	go mod tidy
 
-# Mock generation commands (requires mockgen)
-mocks: ## Generate mocks
+# Testing commands
+.PHONY: test test-unit test-integration test-tui test-coverage test-mocks test-snapshots test-all
+
+# Generate mocks for testing
+test-mocks: ## Generate mocks using mockery
+	@echo "$(GREEN)Generating mocks for testing...$(NC)"
+	@if command -v mockery >/dev/null 2>&1; then \
+		mockery --dir=internal/services --name=EmailService --output=internal/services/mocks --outpkg=mocks --filename=email_service.go; \
+		mockery --dir=internal/services --name=AIService --output=internal/services/mocks --outpkg=mocks --filename=ai_service.go; \
+		mockery --dir=internal/services --name=LabelService --output=internal/services/mocks --outpkg=mocks --filename=label_service.go; \
+		mockery --dir=internal/services --name=CacheService --output=internal/services/mocks --outpkg=mocks --filename=cache_service.go; \
+		mockery --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go; \
+		mockery --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go; \
+		echo "$(GREEN)Mocks generated successfully$(NC)"; \
+	else \
+		echo "$(YELLOW)mockery is not installed. Install it with:$(NC)"; \
+		echo "go install github.com/vektra/mockery/v2@latest"; \
+	fi
+
+# Run unit tests
+test-unit: ## Run unit tests
+	@echo "$(GREEN)Running unit tests...$(NC)"
+	go test -v ./internal/services/... -race
+
+# Run TUI component tests
+test-tui: ## Run TUI component tests
+	@echo "$(GREEN)Running TUI component tests...$(NC)"
+	go test -v ./test/helpers/... -race
+
+# Run integration tests
+test-integration: ## Run integration tests
+	@echo "$(GREEN)Running integration tests...$(NC)"
+	go test -v ./test/integration/... -race
+
+# Run all tests with coverage
+test-coverage: ## Run tests with coverage
+	@echo "$(GREEN)Running tests with coverage...$(NC)"
+	go test -v -coverprofile=coverage.out ./internal/... ./test/helpers ./test ./pkg/...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "$(GREEN)Coverage report generated: coverage.html$(NC)"
+
+# Update snapshots (use with caution)
+test-snapshots-update: ## Update test snapshots
+	@echo "$(GREEN)Updating test snapshots...$(NC)"
+	go test -v ./test/helpers/... -update
+
+# Run all tests
+test-all: test-mocks test-unit test-tui test-integration test-coverage ## Run all tests
+
+# Test specific component
+test-messages: ## Test message handling
+	@echo "$(GREEN)Testing message handling...$(NC)"
+	go test -v ./internal/tui/messages* -race
+
+test-labels: ## Test label management
+	@echo "$(GREEN)Testing label management...$(NC)"
+	go test -v ./internal/tui/labels* -race
+
+test-ai: ## Test AI features
+	@echo "$(GREEN)Testing AI features...$(NC)"
+	go test -v ./internal/tui/ai* -race
+
+# Performance testing
+test-performance: ## Run performance tests
+	@echo "$(GREEN)Running performance tests...$(NC)"
+	go test -v -bench=. -benchmem ./test/performance/...
+
+# Load testing
+test-load: ## Run load tests
+	@echo "$(GREEN)Running load tests...$(NC)"
+	go test -v -bench=BenchmarkBulkOperations -benchtime=30s ./test/helpers/...
+
+# Legacy mock generation commands (requires mockgen)
+mocks: ## Generate mocks (legacy)
 	@echo "$(GREEN)Generating mocks...$(NC)"
 	@if command -v mockgen >/dev/null 2>&1; then \
 		mockgen -source=internal/gmail/client.go -destination=internal/gmail/mocks.go; \

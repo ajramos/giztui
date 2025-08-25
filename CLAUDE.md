@@ -725,6 +725,105 @@ func (a *App) newBulkOperation() {
 - ✅ No deadlocks when using ErrorHandler for status updates
 - ✅ Cache updates happen correctly (once per message)
 
+## 🧪 **Testing Framework Integration**
+
+**MANDATORY**: All new feature development MUST include proper testing using the integrated testing framework.
+
+### 🏗️ **Testing Infrastructure**
+
+The project now includes a comprehensive testing framework with:
+
+#### **Core Components**
+- **Test Harness** (`test/helpers/test_harness.go`) - Central testing utility with tcell simulation screen
+- **Mock Generation** - Automated mocks for all service interfaces using mockery
+- **CI/CD Pipeline** - GitHub Actions workflow for automated testing across platforms
+- **Makefile Targets** - Comprehensive test commands for different test types
+
+#### **Available Test Commands**
+```bash
+# Generate mocks (run first)
+make test-mocks
+
+# Run basic tests
+make test               # All current working tests
+make test-unit          # Service layer unit tests  
+make test-tui           # TUI component tests
+make test-coverage      # Tests with coverage report
+
+# Advanced testing (when app methods are implemented)
+make test-integration   # Integration tests
+make test-performance   # Performance benchmarks
+make test-all          # Complete test suite
+```
+
+#### **Mock Services Available**
+All service interfaces have generated mocks:
+- `mocks.EmailService` - Email operations
+- `mocks.AIService` - AI/LLM operations  
+- `mocks.LabelService` - Label management
+- `mocks.CacheService` - Caching operations
+- `mocks.MessageRepository` - Data access
+- `mocks.SearchService` - Search functionality
+
+### 🎯 **Testing Best Practices**
+
+#### **For New Features**
+1. **Create Test File** - Add `*_test.go` files alongside implementation
+2. **Use Test Harness** - Import `github.com/ajramos/gmail-tui/test/helpers`
+3. **Mock Dependencies** - Use generated mocks for service isolation
+4. **Test All Paths** - Cover success, failure, and edge cases
+5. **Include Benchmarks** - Add performance tests for critical paths
+
+#### **Test Structure Pattern**
+```go
+func TestNewFeature(t *testing.T) {
+    harness := helpers.NewTestHarness(t)
+    defer harness.Cleanup()
+
+    // Setup mocks
+    harness.MockEmail.On("MethodName", mock.Anything).Return(expectedResult, nil)
+
+    // Test implementation
+    result := serviceUnderTest.DoSomething()
+
+    // Verify
+    assert.Equal(t, expected, result)
+    harness.MockEmail.AssertExpectations(t)
+}
+```
+
+#### **Integration Requirements**
+- **Service Tests** - Test business logic with mocked dependencies
+- **Component Tests** - Test TUI components with simulation screen
+- **Integration Tests** - Test service interaction (when available)
+- **Performance Tests** - Benchmark critical operations
+
+### 🚀 **Future Comprehensive Testing**
+
+The framework includes advanced testing capabilities ready for integration when TUI app methods are implemented:
+
+#### **Waiting for Implementation**
+- **Keyboard Shortcuts Testing** - User interaction simulation
+- **Bulk Operations Testing** - Multi-message operation validation  
+- **Async Operations Testing** - Goroutine leak detection and cancellation
+- **Visual Regression Testing** - UI consistency with snapshots
+
+#### **Ready to Integrate** 
+Advanced test files are in `test/helpers/future/` and will be moved to active testing once these app methods exist:
+- `HandleKeyEvent()`, `LoadMessagesAsync()`, `GetMessageCount()`
+- `SetSelectedMessages()`, `ApplyLabelToSelectedAsync()`  
+- `GetMessageListComponent()`, `GetMessageContentComponent()`
+- `ShowSearchInterface()`, `ShowAIPanel()`
+
+### 📊 **CI/CD Integration**
+
+The testing framework includes automated CI/CD with:
+- **Matrix Testing** - Multiple Go versions (1.21, 1.22, 1.23) and OS (Ubuntu, macOS)
+- **Security Scanning** - Trivy vulnerability detection
+- **Coverage Reporting** - Code coverage tracking and reporting
+- **Visual Regression** - Automated UI consistency checking  
+- **Notifications** - PR comments and Slack notifications
+
 ## 📋 **Test Plan Requirements**
 
 **MANDATORY**: Every feature development MUST include a comprehensive test plan file to verify functionality.
