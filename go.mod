@@ -8,9 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.35.0
 	github.com/derailed/tcell/v2 v2.3.1-rc.4
 	github.com/derailed/tview v0.8.5
-	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/mattn/go-runewidth v0.0.16
-	github.com/rivo/tview v0.0.0-20250625164341-a4a78f1e05cb
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/net v0.42.0
