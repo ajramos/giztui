@@ -337,7 +337,7 @@ go test -v ./internal/services/... -coverprofile=coverage.out -race        # Ser
 go tool cover -html=coverage.out                                           # Generate coverage report
 go test -v ./test/helpers -run TestBulkOperationsFramework/BulkPerformance -race  # Performance benchmarks
 
-# Mock generation (WORKING)
+# Mock generation (WORKING ✅) 
 make test-mocks       # Generate/update service mocks using mockery
 
 # Integration tests (TEMPORARILY DISABLED - type system issues)
@@ -374,6 +374,24 @@ go test -v ./test/helpers -run TestVisualRegressionFramework -race
 **Status**: Framework implemented, temporarily disabled pending type alignment.
 
 **Workaround**: Use other test layers (unit, async, bulk, visual) for comprehensive coverage.
+
+### **Mock Generation Issues (RESOLVED) ✅**
+
+**Issue**: `make test-mocks` fails with "mockery is not installed" even after installing mockery.
+
+**Root Cause**: mockery installed in Go bin directory not in PATH.
+
+**Solution Applied**: Enhanced Makefile to check multiple locations for mockery:
+```bash
+# ✅ WORKING - Now detects mockery in Go bin directory
+make test-mocks  
+
+# If still issues, ensure mockery is installed:
+go install github.com/vektra/mockery/v2@latest
+
+# Optional: Add Go bin to PATH permanently  
+export PATH=$PATH:$(go env GOPATH)/bin
+```
 
 ---
 

@@ -138,17 +138,27 @@ update-deps: ## Update dependencies
 # Generate mocks for testing
 test-mocks: ## Generate mocks using mockery
 	@echo "$(GREEN)Generating mocks for testing...$(NC)"
-	@if command -v mockery >/dev/null 2>&1; then \
-		mockery --dir=internal/services --name=EmailService --output=internal/services/mocks --outpkg=mocks --filename=email_service.go; \
-		mockery --dir=internal/services --name=AIService --output=internal/services/mocks --outpkg=mocks --filename=ai_service.go; \
-		mockery --dir=internal/services --name=LabelService --output=internal/services/mocks --outpkg=mocks --filename=label_service.go; \
-		mockery --dir=internal/services --name=CacheService --output=internal/services/mocks --outpkg=mocks --filename=cache_service.go; \
-		mockery --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go; \
-		mockery --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go; \
+	@MOCKERY_CMD=""; \
+	if command -v mockery >/dev/null 2>&1; then \
+		MOCKERY_CMD="mockery"; \
+	elif [ -f $$HOME/go/bin/mockery ]; then \
+		MOCKERY_CMD="$$HOME/go/bin/mockery"; \
+	elif [ -f $$(go env GOPATH)/bin/mockery ]; then \
+		MOCKERY_CMD="$$(go env GOPATH)/bin/mockery"; \
+	fi; \
+	if [ -n "$$MOCKERY_CMD" ]; then \
+		$$MOCKERY_CMD --dir=internal/services --name=EmailService --output=internal/services/mocks --outpkg=mocks --filename=email_service.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=AIService --output=internal/services/mocks --outpkg=mocks --filename=ai_service.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=LabelService --output=internal/services/mocks --outpkg=mocks --filename=label_service.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=CacheService --output=internal/services/mocks --outpkg=mocks --filename=cache_service.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go; \
 		echo "$(GREEN)Mocks generated successfully$(NC)"; \
 	else \
 		echo "$(YELLOW)mockery is not installed. Install it with:$(NC)"; \
 		echo "go install github.com/vektra/mockery/v2@latest"; \
+		echo "$(YELLOW)Note: You may need to add your Go bin directory to PATH:$(NC)"; \
+		echo "export PATH=\$$PATH:\$$(go env GOPATH)/bin"; \
 	fi
 
 # Run unit tests
