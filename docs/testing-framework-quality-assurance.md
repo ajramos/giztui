@@ -393,6 +393,21 @@ go install github.com/vektra/mockery/v2@latest
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
+### **Duplicate Mock Files (RESOLVED) ✅**
+
+**Issue**: After running `make test-mocks`, unit tests fail with "redeclared" compilation errors.
+
+**Root Cause**: mockery generated both capitalized (`EmailService.go`) and lowercase (`email_service.go`) versions of mock files, causing duplicate type declarations.
+
+**Solution Applied**: Enhanced Makefile to clean existing mocks before generation:
+```bash
+# ✅ WORKING - Now cleans duplicates automatically
+make test-mocks  # Automatically removes old mocks before generating new ones
+
+# Manual cleanup if needed:
+rm -rf internal/services/mocks && mkdir -p internal/services/mocks
+```
+
 ---
 
 ## 🎉 **Success Criteria**

@@ -138,6 +138,9 @@ update-deps: ## Update dependencies
 # Generate mocks for testing
 test-mocks: ## Generate mocks using mockery
 	@echo "$(GREEN)Generating mocks for testing...$(NC)"
+	@echo "$(YELLOW)Cleaning existing mocks...$(NC)"
+	@rm -rf internal/services/mocks
+	@mkdir -p internal/services/mocks
 	@MOCKERY_CMD=""; \
 	if command -v mockery >/dev/null 2>&1; then \
 		MOCKERY_CMD="mockery"; \
