@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/db"
@@ -13,6 +14,7 @@ import (
 type QueryServiceImpl struct {
 	store        *db.QueryStore
 	accountEmail string
+	mu           sync.RWMutex // Protects accountEmail field
 }
 
 // NewQueryService creates a new query service
@@ -29,11 +31,15 @@ func NewQueryService(store *db.QueryStore, config *config.Config) *QueryServiceI
 
 // SetAccountEmail sets the account email for the service
 func (s *QueryServiceImpl) SetAccountEmail(email string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.accountEmail = email
 }
 
 // GetAccountEmail returns the current account email
 func (s *QueryServiceImpl) GetAccountEmail() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.accountEmail
 }
 
@@ -43,7 +49,11 @@ func (s *QueryServiceImpl) SaveQuery(ctx context.Context, name, query, descripti
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 
@@ -74,7 +84,11 @@ func (s *QueryServiceImpl) GetQuery(ctx context.Context, name string) (*SavedQue
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 
@@ -96,7 +110,11 @@ func (s *QueryServiceImpl) GetQueryByID(ctx context.Context, id int64) (*SavedQu
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 
@@ -118,7 +136,11 @@ func (s *QueryServiceImpl) ListQueries(ctx context.Context, category string) ([]
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 
@@ -141,7 +163,11 @@ func (s *QueryServiceImpl) SearchQueries(ctx context.Context, searchTerm string)
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 
@@ -227,7 +253,11 @@ func (s *QueryServiceImpl) GetCategories(ctx context.Context) ([]string, error) 
 		return nil, fmt.Errorf("query store not available")
 	}
 
-	if strings.TrimSpace(s.accountEmail) == "" {
+	s.mu.RLock()
+	email := s.accountEmail
+	s.mu.RUnlock()
+	
+	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
 

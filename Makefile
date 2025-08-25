@@ -84,14 +84,8 @@ theme-demo: deps ## Run the theme system demo (preview and validate themes)
 	@echo "$(GREEN)Running theme demo...$(NC)"
 	go run ./examples/theme_demo.go
 
-# Specific testing commands
-test-unit: ## Run unit tests
-	@echo "$(GREEN)Running unit tests...$(NC)"
-	go test -v ./internal/...
-
-test-integration: ## Run integration tests
-	@echo "$(GREEN)Running integration tests...$(NC)"
-	go test -v -tags=integration ./...
+# Legacy testing commands (replaced by more specific ones below)
+# test-unit and test-integration moved to testing section below
 
 # Release commands
 release: clean build ## Prepare release
