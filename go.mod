@@ -16,6 +16,16 @@ require (
 	modernc.org/sqlite v1.29.10
 )
 
+// Testing dependencies
+require (
+	github.com/stretchr/testify v1.8.4
+	github.com/vektra/mockery/v2 v2.42.2
+	github.com/dnaeon/go-vcr/v2 v2.2.0
+	github.com/gkampitakis/go-snaps v0.4.11
+	github.com/teivah/onecontext v1.3.0
+	github.com/uber-go/goleak v1.3.0
+)
+
 require (
 	cloud.google.com/go/auth v0.16.3 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
