@@ -174,6 +174,14 @@ func (a *App) displayThreadsWithProgress(threads []*services.ThreadInfo) {
 		// Phase 4: Completion
 		a.GetErrorHandler().ClearProgress()
 		
+		// Phase 5: Final redraw to fix alignment issues
+		a.QueueUpdateDraw(func() {
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				// Force a complete table refresh to fix column alignment
+				table.ScrollToBeginning()
+			}
+		})
+		
 		// Brief delay to ensure progress is fully cleared before final status
 		time.Sleep(25 * time.Millisecond) 
 		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📧 Loaded %d conversations", total))
@@ -239,8 +247,9 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 		}
 		
 		// Create thread header cell with appropriate styling
+		// Don't use expansion since we're doing manual column formatting
 		cell := tview.NewTableCell(threadText).
-			SetExpansion(1).
+			SetExpansion(0).
 			SetAlign(tview.AlignLeft)
 		
 		// Apply thread-specific styling
@@ -272,7 +281,7 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 							// Add error message row
 							errorText := "    ⚠️  Failed to load thread messages"
 							errorCell := tview.NewTableCell(errorText).
-								SetExpansion(1).
+								SetExpansion(0).
 								SetAlign(tview.AlignLeft).
 								SetTextColor(tcell.ColorOrange) // Use a warning color
 							table.SetCell(rowIndex, 0, errorCell)
@@ -285,7 +294,7 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 								messageText := a.formatThreadMessageForList(message, msgIndex, len(messages))
 								
 								messageCell := tview.NewTableCell(messageText).
-									SetExpansion(1).
+									SetExpansion(0).
 									SetAlign(tview.AlignLeft)
 								
 								// Style individual messages differently (slightly dimmer)
@@ -941,7 +950,7 @@ func (a *App) insertThreadLoadingPlaceholder(table *tview.Table, insertIndex int
 	// Insert loading placeholder
 	loadingText := "    ⏳ Loading thread messages..."
 	loadingCell := tview.NewTableCell(loadingText).
-		SetExpansion(1).
+		SetExpansion(0).
 		SetAlign(tview.AlignLeft).
 		SetTextColor(a.currentTheme.UI.InfoColor.Color())
 	
@@ -976,7 +985,7 @@ func (a *App) replaceLoadingWithMessages(table *tview.Table, loadingIndex int, t
 		messageText := a.formatThreadMessageForList(message, i, len(messages))
 		
 		messageCell := tview.NewTableCell(messageText).
-			SetExpansion(1).
+			SetExpansion(0).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(a.currentTheme.UI.FooterColor.Color())
 
@@ -988,7 +997,7 @@ func (a *App) replaceLoadingWithMessages(table *tview.Table, loadingIndex int, t
 func (a *App) replaceLoadingWithError(table *tview.Table, loadingIndex int, threadID string) {
 	errorText := "    ⚠️  Failed to load thread messages"
 	errorCell := tview.NewTableCell(errorText).
-		SetExpansion(1).
+		SetExpansion(0).
 		SetAlign(tview.AlignLeft).
 		SetTextColor(tcell.ColorOrange)
 
