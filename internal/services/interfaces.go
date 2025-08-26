@@ -23,6 +23,8 @@ type MessageRepository interface {
 type EmailService interface {
 	MarkAsRead(ctx context.Context, messageID string) error
 	MarkAsUnread(ctx context.Context, messageID string) error
+	BulkMarkAsRead(ctx context.Context, messageIDs []string) error
+	BulkMarkAsUnread(ctx context.Context, messageIDs []string) error
 	ArchiveMessage(ctx context.Context, messageID string) error
 	ArchiveMessageAsMove(ctx context.Context, messageID, labelID, labelName string) error
 	TrashMessage(ctx context.Context, messageID string) error

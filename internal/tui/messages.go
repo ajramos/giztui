@@ -3322,8 +3322,11 @@ func (a *App) toggleMarkReadUnread() {
 		}
 	}
 	go func(markUnread bool) {
+		// Get EmailService to ensure undo actions are recorded
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+
 		if markUnread {
-			if err := a.Client.MarkAsUnread(messageID); err != nil {
+			if err := emailService.MarkAsUnread(a.ctx, messageID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err))
 				return
 			}
@@ -3334,7 +3337,7 @@ func (a *App) toggleMarkReadUnread() {
 				a.reformatListItems()
 			})
 		} else {
-			if err := a.Client.MarkAsRead(messageID); err != nil {
+			if err := emailService.MarkAsRead(a.ctx, messageID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error marking as read: %v", err))
 				return
 			}

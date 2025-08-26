@@ -230,29 +230,120 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 }
 
 func (s *UndoServiceImpl) undoMarkRead(ctx context.Context, action *UndoableAction) error {
-	// To undo mark as read, mark as unread
-	for _, messageID := range action.MessageIDs {
+	// Check if this is a toggle operation that needs to restore to previous state
+	if operationType, exists := action.ExtraData["operation_type"]; exists && operationType == "toggle_read" {
+		// Handle toggle operations by restoring each message to its previous state
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkRead handling toggle operation with %d message IDs: %v", len(action.MessageIDs), action.MessageIDs)
+		}
+
+		for i, messageID := range action.MessageIDs {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMarkRead restoring toggle for message %d/%d: %s", i+1, len(action.MessageIDs), messageID)
+			}
+
+			// Get the previous state for this message
+			prevState, exists := action.PrevState[messageID]
+			if !exists {
+				if s.logger != nil {
+					s.logger.Printf("DEBUG: undoMarkRead no previous state found for message %s, skipping", messageID)
+				}
+				continue
+			}
+
+			// Restore to previous read state
+			var updates MessageUpdates
+			if prevState.IsRead {
+				// Message was read before, restore by removing UNREAD label
+				updates = MessageUpdates{
+					RemoveLabels: []string{"UNREAD"},
+				}
+			} else {
+				// Message was unread before, restore by adding UNREAD label
+				updates = MessageUpdates{
+					AddLabels: []string{"UNREAD"},
+				}
+			}
+
+			if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+				if s.logger != nil {
+					s.logger.Printf("DEBUG: undoMarkRead FAILED to restore toggle for message %s: %v", messageID, err)
+				}
+				return fmt.Errorf("failed to undo toggle read for message %s: %v", messageID, err)
+			}
+
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMarkRead SUCCESS restored toggle for message %s to read=%t", messageID, prevState.IsRead)
+			}
+		}
+
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkRead toggle operation completed successfully for all %d messages", len(action.MessageIDs))
+		}
+		return nil
+	}
+
+	// Standard mark as read undo: mark as unread
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMarkRead starting standard operation with %d message IDs: %v", len(action.MessageIDs), action.MessageIDs)
+	}
+
+	for i, messageID := range action.MessageIDs {
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkRead processing message %d/%d: %s", i+1, len(action.MessageIDs), messageID)
+		}
+
 		updates := MessageUpdates{
 			AddLabels: []string{"UNREAD"},
 		}
 
 		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMarkRead FAILED for message %s: %v", messageID, err)
+			}
 			return fmt.Errorf("failed to undo mark read for message %s: %v", messageID, err)
 		}
+
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkRead SUCCESS for message %s", messageID)
+		}
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMarkRead completed successfully for all %d messages", len(action.MessageIDs))
 	}
 	return nil
 }
 
 func (s *UndoServiceImpl) undoMarkUnread(ctx context.Context, action *UndoableAction) error {
 	// To undo mark as unread, mark as read
-	for _, messageID := range action.MessageIDs {
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMarkUnread starting with %d message IDs: %v", len(action.MessageIDs), action.MessageIDs)
+	}
+
+	for i, messageID := range action.MessageIDs {
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkUnread processing message %d/%d: %s", i+1, len(action.MessageIDs), messageID)
+		}
+
 		updates := MessageUpdates{
 			RemoveLabels: []string{"UNREAD"},
 		}
 
 		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("DEBUG: undoMarkUnread FAILED for message %s: %v", messageID, err)
+			}
 			return fmt.Errorf("failed to undo mark unread for message %s: %v", messageID, err)
 		}
+
+		if s.logger != nil {
+			s.logger.Printf("DEBUG: undoMarkUnread SUCCESS for message %s", messageID)
+		}
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("DEBUG: undoMarkUnread completed successfully for all %d messages", len(action.MessageIDs))
 	}
 	return nil
 }

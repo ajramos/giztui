@@ -1007,7 +1007,7 @@ func (a *App) getUndoStatusMessage(result *services.UndoResult) string {
 		return baseMessage + " (Press R to refresh if not visible)"
 	} else if strings.Contains(result.Description, "label") {
 		return baseMessage // UI updates immediately, no refresh needed
-	} else if strings.Contains(result.Description, "marked as") {
+	} else if strings.Contains(result.Description, "Marked as") {
 		return baseMessage // UI updates immediately, no refresh needed
 	} else {
 		return baseMessage + " (Press R to refresh)"
@@ -1037,8 +1037,9 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			a.reformatListItems()
 		})
 		return
-	} else if strings.Contains(result.Description, "marked as unread") || strings.Contains(result.Description, "marked as read") {
-		// Read state changes - just refresh UI formatting
+	} else if strings.Contains(result.Description, "Marked as unread") || strings.Contains(result.Description, "Marked as read") {
+		// Read state changes - update cache immediately and refresh UI formatting
+		a.updateCacheAfterReadStateUndo(result)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
 		})
@@ -1161,6 +1162,46 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: restoreMessagesToInboxList completed - list now has %d messages", len(a.ids))
+	}
+}
+
+// updateCacheAfterReadStateUndo updates local cache immediately after read state undo operations
+func (a *App) updateCacheAfterReadStateUndo(result *services.UndoResult) {
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo starting")
+		a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo MessageIDs: %v", result.MessageIDs)
+		a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo ActionType: %v", result.ActionType)
+		a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo Description: %s", result.Description)
+	}
+
+	for i, messageID := range result.MessageIDs {
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo processing message %d/%d: %s", i+1, len(result.MessageIDs), messageID)
+		}
+
+		// Determine what state to restore based on the undo description
+		// Pattern matching works for both single ("Marked as unread") and bulk ("Marked as unread 2 messages") operations
+		if strings.Contains(result.Description, "Marked as unread") {
+			// We undid a mark-as-read, so restore to unread (add UNREAD label)
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo restoring %s to UNREAD", messageID)
+			}
+			a.updateCachedMessageLabels(messageID, "UNREAD", true)
+		} else if strings.Contains(result.Description, "Marked as read") {
+			// We undid a mark-as-unread, so restore to read (remove UNREAD label)
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo restoring %s to READ", messageID)
+			}
+			a.updateCachedMessageLabels(messageID, "UNREAD", false)
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo NO MATCH for description: %s", result.Description)
+			}
+		}
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: updateCacheAfterReadStateUndo completed")
 	}
 }
 

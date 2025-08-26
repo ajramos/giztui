@@ -159,6 +159,104 @@ func (s *EmailServiceImpl) MarkAsUnread(ctx context.Context, messageID string) e
 	return s.repo.UpdateMessage(ctx, messageID, updates)
 }
 
+// BulkMarkAsRead marks multiple messages as read
+func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []string) error {
+	if len(messageIDs) == 0 {
+		return fmt.Errorf("no message IDs provided")
+	}
+
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			// Capture state for all messages
+			prevStates := make(map[string]ActionState)
+			for _, id := range messageIDs {
+				if prevState, err := undoServiceImpl.CaptureMessageState(ctx, id); err == nil {
+					prevStates[id] = prevState
+				}
+			}
+
+			// Record single bulk undo action
+			if len(prevStates) > 0 {
+				action := &UndoableAction{
+					Type:        UndoActionMarkRead,
+					MessageIDs:  messageIDs,
+					PrevState:   prevStates,
+					Description: "Mark messages as read",
+					IsBulk:      true,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
+	// Perform the actual operations using repository directly (to avoid double undo recording)
+	var errs []string
+	for _, id := range messageIDs {
+		updates := MessageUpdates{
+			RemoveLabels: []string{"UNREAD"},
+		}
+		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
+			errs = append(errs, fmt.Sprintf("failed to mark as read %s: %v", id, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("bulk mark as read errors: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
+// BulkMarkAsUnread marks multiple messages as unread
+func (s *EmailServiceImpl) BulkMarkAsUnread(ctx context.Context, messageIDs []string) error {
+	if len(messageIDs) == 0 {
+		return fmt.Errorf("no message IDs provided")
+	}
+
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			// Capture state for all messages
+			prevStates := make(map[string]ActionState)
+			for _, id := range messageIDs {
+				if prevState, err := undoServiceImpl.CaptureMessageState(ctx, id); err == nil {
+					prevStates[id] = prevState
+				}
+			}
+
+			// Record single bulk undo action
+			if len(prevStates) > 0 {
+				action := &UndoableAction{
+					Type:        UndoActionMarkUnread,
+					MessageIDs:  messageIDs,
+					PrevState:   prevStates,
+					Description: "Mark messages as unread",
+					IsBulk:      true,
+				}
+				s.undoService.RecordAction(ctx, action)
+			}
+		}
+	}
+
+	// Perform the actual operations using repository directly (to avoid double undo recording)
+	var errs []string
+	for _, id := range messageIDs {
+		updates := MessageUpdates{
+			AddLabels: []string{"UNREAD"},
+		}
+		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
+			errs = append(errs, fmt.Sprintf("failed to mark as unread %s: %v", id, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("bulk mark as unread errors: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
 func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string) error {
 	if messageID == "" {
 		return fmt.Errorf("messageID cannot be empty")
