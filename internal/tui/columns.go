@@ -56,20 +56,200 @@ func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode)
 	}
 }
 
-// getColumnConfigForCurrentMode returns the appropriate column configuration based on current display settings
+// ResponsiveBreakpoint represents different screen size categories
+type ResponsiveBreakpoint int
+
+const (
+	BreakpointVeryNarrow ResponsiveBreakpoint = iota // < 50 chars
+	BreakpointNarrow                                 // 50-69 chars  
+	BreakpointMedium                                 // 70-99 chars
+	BreakpointWide                                   // 100+ chars
+)
+
+// getResponsiveBreakpoint determines the current responsive breakpoint based on available width
+func (a *App) getResponsiveBreakpoint() ResponsiveBreakpoint {
+	width := a.getListWidth()
+	
+	if width < 50 {
+		return BreakpointVeryNarrow
+	} else if width < 70 {
+		return BreakpointNarrow
+	} else if width < 100 {
+		return BreakpointMedium
+	}
+	return BreakpointWide
+}
+
+// getColumnConfigForCurrentMode returns the appropriate responsive column configuration based on current display settings
 func (a *App) getColumnConfigForCurrentMode(rowType render.EmailRowType) []render.ColumnConfig {
-	var baseConfig []render.ColumnConfig
+	breakpoint := a.getResponsiveBreakpoint()
+	availableWidth := a.getListWidth()
 	
 	if rowType == render.RowTypeThreadHeader || rowType == render.RowTypeThreadMessage {
-		baseConfig = render.GetColumnConfig(render.ModeThreaded)
+		return a.getResponsiveThreadedConfig(breakpoint, availableWidth)
 	} else {
-		baseConfig = render.GetColumnConfig(render.ModeFlatList)
+		return a.getResponsiveFlatConfig(breakpoint, availableWidth)
+	}
+}
+
+// getResponsiveFlatConfig returns responsive column configuration for flat message lists
+func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, availableWidth int) []render.ColumnConfig {
+	config := make([]render.ColumnConfig, 0, 6) // Max possible columns with numbers
+	
+	// Column fixed and minimum widths
+	flagsFixedWidth := 3      // Fixed width for flags column (●/○/!)
+	fromMinWidth := 8
+	subjectMinWidth := 15
+	attachmentFixedWidth := 3 // Fixed width for attachment column (📎)
+	calendarFixedWidth := 3   // Fixed width for calendar column (📅)
+	dateMinWidth := 8
+	numbersWidth := 0
+	
+	// If numbers are enabled, calculate numbers column width
+	if a.showMessageNumbers {
+		maxNumber := len(a.ids)
+		numbersWidth = len(fmt.Sprintf("%d", maxNumber)) + 1 // +1 for spacing
+		
+		numbersColumn := render.ColumnConfig{
+			Header:    "#",
+			Alignment: tview.AlignRight,
+			Expansion: 0,
+			MaxWidth:  numbersWidth,
+			MinWidth:  numbersWidth,
+		}
+		config = append(config, numbersColumn)
 	}
 	
-	// If numbers are enabled and this is a flat message, prepend a numbers column
-	if a.showMessageNumbers && rowType == render.RowTypeFlatMessage {
+	// Always include flags column (highest priority) - fixed width
+	flagsColumn := render.ColumnConfig{
+		Header:    "",
+		Alignment: tview.AlignCenter,
+		Expansion: 0,
+		MaxWidth:  flagsFixedWidth,
+		MinWidth:  flagsFixedWidth,
+	}
+	config = append(config, flagsColumn)
+	
+	// Calculate remaining width after fixed columns (numbers + flags)
+	usedWidth := numbersWidth + flagsFixedWidth + 2 // +2 for separators
+	remainingWidth := availableWidth - usedWidth
+	
+	// Responsive column inclusion based on breakpoint and available space
+	switch breakpoint {
+	case BreakpointVeryNarrow:
+		// Minimal: Numbers (if enabled) + Flags + From (truncated) + Subject (truncated)
+		if remainingWidth >= fromMinWidth + subjectMinWidth {
+			fromWidth := fromMinWidth
+			subjectWidth := remainingWidth - fromWidth - 2 // -2 for separator
+			
+			config = append(config, render.ColumnConfig{
+				Header: "From", Alignment: tview.AlignLeft, Expansion: 0,
+				MaxWidth: fromWidth, MinWidth: fromWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Subject", Alignment: tview.AlignLeft, Expansion: 1,
+				MaxWidth: subjectWidth, MinWidth: subjectMinWidth,
+			})
+		}
+		
+	case BreakpointNarrow:
+		// Show: Numbers + Flags + From + Subject + Attachment + Calendar + Date (all columns, compact)
+		totalIconsWidth := attachmentFixedWidth + calendarFixedWidth
+		if remainingWidth >= fromMinWidth + subjectMinWidth + totalIconsWidth + dateMinWidth + 8 { // +8 for separators
+			fromWidth := 12
+			dateWidth := dateMinWidth
+			subjectWidth := remainingWidth - fromWidth - totalIconsWidth - dateWidth - 8
+			
+			config = append(config, render.ColumnConfig{
+				Header: "From", Alignment: tview.AlignLeft, Expansion: 0,
+				MaxWidth: fromWidth, MinWidth: fromMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Subject", Alignment: tview.AlignLeft, Expansion: 1,
+				MaxWidth: subjectWidth, MinWidth: subjectMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: attachmentFixedWidth, MinWidth: attachmentFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: calendarFixedWidth, MinWidth: calendarFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Date", Alignment: tview.AlignRight, Expansion: 0,
+				MaxWidth: dateWidth, MinWidth: dateWidth,
+			})
+		}
+		
+	case BreakpointMedium:
+		// Show: Numbers + Flags + From + Subject + Attachment + Calendar + Date (comfortable spacing)
+		totalIconsWidth := attachmentFixedWidth + calendarFixedWidth
+		if remainingWidth >= fromMinWidth + subjectMinWidth + totalIconsWidth + dateMinWidth + 8 { // +8 for separators
+			fromWidth := 15
+			dateWidth := 12
+			subjectWidth := remainingWidth - fromWidth - totalIconsWidth - dateWidth - 8
+			
+			config = append(config, render.ColumnConfig{
+				Header: "From", Alignment: tview.AlignLeft, Expansion: 0,
+				MaxWidth: fromWidth, MinWidth: fromMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Subject", Alignment: tview.AlignLeft, Expansion: 1,
+				MaxWidth: subjectWidth, MinWidth: subjectMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: attachmentFixedWidth, MinWidth: attachmentFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: calendarFixedWidth, MinWidth: calendarFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Date", Alignment: tview.AlignRight, Expansion: 0,
+				MaxWidth: dateWidth, MinWidth: dateMinWidth,
+			})
+		}
+		
+	case BreakpointWide:
+		// Show: Numbers + Flags + From + Subject + Attachment + Calendar + Date (generous spacing)
+		// Use expansion weights for flexible columns, fixed width for icons
+		config = append(config, render.ColumnConfig{
+			Header: "From", Alignment: tview.AlignLeft, Expansion: 1,
+			MaxWidth: 0, MinWidth: fromMinWidth,
+		})
+		config = append(config, render.ColumnConfig{
+			Header: "Subject", Alignment: tview.AlignLeft, Expansion: 3,
+			MaxWidth: 0, MinWidth: subjectMinWidth,
+		})
+		config = append(config, render.ColumnConfig{
+			Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+			MaxWidth: attachmentFixedWidth, MinWidth: attachmentFixedWidth,
+		})
+		config = append(config, render.ColumnConfig{
+			Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+			MaxWidth: calendarFixedWidth, MinWidth: calendarFixedWidth,
+		})
+		config = append(config, render.ColumnConfig{
+			Header: "Date", Alignment: tview.AlignRight, Expansion: 0,
+			MaxWidth: 16, MinWidth: dateMinWidth,
+		})
+	}
+	
+	return config
+}
+
+// getResponsiveThreadedConfig returns responsive column configuration for threaded view
+func (a *App) getResponsiveThreadedConfig(breakpoint ResponsiveBreakpoint, availableWidth int) []render.ColumnConfig {
+	// For now, use the base threaded configuration
+	// TODO: Implement responsive threaded configuration similar to flat config
+	baseConfig := render.GetColumnConfig(render.ModeThreaded)
+	
+	// Add numbers column if enabled
+	if a.showMessageNumbers {
 		maxNumber := len(a.ids)
-		numberWidth := len(fmt.Sprintf("%d", maxNumber)) + 1 // +1 for space after number
+		numberWidth := len(fmt.Sprintf("%d", maxNumber)) + 1
 		
 		numbersColumn := render.ColumnConfig{
 			Header:    "#",
@@ -89,11 +269,111 @@ func (a *App) getColumnConfigForCurrentMode(rowType render.EmailRowType) []rende
 	return baseConfig
 }
 
+// mapEmailDataToResponsiveColumns maps fixed email column data to responsive column configuration
+func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, config []render.ColumnConfig, rowIndex int) []render.ColumnCell {
+	mappedColumns := make([]render.ColumnCell, len(config))
+	
+	// Source data indices (fixed structure from email renderer)
+	const (
+		SRC_FLAGS = 0
+		SRC_FROM = 1  
+		SRC_SUBJECT = 2
+		SRC_ATTACHMENT = 3
+		SRC_CALENDAR = 4
+		SRC_DATE = 5
+	)
+	
+	// Determine if numbers column is present in config (always first if present)
+	configIndex := 0
+	hasNumbers := len(config) > 0 && config[0].Header == "#"
+	
+	if hasNumbers {
+		// Numbers column: create number content using the passed row index
+		maxNumber := len(a.ids)
+		width := len(fmt.Sprintf("%d", maxNumber))
+		numberContent := fmt.Sprintf("%*d", width, rowIndex+1) // +1 to make it 1-based for display
+		
+		mappedColumns[configIndex] = render.ColumnCell{
+			Content:   numberContent,
+			Alignment: tview.AlignRight,
+			MaxWidth:  width + 1,
+			Expansion: 0,
+		}
+		configIndex++
+	}
+	
+	// Track which empty-header columns we've seen (flags, then attachment, then calendar)
+	flagsColumnSeen := false
+	attachmentColumnSeen := false
+	
+	// Map remaining columns based on config headers and availability
+	for configIndex < len(config) {
+		configHeader := config[configIndex].Header
+		
+		switch configHeader {
+		case "": // Either flags, attachment, or calendar column
+			if config[configIndex].Alignment == tview.AlignCenter {
+				if !flagsColumnSeen {
+					// This is the first empty-header column - it's the flags column
+					if len(emailData.Columns) > SRC_FLAGS {
+						mappedColumns[configIndex] = emailData.Columns[SRC_FLAGS]
+					}
+					flagsColumnSeen = true
+				} else if !attachmentColumnSeen {
+					// This is the second empty-header column - it's the attachment column
+					if len(emailData.Columns) > SRC_ATTACHMENT {
+						mappedColumns[configIndex] = emailData.Columns[SRC_ATTACHMENT]
+					}
+					attachmentColumnSeen = true
+				} else {
+					// This is the third empty-header column - it's the calendar column
+					if len(emailData.Columns) > SRC_CALENDAR {
+						mappedColumns[configIndex] = emailData.Columns[SRC_CALENDAR]
+					}
+				}
+			}
+		case "From":
+			if len(emailData.Columns) > SRC_FROM {
+				mappedColumns[configIndex] = emailData.Columns[SRC_FROM]
+			}
+		case "Subject":
+			if len(emailData.Columns) > SRC_SUBJECT {
+				mappedColumns[configIndex] = emailData.Columns[SRC_SUBJECT]
+			}
+		case "Date":
+			if len(emailData.Columns) > SRC_DATE {
+				mappedColumns[configIndex] = emailData.Columns[SRC_DATE]
+			}
+		}
+		
+		// Apply responsive column configuration overrides
+		if mappedColumns[configIndex].Content != "" {
+			mappedColumns[configIndex].Alignment = config[configIndex].Alignment
+			if config[configIndex].MaxWidth > 0 {
+				mappedColumns[configIndex].MaxWidth = config[configIndex].MaxWidth
+			}
+			if config[configIndex].Expansion > 0 {
+				mappedColumns[configIndex].Expansion = config[configIndex].Expansion
+			}
+		}
+		
+		configIndex++
+	}
+	
+	return mappedColumns
+}
+
 // populateTableRow populates a single table row with the provided column data
 func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailColumnData) {
 	config := a.getColumnConfigForCurrentMode(data.RowType)
 	
-	for col, cellData := range data.Columns {
+	// Convert table row to message index (row - 1 for header)
+	messageIndex := row - 1
+	
+	// Map email data to responsive column structure
+	mappedColumns := a.mapEmailDataToResponsiveColumns(data, config, messageIndex)
+	
+	for col, cellData := range mappedColumns {
 		if col >= len(config) {
 			continue // Skip extra columns
 		}
@@ -110,6 +390,7 @@ func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailCol
 		if columnConfig.MaxWidth > 0 {
 			cell.SetMaxWidth(columnConfig.MaxWidth)
 		}
+		// Note: tview.TableCell doesn't have SetMinWidth, width control is at table level
 		
 		// Override with cell-specific settings if provided
 		if cellData.MaxWidth > 0 {
@@ -217,14 +498,16 @@ func (a *App) refreshTableDisplay() {
 func (a *App) populateFlatRows(table *tview.Table) {
 	for i := 0; i < len(a.ids); i++ {
 		if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
-			// Show loading placeholder
+			// Show loading placeholder - responsive mapping will handle layout
 			loadingData := render.EmailColumnData{
 				RowType: render.RowTypeFlatMessage,
 				Columns: []render.ColumnCell{
-					{"○", tview.AlignCenter, 3, 0},
-					{"Loading...", tview.AlignLeft, 0, 1},
-					{"Loading message content...", tview.AlignLeft, 0, 3},
-					{"--", tview.AlignRight, 16, 0},
+					{"○", tview.AlignCenter, 3, 0},           // Flags
+					{"Loading...", tview.AlignLeft, 0, 1},    // From
+					{"Loading message content...", tview.AlignLeft, 0, 3}, // Subject
+					{"   ", tview.AlignCenter, 3, 0},         // Attachment (empty, 3 spaces)
+					{"   ", tview.AlignCenter, 3, 0},         // Calendar (empty, 3 spaces)
+					{"--", tview.AlignRight, 16, 0},          // Date
 				},
 				Color: a.currentTheme.UI.FooterColor.Color(),
 			}
@@ -235,37 +518,11 @@ func (a *App) populateFlatRows(table *tview.Table) {
 		msg := a.messagesMeta[i]
 		columnData := a.emailRenderer.FormatFlatMessageColumns(msg)
 		
-		// If numbers are enabled, prepend a numbers column and keep flags separate
-		if a.showMessageNumbers {
-			// Create the number content
-			maxNumber := len(a.ids)
-			width := len(fmt.Sprintf("%d", maxNumber))
-			numberContent := fmt.Sprintf("%*d", width, i+1) // Right-aligned numbering
-			
-			// Insert numbers column at the beginning
-			numbersColumn := render.ColumnCell{
-				Content:   numberContent,
-				Alignment: tview.AlignRight,
-				MaxWidth:  width + 1, // +1 for spacing
-				Expansion: 0,
-			}
-			
-			// Create new column slice with numbers column prepended
-			newColumns := make([]render.ColumnCell, 0, len(columnData.Columns)+1)
-			newColumns = append(newColumns, numbersColumn)
-			newColumns = append(newColumns, columnData.Columns...)
-			columnData.Columns = newColumns
-			
-			// Enhance flags column (now at index 1) with bulk mode, preserving original status flags
-			originalFlags := columnData.Columns[1].Content
-			flags := a.buildEnhancedFlags(msg, i, originalFlags)
-			columnData.Columns[1].Content = flags
-		} else {
-			// No numbers - enhance flags column at index 0 as before
-			originalFlags := columnData.Columns[0].Content
-			flags := a.buildEnhancedFlags(msg, i, originalFlags)
-			columnData.Columns[0].Content = flags
-		}
+		// Enhance flags column with bulk mode, preserving original status flags
+		// The responsive mapping will handle numbers column and layout
+		originalFlags := columnData.Columns[0].Content
+		flags := a.buildEnhancedFlags(msg, i, originalFlags)
+		columnData.Columns[0].Content = flags
 		
 		// Apply bulk mode styling if this message is selected
 		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {

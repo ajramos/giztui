@@ -291,8 +291,9 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 		subject = "(No subject)"
 	}
 
-	// Extract icons for dedicated icons column
-	icons := er.extractIcons(message)
+	// Extract separate attachment and calendar icons
+	attachmentIcon := er.extractAttachmentIcon(message)
+	calendarIcon := er.extractCalendarIcon(message)
 	
 	// Add labels as suffix to subject (but not icons, they go in separate column)
 	labelChips := er.buildLabelChips(message)
@@ -310,7 +311,8 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 			{flags, tview.AlignCenter, 3, 0},
 			{senderName, tview.AlignLeft, 0, 1},
 			{subjectWithSuffix, tview.AlignLeft, 0, 3},
-			{icons, tview.AlignCenter, 4, 0},
+			{attachmentIcon, tview.AlignCenter, 3, 0},
+			{calendarIcon, tview.AlignCenter, 3, 0},
 			{date, tview.AlignRight, 16, 0},
 		},
 		Color: color,
@@ -419,14 +421,42 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	}
 }
 
-// extractIcons returns just the content type icons (📎🗓️)  
-func (er *EmailRenderer) extractIcons(message *googleGmail.Message) string {
+// extractAttachmentIcon returns attachment icon (📎) padded to 3 characters
+func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
-		return ""
+		return "   " // 3 spaces
 	}
 	
-	// Detect attachments and calendar from MIME structure (metadata only)
 	hasAttachment := false
+	var walk func(p *googleGmail.MessagePart)
+	walk = func(p *googleGmail.MessagePart) {
+		if p == nil {
+			return
+		}
+		if p.Body != nil && p.Body.AttachmentId != "" {
+			hasAttachment = true
+		}
+		if p.Filename != "" {
+			hasAttachment = true
+		}
+		for _, c := range p.Parts {
+			walk(c)
+		}
+	}
+	walk(message.Payload)
+	
+	if hasAttachment {
+		return "📎 " // Icon + 2 spaces for 3 total characters
+	}
+	return "   " // 3 spaces
+}
+
+// extractCalendarIcon returns calendar icon (📅) padded to 3 characters  
+func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) string {
+	if message == nil || message.Payload == nil {
+		return "   " // 3 spaces
+	}
+	
 	hasCalendar := false
 	var walk func(p *googleGmail.MessagePart)
 	walk = func(p *googleGmail.MessagePart) {
@@ -434,12 +464,7 @@ func (er *EmailRenderer) extractIcons(message *googleGmail.Message) string {
 			return
 		}
 		mt := strings.ToLower(p.MimeType)
-		if p.Body != nil && p.Body.AttachmentId != "" {
-			// treat any attachment as a real attachment; filename strengthens signal but is optional
-			hasAttachment = true
-		}
 		if p.Filename != "" {
-			hasAttachment = true
 			if strings.HasSuffix(strings.ToLower(p.Filename), ".ics") {
 				hasCalendar = true
 			}
@@ -453,14 +478,10 @@ func (er *EmailRenderer) extractIcons(message *googleGmail.Message) string {
 	}
 	walk(message.Payload)
 	
-	var icons strings.Builder
-	if hasAttachment {
-		icons.WriteString("📎")
-	}
 	if hasCalendar {
-		icons.WriteString("🗓️")
+		return "📅 " // Icon + 2 spaces for 3 total characters
 	}
-	return icons.String()
+	return "   " // 3 spaces
 }
 
 // buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"  
