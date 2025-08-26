@@ -51,6 +51,17 @@ func (a *App) executeLabelAdd(args []string) {
 			a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
 			return
 		}
+
+		// Update local cache and refresh display
+		a.updateCachedMessageLabels(messageID, label.Id, true)
+		a.updateMessageCacheLabels(messageID, labelName, true)
+		a.refreshMessageContent(messageID)
+		
+		// Refresh message list to show updated label chips immediately
+		a.QueueUpdateDraw(func() {
+			a.reformatListItems()
+		})
+
 		go func() {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied label: %s", labelName))
 		}()
@@ -343,6 +354,10 @@ func (a *App) populateLabelsQuickView(messageID string) {
 							a.updateMessageCacheLabels(messageID, name, newApplied)
 							a.populateLabelsQuickView(messageID)
 							a.refreshMessageContent(messageID)
+							// Refresh message list to show updated label chips
+							a.QueueUpdateDraw(func() {
+								a.reformatListItems()
+							})
 						}
 					})
 				}
@@ -369,6 +384,10 @@ func (a *App) populateLabelsQuickView(messageID string) {
 							a.updateMessageCacheLabels(messageID, name, newApplied)
 							a.populateLabelsQuickView(messageID)
 							a.refreshMessageContent(messageID)
+							// Refresh message list to show updated label chips
+							a.QueueUpdateDraw(func() {
+								a.reformatListItems()
+							})
 						}
 					})
 				}
@@ -766,6 +785,10 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 											a.updateMessageCacheLabels(messageID, v.name, newApplied)
 											reload(strings.TrimSpace(input.GetText()))
 											a.refreshMessageContent(messageID)
+											// Refresh message list to show updated label chips
+											a.QueueUpdateDraw(func() {
+												a.reformatListItems()
+											})
 										}
 									})
 								} else {
@@ -1399,12 +1422,13 @@ func (a *App) addCustomLabelInline(messageID string) {
 				a.updateCachedMessageLabels(messageID, id, true)
 				// Also update full message cache labels to reflect immediately
 				a.updateMessageCacheLabels(messageID, name, true)
+				// Refresh message content to show updated labels
+				a.refreshMessageContent(messageID)
 				// CRITICAL: Separate synchronous UI updates from complex operations
 				a.QueueUpdateDraw(func() {
-					if a.logger != nil {
-						a.logger.Printf("addCustomLabelInline: done, updating UI state")
-					}
 					a.labelsExpanded = false
+					// Refresh message list to show updated label chips
+					a.reformatListItems()
 				})
 
 				// CRITICAL: Do complex operations outside QueueUpdateDraw to avoid deadlock
@@ -2041,8 +2065,11 @@ func (a *App) applyLabelAndRefresh(messageID, labelID, labelName string) {
 		if newApplied {
 			// Keep meta cache consistent
 			a.updateCachedMessageLabels(messageID, labelID, true)
-			// Refresh content from server to avoid desync
+			a.updateMessageCacheLabels(messageID, labelName, true)
+			// Refresh message content to show updated labels
 			a.refreshMessageContent(messageID)
+			// Refresh message list to show updated label chips immediately (synchronous like selection change)
+			a.reformatListItems()
 		}
 	})
 }

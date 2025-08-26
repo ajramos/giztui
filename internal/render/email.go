@@ -299,7 +299,8 @@ func (er *EmailRenderer) buildIconsAndChips(message *googleGmail.Message) string
 	if hasCalendar {
 		b.WriteString(" 🗓️")
 	}
-	return b.String()
+	result := b.String()
+	return result
 }
 
 // toTitleCase converts strings like "AWS", "spam", "aws-partners" to "Aws", "Spam", "Aws Partners"
