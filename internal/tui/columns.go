@@ -201,8 +201,15 @@ func (a *App) populateFlatRows(table *tview.Table) {
 		msg := a.messagesMeta[i]
 		columnData := a.emailRenderer.FormatFlatMessageColumns(msg)
 		
-		// Enhance flags column with bulk mode and message numbering
-		flags := a.buildEnhancedFlags(msg, i)
+		// Enhance flags column with bulk mode and message numbering, preserving original status flags
+		originalFlags := columnData.Columns[0].Content
+		if a.logger != nil && i < 3 { // Debug first few messages
+			a.logger.Printf("DEBUG FLAGS: msg %d, originalFlags='%s', showNumbers=%t, bulkMode=%t", i, originalFlags, a.showMessageNumbers, a.bulkMode)
+		}
+		flags := a.buildEnhancedFlags(msg, i, originalFlags)
+		if a.logger != nil && i < 3 { // Debug first few messages
+			a.logger.Printf("DEBUG FLAGS: msg %d, enhancedFlags='%s'", i, flags)
+		}
 		columnData.Columns[0].Content = flags
 		
 		// Apply bulk mode styling if this message is selected
@@ -234,8 +241,8 @@ func (a *App) populateFlatRows(table *tview.Table) {
 	}
 }
 
-// buildEnhancedFlags builds the flags column content including message numbers, bulk checkboxes, and status
-func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int) string {
+// buildEnhancedFlags builds the flags column content including message numbers, bulk checkboxes, and original status indicators
+func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int, originalFlags string) string {
 	var flags strings.Builder
 	
 	// Add message number if enabled (leftmost position)
@@ -245,25 +252,21 @@ func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int) string {
 		flags.WriteString(fmt.Sprintf("%*d ", width, index+1)) // Right-aligned numbering
 	}
 	
-	// Add bulk mode checkbox
+	// Add bulk mode checkbox, but preserve original status flags
 	if a.bulkMode {
 		if a.selected != nil && a.selected[a.ids[index]] {
 			flags.WriteString("☑")
 		} else {
 			flags.WriteString("☐")
 		}
+		// Add a space, then preserve original status flags (●/○/!)
+		if originalFlags != "" {
+			flags.WriteString(" ")
+			flags.WriteString(originalFlags)
+		}
 	} else {
-		// Add read/unread indicator when not in bulk mode
-		if a.emailRenderer.IsUnread(msg) {
-			flags.WriteString("●")
-		} else {
-			flags.WriteString("○")
-		}
-		
-		// Add important indicator
-		if a.emailRenderer.IsImportant(msg) {
-			flags.WriteString("!")
-		}
+		// When not in bulk mode, just append the original status flags
+		flags.WriteString(originalFlags)
 	}
 	
 	return flags.String()

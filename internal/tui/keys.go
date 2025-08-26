@@ -1202,21 +1202,25 @@ func (a *App) bindKeys() {
 	// Enter key behavior on list; keep UI-only here
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		table.SetSelectedFunc(func(row, column int) {
-			if row < len(a.ids) {
+			// Convert table row to message index (subtract 1 for header)
+			messageIndex := row - 1
+			if messageIndex >= 0 && messageIndex < len(a.ids) {
 				// Check if we're in threading mode
 				if a.GetCurrentThreadViewMode() == ThreadViewThread {
 					// In thread mode, Enter expands/collapses threads
 					go a.ExpandThread()
 				} else {
 					// In flat mode, Enter shows the message
-					go a.showMessage(a.ids[row])
+					go a.showMessage(a.ids[messageIndex])
 				}
 			}
 		})
 		table.SetSelectionChangedFunc(func(row, column int) {
-			if row >= 0 && row < len(a.ids) {
-				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", row+1, len(a.ids)))
-				id := a.ids[row]
+			// Convert table row to message index (subtract 1 for header)
+			messageIndex := row - 1
+			if messageIndex >= 0 && messageIndex < len(a.ids) {
+				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", messageIndex+1, len(a.ids)))
+				id := a.ids[messageIndex]
 				go a.showMessageWithoutFocus(id)
 				if a.labelsVisible {
 					go a.populateLabelsQuickView(id)
