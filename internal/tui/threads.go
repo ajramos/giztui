@@ -347,6 +347,9 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 		
 		a.mu.Unlock()
 
+	// Set final title with thread count
+	table.SetTitle(fmt.Sprintf(" 📧 Conversations (%d) ", len(threads)))
+
 	// Auto-select first thread if available
 	if len(threads) > 0 {
 		table.Select(0, 0)
