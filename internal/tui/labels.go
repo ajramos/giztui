@@ -2100,35 +2100,34 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		failed := 0
 		total := len(messageIDs)
 
-		// Apply the label operation to all selected messages
-		for i, messageID := range messageIDs {
+		// Use bulk label service methods for proper undo recording
+		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		var err error
+		if action == "add" {
 			if a.logger != nil {
-				a.logger.Printf("applyLabelToBulkSelection: processing message %d/%d, messageID=%s", i+1, len(messageIDs), messageID)
+				a.logger.Printf("applyLabelToBulkSelection: calling BulkApplyLabel for %d messages", len(messageIDs))
 			}
-
-			// Use LabelService for undo support
-			_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
-			var err error
-			if action == "add" {
-				err = labelService.ApplyLabel(a.ctx, messageID, labelID)
-			} else {
-				err = labelService.RemoveLabel(a.ctx, messageID, labelID)
-			}
-
-			if err != nil {
-				if a.logger != nil {
-					a.logger.Printf("applyLabelToBulkSelection: FAILED to %s label for message %s: %v", action, messageID, err)
-				}
-				failed++
-				continue
-			}
-
+			err = labelService.BulkApplyLabel(a.ctx, messageIDs, labelID)
+		} else {
 			if a.logger != nil {
-				a.logger.Printf("applyLabelToBulkSelection: SUCCESS %s label for message %s", action, messageID)
+				a.logger.Printf("applyLabelToBulkSelection: calling BulkRemoveLabel for %d messages", len(messageIDs))
 			}
+			err = labelService.BulkRemoveLabel(a.ctx, messageIDs, labelID)
+		}
 
-			// Update local cache for this message (simplified)
-			a.updateCachedMessageLabels(messageID, labelID, action == "add")
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("applyLabelToBulkSelection: bulk operation FAILED: %v", err)
+			}
+			failed = len(messageIDs) // If bulk operation fails, consider all as failed
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("applyLabelToBulkSelection: bulk operation SUCCESS for all %d messages", len(messageIDs))
+			}
+			// Update local cache for all messages
+			for _, messageID := range messageIDs {
+				a.updateCachedMessageLabels(messageID, labelID, action == "add")
+			}
 		}
 
 		// Update UI after all operations complete

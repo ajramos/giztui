@@ -1055,6 +1055,12 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 					a.expandLabelsBrowse(currentMsg)
 				}
 			}
+			// Refresh message content if a message is currently being displayed
+			currentMessageID := a.GetCurrentMessageID()
+			if currentMessageID != "" {
+				// Re-render the message content to show updated labels
+				go a.refreshMessageContent(currentMessageID)
+			}
 		})
 		return
 	} else if result.ActionType == services.UndoActionMove {

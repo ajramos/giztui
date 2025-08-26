@@ -139,3 +139,79 @@ func (s *LabelServiceImpl) GetMessageLabels(ctx context.Context, messageID strin
 
 	return s.gmailClient.ExtractLabels(message), nil
 }
+
+// BulkApplyLabel applies a label to multiple messages
+func (s *LabelServiceImpl) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error {
+	if len(messageIDs) == 0 {
+		return fmt.Errorf("no message IDs provided")
+	}
+	if strings.TrimSpace(labelID) == "" {
+		return fmt.Errorf("labelID cannot be empty")
+	}
+
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		action := &UndoableAction{
+			Type:        UndoActionLabelAdd,
+			MessageIDs:  messageIDs,
+			Description: "Apply label to messages",
+			IsBulk:      true,
+			ExtraData: map[string]interface{}{
+				"added_labels": []string{labelID},
+			},
+		}
+		s.undoService.RecordAction(ctx, action)
+	}
+
+	// Apply label to all messages using Gmail client directly (to avoid double undo recording)
+	var errs []string
+	for _, messageID := range messageIDs {
+		if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
+			errs = append(errs, fmt.Sprintf("failed to apply label to %s: %v", messageID, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("bulk apply label errors: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
+// BulkRemoveLabel removes a label from multiple messages
+func (s *LabelServiceImpl) BulkRemoveLabel(ctx context.Context, messageIDs []string, labelID string) error {
+	if len(messageIDs) == 0 {
+		return fmt.Errorf("no message IDs provided")
+	}
+	if strings.TrimSpace(labelID) == "" {
+		return fmt.Errorf("labelID cannot be empty")
+	}
+
+	// Record bulk undo action before performing operations
+	if s.undoService != nil {
+		action := &UndoableAction{
+			Type:        UndoActionLabelRemove,
+			MessageIDs:  messageIDs,
+			Description: "Remove label from messages",
+			IsBulk:      true,
+			ExtraData: map[string]interface{}{
+				"removed_labels": []string{labelID},
+			},
+		}
+		s.undoService.RecordAction(ctx, action)
+	}
+
+	// Remove label from all messages using Gmail client directly (to avoid double undo recording)
+	var errs []string
+	for _, messageID := range messageIDs {
+		if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
+			errs = append(errs, fmt.Sprintf("failed to remove label from %s: %v", messageID, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("bulk remove label errors: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
