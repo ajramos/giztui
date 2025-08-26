@@ -8,6 +8,7 @@ import (
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
+	"github.com/mattn/go-runewidth"
 	"github.com/ajramos/gmail-tui/internal/services"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
@@ -456,12 +457,183 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		dateStr = threadTime.Format("2006")
 	}
 	
-	// Simple format: [marker] [status] [sender] [subject] [attachment] [date]
-	builder.WriteString(fmt.Sprintf("%s %s %s | %s", senderWithCount, subject, attachmentIcon, dateStr))
+	// Get screen width for alignment calculations
+	screenWidth := a.getFormatWidth()
+	if screenWidth < 40 {
+		screenWidth = 40
+	}
+	
+	// Calculate column widths like the normal email renderer
+	// Account for thread marker + unread indicator space (already in builder)
+	markerAndUnreadWidth := runewidth.StringWidth(builder.String())
+	senderWidth := 22
+	dateWidth := 8
+	attachmentWidth := runewidth.StringWidth(attachmentIcon)
+	if attachmentWidth > 0 {
+		attachmentWidth += 1 // space padding
+	}
+	
+	// Calculate available subject width
+	// Account for separators: " | " (3 chars) between sender/subject and " | " (3 chars) between subject/date  
+	subjectWidth := screenWidth - markerAndUnreadWidth - senderWidth - dateWidth - attachmentWidth - 6
+	if subjectWidth < 10 {
+		subjectWidth = 10
+	}
+	
+	// Format each component to fit its allocated width
+	senderText := a.fitTextToWidth(senderWithCount, senderWidth)
+	subjectText := a.fitTextToWidth(subject, subjectWidth) 
+	dateText := a.fitTextToWidth(dateStr, dateWidth)
+	
+	// Build formatted string with proper column alignment
+	builder.WriteString(fmt.Sprintf("%s | %s%s | %s", senderText, subjectText, attachmentIcon, dateText))
 	
 	return builder.String()
 }
 
+// reformatThreadItems recalculates thread item strings for current screen width
+func (a *App) reformatThreadItems() {
+	table, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		return
+	}
+	
+	// Only reformat if we're currently in threading mode and have data
+	if a.GetCurrentThreadViewMode() != ThreadViewThread {
+		return
+	}
+	
+	a.mu.RLock()
+	rowCount := table.GetRowCount()
+	a.mu.RUnlock()
+	
+	if rowCount == 0 {
+		return
+	}
+	
+	// NOTE: Threading system currently doesn't maintain thread metadata separately
+	// The existing displayThreadsSync already handles proper formatting with current screen width
+	// So for now, we skip dynamic reformatting to avoid API calls
+	// This is acceptable since most users don't resize terminals frequently during threading
+	// 
+	// Future improvement: Store original thread data for true dynamic reformatting
+	// without API calls by caching ThreadInfo objects
+}
+
+// checkUIThreadExpanded checks if a thread is currently visually expanded in the UI
+func (a *App) checkUIThreadExpanded(threadID string) bool {
+	table, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		return false
+	}
+	
+	// Find the thread row in current display
+	threadRowIndex := -1
+	a.mu.RLock()
+	for i, id := range a.ids {
+		if id == threadID {
+			threadRowIndex = i
+			break
+		}
+	}
+	a.mu.RUnlock()
+	
+	if threadRowIndex == -1 {
+		if a.logger != nil {
+			a.logger.Printf("checkUIThreadExpanded: thread %s not found in display", threadID)
+		}
+		return false
+	}
+	
+	// CORRECTED LOGIC: Check if there are expanded message rows after this thread
+	a.mu.RLock()
+	hasExpandedMessages := false
+	expandedCount := 0
+	
+	// Look for expanded message rows immediately after the thread
+	for i := threadRowIndex + 1; i < len(a.ids) && i < len(a.messagesMeta) && i < table.GetRowCount(); i++ {
+		currentID := a.ids[i]
+		
+		// Stop when we hit another thread row (a row where ID equals its ThreadId in metadata)
+		if i < len(a.messagesMeta) && a.messagesMeta[i] != nil {
+			meta := a.messagesMeta[i]
+			
+			// Check if this is a thread header row (fake message created for thread display)
+			// Thread headers have ID == ThreadId and are created as fake messages
+			if currentID == meta.ThreadId && currentID != threadID {
+				if a.logger != nil {
+					a.logger.Printf("checkUIThreadExpanded: hit different thread header at index %d (threadID=%s), stopping", i, currentID)
+				}
+				break
+			}
+			
+			// Check if this message belongs to a different thread
+			if meta.ThreadId != "" && meta.ThreadId != threadID {
+				if a.logger != nil {
+					a.logger.Printf("checkUIThreadExpanded: hit message from different thread at index %d (threadID=%s vs current=%s), stopping", i, meta.ThreadId, threadID)
+				}
+				break
+			}
+			
+			// This message belongs to our thread and is not the thread header - it's an expanded message
+			if currentID != threadID {
+				hasExpandedMessages = true
+				expandedCount++
+				if a.logger != nil {
+					a.logger.Printf("checkUIThreadExpanded: found expanded message row %d (messageID=%s, threadID=%s)", i, currentID, threadID)
+				}
+			}
+		} else {
+			// No metadata - could be loading placeholder or error row belonging to this thread
+			if currentID != threadID {
+				hasExpandedMessages = true
+				expandedCount++
+				if a.logger != nil {
+					a.logger.Printf("checkUIThreadExpanded: found placeholder row %d (ID=%s)", i, currentID)
+				}
+			}
+		}
+		
+		// Safety check - don't check too many rows
+		if expandedCount > 50 {
+			if a.logger != nil {
+				a.logger.Printf("checkUIThreadExpanded: safety break, too many expanded messages (%d)", expandedCount)
+			}
+			break
+		}
+	}
+	a.mu.RUnlock()
+	
+	if a.logger != nil {
+		a.logger.Printf("checkUIThreadExpanded: thread %s has %d expanded messages, hasExpanded=%v", threadID, expandedCount, hasExpandedMessages)
+	}
+	
+	return hasExpandedMessages
+}
+
+// fitTextToWidth truncates or pads text to fit exactly within the specified width
+func (a *App) fitTextToWidth(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	
+	// Get the display width of the text
+	currentWidth := runewidth.StringWidth(text)
+	
+	if currentWidth <= width {
+		// Text fits - pad with spaces to exact width
+		return text + strings.Repeat(" ", width-currentWidth)
+	} else {
+		// Text too long - truncate with ellipsis
+		if width < 3 {
+			// Not enough space for ellipsis
+			return strings.Repeat(".", width)
+		}
+		// Truncate to fit with "..." at the end
+		truncated := runewidth.Truncate(text, width-3, "")
+		return truncated + "..."
+	}
+}
 
 // fetchThreadMessages retrieves individual messages for a thread
 func (a *App) fetchThreadMessages(ctx context.Context, threadID string) ([]*gmailapi.Message, error) {
@@ -662,6 +834,22 @@ func (a *App) expandThreadAsync(threadID string, isExpanded bool) {
 		}
 		return
 	}
+	
+	// Double-check UI state before proceeding
+	currentUIExpanded := a.checkUIThreadExpanded(threadID)
+	if a.logger != nil {
+		a.logger.Printf("expandThreadAsync: 🔍 CRITICAL CHECK - currentUIExpanded=%v, requestedExpanded=%v", currentUIExpanded, isExpanded)
+		// Show what checkUIThreadExpanded actually sees
+		a.logger.Printf("expandThreadAsync: threadRowIndex=%d, threadID='%s'", threadRowIndex, threadID)
+	}
+	
+	// If UI already matches requested state, nothing to do
+	if currentUIExpanded == isExpanded {
+		if a.logger != nil {
+			a.logger.Printf("expandThreadAsync: ⚠️  UI already in requested state (%v), skipping operation - THIS MAY BE THE PROBLEM!", isExpanded)
+		}
+		return
+	}
 
 	if isExpanded {
 		// Add loading placeholder immediately
@@ -791,41 +979,136 @@ func (a *App) collapseThreadMessages(table *tview.Table, threadRowIndex int, thr
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// Find all expanded message rows that belong to this thread
-	// They are consecutive rows after the thread header with empty IDs (individual messages)
-	rowsToRemove := 0
-	for i := threadRowIndex + 1; i < len(a.ids) && i < len(a.messagesMeta); i++ {
-		// Stop when we hit another thread (non-empty ID that matches a thread pattern)
-		if a.ids[i] != "" {
-			// This is another thread header, stop here
+	// Validate thread row index
+	if threadRowIndex < 0 || threadRowIndex >= len(a.ids) {
+		if a.logger != nil {
+			a.logger.Printf("collapseThreadMessages: invalid threadRowIndex %d, ids length %d", threadRowIndex, len(a.ids))
+		}
+		return
+	}
+
+	// Verify this is actually the correct thread
+	if a.ids[threadRowIndex] != threadID {
+		if a.logger != nil {
+			a.logger.Printf("collapseThreadMessages: thread ID mismatch at index %d: expected %s, got %s", threadRowIndex, threadID, a.ids[threadRowIndex])
+		}
+		return
+	}
+
+	// SIMPLIFIED APPROACH: Remove all rows after thread header until we hit something that doesn't belong to this thread
+	rowsToRemove := []int{}
+	
+	if a.logger != nil {
+		a.logger.Printf("collapseThreadMessages: 🚀 SIMPLIFIED APPROACH - scanning from index %d (ids=%d, meta=%d, table=%d)", 
+			threadRowIndex+1, len(a.ids), len(a.messagesMeta), table.GetRowCount())
+	}
+	
+	// Start from the row immediately after the thread header
+	for i := threadRowIndex + 1; i < len(a.ids) && i < table.GetRowCount(); i++ {
+		currentID := a.ids[i]
+		
+		if a.logger != nil {
+			a.logger.Printf("collapseThreadMessages: examining row %d with ID='%s'", i, currentID)
+		}
+		
+		// Simple logic: If this row is NOT another thread header (ID != ThreadId), it's an expanded message
+		var isAnotherThreadHeader bool = false
+		
+		if i < len(a.messagesMeta) && a.messagesMeta[i] != nil {
+			meta := a.messagesMeta[i]
+			
+			if a.logger != nil {
+				a.logger.Printf("collapseThreadMessages: row %d metadata - ID='%s', ThreadId='%s'", i, currentID, meta.ThreadId)
+			}
+			
+			// This is another thread header if ID == ThreadId AND it's different from our thread
+			if currentID == meta.ThreadId && currentID != threadID {
+				isAnotherThreadHeader = true
+				if a.logger != nil {
+					a.logger.Printf("collapseThreadMessages: 🛑 hit different thread header at index %d (threadID=%s), stopping", i, currentID)
+				}
+			}
+		}
+		
+		// If we hit another thread header, stop
+		if isAnotherThreadHeader {
 			break
 		}
 		
-		// This is an expanded message row (empty ID), remove it
-		rowsToRemove++
+		// Otherwise, this row should be removed (it's an expanded message or placeholder)
+		rowsToRemove = append(rowsToRemove, i)
 		if a.logger != nil {
-			a.logger.Printf("collapseThreadMessages: marking row %d for removal", i)
+			a.logger.Printf("collapseThreadMessages: ✓ MARKING row %d for removal (ID='%s')", i, currentID)
 		}
 		
 		// Safety check: don't remove more than 50 rows (prevent infinite loop)
-		if rowsToRemove > 50 {
+		if len(rowsToRemove) > 50 {
 			if a.logger != nil {
-				a.logger.Printf("collapseThreadMessages: safety break, too many rows to remove")
+				a.logger.Printf("collapseThreadMessages: safety break, too many rows to remove (%d)", len(rowsToRemove))
 			}
 			break
 		}
 	}
 
 	if a.logger != nil {
-		a.logger.Printf("collapseThreadMessages: removing %d rows", rowsToRemove)
+		a.logger.Printf("collapseThreadMessages: removing %d rows: %v", len(rowsToRemove), rowsToRemove)
+		// Debug: Show the current state before removal
+		a.logger.Printf("collapseThreadMessages: BEFORE REMOVAL - Current state:")
+		for i := threadRowIndex; i < len(a.ids) && i < len(a.messagesMeta) && i < threadRowIndex+10; i++ {
+			var metaInfo string
+			if i < len(a.messagesMeta) && a.messagesMeta[i] != nil {
+				metaInfo = fmt.Sprintf("ThreadId='%s'", a.messagesMeta[i].ThreadId)
+			} else {
+				metaInfo = "nil metadata"
+			}
+			a.logger.Printf("collapseThreadMessages:   Row %d: ID='%s', %s", i, a.ids[i], metaInfo)
+		}
 	}
 
-	// Remove rows in reverse order to maintain indices
-	for i := threadRowIndex + rowsToRemove; i > threadRowIndex; i-- {
+	// Remove rows one by one in reverse order (simpler and more reliable)
+	for i := len(rowsToRemove) - 1; i >= 0; i-- {
+		rowToRemove := rowsToRemove[i]
 		if a.logger != nil {
-			a.logger.Printf("collapseThreadMessages: removing row %d", i)
+			a.logger.Printf("collapseThreadMessages: removing row %d", rowToRemove)
 		}
-		a.removeTableRow(table, i)
+		
+		// Perform row removal manually to avoid mutex conflicts
+		if rowToRemove < table.GetRowCount() {
+			// Shift rows up in the table
+			rowCount := table.GetRowCount()
+			for j := rowToRemove; j < rowCount-1; j++ {
+				cell := table.GetCell(j+1, 0)
+				if cell != nil {
+					table.SetCell(j, 0, cell)
+				}
+			}
+			
+			// Remove last row from table
+			table.RemoveRow(rowCount - 1)
+
+			// Update app state arrays (already have mutex locked)
+			if rowToRemove < len(a.ids) {
+				a.ids = append(a.ids[:rowToRemove], a.ids[rowToRemove+1:]...)
+			}
+			if rowToRemove < len(a.messagesMeta) {
+				a.messagesMeta = append(a.messagesMeta[:rowToRemove], a.messagesMeta[rowToRemove+1:]...)
+			}
+		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("collapseThreadMessages: collapse complete, final table rows: %d, ids length: %d", table.GetRowCount(), len(a.ids))
+		// Debug: Show the final state after removal
+		a.logger.Printf("collapseThreadMessages: AFTER REMOVAL - Final state:")
+		for i := threadRowIndex; i < len(a.ids) && i < len(a.messagesMeta) && i < threadRowIndex+10; i++ {
+			var metaInfo string
+			if i < len(a.messagesMeta) && a.messagesMeta[i] != nil {
+				metaInfo = fmt.Sprintf("ThreadId='%s'", a.messagesMeta[i].ThreadId)
+			} else {
+				metaInfo = "nil metadata"
+			}
+			a.logger.Printf("collapseThreadMessages:   Row %d: ID='%s', %s", i, a.ids[i], metaInfo)
+		}
 	}
 }
 
@@ -895,14 +1178,41 @@ func (a *App) ExpandThread() error {
 		return fmt.Errorf("failed to get account email: %w", err)
 	}
 
-	// Toggle expansion state
+	// First, validate current UI state vs ThreadService state
 	isExpanded, err := threadService.IsThreadExpanded(a.ctx, accountEmail, threadID)
 	if err != nil {
 		return fmt.Errorf("failed to check thread expansion state: %w", err)
 	}
 	
+	// Check if UI display matches ThreadService state
+	uiHasExpandedMessages := a.checkUIThreadExpanded(threadID)
+	
 	if a.logger != nil {
-		a.logger.Printf("ExpandThread: threadID=%s, currentExpanded=%v", threadID, isExpanded)
+		a.logger.Printf("ExpandThread: threadID=%s, serviceExpanded=%v, uiExpanded=%v", threadID, isExpanded, uiHasExpandedMessages)
+	}
+	
+	// Handle state mismatch - synchronize UI with service state
+	if isExpanded != uiHasExpandedMessages {
+		if a.logger != nil {
+			a.logger.Printf("ExpandThread: STATE MISMATCH detected! Service says %v, UI shows %v", isExpanded, uiHasExpandedMessages)
+		}
+		
+		// Fix the mismatch by synchronizing UI to service state
+		if isExpanded && !uiHasExpandedMessages {
+			// Service thinks it's expanded but UI doesn't show it - force expand UI
+			if a.logger != nil {
+				a.logger.Printf("ExpandThread: Force expanding UI to match service state")
+			}
+			go a.expandThreadAsync(threadID, true)
+			return nil
+		} else if !isExpanded && uiHasExpandedMessages {
+			// Service thinks it's collapsed but UI shows expanded - force collapse UI
+			if a.logger != nil {
+				a.logger.Printf("ExpandThread: Force collapsing UI to match service state") 
+			}
+			go a.expandThreadAsync(threadID, false)
+			return nil
+		}
 	}
 
 	newExpandedState := !isExpanded
