@@ -100,8 +100,8 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 	flagsFixedWidth := 3      // Fixed width for flags column (●/○/!)
 	fromMinWidth := 8
 	subjectMinWidth := 15
-	attachmentFixedWidth := 3 // Fixed width for attachment column (📎)
-	calendarFixedWidth := 3   // Fixed width for calendar column (📅)
+	attachmentFixedWidth := 2 // Fixed width for attachment column (📎)
+	calendarFixedWidth := 2   // Fixed width for calendar column (📅)
 	dateMinWidth := 8
 	numbersWidth := 0
 	
@@ -505,8 +505,8 @@ func (a *App) populateFlatRows(table *tview.Table) {
 					{"○", tview.AlignCenter, 3, 0},           // Flags
 					{"Loading...", tview.AlignLeft, 0, 1},    // From
 					{"Loading message content...", tview.AlignLeft, 0, 3}, // Subject
-					{"   ", tview.AlignCenter, 3, 0},         // Attachment (empty, 3 spaces)
-					{"   ", tview.AlignCenter, 3, 0},         // Calendar (empty, 3 spaces)
+					{"  ", tview.AlignCenter, 2, 0},         // Attachment (empty, 2 spaces)
+					{"  ", tview.AlignCenter, 2, 0},         // Calendar (empty, 2 spaces)
 					{"--", tview.AlignRight, 16, 0},          // Date
 				},
 				Color: a.currentTheme.UI.FooterColor.Color(),

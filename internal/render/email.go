@@ -311,8 +311,8 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 			{flags, tview.AlignCenter, 3, 0},
 			{senderName, tview.AlignLeft, 0, 1},
 			{subjectWithSuffix, tview.AlignLeft, 0, 3},
-			{attachmentIcon, tview.AlignCenter, 3, 0},
-			{calendarIcon, tview.AlignCenter, 3, 0},
+			{attachmentIcon, tview.AlignCenter, 2, 0},
+			{calendarIcon, tview.AlignCenter, 2, 0},
 			{date, tview.AlignRight, 16, 0},
 		},
 		Color: color,
@@ -421,10 +421,10 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	}
 }
 
-// extractAttachmentIcon returns attachment icon (📎) padded to 3 characters
+// extractAttachmentIcon returns attachment icon (📎) padded to 2 characters
 func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
-		return "   " // 3 spaces
+		return "  " // 2 spaces
 	}
 	
 	hasAttachment := false
@@ -446,15 +446,15 @@ func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) str
 	walk(message.Payload)
 	
 	if hasAttachment {
-		return "📎 " // Icon + 2 spaces for 3 total characters
+		return "📎" // Icon only for 2 total characters
 	}
-	return "   " // 3 spaces
+	return "  " // 2 spaces
 }
 
-// extractCalendarIcon returns calendar icon (📅) padded to 3 characters  
+// extractCalendarIcon returns calendar icon (📅) padded to 2 characters  
 func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
-		return "   " // 3 spaces
+		return "  " // 2 spaces
 	}
 	
 	hasCalendar := false
@@ -479,9 +479,9 @@ func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) strin
 	walk(message.Payload)
 	
 	if hasCalendar {
-		return "📅 " // Icon + 2 spaces for 3 total characters
+		return "📅" // Icon only for 2 total characters
 	}
-	return "   " // 3 spaces
+	return "  " // 2 spaces
 }
 
 // buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"  
