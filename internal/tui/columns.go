@@ -47,6 +47,36 @@ func (a *App) hasAttachment(message *gmailapi.Message) bool {
 	return walk(message.Payload)
 }
 
+// hasCalendar checks if a message has calendar invitations/events
+func (a *App) hasCalendar(message *gmailapi.Message) bool {
+	if message == nil || message.Payload == nil {
+		return false
+	}
+	
+	var walk func(p *gmailapi.MessagePart) bool
+	walk = func(p *gmailapi.MessagePart) bool {
+		if p == nil {
+			return false
+		}
+		mt := strings.ToLower(p.MimeType)
+		if p.Filename != "" {
+			if strings.HasSuffix(strings.ToLower(p.Filename), ".ics") {
+				return true
+			}
+		}
+		if strings.Contains(mt, "text/calendar") || strings.Contains(mt, "application/ics") {
+			return true
+		}
+		for _, c := range p.Parts {
+			if walk(c) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(message.Payload)
+}
+
 // getCurrentDisplayMode determines the current display mode
 func (a *App) getCurrentDisplayMode() render.DisplayMode {
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
@@ -305,7 +335,7 @@ func (a *App) getResponsiveThreadedConfig(breakpoint ResponsiveBreakpoint, avail
 	config := make([]render.ColumnConfig, 0, 9) // Max possible columns with numbers
 	
 	// Column fixed and minimum widths (matching flat mode)
-	typeFixedWidth := 2        // Fixed width for type column (▼️/▶️/📧)
+	typeFixedWidth := 3        // Fixed width for type column (▼️/▶️/📧) - increased to prevent cutoff
 	threadCountFixedWidth := 5 // Fixed width for thread count column [99]
 	statusFixedWidth := 3      // Fixed width for status column (●/○)
 	fromMinWidth := 8
@@ -842,7 +872,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		return render.EmailColumnData{
 			RowType: render.RowTypeThreadHeader,
 			Columns: []render.ColumnCell{
-				{"📧", tview.AlignLeft, 2, 0},          // Type: Single message icon
+				{"📧", tview.AlignLeft, 3, 0},          // Type: Single message icon
 				{"", tview.AlignRight, 5, 0},           // Thread Count: Empty
 				{"○", tview.AlignCenter, 3, 0},         // Status: Read
 				{"(No thread)", tview.AlignLeft, 0, 1}, // From
@@ -855,13 +885,13 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		}
 	}
 
-	// Build thread type icon only (no numbers, no status, simple icons for 2-char width)
+	// Build thread type icon only (no numbers, no status, emoji icons)
 	var typeIcon string
 	if thread.MessageCount > 1 {
 		if isExpanded {
-			typeIcon = "▼"
+			typeIcon = "▼️"
 		} else {
-			typeIcon = "▶"
+			typeIcon = "▶️"
 		}
 	} else {
 		typeIcon = "📧"
@@ -922,7 +952,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 	return render.EmailColumnData{
 		RowType: render.RowTypeThreadHeader,
 		Columns: []render.ColumnCell{
-			{typeIcon, tview.AlignLeft, 2, 0},      // Type: Thread/message icon only
+			{typeIcon, tview.AlignLeft, 3, 0},      // Type: Thread/message icon only
 			{countText, tview.AlignRight, 5, 0},    // Thread Count: [4] or empty
 			{statusIcon, tview.AlignCenter, 3, 0},  // Status: ●/○ only
 			{senderName, tview.AlignLeft, 0, 1},    // From
@@ -941,23 +971,21 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		return render.EmailColumnData{
 			RowType: render.RowTypeThreadMessage,
 			Columns: []render.ColumnCell{
-				{treePrefix + "📧", tview.AlignLeft, 2, 0},     // Type: Tree + message icon
-				{"", tview.AlignRight, 5, 0},                   // Thread Count: Empty (individual message)
-				{"○", tview.AlignCenter, 3, 0},                 // Status: Default read
-				{"(No message)", tview.AlignLeft, 0, 1},        // From
-				{"(No subject)", tview.AlignLeft, 0, 3},        // Subject
-				{"", tview.AlignCenter, 2, 0},                  // Attachment: Empty
-				{"", tview.AlignCenter, 2, 0},                  // Calendar: Empty
-				{"--", tview.AlignRight, 16, 0},                // Date
+				{"", tview.AlignLeft, 3, 0},                        // Type: Empty for individual messages
+				{"", tview.AlignRight, 5, 0},                       // Thread Count: Empty (individual message)
+				{"○", tview.AlignCenter, 3, 0},                     // Status: Default read
+				{treePrefix + "(No message)", tview.AlignLeft, 0, 1}, // From: Tree prefix + placeholder
+				{"(No subject)", tview.AlignLeft, 0, 3},            // Subject
+				{"", tview.AlignCenter, 2, 0},                      // Attachment: Empty
+				{"", tview.AlignCenter, 2, 0},                      // Calendar: Empty
+				{"--", tview.AlignRight, 16, 0},                    // Date
 			},
 			Color: a.currentTheme.UI.FooterColor.Color(),
 		}
 	}
 
-	// Build tree structure with message icon only (no status)
-	var typeIcon strings.Builder
-	typeIcon.WriteString(treePrefix) // "    ├─ " or "    └─ "
-	typeIcon.WriteString("📧")       // Individual message icon
+	// Build tree structure - Type column is empty for individual messages in threads
+	typeIcon := "" // No icon for individual messages within expanded threads
 	
 	// Build status indicator only
 	var statusIcon string
@@ -967,11 +995,13 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		statusIcon = "○"
 	}
 
-	// Extract sender
+	// Extract sender with tree prefix for proper alignment
 	senderName := a.emailRenderer.ExtractSenderName(a.emailRenderer.GetHeader(message, "From"))
 	if senderName == "" {
 		senderName = "(No sender)"
 	}
+	// Add tree prefix to sender name for proper thread structure alignment
+	senderName = treePrefix + senderName
 
 	// Extract subject (clean, without attachment icon)
 	subject := a.emailRenderer.GetHeader(message, "Subject")
@@ -979,7 +1009,7 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		subject = "(No subject)"
 	}
 
-	// Check for attachment (replicate the attachment detection logic)
+	// Check for attachment
 	var attachmentIcon string
 	if a.hasAttachment(message) {
 		attachmentIcon = "📎"
@@ -987,8 +1017,13 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		attachmentIcon = ""
 	}
 
-	// Calendar indicator (placeholder for now)
-	calendarIcon := ""
+	// Check for calendar invitation
+	var calendarIcon string
+	if a.hasCalendar(message) {
+		calendarIcon = "📅"
+	} else {
+		calendarIcon = ""
+	}
 
 	// Format date
 	dateStr := a.formatThreadDate(a.emailRenderer.GetDate(message))
@@ -999,10 +1034,10 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 	return render.EmailColumnData{
 		RowType: render.RowTypeThreadMessage,
 		Columns: []render.ColumnCell{
-			{typeIcon.String(), tview.AlignLeft, 2, 0},     // Type: Tree structure + message icon
+			{typeIcon, tview.AlignLeft, 2, 0},              // Type: Just message icon
 			{"", tview.AlignRight, 5, 0},                   // Thread Count: Empty (individual message)
 			{statusIcon, tview.AlignCenter, 3, 0},          // Status: ●/○ only
-			{senderName, tview.AlignLeft, 0, 1},            // From
+			{senderName, tview.AlignLeft, 0, 1},            // From: Tree prefix + sender (for alignment)
 			{subject, tview.AlignLeft, 0, 3},               // Subject (clean)
 			{attachmentIcon, tview.AlignCenter, 2, 0},      // Attachment: 📎 or empty
 			{calendarIcon, tview.AlignCenter, 2, 0},        // Calendar: 📅 or empty
@@ -1080,12 +1115,12 @@ func (a *App) populateThreadedRows(table *tview.Table) {
 			} else {
 				// Add individual message rows with tree structure
 				for msgIndex, message := range messages {
-					// Determine tree prefix
+					// Determine tree prefix - using more visible markers for testing
 					var treePrefix string
 					if msgIndex == len(messages)-1 {
-						treePrefix = "    └─ " // Last message
+						treePrefix = " └> " // Last message - more visible
 					} else {
-						treePrefix = "    ├─ " // Intermediate message
+						treePrefix = " ├> " // Intermediate message - more visible
 					}
 					
 					messageData := a.FormatThreadMessageColumns(message, treePrefix)

@@ -838,6 +838,8 @@ func (a *App) expandThreadAsync(threadID string, isExpanded bool) {
 			// Replace loading with actual messages
 			a.QueueUpdateDraw(func() {
 				a.replaceLoadingWithMessages(table, threadRowIndex+1, threadID, messages)
+				// CRITICAL FIX: Force complete table refresh after expansion
+				a.refreshTableDisplay()
 			})
 			
 			// Clear progress status
@@ -849,6 +851,8 @@ func (a *App) expandThreadAsync(threadID string, isExpanded bool) {
 		// Collapse: remove all child messages immediately
 		a.QueueUpdateDraw(func() {
 			a.collapseThreadMessages(table, threadRowIndex, threadID)
+			// CRITICAL FIX: Force complete table refresh after collapse
+			a.refreshTableDisplay()
 		})
 	}
 }
