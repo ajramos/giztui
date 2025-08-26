@@ -87,8 +87,8 @@ func (s *ThreadServiceImpl) GetThreads(ctx context.Context, opts ThreadQueryOpti
 	// Note: Threads.List only returns minimal thread data, we need to fetch full thread details
 	var threadInfos []*ThreadInfo
 	for i, thread := range threadsResult.Threads {
-		// Get full thread data including messages
-		fullThread, err := s.gmailClient.Service.Users.Threads.Get("me", thread.Id).Do()
+		// Get thread data with minimal format for faster loading
+		fullThread, err := s.gmailClient.Service.Users.Threads.Get("me", thread.Id).Format("metadata").Do()
 		if err != nil {
 			fmt.Printf("Warning: failed to get full thread data for thread %d (%s): %v\n", i, thread.Id, err)
 			continue

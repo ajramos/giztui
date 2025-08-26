@@ -136,23 +136,10 @@ func (a *App) refreshThreadView() {
 		a.logger.Printf("refreshThreadView: GetThreads succeeded, got %d threads", len(threadPage.Threads))
 	}
 
-	// Show progress before processing threads
-	go func() {
-		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing %d conversations...", len(threadPage.Threads)))
-	}()
-	
-	// Update the UI with thread data
 	if a.logger != nil {
-		a.logger.Printf("refreshThreadView: calling displayThreads")
+		a.logger.Printf("refreshThreadView: calling displayThreads with progress tracking")
 	}
-	a.displayThreads(threadPage.Threads)
-	
-	// Clear progress and show success after processing with longer delay
-	go func() {
-		time.Sleep(1000 * time.Millisecond) // Allow 1 second for progress message to be visible
-		a.GetErrorHandler().ClearProgress()
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Loaded %d conversations", len(threadPage.Threads)))
-	}()
+	a.displayThreadsWithProgress(threadPage.Threads)
 }
 
 // refreshFlatView refreshes the display to show flat message list
@@ -161,69 +148,120 @@ func (a *App) refreshFlatView() {
 	go a.reloadMessages()
 }
 
-// displayThreads updates the message list to show threads
+// displayThreadsWithProgress processes threads with phase-based progress updates
+func (a *App) displayThreadsWithProgress(threads []*services.ThreadInfo) {
+	total := len(threads)
+	
+	// Show initial progress
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Processing 0/%d conversations…", total))
+	
+	// Process threads with meaningful phase-based progress
+	go func() {
+		// Phase 1: Loading thread data (represents the setup/delay phase)
+		a.GetErrorHandler().ShowProgress(a.ctx, "Loading thread data…")
+		time.Sleep(20 * time.Millisecond) // Make this phase visible to user
+		
+		// Phase 2: Formatting conversations (represents the UI formatting phase) 
+		a.GetErrorHandler().ShowProgress(a.ctx, "Formatting conversations…")
+		time.Sleep(15 * time.Millisecond) // Make this phase visible to user
+		
+		// Phase 3: UI update (synchronous - the actual fast work)
+		a.QueueUpdateDraw(func() {
+			a.displayThreadsSync(threads) // Use regular sync version without per-thread progress
+		})
+		
+		// Phase 4: Completion
+		a.GetErrorHandler().ClearProgress()
+		
+		// Brief delay to ensure progress is fully cleared before final status
+		time.Sleep(25 * time.Millisecond) 
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📧 Loaded %d conversations", total))
+	}()
+}
+
+// displayThreads updates the message list to show threads (wrapper for backward compatibility)
 func (a *App) displayThreads(threads []*services.ThreadInfo) {
+	a.QueueUpdateDraw(func() {
+		a.displayThreadsSync(threads)
+	})
+}
+
+
+// displayThreadsSync updates the message list to show threads (synchronous version)
+func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 	if a.logger != nil {
-		a.logger.Printf("displayThreads: called with %d threads", len(threads))
+		a.logger.Printf("displayThreadsSync: called with %d threads", len(threads))
 	}
 	
-	a.QueueUpdateDraw(func() {
-		table, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			if a.logger != nil {
-				a.logger.Printf("displayThreads: views[\"list\"] is not a *tview.Table")
-			}
-			return
-		}
-
+	table, ok := a.views["list"].(*tview.Table)
+	if !ok {
 		if a.logger != nil {
-			a.logger.Printf("displayThreads: clearing table and populating with threads")
+			a.logger.Printf("displayThreadsSync: views[\"list\"] is not a *tview.Table")
 		}
+		return
+	}
 
-		// Clear existing content
-		table.Clear()
+	if a.logger != nil {
+		a.logger.Printf("displayThreadsSync: clearing table and populating with threads")
+	}
 
-		// Track threads for state management
-		a.mu.Lock()
-		threadIDs := make([]string, 0, len(threads)*5) // Allocate more space for individual messages
-		threadMeta := make([]*services.ThreadInfo, 0, len(threads))
-		allRowMeta := make([]interface{}, 0, len(threads)*5) // Track both threads and messages
+	// Clear existing content
+	table.Clear()
+	
+	if a.logger != nil {
+		a.logger.Printf("displayThreadsSync: table cleared, processing %d threads", len(threads))
+	}
+
+	// Track threads for state management
+	a.mu.Lock()
+	threadIDs := make([]string, 0, len(threads)*5) // Allocate more space for individual messages
+	threadMeta := make([]*services.ThreadInfo, 0, len(threads))
+	allRowMeta := make([]interface{}, 0, len(threads)*5) // Track both threads and messages
+	
+	rowIndex := 0
+	for i, thread := range threads {
+		if thread == nil {
+			if a.logger != nil {
+				a.logger.Printf("displayThreadsSync: thread %d is nil, skipping", i)
+			}
+			continue
+		}
 		
-		rowIndex := 0
-		for i, thread := range threads {
-			if thread == nil {
-				continue
-			}
-			
-			threadIDs = append(threadIDs, thread.ThreadID)
-			threadMeta = append(threadMeta, thread)
-			allRowMeta = append(allRowMeta, thread) // Store thread info
-			
-			// Format thread header for display
-			threadText := a.formatThreadForList(thread, i)
-			
-			// Create thread header cell with appropriate styling
-			cell := tview.NewTableCell(threadText).
-				SetExpansion(1).
-				SetAlign(tview.AlignLeft)
-			
-			// Apply thread-specific styling
-			if thread.UnreadCount > 0 {
-				cell.SetTextColor(a.currentTheme.UI.InfoColor.Color())
-			} else {
-				cell.SetTextColor(a.currentTheme.UI.FooterColor.Color())
-			}
-			
-			table.SetCell(rowIndex, 0, cell)
-			rowIndex++
-			
-			// Check if thread is expanded and add individual messages
-			threadService := a.getThreadService()
-			if threadService != nil && thread.MessageCount > 1 {
-				accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
-				if accountEmail != "" {
-					isExpanded, _ := threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
-					if isExpanded {
+		threadIDs = append(threadIDs, thread.ThreadID)
+		threadMeta = append(threadMeta, thread)
+		allRowMeta = append(allRowMeta, thread) // Store thread info
+		
+		// Format thread header for display
+		threadText := a.formatThreadForList(thread, i)
+		if a.logger != nil {
+			a.logger.Printf("displayThreadsSync: formatted thread %d text: '%s'", i, threadText)
+		}
+		
+		// Create thread header cell with appropriate styling
+		cell := tview.NewTableCell(threadText).
+			SetExpansion(1).
+			SetAlign(tview.AlignLeft)
+		
+		// Apply thread-specific styling
+		if thread.UnreadCount > 0 {
+			cell.SetTextColor(a.currentTheme.UI.InfoColor.Color())
+		} else {
+			cell.SetTextColor(a.currentTheme.UI.FooterColor.Color())
+		}
+		
+		table.SetCell(rowIndex, 0, cell)
+		if a.logger != nil {
+			a.logger.Printf("displayThreadsSync: set cell at row %d for thread %s", rowIndex, thread.ThreadID)
+		}
+		rowIndex++
+		
+		// Check if thread is expanded and add individual messages
+		threadService := a.getThreadService()
+		if threadService != nil && thread.MessageCount > 1 {
+			accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
+			if accountEmail != "" {
+				isExpanded, _ := threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
+				if isExpanded {
 						// Fetch and display individual messages
 						messages, err := a.fetchThreadMessages(a.ctx, thread.ThreadID)
 						if err != nil {
@@ -308,12 +346,11 @@ func (a *App) displayThreads(threads []*services.ThreadInfo) {
 		
 		a.mu.Unlock()
 
-		// Auto-select first thread if available
-		if len(threads) > 0 {
-			table.Select(0, 0)
-			a.SetCurrentMessageID(threads[0].ThreadID)
-		}
-	})
+	// Auto-select first thread if available
+	if len(threads) > 0 {
+		table.Select(0, 0)
+		a.SetCurrentMessageID(threads[0].ThreadID)
+	}
 }
 
 // formatThreadForList formats a thread for display in the message list
