@@ -43,17 +43,17 @@ type App struct {
 	// Email renderer
 	emailRenderer *render.EmailRenderer
 	// State management
-	ids           []string
-	messagesMeta  []*gmailapi.Message
-	draftMode     bool
-	draftIDs      []string
-	showHelp      bool
+	ids              []string
+	messagesMeta     []*gmailapi.Message
+	draftMode        bool
+	draftIDs         []string
+	showHelp         bool
 	helpBackupText   string // Backup of text content before showing help
 	helpBackupHeader string // Backup of header content before showing help
 	helpBackupTitle  string // Backup of text container title before showing help
-	currentView   string
-	currentFocus  string // Track current focus: "list" or "text"
-	previousFocus string // Track previous focus before modal
+	currentView      string
+	currentFocus     string // Track current focus: "list" or "text"
+	previousFocus    string // Track previous focus before modal
 	// Command system (k9s style)
 	cmdMode          bool     // Whether we're in command mode
 	cmdBuffer        string   // Current command buffer
@@ -62,7 +62,7 @@ type App struct {
 	cmdSuggestion    string   // Current command suggestion
 	cmdFocusOverride string   // Override focus restoration for special commands
 	// Prompt details state
-	originalHeaderHeight int   // Store original header height before hiding
+	originalHeaderHeight int // Store original header height before hiding
 	// Layout management
 	currentLayout    LayoutType
 	screenWidth      int
@@ -443,7 +443,7 @@ func (a *App) reinitializeServices() {
 	if a.dbStore != nil && a.queryService == nil {
 		queryStore := db.NewQueryStore(a.dbStore)
 		a.queryService = services.NewQueryService(queryStore, a.Config)
-		
+
 		// Set account email if available
 		if queryServiceImpl, ok := a.queryService.(*services.QueryServiceImpl); ok {
 			// Try to get account email, use fallback if not available
@@ -456,7 +456,7 @@ func (a *App) reinitializeServices() {
 				a.logger.Printf("reinitializeServices: query service account email set to: %s", email)
 			}
 		}
-		
+
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: query service initialized: %v", a.queryService != nil)
 		}
@@ -650,7 +650,7 @@ func (a *App) initServices() {
 	if a.Config != nil && a.Config.Layout.CustomThemeDir != "" {
 		customThemeDir = a.Config.Layout.CustomThemeDir
 	}
-	
+
 	// Determine the built-in themes directory path
 	// Check if we have an absolute path or need to resolve relative to executable location
 	builtinThemesDir := "themes"
@@ -669,12 +669,12 @@ func (a *App) initServices() {
 			}
 		}
 	}
-	
+
 	// Create theme apply function that calls the app's applyTheme method
 	applyThemeFunc := func(themeConfig *config.ColorsConfig) error {
 		return a.applyThemeConfig(themeConfig)
 	}
-	
+
 	a.themeService = services.NewThemeService(builtinThemesDir, customThemeDir, applyThemeFunc)
 	if a.logger != nil {
 		a.logger.Printf("initServices: theme service initialized: %v", a.themeService != nil)
@@ -692,12 +692,12 @@ func (a *App) initServices() {
 		if a.logger != nil {
 			a.logger.Printf("initServices: undo service initialized: %v", a.undoService != nil)
 		}
-		
+
 		// Wire logger to undo service for debug output
 		if undoServiceImpl, ok := a.undoService.(*services.UndoServiceImpl); ok && a.logger != nil {
 			undoServiceImpl.SetLogger(a.logger)
 		}
-		
+
 		// Wire undo service to email service to enable undo recording
 		if a.emailService != nil {
 			if emailServiceImpl, ok := a.emailService.(*services.EmailServiceImpl); ok {
@@ -707,7 +707,7 @@ func (a *App) initServices() {
 				}
 			}
 		}
-		
+
 		// Wire undo service to label service to enable undo recording
 		if a.labelService != nil {
 			if labelServiceImpl, ok := a.labelService.(*services.LabelServiceImpl); ok {
@@ -729,7 +729,7 @@ func (a *App) initServices() {
 	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
 		themeName = a.Config.Layout.CurrentTheme
 	}
-	
+
 	if a.themeService != nil {
 		if err := a.themeService.ApplyTheme(a.ctx, themeName); err != nil {
 			if a.logger != nil {
@@ -980,7 +980,7 @@ func (a *App) performUndo() {
 		go func() {
 			a.GetErrorHandler().ShowSuccess(a.ctx, message)
 		}()
-		
+
 		// Smart reload: only when necessary to show restored messages
 		a.smartUndoReload(result)
 	} else {
@@ -997,18 +997,18 @@ func (a *App) performUndo() {
 // getUndoStatusMessage returns appropriate status message with refresh hints
 func (a *App) getUndoStatusMessage(result *services.UndoResult) string {
 	baseMessage := fmt.Sprintf("Undone: %s", result.Description)
-	
+
 	// Add refresh guidance based on operation type and current view
-	if strings.Contains(result.Description, "Unarchived") && a.currentView == "INBOX" {
+	if strings.Contains(result.Description, "Unarchived") && a.currentQuery == "" {
 		return baseMessage // Auto-refreshes, no hint needed
-	} else if strings.Contains(result.Description, "Restored from trash") && a.currentView == "INBOX" {
+	} else if strings.Contains(result.Description, "Restored from trash") && a.currentQuery == "" {
 		return baseMessage // Auto-refreshes, no hint needed
 	} else if strings.Contains(result.Description, "Unarchived") || strings.Contains(result.Description, "Restored from trash") {
 		return baseMessage + " (Press R to refresh if not visible)"
 	} else if strings.Contains(result.Description, "label") {
 		return baseMessage // UI updates immediately, no refresh needed
 	} else if strings.Contains(result.Description, "marked as") {
-		return baseMessage // UI updates immediately, no refresh needed  
+		return baseMessage // UI updates immediately, no refresh needed
 	} else {
 		return baseMessage + " (Press R to refresh)"
 	}
@@ -1022,15 +1022,15 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 
 	// Determine if we need to reload based on operation type and current view
 	needsReload := false
-	
-	if result.ActionType == services.UndoActionArchive && a.currentView == "INBOX" {
+
+	if result.ActionType == services.UndoActionArchive && a.currentQuery == "" {
 		// Archive undo - restore message to inbox list
 		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
 		})
 		return
-	} else if result.ActionType == services.UndoActionTrash && a.currentView == "INBOX" {
+	} else if result.ActionType == services.UndoActionTrash && a.currentQuery == "" {
 		// Trash undo - restore message to inbox list
 		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.QueueUpdateDraw(func() {
@@ -1086,11 +1086,11 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: restoreMessagesToInboxList called with %d messages", len(messageIDs))
 	}
-	
-	// Only restore if we're viewing INBOX
-	if a.currentView != "INBOX" {
+
+	// Only restore if we're viewing INBOX (no search query means we're in inbox)
+	if a.currentQuery != "" {
 		if a.logger != nil {
-			a.logger.Printf("DEBUG: restoreMessagesToInboxList skipping - not in INBOX view (current: %s)", a.currentView)
+			a.logger.Printf("DEBUG: restoreMessagesToInboxList skipping - not in INBOX view (currentQuery: %s)", a.currentQuery)
 		}
 		return
 	}
@@ -1099,7 +1099,7 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 		if a.logger != nil {
 			a.logger.Printf("DEBUG: restoreMessagesToInboxList restoring message: %s", messageID)
 		}
-		
+
 		// Check if message is already in the list
 		found := false
 		for _, existingID := range a.ids {
@@ -1111,7 +1111,7 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 				break
 			}
 		}
-		
+
 		if !found {
 			// Fetch the message metadata using Gmail client directly
 			message, err := a.Client.GetMessage(messageID)
@@ -1121,16 +1121,44 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 				}
 				continue
 			}
-			
+
 			if a.logger != nil {
 				a.logger.Printf("DEBUG: restoreMessagesToInboxList adding message %s to front of list", messageID)
 			}
 			// Add to front of list (most recent)
 			a.ids = append([]string{messageID}, a.ids...)
 			a.messagesMeta = append([]*gmailapi.Message{message}, a.messagesMeta...)
+
+			// CRITICAL FIX: Also add the row to the UI table
+			if table, ok := a.views["list"].(*tview.Table); ok {
+				// Shift all existing rows down by 1
+				rowCount := table.GetRowCount()
+				for i := rowCount; i > 0; i-- {
+					if i-1 >= 0 {
+						cell := table.GetCell(i-1, 0)
+						if cell != nil {
+							table.SetCell(i, 0, cell)
+						}
+					}
+				}
+
+				// Add the new message at the top (row 0)
+				text, _ := a.emailRenderer.FormatEmailList(message, a.getFormatWidth())
+				cell := tview.NewTableCell(text).
+					SetExpansion(1).
+					SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+				table.SetCell(0, 0, cell)
+
+				// Update table title to reflect new count
+				table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: restoreMessagesToInboxList added row to table, new row count: %d", table.GetRowCount())
+				}
+			}
 		}
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("DEBUG: restoreMessagesToInboxList completed - list now has %d messages", len(a.ids))
 	}
@@ -1143,7 +1171,7 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo MessageIDs: %v", result.MessageIDs)
 		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo ExtraData: %+v", result.ExtraData)
 	}
-	
+
 	if result.ExtraData == nil {
 		if a.logger != nil {
 			a.logger.Printf("DEBUG: updateCacheAfterMoveUndo no ExtraData, returning")
@@ -1170,12 +1198,12 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 
 	for _, messageID := range result.MessageIDs {
 		fmt.Printf("DEBUG: updateCacheAfterMoveUndo processing messageID: %s\n", messageID)
-		
+
 		// Move undo: add back INBOX label and remove applied labels
 		fmt.Printf("DEBUG: updateCacheAfterMoveUndo adding INBOX label to cache\n")
 		a.updateCachedMessageLabels(messageID, "INBOX", true)
 		a.updateMessageCacheLabels(messageID, "INBOX", true)
-		
+
 		// Remove the applied labels
 		if appliedLabels, ok := result.ExtraData["applied_labels"].([]string); ok {
 			if a.logger != nil {
@@ -1247,11 +1275,11 @@ func (a *App) handleUndoUIRestore(result *services.UndoResult) {
 		go a.reloadMessages()
 		return
 	}
-	
+
 	// For archive undo: if we're viewing inbox, try to restore messages to UI
 	if result.Description == "Unarchived message" || result.Description == "Unarchived 1 messages" {
 		a.attemptArchiveUndoRestore(result)
-	} else if result.Description == "Restored from trash message" || result.Description == "Restored from trash 1 messages" {  
+	} else if result.Description == "Restored from trash message" || result.Description == "Restored from trash 1 messages" {
 		a.attemptTrashUndoRestore(result)
 	} else {
 		// For other operations, no immediate UI update needed
@@ -1269,7 +1297,7 @@ func (a *App) attemptArchiveUndoRestore(result *services.UndoResult) {
 	// Otherwise: don't reload automatically - user can refresh ('R') when ready
 }
 
-// attemptTrashUndoRestore attempts to restore trashed messages back to the appropriate view  
+// attemptTrashUndoRestore attempts to restore trashed messages back to the appropriate view
 func (a *App) attemptTrashUndoRestore(result *services.UndoResult) {
 	// For trash undo: if we're viewing inbox and it's a small operation, reload to show restored messages
 	if a.currentQuery == "" && result.MessageCount <= 2 {
@@ -1343,23 +1371,23 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if theme == nil {
 		return fmt.Errorf("theme configuration is nil")
 	}
-	
+
 	// Cache current theme for helper functions
 	a.currentTheme = theme
-	
+
 	// Update email renderer with theme colors
 	a.emailRenderer.UpdateColorer(
-		a.GetStatusColor("progress"),              // UnreadColor - orange/progress color
-		a.currentTheme.UI.FooterColor.Color(),      // ReadColor - gray for read messages
-		a.GetStatusColor("error"),                 // ImportantColor - red for important
-		a.GetStatusColor("success"),               // SentColor - green for sent
-		a.GetStatusColor("warning"),               // DraftColor - yellow for drafts
-		a.currentTheme.Body.FgColor.Color(),        // DefaultColor - theme text color
+		a.GetStatusColor("progress"),          // UnreadColor - orange/progress color
+		a.currentTheme.UI.FooterColor.Color(), // ReadColor - gray for read messages
+		a.GetStatusColor("error"),             // ImportantColor - red for important
+		a.GetStatusColor("success"),           // SentColor - green for sent
+		a.GetStatusColor("warning"),           // DraftColor - yellow for drafts
+		a.currentTheme.Body.FgColor.Color(),   // DefaultColor - theme text color
 	)
-	
+
 	// Update flash border color with theme
 	a.flash.UpdateBorderColor(a.currentTheme.UI.TitleColor.Color())
-	
+
 	// Update config if theme name is available
 	if theme.Name != "" && a.Config != nil {
 		a.Config.Layout.CurrentTheme = theme.Name
@@ -1370,16 +1398,16 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 			}
 		}()
 	}
-	
+
 	// Update email renderer
 	a.emailRenderer.UpdateFromConfig(theme)
-	
+
 	// Apply global styles
 	tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
 	tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
 	tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
 	tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
-	
+
 	// Update existing widget colors
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -1398,11 +1426,11 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	}
-	
+
 	// Refresh borders for Flex containers that have been forced to use filled backgrounds
 	// This ensures consistent border rendering when themes change
 	a.RefreshBordersForFilledFlexes()
-	
+
 	return nil
 }
 
@@ -1520,7 +1548,7 @@ func (a *App) generateHelpText() string {
 	if a.LLM != nil {
 		help.WriteString("🤖 AI: Enabled\n")
 	}
-	
+
 	// Add separator line before navigation instructions
 	help.WriteString("\n")
 	help.WriteString("📖 NAVIGATION: Use /term to search, n/N for next/previous match, g/gg/G for navigation\n")
@@ -1666,7 +1694,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    • VIM range operations work with any action (s5s, a3a, d7d, etc.)\n")
 	help.WriteString("    • Content search (/) highlights matches and enables n/N navigation\n")
 	help.WriteString("    • Bulk mode allows selecting multiple messages for batch operations\n")
-	
+
 	return help.String()
 }
 
@@ -1737,7 +1765,7 @@ func (a *App) toggleHelp() {
 	if a.showHelp {
 		// Restore previous content
 		a.showHelp = false
-		
+
 		// Restore text content through enhanced text view
 		if a.enhancedTextView != nil && a.helpBackupText != "" {
 			a.enhancedTextView.SetContent(a.helpBackupText)
@@ -1752,31 +1780,31 @@ func (a *App) toggleHelp() {
 				text.ScrollToBeginning()
 			}
 		}
-		
+
 		// Restore header content and visibility
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			header.SetDynamicColors(true)
 			header.SetText(a.helpBackupHeader)
 		}
-		
+
 		// Restore header height (make it visible again)
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			if header, ok := a.views["header"].(*tview.TextView); ok {
 				textContainer.ResizeItem(header, a.originalHeaderHeight, 0)
 			}
 		}
-		
+
 		// Restore text container title
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(a.helpBackupTitle)
 			textContainer.SetTitleColor(a.getTitleColor())
 		}
-		
+
 		// Clear backup content
 		a.helpBackupText = ""
 		a.helpBackupHeader = ""
 		a.helpBackupTitle = ""
-		
+
 		// Update focus state and set focus to text view
 		a.currentFocus = "text"
 		a.SetFocus(a.views["text"])
@@ -1792,30 +1820,30 @@ func (a *App) toggleHelp() {
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			a.helpBackupTitle = textContainer.GetTitle()
 		}
-		
+
 		// Show help content
 		a.showHelp = true
-		
+
 		// Store current header height and hide header section
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			if header, ok := a.views["header"].(*tview.TextView); ok {
 				// Calculate current header height before hiding it
 				headerContent := header.GetText(false)
 				a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
-				
+
 				// Clear header content and hide it completely
 				header.SetDynamicColors(true)
 				header.SetText("")
 				textContainer.ResizeItem(header, 0, 0)
 			}
 		}
-		
+
 		// Display help title in text container border
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(" 📚 Help & Shortcuts ")
 			textContainer.SetTitleColor(a.getTitleColor())
 		}
-		
+
 		// Display help content in enhanced text view with proper content setting
 		helpContent := a.generateHelpText()
 		if a.enhancedTextView != nil {
@@ -1831,7 +1859,7 @@ func (a *App) toggleHelp() {
 				text.ScrollToBeginning()
 			}
 		}
-		
+
 		// Update focus state and set focus to text view so users can search immediately
 		a.currentFocus = "text"
 		a.SetFocus(a.views["text"])
