@@ -16,6 +16,61 @@ A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses t
 - ✅ **Dynamic header visibility** 🆕 - Toggle email headers to maximize content space for complex messages
 - 🚧 WIP: Compose, Reply, Drafts, Attachments
 
+### 🧵 **Message Threading** 🆕
+- ✅ **Smart conversation grouping** - Messages grouped by Gmail thread ID with visual hierarchy
+- ✅ **Dual view modes** - Toggle between threaded conversations and flat chronological view
+- ✅ **Visual indicators** - Thread count badges (📧 5), expand/collapse icons (▶️/▼️), indented replies
+- ✅ **Thread state persistence** - Remember expanded/collapsed preferences between sessions
+- ✅ **Bulk thread operations** - Select entire conversations for bulk actions
+- ✅ **AI thread summaries** - Generate conversation overviews with context from all messages
+- ✅ **Thread search** - Search within specific conversations for precise information
+- ✅ **Auto-expand unread** - Automatically expand threads containing unread messages
+- ✅ **Keyboard shortcuts** - `T` to toggle modes, `E`/`C` for expand/collapse all, `Shift+T` for summaries
+- ✅ **Command parity** - `:threads`, `:flatten`, `:thread-summary`, `:expand-all`, `:collapse-all`
+- ✅ **Smart focus management** - Enter expands/collapses in thread mode, shows message in flat mode
+- ✅ **Configurable behavior** - Control threading preferences, indentation, and summary features
+
+**Threading Modes:**
+- **Thread View** - Group messages by conversation with expand/collapse controls
+- **Flat View** - Traditional chronological message list (default)
+
+**Visual Indicators:**
+- `📧 5` - Thread with 5 messages
+- `▶️` - Collapsed thread (press Enter to expand)
+- `▼️` - Expanded thread (press Enter to collapse)  
+- `├─` - Reply message indentation
+- `└─` - Last reply in thread
+
+**Keyboard Shortcuts:**
+| Key | Action |
+|-----|--------|  
+| `T` | Toggle between thread and flat view |
+| `Enter` | Expand/collapse thread (when focused on thread root) |
+| `E` | Expand all threads in current view |
+| `C` | Collapse all threads to show only root messages |
+| `Shift+T` | Generate AI summary of selected thread |
+
+**Commands:**
+- `:threads` - Switch to threaded conversation view
+- `:flatten` - Switch to flat chronological view
+- `:thread-summary` - Generate AI summary of conversation
+- `:expand-all` - Expand all threads
+- `:collapse-all` - Collapse all threads
+
+**Configuration:**
+```json
+{
+  "threading": {
+    "enabled": true,
+    "default_view": "flat",
+    "auto_expand_unread": true,
+    "show_thread_count": true,  
+    "indent_replies": true,
+    "thread_summary_enabled": true
+  }
+}
+```
+
 ### 🧠 AI Features with LLM (Ollama & Bedrock)
 - ✅ **Summarize emails** - Generate concise email summaries
 - ✅ **AI summaries local cache (SQLite)** - Reuse previously generated summaries across sessions

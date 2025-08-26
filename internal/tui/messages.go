@@ -29,6 +29,12 @@ func (a *App) reformatListItems() {
 	if !ok || len(a.ids) == 0 {
 		return
 	}
+	
+	// Skip reformatting in thread mode - threads have their own formatting
+	if a.GetCurrentThreadViewMode() == ThreadViewThread {
+		a.reformatThreadItems()
+		return
+	}
 	for i := range a.ids {
 		if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
 			continue
@@ -261,8 +267,89 @@ func (a *App) exitSearch() {
 	}
 }
 
-// reloadMessages loads messages from the inbox
+// reloadMessages loads messages from the inbox, respecting current threading mode
 func (a *App) reloadMessages() {
+	// Check if we're in threading mode and should reload threads instead
+	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
+		if a.logger != nil {
+			a.logger.Printf("reloadMessages: currently in thread mode, calling refreshThreadView instead")
+		}
+		a.reloadThreadsWithSpinner()
+		return
+	}
+	
+	// Otherwise reload messages in flat mode
+	a.reloadMessagesFlat()
+}
+
+// reloadThreadsWithSpinner reloads threads with animated spinner like flat messages
+func (a *App) reloadThreadsWithSpinner() {
+	// Set loading state like reloadMessagesFlat does
+	a.SetMessagesLoading(true)
+
+	// Clear list UI and prepare for animated spinner
+	a.QueueUpdateDraw(func() {
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Clear()
+			table.SetTitle(" Loading conversations... ")
+		}
+	})
+	
+	// Clear cached data like reloadMessagesFlat does
+	a.ClearMessageIDs()
+	a.mu.Lock()
+	a.messagesMeta = []*gmailapi.Message{}
+	a.mu.Unlock()
+
+	// Create animated spinner with progress tracking like in flat mode
+	var spinnerStop chan struct{}
+	if _, ok := a.views["list"].(*tview.Table); ok {
+		spinnerStop = make(chan struct{})
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(150 * time.Millisecond)
+			defer ticker.Stop()
+			
+			for {
+				select {
+				case <-spinnerStop:
+					return
+				case <-ticker.C:
+					frame := frames[i%len(frames)]
+					// Show current progress based on loaded conversations
+					currentCount := len(a.ids)
+					a.QueueUpdateDraw(func() {
+						if table, ok := a.views["list"].(*tview.Table); ok {
+							if currentCount > 0 {
+								table.SetTitle(fmt.Sprintf(" %s Loading conversations %d... ", frame, currentCount))
+							} else {
+								table.SetTitle(fmt.Sprintf(" %s Loading conversations... ", frame))
+							}
+						}
+					})
+					i++
+				}
+			}
+		}()
+	}
+
+	// Call the actual thread refresh with spinner cleanup
+	go func() {
+		a.refreshThreadView()
+		
+		// Stop the spinner when done
+		if spinnerStop != nil {
+			close(spinnerStop)
+		}
+		
+		// Mark loading as complete
+		a.SetMessagesLoading(false)
+	}()
+}
+
+// reloadMessagesFlat loads messages in flat mode (original implementation)
+func (a *App) reloadMessagesFlat() {
 	// Set loading state
 	a.SetMessagesLoading(true)
 
@@ -471,8 +558,18 @@ func (a *App) reloadMessages() {
 	a.SetMessagesLoading(false)
 }
 
-// loadMoreMessages fetches the next page of inbox and appends to list
+// loadMoreMessages fetches the next page of inbox and appends to list, respecting current threading mode
 func (a *App) loadMoreMessages() {
+	// Check if we're in threading mode - threads don't support pagination yet
+	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
+		if a.logger != nil {
+			a.logger.Printf("loadMoreMessages: currently in thread mode, pagination not supported")
+		}
+		go func() {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Load more not available in threading mode - use reload instead")
+		}()
+		return
+	}
 	// If in remote search mode, paginate that query
 	if a.searchMode == "remote" {
 		if a.nextPageToken == "" {

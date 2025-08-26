@@ -164,6 +164,7 @@ type App struct {
 	themeService      services.ThemeService
 	displayService    services.DisplayService
 	queryService      services.QueryService
+	threadService     services.ThreadService
 	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler      *ErrorHandler
 }
@@ -679,6 +680,13 @@ func (a *App) initServices() {
 	a.displayService = services.NewDisplayService()
 	if a.logger != nil {
 		a.logger.Printf("initServices: display service initialized: %v", a.displayService != nil)
+	}
+
+	// Initialize thread service (database store and AI service are optional for basic functionality)
+	a.threadService = services.NewThreadService(a.Client, a.dbStore, a.aiService)
+	if a.logger != nil {
+		a.logger.Printf("initServices: thread service initialized: %v (dbStore: %v, AI service: %v)", 
+			a.threadService != nil, a.dbStore != nil, a.aiService != nil)
 	}
 
 	// Load theme from config with fallbacks
@@ -1225,6 +1233,24 @@ func (a *App) generateHelpText() string {
 		help.WriteString(fmt.Sprintf("    %-8s  🏷️   AI suggest label\n\n", a.Keys.SuggestLabel))
 	}
 
+	// Threading Features (if enabled)
+	if a.IsThreadingEnabled() {
+		threadingStatus := "flat"
+		if a.GetCurrentThreadViewMode() == ThreadViewThread {
+			threadingStatus = "threaded"
+		}
+		help.WriteString(fmt.Sprintf("🧵 MESSAGE THREADING (Current: %s)\n\n", threadingStatus))
+		help.WriteString(fmt.Sprintf("    %-8s  🔄  Toggle between thread and flat view\n", a.Keys.ToggleThreading))
+		help.WriteString(fmt.Sprintf("    %-8s  📂  Expand/collapse thread (when in thread view)\n", a.Keys.ExpandThread))
+		help.WriteString(fmt.Sprintf("    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads))
+		help.WriteString(fmt.Sprintf("    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads))
+		if a.LLM != nil {
+			help.WriteString(fmt.Sprintf("    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary))
+		}
+		help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Navigate to next thread\n", a.Keys.NextThread))
+		help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Navigate to previous thread\n\n", a.Keys.PrevThread))
+	}
+
 	// VIM Power Operations
 	help.WriteString("⚡ VIM POWER OPERATIONS\n\n")
 	help.WriteString("    Pattern:  {operation}{count}{operation} (e.g., s5s, a3a, d7d)\n\n")
@@ -1277,6 +1303,18 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    :theme        🎨  Open theme picker\n")
 	help.WriteString("    :headers      📄  Toggle header visibility\n")
 	help.WriteString("    :numbers      🔢  Toggle message numbers\n")
+	
+	// Threading commands (if enabled)
+	if a.IsThreadingEnabled() {
+		help.WriteString(fmt.Sprintf("    :threads      🧵  Same as %s (switch to threaded view)\n", a.Keys.ToggleThreading))
+		help.WriteString(fmt.Sprintf("    :flatten      📄  Same as %s (switch to flat view)\n", a.Keys.ToggleThreading))
+		help.WriteString(fmt.Sprintf("    :expand-all   📤  Same as %s (expand all threads)\n", a.Keys.ExpandAllThreads))
+		help.WriteString(fmt.Sprintf("    :collapse-all 📥  Same as %s (collapse all threads)\n", a.Keys.CollapseAllThreads))
+		if a.LLM != nil {
+			help.WriteString(fmt.Sprintf("    :thread-summary 🧵  Same as %s (generate thread summary)\n", a.Keys.ThreadSummary))
+		}
+	}
+	
 	help.WriteString("    :help         ❓  Show this help\n\n")
 
 	// Footer with tips

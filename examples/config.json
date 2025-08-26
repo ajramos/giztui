@@ -122,6 +122,14 @@
     "goto_top": "gg",
     "goto_bottom": "G",
     
+    "_threading_navigation": "Message threading shortcuts",
+    "toggle_threading": "T",
+    "expand_all_threads": "E", 
+    "collapse_all_threads": "C",
+    "thread_summary": "shift+t",
+    "next_thread": "ctrl+n",
+    "prev_thread": "ctrl+p",
+    
     "_examples": "Example customizations (uncomment and modify as needed):",
     "_vim_style": "Vim-style shortcuts:",
     "_example1": "\"reply\": \"r\", \"compose\": \"i\", \"search\": \"/\", \"quit\": \":q\"",
@@ -129,6 +137,17 @@
     "_example2": "\"compose\": \"C-x\", \"search\": \"C-s\", \"quit\": \"C-x C-c\"",
     "_custom_workflow": "Custom workflow shortcuts:",
     "_example3": "\"summarize\": \"1\", \"generate_reply\": \"2\", \"suggest_label\": \"3\""
+  },
+  "threading": {
+    "_comment": "Message threading configuration - group related messages in conversations",
+    "enabled": true,
+    "default_view": "flat",
+    "auto_expand_unread": false,
+    "show_thread_count": true,
+    "cache_summaries": true,
+    "max_summary_length": 300,
+    "summary_language": "en",
+    "persist_thread_state": true
   },
   "obsidian": {
     "enabled": true,

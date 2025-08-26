@@ -99,7 +99,26 @@
     "word_left": "b",       // word left (like Vim b)
     "word_right": "w",      // word right (like Vim w)
     "goto_top": "gg",       // go to top (like Vim gg)
-    "goto_bottom": "G"      // go to bottom (like Vim G)
+    "goto_bottom": "G",     // go to bottom (like Vim G)
+    
+    "_threading_navigation": "Vim-style threading shortcuts",
+    "toggle_threading": "zt",       // toggle threading (like Vim zt)
+    "expand_all_threads": "zR",     // expand all threads (like Vim zR to open all folds)
+    "collapse_all_threads": "zM",   // collapse all threads (like Vim zM to close all folds)
+    "thread_summary": "zs",         // thread summary (custom Vim-style)
+    "next_thread": "]]",            // next thread (like Vim next section)
+    "prev_thread": "[["             // previous thread (like Vim previous section)
+  },
+  "threading": {
+    "_comment": "Threading configuration for Vim-style workflow",
+    "enabled": true,
+    "default_view": "flat",
+    "auto_expand_unread": false,
+    "show_thread_count": true,
+    "cache_summaries": true,
+    "max_summary_length": 400,
+    "summary_language": "en",
+    "persist_thread_state": true
   },
   "obsidian": {
     "enabled": true,

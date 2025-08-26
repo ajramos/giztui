@@ -442,3 +442,126 @@ type SavedQueryInfo struct {
 	LastUsed    int64  `json:"last_used"`
 	CreatedAt   int64  `json:"created_at"`
 }
+
+// ThreadService handles message threading operations
+type ThreadService interface {
+	// Thread management
+	GetThreads(ctx context.Context, opts ThreadQueryOptions) (*ThreadPage, error)
+	GetThreadMessages(ctx context.Context, threadID string, opts MessageQueryOptions) ([]*gmail_v1.Message, error)
+	GetThreadInfo(ctx context.Context, threadID string) (*ThreadInfo, error)
+	
+	// Thread state management
+	SetThreadExpanded(ctx context.Context, accountEmail, threadID string, expanded bool) error
+	IsThreadExpanded(ctx context.Context, accountEmail, threadID string) (bool, error)
+	ExpandAllThreads(ctx context.Context, accountEmail string) error
+	CollapseAllThreads(ctx context.Context, accountEmail string) error
+	
+	// Thread summaries and AI integration
+	GenerateThreadSummary(ctx context.Context, threadID string, options ThreadSummaryOptions) (*ThreadSummaryResult, error)
+	GenerateThreadSummaryStream(ctx context.Context, threadID string, options ThreadSummaryOptions, onToken func(string)) (*ThreadSummaryResult, error)
+	GetCachedThreadSummary(ctx context.Context, accountEmail, threadID string) (*ThreadSummaryResult, error)
+	
+	// Thread search and navigation
+	SearchWithinThread(ctx context.Context, threadID, query string) (*ThreadSearchResult, error)
+	GetNextThread(ctx context.Context, currentThreadID string) (string, error)
+	GetPreviousThread(ctx context.Context, currentThreadID string) (string, error)
+	
+	// Thread organization
+	GetThreadsByLabel(ctx context.Context, labelID string, opts ThreadQueryOptions) (*ThreadPage, error)
+	GetUnreadThreads(ctx context.Context, opts ThreadQueryOptions) (*ThreadPage, error)
+	
+	// Bulk thread operations
+	BulkExpandThreads(ctx context.Context, accountEmail string, threadIDs []string) error
+	BulkCollapseThreads(ctx context.Context, accountEmail string, threadIDs []string) error
+}
+
+// Threading-related data structures
+
+// ThreadInfo represents metadata about a conversation thread
+type ThreadInfo struct {
+	ThreadID      string    `json:"thread_id"`
+	MessageCount  int       `json:"message_count"`
+	UnreadCount   int       `json:"unread_count"`
+	Participants  []string  `json:"participants"`
+	Subject       string    `json:"subject"`
+	LatestDate    time.Time `json:"latest_date"`
+	HasAttachment bool      `json:"has_attachment"`
+	Labels        []string  `json:"labels"`
+	IsExpanded    bool      `json:"is_expanded"`
+	RootMessageID string    `json:"root_message_id"`
+}
+
+// ThreadPage represents a page of conversation threads
+type ThreadPage struct {
+	Threads       []*ThreadInfo `json:"threads"`
+	NextPageToken string        `json:"next_page_token"`
+	TotalCount    int           `json:"total_count"`
+}
+
+// ThreadQueryOptions specifies options for querying threads
+type ThreadQueryOptions struct {
+	MaxResults int64    `json:"max_results"`
+	PageToken  string   `json:"page_token"`
+	LabelIDs   []string `json:"label_ids"`
+	Query      string   `json:"query"`
+	IncludeRead bool    `json:"include_read"`
+}
+
+// MessageQueryOptions specifies options for querying messages within a thread
+type MessageQueryOptions struct {
+	IncludeDeleted bool   `json:"include_deleted"`
+	Format         string `json:"format"` // "minimal", "full", "raw", "metadata"
+	SortOrder      string `json:"sort_order"` // "asc", "desc"
+}
+
+// ThreadSummaryOptions specifies options for generating thread summaries
+type ThreadSummaryOptions struct {
+	MaxLength       int    `json:"max_length"`
+	Language        string `json:"language"`
+	StreamEnabled   bool   `json:"stream_enabled"`
+	UseCache        bool   `json:"use_cache"`
+	ForceRegenerate bool   `json:"force_regenerate"`
+	AccountEmail    string `json:"account_email"`
+	SummaryType     string `json:"summary_type"` // "conversation", "action_items", "key_points"
+}
+
+// ThreadSummaryResult represents the result of a thread summary generation
+type ThreadSummaryResult struct {
+	ThreadID     string        `json:"thread_id"`
+	Summary      string        `json:"summary"`
+	SummaryType  string        `json:"summary_type"`
+	FromCache    bool          `json:"from_cache"`
+	Language     string        `json:"language"`
+	Duration     time.Duration `json:"duration"`
+	MessageCount int           `json:"message_count"`
+	CreatedAt    time.Time     `json:"created_at"`
+}
+
+// ThreadSearchResult represents search results within a thread
+type ThreadSearchResult struct {
+	ThreadID    string         `json:"thread_id"`
+	Query       string         `json:"query"`
+	Matches     []ThreadMatch  `json:"matches"`
+	MatchCount  int            `json:"match_count"`
+	Duration    time.Duration  `json:"duration"`
+}
+
+// ThreadMatch represents a search match within a thread
+type ThreadMatch struct {
+	MessageID string `json:"message_id"`
+	Position  int    `json:"position"`
+	Context   string `json:"context"`
+	MatchText string `json:"match_text"`
+}
+
+// ThreadingConfig represents threading configuration (mirrored from config package to avoid circular imports)
+type ThreadingConfig struct {
+	Enabled               bool   `json:"enabled"`
+	DefaultView           string `json:"default_view"`
+	AutoExpandUnread      bool   `json:"auto_expand_unread"`
+	ShowThreadCount       bool   `json:"show_thread_count"`
+	IndentReplies         bool   `json:"indent_replies"`
+	MaxThreadDepth        int    `json:"max_thread_depth"`
+	ThreadSummaryEnabled  bool   `json:"thread_summary_enabled"`
+	PreserveThreadState   bool   `json:"preserve_thread_state"`
+}

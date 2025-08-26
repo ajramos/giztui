@@ -287,6 +287,73 @@ CREATE TABLE IF NOT EXISTS saved_queries (
 		ver = 6
 	}
 
+	// v7: threading tables
+	if ver == 6 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		// Thread state persistence table
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS thread_state (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  thread_id     TEXT NOT NULL,
+  is_expanded   BOOLEAN DEFAULT FALSE,
+  last_updated  INTEGER NOT NULL,
+  UNIQUE(account_email, thread_id)
+);`)
+
+		if err == nil {
+			// Thread metadata cache table
+			_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS thread_cache (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  thread_id     TEXT NOT NULL,
+  message_count INTEGER DEFAULT 0,
+  unread_count  INTEGER DEFAULT 0,
+  latest_date   INTEGER,
+  participants  TEXT,
+  subject       TEXT,
+  has_attachment BOOLEAN DEFAULT FALSE,
+  labels        TEXT,
+  root_message_id TEXT,
+  cached_at     INTEGER NOT NULL,
+  UNIQUE(account_email, thread_id)
+);`)
+		}
+
+		if err == nil {
+			// Thread summary cache table
+			_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS thread_summary_cache (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  thread_id     TEXT NOT NULL,
+  summary       TEXT NOT NULL,
+  summary_type  TEXT DEFAULT 'conversation',
+  language      TEXT DEFAULT 'en',
+  message_count INTEGER NOT NULL,
+  cached_at     INTEGER NOT NULL,
+  UNIQUE(account_email, thread_id, summary_type)
+);`)
+		}
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=7;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v7: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 7
+	}
+
 	return nil
 }
 

@@ -215,13 +215,29 @@ func (eh *ErrorHandler) updateStatusMessage(msg string, level LogLevel) {
 
 	// Auto-clear temporary messages after 5 seconds
 	if level != LogLevelInfo || eh.persistentStatus == "" {
+		// Store current message to check against later for race condition prevention
+		currentMsg := msg
 		eh.statusTimer = time.AfterFunc(5*time.Second, func() {
-			eh.app.QueueUpdateDraw(func() {
-				eh.mu.Lock()
+			// Avoid nested QueueUpdateDraw - use direct method call instead
+			eh.clearCurrentStatusSafely(currentMsg)
+		})
+	}
+}
+
+// clearCurrentStatusSafely clears the current status message without race conditions
+func (eh *ErrorHandler) clearCurrentStatusSafely(expectedMsg string) {
+	if eh.app != nil {
+		eh.app.QueueUpdateDraw(func() {
+			eh.mu.Lock()
+			defer eh.mu.Unlock()
+			
+			// Only clear if the current message matches what we expect to clear
+			// This prevents clearing a newer message that was set after the timer started
+			if eh.currentStatus == expectedMsg {
 				eh.currentStatus = ""
 				eh.refreshStatusDisplay()
-				eh.mu.Unlock()
-			})
+			}
+			// If currentStatus != expectedMsg, a newer message was set, so don't clear it
 		})
 	}
 }
