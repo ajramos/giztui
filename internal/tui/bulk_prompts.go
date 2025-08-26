@@ -271,7 +271,7 @@ func (a *App) exitBulkMode() {
 	a.selected = make(map[string]bool)
 
 	// Reformat list items to remove bulk indicators
-	a.reformatListItems()
+	a.refreshTableDisplay()
 
 	// Reset list selection style to normal
 	if list, ok := a.views["list"].(*tview.Table); ok {

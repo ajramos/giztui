@@ -302,7 +302,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 					}
 					a.selected[a.ids[r]] = true
 				}
-				a.reformatListItems()
+				a.refreshTableDisplay()
 				list.SetSelectedStyle(a.getSelectionStyle())
 				go func() {
 					a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
@@ -310,7 +310,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			} else {
 				a.bulkMode = false
 				a.selected = make(map[string]bool)
-				a.reformatListItems()
+				a.refreshTableDisplay()
 				list.SetSelectedStyle(a.getSelectionStyle())
 				go func() {
 					a.GetErrorHandler().ClearProgress()
@@ -579,7 +579,7 @@ func (a *App) bindKeys() {
 							}
 							a.selected[a.ids[r]] = true
 						}
-						a.reformatListItems()
+						a.refreshTableDisplay()
 						// Keep focus highlight consistent (blue) even in Bulk mode
 						list.SetSelectedStyle(a.getSelectionStyle())
 						// Show status message asynchronously to avoid deadlock
@@ -589,7 +589,7 @@ func (a *App) bindKeys() {
 					} else {
 						a.bulkMode = false
 						a.selected = make(map[string]bool)
-						a.reformatListItems()
+						a.refreshTableDisplay()
 						list.SetSelectedStyle(a.getSelectionStyle())
 						// Clear status message asynchronously to avoid deadlock
 						go func() {
@@ -612,7 +612,7 @@ func (a *App) bindKeys() {
 						}
 						a.selected[a.ids[r]] = true
 					}
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					// Keep focus highlight consistent (blue) even in Bulk mode
 					list.SetSelectedStyle(a.getSelectionStyle())
 					// Show status message asynchronously to avoid deadlock
@@ -622,7 +622,7 @@ func (a *App) bindKeys() {
 				} else {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					list.SetSelectedStyle(a.getSelectionStyle())
 					// Clear status message asynchronously to avoid deadlock
 					go func() {
@@ -651,7 +651,7 @@ func (a *App) bindKeys() {
 							a.selected[a.ids[i]] = true
 						}
 					}
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					// Show status message asynchronously to avoid deadlock
 					go func() {
 						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
@@ -1232,7 +1232,7 @@ func (a *App) bindKeys() {
 				}
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
-				a.reformatListItems()
+				a.refreshTableDisplay()
 			}
 		})
 	}
@@ -1264,7 +1264,7 @@ func (a *App) handleBulkSelect() bool {
 					a.logger.Printf("DEBUG: Selected message %d (ID: %s)", r, a.ids[r])
 				}
 			}
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			// Keep focus highlight consistent (blue) even in Bulk mode
 			list.SetSelectedStyle(a.getSelectionStyle())
 			// Show status message asynchronously to avoid deadlock
@@ -1282,7 +1282,7 @@ func (a *App) handleBulkSelect() bool {
 			} else {
 				a.selected[mid] = true
 			}
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			// Show status message asynchronously to avoid deadlock
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
@@ -1994,7 +1994,7 @@ func (a *App) selectRange(startIndex, count int) {
 	}
 
 	// Update UI
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}
@@ -2050,7 +2050,7 @@ func (a *App) archiveRange(startIndex, count int) {
 		// Remove archived messages from current view (no server reload needed)
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(messageIDs)
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 	}()
 }
@@ -2100,7 +2100,7 @@ func (a *App) trashRange(startIndex, count int) {
 		// Remove trashed messages from current view (no server reload needed)
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(messageIDs)
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 	}()
 }
@@ -2185,7 +2185,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 
 		// Update display to show updated read status (no server reload needed)
 		a.QueueUpdateDraw(func() {
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 	}()
 }
@@ -2217,7 +2217,7 @@ func (a *App) moveRange(startIndex, count int) {
 	}
 
 	// Update UI to show selection
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}
@@ -2258,7 +2258,7 @@ func (a *App) labelRange(startIndex, count int) {
 	}
 
 	// Update UI to show selection
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}
@@ -2305,7 +2305,7 @@ func (a *App) slackRange(startIndex, count int) {
 	}
 
 	// Update UI to show selection
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}
@@ -2346,7 +2346,7 @@ func (a *App) obsidianRange(startIndex, count int) {
 	}
 
 	// Update UI to show selection
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}
@@ -2387,7 +2387,7 @@ func (a *App) promptRange(startIndex, count int) {
 	}
 
 	// Update UI to show selection
-	a.reformatListItems()
+	a.refreshTableDisplay()
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetSelectedStyle(a.getSelectionStyle())
 	}

@@ -439,7 +439,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}

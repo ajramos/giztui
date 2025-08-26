@@ -45,6 +45,7 @@ type App struct {
 	// State management
 	ids           []string
 	messagesMeta  []*gmailapi.Message
+	currentThreads []*services.ThreadInfo // Current threads for column system
 	draftMode     bool
 	draftIDs      []string
 	showHelp      bool
@@ -354,7 +355,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		w, h := screen.Size()
 		if w != app.screenWidth || h != app.screenHeight {
 			app.screenWidth, app.screenHeight = w, h
-			app.reformatListItems()
+			app.refreshTableDisplay()
 		}
 		return false
 	})
@@ -1017,7 +1018,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		// Force table to refresh content with new email renderer colors
 		if a.messagesMeta != nil && len(a.messagesMeta) > 0 {
 			// Trigger reformatting of list items to apply new theme colors
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		}
 	}
 	if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -1600,7 +1601,7 @@ func (a *App) performSearch(query string) {
 				row := table.GetRowCount()
 				table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
 			}
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 	}
 	if spinnerStop != nil {

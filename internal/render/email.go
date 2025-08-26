@@ -8,6 +8,7 @@ import (
 
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/derailed/tcell/v2"
+	"github.com/derailed/tview"
 	"github.com/mattn/go-runewidth"
 	googleGmail "google.golang.org/api/gmail/v1"
 )
@@ -132,6 +133,48 @@ func (ec *EmailColorer) isSent(message *googleGmail.Message) bool {
 	return false
 }
 
+// EmailRowType represents the type of row being displayed
+type EmailRowType int
+
+const (
+	RowTypeFlatMessage EmailRowType = iota
+	RowTypeThreadHeader
+	RowTypeThreadMessage
+	RowTypeHeader
+)
+
+// ColumnCell represents individual cell data within a table row
+type ColumnCell struct {
+	Content   string
+	Alignment int // tview alignment constant
+	MaxWidth  int // 0 = unlimited
+	Expansion int // Weight for width distribution
+}
+
+// EmailColumnData represents structured data for any display mode
+type EmailColumnData struct {
+	Columns []ColumnCell
+	RowType EmailRowType
+	Color   tcell.Color
+}
+
+// ColumnConfig defines column behavior and styling
+type ColumnConfig struct {
+	Header      string
+	Alignment   int // tview alignment constant
+	Expansion   int // Weight for extra width distribution
+	MaxWidth    int // 0 = unlimited
+	MinWidth    int // Minimum guaranteed width
+}
+
+// DisplayMode represents different email list display modes
+type DisplayMode int
+
+const (
+	ModeFlatList DisplayMode = iota
+	ModeThreaded
+)
+
 // EmailRenderer handles email rendering and formatting
 type EmailRenderer struct {
 	colorer      *EmailColorer
@@ -216,6 +259,158 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	textColor := er.colorer.DefaultColor
 
 	return formatted, textColor
+}
+
+// FormatFlatMessageColumns formats a message for flat list display using columns
+func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) EmailColumnData {
+	if message == nil || message.Payload == nil {
+		return EmailColumnData{
+			RowType: RowTypeFlatMessage,
+			Columns: []ColumnCell{
+				{"○", tview.AlignCenter, 3, 0},
+				{"(No sender)", tview.AlignLeft, 0, 1},
+				{"(No subject)", tview.AlignLeft, 0, 3},
+				{"--", tview.AlignRight, 16, 0},
+			},
+			Color: er.colorer.DefaultColor,
+		}
+	}
+
+	// Extract message flags (unread, important)
+	flags := er.extractMessageFlags(message)
+	
+	// Extract and format sender
+	senderName := er.extractSenderName(er.getHeader(message, "From"))
+	if senderName == "" {
+		senderName = "(No sender)"
+	}
+
+	// Extract subject
+	subject := er.getHeader(message, "Subject")
+	if subject == "" {
+		subject = "(No subject)"
+	}
+
+	// Add attachments and labels as suffix to subject
+	suffix := er.buildIconsAndChips(message)
+	subjectWithSuffix := subject + suffix
+
+	// Format date
+	date := er.formatRelativeTime(er.getDate(message))
+
+	// Determine row color
+	color := er.getMessageColor(message)
+
+	return EmailColumnData{
+		RowType: RowTypeFlatMessage,
+		Columns: []ColumnCell{
+			{flags, tview.AlignCenter, 3, 0},
+			{senderName, tview.AlignLeft, 0, 1},
+			{subjectWithSuffix, tview.AlignLeft, 0, 3},
+			{date, tview.AlignRight, 16, 0},
+		},
+		Color: color,
+	}
+}
+
+// extractMessageFlags returns status flags for a message (●/○ for unread/read, ! for important)
+func (er *EmailRenderer) extractMessageFlags(message *googleGmail.Message) string {
+	var flags strings.Builder
+	
+	// Unread indicator
+	if er.colorer.isUnread(message) {
+		flags.WriteString("●")
+	} else {
+		flags.WriteString("○")
+	}
+	
+	// Important indicator
+	if er.colorer.isImportant(message) {
+		flags.WriteString("!")
+	}
+	
+	return flags.String()
+}
+
+// getMessageColor returns the appropriate color for a message based on its state
+func (er *EmailRenderer) getMessageColor(message *googleGmail.Message) tcell.Color {
+	if er.colorer.isImportant(message) {
+		return er.colorer.ImportantColor
+	}
+	if er.colorer.isDraft(message) {
+		return er.colorer.DraftColor
+	}
+	if er.colorer.isSent(message) {
+		return er.colorer.SentColor
+	}
+	if er.colorer.isUnread(message) {
+		return er.colorer.UnreadColor
+	}
+	return er.colorer.ReadColor
+}
+
+// IsUnread checks if a message is unread
+func (er *EmailRenderer) IsUnread(message *googleGmail.Message) bool {
+	return er.colorer.isUnread(message)
+}
+
+// IsImportant checks if a message is important
+func (er *EmailRenderer) IsImportant(message *googleGmail.Message) bool {
+	return er.colorer.isImportant(message)
+}
+
+// IsDraft checks if a message is a draft
+func (er *EmailRenderer) IsDraft(message *googleGmail.Message) bool {
+	return er.colorer.isDraft(message)
+}
+
+// IsSent checks if a message is sent
+func (er *EmailRenderer) IsSent(message *googleGmail.Message) bool {
+	return er.colorer.isSent(message)
+}
+
+// GetHeader extracts a header value from a message
+func (er *EmailRenderer) GetHeader(message *googleGmail.Message, name string) string {
+	return er.getHeader(message, name)
+}
+
+// ExtractSenderName extracts the sender name from a From header
+func (er *EmailRenderer) ExtractSenderName(from string) string {
+	return er.extractSenderName(from)
+}
+
+// GetDate extracts the date from a message
+func (er *EmailRenderer) GetDate(message *googleGmail.Message) time.Time {
+	return er.getDate(message)
+}
+
+// GetMessageColor returns the appropriate color for a message based on its state
+func (er *EmailRenderer) GetMessageColor(message *googleGmail.Message) tcell.Color {
+	return er.getMessageColor(message)
+}
+
+// GetColumnConfig returns column configuration for the specified display mode
+func GetColumnConfig(mode DisplayMode) []ColumnConfig {
+	switch mode {
+	case ModeFlatList:
+		return []ColumnConfig{
+			{"", tview.AlignCenter, 0, 3, 2},      // Flags: ●○!
+			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
+			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
+			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
+		}
+	case ModeThreaded:
+		return []ColumnConfig{
+			{"", tview.AlignLeft, 0, 8, 4},        // Thread icon + status
+			{"#", tview.AlignRight, 0, 6, 3},      // Count [99]
+			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
+			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
+			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
+		}
+	default:
+		// Fallback to flat list config
+		return GetColumnConfig(ModeFlatList)
+	}
 }
 
 // buildIconsAndChips returns a string like "  📎🗓️  [Aws] [Finance] [+2]"

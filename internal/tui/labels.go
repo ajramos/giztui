@@ -394,7 +394,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				if a.bulkMode {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					// CRITICAL: Clear progress asynchronously to avoid ESC deadlock
 					go func() {
 						a.GetErrorHandler().ClearProgress()
@@ -579,7 +579,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						// Exit bulk mode
 						a.selected = make(map[string]bool)
 						a.bulkMode = false
-						a.reformatListItems()
+						a.refreshTableDisplay()
 
 						// Restore focus
 						a.SetFocus(a.views["list"])
@@ -657,7 +657,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				if a.bulkMode {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
 						list.SetSelectedStyle(a.getSelectionStyle())
@@ -676,7 +676,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				if a.bulkMode {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
-					a.reformatListItems()
+					a.refreshTableDisplay()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
 						list.SetSelectedStyle(a.getSelectionStyle())
@@ -760,7 +760,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									// Exit bulk mode
 									a.selected = make(map[string]bool)
 									a.bulkMode = false
-									a.reformatListItems()
+									a.refreshTableDisplay()
 
 									// Restore focus
 									a.SetFocus(a.views["list"])
@@ -867,7 +867,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						if a.bulkMode {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
-							a.reformatListItems()
+							a.refreshTableDisplay()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
 								list.SetSelectedStyle(a.getSelectionStyle())
@@ -884,7 +884,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						if a.bulkMode {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
-							a.reformatListItems()
+							a.refreshTableDisplay()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
 								list.SetSelectedStyle(a.getSelectionStyle())
@@ -2047,7 +2047,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		// Update UI after all operations complete
 		a.QueueUpdateDraw(func() {
 			// Update the visual list to reflect label changes
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 
 		// Show completion status using ErrorHandler (async to avoid deadlock)

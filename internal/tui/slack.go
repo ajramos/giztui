@@ -695,7 +695,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 		a.QueueUpdateDraw(func() {
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}

@@ -1055,7 +1055,7 @@ func (a *App) executeNumbersCommand(args []string) {
 
 	// Trigger UI redraw in a goroutine to avoid hanging
 	go func() {
-		a.reformatListItems()
+		a.refreshTableDisplay()
 		if a.showMessageNumbers {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Message numbers enabled")
 		} else {

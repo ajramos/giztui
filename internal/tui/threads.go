@@ -211,150 +211,73 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 	}
 
 	if a.logger != nil {
-		a.logger.Printf("displayThreadsSync: clearing table and populating with threads")
+		a.logger.Printf("displayThreadsSync: using new column system for threading display")
 	}
 
-	// Clear existing content
-	table.Clear()
-	
-	if a.logger != nil {
-		a.logger.Printf("displayThreadsSync: table cleared, processing %d threads", len(threads))
-	}
-
-	// Track threads for state management
+	// Use the new column system instead of the old string-based approach
+	// Store thread data for access by the column system
 	a.mu.Lock()
-	threadIDs := make([]string, 0, len(threads)*5) // Allocate more space for individual messages
-	threadMeta := make([]*services.ThreadInfo, 0, len(threads))
-	allRowMeta := make([]interface{}, 0, len(threads)*5) // Track both threads and messages
+	a.currentThreads = threads
 	
-	rowIndex := 0
-	for i, thread := range threads {
+	// Build IDs and metadata for compatibility
+	threadIDs := make([]string, 0, len(threads)*5)
+	allRowMeta := make([]*gmailapi.Message, 0, len(threads)*5)
+	
+	for _, thread := range threads {
 		if thread == nil {
-			if a.logger != nil {
-				a.logger.Printf("displayThreadsSync: thread %d is nil, skipping", i)
-			}
 			continue
 		}
 		
 		threadIDs = append(threadIDs, thread.ThreadID)
-		threadMeta = append(threadMeta, thread)
-		allRowMeta = append(allRowMeta, thread) // Store thread info
 		
-		// Format thread header for display
-		threadText := a.formatThreadForList(thread, i)
-		if a.logger != nil {
-			a.logger.Printf("displayThreadsSync: formatted thread %d text: '%s'", i, threadText)
-		}
-		
-		// Create thread header cell with appropriate styling
-		// Don't use expansion since we're doing manual column formatting
-		cell := tview.NewTableCell(threadText).
-			SetExpansion(0).
-			SetAlign(tview.AlignLeft)
-		
-		// Apply thread-specific styling
-		if thread.UnreadCount > 0 {
-			cell.SetTextColor(a.currentTheme.UI.InfoColor.Color())
+		// Create fake message structure for compatibility
+		var fromField string
+		if len(thread.Participants) > 0 {
+			fromField = thread.Participants[0]
 		} else {
-			cell.SetTextColor(a.currentTheme.UI.FooterColor.Color())
+			fromField = "Thread Participants"
 		}
 		
-		table.SetCell(rowIndex, 0, cell)
-		if a.logger != nil {
-			a.logger.Printf("displayThreadsSync: set cell at row %d for thread %s", rowIndex, thread.ThreadID)
+		fakeMsg := &gmailapi.Message{
+			Id:       thread.ThreadID,
+			ThreadId: thread.ThreadID,
+			Snippet:  thread.Subject,
+			Payload: &gmailapi.MessagePart{
+				Headers: []*gmailapi.MessagePartHeader{
+					{Name: "Subject", Value: thread.Subject},
+					{Name: "From", Value: fromField},
+					{Name: "Date", Value: thread.LatestDate.Format("Mon, 02 Jan 2006 15:04:05 -0700")},
+				},
+			},
+			LabelIds: thread.Labels,
 		}
-		rowIndex++
+		allRowMeta = append(allRowMeta, fakeMsg)
 		
-		// Check if thread is expanded and add individual messages
+		// Add expanded messages if thread is expanded
 		threadService := a.getThreadService()
 		if threadService != nil && thread.MessageCount > 1 {
 			accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
 			if accountEmail != "" {
 				isExpanded, _ := threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
 				if isExpanded {
-						// Fetch and display individual messages
-						messages, err := a.fetchThreadMessages(a.ctx, thread.ThreadID)
-						if err != nil {
-							if a.logger != nil {
-								a.logger.Printf("displayThreads: failed to fetch messages for thread %s: %v", thread.ThreadID, err)
-							}
-							// Add error message row
-							errorText := "    ⚠️  Failed to load thread messages"
-							errorCell := tview.NewTableCell(errorText).
-								SetExpansion(0).
-								SetAlign(tview.AlignLeft).
-								SetTextColor(tcell.ColorOrange) // Use a warning color
-							table.SetCell(rowIndex, 0, errorCell)
-							threadIDs = append(threadIDs, "") // Placeholder ID
-							allRowMeta = append(allRowMeta, nil) // Error marker
-							rowIndex++
-						} else {
-							// Add individual message rows
-							for msgIndex, message := range messages {
-								messageText := a.formatThreadMessageForList(message, msgIndex, len(messages))
-								
-								messageCell := tview.NewTableCell(messageText).
-									SetExpansion(0).
-									SetAlign(tview.AlignLeft)
-								
-								// Style individual messages differently (slightly dimmer)
-								messageCell.SetTextColor(a.currentTheme.UI.FooterColor.Color())
-								
-								table.SetCell(rowIndex, 0, messageCell)
-								
-								// Store message ID and metadata
-								threadIDs = append(threadIDs, message.Id)
-								allRowMeta = append(allRowMeta, message) // Store message info
-								rowIndex++
-							}
+					messages, err := a.fetchThreadMessages(a.ctx, thread.ThreadID)
+					if err == nil {
+						for _, message := range messages {
+							threadIDs = append(threadIDs, message.Id)
+							allRowMeta = append(allRowMeta, message)
 						}
 					}
 				}
 			}
 		}
-		
-		// Update app state (supporting both threads and individual messages)
-		a.ids = threadIDs
-		
-		// Store metadata for all rows (threads and messages)
-		a.messagesMeta = make([]*gmailapi.Message, len(allRowMeta))
-		for i, rowData := range allRowMeta {
-			if rowData == nil {
-				// Error row - create placeholder
-				a.messagesMeta[i] = &gmailapi.Message{
-					Id:      "",
-					Snippet: "Error loading thread messages",
-				}
-			} else if thread, isThread := rowData.(*services.ThreadInfo); isThread {
-				// Thread header - create fake message structure for compatibility
-				var fromField string
-				if len(thread.Participants) > 0 {
-					fromField = thread.Participants[0]
-				} else {
-					fromField = "Thread Participants"
-				}
-				
-				fakeMsg := &gmailapi.Message{
-					Id:       thread.ThreadID,
-					ThreadId: thread.ThreadID,
-					Snippet:  thread.Subject,
-					Payload: &gmailapi.MessagePart{
-						Headers: []*gmailapi.MessagePartHeader{
-							{Name: "Subject", Value: thread.Subject},
-							{Name: "From", Value: fromField},
-							{Name: "Date", Value: thread.LatestDate.Format("Mon, 02 Jan 2006 15:04:05 -0700")},
-						},
-					},
-					LabelIds: thread.Labels,
-				}
-				a.messagesMeta[i] = fakeMsg
-			} else if message, isMessage := rowData.(*gmailapi.Message); isMessage {
-				// Individual message - store directly
-				a.messagesMeta[i] = message
-			}
-		}
-		
-		a.mu.Unlock()
+	}
+	
+	a.ids = threadIDs
+	a.messagesMeta = allRowMeta
+	a.mu.Unlock()
+
+	// Use the column system to refresh display
+	a.refreshTableDisplay()
 
 	// Set final title with thread count
 	table.SetTitle(fmt.Sprintf(" 📧 Conversations (%d) ", len(threads)))

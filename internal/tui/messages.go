@@ -25,7 +25,7 @@ import (
 
 // reformatListItems recalculates list item strings for current screen width
 func (a *App) reformatListItems() {
-	table, ok := a.views["list"].(*tview.Table)
+	_, ok := a.views["list"].(*tview.Table)
 	if !ok || len(a.ids) == 0 {
 		return
 	}
@@ -35,88 +35,9 @@ func (a *App) reformatListItems() {
 		a.reformatThreadItems()
 		return
 	}
-	for i := range a.ids {
-		if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
-			continue
-		}
-		msg := a.messagesMeta[i]
-		text, _ := a.emailRenderer.FormatEmailList(msg, a.screenWidth)
-
-		// Label flags
-		unread := false
-		starred := false
-		yellowStar := false
-		important := false
-		for _, l := range msg.LabelIds {
-			switch l {
-			case "UNREAD":
-				unread = true
-			case "STARRED":
-				starred = true
-			case "YELLOW_STAR":
-				yellowStar = true
-			case "IMPORTANT":
-				important = true
-			}
-		}
-
-		// Determine base color by priority (as tcell.Color for Table)
-		var textColor tcell.Color = a.currentTheme.UI.InfoColor.Color()
-		if yellowStar {
-			textColor = a.GetStatusColor("warning")
-		} else if starred {
-			textColor = a.GetStatusColor("success")
-		} else if important {
-			textColor = a.GetStatusColor("error")
-		} else if !unread { // read
-			textColor = a.currentTheme.UI.FooterColor.Color()
-		}
-
-		// Build prefixes
-		var prefix string
-
-		// Add message number if enabled (leftmost position)
-		if a.showMessageNumbers {
-			maxNumber := len(a.ids)
-			width := len(fmt.Sprintf("%d", maxNumber))
-			prefix = fmt.Sprintf("%*d ", width, i+1) // Right-aligned numbering
-		}
-
-		if a.bulkMode {
-			if a.selected != nil && a.selected[a.ids[i]] {
-				prefix += "☑ "
-			} else {
-				prefix += "☐ "
-			}
-		}
-		if unread {
-			prefix += "● "
-		} else {
-			prefix += "○ "
-		}
-
-		// Build cell with explicit colors
-		final := prefix + text
-		cell := tview.NewTableCell(final).
-			SetExpansion(1).
-			SetAlign(tview.AlignLeft)
-		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
-			// If this row is the focused selection, let SelectedStyle (blue) show through; otherwise white background
-			if table != nil {
-				cur, _ := table.GetSelection()
-				if cur == i {
-					cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-				} else {
-					cell.SetTextColor(a.currentTheme.Body.BgColor.Color()).SetBackgroundColor(a.currentTheme.UI.SelectionFgColor.Color())
-				}
-			} else {
-				cell.SetTextColor(a.currentTheme.Body.BgColor.Color()).SetBackgroundColor(a.currentTheme.UI.SelectionFgColor.Color())
-			}
-		} else {
-			cell.SetTextColor(textColor).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		}
-		table.SetCell(i, 0, cell)
-	}
+	
+	// Use the new column-based system for flat mode
+	a.refreshTableDisplay()
 }
 
 // baseRemoveByID removes a message from the local base snapshot if present
@@ -246,7 +167,7 @@ func (a *App) restoreLocalBaseSnapshot() {
 			}
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		}
-		a.reformatListItems()
+		a.refreshTableDisplay()
 	})
 }
 
@@ -497,7 +418,7 @@ func (a *App) reloadMessagesFlat() {
 					SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 				table.SetCell(i, 0, cell)
 			}
-			a.reformatListItems()
+			a.refreshTableDisplay()
 		})
 
 		loaded = i + 1
@@ -530,7 +451,7 @@ func (a *App) reloadMessagesFlat() {
 			}
 		}
 		// Final pass (in case of resize between frames)
-		a.reformatListItems()
+		a.refreshTableDisplay()
 		// If advanced search is visible, keep focus on it
 		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
 			if f, fok := a.views["advFrom"].(*tview.InputField); fok {
@@ -659,7 +580,7 @@ func (a *App) loadMoreMessages() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		}
-		a.reformatListItems()
+		a.refreshTableDisplay()
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
@@ -704,7 +625,7 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 				}
 			}
 		}
-		a.reformatListItems()
+		a.refreshTableDisplay()
 	})
 }
 
@@ -1865,7 +1786,7 @@ func (a *App) applyLocalFilter(expr string) {
 				}
 			}
 		}
-		a.reformatListItems()
+		a.refreshTableDisplay()
 	})
 }
 
@@ -3304,7 +3225,7 @@ func (a *App) archiveSelectedBulk() {
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
@@ -3346,7 +3267,7 @@ func (a *App) trashSelectedBulk() {
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)
 			a.bulkMode = false
-			a.reformatListItems()
+			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
@@ -3418,7 +3339,7 @@ func (a *App) toggleMarkReadUnread() {
 			// Update caches/UI on main thread
 			a.QueueUpdateDraw(func() {
 				a.updateCachedMessageLabels(messageID, "UNREAD", true)
-				a.reformatListItems()
+				a.refreshTableDisplay()
 			})
 		} else {
 			if err := a.Client.MarkAsRead(messageID); err != nil {
@@ -3428,7 +3349,7 @@ func (a *App) toggleMarkReadUnread() {
 			a.showStatusMessage("✅ Message marked as read")
 			a.QueueUpdateDraw(func() {
 				a.updateCachedMessageLabels(messageID, "UNREAD", false)
-				a.reformatListItems()
+				a.refreshTableDisplay()
 			})
 		}
 	}(!isUnread)
