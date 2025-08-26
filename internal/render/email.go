@@ -291,9 +291,12 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 		subject = "(No subject)"
 	}
 
-	// Add attachments and labels as suffix to subject
-	suffix := er.buildIconsAndChips(message)
-	subjectWithSuffix := subject + suffix
+	// Extract icons for dedicated icons column
+	icons := er.extractIcons(message)
+	
+	// Add labels as suffix to subject (but not icons, they go in separate column)
+	labelChips := er.buildLabelChips(message)
+	subjectWithSuffix := subject + labelChips
 
 	// Format date
 	date := er.formatRelativeTime(er.getDate(message))
@@ -307,6 +310,7 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 			{flags, tview.AlignCenter, 3, 0},
 			{senderName, tview.AlignLeft, 0, 1},
 			{subjectWithSuffix, tview.AlignLeft, 0, 3},
+			{icons, tview.AlignCenter, 4, 0},
 			{date, tview.AlignRight, 16, 0},
 		},
 		Color: color,
@@ -397,6 +401,7 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 			{"", tview.AlignCenter, 0, 3, 2},      // Flags: ●○!
 			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
 			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
+			{"", tview.AlignCenter, 0, 4, 2},      // Icons: 📎🗓️
 			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
 		}
 	case ModeThreaded:
@@ -405,6 +410,7 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 			{"#", tview.AlignRight, 0, 6, 3},      // Count [99]
 			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
 			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
+			{"", tview.AlignCenter, 0, 4, 2},      // Icons: 📎🗓️
 			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
 		}
 	default:
@@ -413,7 +419,102 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	}
 }
 
-// buildIconsAndChips returns a string like "  📎🗓️  [Aws] [Finance] [+2]"
+// extractIcons returns just the content type icons (📎🗓️)  
+func (er *EmailRenderer) extractIcons(message *googleGmail.Message) string {
+	if message == nil || message.Payload == nil {
+		return ""
+	}
+	
+	// Detect attachments and calendar from MIME structure (metadata only)
+	hasAttachment := false
+	hasCalendar := false
+	var walk func(p *googleGmail.MessagePart)
+	walk = func(p *googleGmail.MessagePart) {
+		if p == nil {
+			return
+		}
+		mt := strings.ToLower(p.MimeType)
+		if p.Body != nil && p.Body.AttachmentId != "" {
+			// treat any attachment as a real attachment; filename strengthens signal but is optional
+			hasAttachment = true
+		}
+		if p.Filename != "" {
+			hasAttachment = true
+			if strings.HasSuffix(strings.ToLower(p.Filename), ".ics") {
+				hasCalendar = true
+			}
+		}
+		if strings.Contains(mt, "text/calendar") || strings.Contains(mt, "application/ics") {
+			hasCalendar = true
+		}
+		for _, c := range p.Parts {
+			walk(c)
+		}
+	}
+	walk(message.Payload)
+	
+	var icons strings.Builder
+	if hasAttachment {
+		icons.WriteString("📎")
+	}
+	if hasCalendar {
+		icons.WriteString("🗓️")
+	}
+	return icons.String()
+}
+
+// buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"  
+func (er *EmailRenderer) buildLabelChips(message *googleGmail.Message) string {
+	if message == nil {
+		return ""
+	}
+	
+	// Use the same label processing logic as the existing buildIconsAndChips function
+	names := make([]string, 0, len(message.LabelIds))
+	for _, id := range message.LabelIds {
+		name := id
+		if n, ok := er.labelIdToName[id]; ok && strings.TrimSpace(n) != "" {
+			name = n
+		}
+		upperID := strings.ToUpper(id)
+		upperName := strings.ToUpper(name)
+		// Always skip state/importance labels (represented via colors)
+		isStarVariant := strings.HasSuffix(upperID, "_STAR") || strings.HasSuffix(upperID, "_STARRED") || strings.HasSuffix(upperName, "_STAR") || strings.HasSuffix(upperName, "_STARRED")
+		if upperID == "UNREAD" || upperID == "STARRED" || upperID == "IMPORTANT" || upperName == "UNREAD" || upperName == "STARRED" || upperName == "IMPORTANT" || isStarVariant {
+			continue
+		}
+		// General system labels (Inbox/Sent/Trash/Spam/Draft/Category_*)
+		isSystemGeneral := strings.HasPrefix(upperID, "CATEGORY_") || upperID == "INBOX" || upperID == "CHAT" || upperID == "SENT" || upperID == "TRASH" || upperID == "SPAM" || upperID == "DRAFT"
+		if isSystemGeneral && !er.showSystemLabelsInList {
+			continue
+		}
+		// Normalize display name (Category_* → friendly name; Title Case otherwise)
+		names = append(names, normalizeLabelDisplay(name, id))
+	}
+	
+	var b strings.Builder
+	// Render labels as chips with overflow indicator
+	if len(names) > 0 {
+		if len(names) > 3 {
+			for i := 0; i < 3; i++ {
+				b.WriteString(" [")
+				b.WriteString(names[i])
+				b.WriteString("]")
+			}
+			b.WriteString(fmt.Sprintf(" [+%d]", len(names)-3))
+		} else {
+			for _, n := range names {
+				b.WriteString(" [")
+				b.WriteString(n)
+				b.WriteString("]")
+			}
+		}
+	}
+	
+	return b.String()
+}
+
+// buildIconsAndChips returns a string like "  📎🗓️  [Aws] [Finance] [+2]" (legacy function, kept for compatibility)
 func (er *EmailRenderer) buildIconsAndChips(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
 		return ""
