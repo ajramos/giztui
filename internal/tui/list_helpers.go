@@ -55,12 +55,16 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 
 	// Preselect a different index to avoid glitches when removing the selected row
 	if count > 1 {
-		pre := removeIndex - 1
+		// Convert removeIndex (message index) to table row index (+1 for header)
+		removeTableRow := removeIndex + 1
+		
+		// Calculate pre-selection table row
+		pre := removeTableRow - 1
 		if removeIndex == 0 {
-			pre = 1
+			pre = 2 // Second message (table row 2) when removing first message
 		}
-		if pre < 0 {
-			pre = 0
+		if pre < 1 {  // Never select header row (0)
+			pre = 1
 		}
 		if pre >= count {
 			pre = count - 1
@@ -107,24 +111,27 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 			}
 		}
 		// Keep the same visual position when possible
-		desired := removeIndex
+		// Convert removeIndex (message index) to table row index (+1 for header)
+		desired := removeIndex + 1
 		newCount := table.GetRowCount()
 		if desired >= newCount {
 			desired = newCount - 1
 		}
-		if desired >= 0 && desired < newCount {
+		if desired >= 1 && desired < newCount { // Never select header row (0)
 			table.Select(desired, 0)
+		} else if newCount > 1 {
+			table.Select(1, 0) // Select first message if no other option
 		}
 	}
 
 	// Update title and content
 	table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 	if text, ok := a.views["text"].(*tview.TextView); ok {
-		cur, _ := table.GetSelection()
-		if cur >= 0 && cur < len(a.ids) {
-			go a.showMessageWithoutFocus(a.ids[cur])
+		messageIndex := a.getCurrentSelectedMessageIndex()
+		if messageIndex >= 0 {
+			go a.showMessageWithoutFocus(a.ids[messageIndex])
 			if a.aiSummaryVisible {
-				go a.generateOrShowSummary(a.ids[cur])
+				go a.generateOrShowSummary(a.ids[messageIndex])
 			}
 		} else {
 			a.enhancedTextView.SetContent("No messages")
@@ -183,12 +190,17 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 	if cur >= table.GetRowCount() {
 		cur = table.GetRowCount() - 1
 	}
-	if cur >= 0 {
+	if cur < 1 { // Never select header row (0)
+		cur = 1
+	}
+	if cur >= 1 && cur < table.GetRowCount() {
 		table.Select(cur, 0)
-		if cur < len(a.ids) {
-			go a.showMessageWithoutFocus(a.ids[cur])
+		// Convert table row index to message index (-1 for header)
+		messageIndex := cur - 1
+		if messageIndex >= 0 && messageIndex < len(a.ids) {
+			go a.showMessageWithoutFocus(a.ids[messageIndex])
 			if a.aiSummaryVisible {
-				go a.generateOrShowSummary(a.ids[cur])
+				go a.generateOrShowSummary(a.ids[messageIndex])
 			}
 		}
 	}

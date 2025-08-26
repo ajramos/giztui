@@ -1610,8 +1610,8 @@ func (a *App) performSearch(query string) {
 	a.QueueUpdateDraw(func() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(a.ids), originalQuery))
-			if table.GetRowCount() > 0 {
-				table.Select(0, 0)
+			if table.GetRowCount() > 1 {
+				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
 				if len(a.ids) > 0 {
 					firstID := a.ids[0]
 					a.SetCurrentMessageID(firstID)

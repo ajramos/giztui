@@ -93,21 +93,17 @@ func (a *App) toggleAISummary() {
 			a.logger.Printf("toggleAISummary: trying to get message ID from table selection")
 		}
 		// Try to get from current table selection
-		if table, ok := a.views["list"]; ok && table != nil {
-			if tableView, ok := table.(*tview.Table); ok {
-				row, _ := tableView.GetSelection()
-				if a.debug {
-					a.logger.Printf("toggleAISummary: table row selection=%d", row)
-				}
-				if row >= 0 && row < len(a.ids) {
-					mid = a.ids[row]
-					a.SetCurrentMessageID(mid)
-					if a.debug {
-						a.logger.Printf("toggleAISummary: set message ID to '%s' from table selection", mid)
-					}
-					go a.showMessage(mid)
-				}
+		messageIndex := a.getCurrentSelectedMessageIndex()
+		if a.debug {
+			a.logger.Printf("toggleAISummary: message index=%d", messageIndex)
+		}
+		if messageIndex >= 0 {
+			mid = a.ids[messageIndex]
+			a.SetCurrentMessageID(mid)
+			if a.debug {
+				a.logger.Printf("toggleAISummary: set message ID to '%s' from table selection", mid)
 			}
+			go a.showMessage(mid)
 		}
 	}
 	if mid == "" {

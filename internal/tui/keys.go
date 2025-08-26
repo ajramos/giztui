@@ -295,12 +295,12 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if list, ok := a.views["list"].(*tview.Table); ok {
 			if !a.bulkMode {
 				a.bulkMode = true
-				r, _ := list.GetSelection()
-				if r >= 0 && r < len(a.ids) {
+				messageIndex := a.getCurrentSelectedMessageIndex()
+				if messageIndex >= 0 {
 					if a.selected == nil {
 						a.selected = make(map[string]bool)
 					}
-					a.selected[a.ids[r]] = true
+					a.selected[a.ids[messageIndex]] = true
 				}
 				a.refreshTableDisplay()
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -572,12 +572,12 @@ func (a *App) bindKeys() {
 				if list, ok := a.views["list"].(*tview.Table); ok {
 					if !a.bulkMode {
 						a.bulkMode = true
-						r, _ := list.GetSelection()
-						if r >= 0 && r < len(a.ids) {
+						messageIndex := a.getCurrentSelectedMessageIndex()
+						if messageIndex >= 0 {
 							if a.selected == nil {
 								a.selected = make(map[string]bool)
 							}
-							a.selected[a.ids[r]] = true
+							a.selected[a.ids[messageIndex]] = true
 						}
 						a.refreshTableDisplay()
 						// Keep focus highlight consistent (blue) even in Bulk mode
@@ -605,12 +605,12 @@ func (a *App) bindKeys() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				if !a.bulkMode {
 					a.bulkMode = true
-					r, _ := list.GetSelection()
-					if r >= 0 && r < len(a.ids) {
+					messageIndex := a.getCurrentSelectedMessageIndex()
+					if messageIndex >= 0 {
 						if a.selected == nil {
 							a.selected = make(map[string]bool)
 						}
-						a.selected[a.ids[r]] = true
+						a.selected[a.ids[messageIndex]] = true
 					}
 					a.refreshTableDisplay()
 					// Keep focus highlight consistent (blue) even in Bulk mode
@@ -1254,14 +1254,14 @@ func (a *App) handleBulkSelect() bool {
 				a.logger.Printf("DEBUG: Entering bulk mode for first time")
 			}
 			a.bulkMode = true
-			r, _ := list.GetSelection()
-			if r >= 0 && r < len(a.ids) {
+			messageIndex := a.getCurrentSelectedMessageIndex()
+			if messageIndex >= 0 {
 				if a.selected == nil {
 					a.selected = make(map[string]bool)
 				}
-				a.selected[a.ids[r]] = true
+				a.selected[a.ids[messageIndex]] = true
 				if a.logger != nil {
-					a.logger.Printf("DEBUG: Selected message %d (ID: %s)", r, a.ids[r])
+					a.logger.Printf("DEBUG: Selected message %d (ID: %s)", messageIndex, a.ids[messageIndex])
 				}
 			}
 			a.refreshTableDisplay()
@@ -1274,9 +1274,9 @@ func (a *App) handleBulkSelect() bool {
 			return true
 		}
 		// toggle selection
-		r, _ := list.GetSelection()
-		if r >= 0 && r < len(a.ids) {
-			mid := a.ids[r]
+		messageIndex := a.getCurrentSelectedMessageIndex()
+		if messageIndex >= 0 {
+			mid := a.ids[messageIndex]
 			if a.selected[mid] {
 				delete(a.selected, mid)
 			} else {
@@ -1614,20 +1614,17 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		a.vimOriginalMessageID = a.GetCurrentMessageID()
 
 		// Also get table selection for debugging
-		var tableSelection int = -1
 		var tableMessageID string = ""
-		if list, ok := a.views["list"].(*tview.Table); ok {
-			tableSelection, _ = list.GetSelection()
-			if tableSelection >= 0 && tableSelection < len(a.ids) {
-				tableMessageID = a.ids[tableSelection]
-			}
+		messageIndex := a.getCurrentSelectedMessageIndex()
+		if messageIndex >= 0 {
+			tableMessageID = a.ids[messageIndex]
 		}
 
 		if a.logger != nil {
 			a.logger.Printf("=== VIM SEQUENCE START DEBUG ===")
 			a.logger.Printf("VIM sequence started: %c, operationType=%s, operationCount=%d", key, a.vimOperationType, a.vimOperationCount)
 			a.logger.Printf("Captured originalMessageID: %s", a.vimOriginalMessageID)
-			a.logger.Printf("Current table selection index: %d", tableSelection)
+			a.logger.Printf("Current table selection index: %d", messageIndex)
 			a.logger.Printf("Table selection messageID: %s", tableMessageID)
 			a.logger.Printf("IDs match: %t", a.vimOriginalMessageID == tableMessageID)
 			a.logger.Printf("================================")
@@ -1741,21 +1738,15 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 		a.logger.Printf("executeVimRangeOperation: operation=%s, count=%d", operation, count)
 	}
 
-	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.GetErrorHandler().ShowError(a.ctx, "Could not access message list")
-		return
-	}
-
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
+	// Get current message index
+	messageIndex := a.getCurrentSelectedMessageIndex()
+	if messageIndex < 0 {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
 	}
 
 	// Validate range doesn't exceed available messages
-	maxCount := len(a.ids) - startIndex
+	maxCount := len(a.ids) - messageIndex
 	if count > maxCount {
 		count = maxCount
 		go func() {
@@ -1766,23 +1757,23 @@ func (a *App) executeVimRangeOperation(operation string, count int) {
 	// Use dynamic operation mapping based on configured keys
 	switch operation {
 	case a.Keys.BulkSelect:
-		a.selectRange(startIndex, count)
+		a.selectRange(messageIndex, count)
 	case a.Keys.Archive:
-		a.archiveRange(startIndex, count)
+		a.archiveRange(messageIndex, count)
 	case a.Keys.Trash:
-		a.trashRange(startIndex, count)
+		a.trashRange(messageIndex, count)
 	case a.Keys.ToggleRead:
-		a.toggleReadRange(startIndex, count)
+		a.toggleReadRange(messageIndex, count)
 	case a.Keys.Move:
-		a.moveRange(startIndex, count)
+		a.moveRange(messageIndex, count)
 	case a.Keys.ManageLabels:
-		a.labelRange(startIndex, count)
+		a.labelRange(messageIndex, count)
 	case a.Keys.Slack:
-		a.slackRange(startIndex, count)
+		a.slackRange(messageIndex, count)
 	case a.Keys.Obsidian:
-		a.obsidianRange(startIndex, count)
+		a.obsidianRange(messageIndex, count)
 	case a.Keys.Prompt:
-		a.promptRange(startIndex, count)
+		a.promptRange(messageIndex, count)
 	default:
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown VIM operation: %s", operation))
 	}

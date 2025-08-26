@@ -284,7 +284,7 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 
 	// Auto-select first thread if available
 	if len(threads) > 0 {
-		table.Select(0, 0)
+		table.Select(1, 0) // Select first thread (row 1, since row 0 is header)
 		a.SetCurrentMessageID(threads[0].ThreadID)
 	}
 }

@@ -117,6 +117,38 @@ func (a *App) getRowMessageID(row int) string {
 	return ""
 }
 
+// getCurrentSelectedMessageIndex returns the current selected message index (0-based, excluding header)
+// Returns -1 if no valid selection
+func (a *App) getCurrentSelectedMessageIndex() int {
+	table, ok := a.views["list"].(*tview.Table)
+	if !ok {
+		return -1
+	}
+	
+	selectedRow, _ := table.GetSelection()
+	if selectedRow <= 0 { // 0 is header row, so <= 0 means no valid message selected
+		return -1
+	}
+	
+	// Convert table row to message index (subtract 1 for header)
+	messageIndex := selectedRow - 1
+	if messageIndex >= len(a.ids) {
+		return -1
+	}
+	
+	return messageIndex
+}
+
+// getCurrentSelectedMessageID returns the current selected message ID
+// Returns empty string if no valid selection
+func (a *App) getCurrentSelectedMessageID() string {
+	messageIndex := a.getCurrentSelectedMessageIndex()
+	if messageIndex < 0 {
+		return ""
+	}
+	return a.ids[messageIndex]
+}
+
 // getBulkSelectionColor returns the background color for bulk-selected rows
 func (a *App) getBulkSelectionColor() tcell.Color {
 	// Use a darker background for selected items in bulk mode

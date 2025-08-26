@@ -433,9 +433,9 @@ func (a *App) reloadMessagesFlat() {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 
 			// Always ensure the first message is selected when loading messages
-			if table.GetRowCount() > 0 && len(a.ids) > 0 {
-				// Force selection of first message
-				table.Select(0, 0)
+			if table.GetRowCount() > 1 && len(a.ids) > 0 {
+				// Force selection of first message (row 1, since row 0 is header)
+				table.Select(1, 0)
 
 				// Set the current message ID to the first message
 				firstID := a.ids[0]
@@ -614,10 +614,10 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 			if table.GetRowCount() > 0 && len(a.ids) > 0 {
 				currentRow, _ := table.GetSelection()
 				// If no selection or selection is invalid, select the first message
-				if currentRow < 0 || currentRow >= table.GetRowCount() {
-					table.Select(0, 0)
+				if currentRow < 1 || currentRow >= table.GetRowCount() {
+					table.Select(1, 0) // Select first message (row 1, since row 0 is header)
 					// Update current message ID if not set
-					if a.GetCurrentMessageID() == "" {
+					if a.GetCurrentMessageID() == "" && len(a.ids) > 0 {
 						firstID := a.ids[0]
 						a.SetCurrentMessageID(firstID)
 						go a.showMessageWithoutFocus(firstID)
@@ -1776,8 +1776,8 @@ func (a *App) applyLocalFilter(expr string) {
 				table.SetCell(i, 0, tview.NewTableCell(prefix+text).SetExpansion(1))
 			}
 			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
-			if table.GetRowCount() > 0 {
-				table.Select(0, 0)
+			if table.GetRowCount() > 1 {
+				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
 				// Set current message ID to the first filtered message
 				if len(filteredIDs) > 0 {
 					firstID := filteredIDs[0]
@@ -3292,26 +3292,23 @@ func (a *App) showAttachments() {
 
 // toggleMarkReadUnread toggles UNREAD label on selected message
 func (a *App) toggleMarkReadUnread() {
-	// Use current list selection regardless of focus
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("❌ Could not access message list")
-		return
-	}
-	idx, _ := list.GetSelection()
-	if idx < 0 || idx >= len(a.ids) {
+	// Use helper function to get correct message index
+	messageIndex := a.getCurrentSelectedMessageIndex()
+	if messageIndex < 0 {
 		a.showError("❌ No message selected")
 		return
 	}
-	messageID := a.ids[idx]
+	
+	messageID := a.ids[messageIndex]
 	if messageID == "" {
 		a.showError("❌ Invalid message ID")
 		return
 	}
+	
 	// Determine unread state from cache if possible to avoid extra roundtrip
 	isUnread := false
-	if idx < len(a.messagesMeta) && a.messagesMeta[idx] != nil {
-		for _, l := range a.messagesMeta[idx].LabelIds {
+	if messageIndex < len(a.messagesMeta) && a.messagesMeta[messageIndex] != nil {
+		for _, l := range a.messagesMeta[messageIndex].LabelIds {
 			if l == "UNREAD" {
 				isUnread = true
 				break

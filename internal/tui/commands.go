@@ -1075,14 +1075,8 @@ func (a *App) executeArchiveCommand(args []string) {
 		}
 
 		// Get current position
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("Could not access message list")
-			return
-		}
-
-		startIndex, _ := list.GetSelection()
-		if startIndex < 0 || startIndex >= len(a.ids) {
+		startIndex := a.getCurrentSelectedMessageIndex()
+		if startIndex < 0 {
 			a.showError("No message selected")
 			return
 		}
@@ -1110,14 +1104,8 @@ func (a *App) executeTrashCommand(args []string) {
 		}
 
 		// Get current position
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("Could not access message list")
-			return
-		}
-
-		startIndex, _ := list.GetSelection()
-		if startIndex < 0 || startIndex >= len(a.ids) {
+		startIndex := a.getCurrentSelectedMessageIndex()
+		if startIndex < 0 {
 			a.showError("No message selected")
 			return
 		}
@@ -1145,14 +1133,8 @@ func (a *App) executeToggleReadCommand(args []string) {
 		}
 
 		// Get current position
-		list, ok := a.views["list"].(*tview.Table)
-		if !ok {
-			a.showError("Could not access message list")
-			return
-		}
-
-		startIndex, _ := list.GetSelection()
-		if startIndex < 0 || startIndex >= len(a.ids) {
+		startIndex := a.getCurrentSelectedMessageIndex()
+		if startIndex < 0 {
 			a.showError("No message selected")
 			return
 		}
@@ -1217,14 +1199,8 @@ func (a *App) executeSelectCommand(args []string) {
 	}
 
 	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("Could not access message list")
-		return
-	}
-
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
+	startIndex := a.getCurrentSelectedMessageIndex()
+	if startIndex < 0 {
 		a.showError("No message selected")
 		return
 	}
@@ -1246,14 +1222,8 @@ func (a *App) executeMoveCommand(args []string) {
 	}
 
 	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("Could not access message list")
-		return
-	}
-
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
+	startIndex := a.getCurrentSelectedMessageIndex()
+	if startIndex < 0 {
 		a.showError("No message selected")
 		return
 	}
@@ -1275,14 +1245,8 @@ func (a *App) executeLabelCommand(args []string) {
 	}
 
 	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("Could not access message list")
-		return
-	}
-
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
+	startIndex := a.getCurrentSelectedMessageIndex()
+	if startIndex < 0 {
 		a.showError("No message selected")
 		return
 	}
@@ -1304,14 +1268,8 @@ func (a *App) executeObsidianCommand(args []string) {
 	}
 
 	// Get current position
-	list, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		a.showError("Could not access message list")
-		return
-	}
-
-	startIndex, _ := list.GetSelection()
-	if startIndex < 0 || startIndex >= len(a.ids) {
+	startIndex := a.getCurrentSelectedMessageIndex()
+	if startIndex < 0 {
 		a.showError("No message selected")
 		return
 	}
