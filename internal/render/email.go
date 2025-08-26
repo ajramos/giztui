@@ -409,7 +409,7 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	case ModeThreaded:
 		return []ColumnConfig{
 			{"", tview.AlignLeft, 0, 3, 3},        // Type: Thread/message icons only (▼️/▶️/📧) - increased to 3
-			{"#", tview.AlignRight, 0, 5, 3},      // Thread Count: [4] or empty
+			{"#", tview.AlignRight, 0, 6, 3},      // Thread Count: [4] or empty
 			{"", tview.AlignCenter, 0, 3, 2},      // Status: Read/unread only (●/○)
 			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
 			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3

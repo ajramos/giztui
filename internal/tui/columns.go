@@ -336,7 +336,7 @@ func (a *App) getResponsiveThreadedConfig(breakpoint ResponsiveBreakpoint, avail
 	
 	// Column fixed and minimum widths (matching flat mode)
 	typeFixedWidth := 3        // Fixed width for type column (▼️/▶️/📧) - increased to prevent cutoff
-	threadCountFixedWidth := 5 // Fixed width for thread count column [99]
+	threadCountFixedWidth := 6 // Fixed width for thread count column [99] with padding
 	statusFixedWidth := 3      // Fixed width for status column (●/○)
 	fromMinWidth := 8
 	subjectMinWidth := 15
@@ -873,7 +873,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 			RowType: render.RowTypeThreadHeader,
 			Columns: []render.ColumnCell{
 				{"📧", tview.AlignLeft, 3, 0},          // Type: Single message icon
-				{"", tview.AlignRight, 5, 0},           // Thread Count: Empty
+				{"", tview.AlignRight, 6, 0},           // Thread Count: Empty
 				{"○", tview.AlignCenter, 3, 0},         // Status: Read
 				{"(No thread)", tview.AlignLeft, 0, 1}, // From
 				{"(No subject)", tview.AlignLeft, 0, 3}, // Subject
@@ -953,7 +953,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		RowType: render.RowTypeThreadHeader,
 		Columns: []render.ColumnCell{
 			{typeIcon, tview.AlignLeft, 3, 0},      // Type: Thread/message icon only
-			{countText, tview.AlignRight, 5, 0},    // Thread Count: [4] or empty
+			{countText, tview.AlignRight, 6, 0},    // Thread Count: [4] or empty
 			{statusIcon, tview.AlignCenter, 3, 0},  // Status: ●/○ only
 			{senderName, tview.AlignLeft, 0, 1},    // From
 			{subject, tview.AlignLeft, 0, 3},       // Subject (clean, no attachment)
@@ -972,7 +972,7 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 			RowType: render.RowTypeThreadMessage,
 			Columns: []render.ColumnCell{
 				{"", tview.AlignLeft, 3, 0},                        // Type: Empty for individual messages
-				{"", tview.AlignRight, 5, 0},                       // Thread Count: Empty (individual message)
+				{"", tview.AlignRight, 6, 0},                       // Thread Count: Empty (individual message)
 				{"○", tview.AlignCenter, 3, 0},                     // Status: Default read
 				{treePrefix + "(No message)", tview.AlignLeft, 0, 1}, // From: Tree prefix + placeholder
 				{"(No subject)", tview.AlignLeft, 0, 3},            // Subject
@@ -1035,7 +1035,7 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		RowType: render.RowTypeThreadMessage,
 		Columns: []render.ColumnCell{
 			{typeIcon, tview.AlignLeft, 2, 0},              // Type: Just message icon
-			{"", tview.AlignRight, 5, 0},                   // Thread Count: Empty (individual message)
+			{"", tview.AlignRight, 6, 0},                   // Thread Count: Empty (individual message)
 			{statusIcon, tview.AlignCenter, 3, 0},          // Status: ●/○ only
 			{senderName, tview.AlignLeft, 0, 1},            // From: Tree prefix + sender (for alignment)
 			{subject, tview.AlignLeft, 0, 3},               // Subject (clean)
