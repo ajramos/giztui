@@ -22,7 +22,13 @@ func (a *App) getCurrentDisplayMode() render.DisplayMode {
 
 // configureTableForMode sets up the table structure for the specified display mode
 func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode) {
-	config := render.GetColumnConfig(mode)
+	// Use dynamic configuration that accounts for numbers mode
+	var config []render.ColumnConfig
+	if mode == render.ModeThreaded {
+		config = a.getColumnConfigForCurrentMode(render.RowTypeThreadHeader)
+	} else {
+		config = a.getColumnConfigForCurrentMode(render.RowTypeFlatMessage)
+	}
 	
 	// Clear existing table structure
 	table.Clear()
@@ -50,14 +56,42 @@ func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode)
 	}
 }
 
+// getColumnConfigForCurrentMode returns the appropriate column configuration based on current display settings
+func (a *App) getColumnConfigForCurrentMode(rowType render.EmailRowType) []render.ColumnConfig {
+	var baseConfig []render.ColumnConfig
+	
+	if rowType == render.RowTypeThreadHeader || rowType == render.RowTypeThreadMessage {
+		baseConfig = render.GetColumnConfig(render.ModeThreaded)
+	} else {
+		baseConfig = render.GetColumnConfig(render.ModeFlatList)
+	}
+	
+	// If numbers are enabled and this is a flat message, prepend a numbers column
+	if a.showMessageNumbers && rowType == render.RowTypeFlatMessage {
+		maxNumber := len(a.ids)
+		numberWidth := len(fmt.Sprintf("%d", maxNumber)) + 1 // +1 for space after number
+		
+		numbersColumn := render.ColumnConfig{
+			Header:    "#",
+			Alignment: tview.AlignRight,
+			Expansion: 0,
+			MaxWidth:  numberWidth,
+			MinWidth:  numberWidth,
+		}
+		
+		// Prepend numbers column to the base configuration
+		config := make([]render.ColumnConfig, 0, len(baseConfig)+1)
+		config = append(config, numbersColumn)
+		config = append(config, baseConfig...)
+		return config
+	}
+	
+	return baseConfig
+}
+
 // populateTableRow populates a single table row with the provided column data
 func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailColumnData) {
-	var config []render.ColumnConfig
-	if data.RowType == render.RowTypeThreadHeader || data.RowType == render.RowTypeThreadMessage {
-		config = render.GetColumnConfig(render.ModeThreaded)
-	} else {
-		config = render.GetColumnConfig(render.ModeFlatList)
-	}
+	config := a.getColumnConfigForCurrentMode(data.RowType)
 	
 	for col, cellData := range data.Columns {
 		if col >= len(config) {
@@ -201,16 +235,37 @@ func (a *App) populateFlatRows(table *tview.Table) {
 		msg := a.messagesMeta[i]
 		columnData := a.emailRenderer.FormatFlatMessageColumns(msg)
 		
-		// Enhance flags column with bulk mode and message numbering, preserving original status flags
-		originalFlags := columnData.Columns[0].Content
-		if a.logger != nil && i < 3 { // Debug first few messages
-			a.logger.Printf("DEBUG FLAGS: msg %d, originalFlags='%s', showNumbers=%t, bulkMode=%t", i, originalFlags, a.showMessageNumbers, a.bulkMode)
+		// If numbers are enabled, prepend a numbers column and keep flags separate
+		if a.showMessageNumbers {
+			// Create the number content
+			maxNumber := len(a.ids)
+			width := len(fmt.Sprintf("%d", maxNumber))
+			numberContent := fmt.Sprintf("%*d", width, i+1) // Right-aligned numbering
+			
+			// Insert numbers column at the beginning
+			numbersColumn := render.ColumnCell{
+				Content:   numberContent,
+				Alignment: tview.AlignRight,
+				MaxWidth:  width + 1, // +1 for spacing
+				Expansion: 0,
+			}
+			
+			// Create new column slice with numbers column prepended
+			newColumns := make([]render.ColumnCell, 0, len(columnData.Columns)+1)
+			newColumns = append(newColumns, numbersColumn)
+			newColumns = append(newColumns, columnData.Columns...)
+			columnData.Columns = newColumns
+			
+			// Enhance flags column (now at index 1) with bulk mode, preserving original status flags
+			originalFlags := columnData.Columns[1].Content
+			flags := a.buildEnhancedFlags(msg, i, originalFlags)
+			columnData.Columns[1].Content = flags
+		} else {
+			// No numbers - enhance flags column at index 0 as before
+			originalFlags := columnData.Columns[0].Content
+			flags := a.buildEnhancedFlags(msg, i, originalFlags)
+			columnData.Columns[0].Content = flags
 		}
-		flags := a.buildEnhancedFlags(msg, i, originalFlags)
-		if a.logger != nil && i < 3 { // Debug first few messages
-			a.logger.Printf("DEBUG FLAGS: msg %d, enhancedFlags='%s'", i, flags)
-		}
-		columnData.Columns[0].Content = flags
 		
 		// Apply bulk mode styling if this message is selected
 		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
@@ -241,16 +296,10 @@ func (a *App) populateFlatRows(table *tview.Table) {
 	}
 }
 
-// buildEnhancedFlags builds the flags column content including message numbers, bulk checkboxes, and original status indicators
+// buildEnhancedFlags builds the flags column content with bulk checkboxes and original status indicators
+// Note: Numbers are now handled in a separate dedicated column, so this function no longer includes them
 func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int, originalFlags string) string {
 	var flags strings.Builder
-	
-	// Add message number if enabled (leftmost position)
-	if a.showMessageNumbers {
-		maxNumber := len(a.ids)
-		width := len(fmt.Sprintf("%d", maxNumber))
-		flags.WriteString(fmt.Sprintf("%*d ", width, index+1)) // Right-aligned numbering
-	}
 	
 	// Add bulk mode checkbox, but preserve original status flags
 	if a.bulkMode {
@@ -265,7 +314,7 @@ func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int, originalFlags
 			flags.WriteString(originalFlags)
 		}
 	} else {
-		// When not in bulk mode, just append the original status flags
+		// When not in bulk mode, just use the original status flags
 		flags.WriteString(originalFlags)
 	}
 	
