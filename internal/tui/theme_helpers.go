@@ -3,9 +3,9 @@ package tui
 import (
 	"fmt"
 
+	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
-	"github.com/ajramos/gmail-tui/internal/config"
 )
 
 // Theme-aware color helper functions for the App
@@ -31,7 +31,7 @@ func (a *App) GetStatusColor(level string) tcell.Color {
 			return tcell.ColorWhite
 		}
 	}
-	
+
 	switch level {
 	case "error":
 		return a.currentTheme.Status.Error.Color()
@@ -70,7 +70,7 @@ func (a *App) GetColorTag(purpose string) string {
 			return "[white]"
 		}
 	}
-	
+
 	var color config.Color
 	switch purpose {
 	case "title":
@@ -88,7 +88,7 @@ func (a *App) GetColorTag(purpose string) string {
 	default:
 		color = a.currentTheme.Body.FgColor
 	}
-	
+
 	return fmt.Sprintf("[%s]", color.String())
 }
 
@@ -110,7 +110,7 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 			Accent:     config.NewColor("#8be9fd"),
 		}
 	}
-	
+
 	switch component {
 	case "ai":
 		return a.currentTheme.Components.AI
@@ -160,7 +160,7 @@ func (a *App) FormatTitle(text string) string {
 	return a.GetColorTag("title") + text + a.GetEndTag()
 }
 
-// FormatHeader formats text with header color  
+// FormatHeader formats text with header color
 // Replaces: "[green]text[-]"
 func (a *App) FormatHeader(text string) string {
 	return a.GetColorTag("header") + text + a.GetEndTag()
@@ -233,13 +233,13 @@ func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
 // ConfigureInputFieldTheme applies consistent theme colors to input fields
 func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string) *tview.InputField {
 	bgColor, textColor := a.GetInputFieldColors()
-	
+
 	// Configure basic field colors
 	field.SetFieldBackgroundColor(bgColor).
 		SetFieldTextColor(textColor).
 		SetLabelColor(a.getTitleColor()).
 		SetPlaceholderTextColor(a.getHintColor())
-	
+
 	// For advanced search, apply more aggressive styling to override form defaults
 	if component == "advanced" {
 		// Force the background color and remove any borders that might cause color issues
@@ -247,7 +247,7 @@ func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string
 			SetBorder(false).
 			SetBorderColor(bgColor)
 	}
-	
+
 	return field
 }
 
@@ -256,7 +256,7 @@ func (a *App) GetSearchFieldColors(component string) (bgColor, textColor, labelC
 	if a.currentTheme == nil {
 		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor, tcell.ColorYellow
 	}
-	
+
 	switch component {
 	case "advanced":
 		// Advanced search uses slightly different styling

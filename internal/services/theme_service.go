@@ -12,10 +12,10 @@ import (
 
 // ThemeServiceImpl implements ThemeService
 type ThemeServiceImpl struct {
-	currentTheme  string
-	themesDir     string
+	currentTheme   string
+	themesDir      string
 	customThemeDir string
-	themeLoader   *config.ThemeLoader
+	themeLoader    *config.ThemeLoader
 	applyThemeFunc func(*config.ColorsConfig) error // Function to apply theme to the app
 }
 
@@ -136,22 +136,22 @@ func (s *ThemeServiceImpl) GetThemeConfig(ctx context.Context, name string) (*Th
 	themeConfig.UIColors.BgColor = colorsConfig.Body.BgColor.String()
 	themeConfig.UIColors.BorderColor = colorsConfig.Frame.Border.FgColor.String()
 	themeConfig.UIColors.FocusColor = colorsConfig.Frame.Border.FocusColor.String()
-	
+
 	// Component colors (previously hardcoded)
 	themeConfig.UIColors.TitleColor = colorsConfig.UI.TitleColor.String()
 	themeConfig.UIColors.FooterColor = colorsConfig.UI.FooterColor.String()
 	themeConfig.UIColors.HintColor = colorsConfig.UI.HintColor.String()
-	
+
 	// Selection colors
 	themeConfig.UIColors.SelectionBgColor = colorsConfig.UI.SelectionBgColor.String()
 	themeConfig.UIColors.SelectionFgColor = colorsConfig.UI.SelectionFgColor.String()
-	
+
 	// Status colors
 	themeConfig.UIColors.ErrorColor = colorsConfig.UI.ErrorColor.String()
 	themeConfig.UIColors.SuccessColor = colorsConfig.UI.SuccessColor.String()
 	themeConfig.UIColors.WarningColor = colorsConfig.UI.WarningColor.String()
 	themeConfig.UIColors.InfoColor = colorsConfig.UI.InfoColor.String()
-	
+
 	// Input colors
 	themeConfig.UIColors.InputBgColor = colorsConfig.UI.InputBgColor.String()
 	themeConfig.UIColors.InputFgColor = colorsConfig.UI.InputFgColor.String()
@@ -199,15 +199,15 @@ func (s *ThemeServiceImpl) loadThemeByName(name string) (*config.ColorsConfig, e
 
 	// Priority order: custom dir, user config dir, built-in dir
 	dirs := []string{}
-	
+
 	if s.customThemeDir != "" {
 		dirs = append(dirs, s.customThemeDir)
 	}
-	
+
 	if userConfigDir, err := s.getUserConfigThemesDir(); err == nil {
 		dirs = append(dirs, userConfigDir)
 	}
-	
+
 	dirs = append(dirs, s.themesDir)
 
 	// Try each directory in priority order
@@ -240,7 +240,7 @@ func (s *ThemeServiceImpl) getThemeDescription(name string) string {
 		"custom-example": "Demo custom theme",
 		"high-contrast":  "High contrast theme for accessibility",
 	}
-	
+
 	if desc, exists := descriptions[name]; exists {
 		return desc
 	}

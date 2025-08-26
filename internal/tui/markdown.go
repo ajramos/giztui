@@ -106,14 +106,14 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	// Update header TextView separately (tview markup)
 	if hv, ok := a.views["header"].(*tview.TextView); ok {
 		hv.SetDynamicColors(true)
-		
+
 		// Check header visibility via DisplayService
 		_, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
 		if displayService != nil && displayService.IsHeaderVisible() {
 			headerWidth := a.getHeaderWidth()
 			headerContent := a.emailRenderer.FormatHeaderPlainWithWidth(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels, headerWidth)
 			hv.SetText(headerContent)
-			
+
 			// Dynamically adjust header height based on content
 			a.adjustHeaderHeight(headerContent)
 		} else {

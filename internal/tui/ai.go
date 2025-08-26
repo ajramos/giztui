@@ -563,7 +563,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 							a.updateCachedMessageLabels(messageID, id, true)
 							a.QueueUpdateDraw(func() {
 								go func() {
-									a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: " + lbl)
+									a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: "+lbl)
 								}()
 								a.refreshMessageContent(messageID)
 							})

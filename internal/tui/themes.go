@@ -32,7 +32,7 @@ func (a *App) openThemePicker() {
 		SetLabelColor(a.getTitleColor()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
-	
+
 	list := tview.NewList().ShowSecondaryText(false) // Keep clean list display
 	list.SetBorder(false)
 
@@ -41,8 +41,8 @@ func (a *App) openThemePicker() {
 		description string
 		version     string
 		current     bool
-		valid       bool  // NEW: Theme validation status
-		builtin     bool  // NEW: Built-in vs user theme
+		valid       bool // NEW: Theme validation status
+		builtin     bool // NEW: Built-in vs user theme
 	}
 
 	var all []themeItem
@@ -52,7 +52,7 @@ func (a *App) openThemePicker() {
 	reload := func(filter string) {
 		list.Clear()
 		visible = visible[:0]
-		
+
 		for _, item := range all {
 			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
 				continue
@@ -66,11 +66,11 @@ func (a *App) openThemePicker() {
 			} else {
 				statusIcon = "○"
 			}
-			
+
 			if !item.valid {
 				statusIcon = "❌" // Invalid theme
 			}
-			
+
 			if item.builtin {
 				typeIcon = "📦" // Built-in theme
 			} else {
@@ -79,7 +79,7 @@ func (a *App) openThemePicker() {
 
 			displayText := fmt.Sprintf("%s %s %s", statusIcon, typeIcon, item.name)
 			secondaryText := fmt.Sprintf("%s | v%s", item.description, item.version)
-			
+
 			// Color-code based on status
 			if !item.valid {
 				secondaryText = "⚠️ Invalid theme file"
@@ -219,7 +219,7 @@ func (a *App) openThemePicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "prompts"  // Use same focus identifier as prompts for consistency
+			a.currentFocus = "prompts" // Use same focus identifier as prompts for consistency
 			a.updateFocusIndicators("prompts")
 			a.labelsVisible = true // Needed for proper visual state
 
@@ -376,12 +376,12 @@ func (a *App) closeThemePicker() {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
 	a.labelsVisible = false
-	
+
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
 		textContainer.SetTitleColor(a.getTitleColor())
-		
+
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			// Use stored original height if available, otherwise fallback to default
@@ -393,7 +393,7 @@ func (a *App) closeThemePicker() {
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}
 	}
-	
+
 	// Restore message content (if we were showing theme preview)
 	currentMessageID := a.GetCurrentMessageID()
 	if currentMessageID != "" {
@@ -412,7 +412,7 @@ func (a *App) closeThemePicker() {
 			a.refreshMessageContent(currentMessageID)
 		}()
 	}
-	
+
 	// Restore focus properly to text view (Enhanced or regular)
 	if a.enhancedTextView != nil {
 		a.SetFocus(a.enhancedTextView)
@@ -449,12 +449,12 @@ func (a *App) formatColorSample(name string, colorValue config.Color) string {
 func (a *App) formatColorSampleString(name string, colorValue string) string {
 	// Use the closest named color that tview supports
 	namedColor := a.hexToNamedColor(colorValue)
-	
+
 	if namedColor != "" {
 		// Format: colored bullet point + colored name + hex value in parentheses
 		return fmt.Sprintf("  [%s]●[-] [%s]%s[-] (%s)\n", namedColor, namedColor, name, colorValue)
 	}
-	
+
 	// Fallback: no color formatting if we can't map to a named color
 	return fmt.Sprintf("  ● %s (%s)\n", name, colorValue)
 }
@@ -464,7 +464,7 @@ func (a *App) hexToNamedColor(hexColor string) string {
 	// Map common hex colors to tview named colors
 	colorMap := map[string]string{
 		"#ff5555": "red",
-		"#50fa7b": "green", 
+		"#50fa7b": "green",
 		"#f1fa8c": "yellow",
 		"#8be9fd": "cyan",
 		"#bd93f9": "purple",
@@ -476,18 +476,18 @@ func (a *App) hexToNamedColor(hexColor string) string {
 		// Light theme colors
 		"#e74c3c": "red",
 		"#27ae60": "green",
-		"#f39c12": "yellow", 
+		"#f39c12": "yellow",
 		"#3498db": "blue",
 		"#2c3e50": "black",
 		"#ecf0f1": "white",
 		"#7f8c8d": "gray",
 		"#e67e22": "orange",
 	}
-	
+
 	if named, exists := colorMap[hexColor]; exists {
 		return named
 	}
-	
+
 	// For unknown colors, try to guess based on hex values
 	if len(hexColor) == 7 && hexColor[0] == '#' {
 		// Simple heuristic based on RGB values
@@ -497,7 +497,7 @@ func (a *App) hexToNamedColor(hexColor string) string {
 			switch {
 			case hex[0:2] > hex[2:4] && hex[0:2] > hex[4:6]: // Red dominant
 				return "red"
-			case hex[2:4] > hex[0:2] && hex[2:4] > hex[4:6]: // Green dominant  
+			case hex[2:4] > hex[0:2] && hex[2:4] > hex[4:6]: // Green dominant
 				return "green"
 			case hex[4:6] > hex[0:2] && hex[4:6] > hex[2:4]: // Blue dominant
 				return "blue"
@@ -512,7 +512,7 @@ func (a *App) hexToNamedColor(hexColor string) string {
 			}
 		}
 	}
-	
+
 	return "" // No suitable named color found
 }
 
@@ -521,7 +521,7 @@ func (a *App) parseColorFromTheme(colorStr string) *tcell.Color {
 	if colorStr == "" {
 		return nil
 	}
-	
+
 	color := tcell.GetColor(colorStr)
 	return &color
 }

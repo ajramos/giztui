@@ -82,7 +82,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	} else {
 		if removeIndex >= 0 && removeIndex < table.GetRowCount() {
 			table.RemoveRow(removeIndex)
-			
+
 			// CRITICAL FIX: Ensure table row count matches a.ids length
 			// Sometimes RemoveRow doesn't properly sync, so force a refresh
 			actualTableRows := table.GetRowCount()

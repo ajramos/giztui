@@ -22,7 +22,7 @@ func (a *App) archiveSelectedBulk() {
 		// Use bulk service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkArchive(a.ctx, ids)
-		
+
 		failed := 0
 		if err != nil {
 			// Count failures (this is approximate since BulkArchive doesn't return detailed failure info)
@@ -68,7 +68,7 @@ func (a *App) trashSelectedBulk() {
 		// Use bulk service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkTrash(a.ctx, ids)
-		
+
 		failed := 0
 		if err != nil {
 			// Count failures (this is approximate since BulkTrash doesn't return detailed failure info)

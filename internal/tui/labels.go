@@ -96,7 +96,6 @@ func (a *App) executeLabelRemove(args []string) {
 	}()
 }
 
-
 // manageLabels opens the labels management view for the currently selected message
 func (a *App) manageLabels() {
 	if a.logger != nil {
@@ -632,7 +631,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							a.removeIDsFromCurrentList(idsToMove)
 
 							// The removeIDsFromCurrentList function handles:
-							// - Removing from a.ids 
+							// - Removing from a.ids
 							// - Removing from a.messagesMeta
 							// - Updating the table view
 							// - Adjusting selection and content
@@ -833,7 +832,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 										a.removeIDsFromCurrentList(idsToMove)
 
 										// The removeIDsFromCurrentList function handles:
-										// - Removing from a.ids 
+										// - Removing from a.ids
 										// - Removing from a.messagesMeta
 										// - Updating the table view
 										// - Adjusting selection and content
@@ -1451,7 +1450,7 @@ func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurr
 	go func() {
 		// Use LabelService for undo support
 		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
-		
+
 		if isCurrentlyApplied {
 			if err := labelService.RemoveLabel(a.ctx, messageID, labelID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error removing label %s: %v", labelName, err))
@@ -1796,7 +1795,7 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					// Update cache for immediate UI feedback
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
-				
+
 				// Apply label and archive using dedicated move function for undo support
 				emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
 				if !has {
@@ -1814,7 +1813,7 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving: %v", err))
 					return
 				}
-				
+
 				go func() {
 					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📦 Moved to: %s", labelName))
 				}()
@@ -2002,7 +2001,7 @@ func (a *App) showAllLabelsPicker(messageID string) {
 			if id, ok := nameToID[lbl]; ok {
 				a.applyLabelAndRefresh(messageID, id, lbl)
 				go func() {
-					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: " + lbl)
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: "+lbl)
 				}()
 				a.Pages.SwitchToPage("main")
 				a.restoreFocusAfterModal()

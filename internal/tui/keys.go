@@ -350,7 +350,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> bulk_select", key)
 		}
 		return a.handleBulkSelect()
-	
+
 	// Saved queries
 	case a.Keys.SaveQuery:
 		if a.logger != nil {
@@ -1102,7 +1102,6 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
@@ -1302,7 +1301,7 @@ func (a *App) toggleFocus() {
 	}
 	// Apply focus and indicators
 	targetName := ringNames[next]
-	
+
 	// Special handling for prompt picker - focus will be handled by the container's default behavior
 	// The container should automatically focus the first focusable child (input field)
 	if targetName == "prompts" {
@@ -1311,7 +1310,7 @@ func (a *App) toggleFocus() {
 		a.updateFocusIndicators("prompts")
 		return
 	}
-	
+
 	a.SetFocus(ring[next])
 	a.currentFocus = targetName
 	a.updateFocusIndicators(targetName)

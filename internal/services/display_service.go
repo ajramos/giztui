@@ -21,7 +21,7 @@ func NewDisplayService() *DisplayServiceImpl {
 func (d *DisplayServiceImpl) ToggleHeaderVisibility() bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	d.headerVisible = !d.headerVisible
 	return d.headerVisible
 }
@@ -30,7 +30,7 @@ func (d *DisplayServiceImpl) ToggleHeaderVisibility() bool {
 func (d *DisplayServiceImpl) SetHeaderVisibility(visible bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	d.headerVisible = visible
 }
 
@@ -38,6 +38,6 @@ func (d *DisplayServiceImpl) SetHeaderVisibility(visible bool) {
 func (d *DisplayServiceImpl) IsHeaderVisible() bool {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	return d.headerVisible
 }

@@ -20,7 +20,7 @@ func NewQueryService(store *db.QueryStore, config *config.Config) *QueryServiceI
 	accountEmail := ""
 	// Try to get account email from config or other sources
 	// For now, we'll use empty string and it should be set by the app
-	
+
 	return &QueryServiceImpl{
 		store:        store,
 		accountEmail: accountEmail,
@@ -324,7 +324,7 @@ func (s *QueryServiceImpl) GenerateQueryName(query string) string {
 	}
 
 	name := strings.Join(nameWords, " ")
-	
+
 	// Capitalize first letter
 	if len(name) > 0 {
 		name = strings.ToUpper(name[:1]) + name[1:]

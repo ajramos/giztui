@@ -153,7 +153,7 @@ func (s *AttachmentServiceImpl) GetDefaultDownloadPath() string {
 // extractAttachmentsFromMessage extracts attachment info from Gmail message
 func (s *AttachmentServiceImpl) extractAttachmentsFromMessage(message *googleGmail.Message) []AttachmentInfo {
 	var attachments []AttachmentInfo
-	
+
 	if message == nil || message.Payload == nil {
 		return attachments
 	}
@@ -245,21 +245,21 @@ func (s *AttachmentServiceImpl) categorizeAttachment(mimeType, filename string) 
 	}
 
 	// Spreadsheet types
-	if strings.Contains(mimeType, "sheet") || strings.Contains(mimeType, "excel") || 
-	   strings.HasSuffix(filename, ".xls") || strings.HasSuffix(filename, ".xlsx") || strings.HasSuffix(filename, ".csv") {
+	if strings.Contains(mimeType, "sheet") || strings.Contains(mimeType, "excel") ||
+		strings.HasSuffix(filename, ".xls") || strings.HasSuffix(filename, ".xlsx") || strings.HasSuffix(filename, ".csv") {
 		return "spreadsheet"
 	}
 
 	// Presentation types
 	if strings.Contains(mimeType, "presentation") || strings.Contains(mimeType, "powerpoint") ||
-	   strings.HasSuffix(filename, ".ppt") || strings.HasSuffix(filename, ".pptx") {
+		strings.HasSuffix(filename, ".ppt") || strings.HasSuffix(filename, ".pptx") {
 		return "presentation"
 	}
 
 	// Archive types
 	if strings.Contains(mimeType, "zip") || strings.Contains(mimeType, "compressed") ||
-	   strings.HasSuffix(filename, ".zip") || strings.HasSuffix(filename, ".tar") ||
-	   strings.HasSuffix(filename, ".gz") || strings.HasSuffix(filename, ".rar") {
+		strings.HasSuffix(filename, ".zip") || strings.HasSuffix(filename, ".tar") ||
+		strings.HasSuffix(filename, ".gz") || strings.HasSuffix(filename, ".rar") {
 		return "archive"
 	}
 
@@ -308,7 +308,7 @@ func (s *AttachmentServiceImpl) resolveFilenameConflict(originalPath string) str
 // getExtensionFromMimeType returns appropriate file extension for MIME type
 func (s *AttachmentServiceImpl) getExtensionFromMimeType(mimeType string) string {
 	mimeType = strings.ToLower(mimeType)
-	
+
 	switch {
 	case strings.Contains(mimeType, "pdf"):
 		return ".pdf"

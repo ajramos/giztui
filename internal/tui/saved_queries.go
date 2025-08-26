@@ -79,7 +79,7 @@ func (a *App) showSavedQueriesPicker() {
 			}
 
 			// Capture variables for closure
-			queryID := item.id    // int64
+			queryID := item.id // int64
 			queryName := item.name
 			queryText := item.query
 
@@ -98,7 +98,7 @@ func (a *App) showSavedQueriesPicker() {
 
 				// Execute the query
 				go a.performSearch(queryText)
-				
+
 				// Show what we're executing
 				go func() {
 					a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🔍 Executing: %s", queryName))
@@ -254,7 +254,7 @@ func (a *App) filterQueriesByName(queries []queryItem, filterText string) []quer
 		// Search in name, description, query, and category
 		searchableText := strings.ToLower(fmt.Sprintf("%s %s %s %s",
 			query.name, query.description, query.query, query.category))
-		
+
 		if strings.Contains(searchableText, filterLower) {
 			filtered = append(filtered, query)
 		}
@@ -278,7 +278,7 @@ func (a *App) executeQueryItem(item queryItem, queryService services.QueryServic
 
 	// Execute the query
 	go a.performSearch(item.query)
-	
+
 	// Show what we're executing
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🔍 Executing: %s", item.name))
@@ -323,7 +323,7 @@ func (a *App) performQuerySave(name, query, description, category string, queryS
 	// Save query
 	_, err := queryService.SaveQuery(a.ctx, name, query, description, category)
 	a.GetErrorHandler().ClearProgress()
-	
+
 	if err != nil {
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save query: %v", err))
 	} else {
@@ -382,7 +382,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	queryView.SetText(queryPreview).
 		SetScrollable(true).
 		SetWordWrap(true).
-		SetTextColor(a.GetComponentColors("saved_queries").Text.Color()).           // Theme text color
+		SetTextColor(a.GetComponentColors("saved_queries").Text.Color()).            // Theme text color
 		SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Theme background color
 	queryView.SetBorder(false) // Set border separately
 
@@ -391,14 +391,14 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	nameLabel.SetTextColor(a.getTitleColor())
 
 	nameInput := tview.NewInputField()
-	nameInput.SetLabel("")  // No built-in label, using separate TextView like Obsidian
+	nameInput.SetLabel("") // No built-in label, using separate TextView like Obsidian
 	nameInput.SetText("")
 	nameInput.SetPlaceholder("Enter a descriptive name for this search query...")
 	nameInput.SetFieldWidth(50)
-	nameInput.SetBorder(false)                         // No border for cleaner look
+	nameInput.SetBorder(false)                                                                  // No border for cleaner look
 	nameInput.SetFieldBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background (not accent)
-	nameInput.SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())  // Component text color
-	nameInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
+	nameInput.SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())             // Component text color
+	nameInput.SetPlaceholderTextColor(a.getHintColor())                                         // Consistent placeholder color
 
 	// Generate default name
 	if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
@@ -413,14 +413,14 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 
 	// Create a horizontal flex for label and input alignment with controlled spacing
 	nameRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-	nameRow.AddItem(nameLabel, 17, 0, false)   // Fixed width for label (17 chars for "💾 Query name:")
-	nameRow.AddItem(nameInput, 50, 0, false)   // Fixed width for input (50 chars)
+	nameRow.AddItem(nameLabel, 17, 0, false)     // Fixed width for label (17 chars for "💾 Query name:")
+	nameRow.AddItem(nameInput, 50, 0, false)     // Fixed width for input (50 chars)
 	nameRow.AddItem(tview.NewBox(), 0, 1, false) // Spacer takes remaining space
 
 	// Add items to container with proper proportions
-	container.AddItem(queryView, 0, 1, false)      // Query preview takes most space
-	container.AddItem(nameRow, 2, 0, false)        // Name label and input in same row
-	container.AddItem(instructions, 1, 0, false)   // Instructions take minimal space
+	container.AddItem(queryView, 0, 1, false)    // Query preview takes most space
+	container.AddItem(nameRow, 2, 0, false)      // Name label and input in same row
+	container.AddItem(instructions, 1, 0, false) // Instructions take minimal space
 
 	// Add to content split like Obsidian
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -478,15 +478,15 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 // getCurrentSearchQuery gets current search query from app state
 func (a *App) getCurrentSearchQuery() string {
 	currentQuery := a.GetCurrentQuery()
-	
+
 	if currentQuery != "" {
 		// The currentQuery includes additional filters, try to get the original query
 		// by parsing the title first, fallback to currentQuery
 		if list, ok := a.views["list"].(*tview.Table); ok {
 			title := list.GetTitle()
-			
+
 			// Try different title formats:
-			
+
 			// 1. Initial search: " 🔍 Searching: has:attachment "
 			if strings.Contains(title, "🔍 Searching: ") {
 				start := strings.Index(title, "🔍 Searching: ") + len("🔍 Searching: ")
@@ -499,7 +499,7 @@ func (a *App) getCurrentSearchQuery() string {
 					}
 				}
 			}
-			
+
 			// 2. Completed search: " 🔍 Search Results (10) — has:attachment "
 			if strings.Contains(title, "🔍 Search Results") && strings.Contains(title, " — ") {
 				parts := strings.Split(title, " — ")
@@ -511,7 +511,7 @@ func (a *App) getCurrentSearchQuery() string {
 					}
 				}
 			}
-			
+
 			// 3. Spinner during search: " ⠋ Searching… (5/10) — has:attachment "
 			if strings.Contains(title, " — ") {
 				parts := strings.Split(title, " — ")
@@ -524,7 +524,7 @@ func (a *App) getCurrentSearchQuery() string {
 				}
 			}
 		}
-		
+
 		// Fallback: return currentQuery but remove the auto-added filters
 		query := currentQuery
 		// Remove common auto-added filters to get the original user query
@@ -534,7 +534,7 @@ func (a *App) getCurrentSearchQuery() string {
 			return query
 		}
 	}
-	
+
 	// No current search
 	return ""
 }
@@ -618,7 +618,7 @@ func (a *App) executeQueryByName(name string) {
 
 		// Execute query
 		a.performSearch(query.Query)
-		
+
 		// Show feedback
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🔍 Executing: %s", query.Name))

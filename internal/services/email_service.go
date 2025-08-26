@@ -174,7 +174,7 @@ func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string)
 					Type:        UndoActionArchive,
 					MessageIDs:  []string{messageID},
 					PrevState:   map[string]ActionState{messageID: prevState},
-					Description: "Archive message", 
+					Description: "Archive message",
 					IsBulk:      false,
 				}
 				s.undoService.RecordAction(ctx, action)
@@ -248,7 +248,7 @@ func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string)
 					prevStates[id] = prevState
 				}
 			}
-			
+
 			// Record single bulk undo action
 			if len(prevStates) > 0 {
 				action := &UndoableAction{
@@ -296,7 +296,7 @@ func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string) e
 					prevStates[id] = prevState
 				}
 			}
-			
+
 			// Record single bulk undo action
 			if len(prevStates) > 0 {
 				action := &UndoableAction{

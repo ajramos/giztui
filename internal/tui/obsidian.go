@@ -73,10 +73,10 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	commentInput.SetText("")
 	commentInput.SetPlaceholder("Add a personal note about this email...")
 	commentInput.SetFieldWidth(50)
-	commentInput.SetBorder(false)                         // No border for cleaner look
+	commentInput.SetBorder(false)                                                             // No border for cleaner look
 	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
-	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())  // Component text color
-	commentInput.SetPlaceholderTextColor(a.getHintColor())                         // Consistent placeholder color
+	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())             // Component text color
+	commentInput.SetPlaceholderTextColor(a.getHintColor())                                    // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -511,7 +511,7 @@ func (a *App) openBulkObsidianPanel() {
 	commentInput.SetBorder(false)
 	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
 	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
-	commentInput.SetPlaceholderTextColor(a.getHintColor())                         // Consistent placeholder color
+	commentInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)

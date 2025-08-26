@@ -13,12 +13,12 @@ import (
 
 // UndoServiceImpl implements UndoService
 type UndoServiceImpl struct {
-	repo          MessageRepository
-	labelService  LabelService
-	gmailClient   *gmail.Client
-	lastAction    *UndoableAction
-	mu            sync.RWMutex
-	logger        *log.Logger // Optional - for debug logging
+	repo         MessageRepository
+	labelService LabelService
+	gmailClient  *gmail.Client
+	lastAction   *UndoableAction
+	mu           sync.RWMutex
+	logger       *log.Logger // Optional - for debug logging
 }
 
 // NewUndoService creates a new undo service
@@ -294,12 +294,12 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 		s.logger.Printf("DEBUG: undoMove starting for %d messages", len(action.MessageIDs))
 		s.logger.Printf("DEBUG: undoMove ExtraData: %+v", action.ExtraData)
 	}
-	
+
 	for _, messageID := range action.MessageIDs {
 		if s.logger != nil {
 			s.logger.Printf("DEBUG: undoMove processing messageID: %s", messageID)
 		}
-		
+
 		// First, restore from archive (add INBOX label)
 		updates := MessageUpdates{
 			AddLabels: []string{"INBOX"},
@@ -379,8 +379,8 @@ func (s *UndoServiceImpl) CaptureMessageState(ctx context.Context, messageID str
 	}
 
 	return ActionState{
-		Labels:   labels,
-		IsRead:   isRead,
+		Labels:    labels,
+		IsRead:    isRead,
 		IsInInbox: isInInbox,
 	}, nil
 }

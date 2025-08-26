@@ -98,13 +98,13 @@ type PromptService interface {
 	// Cache management
 	ClearPromptCache(ctx context.Context, accountEmail string) error
 	ClearAllPromptCaches(ctx context.Context) error
-	
+
 	// CRUD operations for prompt templates
 	CreatePrompt(ctx context.Context, name, description, promptText, category string) (int, error)
 	UpdatePrompt(ctx context.Context, id int, name, description, promptText, category string) error
 	DeletePrompt(ctx context.Context, id int) error
 	FindPromptByName(ctx context.Context, name string) (*PromptTemplate, error)
-	
+
 	// File operations for prompt templates
 	CreateFromFile(ctx context.Context, filePath string) (int, error)
 	ExportToFile(ctx context.Context, id int, filePath string) error
@@ -335,14 +335,14 @@ type ThemeService interface {
 	// Theme discovery and listing
 	ListAvailableThemes(ctx context.Context) ([]string, error)
 	GetCurrentTheme(ctx context.Context) (string, error)
-	
+
 	// Theme application
 	ApplyTheme(ctx context.Context, name string) error
-	
+
 	// Theme preview and information
 	PreviewTheme(ctx context.Context, name string) (*ThemeConfig, error)
 	GetThemeConfig(ctx context.Context, name string) (*ThemeConfig, error)
-	
+
 	// Theme validation
 	ValidateTheme(ctx context.Context, name string) error
 }
@@ -351,7 +351,7 @@ type ThemeService interface {
 type ThemeConfig struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	
+
 	// Color information for preview
 	EmailColors struct {
 		UnreadColor    string `json:"unread_color"`
@@ -360,33 +360,33 @@ type ThemeConfig struct {
 		SentColor      string `json:"sent_color"`
 		DraftColor     string `json:"draft_color"`
 	} `json:"email_colors"`
-	
+
 	UIColors struct {
 		// Basic UI colors
-		FgColor        string `json:"fg_color"`
-		BgColor        string `json:"bg_color"`
-		BorderColor    string `json:"border_color"`
-		FocusColor     string `json:"focus_color"`
-		
+		FgColor     string `json:"fg_color"`
+		BgColor     string `json:"bg_color"`
+		BorderColor string `json:"border_color"`
+		FocusColor  string `json:"focus_color"`
+
 		// Component colors (previously hardcoded)
-		TitleColor     string `json:"title_color"`
-		FooterColor    string `json:"footer_color"`
-		HintColor      string `json:"hint_color"`
-		
+		TitleColor  string `json:"title_color"`
+		FooterColor string `json:"footer_color"`
+		HintColor   string `json:"hint_color"`
+
 		// Selection colors
 		SelectionBgColor string `json:"selection_bg_color"`
 		SelectionFgColor string `json:"selection_fg_color"`
-		
+
 		// Status colors
-		ErrorColor     string `json:"error_color"`
-		SuccessColor   string `json:"success_color"`
-		WarningColor   string `json:"warning_color"`
-		InfoColor      string `json:"info_color"`
-		
+		ErrorColor   string `json:"error_color"`
+		SuccessColor string `json:"success_color"`
+		WarningColor string `json:"warning_color"`
+		InfoColor    string `json:"info_color"`
+
 		// Input colors
-		InputBgColor   string `json:"input_bg_color"`
-		InputFgColor   string `json:"input_fg_color"`
-		LabelColor     string `json:"label_color"`
+		InputBgColor string `json:"input_bg_color"`
+		InputFgColor string `json:"input_fg_color"`
+		LabelColor   string `json:"label_color"`
 	} `json:"ui_colors"`
 }
 
@@ -408,10 +408,10 @@ type QueryService interface {
 	SearchQueries(ctx context.Context, searchTerm string) ([]*SavedQueryInfo, error)
 	DeleteQuery(ctx context.Context, id int64) error
 	DeleteQueryByName(ctx context.Context, name string) error
-	
+
 	// Query usage tracking
 	RecordQueryUsage(ctx context.Context, id int64) error
-	
+
 	// Query organization
 	GetCategories(ctx context.Context) ([]string, error)
 	UpdateQueryCategory(ctx context.Context, id int64, category string) error
@@ -433,16 +433,16 @@ type SavedQueryInfo struct {
 type UndoService interface {
 	// Record an action for potential undo
 	RecordAction(ctx context.Context, action *UndoableAction) error
-	
+
 	// Undo the last recorded action
 	UndoLastAction(ctx context.Context) (*UndoResult, error)
-	
+
 	// Check if undo is available
 	HasUndoableAction() bool
-	
+
 	// Get description of what will be undone
 	GetUndoDescription() string
-	
+
 	// Clear undo history (e.g., after app restart)
 	ClearUndoHistory() error
 }
@@ -464,21 +464,21 @@ const (
 
 // ActionState represents the previous state of a message for undo operations
 type ActionState struct {
-	Labels   []string `json:"labels"`   // Previous labels
-	IsRead   bool     `json:"is_read"`  // Previous read state
-	IsInInbox bool    `json:"is_inbox"` // Whether message was in inbox
+	Labels    []string `json:"labels"`   // Previous labels
+	IsRead    bool     `json:"is_read"`  // Previous read state
+	IsInInbox bool     `json:"is_inbox"` // Whether message was in inbox
 }
 
 // UndoableAction represents an action that can be undone
 type UndoableAction struct {
-	ID          string                    `json:"id"`          // Unique action ID
-	Type        UndoActionType           `json:"type"`        // Type of action
-	MessageIDs  []string                 `json:"message_ids"` // Affected message IDs
-	Timestamp   time.Time                `json:"timestamp"`   // When action was performed
-	PrevState   map[string]ActionState   `json:"prev_state"`  // Previous state for reversal
-	Description string                   `json:"description"` // Human-readable description
-	IsBulk      bool                     `json:"is_bulk"`     // Whether it was a bulk operation
-	ExtraData   map[string]interface{}   `json:"extra_data"`  // Additional data for specific action types
+	ID          string                 `json:"id"`          // Unique action ID
+	Type        UndoActionType         `json:"type"`        // Type of action
+	MessageIDs  []string               `json:"message_ids"` // Affected message IDs
+	Timestamp   time.Time              `json:"timestamp"`   // When action was performed
+	PrevState   map[string]ActionState `json:"prev_state"`  // Previous state for reversal
+	Description string                 `json:"description"` // Human-readable description
+	IsBulk      bool                   `json:"is_bulk"`     // Whether it was a bulk operation
+	ExtraData   map[string]interface{} `json:"extra_data"`  // Additional data for specific action types
 }
 
 // UndoResult represents the result of an undo operation

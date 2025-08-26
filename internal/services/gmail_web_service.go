@@ -25,7 +25,7 @@ func (s *GmailWebServiceImpl) OpenMessageInWeb(ctx context.Context, messageID st
 	}
 
 	url := s.GenerateGmailWebURL(messageID)
-	
+
 	if s.linkService == nil {
 		return fmt.Errorf("link service not available")
 	}
@@ -52,10 +52,10 @@ func (s *GmailWebServiceImpl) ValidateMessageID(messageID string) error {
 
 	// Check for obviously invalid characters
 	for _, char := range messageID {
-		if !((char >= 'a' && char <= 'z') || 
-			 (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || 
-			 char == '_' || char == '-') {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '_' || char == '-') {
 			return fmt.Errorf("message ID contains invalid characters: %s", messageID)
 		}
 	}
