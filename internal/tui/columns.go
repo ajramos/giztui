@@ -12,6 +12,14 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// min returns the smaller of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // getCurrentDisplayMode determines the current display mode
 func (a *App) getCurrentDisplayMode() render.DisplayMode {
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
@@ -190,6 +198,15 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 			dateWidth := 12
 			subjectWidth := remainingWidth - fromWidth - totalIconsWidth - dateWidth - 8
 			
+			// Ensure Subject has minimum width and adjust From if necessary
+			if subjectWidth < subjectMinWidth {
+				fromWidth = remainingWidth - subjectMinWidth - totalIconsWidth - dateWidth - 8
+				if fromWidth < fromMinWidth {
+					fromWidth = fromMinWidth
+				}
+				subjectWidth = remainingWidth - fromWidth - totalIconsWidth - dateWidth - 8
+			}
+			
 			config = append(config, render.ColumnConfig{
 				Header: "From", Alignment: tview.AlignLeft, Expansion: 0,
 				MaxWidth: fromWidth, MinWidth: fromMinWidth,
@@ -214,27 +231,43 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 		
 	case BreakpointWide:
 		// Show: Numbers + Flags + From + Subject + Attachment + Calendar + Date (generous spacing)
-		// Use expansion weights for flexible columns, fixed width for icons
-		config = append(config, render.ColumnConfig{
-			Header: "From", Alignment: tview.AlignLeft, Expansion: 1,
-			MaxWidth: 0, MinWidth: fromMinWidth,
-		})
-		config = append(config, render.ColumnConfig{
-			Header: "Subject", Alignment: tview.AlignLeft, Expansion: 3,
-			MaxWidth: 0, MinWidth: subjectMinWidth,
-		})
-		config = append(config, render.ColumnConfig{
-			Header: "", Alignment: tview.AlignCenter, Expansion: 0,
-			MaxWidth: attachmentFixedWidth, MinWidth: attachmentFixedWidth,
-		})
-		config = append(config, render.ColumnConfig{
-			Header: "", Alignment: tview.AlignCenter, Expansion: 0,
-			MaxWidth: calendarFixedWidth, MinWidth: calendarFixedWidth,
-		})
-		config = append(config, render.ColumnConfig{
-			Header: "Date", Alignment: tview.AlignRight, Expansion: 0,
-			MaxWidth: 16, MinWidth: dateMinWidth,
-		})
+		// Use calculated widths to prevent Date column overflow
+		totalIconsWidth := attachmentFixedWidth + calendarFixedWidth
+		dateWidthWide := 16
+		
+		// Calculate available width for flexible columns
+		flexibleWidth := remainingWidth - totalIconsWidth - dateWidthWide - 6 // -6 for separators
+		
+		// Ensure we have minimum space for flexible columns
+		if flexibleWidth >= fromMinWidth + subjectMinWidth + 2 { // +2 for separator
+			// Allocate 25% to From, 75% to Subject, but cap From column to prevent overflow
+			fromWidthWide := min(flexibleWidth/4, 25) // Cap From at 25 characters
+			if fromWidthWide < fromMinWidth {
+				fromWidthWide = fromMinWidth
+			}
+			subjectWidthWide := flexibleWidth - fromWidthWide - 1 // -1 for separator
+			
+			config = append(config, render.ColumnConfig{
+				Header: "From", Alignment: tview.AlignLeft, Expansion: 0,
+				MaxWidth: fromWidthWide, MinWidth: fromMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Subject", Alignment: tview.AlignLeft, Expansion: 1,
+				MaxWidth: subjectWidthWide, MinWidth: subjectMinWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: attachmentFixedWidth, MinWidth: attachmentFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "", Alignment: tview.AlignCenter, Expansion: 0,
+				MaxWidth: calendarFixedWidth, MinWidth: calendarFixedWidth,
+			})
+			config = append(config, render.ColumnConfig{
+				Header: "Date", Alignment: tview.AlignRight, Expansion: 0,
+				MaxWidth: dateWidthWide, MinWidth: dateMinWidth,
+			})
+		}
 	}
 	
 	return config

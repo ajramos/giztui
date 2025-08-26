@@ -346,7 +346,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 	// Initialize views
 	app.initViews()
 
-	// Recalcular en resize de forma segura (sin llamadas de red)
+	// Enhanced resize handling for responsive column system
 	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
 		// Mark UI as ready on first draw
 		if !app.uiReady {
@@ -355,7 +355,8 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		w, h := screen.Size()
 		if w != app.screenWidth || h != app.screenHeight {
 			app.screenWidth, app.screenHeight = w, h
-			app.refreshTableDisplay()
+			// Trigger comprehensive layout refresh on resize
+			app.onWindowResize()
 		}
 		return false
 	})
@@ -364,6 +365,35 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 	app.initServices()
 
 	return app
+}
+
+// onWindowResize handles window resize events with debouncing and comprehensive layout refresh
+func (a *App) onWindowResize() {
+	// Force complete table layout recalculation to prevent column overflow
+	if table, ok := a.views["list"].(*tview.Table); ok {
+		// Store current selection to restore after refresh
+		currentRow, currentCol := table.GetSelection()
+		
+		// Force table reconstruction with new column widths
+		a.refreshTableDisplay()
+		
+		// Restore selection if valid
+		if currentRow > 0 && currentRow < table.GetRowCount() {
+			table.Select(currentRow, currentCol)
+		}
+	}
+	
+	// Also refresh message content if there's a current message
+	// This ensures message content adapts to new width
+	if currentMessageID := a.getCurrentSelectedMessageID(); currentMessageID != "" {
+		go func() {
+			// Use a short delay to avoid excessive refreshes during window dragging
+			time.Sleep(50 * time.Millisecond)
+			if a.getCurrentSelectedMessageID() == currentMessageID {
+				a.showMessage(currentMessageID)
+			}
+		}()
+	}
 }
 
 // RegisterDBStore wires a db.Store into the App for local data storage features
