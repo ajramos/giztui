@@ -145,12 +145,6 @@ type QueryOptions struct {
 	Query      string
 }
 
-type MessageQueryOptions struct {
-	MaxResults int64
-	PageToken  string
-	LabelIDs   []string
-	Query      string
-}
 
 type MessagePage struct {
 	Messages      []*gmail_v1.Message
