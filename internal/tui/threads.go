@@ -69,11 +69,11 @@ func (a *App) ToggleThreadingMode() error {
 	if currentMode == ThreadViewFlat {
 		a.SetCurrentThreadViewMode(ThreadViewThread)
 		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, "Switched to threaded view")
+			a.GetErrorHandler().ShowInfo(a.ctx, "📧 Switched to threaded view")
 		}()
 		
-		// Refresh the view to show threads
-		go a.refreshThreadView()
+		// Refresh the view to show threads with animated spinner
+		go a.reloadThreadsWithSpinner()
 	} else {
 		a.SetCurrentThreadViewMode(ThreadViewFlat)
 		go func() {
