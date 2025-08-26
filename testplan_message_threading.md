@@ -46,8 +46,8 @@ This test plan verifies the complete message threading functionality implementat
 - UI updates appropriately for each mode
 - Status messages confirm mode changes ("📧 Switched to threaded view", "📄 Switched to flat view")
 
-**Actual Result**: [To be filled during testing]
-**Status**: [PASS/FAIL/BLOCKED]
+**Actual Result**: I can see the status bar message switching between modes however i cannot see anything happening in the message list with the threads.
+**Status**: [FAIL]
 
 ---
 

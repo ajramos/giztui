@@ -421,22 +421,18 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		primaryParticipant = thread.Participants[0]
 	}
 	
-	// Add thread count in brackets after sender for multi-message threads
-	var countSuffix string
-	if thread.MessageCount > 1 {
-		if thread.MessageCount >= 100 {
-			countSuffix = " [99+]"
-		} else {
-			countSuffix = fmt.Sprintf(" [%d]", thread.MessageCount)
-		}
+	// Get thread count (separate from sender)
+	var threadCount int = thread.MessageCount
+	if threadCount < 1 {
+		threadCount = 1 // Ensure minimum count of 1
 	}
 
-	// Format sender with thread count
-	var senderWithCount string
+	// Format sender (without thread count)
+	var senderName string
 	if primaryParticipant != "" {
-		senderWithCount = primaryParticipant + countSuffix
+		senderName = primaryParticipant
 	} else {
-		senderWithCount = "(No sender)" + countSuffix
+		senderName = "(No sender)"
 	}
 	
 	// Build attachment indicator
@@ -460,36 +456,69 @@ func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string
 		dateStr = threadTime.Format("2006")
 	}
 	
+	// Column-based format with dedicated thread count column
 	// Get screen width for alignment calculations
 	screenWidth := a.getFormatWidth()
-	if screenWidth < 40 {
-		screenWidth = 40
+	if screenWidth < 50 {
+		screenWidth = 50 // Minimum width for readability
 	}
 	
-	// Calculate column widths like the normal email renderer
-	// Account for thread marker + unread indicator space (already in builder)
-	markerAndUnreadWidth := runewidth.StringWidth(builder.String())
-	senderWidth := 22
-	dateWidth := 8
-	attachmentWidth := runewidth.StringWidth(attachmentIcon)
-	if attachmentWidth > 0 {
-		attachmentWidth += 1 // space padding
+	// Calculate column widths
+	markerAndUnreadWidth := runewidth.StringWidth(builder.String()) // "▶️ ● "
+	countWidth := 6      // "[999] " (max 3 digits + brackets + space)
+	dateWidth := 12      // "10:45 AM "
+	separatorWidth := 6  // " | " x 2
+	senderWidth := 25    // Sender column
+	
+	// Calculate remaining width for subject
+	subjectWidth := screenWidth - markerAndUnreadWidth - countWidth - senderWidth - dateWidth - separatorWidth
+	if subjectWidth < 15 {
+		subjectWidth = 15 // Minimum subject width
 	}
 	
-	// Calculate available subject width
-	// Account for separators: " | " (3 chars) between sender/subject and " | " (3 chars) between subject/date  
-	subjectWidth := screenWidth - markerAndUnreadWidth - senderWidth - dateWidth - attachmentWidth - 6
-	if subjectWidth < 10 {
-		subjectWidth = 10
-	}
-	
-	// Format each component to fit its allocated width
-	senderText := a.fitTextToWidth(senderWithCount, senderWidth)
-	subjectText := a.fitTextToWidth(subject, subjectWidth) 
+	// Format and truncate each component to fit its column
+	senderText := a.fitTextToWidth(senderName, senderWidth)
+	subjectText := a.fitTextToWidth(subject, subjectWidth)
 	dateText := a.fitTextToWidth(dateStr, dateWidth)
 	
-	// Build formatted string with proper column alignment
-	builder.WriteString(fmt.Sprintf("%s | %s%s | %s", senderText, subjectText, attachmentIcon, dateText))
+	// Format thread count with proper padding (right-align in fixed width)
+	countText := fmt.Sprintf("[%d]", threadCount)
+	// Make sure we don't exceed countWidth and preserve the closing bracket
+	countDisplayWidth := runewidth.StringWidth(countText)
+	var paddedCountText string
+	if countDisplayWidth >= countWidth {
+		// If count text is too long, just use it as-is (shouldn't happen with reasonable counts)
+		paddedCountText = countText + " "
+	} else {
+		// Right-align within the available space: pad from left, then add space
+		padding := countWidth - countDisplayWidth - 1 // -1 for trailing space
+		if padding < 0 {
+			padding = 0
+		}
+		paddedCountText = strings.Repeat(" ", padding) + countText + " "
+	}
+	
+	// Build the formatted string with proper column alignment
+	formattedLine := fmt.Sprintf("%s%s | %s%s | %s", 
+		paddedCountText,    // "  [3] " or " [46] " - right-aligned
+		senderText,         // "Satyam Gupta (DoiT... "  
+		subjectText,        // "[hackerrank.com] Other..."
+		attachmentIcon,     // "📎"
+		dateText)           // "10:45 AM"
+	
+	// Debug logging - check if final line fits
+	if a.logger != nil && threadCount > 1 {
+		finalWidth := runewidth.StringWidth(builder.String() + formattedLine)
+		if finalWidth > screenWidth {
+			a.logger.Printf("formatThreadForList WARNING: thread %s final width (%d) exceeds screen width (%d), countText='%s'", 
+				thread.ThreadID, finalWidth, screenWidth, countText)
+			a.logger.Printf("formatThreadForList WARNING: paddedCountText='%s', senderText='%s', subjectText='%s'", 
+				paddedCountText, senderText, subjectText)
+		}
+	}
+	
+	// Add the formatted line to builder
+	builder.WriteString(formattedLine)
 	
 	return builder.String()
 }
