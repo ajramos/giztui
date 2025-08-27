@@ -160,32 +160,36 @@ func (a *App) initComponents() {
 
 	// Search container (hidden by default)
 	searchContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	searchContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	// Use hierarchical theme system for search container
+	searchColors := a.GetComponentColors("search")
+	searchContainer.SetBackgroundColor(searchColors.Background.Color())
 	searchContainer.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(searchColors.Border.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🔍 Search ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(searchColors.Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(searchContainer)
 	// Reapply title styling since the helper can't preserve it
-	searchContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	searchContainer.SetTitleColor(searchColors.Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.views["searchContainer"] = searchContainer
 
 	// Advanced search container (hidden by default)
 	advancedSearchContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	advancedSearchContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	// Use hierarchical theme system for advanced search container
+	advancedSearchColors := a.GetComponentColors("search")
+	advancedSearchContainer.SetBackgroundColor(advancedSearchColors.Background.Color())
 	advancedSearchContainer.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(advancedSearchColors.Border.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🔍 Advanced Search ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(advancedSearchColors.Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(advancedSearchContainer)
 	// Reapply title styling since the helper can't preserve it
-	advancedSearchContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	advancedSearchContainer.SetTitleColor(advancedSearchColors.Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.views["advancedSearchContainer"] = advancedSearchContainer
 }
 
@@ -404,15 +408,19 @@ func (a *App) RefreshBordersForFilledFlexes() {
 		cp.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
 	}
 
-	// Update searchContainer
+	// Update searchContainer with hierarchical theme system
 	if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
-		sc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		sc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		searchColors := a.GetComponentColors("search")
+		sc.SetBackgroundColor(searchColors.Background.Color())
+		sc.SetBorderColor(searchColors.Border.Color())
+		sc.SetTitleColor(searchColors.Title.Color())
 	}
 
-	// Update advancedSearchContainer
+	// Update advancedSearchContainer with hierarchical theme system
 	if asc, ok := a.views["advancedSearchContainer"].(*tview.Flex); ok {
-		asc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		asc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		advancedSearchColors := a.GetComponentColors("search")
+		asc.SetBackgroundColor(advancedSearchColors.Background.Color())
+		asc.SetBorderColor(advancedSearchColors.Border.Color())
+		asc.SetTitleColor(advancedSearchColors.Title.Color())
 	}
 }

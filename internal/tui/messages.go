@@ -672,7 +672,7 @@ func (a *App) openSearchOverlay(mode string) {
 	a.views["searchInput"] = input
 	
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(a.getFooterColor()).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	help.SetTextColor(searchColors.Text.Color()).SetBackgroundColor(searchColors.Background.Color())
 	if mode == "remote" {
 		help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 	} else {
@@ -680,8 +680,8 @@ func (a *App) openSearchOverlay(mode string) {
 	}
 
 	// Add content to the persistent container (like Slack panel)
-	topSpacer := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	bottomSpacer := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	topSpacer := tview.NewBox().SetBackgroundColor(searchColors.Background.Color())
+	bottomSpacer := tview.NewBox().SetBackgroundColor(searchColors.Background.Color())
 	searchContainer.AddItem(topSpacer, 0, 1, false)
 	searchContainer.AddItem(input, 1, 0, true)
 	searchContainer.AddItem(bottomSpacer, 0, 2, false)
@@ -839,8 +839,27 @@ func (a *App) hideSearchContainer() {
 	}
 }
 
-// openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
+// openAdvancedSearchForm populates the existing persistent advanced search container
 func (a *App) openAdvancedSearchForm() {
+	// Hide simple search container if it's visible (mutual exclusion)
+	a.hideSearchContainer()
+	
+	// Get the existing persistent advanced search container
+	advancedSearchContainer, ok := a.views["advancedSearchContainer"].(*tview.Flex)
+	if !ok {
+		return
+	}
+
+	// Get component colors using hierarchical theme system
+	advancedSearchColors := a.GetComponentColors("search")
+
+	// Update container theme colors dynamically (like simple search does)
+	advancedSearchContainer.SetBackgroundColor(advancedSearchColors.Background.Color())
+	advancedSearchContainer.SetBorderColor(advancedSearchColors.Border.Color())
+	advancedSearchContainer.SetTitleColor(advancedSearchColors.Title.Color())
+
+	// Clear and populate the persistent container
+	advancedSearchContainer.Clear()
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
 
@@ -1572,23 +1591,27 @@ func (a *App) openAdvancedSearchForm() {
 	})
 
 	// Mount as two vertical panes: left = advanced search, right = message content
-	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-		sp.Clear()
-		sp.SetBorder(true).
-			SetBorderColor(a.currentTheme.UI.TitleColor.Color()).
-			SetTitle("🔎 Advanced Search").
-			SetTitleColor(a.currentTheme.UI.TitleColor.Color()).
-			SetTitleAlign(tview.AlignCenter)
-		twoCol := tview.NewFlex().SetDirection(tview.FlexColumn)
-		a.views["searchTwoCol"] = twoCol
-		twoCol.AddItem(form, 0, 2, true)
-		right := tview.NewFlex().SetDirection(tview.FlexRow)
-		a.views["searchRight"] = right
-		twoCol.AddItem(right, 0, 0, false) // hidden until toggle
-		sp.AddItem(twoCol, 0, 1, true)
+	// Use the persistent advancedSearchContainer with hierarchical theme system
+	advancedSearchContainer.SetBorder(true).
+		SetBorderColor(advancedSearchColors.Border.Color()).
+		SetTitle("🔎 Advanced Search").
+		SetTitleColor(advancedSearchColors.Title.Color()).
+		SetTitleAlign(tview.AlignCenter)
+	twoCol := tview.NewFlex().SetDirection(tview.FlexColumn)
+	a.views["searchTwoCol"] = twoCol
+	twoCol.AddItem(form, 0, 2, true)
+	right := tview.NewFlex().SetDirection(tview.FlexRow)
+	a.views["searchRight"] = right
+	twoCol.AddItem(right, 0, 0, false) // hidden until toggle
+	advancedSearchContainer.AddItem(twoCol, 0, 1, true)
 
-		// Helper to restore the default main layout when exiting advanced search
-		restoreLayout = func() {
+	// Show the persistent advanced search container (like simple search does)
+	if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
+		mainFlex.ResizeItem(advancedSearchContainer, 20, 0) // Show with larger height for advanced search
+	}
+
+	// Helper to restore the default main layout when exiting advanced search
+	restoreLayout = func() {
 			if cs, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				cs.Clear()
 				cs.SetDirection(tview.FlexColumn)
@@ -1615,14 +1638,14 @@ func (a *App) openAdvancedSearchForm() {
 			cs.Clear()
 			cs.SetDirection(tview.FlexRow)
 			// 50/50 split (same weights)
-			cs.AddItem(sp, 0, 1, true) // top: advanced search
+			cs.AddItem(advancedSearchContainer, 0, 1, true) // top: advanced search
 			if tc, ok2 := a.views["textContainer"].(*tview.Flex); ok2 {
 				cs.AddItem(tc, 0, 1, false) // bottom: message content
 			}
 		}
 
 		// ESC in the left pane: close options first; otherwise exit to simple overlay
-		sp.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		advancedSearchContainer.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 			if ev.Key() == tcell.KeyEscape {
 				if rightVisible {
 					hideRight()
@@ -1641,29 +1664,6 @@ func (a *App) openAdvancedSearchForm() {
 		a.SetFocus(fromField)
 		return
 	}
-
-	// Fallback modal if searchPanel not present
-	advancedSearchColors := a.GetComponentColors("search")
-	
-	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
-	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-	modal.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
-		SetBorderAttributes(tcell.AttrBold).
-		SetTitle("🔎 Advanced Search").
-		SetTitleColor(advancedSearchColors.Title.Color()).
-		SetTitleAlign(tview.AlignCenter)
-	
-	// Apply ForceFilledBorderFlex for consistent border rendering
-	ForceFilledBorderFlex(modal)
-	
-	// Re-apply title styling after ForceFilledBorderFlex
-	modal.SetTitleColor(advancedSearchColors.Title.Color())
-	modal.AddItem(form, 0, 1, true)
-	
-	a.Pages.AddPage("advancedSearch", modal, true, true)
-	a.SetFocus(form)
 }
 
 // applyLocalFilter filters current in-memory messages based on a simple expression
