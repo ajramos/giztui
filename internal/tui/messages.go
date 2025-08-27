@@ -653,7 +653,7 @@ func (a *App) openSearchOverlay(mode string) {
 		SetFieldBackgroundColor(searchColors.Background.Color()).
 		SetFieldTextColor(searchColors.Text.Color()).
 		SetLabelColor(searchColors.Title.Color()).
-		SetPlaceholderTextColor(searchColors.Text.Color())
+		SetPlaceholderTextColor(a.getHintColor())
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	
@@ -665,10 +665,13 @@ func (a *App) openSearchOverlay(mode string) {
 		help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
 	}
 
+	// Use wrapper pattern like textContainer to fix border background issues
+	wrapper := tview.NewFlex()
+	wrapper.SetBackgroundColor(searchColors.Background.Color())
+	
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
 	box.SetBorder(true).SetTitle(title).
 		SetTitleColor(searchColors.Title.Color()).
-		SetBackgroundColor(searchColors.Background.Color()).
 		SetBorderColor(searchColors.Border.Color())
 	
 	// Apply ForceFilledBorderFlex for consistent border rendering
@@ -844,7 +847,10 @@ func (a *App) openSearchOverlay(mode string) {
 		a.SetFocus(input)
 		return
 	}
-	a.Pages.AddPage("searchOverlay", box, true, true)
+	// Add modal to wrapper like textContainer pattern
+	wrapper.AddItem(box, 0, 1, false)
+	
+	a.Pages.AddPage("searchOverlay", wrapper, true, true)
 	a.SetFocus(input)
 }
 
@@ -1128,18 +1134,19 @@ func (a *App) openAdvancedSearchForm() {
 
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(false)
-		// Apply theme styling to list
-		bgColor, textColor := a.GetInputFieldColors()
-		list.SetBackgroundColor(bgColor)
-		list.SetMainTextColor(textColor)
-		list.SetSelectedBackgroundColor(a.getTitleColor())
-		list.SetSelectedTextColor(bgColor)
+		// Apply hierarchical theme styling to list
+		searchOptionsColors := a.GetComponentColors("search")
+		list.SetBackgroundColor(searchOptionsColors.Background.Color())
+		list.SetMainTextColor(searchOptionsColors.Text.Color())
+		list.SetSelectedBackgroundColor(searchOptionsColors.Accent.Color())
+		list.SetSelectedTextColor(searchOptionsColors.Background.Color())
 
 		// Container con borde para incluir picker + lista
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
 		box.SetBorder(true).SetTitle(" 📂 Search options ")
-		box.SetBorderColor(a.getTitleColor())
-		box.SetBackgroundColor(bgColor)
+		box.SetBorderColor(searchOptionsColors.Border.Color())
+		box.SetTitleColor(searchOptionsColors.Title.Color())
+		box.SetBackgroundColor(searchOptionsColors.Background.Color())
 		acts := make([]func(), 0, 256)
 		apply := func(q string) {
 			ql := strings.ToLower(strings.TrimSpace(q))
@@ -1652,6 +1659,11 @@ func (a *App) openAdvancedSearchForm() {
 
 	// Fallback modal if searchPanel not present
 	advancedSearchColors := a.GetComponentColors("search")
+	
+	// Use wrapper pattern like textContainer to fix border background issues
+	wrapper := tview.NewFlex()
+	wrapper.SetBackgroundColor(advancedSearchColors.Background.Color())
+	
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
 	modal.SetBorder(true).SetTitle("🔎 Advanced Search").
 		SetTitleColor(advancedSearchColors.Title.Color()).
@@ -1664,7 +1676,10 @@ func (a *App) openAdvancedSearchForm() {
 	// Re-apply title styling after ForceFilledBorderFlex
 	modal.SetTitleColor(advancedSearchColors.Title.Color())
 	modal.AddItem(form, 0, 1, true)
-	a.Pages.AddPage("advancedSearch", modal, true, true)
+	
+	// Add modal to wrapper
+	wrapper.AddItem(modal, 0, 1, false)
+	a.Pages.AddPage("advancedSearch", wrapper, true, true)
 	a.SetFocus(form)
 }
 
