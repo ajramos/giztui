@@ -160,11 +160,11 @@ type EmailColumnData struct {
 
 // ColumnConfig defines column behavior and styling
 type ColumnConfig struct {
-	Header      string
-	Alignment   int // tview alignment constant
-	Expansion   int // Weight for extra width distribution
-	MaxWidth    int // 0 = unlimited
-	MinWidth    int // Minimum guaranteed width
+	Header    string
+	Alignment int // tview alignment constant
+	Expansion int // Weight for extra width distribution
+	MaxWidth  int // 0 = unlimited
+	MinWidth  int // Minimum guaranteed width
 }
 
 // DisplayMode represents different email list display modes
@@ -270,6 +270,9 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 				{"○", tview.AlignCenter, 3, 0},
 				{"(No sender)", tview.AlignLeft, 0, 1},
 				{"(No subject)", tview.AlignLeft, 0, 3},
+				{"", tview.AlignLeft, 16, 1},  // Empty labels column
+				{"", tview.AlignCenter, 2, 0}, // Empty attachment column
+				{"", tview.AlignCenter, 2, 0}, // Empty calendar column
 				{"--", tview.AlignRight, 16, 0},
 			},
 			Color: er.colorer.DefaultColor,
@@ -278,7 +281,7 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 
 	// Extract message flags (unread, important)
 	flags := er.extractMessageFlags(message)
-	
+
 	// Extract and format sender
 	senderName := er.extractSenderName(er.getHeader(message, "From"))
 	if senderName == "" {
@@ -291,13 +294,12 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 		subject = "(No subject)"
 	}
 
+	// Extract separate labels (no longer embedded in subject)
+	labels := er.FormatLabelsForColumn(message, 16) // Default width, will be adjusted by responsive system
+
 	// Extract separate attachment and calendar icons
 	attachmentIcon := er.extractAttachmentIcon(message)
 	calendarIcon := er.extractCalendarIcon(message)
-	
-	// Add labels as suffix to subject (but not icons, they go in separate column)
-	labelChips := er.buildLabelChips(message)
-	subjectWithSuffix := subject + labelChips
 
 	// Format date
 	date := er.formatRelativeTime(er.getDate(message))
@@ -310,7 +312,8 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 		Columns: []ColumnCell{
 			{flags, tview.AlignCenter, 3, 0},
 			{senderName, tview.AlignLeft, 0, 1},
-			{subjectWithSuffix, tview.AlignLeft, 0, 3},
+			{subject, tview.AlignLeft, 0, 3}, // Clean subject without labels
+			{labels, tview.AlignLeft, 16, 1}, // Dedicated labels column
 			{attachmentIcon, tview.AlignCenter, 2, 0},
 			{calendarIcon, tview.AlignCenter, 2, 0},
 			{date, tview.AlignRight, 16, 0},
@@ -322,19 +325,19 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 // extractMessageFlags returns status flags for a message (●/○ for unread/read, ! for important)
 func (er *EmailRenderer) extractMessageFlags(message *googleGmail.Message) string {
 	var flags strings.Builder
-	
+
 	// Unread indicator
 	if er.colorer.isUnread(message) {
 		flags.WriteString("●")
 	} else {
 		flags.WriteString("○")
 	}
-	
+
 	// Important indicator
 	if er.colorer.isImportant(message) {
 		flags.WriteString("!")
 	}
-	
+
 	return flags.String()
 }
 
@@ -400,21 +403,21 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	switch mode {
 	case ModeFlatList:
 		return []ColumnConfig{
-			{"", tview.AlignCenter, 0, 3, 2},      // Flags: ●○!
-			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
+			{"", tview.AlignCenter, 0, 3, 2},       // Flags: ●○!
+			{"From", tview.AlignLeft, 1, 0, 15},    // From: expand weight 1
 			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
-			{"", tview.AlignCenter, 0, 4, 2},      // Icons: 📎🗓️
+			{"", tview.AlignCenter, 0, 4, 2},       // Icons: 📎🗓️
 			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
 		}
 	case ModeThreaded:
 		return []ColumnConfig{
-			{"", tview.AlignLeft, 0, 3, 3},        // Type: Thread/message icons only (▼️/▶️/📧) - increased to 3
-			{"#", tview.AlignRight, 0, 6, 3},      // Thread Count: [4] or empty
-			{"", tview.AlignCenter, 0, 3, 2},      // Status: Read/unread only (●/○)
-			{"From", tview.AlignLeft, 1, 0, 15},   // From: expand weight 1
+			{"", tview.AlignLeft, 0, 3, 3},         // Type: Thread/message icons only (▼️/▶️/📧) - increased to 3
+			{"#", tview.AlignRight, 0, 6, 3},       // Thread Count: [4] or empty
+			{"", tview.AlignCenter, 0, 3, 2},       // Status: Read/unread only (●/○)
+			{"From", tview.AlignLeft, 1, 0, 15},    // From: expand weight 1
 			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
-			{"", tview.AlignCenter, 0, 2, 2},      // Attachment: 📎
-			{"", tview.AlignCenter, 0, 2, 2},      // Calendar: 📅
+			{"", tview.AlignCenter, 0, 2, 2},       // Attachment: 📎
+			{"", tview.AlignCenter, 0, 2, 2},       // Calendar: 📅
 			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
 		}
 	default:
@@ -428,7 +431,7 @@ func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) str
 	if message == nil || message.Payload == nil {
 		return "  " // 2 spaces
 	}
-	
+
 	hasAttachment := false
 	var walk func(p *googleGmail.MessagePart)
 	walk = func(p *googleGmail.MessagePart) {
@@ -446,19 +449,19 @@ func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) str
 		}
 	}
 	walk(message.Payload)
-	
+
 	if hasAttachment {
 		return "📎" // Icon only for 2 total characters
 	}
 	return "  " // 2 spaces
 }
 
-// extractCalendarIcon returns calendar icon (📅) padded to 2 characters  
+// extractCalendarIcon returns calendar icon (📅) padded to 2 characters
 func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
 		return "  " // 2 spaces
 	}
-	
+
 	hasCalendar := false
 	var walk func(p *googleGmail.MessagePart)
 	walk = func(p *googleGmail.MessagePart) {
@@ -479,19 +482,19 @@ func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) strin
 		}
 	}
 	walk(message.Payload)
-	
+
 	if hasCalendar {
 		return "📅" // Icon only for 2 total characters
 	}
 	return "  " // 2 spaces
 }
 
-// buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"  
+// buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"
 func (er *EmailRenderer) buildLabelChips(message *googleGmail.Message) string {
 	if message == nil {
 		return ""
 	}
-	
+
 	// Use the same label processing logic as the existing buildIconsAndChips function
 	names := make([]string, 0, len(message.LabelIds))
 	for _, id := range message.LabelIds {
@@ -514,7 +517,7 @@ func (er *EmailRenderer) buildLabelChips(message *googleGmail.Message) string {
 		// Normalize display name (Category_* → friendly name; Title Case otherwise)
 		names = append(names, normalizeLabelDisplay(name, id))
 	}
-	
+
 	var b strings.Builder
 	// Render labels as chips with overflow indicator
 	if len(names) > 0 {
@@ -533,7 +536,129 @@ func (er *EmailRenderer) buildLabelChips(message *googleGmail.Message) string {
 			}
 		}
 	}
-	
+
+	return b.String()
+}
+
+// FormatLabelsForColumn formats labels specifically for dedicated column display
+// Returns labels formatted for the given available width with intelligent truncation
+func (er *EmailRenderer) FormatLabelsForColumn(message *googleGmail.Message, maxWidth int) string {
+	if message == nil || maxWidth <= 0 {
+		return ""
+	}
+
+	// Extract label names using same logic as buildLabelChips
+	names := make([]string, 0, len(message.LabelIds))
+	for _, id := range message.LabelIds {
+		name := id
+		if n, ok := er.labelIdToName[id]; ok && strings.TrimSpace(n) != "" {
+			name = n
+		}
+		upperID := strings.ToUpper(id)
+		upperName := strings.ToUpper(name)
+		// Skip state/importance labels (represented via colors)
+		isStarVariant := strings.HasSuffix(upperID, "_STAR") || strings.HasSuffix(upperID, "_STARRED") || strings.HasSuffix(upperName, "_STAR") || strings.HasSuffix(upperName, "_STARRED")
+		if upperID == "UNREAD" || upperID == "STARRED" || upperID == "IMPORTANT" || upperName == "UNREAD" || upperName == "STARRED" || upperName == "IMPORTANT" || isStarVariant {
+			continue
+		}
+		// General system labels (Inbox/Sent/Trash/Spam/Draft/Category_*)
+		isSystemGeneral := strings.HasPrefix(upperID, "CATEGORY_") || upperID == "INBOX" || upperID == "CHAT" || upperID == "SENT" || upperID == "TRASH" || upperID == "SPAM" || upperID == "DRAFT"
+		if isSystemGeneral && !er.showSystemLabelsInList {
+			continue
+		}
+		// Normalize display name (Category_* → friendly name; Title Case otherwise)
+		names = append(names, normalizeLabelDisplay(name, id))
+	}
+
+	if len(names) == 0 {
+		return ""
+	}
+
+	// Responsive formatting based on available width
+	var b strings.Builder
+
+	// Very narrow: skip labels entirely
+	if maxWidth < 8 {
+		return ""
+	}
+
+	// Narrow: compact format without spaces
+	if maxWidth < 16 {
+		// Format: [Lbl1][Lbl2][+N] - compact, no spaces
+		totalUsed := 0
+		labelsShown := 0
+		for i, name := range names {
+			// Truncate label name if needed
+			labelName := name
+			if len(labelName) > 4 {
+				labelName = labelName[:4] // Truncate to 4 chars
+			}
+			labelText := "[" + labelName + "]"
+
+			// Check if adding this label would exceed width
+			overflowText := ""
+			if i < len(names)-1 {
+				remaining := len(names) - i - 1
+				if remaining > 0 {
+					overflowText = fmt.Sprintf("[+%d]", remaining)
+				}
+			}
+
+			if totalUsed+len(labelText)+len(overflowText) > maxWidth {
+				// Add overflow indicator if needed
+				if labelsShown == 0 && totalUsed+5 <= maxWidth { // [+N] = at least 4 chars
+					b.WriteString(fmt.Sprintf("[+%d]", len(names)))
+				}
+				break
+			}
+
+			b.WriteString(labelText)
+			totalUsed += len(labelText)
+			labelsShown++
+		}
+		return b.String()
+	}
+
+	// Medium/Wide: standard format with spaces
+	// Format: [Label1] [Label2] [+N] - standard, with spaces
+	totalUsed := 0
+	labelsShown := 0
+	for i, name := range names {
+		labelText := "[" + name + "]"
+		if i > 0 {
+			labelText = " " + labelText // Add space before subsequent labels
+		}
+
+		// Check if adding this label would exceed width
+		overflowText := ""
+		if i < len(names)-1 {
+			remaining := len(names) - i - 1
+			if remaining > 0 {
+				overflowText = fmt.Sprintf(" [+%d]", remaining)
+			}
+		}
+
+		if totalUsed+len(labelText)+len(overflowText) > maxWidth {
+			// Add overflow indicator if we have space
+			if labelsShown > 0 {
+				remaining := len(names) - labelsShown
+				if remaining > 0 {
+					overflowIndicator := fmt.Sprintf(" [+%d]", remaining)
+					if totalUsed+len(overflowIndicator) <= maxWidth {
+						b.WriteString(overflowIndicator)
+					}
+				}
+			} else if totalUsed+5 <= maxWidth { // At least space for [+N]
+				b.WriteString(fmt.Sprintf("[+%d]", len(names)))
+			}
+			break
+		}
+
+		b.WriteString(labelText)
+		totalUsed += len(labelText)
+		labelsShown++
+	}
+
 	return b.String()
 }
 
