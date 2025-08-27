@@ -603,10 +603,17 @@ func (s *ThreadServiceImpl) buildThreadInfo(ctx context.Context, thread *gmailap
 		}
 	}
 
-	// Convert participants map to slice
+	// Convert participants map to slice, ensuring root message sender is first
 	var participantList []string
+	rootSender := extractHeader(rootMsg, "From")
+	if rootSender != "" {
+		participantList = append(participantList, rootSender)
+	}
+	// Add other participants (excluding the root sender to avoid duplicates)
 	for participant := range participants {
-		participantList = append(participantList, participant)
+		if participant != rootSender {
+			participantList = append(participantList, participant)
+		}
 	}
 
 	return &ThreadInfo{

@@ -938,8 +938,8 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 				{"(No thread)", tview.AlignLeft, 0, 1},  // From
 				{"(No subject)", tview.AlignLeft, 0, 3}, // Subject
 				{"", tview.AlignLeft, 16, 1},            // Labels: Empty
-				{"", tview.AlignCenter, 2, 0},           // Attachment: Empty
-				{"", tview.AlignCenter, 2, 0},           // Calendar: Empty
+				{" ", tview.AlignCenter, 2, 0},          // Attachment: Space for alignment
+				{" ", tview.AlignCenter, 2, 0},          // Calendar: Space for alignment
 				{"--", tview.AlignRight, 16, 0},         // Date
 			},
 			Color: a.currentTheme.UI.FooterColor.Color(),
@@ -974,10 +974,11 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		statusIcon = "○"
 	}
 
-	// Get primary participant
+	// Get primary participant - use first participant but extract sender name properly
 	var senderName string
 	if len(thread.Participants) > 0 {
-		senderName = thread.Participants[0]
+		// Extract just the sender name from the full email address
+		senderName = a.emailRenderer.ExtractSenderName(thread.Participants[0])
 	} else {
 		senderName = "(No sender)"
 	}
@@ -988,16 +989,17 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		subject = "(No subject)"
 	}
 
-	// Attachment indicator
+	// Attachment indicator - use thread-level info if available
 	var attachmentIcon string
 	if thread.HasAttachment {
-		attachmentIcon = "📎"
+		attachmentIcon = "📎 " // Attachment with space for consistent 2-char width
 	} else {
-		attachmentIcon = ""
+		attachmentIcon = "  " // 2 spaces for consistent column alignment
 	}
 
 	// Calendar indicator (placeholder for now)
-	calendarIcon := ""
+	// TODO: Add HasCalendarEvent field to ThreadInfo struct and implement calendar detection for threads
+	calendarIcon := " " // Use space instead of empty string for proper column alignment
 
 	// Format date
 	dateStr := a.formatThreadDate(thread.LatestDate)
@@ -1039,8 +1041,8 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 				{treePrefix + "(No message)", tview.AlignLeft, 0, 1}, // From: Tree prefix + placeholder
 				{"(No subject)", tview.AlignLeft, 0, 3},              // Subject
 				{"", tview.AlignLeft, 16, 1},                         // Labels: Empty
-				{"", tview.AlignCenter, 2, 0},                        // Attachment: Empty
-				{"", tview.AlignCenter, 2, 0},                        // Calendar: Empty
+				{" ", tview.AlignCenter, 2, 0},                       // Attachment: Space for alignment
+				{" ", tview.AlignCenter, 2, 0},                       // Calendar: Space for alignment
 				{"--", tview.AlignRight, 16, 0},                      // Date
 			},
 			Color: a.currentTheme.UI.FooterColor.Color(),
@@ -1075,21 +1077,9 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 	// Extract labels for dedicated column (now included in threaded mode!)
 	labels := a.emailRenderer.FormatLabelsForColumn(message, 16) // Default width, will be adjusted by responsive system
 
-	// Check for attachment
-	var attachmentIcon string
-	if a.hasAttachment(message) {
-		attachmentIcon = "📎"
-	} else {
-		attachmentIcon = ""
-	}
-
-	// Check for calendar invitation
-	var calendarIcon string
-	if a.hasCalendar(message) {
-		calendarIcon = "📅"
-	} else {
-		calendarIcon = ""
-	}
+	// Use the same attachment/calendar detection as flat mode for consistency
+	attachmentIcon := a.emailRenderer.ExtractAttachmentIcon(message)
+	calendarIcon := a.emailRenderer.ExtractCalendarIcon(message)
 
 	// Format date
 	dateStr := a.formatThreadDate(a.emailRenderer.GetDate(message))

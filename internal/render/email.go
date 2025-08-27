@@ -298,8 +298,8 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 	labels := er.FormatLabelsForColumn(message, 16) // Default width, will be adjusted by responsive system
 
 	// Extract separate attachment and calendar icons
-	attachmentIcon := er.extractAttachmentIcon(message)
-	calendarIcon := er.extractCalendarIcon(message)
+	attachmentIcon := er.ExtractAttachmentIcon(message)
+	calendarIcon := er.ExtractCalendarIcon(message)
 
 	// Format date
 	date := er.formatRelativeTime(er.getDate(message))
@@ -426,8 +426,8 @@ func GetColumnConfig(mode DisplayMode) []ColumnConfig {
 	}
 }
 
-// extractAttachmentIcon returns attachment icon (📎) padded to 2 characters
-func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) string {
+// ExtractAttachmentIcon returns attachment icon (📎) padded to 2 characters
+func (er *EmailRenderer) ExtractAttachmentIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
 		return "  " // 2 spaces
 	}
@@ -456,8 +456,8 @@ func (er *EmailRenderer) extractAttachmentIcon(message *googleGmail.Message) str
 	return "  " // 2 spaces
 }
 
-// extractCalendarIcon returns calendar icon (📅) padded to 2 characters
-func (er *EmailRenderer) extractCalendarIcon(message *googleGmail.Message) string {
+// ExtractCalendarIcon returns calendar icon (📅) padded to 2 characters
+func (er *EmailRenderer) ExtractCalendarIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
 		return "  " // 2 spaces
 	}
