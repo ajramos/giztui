@@ -653,7 +653,7 @@ func (a *App) openSearchOverlay(mode string) {
 		SetFieldBackgroundColor(searchColors.Background.Color()).
 		SetFieldTextColor(searchColors.Text.Color()).
 		SetLabelColor(searchColors.Title.Color()).
-		SetPlaceholderTextColor(a.getHintColor())
+		SetPlaceholderTextColor(searchColors.Text.Color())
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	
@@ -670,6 +670,12 @@ func (a *App) openSearchOverlay(mode string) {
 		SetTitleColor(searchColors.Title.Color()).
 		SetBackgroundColor(searchColors.Background.Color()).
 		SetBorderColor(searchColors.Border.Color())
+	
+	// Apply ForceFilledBorderFlex for consistent border rendering
+	ForceFilledBorderFlex(box)
+	
+	// Re-apply title styling after ForceFilledBorderFlex
+	box.SetTitleColor(searchColors.Title.Color())
 	
 	// vertical center input; place help at bottom  
 	topSpacer := tview.NewBox().SetBackgroundColor(searchColors.Background.Color())
@@ -847,16 +853,16 @@ func (a *App) openAdvancedSearchForm() {
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
 
-	// Apply theme-aware styling to override form defaults and match simple search
-	bgColor, textColor := a.GetInputFieldColors()
-	form.SetBackgroundColor(bgColor).SetBorder(false)
+	// Apply hierarchical theme system for consistent styling with search overlay
+	formColors := a.GetComponentColors("search")
+	form.SetBackgroundColor(formColors.Background.Color()).SetBorder(false)
 
-	// Try to override form's internal styling by setting button colors as well
-	form.SetButtonBackgroundColor(bgColor)
-	form.SetButtonTextColor(textColor)
-	form.SetLabelColor(a.getTitleColor())
-	form.SetFieldBackgroundColor(bgColor)
-	form.SetFieldTextColor(textColor)
+	// Apply component colors to form elements for consistency
+	form.SetButtonBackgroundColor(formColors.Background.Color())
+	form.SetButtonTextColor(formColors.Text.Color())
+	form.SetLabelColor(formColors.Title.Color())
+	form.SetFieldBackgroundColor(formColors.Background.Color())
+	form.SetFieldTextColor(formColors.Text.Color())
 	fromField := tview.NewInputField().
 		SetLabel("👤 From").
 		SetPlaceholder("user@example.com").
@@ -1651,6 +1657,12 @@ func (a *App) openAdvancedSearchForm() {
 		SetTitleColor(advancedSearchColors.Title.Color()).
 		SetBackgroundColor(advancedSearchColors.Background.Color()).
 		SetBorderColor(advancedSearchColors.Border.Color())
+	
+	// Apply ForceFilledBorderFlex for consistent border rendering
+	ForceFilledBorderFlex(modal)
+	
+	// Re-apply title styling after ForceFilledBorderFlex
+	modal.SetTitleColor(advancedSearchColors.Title.Color())
 	modal.AddItem(form, 0, 1, true)
 	a.Pages.AddPage("advancedSearch", modal, true, true)
 	a.SetFocus(form)
