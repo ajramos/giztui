@@ -249,12 +249,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Show progress
 	a.GetErrorHandler().ShowProgress(a.ctx, "📝 Saving email to your notes...")
 
-	// Add debug logging
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: performObsidianIngest called with message ID: %s", message.Id)
-		a.logger.Printf("DEBUG: Account email: %s", accountEmail)
-		a.logger.Printf("DEBUG: Comment: %s", comment)
-	}
 
 	// Get Obsidian service
 	_, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
@@ -267,9 +261,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 		return
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: Obsidian service obtained successfully")
-	}
 
 	// Create options for ingestion
 	options := obsidian.ObsidianOptions{
@@ -280,22 +271,13 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	}
 
 	// Perform actual ingestion
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: Calling obsidianService.IngestEmailToObsidian...")
-	}
-	result, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
+	_, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
 	if err != nil {
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: Ingestion failed with error: %v", err)
-		}
 		a.GetErrorHandler().ClearProgress()
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to ingest email: %v", err))
 		return
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: Ingestion successful, result: %+v", result)
-	}
 
 	// Clear progress and show success
 	a.GetErrorHandler().ClearProgress()
@@ -418,20 +400,12 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 			}
 
 			// Perform ingestion for this message
-			result, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
+			_, err = obsidianService.IngestEmailToObsidian(a.ctx, message, options)
 			if err != nil {
 				failed++
-				// Log the error for debugging
-				if a.logger != nil {
-					a.logger.Printf("Bulk Obsidian ingestion failed for message %s: %v", id, err)
-				}
 				continue
 			}
 
-			// Log successful ingestion for debugging
-			if a.logger != nil && result != nil {
-				a.logger.Printf("Bulk Obsidian ingestion successful for message %s: %s", id, result.FilePath)
-			}
 		}
 
 		// Final UI update (following archiveSelectedBulk pattern)
