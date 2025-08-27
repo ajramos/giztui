@@ -674,8 +674,13 @@ func (e *EnhancedTextView) highlightSearchResults(query string, matches []int) {
 			// Extract the actual text at this position (preserve original case)
 			actualText := e.content[pos : pos+queryLen]
 
-			// Wrap with tview highlight colors
-			highlighted := fmt.Sprintf("[black:yellow:b]%s[white:-:-]", actualText)
+			// Use hierarchical theme system for search highlight colors
+			searchColors := e.app.GetComponentColors("search")
+			// Use accent color for highlight background and contrasting text
+			highlighted := fmt.Sprintf("[%s:%s:b]%s[:-:-]", 
+				searchColors.Background.String(), 
+				searchColors.Accent.String(), 
+				actualText)
 
 			// Replace in the content
 			highlightedContent = highlightedContent[:pos] + highlighted + highlightedContent[pos+queryLen:]
