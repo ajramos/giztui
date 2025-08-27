@@ -631,6 +631,14 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 
 // openSearchOverlay populates the existing persistent search container (like Slack panel)
 func (a *App) openSearchOverlay(mode string) {
+	// Hide advanced search if it's visible (mutual exclusion)
+	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+		if sp.GetTitle() == "🔎 Advanced Search" {
+			sp.Clear()
+			sp.SetBorder(false).SetTitle("")
+		}
+	}
+	
 	if mode != "remote" && mode != "local" {
 		mode = "remote"
 	}
@@ -841,6 +849,9 @@ func (a *App) hideSearchContainer() {
 
 // openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
 func (a *App) openAdvancedSearchForm() {
+	// Hide simple search container if it's visible (mutual exclusion)
+	a.hideSearchContainer()
+	
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
 
