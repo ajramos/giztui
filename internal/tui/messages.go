@@ -2694,13 +2694,33 @@ func (a *App) openRSVPModal() {
 		a.showError("❌ No message selected")
 		return
 	}
+	
 	inv, ok := a.inviteCache[mid]
+	
 	if !ok {
-		// Best-effort: re-detect from cache message
+		// Fallback 1: Re-detect from message cache
 		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
 			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
 				inv = parsed
 				a.inviteCache[mid] = inv
+				ok = true
+				if a.logger != nil {
+					a.logger.Printf("RSVP: Re-detected calendar invite from message cache")
+				}
+			}
+		}
+		
+		// Fallback 2: Search any invite in cache (handles cache key mismatches)
+		if !ok && len(a.inviteCache) > 0 {
+			for _, cachedInv := range a.inviteCache {
+				if cachedInv.UID != "" {
+					inv = cachedInv
+					ok = true
+					if a.logger != nil {
+						a.logger.Printf("RSVP: Using cached invite from alternate cache entry")
+					}
+					break
+				}
 			}
 		}
 	}
@@ -2839,10 +2859,39 @@ func (a *App) sendRSVP(partstat, comment string) {
 	if mid == "" {
 		mid = a.currentMessageID
 	}
+	
 	inv, ok := a.inviteCache[mid]
+	
+	// Use fallback strategies if invite not found
 	if !ok || inv.UID == "" {
-		a.showError("❌ No invite to reply to")
-		return
+		// Fallback 1: Re-detect from message cache
+		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
+				inv = parsed
+				a.inviteCache[mid] = inv
+				ok = true
+			}
+		}
+		
+		// Fallback 2: Search any invite in cache (handles cache key mismatches)
+		if (!ok || inv.UID == "") && len(a.inviteCache) > 0 {
+			for _, cachedInv := range a.inviteCache {
+				if cachedInv.UID != "" {
+					inv = cachedInv
+					ok = true
+					if a.logger != nil {
+						a.logger.Printf("RSVP: Using cached invite from alternate cache entry for sending response")
+					}
+					break
+				}
+			}
+		}
+		
+		// Final check after all fallbacks
+		if !ok || inv.UID == "" {
+			a.showError("❌ No invite to reply to")
+			return
+		}
 	}
 	if a.Calendar == nil || a.Calendar.Service == nil {
 		a.showError("❌ Calendar API not available. Please re-authorize with Calendar permissions.")
