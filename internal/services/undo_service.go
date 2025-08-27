@@ -83,6 +83,7 @@ func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, erro
 		ExtraData:    action.ExtraData,
 	}
 
+
 	// Perform undo based on action type
 	switch action.Type {
 	case UndoActionArchive:

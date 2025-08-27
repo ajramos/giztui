@@ -1244,10 +1244,14 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 	}
 
 	for _, messageID := range result.MessageIDs {
-		fmt.Printf("DEBUG: updateCacheAfterMoveUndo processing messageID: %s\n", messageID)
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: updateCacheAfterMoveUndo processing messageID: %s", messageID)
+		}
 
 		// Move undo: add back INBOX label and remove applied labels
-		fmt.Printf("DEBUG: updateCacheAfterMoveUndo adding INBOX label to cache\n")
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: updateCacheAfterMoveUndo adding INBOX label to cache")
+		}
 		a.updateCachedMessageLabels(messageID, "INBOX", true)
 		a.updateMessageCacheLabels(messageID, "INBOX", true)
 
@@ -1257,20 +1261,30 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 				a.logger.Printf("DEBUG: updateCacheAfterMoveUndo found applied_labels: %v", appliedLabels)
 			}
 			for _, labelID := range appliedLabels {
-				fmt.Printf("DEBUG: updateCacheAfterMoveUndo removing label %s from cache\n", labelID)
+				if a.logger != nil {
+					a.logger.Printf("DEBUG: updateCacheAfterMoveUndo removing label %s from cache", labelID)
+				}
 				a.updateCachedMessageLabels(messageID, labelID, false)
 				if labelName, exists := labelIDToName[labelID]; exists {
-					fmt.Printf("DEBUG: updateCacheAfterMoveUndo removing label name %s from cache\n", labelName)
+					if a.logger != nil {
+						a.logger.Printf("DEBUG: updateCacheAfterMoveUndo removing label name %s from cache", labelName)
+					}
 					a.updateMessageCacheLabels(messageID, labelName, false)
 				} else {
-					fmt.Printf("DEBUG: updateCacheAfterMoveUndo no label name found for ID %s\n", labelID)
+					if a.logger != nil {
+						a.logger.Printf("DEBUG: updateCacheAfterMoveUndo no label name found for ID %s", labelID)
+					}
 				}
 			}
 		} else {
-			fmt.Printf("DEBUG: updateCacheAfterMoveUndo no applied_labels found in ExtraData\n")
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: updateCacheAfterMoveUndo no applied_labels found in ExtraData")
+			}
 		}
 	}
-	fmt.Printf("DEBUG: updateCacheAfterMoveUndo completed\n")
+	if a.logger != nil {
+		a.logger.Printf("DEBUG: updateCacheAfterMoveUndo completed")
+	}
 }
 
 // updateCacheAfterLabelUndo updates local cache immediately after label undo operations

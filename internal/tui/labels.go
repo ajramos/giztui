@@ -926,6 +926,79 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			}
 			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyEnter {
+					// Force trigger the move operation for the current selected item
+					idx := list.GetCurrentItem()
+					if idx >= 0 && idx < len(visible) {
+						selectedLabel := visible[idx]
+						if a.logger != nil {
+							a.logger.Printf("DEBUG: Force triggering move operation for item %d: %s (moveMode: %v)", idx, selectedLabel.name, moveMode)
+						}
+						// Manually trigger the move operation
+						if moveMode {
+							go func() {
+								if a.logger != nil {
+									a.logger.Printf("DEBUG: FORCE MOVE MODE TRIGGERED - label: %s, messageID: %s", selectedLabel.name, messageID)
+								}
+								// Use the same logic as in the callback
+								idsToMove := []string{messageID}
+								if a.bulkMode && len(a.selected) > 0 {
+									idsToMove = idsToMove[:0]
+									for sid := range a.selected {
+										idsToMove = append(idsToMove, sid)
+									}
+								}
+								failed := 0
+								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+								if a.logger != nil {
+									a.logger.Printf("DEBUG: Force Move operation - processing %d messages", len(idsToMove))
+								}
+								for _, mid := range idsToMove {
+									if a.logger != nil {
+										a.logger.Printf("DEBUG: Force Move operation applying label %s and archiving message %s", selectedLabel.id, mid)
+									}
+									if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
+										failed++
+									}
+									// Use ArchiveMessageAsMove to record proper move undo action
+									if err := emailService.ArchiveMessageAsMove(a.ctx, mid, selectedLabel.id, selectedLabel.name); err != nil {
+										failed++
+									}
+								}
+								// UI cleanup and message removal (same as callback)
+								a.QueueUpdateDraw(func() {
+									// Close the panel first
+									if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+										split.ResizeItem(a.labelsView, 0, 0)
+									}
+									a.labelsVisible = false
+									a.labelsExpanded = false
+									// Exit bulk mode
+									a.selected = make(map[string]bool)
+									a.bulkMode = false
+									a.reformatListItems()
+									// Restore focus
+									a.SetFocus(a.views["list"])
+									a.currentFocus = "list"
+									a.updateFocusIndicators("list")
+								})
+								go func() {
+									time.Sleep(100 * time.Millisecond)
+									a.QueueUpdateDraw(func() {
+										a.removeIDsFromCurrentList(idsToMove)
+									})
+								}()
+								// Status message
+								if len(idsToMove) <= 1 && failed == 0 {
+									a.showStatusMessage("📦 Moved to: " + selectedLabel.name)
+								} else {
+									a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), selectedLabel.name))
+								}
+							}()
+						}
+					}
+					return nil
+				}
 				if e.Key() == tcell.KeyEscape {
 					// CRITICAL FIX: Make ESC operations synchronous to prevent deadlock
 					a.labelsExpanded = false
