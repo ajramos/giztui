@@ -1330,7 +1330,7 @@ Gmail TUI supports customizable color themes to personalize your email experienc
 ### Custom Themes
 1. **Built-in themes** - Located in `themes/` directory (shipped with application)
 2. **User themes** - Place custom themes in `~/.config/giztui/themes/`
-3. **Custom directory** - Configure `theme_dir` in config.json for alternate location
+3. **Custom directory** - Configure `custom_dir` in config.json theme section for alternate location
 
 **Create custom theme:**
 ```bash
@@ -1344,9 +1344,9 @@ cp themes/gmail-dark.yaml ~/.config/giztui/themes/my-theme.yaml
 Set default theme and custom theme directory in `config.json`:
 ```json
 {
-  "layout": {
-    "color_scheme": "gmail-dark",
-    "theme_dir": "/path/to/custom/themes"  
+  "theme": {
+    "current": "slate-blue",
+    "custom_dir": "/path/to/custom/themes"  
   }
 }
 ```

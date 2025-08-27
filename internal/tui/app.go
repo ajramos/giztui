@@ -679,8 +679,8 @@ func (a *App) initServices() {
 
 	// Initialize theme service
 	customThemeDir := ""
-	if a.Config != nil && a.Config.Layout.CustomThemeDir != "" {
-		customThemeDir = a.Config.Layout.CustomThemeDir
+	if a.Config != nil && a.Config.Theme.CustomDir != "" {
+		customThemeDir = a.Config.Theme.CustomDir
 	}
 
 	// Determine the built-in themes directory path
@@ -765,8 +765,8 @@ func (a *App) initServices() {
 
 	// Load theme from config with fallbacks
 	themeName := "gmail-dark" // Default fallback
-	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
-		themeName = a.Config.Layout.CurrentTheme
+	if a.Config != nil && a.Config.Theme.Current != "" {
+		themeName = a.Config.Theme.Current
 	}
 
 	if a.themeService != nil {
@@ -1490,7 +1490,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 
 	// Update config if theme name is available
 	if theme.Name != "" && a.Config != nil {
-		a.Config.Layout.CurrentTheme = theme.Name
+		a.Config.Theme.Current = theme.Name
 		// Async save to avoid blocking UI
 		go func() {
 			if err := a.saveConfigAsync(); err != nil && a.logger != nil {
@@ -1731,8 +1731,8 @@ func (a *App) generateHelpText() string {
 	var help strings.Builder
 
 	// Show current status
-	if a.Config != nil && a.Config.Layout.CurrentTheme != "" {
-		help.WriteString(fmt.Sprintf("🎨 Theme: %s\n", a.Config.Layout.CurrentTheme))
+	if a.Config != nil && a.Config.Theme.Current != "" {
+		help.WriteString(fmt.Sprintf("🎨 Theme: %s\n", a.Config.Theme.Current))
 	}
 	if a.LLM != nil {
 		help.WriteString("🤖 AI: Enabled\n")

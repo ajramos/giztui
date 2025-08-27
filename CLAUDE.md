@@ -477,6 +477,46 @@ case "read", "toggle-read", "t":
 
 ## 🐛 **Recent Debugging & Fixes (August 2025)**
 
+### 🔧 **Config Structure Improvement - Theme Section (August 2025)**
+Successfully refactored theme configuration to use more logical nested structure:
+
+#### **Breaking Change - Config Migration Required:**
+- **Old structure** (deprecated): 
+  ```json
+  {
+    "layout": {
+      "current_theme": "slate-blue",
+      "custom_theme_dir": "/path/to/themes"
+    }
+  }
+  ```
+- **New structure** (current):
+  ```json
+  {
+    "theme": {
+      "current": "slate-blue", 
+      "custom_dir": "/path/to/themes"
+    }
+  }
+  ```
+
+#### **Migration Required:**
+Users with existing config files need to:
+1. Move `layout.current_theme` → `theme.current`
+2. Move `layout.custom_theme_dir` → `theme.custom_dir` 
+3. Remove theme fields from layout section
+
+#### **Rationale:**
+- **Cleaner organization**: Theme settings grouped logically under `theme` object
+- **Eliminated redundancy**: No need for `_theme` suffix when already under theme section
+- **Better maintainability**: Theme-related config changes isolated from layout settings
+
+#### **Files Updated:**
+- `internal/config/config.go` - Added ThemeConfig struct, updated Config struct
+- `internal/tui/app.go` - Updated all theme config references
+- `examples/*.json` - Updated example configurations
+- `README.md` - Updated documentation with new config structure
+
 ### 🔧 **Content Navigation Service Nil Pointer Fix (August 2025)**
 Successfully resolved critical nil pointer dereference crash in Enhanced Content Navigation system:
 

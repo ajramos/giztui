@@ -43,6 +43,12 @@ type LLMConfig struct {
 	TouchUpPrompt string `json:"touch_up_prompt,omitempty"`
 }
 
+// ThemeConfig holds theme-related configuration
+type ThemeConfig struct {
+	Current   string `json:"current"`    // Active theme name (e.g., "gmail-dark")
+	CustomDir string `json:"custom_dir"` // Custom themes directory (empty = default)
+}
+
 // Config holds all configuration for the Gmail TUI application
 type Config struct {
 	Credentials string `json:"credentials"`
@@ -59,6 +65,9 @@ type Config struct {
 
 	// Keyboard shortcuts
 	Keys KeyBindings `json:"keys"`
+
+	// Theme configuration
+	Theme ThemeConfig `json:"theme"`
 
 	// Logging
 	LogFile string `json:"log_file"`
@@ -131,11 +140,9 @@ type LayoutConfig struct {
 	DefaultLayout string `json:"default_layout"`
 
 	// UI customization
-	ShowBorders    bool   `json:"show_borders"`
-	ShowTitles     bool   `json:"show_titles"`
-	CompactMode    bool   `json:"compact_mode"`
-	CurrentTheme   string `json:"current_theme"`    // Active theme name (e.g., "gmail-dark")
-	CustomThemeDir string `json:"custom_theme_dir"` // Custom themes directory (empty = default)
+	ShowBorders bool `json:"show_borders"`
+	ShowTitles  bool `json:"show_titles"`
+	CompactMode bool `json:"compact_mode"`
 }
 
 // LayoutBreakpoint defines minimum dimensions for layout types
@@ -264,6 +271,7 @@ func DefaultConfig() *Config {
 		Slack:     DefaultSlackConfig(),
 		Layout:    DefaultLayoutConfig(),
 		Keys:      DefaultKeyBindings(),
+		Theme:     DefaultThemeConfig(),
 		Threading: DefaultThreadingConfig(),
 		LogFile:   "",
 	}
@@ -403,12 +411,18 @@ func DefaultLayoutConfig() LayoutConfig {
 			Width:  60,
 			Height: 20,
 		},
-		DefaultLayout:  "auto",
-		ShowBorders:    true,
-		ShowTitles:     true,
-		CompactMode:    false,
-		CurrentTheme:   "gmail-dark",
-		CustomThemeDir: "",
+		DefaultLayout: "auto",
+		ShowBorders:   true,
+		ShowTitles:    true,
+		CompactMode:   false,
+	}
+}
+
+// DefaultThemeConfig returns default theme configuration
+func DefaultThemeConfig() ThemeConfig {
+	return ThemeConfig{
+		Current:   "gmail-dark",
+		CustomDir: "",
 	}
 }
 

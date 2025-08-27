@@ -63,8 +63,11 @@
     "default_layout": "auto",
     "show_borders": true,
     "show_titles": true,
-    "compact_mode": false,
-    "color_scheme": "default"
+    "compact_mode": false
+  },
+  "theme": {
+    "current": "gmail-dark",
+    "custom_dir": ""
   },
   "keys": {
     "_comment": "Customize keyboard shortcuts to match your preferences. All shortcuts are configurable!",
