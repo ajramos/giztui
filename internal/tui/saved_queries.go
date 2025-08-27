@@ -214,7 +214,7 @@ func (a *App) showSavedQueriesPicker() {
 			// Footer with instructions (standardized footer color)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter/1-9 to execute | d/D to delete | Esc to cancel ")
-			footer.SetTextColor(a.getFooterColor()) // Standardized footer color like other pickers
+			footer.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color like other pickers
 			container.AddItem(footer, 1, 0, false)
 
 			// Initial population
@@ -409,7 +409,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText("Enter to save | Esc to cancel")
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	// Create a horizontal flex for label and input alignment with controlled spacing
 	nameRow := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -539,10 +539,6 @@ func (a *App) getCurrentSearchQuery() string {
 	return ""
 }
 
-// getCurrentEmail gets current account email (deprecated - use getActiveAccountEmail)
-func (a *App) getCurrentEmail() string {
-	return a.getActiveAccountEmail()
-}
 
 // editSavedQuery shows edit dialog for a saved query (placeholder for future implementation)
 func (a *App) editSavedQuery(query *services.SavedQueryInfo) {

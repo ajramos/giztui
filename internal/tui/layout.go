@@ -41,9 +41,9 @@ func ForceFilledBorderFlex(f *tview.Flex) {
 func (a *App) initComponents() {
 	// Create main list component as Table to support per-row colors
 	list := tview.NewTable().SetSelectable(true, false)
-	list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	list.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	list.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📧 Messages ").
 		SetTitleColor(a.getTitleColor()).
@@ -51,34 +51,34 @@ func (a *App) initComponents() {
 		// Search panel placeholder (hidden by default)
 	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
 	searchPanel.SetBorder(false)
-	searchPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	searchPanel.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 
 	ForceFilledBorderFlex(searchPanel)
 
 	// Container that holds search panel (top) and list (bottom)
 	listContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	listContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	listContainer.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	// Start hidden: panel proportion 0; list takes all
 	listContainer.AddItem(searchPanel, 0, 0, false)
 	listContainer.AddItem(list, 0, 1, true)
 
 	// Create header view (colored) and main text view inside a column container
 	header := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	header.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	header.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	header.SetBorder(false)
 	header.SetTextColor(a.getMessageHeaderColor()) // Use theme header color for email message headers
 
 	enhancedText := NewEnhancedTextView(a)
 	text := enhancedText.TextView
 	text.SetDynamicColors(true).SetWrap(true).SetScrollable(true)
-	text.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	text.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	text.SetBorder(false)
 
 	// Store the enhanced text view in the app
 	a.enhancedTextView = enhancedText
 
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	textContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	textContainer.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	textContainer.SetBorder(true).
 		SetBorderColor(tview.Styles.BorderColor).
 		SetBorderAttributes(tcell.AttrBold).
@@ -96,9 +96,9 @@ func (a *App) initComponents() {
 
 	// Create AI Summary view (hidden by default)
 	ai := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
-	ai.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	ai.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	ai.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🤖 AI Summary ").
 		SetTitleColor(a.getTitleColor()).
@@ -115,9 +115,9 @@ func (a *App) initComponents() {
 
 	// Labels contextual panel container (hidden by default)
 	labelsFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	labelsFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	labelsFlex.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	labelsFlex.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🏷️ Labels ").
 		SetTitleColor(a.getTitleColor()).
@@ -130,9 +130,9 @@ func (a *App) initComponents() {
 
 	// Slack contextual panel container (hidden by default)
 	slackFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	slackFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	slackFlex.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	slackFlex.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 💬 Send to Slack channel ").
 		SetTitleColor(a.getTitleColor()).
@@ -145,9 +145,9 @@ func (a *App) initComponents() {
 
 	// Command panel (hidden by default)
 	cmdPanel := tview.NewFlex().SetDirection(tview.FlexRow)
-	cmdPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	cmdPanel.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	cmdPanel.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🐶 Command ").
 		SetTitleColor(a.getTitleColor()).
@@ -197,7 +197,7 @@ func (a *App) initComponents() {
 func (a *App) initViews() {
 	// Add a background page that paints the full-screen background color.
 	// This works around tview containers not painting their own border areas.
-	background := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	background := tview.NewBox().SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	a.Pages.AddPage("background", background, true, true)
 
 	// Create main layout
@@ -226,7 +226,7 @@ func (a *App) createMainLayout() tview.Primitive {
 	// Create the main flex container (vertical layout - one below the other)
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	mainFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	mainFlex.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	// Add flash notification at the top (hidden by default)
 	mainFlex.AddItem(a.flash.textView, 0, 0, false)
 
@@ -243,7 +243,7 @@ func (a *App) createMainLayout() tview.Primitive {
 
 	// Message content row: split into content | AI summary (hidden initially)
 	contentSplit := tview.NewFlex().SetDirection(tview.FlexColumn)
-	contentSplit.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	contentSplit.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	contentSplit.AddItem(a.views["textContainer"], 0, 1, false)
 	contentSplit.AddItem(a.aiSummaryView, 0, 0, false) // weight 0 = hidden
 	contentSplit.AddItem(a.labelsView, 0, 0, false)    // hidden by default
@@ -386,26 +386,26 @@ func (a *App) createSearchView() tview.Primitive {
 func (a *App) RefreshBordersForFilledFlexes() {
 	// Update textContainer
 	if tc, ok := a.views["textContainer"].(*tview.Flex); ok {
-		tc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		tc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		tc.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+		tc.SetBorderColor(a.GetComponentColors("general").Background.Color())
 	}
 
 	// Update labelsFlex
 	if a.labelsView != nil {
-		a.labelsView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		a.labelsView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		a.labelsView.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+		a.labelsView.SetBorderColor(a.GetComponentColors("general").Background.Color())
 	}
 
 	// Update slackFlex
 	if a.slackView != nil {
-		a.slackView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		a.slackView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		a.slackView.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+		a.slackView.SetBorderColor(a.GetComponentColors("general").Background.Color())
 	}
 
 	// Update cmdPanel
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
-		cp.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		cp.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+		cp.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+		cp.SetBorderColor(a.GetComponentColors("general").Background.Color())
 	}
 
 	// Update searchContainer with hierarchical theme system

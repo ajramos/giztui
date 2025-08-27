@@ -184,7 +184,7 @@ func (a *App) openThemePicker() {
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter: preview | Space: apply | Esc: cancel ")
-			footer.SetTextColor(a.getFooterColor())
+			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list
@@ -292,9 +292,6 @@ func (a *App) showThemePreview(themeName string) {
 				}
 
 				// Debug: Log that we're setting the title
-				if a.logger != nil {
-					a.logger.Printf("TITLE DEBUG: Set title to 'Theme Preview' and hid headers for theme: %s (original height: %d)", themeName, a.originalHeaderHeight)
-				}
 			}
 
 			if textView, ok := a.views["text"].(*tview.TextView); ok {
@@ -526,6 +523,6 @@ func (a *App) parseColorFromTheme(colorStr string) *tcell.Color {
 	return &color
 }
 
-// TODO: Investigate proper tview color tag format for hex colors
+// TODO: [THEMING] Investigate proper tview color tag format for hex colors in hierarchical theme system
 // Current attempt: [#ff5555]text[-] may not work as expected
 // Alternative: Use color names like [red]text[-] or implement custom color display

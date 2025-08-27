@@ -610,7 +610,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			// Footer hint
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply  |  Esc to back ")
-			footer.SetTextColor(a.getFooterColor()) // Standardized footer color
+			footer.SetTextColor(a.GetComponentColors("ai").Text.Color()) // Standardized footer color
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

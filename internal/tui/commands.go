@@ -1832,7 +1832,7 @@ func (a *App) executeSaveQueryCommand(args []string) {
 
 		// Set account email if available
 		if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
-			if email := a.getCurrentEmail(); email != "" {
+			if email := a.getActiveAccountEmail(); email != "" {
 				queryServiceImpl.SetAccountEmail(email)
 			}
 		}

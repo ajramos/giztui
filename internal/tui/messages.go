@@ -2547,9 +2547,6 @@ func (a *App) detectCalendarInvite(msg *gmailapi.Message) (Invite, bool) {
 				}
 
 				// Debug: log the raw iCalendar data
-				if a.logger != nil {
-					a.logger.Printf("ICAL DEBUG: Raw calendar data:\n%s", s)
-				}
 
 				out.UID = scanICSField(s, "UID")
 				out.Summary = scanICSField(s, "SUMMARY")
@@ -2557,11 +2554,6 @@ func (a *App) detectCalendarInvite(msg *gmailapi.Message) (Invite, bool) {
 				out.DtStart = scanICSField(s, "DTSTART")
 				out.DtEnd = scanICSField(s, "DTEND")
 
-				// Debug: log the extracted values
-				if a.logger != nil {
-					a.logger.Printf("ICAL DEBUG: Extracted - UID='%s', Summary='%s', DtStart='%s', DtEnd='%s'",
-						out.UID, out.Summary, out.DtStart, out.DtEnd)
-				}
 			}
 			if methodReq {
 				found = true
@@ -2742,13 +2734,7 @@ func (a *App) openRSVPModal() {
 	// Date and time
 	if inv.DtStart != "" {
 		// Debug logging to see what we actually get
-		if a.logger != nil {
-			a.logger.Printf("RSVP DEBUG: DtStart='%s', DtEnd='%s'", inv.DtStart, inv.DtEnd)
-		}
 		timeRange := formatMeetingTimeRange(inv.DtStart, inv.DtEnd)
-		if a.logger != nil {
-			a.logger.Printf("RSVP DEBUG: formatted timeRange='%s'", timeRange)
-		}
 		if timeRange != "" {
 			timeView := tview.NewTextView().SetWordWrap(true)
 			timeView.SetText(fmt.Sprintf("🕐 %s", timeRange))
@@ -2770,7 +2756,7 @@ func (a *App) openRSVPModal() {
 	// Footer with instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to respond | Esc to close ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	// Create container with meeting info at top
 	container := tview.NewFlex().SetDirection(tview.FlexRow)

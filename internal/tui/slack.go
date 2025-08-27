@@ -218,7 +218,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	instructions := tview.NewTextView()
 	instructions.SetText("Enter to Send | Esc to Close")
 	instructions.SetTextAlign(tview.AlignRight)
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Set up search functionality
 	input.SetChangedFunc(func(text string) {
@@ -430,7 +430,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	instructions := tview.NewTextView()
 	instructions.SetText(fmt.Sprintf("Enter to Send %d emails | Esc to Close | Tab to navigate", messageCount))
 	instructions.SetTextAlign(tview.AlignCenter)
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Create a horizontal flex for label and input alignment (like Obsidian)
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)

@@ -222,7 +222,7 @@ func (a *App) openBulkPromptPicker() {
 	// Footer
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply | Esc to cancel ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split like individual prompt picker
@@ -555,7 +555,7 @@ func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText(" Enter to save  |  Esc to close ")
-	instructions.SetTextColor(a.getFooterColor()) // Standardized footer color
+	instructions.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color
 
 	modal.AddItem(title, 3, 0, false)
 	modal.AddItem(resultView, 0, 1, false)

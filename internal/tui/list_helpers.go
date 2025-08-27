@@ -10,28 +10,16 @@ import (
 // while safely updating internal caches and adjusting the selection and content panes.
 // It must be called on the UI thread via a.QueueUpdateDraw.
 func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
-	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection ENTRY - messageID: %s", removedMessageID)
-	}
 
 	table, ok := a.views["list"].(*tview.Table)
 	if !ok {
-		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - could not get list table")
-		}
 		return
 	}
 	count := table.GetRowCount()
 	if count == 0 {
-		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - table is empty")
-		}
 		return
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - searching for messageID in %d messages", len(a.ids))
-	}
 	// Find the index of the message to remove by ID
 	removeIndex := -1
 	for i, id := range a.ids {
@@ -41,15 +29,9 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		}
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - found messageID at index: %d", removeIndex)
-	}
 
 	// If message not found, don't remove anything
 	if removeIndex < 0 || removeIndex >= count {
-		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection - message not found or invalid index, returning")
-		}
 		return
 	}
 
@@ -142,9 +124,6 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		}
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: safeRemoveCurrentSelection COMPLETE")
-	}
 
 	// Propagate to base snapshot if in local filter
 	if removedMessageID != "" {

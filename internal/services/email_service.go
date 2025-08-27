@@ -49,7 +49,6 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 	}
 
 	if s.logger != nil {
-		s.logger.Printf("DEBUG: ArchiveMessageAsMove starting - messageID: %s, labelID: %s, labelName: %s", messageID, labelID, labelName)
 	}
 
 	// Record move undo action before performing the operation
@@ -69,22 +68,18 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 					},
 				}
 				if s.logger != nil {
-					s.logger.Printf("DEBUG: ArchiveMessageAsMove recording undo action: %+v", action)
 				}
 				s.undoService.RecordAction(ctx, action)
 			} else {
 				if s.logger != nil {
-					s.logger.Printf("DEBUG: ArchiveMessageAsMove failed to capture message state: %v", err)
 				}
 			}
 		} else {
 			if s.logger != nil {
-				s.logger.Printf("DEBUG: ArchiveMessageAsMove undoService is not UndoServiceImpl type")
 			}
 		}
 	} else {
 		if s.logger != nil {
-			s.logger.Printf("DEBUG: ArchiveMessageAsMove undoService is nil")
 		}
 	}
 
@@ -94,7 +89,6 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 	}
 
 	if s.logger != nil {
-		s.logger.Printf("DEBUG: ArchiveMessageAsMove performing archive operation")
 	}
 	return s.repo.UpdateMessage(ctx, messageID, updates)
 }

@@ -235,7 +235,7 @@ func (a *App) openAttachmentPicker() {
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter/1-9 to download | Ctrl+S to save as | Esc to cancel ")
-			footer.SetTextColor(a.getFooterColor()) // Standardized footer color
+			footer.SetTextColor(a.GetComponentColors("attachments").Text.Color()) // Standardized footer color
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list

@@ -109,15 +109,9 @@ func (a *App) executeLabelRemove(args []string) {
 
 // manageLabels opens the labels management view for the currently selected message
 func (a *App) manageLabels() {
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: manageLabels() called - labelsVisible: %t", a.labelsVisible)
-	}
 
 	// Toggle contextual panel like AI Summary
 	if a.labelsVisible {
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: manageLabels() - hiding labels panel")
-		}
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
@@ -139,9 +133,6 @@ func (a *App) manageLabels() {
 		return
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: manageLabels() - showing labels panel for message: %s", messageID)
-	}
 
 	// Ensure message content is shown without stealing focus
 	a.showMessageWithoutFocus(messageID)
@@ -155,9 +146,6 @@ func (a *App) manageLabels() {
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: manageLabels() - about to call populateLabelsQuickView")
-	}
 	a.populateLabelsQuickView(messageID)
 }
 
@@ -278,7 +266,7 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter: Toggle label | n: Create new label | r: Refresh | ESC: Back")
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	labelsView.AddItem(title, 3, 0, false)
 	labelsView.AddItem(labelsList, 0, 1, true)
@@ -455,7 +443,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		// Footer hint: quick view uses ESC to close panel
 		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 		footer.SetText(" Esc to back ")
-		footer.SetTextColor(a.getFooterColor())
+		footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 		container.AddItem(footer, 1, 0, false)
 
 		if a.logger != nil {
@@ -511,9 +499,6 @@ func (a *App) expandLabelsBrowse(messageID string) {
 // If moveMode is true, selecting a label will move the message (apply + archive)
 // and then close the panel.
 func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: expandLabelsBrowseWithMode called - messageID: %s, moveMode: %v", messageID, moveMode)
-	}
 	a.labelsExpanded = true
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
@@ -533,9 +518,6 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	var visible []labelItem
 	var reload func(filter string)
 	reload = func(filter string) {
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: reload function called - filter: '%s', moveMode: %v, total labels: %d", filter, moveMode, len(all))
-		}
 		list.Clear()
 		visible = visible[:0]
 		for _, it := range all {
@@ -551,9 +533,6 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			name := it.name
 			applied := it.applied
 			list.AddItem(display, "Enter: toggle", 0, func() {
-				if a.logger != nil {
-					a.logger.Printf("DEBUG: Label item selected in expandLabelsBrowseWithMode - label: %s, moveMode: %v", name, moveMode)
-				}
 				if !moveMode {
 					// Check if we need to apply to bulk selection
 					if a.bulkMode && len(a.selected) > 0 {
@@ -580,9 +559,6 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					return
 				}
 				// Move mode: aplicar etiqueta y archivar para todos los seleccionados (o el actual)
-				if a.logger != nil {
-					a.logger.Printf("DEBUG: MOVE MODE TRIGGERED - label: %s, messageID: %s", name, messageID)
-				}
 				go func() {
 					// Construir conjunto de mensajes a mover
 					idsToMove := []string{messageID}
@@ -598,13 +574,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 					// Get services for undo support - use proper move function
 					emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
-					if a.logger != nil {
-						a.logger.Printf("DEBUG: Move operation in expandLabelsBrowseWithMode - processing %d messages", len(idsToMove))
-					}
 					for _, mid := range idsToMove {
-						if a.logger != nil {
-							a.logger.Printf("DEBUG: Move operation applying label %s and archiving message %s", id, mid)
-						}
 						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 							failed++
 						}
@@ -668,33 +638,18 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}()
 			})
 		}
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: reload function completed - added %d visible items to list", len(visible))
-		}
 	}
 
 	go func() {
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode loading labels for messageID: %s", messageID)
-		}
 		msg, err := a.Client.GetMessage(messageID)
 		if err != nil {
-			if a.logger != nil {
-				a.logger.Printf("DEBUG: Failed to load message %s: %v", messageID, err)
-			}
 			a.showError("❌ Error loading message")
 			return
 		}
 		labels, err := a.Client.ListLabels()
 		if err != nil {
-			if a.logger != nil {
-				a.logger.Printf("DEBUG: Failed to load labels: %v", err)
-			}
 			a.showError("❌ Error loading labels")
 			return
-		}
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode loaded %d labels", len(labels))
 		}
 		current := make(map[string]bool)
 		for _, lid := range msg.LabelIds {
@@ -704,9 +659,6 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 		all = make([]labelItem, 0, len(filtered))
 		for _, l := range filtered {
 			all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
-		}
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: expandLabelsBrowseWithMode will display %d filtered labels", len(all))
 		}
 
 		// CRITICAL FIX: Set up ESC handler OUTSIDE QueueUpdateDraw to prevent deadlock
@@ -916,7 +868,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			} else {
 				footer.SetText(" Enter to apply 1st match  |  Esc to back ")
 			}
-			footer.SetTextColor(a.getFooterColor())
+			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -931,15 +883,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					idx := list.GetCurrentItem()
 					if idx >= 0 && idx < len(visible) {
 						selectedLabel := visible[idx]
-						if a.logger != nil {
-							a.logger.Printf("DEBUG: Force triggering move operation for item %d: %s (moveMode: %v)", idx, selectedLabel.name, moveMode)
-						}
 						// Manually trigger the move operation
 						if moveMode {
 							go func() {
-								if a.logger != nil {
-									a.logger.Printf("DEBUG: FORCE MOVE MODE TRIGGERED - label: %s, messageID: %s", selectedLabel.name, messageID)
-								}
 								// Use the same logic as in the callback
 								idsToMove := []string{messageID}
 								if a.bulkMode && len(a.selected) > 0 {
@@ -950,13 +896,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 								failed := 0
 								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
-								if a.logger != nil {
-									a.logger.Printf("DEBUG: Force Move operation - processing %d messages", len(idsToMove))
-								}
 								for _, mid := range idsToMove {
-									if a.logger != nil {
-										a.logger.Printf("DEBUG: Force Move operation applying label %s and archiving message %s", selectedLabel.id, mid)
-									}
 									if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
 										failed++
 									}
@@ -1052,13 +992,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}
 				return e
 			})
-			if a.logger != nil {
-				a.logger.Printf("DEBUG: expandLabelsBrowseWithMode calling reload to populate UI")
-			}
 			reload("")
-			if a.logger != nil {
-				a.logger.Printf("DEBUG: expandLabelsBrowseWithMode reload completed, setting focus to input")
-			}
 			a.SetFocus(input)
 			a.currentFocus = "labels"
 			a.updateFocusIndicators("labels")
@@ -1163,7 +1097,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			container.AddItem(list, 0, 1, true)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to pick 1st match  |  Esc to back ")
-			footer.SetTextColor(a.getFooterColor())
+			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 			container.AddItem(footer, 1, 0, false)
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				if a.labelsView != nil {
@@ -1203,7 +1137,7 @@ func (a *App) editLabelInline(labelID, name string) {
 		SetFieldWidth(30)
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to rename  |  Esc to back ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
@@ -1259,7 +1193,7 @@ func (a *App) confirmDeleteLabel(labelID, name string) {
 	text.SetText("Delete label ‘" + name + "’? This cannot be undone.")
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to confirm  |  Esc to back ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
@@ -1313,9 +1247,6 @@ func (a *App) openMovePanel() {
 		a.showError("❌ No message selected")
 		return
 	}
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: openMovePanel called for messageID: %s", messageID)
-	}
 	// Ensure panel is visible
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
@@ -1323,9 +1254,6 @@ func (a *App) openMovePanel() {
 	a.labelsVisible = true
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: openMovePanel calling expandLabelsBrowseWithMode in move mode")
-	}
 	// Open browse in move mode
 	a.expandLabelsBrowseWithMode(messageID, true)
 }
@@ -1364,9 +1292,6 @@ func (a *App) manageLabelsBulk() {
 		return
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: manageLabelsBulk() - managing labels for %d selected messages", len(a.selected))
-	}
 
 	// Ensure panel visible
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -1385,9 +1310,6 @@ func (a *App) manageLabelsBulk() {
 		}
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: manageLabelsBulk() - using message %s as reference for label display", mid)
-	}
 
 	// Use browse mode (not move mode) for bulk label management
 	a.expandLabelsBrowseWithMode(mid, false)
@@ -1408,7 +1330,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply  |  Esc to back ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -1673,7 +1595,7 @@ func (a *App) createNewLabelFromView() {
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText(" Enter to apply  |  Esc to back ")
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	modal.AddItem(title, 3, 0, false)
 	modal.AddItem(inputField, 3, 0, true)
@@ -1709,13 +1631,7 @@ func (a *App) createNewLabelFromView() {
 					go func() {
 						// Small delay to ensure page switch completes
 						time.Sleep(50 * time.Millisecond)
-						if a.logger != nil {
-							a.logger.Printf("DEBUG: createNewLabelFromView - about to call manageLabels() after creating label '%s'", labelName)
-						}
 						a.manageLabels()
-						if a.logger != nil {
-							a.logger.Printf("DEBUG: createNewLabelFromView - manageLabels() completed")
-						}
 					}()
 				}()
 			}
@@ -1861,9 +1777,6 @@ func (a *App) moveSelected() {
 
 // showMoveLabelsView lets user choose a label to apply and then archives the message (move semantics)
 func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Message) {
-	if a.logger != nil {
-		a.logger.Printf("DEBUG: showMoveLabelsView called for message: %s", message.Id)
-	}
 	picker := tview.NewList().ShowSecondaryText(false)
 	picker.SetBorder(true)
 	picker.SetTitle(" 📦 Move to label ")
@@ -1903,9 +1816,6 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 					a.updateCachedMessageLabels(message.Id, labelID, true)
 				}
 				// Use ArchiveMessageAsMove to record proper move undo action
-				if a.logger != nil {
-					a.logger.Printf("DEBUG: Move operation using ArchiveMessageAsMove")
-				}
 				if err := emailService.ArchiveMessageAsMove(a.ctx, message.Id, labelID, labelName); err != nil {
 					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving: %v", err))
 					return

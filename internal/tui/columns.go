@@ -998,7 +998,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 	}
 
 	// Calendar indicator (placeholder for now)
-	// TODO: Add HasCalendarEvent field to ThreadInfo struct and implement calendar detection for threads
+	// TODO: [FEATURE] Add HasCalendarEvent field to ThreadInfo struct and implement calendar detection for threads
 	calendarIcon := " " // Use space instead of empty string for proper column alignment
 
 	// Format date

@@ -310,7 +310,7 @@ func (s *ObsidianServiceImpl) extractHeader(message *gmail.Message, headerName s
 // createObsidianFile creates a file in the Obsidian vault
 func (s *ObsidianServiceImpl) createObsidianFile(filePath, content string) error {
 	// For now, create a local file as placeholder
-	// TODO: Integrate with MCP Obsidian service
+	// TODO: [FUTURE] Integrate with MCP Obsidian service for direct vault operations
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)

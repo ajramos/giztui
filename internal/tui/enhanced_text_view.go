@@ -181,7 +181,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 
 	// Create help text
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(e.app.getFooterColor())
+	help.SetTextColor(e.app.GetComponentColors("general").Text.Color())
 	help.SetText("Enter=search, ESC=cancel | After search: n=next, N=previous")
 
 	// Create the overlay container
@@ -442,7 +442,7 @@ func (e *EnhancedTextView) wordNavigateRight() {
 // handleGotoTopSequence handles vim-style gg sequence
 func (e *EnhancedTextView) handleGotoTopSequence() {
 	// Simple implementation for now - go to top immediately
-	// TODO: Implement proper vim-style sequence handling with timeout
+	// TODO: [ENHANCEMENT] Implement proper vim-style sequence handling with timeout for complex key sequences
 	e.gotoTop()
 }
 

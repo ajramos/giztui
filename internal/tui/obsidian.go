@@ -51,7 +51,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// Create panel similar to prompt picker
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 📥 Send to Obsidian ")
 	container.SetTitleColor(a.getTitleColor())
@@ -81,7 +81,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter to ingest | Esc to cancel")
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 
 	// Create a horizontal flex for label and input alignment
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -253,9 +253,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Get Obsidian service
 	_, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
 	if obsidianService == nil {
-		if a.logger != nil {
-			a.logger.Printf("DEBUG: Obsidian service is nil!")
-		}
 		a.GetErrorHandler().ClearProgress()
 		a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
 		return
@@ -294,7 +291,7 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 // getObsidianVaultPath returns the configured Obsidian vault path
 func (a *App) getObsidianVaultPath() string {
 	// For now, return a default path
-	// TODO: Get from configuration
+	// TODO: [CONFIG] Get Obsidian vault path from user configuration
 	return "/Users/ajramos/Documents/ObsidianVault"
 }
 
@@ -316,20 +313,20 @@ func (a *App) showObsidianHistory() {
 		return
 	}
 
-	// TODO: Implement history display
+	// TODO: [FUTURE] Implement Obsidian export history display
 	// This would show a list of recent forwards with options to re-ingest or view details
 	a.GetErrorHandler().ShowInfo(a.ctx, "Obsidian history feature coming soon")
 }
 
 // closeModal closes the current modal
 func (a *App) closeModal() {
-	// TODO: Implement modal closing
-	// This would restore the previous view and focus
+	// TODO: [FUTURE] Implement modal closing functionality
+	// Will restore previous view state and focus management when needed
 }
 
 // getObsidianTemplate returns the configurable template from config
 func (a *App) getObsidianTemplate() string {
-	// TODO: Load from config when available
+	// TODO: [CONFIG] Load Obsidian template from user configuration file
 	// Simple template without message preview
 	return `📧 OBSIDIAN INGESTION
 
@@ -460,7 +457,7 @@ func (a *App) openBulkObsidianPanel() {
 
 	// Create panel similar to single message but for bulk
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
 	container.SetTitleColor(a.getTitleColor())
@@ -490,7 +487,7 @@ func (a *App) openBulkObsidianPanel() {
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter to ingest all | Esc to cancel")
-	instructions.SetTextColor(a.getFooterColor())
+	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 
 	// Create a horizontal flex for label and input alignment
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)

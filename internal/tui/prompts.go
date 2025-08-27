@@ -174,7 +174,7 @@ func (a *App) openPromptPicker() {
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply | Esc to cancel ")
-			footer.SetTextColor(a.getFooterColor())
+			footer.SetTextColor(a.GetComponentColors("prompts").Text.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list
@@ -712,7 +712,7 @@ func (a *App) openPromptPickerForManagement() {
 	// Enhanced footer with management instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter: view | e: export | d: delete | Esc: close ")
-	footer.SetTextColor(a.getFooterColor())
+	footer.SetTextColor(a.GetComponentColors("prompts").Text.Color())
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split
@@ -806,9 +806,6 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 				}
 
 				// Debug: Log that we're setting the title
-				if a.logger != nil {
-					a.logger.Printf("TITLE DEBUG: Set title to 'Prompt Details' and hid headers for prompt: %s (original height: %d)", promptName, a.originalHeaderHeight)
-				}
 			}
 
 			if textView, ok := a.views["text"].(*tview.TextView); ok {

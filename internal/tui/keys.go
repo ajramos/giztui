@@ -67,9 +67,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			if a.logger != nil {
 				a.logger.Printf("Configurable shortcut: '%s' -> content search next (overriding compose)", key)
 			}
-			// DEBUG: Show in status bar
 			go func() {
-				a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: n key -> searchNext() (configurable override)")
 			}()
 			a.enhancedTextView.searchNext()
 			return true
@@ -144,20 +142,16 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> trash (bulkMode: %t, selected: %d)", key, a.bulkMode, len(a.selected))
 		}
-		// DEBUG: Show in status bar
 		go func() {
-			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: trash key - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
 		}()
 
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
 		if a.bulkMode && len(a.selected) > 0 {
 			if a.logger != nil {
-				a.logger.Printf("DEBUG: Calling trashSelectedBulk() with %d messages", len(a.selected))
 			}
 			go a.trashSelectedBulk()
 		} else {
 			if a.logger != nil {
-				a.logger.Printf("DEBUG: Calling trashSelected() - single message operation")
 			}
 			go a.trashSelected()
 		}
@@ -206,7 +200,6 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		// CRITICAL: Check for bulk mode to ensure bulk label operations work
 		if a.bulkMode && len(a.selected) > 0 {
 			if a.logger != nil {
-				a.logger.Printf("DEBUG: Bulk mode active with %d selected messages, calling manageLabelsBulk()", len(a.selected))
 			}
 			a.manageLabelsBulk()
 		} else {
@@ -725,9 +718,7 @@ func (a *App) bindKeys() {
 						if a.logger != nil {
 							a.logger.Printf("=== 'n' delegating to EnhancedTextView.searchNext() ===")
 						}
-						// DEBUG: Show in status bar
 						go func() {
-							a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: n key -> searchNext()")
 						}()
 						a.enhancedTextView.searchNext()
 						return nil
@@ -803,9 +794,7 @@ func (a *App) bindKeys() {
 					if a.logger != nil {
 						a.logger.Printf("=== Executing bulk trash operation ===")
 					}
-					// DEBUG: Show in status bar
 					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: bulk trash %d msgs", len(a.selected)))
 					}()
 					go a.trashSelectedBulk()
 					return nil
@@ -817,9 +806,7 @@ func (a *App) bindKeys() {
 				if a.logger != nil {
 					a.logger.Printf("=== Executing single trash operation ===")
 				}
-				// DEBUG: Show in status bar
 				go func() {
-					a.GetErrorHandler().ShowInfo(a.ctx, "DEBUG: single trash")
 				}()
 				go a.trashSelected()
 				return nil
@@ -1138,7 +1125,7 @@ func (a *App) bindKeys() {
 			if a.logger != nil {
 				a.logger.Printf("Special key: Ctrl+N -> next_thread")
 			}
-			// TODO: Implement next thread navigation
+			// TODO: [THREAD] Implement next thread navigation in conversation view
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, "Next thread navigation - not yet implemented")
 			}()
@@ -1150,7 +1137,7 @@ func (a *App) bindKeys() {
 			if a.logger != nil {
 				a.logger.Printf("Special key: Ctrl+P -> prev_thread")
 			}
-			// TODO: Implement previous thread navigation
+			// TODO: [THREAD] Implement previous thread navigation in conversation view
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, "Previous thread navigation - not yet implemented")
 			}()
@@ -1254,18 +1241,14 @@ func (a *App) bindKeys() {
 
 // handleBulkSelect handles bulk selection logic (entering bulk mode or toggling selection)
 func (a *App) handleBulkSelect() bool {
-	// DEBUG: Always log when bulk select is pressed
 	if a.logger != nil {
-		a.logger.Printf("DEBUG: Bulk select pressed - bulkMode: %t, selectedCount: %d", a.bulkMode, len(a.selected))
 	}
 	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("DEBUG: Bulk select pressed - bulk: %t, sel: %d", a.bulkMode, len(a.selected)))
 	}()
 
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		if !a.bulkMode {
 			if a.logger != nil {
-				a.logger.Printf("DEBUG: Entering bulk mode for first time")
 			}
 			a.bulkMode = true
 			messageIndex := a.getCurrentSelectedMessageIndex()
@@ -1275,7 +1258,6 @@ func (a *App) handleBulkSelect() bool {
 				}
 				a.selected[a.ids[messageIndex]] = true
 				if a.logger != nil {
-					a.logger.Printf("DEBUG: Selected message %d (ID: %s)", messageIndex, a.ids[messageIndex])
 				}
 			}
 			a.refreshTableDisplay()
@@ -1433,8 +1415,6 @@ func (a *App) handleVimSequence(key rune) bool {
 	}
 	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Duration(rangeTimeoutMs)*time.Millisecond {
 		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: VIM sequence timeout EXCEEDED - clearing state")
-			a.logger.Printf("HANG DEBUG: now=%v, vimTimeout=%v, diff=%v", now, a.vimTimeout, now.Sub(a.vimTimeout))
 		}
 		a.vimSequence = ""
 		a.vimOperationType = ""
@@ -1652,7 +1632,6 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		// Start timeout goroutine to execute single operation if no sequence completed
 		go func() {
 			if a.logger != nil {
-				a.logger.Printf("HANG DEBUG: VIM timeout goroutine started for key: %s", string(key))
 			}
 
 			// Use configurable range timeout for single operation fallback
@@ -1662,18 +1641,15 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 			}
 			time.Sleep(time.Duration(rangeTimeoutMs) * time.Millisecond)
 			if a.logger != nil {
-				a.logger.Printf("HANG DEBUG: VIM timeout goroutine woke up, acquiring mutex")
 			}
 			a.mu.Lock()
 
 			if a.logger != nil {
-				a.logger.Printf("HANG DEBUG: VIM timeout - checking state: vimOperationType='%s', vimOperationCount=%d, expected='%s'", a.vimOperationType, a.vimOperationCount, string(key))
 			}
 
 			// Check if sequence is still pending (not completed or cleared)
 			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: VIM timeout condition MET - capturing state")
 				}
 				// Capture original message ID while holding mutex
 				originalMessageID := a.vimOriginalMessageID
@@ -1685,14 +1661,12 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				a.vimOriginalMessageID = ""
 
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: VIM state cleared, releasing mutex")
 				}
 
 				// Release mutex BEFORE accessing UI elements or executing operations
 				a.mu.Unlock()
 
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: Mutex released, proceeding with execution")
 				}
 
 				go func() {
@@ -1701,15 +1675,12 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 				// Execute single operation with original message ID (without mutex)
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: About to call executeVimSingleOperationWithID")
 				}
 				a.executeVimSingleOperationWithID(string(key), originalMessageID)
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: Returned from executeVimSingleOperationWithID")
 				}
 			} else {
 				if a.logger != nil {
-					a.logger.Printf("HANG DEBUG: VIM timeout condition NOT MET - sequence was cleared or modified")
 				}
 				a.mu.Unlock()
 			}
@@ -1841,12 +1812,10 @@ func (a *App) executeVimSingleOperation(operation string) {
 // This is used when VIM timeout occurs to ensure operation applies to the original message
 func (a *App) executeVimSingleOperationWithID(operation string, messageID string) {
 	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: executeVimSingleOperationWithID ENTRY - operation: %s, messageID: %s", operation, messageID)
 	}
 
 	if messageID == "" {
 		if a.logger != nil {
-			a.logger.Printf("HANG DEBUG: messageID empty, falling back to executeVimSingleOperation")
 		}
 		// Fallback to current message if no ID provided
 		a.executeVimSingleOperation(operation)
@@ -1854,7 +1823,6 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 	}
 
 	if a.logger != nil {
-		a.logger.Printf("HANG DEBUG: About to enter switch statement for operation: %s", operation)
 	}
 
 	switch operation {
@@ -1887,12 +1855,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		} else {
 			// Trash specific message by ID (bypasses current selection) - single message only
 			if a.logger != nil {
-				a.logger.Printf("HANG DEBUG: Entered trash case - target messageID: %s (single message mode)", messageID)
-				a.logger.Printf("HANG DEBUG: About to call trashSelectedByID")
 			}
 			a.trashSelectedByID(messageID)
 			if a.logger != nil {
-				a.logger.Printf("HANG DEBUG: Returned from trashSelectedByID")
 			}
 		}
 	case a.Keys.ToggleRead:
@@ -1912,12 +1877,10 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
 		if a.logger != nil {
-			a.logger.Printf("DEBUG: VIM move operation starting for messageID: %s", messageID)
 		}
 		go func() {
 			a.SetCurrentMessageID(messageID)
 			if a.logger != nil {
-				a.logger.Printf("DEBUG: VIM move operation calling openMovePanel")
 			}
 			a.openMovePanel()
 		}()
