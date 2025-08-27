@@ -10,6 +10,15 @@ import (
 	"github.com/ajramos/gmail-tui/internal/config"
 )
 
+// ThemeUpdateCallback represents a function that gets called when theme changes
+type ThemeUpdateCallback func(*config.ColorsConfig) error
+
+// ComponentRegistration represents a component that can receive theme updates
+type ComponentRegistration struct {
+	name     string
+	callback ThemeUpdateCallback
+}
+
 // ThemeServiceImpl implements ThemeService
 type ThemeServiceImpl struct {
 	currentTheme   string
@@ -17,6 +26,10 @@ type ThemeServiceImpl struct {
 	customThemeDir string
 	themeLoader    *config.ThemeLoader
 	applyThemeFunc func(*config.ColorsConfig) error // Function to apply theme to the app
+	
+	// Component registration system
+	registeredComponents []ComponentRegistration
+	currentThemeConfig   *config.ColorsConfig // Cache current theme for new registrations
 }
 
 // NewThemeService creates a new theme service
@@ -100,8 +113,67 @@ func (s *ThemeServiceImpl) ApplyTheme(ctx context.Context, name string) error {
 		}
 	}
 
+	// Cache the theme configuration
+	s.currentThemeConfig = themeConfig
+	
+	// Notify all registered components
+	if err := s.notifyComponents(themeConfig); err != nil {
+		return fmt.Errorf("failed to notify components of theme change: %w", err)
+	}
+
 	// Update current theme
 	s.currentTheme = name
+	return nil
+}
+
+// RegisterComponent registers a component to receive theme updates
+func (s *ThemeServiceImpl) RegisterComponent(name string, callback ThemeUpdateCallback) error {
+	// Add to registered components
+	s.registeredComponents = append(s.registeredComponents, ComponentRegistration{
+		name:     name,
+		callback: callback,
+	})
+	
+	// If we have a current theme, apply it to the new component immediately
+	if s.currentThemeConfig != nil {
+		if err := callback(s.currentThemeConfig); err != nil {
+			return fmt.Errorf("failed to apply current theme to component '%s': %w", name, err)
+		}
+	}
+	
+	return nil
+}
+
+// UnregisterComponent removes a component from theme updates
+func (s *ThemeServiceImpl) UnregisterComponent(name string) {
+	for i, component := range s.registeredComponents {
+		if component.name == name {
+			// Remove component from slice
+			s.registeredComponents = append(s.registeredComponents[:i], s.registeredComponents[i+1:]...)
+			break
+		}
+	}
+}
+
+// GetCurrentThemeConfig returns the currently loaded theme configuration
+func (s *ThemeServiceImpl) GetCurrentThemeConfig() *config.ColorsConfig {
+	return s.currentThemeConfig
+}
+
+// notifyComponents sends theme updates to all registered components
+func (s *ThemeServiceImpl) notifyComponents(themeConfig *config.ColorsConfig) error {
+	var errors []string
+	
+	for _, component := range s.registeredComponents {
+		if err := component.callback(themeConfig); err != nil {
+			errors = append(errors, fmt.Sprintf("component '%s': %v", component.name, err))
+		}
+	}
+	
+	if len(errors) > 0 {
+		return fmt.Errorf("theme update errors: %s", strings.Join(errors, "; "))
+	}
+	
 	return nil
 }
 

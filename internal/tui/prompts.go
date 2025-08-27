@@ -302,6 +302,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 
 			// Update title to show prompt name
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s ", promptName))
+			a.aiSummaryView.SetTitleColor(a.getTitleColor())
 			// Show loading message
 			a.aiSummaryView.SetText("🤖 Applying prompt...")
 			a.aiSummaryView.ScrollToBeginning()

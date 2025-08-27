@@ -39,9 +39,13 @@ gmailTUI:
     footerColor: "#7f8c8d"      # Footer/instruction text (was tcell.ColorGray)
     hintColor: "#7f8c8d"        # Hint text color
     
-    # Selection colors
-    selectionBgColor: "#3498db"  # List selection background (was tcell.ColorBlue)
-    selectionFgColor: "#ffffff"  # List selection text (was tcell.ColorWhite)
+    # Selection colors (cursor/navigation)
+    selectionBgColor: "#3498db"  # Cursor selection background (was tcell.ColorBlue)
+    selectionFgColor: "#ffffff"  # Cursor selection text (was tcell.ColorWhite)
+    
+    # Bulk selection colors (checked items)
+    bulkSelectionBgColor: "#ecf0f1"  # Light gray background for bulk-selected items
+    bulkSelectionFgColor: "#2c3e50"  # Dark text color for bulk-selected items
     
     # Status message colors
     errorColor: "#e74c3c"       # Error messages (was tcell.ColorRed)
@@ -53,4 +57,8 @@ gmailTUI:
     inputBgColor: "#ecf0f1"     # Input field background
     inputFgColor: "#2c3e50"     # Input field text
     labelColor: "#f39c12"       # Input field labels
+
+    # Status bar colors
+    statusBarBgColor: "#3498db" # Blue status bar background
+    statusBarFgColor: "#ffffff" # White text for status bar
 

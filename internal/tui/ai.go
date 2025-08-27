@@ -149,6 +149,7 @@ func (a *App) toggleAISummary() {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		// Reset title to AI Summary when switching from prompt mode
 		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
+		a.aiSummaryView.SetTitleColor(a.getTitleColor())
 		a.updateFocusIndicators("summary")
 	} else {
 		a.showError("❌ AI Summary view not accessible")

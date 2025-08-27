@@ -104,7 +104,59 @@ func (tl *ThemeLoader) ValidateTheme(theme *ColorsConfig) error {
 		return fmt.Errorf("theme is nil")
 	}
 
-	// Validate required colors
+	// Check if theme uses new hierarchical structure
+	if theme.Foundation.Background != "" || theme.Semantic.Primary != "" {
+		return tl.validateNewStructure(theme)
+	}
+
+	// Validate legacy structure
+	return tl.validateLegacyStructure(theme)
+}
+
+// validateNewStructure validates themes using the new hierarchical structure
+func (tl *ThemeLoader) validateNewStructure(theme *ColorsConfig) error {
+	// Validate foundation colors (required for new structure)
+	requiredFoundation := []struct {
+		name  string
+		color Color
+	}{
+		{"Foundation.Background", theme.Foundation.Background},
+		{"Foundation.Foreground", theme.Foundation.Foreground},
+	}
+
+	for _, req := range requiredFoundation {
+		if req.color == "" {
+			return fmt.Errorf("missing required foundation color: %s", req.name)
+		}
+	}
+
+	// Validate semantic colors (required for new structure)
+	requiredSemantic := []struct {
+		name  string
+		color Color
+	}{
+		{"Semantic.Primary", theme.Semantic.Primary},
+		{"Semantic.Success", theme.Semantic.Success},
+		{"Semantic.Error", theme.Semantic.Error},
+	}
+
+	for _, req := range requiredSemantic {
+		if req.color == "" {
+			return fmt.Errorf("missing required semantic color: %s", req.name)
+		}
+	}
+
+	// Validate interaction colors
+	if theme.Interaction.Selection.Cursor.Bg == "" {
+		return fmt.Errorf("missing required interaction color: Selection.Cursor.Bg")
+	}
+
+	return nil
+}
+
+// validateLegacyStructure validates themes using the legacy structure
+func (tl *ThemeLoader) validateLegacyStructure(theme *ColorsConfig) error {
+	// Validate required colors for legacy structure
 	requiredColors := []struct {
 		name  string
 		color Color

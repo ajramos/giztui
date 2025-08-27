@@ -11,7 +11,7 @@ import (
 // Theme-aware color helper functions for the App
 // These replace all hardcoded tcell.Color* constants and [color] tags
 
-// GetStatusColor returns theme-aware status message colors
+// GetStatusColor returns theme-aware status message colors using hierarchical system
 // Replaces: tcell.ColorRed, tcell.ColorGreen, tcell.ColorYellow, tcell.ColorBlue
 func (a *App) GetStatusColor(level string) tcell.Color {
 	if a.currentTheme == nil {
@@ -34,21 +34,21 @@ func (a *App) GetStatusColor(level string) tcell.Color {
 
 	switch level {
 	case "error":
-		return a.currentTheme.Status.Error.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeError).Color()
 	case "success":
-		return a.currentTheme.Status.Success.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeSuccess).Color()
 	case "warning":
-		return a.currentTheme.Status.Warning.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeWarning).Color()
 	case "info":
-		return a.currentTheme.Status.Info.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeInfo).Color()
 	case "progress":
-		return a.currentTheme.Status.Progress.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeInfo).Color()
 	default:
-		return a.currentTheme.UI.InfoColor.Color()
+		return a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeInfo).Color()
 	}
 }
 
-// GetColorTag returns theme-aware color tags for text markup
+// GetColorTag returns theme-aware color tags for text markup using hierarchical system
 // Replaces: [yellow], [blue], [green], [red], [gray], [dim], etc.
 func (a *App) GetColorTag(purpose string) string {
 	if a.currentTheme == nil {
@@ -74,19 +74,19 @@ func (a *App) GetColorTag(purpose string) string {
 	var color config.Color
 	switch purpose {
 	case "title":
-		color = a.currentTheme.Tags.Title
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
 	case "header":
-		color = a.currentTheme.Tags.Header
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeAccent)
 	case "emphasis":
-		color = a.currentTheme.Tags.Emphasis
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeWarning)
 	case "secondary":
-		color = a.currentTheme.Tags.Secondary
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
 	case "link":
-		color = a.currentTheme.Tags.Link
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeAccent)
 	case "code":
-		color = a.currentTheme.Tags.Code
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeAccent)
 	default:
-		color = a.currentTheme.Body.FgColor
+		color = a.currentTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeForeground)
 	}
 
 	return fmt.Sprintf("[%s]", color.String())
@@ -97,7 +97,7 @@ func (a *App) GetEndTag() string {
 	return "[-]"
 }
 
-// GetComponentColors returns theme-aware colors for specific UI components
+// GetComponentColors returns theme-aware colors for specific UI components using the new hierarchical system
 // Replaces: hardcoded component-specific colors
 func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 	if a.currentTheme == nil {
@@ -111,44 +111,31 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		}
 	}
 
+	var componentType config.ComponentType
 	switch component {
 	case "ai":
-		return a.currentTheme.Components.AI
+		componentType = config.ComponentTypeAI
 	case "slack":
-		return a.currentTheme.Components.Slack
+		componentType = config.ComponentTypeSlack
 	case "obsidian":
-		return a.currentTheme.Components.Obsidian
+		componentType = config.ComponentTypeObsidian
 	case "links":
-		return a.currentTheme.Components.Links
+		componentType = config.ComponentTypeLinks
 	case "stats":
-		return a.currentTheme.Components.Stats
+		componentType = config.ComponentTypeStats
 	case "prompts":
-		return a.currentTheme.Components.Prompts
-	case "labels": // For label picker
-		return config.ComponentColorSet{
-			Border:     a.currentTheme.Frame.Border.FgColor,
-			Title:      a.currentTheme.UI.TitleColor,
-			Background: a.currentTheme.Body.BgColor,
-			Text:       a.currentTheme.Body.FgColor,
-			Accent:     a.currentTheme.UI.LabelColor, // Use theme's label color
-		}
-	case "themes": // For theme picker itself
-		return config.ComponentColorSet{
-			Border:     a.currentTheme.Frame.Border.FgColor,
-			Title:      a.currentTheme.UI.TitleColor,
-			Background: a.currentTheme.Body.BgColor,
-			Text:       a.currentTheme.Body.FgColor,
-			Accent:     a.currentTheme.UI.InfoColor,
-		}
+		componentType = config.ComponentTypePrompts
 	default:
-		// Return generic UI colors as fallback
-		return config.ComponentColorSet{
-			Border:     a.currentTheme.Frame.Border.FgColor,
-			Title:      a.currentTheme.UI.TitleColor,
-			Background: a.currentTheme.Body.BgColor,
-			Text:       a.currentTheme.Body.FgColor,
-			Accent:     a.currentTheme.UI.InfoColor,
-		}
+		componentType = config.ComponentTypeGeneral
+	}
+
+	// Use hierarchical color resolution for each component color type
+	return config.ComponentColorSet{
+		Border:     a.currentTheme.GetComponentColor(componentType, config.ColorTypeBorder),
+		Title:      a.currentTheme.GetComponentColor(componentType, config.ColorTypePrimary),
+		Background: a.currentTheme.GetComponentColor(componentType, config.ColorTypeBackground),
+		Text:       a.currentTheme.GetComponentColor(componentType, config.ColorTypeForeground),
+		Accent:     a.currentTheme.GetComponentColor(componentType, config.ColorTypeAccent),
 	}
 }
 
@@ -222,12 +209,19 @@ func (a *App) getStatusColorCompat(level string) tcell.Color {
 	return a.GetStatusColor(level)
 }
 
-// GetInputFieldColors returns theme-aware colors for input fields
+// GetInputFieldColors returns theme-aware colors for input fields using hierarchical system
 func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
 	if a.currentTheme == nil {
 		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor
 	}
-	return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color()
+	
+	// Use new hierarchical system with fallback to legacy
+	bg, fg, _ := a.currentTheme.GetInputColors()
+	if bg == "" || fg == "" {
+		// Legacy fallback
+		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color()
+	}
+	return bg.Color(), fg.Color()
 }
 
 // ConfigureInputFieldTheme applies consistent theme colors to input fields
@@ -251,20 +245,17 @@ func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string
 	return field
 }
 
-// GetSearchFieldColors returns component-specific colors for search fields
+// GetSearchFieldColors returns component-specific colors for search fields using hierarchical system
 func (a *App) GetSearchFieldColors(component string) (bgColor, textColor, labelColor tcell.Color) {
 	if a.currentTheme == nil {
 		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor, tcell.ColorYellow
 	}
 
-	switch component {
-	case "advanced":
-		// Advanced search uses slightly different styling
-		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
-	case "simple", "overlay":
-		// Simple search and overlay search
-		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
-	default:
+	// Use hierarchical system for all search components
+	bg, fg, label := a.currentTheme.GetInputColors()
+	if bg == "" || fg == "" || label == "" {
+		// Legacy fallback
 		return a.currentTheme.Body.BgColor.Color(), a.currentTheme.Body.FgColor.Color(), a.currentTheme.UI.TitleColor.Color()
 	}
+	return bg.Color(), fg.Color(), label.Color()
 }

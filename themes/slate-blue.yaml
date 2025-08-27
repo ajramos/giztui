@@ -1,0 +1,168 @@
+# Gmail TUI Slate Blue Theme
+# Dark blue/slate theme inspired by terminal email clients
+
+name: "Slate Blue"
+description: "Dark blue/slate theme with cyan accents"
+version: "2.0"
+
+gmailTUI:
+  # New hierarchical structure
+  foundation:
+    background: "#1e2540"          # Dark slate blue background
+    foreground: "#c5d1eb"          # Light blue-gray text
+    border: "#3f4a5f"              # Medium slate border
+    focus: "#64b5f6"               # Light blue focus
+
+  semantic:
+    primary: "#81c784"             # Green for titles and main actions
+    secondary: "#7986cb"           # Muted blue for supporting elements
+    accent: "#4fc3f7"              # Cyan for highlights and links
+    success: "#81c784"             # Green for success states
+    warning: "#ffb74d"             # Orange for warnings
+    error: "#f48fb1"               # Pink for errors  
+    info: "#4fc3f7"                # Cyan for info
+
+  interaction:
+    selection:
+      cursor:
+        bg: "#2d3748"              # Background when navigating/focusing
+        fg: "#c5d1eb"              # Text color when navigating/focusing
+      bulk:
+        bg: "#1a202c"              # Subtle darker background for bulk-selected items
+        fg: "#c5d1eb"              # Text color for bulk-selected items
+    input:
+      bg: "#2d3748"                # Dark input background
+      fg: "#c5d1eb"                # Light input text
+      label: "#81c784"             # Green labels
+    statusBar:
+      bg: "#3f4a5f"                # Medium slate status bar background
+      fg: "#c5d1eb"                # Light text for status bar
+
+  # Component-specific overrides (only specify what should override semantic/foundation)
+  overrides:
+    ai:
+      primary: "#ba68c8"           # Purple for AI titles (overrides semantic.primary)
+      accent: "#f48fb1"            # Pink accent for AI (overrides semantic.accent)
+    prompts:
+      primary: "#f48fb1"           # Pink for prompt titles (overrides semantic.primary)
+      accent: "#ba68c8"            # Purple accent for prompts (overrides semantic.accent)
+  body:
+    fgColor: "#c5d1eb"          # Light blue-gray text
+    bgColor: "#1e2540"          # Dark slate blue background
+    logoColor: "#64b5f6"        # Light blue logo
+
+  frame:
+    border:
+      fgColor: "#3f4a5f"        # Medium slate border
+      focusColor: "#64b5f6"     # Light blue focus
+    
+    title:
+      fgColor: "#c5d1eb"        # Light text for titles
+      bgColor: "#1e2540"        # Dark background
+      highlightColor: "#81c784" # Green highlight
+      counterColor: "#64b5f6"   # Blue counter
+      filterColor: "#4fc3f7"    # Cyan filter
+
+  table:
+    fgColor: "#c5d1eb"          # Table text
+    bgColor: "#1e2540"          # Table background
+    headerFgColor: "#81c784"    # Green header
+    headerBgColor: "#1e2540"    # Header background
+
+  # Email status colors matching the screenshot
+  email:
+    unreadColor: "#4fc3f7"      # Cyan for unread (like screenshot)
+    readColor: "#7986cb"        # Muted blue for read
+    importantColor: "#81c784"   # Green for important (green circles in screenshot)
+    sentColor: "#64b5f6"        # Light blue for sent
+    draftColor: "#ffb74d"       # Orange for drafts
+
+  # UI component colors
+  ui:
+    titleColor: "#81c784"       # Green titles for consistency
+    footerColor: "#7986cb"      # Muted blue footer
+    hintColor: "#7986cb"        # Hint text
+    
+    # Selection colors (cursor/navigation)
+    selectionBgColor: "#2d3748"  # Background when navigating/focusing
+    selectionFgColor: "#c5d1eb"  # Text color when navigating/focusing
+    
+    # Bulk selection colors (checked items)
+    bulkSelectionBgColor: "#1a202c"  # Subtle darker background for bulk-selected items
+    bulkSelectionFgColor: "#c5d1eb"  # Text color for bulk-selected items
+    
+    # Status message colors
+    errorColor: "#f48fb1"       # Pink for errors
+    successColor: "#81c784"     # Green for success
+    warningColor: "#ffb74d"     # Orange for warnings
+    infoColor: "#4fc3f7"        # Cyan for info
+    
+    # Input field colors
+    inputBgColor: "#2d3748"     # Dark input background
+    inputFgColor: "#c5d1eb"     # Light input text
+    labelColor: "#81c784"       # Green labels
+
+    # Status bar colors
+    statusBarBgColor: "#3f4a5f" # Medium slate status bar background
+    statusBarFgColor: "#c5d1eb" # Light text for status bar
+
+  # Color tags for text markup
+  tags:
+    title: "#81c784"            # Green for titles (consistent)
+    header: "#64b5f6"           # Blue for headers
+    emphasis: "#ffb74d"         # Orange for emphasis
+    secondary: "#7986cb"        # Muted blue for secondary
+    link: "#4fc3f7"             # Cyan for links
+    code: "#ba68c8"             # Purple for code
+
+  # Status message colors
+  status:
+    error: "#f48fb1"            # Pink for errors
+    success: "#81c784"          # Green for success
+    warning: "#ffb74d"          # Orange for warnings
+    info: "#4fc3f7"             # Cyan for info
+    progress: "#64b5f6"         # Blue for progress
+
+  # Component-specific colors
+  components:
+    ai:
+      border: "#ba68c8"         # Purple border for AI
+      title: "#ba68c8"          # Purple title for AI
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#f48fb1"         # Pink accent
+      
+    slack:
+      border: "#81c784"         # Green border for Slack
+      title: "#81c784"          # Green title for Slack
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#4fc3f7"         # Cyan accent
+      
+    obsidian:
+      border: "#ffb74d"         # Orange border for Obsidian
+      title: "#ffb74d"          # Orange title for Obsidian
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#81c784"         # Green accent
+      
+    links:
+      border: "#4fc3f7"         # Cyan border for links
+      title: "#4fc3f7"          # Cyan title for links
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#64b5f6"         # Blue accent
+      
+    stats:
+      border: "#64b5f6"         # Blue border for stats
+      title: "#64b5f6"          # Blue title for stats
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#81c784"         # Green accent
+      
+    prompts:
+      border: "#f48fb1"         # Pink border for prompts
+      title: "#f48fb1"          # Pink title for prompts
+      background: "#1e2540"     # Dark background
+      text: "#c5d1eb"           # Light text
+      accent: "#ba68c8"         # Purple accent

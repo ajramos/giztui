@@ -744,6 +744,7 @@ func (a *App) applyBulkModeStyle(table *tview.Table) {
 			for col := 0; col < table.GetColumnCount(); col++ {
 				if cell := table.GetCell(row, col); cell != nil {
 					cell.SetBackgroundColor(a.getBulkSelectionColor())
+					cell.SetTextColor(a.getBulkSelectionTextColor())
 				}
 			}
 		}
@@ -792,8 +793,28 @@ func (a *App) getCurrentSelectedMessageID() string {
 
 // getBulkSelectionColor returns the background color for bulk-selected rows
 func (a *App) getBulkSelectionColor() tcell.Color {
-	// Use a darker background for selected items in bulk mode
-	return tcell.ColorDarkBlue
+	if a.currentTheme == nil {
+		return tcell.ColorDarkBlue // Fallback
+	}
+	bgColor, _ := a.currentTheme.GetBulkSelectionColors()
+	if bgColor == "" {
+		// Legacy fallback
+		return a.currentTheme.UI.BulkSelectionBgColor.Color()
+	}
+	return bgColor.Color()
+}
+
+// getBulkSelectionTextColor returns the text color for bulk-selected rows
+func (a *App) getBulkSelectionTextColor() tcell.Color {
+	if a.currentTheme == nil {
+		return tcell.ColorWhite // Fallback
+	}
+	_, fgColor := a.currentTheme.GetBulkSelectionColors()
+	if fgColor == "" {
+		// Legacy fallback
+		return a.currentTheme.UI.BulkSelectionFgColor.Color()
+	}
+	return fgColor.Color()
 }
 
 // refreshTableDisplay refreshes the entire table display based on current mode and data

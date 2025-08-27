@@ -1511,6 +1511,8 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	// Update existing widget colors
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		// Update title color with the new theme
+		list.SetTitleColor(a.getTitleColor())
 		// Force table to refresh content with new email renderer colors
 		if a.messagesMeta != nil && len(a.messagesMeta) > 0 {
 			// Trigger reformatting of list items to apply new theme colors
@@ -1525,6 +1527,24 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	}
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		a.aiSummaryView.SetTitleColor(a.getTitleColor())
+	}
+	// Update text container title color if it exists
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitleColor(a.getTitleColor())
+	}
+	// Update command panel title color if it exists
+	if cmdPanel, ok := a.views["cmdPanel"].(*tview.Flex); ok {
+		cmdPanel.SetTitleColor(a.getTitleColor())
+	}
+	// Update slack widget title color if it exists
+	if a.slackView != nil {
+		a.slackView.SetTitleColor(a.getTitleColor())
+	}
+	// Update status bar colors if it exists
+	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
+		statusBar.SetBackgroundColor(a.currentTheme.UI.StatusBarBgColor.Color())
+		statusBar.SetTextColor(a.currentTheme.UI.StatusBarFgColor.Color())
 	}
 
 	// Refresh borders for Flex containers that have been forced to use filled backgrounds
@@ -1547,57 +1567,126 @@ func (a *App) saveConfigAsync() error {
 
 // getTitleColor returns the theme's title color or fallback to yellow
 func (a *App) getTitleColor() tcell.Color {
+	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
+}
+
+// getComponentColor resolves a color using the hierarchical theme system
+func (a *App) getComponentColor(component config.ComponentType, colorType config.ColorType) tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorYellow // Fallback
+		// Fallback colors when no theme is loaded
+		switch colorType {
+		case config.ColorTypePrimary:
+			return tcell.ColorYellow
+		case config.ColorTypeSecondary:
+			return tcell.ColorGray
+		case config.ColorTypeAccent:
+			return tcell.ColorBlue
+		case config.ColorTypeBackground:
+			return tcell.ColorBlack
+		case config.ColorTypeForeground:
+			return tcell.ColorWhite
+		case config.ColorTypeBorder:
+			return tcell.ColorGray
+		case config.ColorTypeFocus:
+			return tcell.ColorBlue
+		case config.ColorTypeSuccess:
+			return tcell.ColorGreen
+		case config.ColorTypeWarning:
+			return tcell.ColorYellow
+		case config.ColorTypeError:
+			return tcell.ColorRed
+		case config.ColorTypeInfo:
+			return tcell.ColorBlue
+		default:
+			return tcell.ColorDefault
+		}
 	}
-	return a.currentTheme.UI.TitleColor.Color()
+	return a.currentTheme.GetComponentColor(component, colorType).Color()
 }
 
 // getFooterColor returns the theme's footer color or fallback to gray
 func (a *App) getFooterColor() tcell.Color {
-	if a.currentTheme == nil {
-		return tcell.ColorGray // Fallback
-	}
-	return a.currentTheme.UI.FooterColor.Color()
+	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
 }
 
 // getHintColor returns the theme's hint color or fallback to gray
 func (a *App) getHintColor() tcell.Color {
-	if a.currentTheme == nil {
-		return tcell.ColorGray // Fallback
-	}
-	return a.currentTheme.UI.HintColor.Color()
+	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
 }
 
-// getSelectionStyle returns the theme's selection style or fallback
+// getSelectionStyle returns the theme's cursor selection style or fallback
 func (a *App) getSelectionStyle() tcell.Style {
 	if a.currentTheme == nil {
 		return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
 	}
-	bgColor := a.currentTheme.UI.SelectionBgColor.Color()
-	fgColor := a.currentTheme.UI.SelectionFgColor.Color()
-	return tcell.StyleDefault.Foreground(fgColor).Background(bgColor)
+	bgColor, fgColor := a.currentTheme.GetCursorSelectionColors()
+	if bgColor == "" || fgColor == "" {
+		// Legacy fallback
+		bgColor = a.currentTheme.UI.SelectionBgColor
+		fgColor = a.currentTheme.UI.SelectionFgColor
+	}
+	return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
+}
+
+// getBulkSelectionStyle returns the theme's bulk selection style
+func (a *App) getBulkSelectionStyle() tcell.Style {
+	if a.currentTheme == nil {
+		return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDarkBlue)
+	}
+	bgColor, fgColor := a.currentTheme.GetBulkSelectionColors()
+	if bgColor == "" || fgColor == "" {
+		// Legacy fallback
+		bgColor = a.currentTheme.UI.BulkSelectionBgColor
+		fgColor = a.currentTheme.UI.BulkSelectionFgColor
+	}
+	return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
 }
 
 // getLabelColor returns the theme's label color or fallback to yellow
 func (a *App) getLabelColor() tcell.Color {
-	if a.currentTheme == nil {
-		return tcell.ColorYellow // Fallback
-	}
-	return a.currentTheme.UI.LabelColor.Color()
+	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
 }
 
 // getMessageHeaderColor returns the theme's header color for email message headers
 func (a *App) getMessageHeaderColor() tcell.Color {
-	if a.currentTheme == nil {
-		return tcell.ColorGreen // Fallback to green (traditional email header color)
-	}
-	return a.currentTheme.Tags.Header.Color()
+	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeAccent)
 }
 
 // getStatusColor returns theme-aware colors for different status levels
 func (a *App) getStatusColor(level string) tcell.Color {
 	return a.GetStatusColor(level) // Use the new helper function
+}
+
+// Component-specific color methods using the new hierarchical system
+
+// getAIComponentColor returns colors for AI components
+func (a *App) getAIComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypeAI, colorType)
+}
+
+// getPromptsComponentColor returns colors for prompt components  
+func (a *App) getPromptsComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypePrompts, colorType)
+}
+
+// getSlackComponentColor returns colors for Slack components
+func (a *App) getSlackComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypeSlack, colorType)
+}
+
+// getObsidianComponentColor returns colors for Obsidian components
+func (a *App) getObsidianComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypeObsidian, colorType)
+}
+
+// getLinksComponentColor returns colors for Links components
+func (a *App) getLinksComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypeLinks, colorType)
+}
+
+// getStatsComponentColor returns colors for Stats components
+func (a *App) getStatsComponentColor(colorType config.ColorType) tcell.Color {
+	return a.getComponentColor(config.ComponentTypeStats, colorType)
 }
 
 // (moved to messages.go)
