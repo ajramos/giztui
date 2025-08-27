@@ -153,4 +153,67 @@ Consider revisiting when:
 
 ---
 
+## ⚠️ Undo Functionality Limitations
+
+### Issue Description
+**Type**: Functional Limitation  
+**Severity**: Medium  
+**Status**: ✅ RESOLVED  
+**Date Identified**: August 23, 2025  
+
+The undo functionality had limitations that have been resolved:
+
+#### 1. Move Operation Undo (RESOLVED)
+**Problem**: Move operation undo was only restoring message to inbox, did not remove the applied label.
+
+**Example Flow**:
+1. Move message to "Work" label (applies "Work" label + archives message)
+2. Press `U` to undo
+3. ✅ Message returns to inbox 
+4. ✅ "Work" label is now properly removed
+
+**Root Cause**: Move operations were using simplified archive undo instead of proper move undo logic.
+
+**Solution Applied**: 
+- Modified move undo to use proper undoMove() function that removes applied labels
+- Added immediate cache updates for move operations
+- Messages now appear immediately in inbox with applied labels removed
+
+#### 2. Label Operations Undo (RESOLVED)  
+**Problem**: Adding or removing labels individually was recording undo actions but undo failed silently.
+
+**Example Flow**:
+1. Select message and press `l` to open label manager
+2. Add or remove a label
+3. Press `U` to undo
+4. ❌ Nothing happened - no message, no undo, silent failure
+
+**Root Cause**: Circular dependency in undo architecture:
+- UndoService called LabelService to reverse operations
+- LabelService recorded new undo actions, overwriting original
+- Created infinite loop causing silent failure
+
+**Solution Applied**: Modified undo operations to use Gmail client directly instead of service layer, bypassing circular dependency issue.
+
+### Impact Assessment
+- **Move Undo**: ✅ **RESOLVED** - Messages restored to inbox with applied labels removed
+- **Label Undo**: ✅ **RESOLVED** - Label operations can now be undone properly
+- **User Experience**: ✅ **CONSISTENT** - All undo operations now work correctly
+- **Workaround Available**: ✅ **NO WORKAROUNDS NEEDED** - All functionality works as expected
+
+### Workaround
+✅ **NO WORKAROUNDS NEEDED** - All undo functionality now works correctly with immediate cache updates
+
+### Dependencies
+- **Architecture**: Service layer undo recording system
+- **Files Affected**: 
+  - `internal/tui/labels.go` - Label UI operations
+  - `internal/services/undo_service.go` - Undo logic
+  - `internal/services/label_service.go` - Label business logic
+
+### Status
+**Documented Limitation** - Complex architectural changes required to fix properly without introducing application stability issues.
+
+---
+
 *For additional context and research approaches, see the LLM research prompt in this directory.*

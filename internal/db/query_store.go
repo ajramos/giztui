@@ -10,15 +10,15 @@ import (
 
 // SavedQuery represents a saved search query
 type SavedQuery struct {
-	ID          int64  `json:"id"`
+	ID           int64  `json:"id"`
 	AccountEmail string `json:"account_email"`
-	Name        string `json:"name"`
-	Query       string `json:"query"`
-	Description string `json:"description"`
-	CreatedAt   int64  `json:"created_at"`
-	LastUsed    int64  `json:"last_used"`
-	UseCount    int    `json:"use_count"`
-	Category    string `json:"category"`
+	Name         string `json:"name"`
+	Query        string `json:"query"`
+	Description  string `json:"description"`
+	CreatedAt    int64  `json:"created_at"`
+	LastUsed     int64  `json:"last_used"`
+	UseCount     int    `json:"use_count"`
+	Category     string `json:"category"`
 }
 
 // QueryStore handles database operations for saved queries
@@ -40,7 +40,7 @@ func (s *QueryStore) SaveQuery(ctx context.Context, accountEmail, name, query, d
 	}
 
 	now := time.Now().Unix()
-	
+
 	// Try to insert new query
 	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO saved_queries (account_email, name, query, description, created_at, last_used, use_count, category)
@@ -51,7 +51,7 @@ func (s *QueryStore) SaveQuery(ctx context.Context, accountEmail, name, query, d
 			last_used = excluded.last_used,
 			category = excluded.category`,
 		accountEmail, name, query, description, now, now, category)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to save query: %w", err)
 	}
@@ -62,15 +62,15 @@ func (s *QueryStore) SaveQuery(ctx context.Context, accountEmail, name, query, d
 		// If we can't get the query back, create a minimal response
 		id, _ := result.LastInsertId()
 		return &SavedQuery{
-			ID:          id,
+			ID:           id,
 			AccountEmail: accountEmail,
-			Name:        name,
-			Query:       query,
-			Description: description,
-			CreatedAt:   now,
-			LastUsed:    now,
-			UseCount:    0,
-			Category:    category,
+			Name:         name,
+			Query:        query,
+			Description:  description,
+			CreatedAt:    now,
+			LastUsed:     now,
+			UseCount:     0,
+			Category:     category,
 		}, nil
 	}
 
@@ -266,7 +266,7 @@ func (s *QueryStore) SearchQueries(ctx context.Context, accountEmail, searchTerm
 	}
 
 	searchPattern := "%" + strings.TrimSpace(searchTerm) + "%"
-	
+
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, account_email, name, query, description, created_at, last_used, use_count, category
 		FROM saved_queries

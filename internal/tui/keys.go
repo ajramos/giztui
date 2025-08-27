@@ -7,6 +7,7 @@ import (
 
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
+	"github.com/ajramos/gmail-tui/internal/services"
 )
 
 // handleConfigurableKey checks if a key event matches a configurable shortcut and executes the corresponding action
@@ -370,7 +371,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> bulk_select", key)
 		}
 		return a.handleBulkSelect()
-	
+
 	// Saved queries
 	case a.Keys.SaveQuery:
 		if a.logger != nil {
@@ -867,6 +868,16 @@ func (a *App) bindKeys() {
 				go a.searchByToCurrent()
 				return nil
 			}
+		case 'U':
+			// Undo last action
+			if a.undoService != nil && a.undoService.HasUndoableAction() {
+				go a.performUndo()
+			} else {
+				go func() {
+					a.GetErrorHandler().ShowInfo(a.ctx, "No action to undo")
+				}()
+			}
+			return nil
 		case 'S':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('S') {
@@ -1146,7 +1157,6 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
@@ -1357,7 +1367,7 @@ func (a *App) toggleFocus() {
 	}
 	// Apply focus and indicators
 	targetName := ringNames[next]
-	
+
 	// Special handling for prompt picker - focus will be handled by the container's default behavior
 	// The container should automatically focus the first focusable child (input field)
 	if targetName == "prompts" {
@@ -1366,7 +1376,7 @@ func (a *App) toggleFocus() {
 		a.updateFocusIndicators("prompts")
 		return
 	}
-	
+
 	a.SetFocus(ring[next])
 	a.currentFocus = targetName
 	a.updateFocusIndicators(targetName)
@@ -1901,8 +1911,14 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}
 	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: VIM move operation starting for messageID: %s", messageID)
+		}
 		go func() {
 			a.SetCurrentMessageID(messageID)
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: VIM move operation calling openMovePanel")
+			}
 			a.openMovePanel()
 		}()
 	case a.Keys.ManageLabels:
@@ -2019,27 +2035,18 @@ func (a *App) archiveRange(startIndex, count int) {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d messages (a%da)...", actualCount, count))
 	}()
 
-	// Archive in background
+	// Archive in background using bulk service for proper undo recording
 	go func() {
-		failed := 0
-		for i, messageID := range messageIDs {
-			// Progress update
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d messages...", i+1, actualCount))
-
-			// Archive message
-			emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-			if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
-				failed++
-				continue
-			}
-		}
+		// Use bulk archive service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkArchive(a.ctx, messageIDs)
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
+		if err == nil {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Archived %d messages (a%da)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived %d messages, %d failed (a%da)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to archive some messages (a%da): %v", count, err))
 		}
 
 		// Remove archived messages from current view (no server reload needed)
@@ -2069,27 +2076,18 @@ func (a *App) trashRange(startIndex, count int) {
 		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Moving %d messages to trash (d%dd)...", actualCount, count))
 	}()
 
-	// Trash in background
+	// Trash in background using bulk service for proper undo recording
 	go func() {
-		failed := 0
-		for i, messageID := range messageIDs {
-			// Progress update
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d messages...", i+1, actualCount))
-
-			// Trash message
-			emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-			if err := emailService.TrashMessage(a.ctx, messageID); err != nil {
-				failed++
-				continue
-			}
-		}
+		// Use bulk trash service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkTrash(a.ctx, messageIDs)
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
-		if failed == 0 {
+		if err == nil {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Moved %d messages to trash (d%dd)", actualCount, count))
 		} else {
-			a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Moved %d messages to trash, %d failed (d%dd)", actualCount-failed, failed, count))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to trash some messages (d%dd): %v", count, err))
 		}
 
 		// Remove trashed messages from current view (no server reload needed)
@@ -2129,12 +2127,23 @@ func (a *App) toggleReadRange(startIndex, count int) {
 
 	// Toggle read status in background
 	go func() {
-		failed := 0
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		_, _, _, _, repository, _, _, _, _, _, _ := a.GetServices()
+		undoService := a.GetUndoService()
 
+		// Create a single comprehensive undo action for the entire range operation
+		// We need to capture the state of all messages before performing any operations
+		prevStates := make(map[string]services.ActionState)
+		unreadIDs := make([]string, 0)
+		readIDs := make([]string, 0)
+
+		// Capture state and separate messages by current read status
 		for i, messageID := range messageIDs {
-			// Progress update
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read %d/%d messages...", i+1, actualCount))
+			// Capture current state for undo
+			if undoServiceImpl, ok := undoService.(*services.UndoServiceImpl); ok {
+				if prevState, err := undoServiceImpl.CaptureMessageState(a.ctx, messageID); err == nil {
+					prevStates[messageID] = prevState
+				}
+			}
 
 			// Determine current read status by checking message meta
 			isUnread := false
@@ -2148,16 +2157,45 @@ func (a *App) toggleReadRange(startIndex, count int) {
 				}
 			}
 
-			// Toggle: if unread, mark as read; if read, mark as unread
+			if isUnread {
+				unreadIDs = append(unreadIDs, messageID)
+			} else {
+				readIDs = append(readIDs, messageID)
+			}
+		}
+
+		failed := 0
+
+		// Perform toggle operations using repository directly and record combined undo action
+		for i, messageID := range messageIDs {
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Toggling read %d/%d messages...", i+1, actualCount))
+
+			// Determine if this message was unread or read
+			isUnread := false
+			for _, unreadID := range unreadIDs {
+				if unreadID == messageID {
+					isUnread = true
+					break
+				}
+			}
+
 			var err error
 			if isUnread {
-				err = emailService.MarkAsRead(a.ctx, messageID)
+				// Mark as read (remove UNREAD label)
+				updates := services.MessageUpdates{
+					RemoveLabels: []string{"UNREAD"},
+				}
+				err = repository.UpdateMessage(a.ctx, messageID, updates)
 				if err == nil {
 					// Update local cache to remove UNREAD label
 					a.updateCachedMessageLabels(messageID, "UNREAD", false)
 				}
 			} else {
-				err = emailService.MarkAsUnread(a.ctx, messageID)
+				// Mark as unread (add UNREAD label)
+				updates := services.MessageUpdates{
+					AddLabels: []string{"UNREAD"},
+				}
+				err = repository.UpdateMessage(a.ctx, messageID, updates)
 				if err == nil {
 					// Update local cache to add UNREAD label
 					a.updateCachedMessageLabels(messageID, "UNREAD", true)
@@ -2165,9 +2203,28 @@ func (a *App) toggleReadRange(startIndex, count int) {
 			}
 
 			if err != nil {
+				if a.logger != nil {
+					a.logger.Printf("toggleReadRange: Failed to toggle message %s: %v", messageID, err)
+				}
 				failed++
-				continue
 			}
+		}
+
+		// Record a single undo action for the entire toggle range operation after all operations complete
+		if len(prevStates) > 0 && failed < len(messageIDs) {
+			// Create a custom undo action that will restore each message to its previous state
+			// We'll use UndoActionMarkRead as the type, but with custom logic in the undo service
+			action := &services.UndoableAction{
+				Type:        services.UndoActionMarkRead, // We'll modify the undo logic to handle this case
+				MessageIDs:  messageIDs,
+				PrevState:   prevStates,
+				Description: fmt.Sprintf("Toggle read status (%s%d%s)", a.Keys.ToggleRead, count, a.Keys.ToggleRead),
+				IsBulk:      true,
+				ExtraData: map[string]interface{}{
+					"operation_type": "toggle_read", // Custom flag to indicate this is a toggle operation
+				},
+			}
+			undoService.RecordAction(a.ctx, action)
 		}
 
 		// Clear progress and show result

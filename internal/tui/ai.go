@@ -558,7 +558,9 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 							}
 							a.updateCachedMessageLabels(messageID, id, true)
 							a.QueueUpdateDraw(func() {
-								a.showStatusMessage("✅ Applied: " + lbl)
+								go func() {
+									a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied: "+lbl)
+								}()
 								a.refreshMessageContent(messageID)
 							})
 						}()
@@ -575,7 +577,9 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 							}
 						}
 						a.QueueUpdateDraw(func() {
-							a.showStatusMessage("✅ Applied all suggestions")
+							go func() {
+								a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Applied all suggestions")
+							}()
 							a.refreshMessageContent(messageID)
 						})
 					}()

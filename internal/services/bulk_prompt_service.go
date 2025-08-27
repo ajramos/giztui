@@ -156,14 +156,14 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 						return cachedResult, nil // User cancelled, return what we have
 					default:
 					}
-					
+
 					// Add word with space, except for last word
 					token := word
 					if i < len(words)-1 {
 						token += " "
 					}
 					onToken(token)
-					
+
 					// Small delay to make streaming effect visible (increased for better UX)
 					time.Sleep(100 * time.Millisecond)
 				}

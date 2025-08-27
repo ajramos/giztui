@@ -19,17 +19,14 @@ func (a *App) archiveSelectedBulk() {
 	}
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
+		// Use bulk service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkArchive(a.ctx, ids)
+
 		failed := 0
-		total := len(ids)
-		for i, id := range ids {
-			if err := a.Client.ArchiveMessage(id); err != nil {
-				failed++
-				continue
-			}
-			// Progress update on UI thread
-			idx := i + 1
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d/%d…", idx, total))
-			// Remove from UI list on main thread after loop
+		if err != nil {
+			// Count failures (this is approximate since BulkArchive doesn't return detailed failure info)
+			failed = 1 // Mark as partial failure
 		}
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
@@ -68,15 +65,14 @@ func (a *App) trashSelectedBulk() {
 	}
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
+		// Use bulk service method for proper undo recording
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		err := emailService.BulkTrash(a.ctx, ids)
+
 		failed := 0
-		total := len(ids)
-		for i, id := range ids {
-			if err := a.Client.TrashMessage(id); err != nil {
-				failed++
-			}
-			// Progress update on UI thread
-			idx := i + 1
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d/%d…", idx, total))
+		if err != nil {
+			// Count failures (this is approximate since BulkTrash doesn't return detailed failure info)
+			failed = 1 // Mark as partial failure
 		}
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
@@ -145,37 +141,25 @@ func (a *App) toggleMarkReadUnreadBulk() {
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Marking %d message(s) as %s…", len(ids), action))
 
 	go func() {
+		// Get EmailService to ensure undo actions are recorded
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+
+		var err error
+		if markAsUnread {
+			err = emailService.BulkMarkAsUnread(a.ctx, ids)
+		} else {
+			err = emailService.BulkMarkAsRead(a.ctx, ids)
+		}
+
 		failed := 0
-		total := len(ids)
-
-		for i, id := range ids {
-			var err error
-			if markAsUnread {
-				err = a.Client.MarkAsUnread(id)
-			} else {
-				err = a.Client.MarkAsRead(id)
-			}
-
-			if err != nil {
-				failed++
-				continue
-			}
-
-			// Progress update
-			idx := i + 1
-			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Marking %d/%d as %s…", idx, total, action))
+		if err != nil {
+			failed = len(ids) // If bulk operation fails, consider all as failed
 		}
 
 		// Update UI after all operations complete
 		a.QueueUpdateDraw(func() {
-			// Update cache for all processed messages
-			for _, id := range ids {
-				if markAsUnread {
-					a.updateCachedMessageLabels(id, "UNREAD", true)
-				} else {
-					a.updateCachedMessageLabels(id, "UNREAD", false)
-				}
-			}
+			// NOTE: Removed manual cache updates - let undo system handle cache updates to avoid conflicts
+			// The bulk service methods record proper undo actions, and undo will handle cache updates
 
 			// Exit bulk mode and restore normal rendering/styles
 			a.selected = make(map[string]bool)

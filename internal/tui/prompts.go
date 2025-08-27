@@ -222,12 +222,12 @@ func (a *App) closePromptPicker() {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
 	a.labelsVisible = false
-	
+
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
 		textContainer.SetTitleColor(a.getTitleColor())
-		
+
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			// Use stored original height if available, otherwise fallback to default
@@ -239,7 +239,7 @@ func (a *App) closePromptPicker() {
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}
 	}
-	
+
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
 		a.currentFocus = "text"
@@ -410,7 +410,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			cancel()
 			a.streamingCancel = nil // Clear when done
 		}()
-		
+
 		// Throttling for visible streaming effect
 		var lastUpdate time.Time
 		var b strings.Builder
@@ -419,7 +419,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			chunkDelayMs = 150 // Default 150ms for smooth streaming
 		}
 		chunkDelay := time.Duration(chunkDelayMs) * time.Millisecond
-		
+
 		if a.logger != nil {
 			a.logger.Printf("applyPromptToMessage: using %dms chunk delay", chunkDelayMs)
 		}
@@ -440,8 +440,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			}
 
 			b.WriteString(token)
-			
-			
+
 			// Throttle UI updates for visible streaming effect
 			now := time.Now()
 			if now.Sub(lastUpdate) >= chunkDelay || lastUpdate.IsZero() {
@@ -453,11 +452,11 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 				if ctx.Err() == nil && a.aiSummaryView != nil {
 					a.aiSummaryView.SetText(currentText)
 					a.aiSummaryView.ScrollToEnd()
-					
+
 					// Force tview to refresh the screen for visible streaming
 					a.ForceDraw()
 				}
-				
+
 				// Add small sleep to ensure UI updates are visible
 				time.Sleep(time.Duration(chunkDelayMs/2) * time.Millisecond)
 			}
@@ -738,12 +737,12 @@ func (a *App) closePromptManager() {
 		}
 	}
 	a.labelsVisible = false
-	
+
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
 		textContainer.SetTitleColor(a.getTitleColor())
-		
+
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			// Use stored original height if available, otherwise fallback to default
@@ -755,7 +754,7 @@ func (a *App) closePromptManager() {
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}
 	}
-	
+
 	a.SetFocus(a.views["list"])
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
@@ -794,27 +793,27 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 📝 Prompt Details ")
 				textContainer.SetTitleColor(a.getTitleColor())
-				
+
 				// Store the current header height before hiding it
 				if header, ok := a.views["header"].(*tview.TextView); ok {
 					// Calculate current header height based on its content
 					headerContent := header.GetText(false)
 					a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
-					
+
 					// Hide message headers by resizing header to 0 height
 					textContainer.ResizeItem(header, 0, 0)
 				}
-				
+
 				// Debug: Log that we're setting the title
 				if a.logger != nil {
 					a.logger.Printf("TITLE DEBUG: Set title to 'Prompt Details' and hid headers for prompt: %s (original height: %d)", promptName, a.originalHeaderHeight)
 				}
 			}
-			
+
 			if textView, ok := a.views["text"].(*tview.TextView); ok {
 				textView.SetText(details)
 				textView.ScrollToBeginning()
-				
+
 				// Set focus to text view for scrolling (use EnhancedTextView if available)
 				if a.enhancedTextView != nil {
 					a.SetFocus(a.enhancedTextView)
@@ -840,7 +839,7 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 func (a *App) promptForExportPath(promptID int, promptName string) {
 	// For now, use a simple naming pattern - in a real implementation you might want a file picker
 	defaultPath := fmt.Sprintf("~/prompt_%s.md", strings.ReplaceAll(strings.ToLower(promptName), " ", "_"))
-	
+
 	// Get services
 	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
@@ -875,7 +874,7 @@ func (a *App) confirmDeletePrompt(promptID int, promptName string) {
 	}
 
 	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
-	
+
 	// Refresh the prompt manager
 	go a.openPromptPickerForManagement()
 }

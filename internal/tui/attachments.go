@@ -95,7 +95,7 @@ func (a *App) openAttachmentPicker() {
 				// Always show MIME type, even if size is unknown
 				secondary = item.mimeType
 			}
-			
+
 			// If no secondary text, show a default indicator
 			if secondary == "" {
 				secondary = "attachment"
@@ -418,20 +418,20 @@ func (a *App) saveAttachmentAs(messageID, attachmentID, filename string) {
 		if key == tcell.KeyEnter {
 			customPath := strings.TrimSpace(pathInput.GetText())
 			a.closeSaveAsPanel()
-			
+
 			// Download with custom path
 			go func() {
 				go func() {
 					a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Saving '%s'...", filename))
 				}()
-				
+
 				if attachmentService != nil {
 					downloadPath, err := attachmentService.DownloadAttachmentWithFilename(a.ctx, messageID, attachmentID, customPath, filename)
 					if err != nil {
 						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save: %v", err))
 						return
 					}
-					
+
 					displayName := filepath.Base(downloadPath)
 					a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Saved: %s", displayName))
 				}
@@ -510,18 +510,18 @@ func formatFileSize(size int64) string {
 	if size == 0 {
 		return "size unknown"
 	}
-	
+
 	const unit = 1024
 	if size < unit {
 		return fmt.Sprintf("%d B", size)
 	}
-	
+
 	div, exp := int64(unit), 0
 	for n := size / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	
+
 	suffixes := []string{"B", "KB", "MB", "GB", "TB"}
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), suffixes[exp+1])
 }

@@ -835,11 +835,11 @@ func (a *App) openSearchOverlay(mode string) {
 func (a *App) openAdvancedSearchForm() {
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
-	
+
 	// Apply theme-aware styling to override form defaults and match simple search
 	bgColor, textColor := a.GetInputFieldColors()
 	form.SetBackgroundColor(bgColor).SetBorder(false)
-	
+
 	// Try to override form's internal styling by setting button colors as well
 	form.SetButtonBackgroundColor(bgColor)
 	form.SetButtonTextColor(textColor)
@@ -858,19 +858,19 @@ func (a *App) openAdvancedSearchForm() {
 		SetPlaceholder("person@example.com").
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(toField, "advanced")
-	
+
 	subjectField := tview.NewInputField().
 		SetLabel("🧾 Subject").
 		SetPlaceholder("exact words or phrase").
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(subjectField, "advanced")
-	
+
 	hasField := tview.NewInputField().
 		SetLabel("🔎 Has the words").
 		SetPlaceholder("words here").
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(hasField, "advanced")
-	
+
 	notField := tview.NewInputField().
 		SetLabel("🚫 Doesn't have").
 		SetPlaceholder("exclude words").
@@ -881,9 +881,9 @@ func (a *App) openAdvancedSearchForm() {
 	form.AddFormItem(subjectField)
 	form.AddFormItem(hasField)
 	form.AddFormItem(notField)
-	
+
 	// Remove duplicate theme applications - already applied above
-	
+
 	// Size single expression, e.g. "<2MB" or ">500KB"
 	sizeExprField := tview.NewInputField().
 		SetLabel("📦 Size").
@@ -891,7 +891,7 @@ func (a *App) openAdvancedSearchForm() {
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(sizeExprField, "advanced")
 	form.AddFormItem(sizeExprField)
-	
+
 	// Date within single token, e.g. "2d", "3w", "1m", "4h", "6y"
 	dateWithinField := tview.NewInputField().
 		SetLabel("⏱️  Date within").
@@ -913,7 +913,7 @@ func (a *App) openAdvancedSearchForm() {
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(scopeField, "advanced")
 	form.AddFormItem(scopeField)
-	
+
 	// Remove duplicate theme applications - already applied above
 	// Expose fields for global navigation handling by storing the form itself
 	a.views["advForm"] = form
@@ -1108,7 +1108,7 @@ func (a *App) openAdvancedSearchForm() {
 		filter.SetFieldWidth(30)
 		// Apply consistent theme styling to filter field
 		a.ConfigureInputFieldTheme(filter, "advanced")
-		
+
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(false)
 		// Apply theme styling to list
@@ -1117,7 +1117,7 @@ func (a *App) openAdvancedSearchForm() {
 		list.SetMainTextColor(textColor)
 		list.SetSelectedBackgroundColor(a.getTitleColor())
 		list.SetSelectedTextColor(bgColor)
-		
+
 		// Container con borde para incluir picker + lista
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
 		box.SetBorder(true).SetTitle(" 📂 Search options ")
@@ -2415,7 +2415,7 @@ func (a *App) adjustHeaderHeight(headerContent string) {
 				textContainer.ResizeItem(header, 0, 0)
 				return
 			}
-			
+
 			// Count the number of lines in the header content
 			lines := strings.Count(headerContent, "\n") + 1
 
@@ -3186,7 +3186,9 @@ func (a *App) archiveSelected() {
 		a.showError(fmt.Sprintf("❌ Error archiving message: %v", err))
 		return
 	}
-	a.showStatusMessage(fmt.Sprintf("📥 Archived: %s", subject))
+	go func() {
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("📥 Archived: %s", subject))
+	}()
 
     // Safe UI removal (preselect another index before removing)
     a.QueueUpdateDraw(func() {
@@ -3231,9 +3233,13 @@ func (a *App) archiveSelectedBulk() {
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {
-				a.showStatusMessage("✅ Archived")
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Archived")
+				}()
 			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Archived with %d failure(s)", failed))
+				go func() {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Archived with %d failure(s)", failed))
+				}()
 			}
 		})
 	}()
@@ -3273,9 +3279,13 @@ func (a *App) trashSelectedBulk() {
 			}
 			a.setStatusPersistent("")
 			if failed == 0 {
-				a.showStatusMessage("✅ Trashed")
+				go func() {
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✅ Trashed")
+				}()
 			} else {
-				a.showStatusMessage(fmt.Sprintf("✅ Trashed with %d failure(s)", failed))
+				go func() {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Trashed with %d failure(s)", failed))
+				}()
 			}
 		})
 	}()
@@ -3286,8 +3296,8 @@ func (a *App) trashSelectedBulk() {
 func (a *App) replySelected() { a.showInfo("Reply functionality not yet implemented") }
 
 // showAttachments opens the attachment picker for the current message
-func (a *App) showAttachments() { 
-	go a.openAttachmentPicker() 
+func (a *App) showAttachments() {
+	go a.openAttachmentPicker()
 }
 
 // toggleMarkReadUnread toggles UNREAD label on selected message
@@ -3327,8 +3337,11 @@ func (a *App) toggleMarkReadUnread() {
 		}
 	}
 	go func(markUnread bool) {
+		// Get EmailService to ensure undo actions are recorded
+		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+
 		if markUnread {
-			if err := a.Client.MarkAsUnread(messageID); err != nil {
+			if err := emailService.MarkAsUnread(a.ctx, messageID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error marking as unread: %v", err))
 				return
 			}
@@ -3339,7 +3352,7 @@ func (a *App) toggleMarkReadUnread() {
 				a.refreshTableDisplay()
 			})
 		} else {
-			if err := a.Client.MarkAsRead(messageID); err != nil {
+			if err := emailService.MarkAsRead(a.ctx, messageID); err != nil {
 				a.showError(fmt.Sprintf("❌ Error marking as read: %v", err))
 				return
 			}
@@ -3399,7 +3412,7 @@ func (a *App) toggleHeaderVisibility() {
 
 	// Toggle visibility and get new state
 	newState := displayService.ToggleHeaderVisibility()
-	
+
 	// Refresh the current message to apply the change
 	messageID := a.GetCurrentMessageID()
 	if messageID != "" {
@@ -3414,7 +3427,7 @@ func (a *App) toggleHeaderVisibility() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "📄 Headers hidden - more space for content")
 		}
 	}()
-	
+
 	if a.logger != nil {
 		a.logger.Printf("toggleHeaderVisibility: headers now %v", map[bool]string{true: "visible", false: "hidden"}[newState])
 	}

@@ -65,6 +65,7 @@
     "search_to": "T",       // find messages to sender (same as default)
     "search_subject": "S",  // find by subject (same as default)
     "toggle_read": "t",     // toggle (same as default)
+    "undo": "U",            // undo (like Vim U for undo line)
     "trash": "dd",          // delete (like Vim dd)
     "archive": "a",         // archive (same as default)
     "move": "m",            // move (same as default)

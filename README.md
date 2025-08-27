@@ -474,6 +474,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `a` | `:archive` or `:a` | Archive message(s) |
 | `d` | `:trash` or `:d` | Move to trash |
 | `t` | `:read` or `:toggle-read` or `:t` | Toggle read/unread status |
+| `U` | `:undo` or `:U` | 🆕 **Undo last action** |
 | `r` | `:reply` or `:r` | Reply to message |
 | `c` | `:compose` or `:new` | Compose new message |
 | `N` | `:load` or `:more` or `:next` | Load next 50 messages |
@@ -512,6 +513,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `:` | Open command bar (k9s-style) |
 | `u` | Show unread |
 | `t` | Toggle read/unread |
+| `U` | 🆕 **Undo last action** - Reverse archive, trash, read/unread, or label operations |
 | `d` | Move to trash |
 | `a` | Archive |
 | `D` | View drafts (experimental) |

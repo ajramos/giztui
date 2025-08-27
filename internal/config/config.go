@@ -134,8 +134,8 @@ type LayoutConfig struct {
 	ShowBorders    bool   `json:"show_borders"`
 	ShowTitles     bool   `json:"show_titles"`
 	CompactMode    bool   `json:"compact_mode"`
-	CurrentTheme   string `json:"current_theme"`      // Active theme name (e.g., "gmail-dark")
-	CustomThemeDir string `json:"custom_theme_dir"`   // Custom themes directory (empty = default)
+	CurrentTheme   string `json:"current_theme"`    // Active theme name (e.g., "gmail-dark")
+	CustomThemeDir string `json:"custom_theme_dir"` // Custom themes directory (empty = default)
 }
 
 // LayoutBreakpoint defines minimum dimensions for layout types
@@ -148,10 +148,10 @@ type LayoutBreakpoint struct {
 type AttachmentsConfig struct {
 	// DownloadPath specifies where to save downloaded attachments
 	DownloadPath string `json:"download_path"`
-	
+
 	// AutoOpen automatically opens attachments after download
 	AutoOpen bool `json:"auto_open"`
-	
+
 	// MaxDownloadSize limits the maximum size for automatic downloads (in MB)
 	MaxDownloadSize int64 `json:"max_download_size"`
 }
@@ -209,24 +209,24 @@ type KeyBindings struct {
 	Quit          string `json:"quit"`
 
 	// Additional configurable shortcuts
-	Obsidian    string `json:"obsidian"`     // Send to Obsidian
-	Slack       string `json:"slack"`        // Forward to Slack
-	Markdown    string `json:"markdown"`     // Toggle markdown
-	SaveMessage string `json:"save_message"` // Save message to file
-	SaveRaw     string `json:"save_raw"`     // Save raw EML
-	RSVP        string `json:"rsvp"`         // Toggle RSVP panel
-	LinkPicker  string `json:"link_picker"`  // Open link picker
-	ThemePicker string `json:"theme_picker"` // Open theme picker
-	OpenGmail   string `json:"open_gmail"`   // Open message in Gmail web UI
-	BulkMode    string `json:"bulk_mode"`    // Toggle bulk mode
-	BulkSelect  string `json:"bulk_select"`  // Select/deselect message in bulk mode
-	CommandMode string `json:"command_mode"` // Open command bar
+	Obsidian      string `json:"obsidian"`       // Send to Obsidian
+	Slack         string `json:"slack"`          // Forward to Slack
+	Markdown      string `json:"markdown"`       // Toggle markdown
+	SaveMessage   string `json:"save_message"`   // Save message to file
+	SaveRaw       string `json:"save_raw"`       // Save raw EML
+	RSVP          string `json:"rsvp"`           // Toggle RSVP panel
+	LinkPicker    string `json:"link_picker"`    // Open link picker
+	ThemePicker   string `json:"theme_picker"`   // Open theme picker
+	OpenGmail     string `json:"open_gmail"`     // Open message in Gmail web UI
+	BulkMode      string `json:"bulk_mode"`      // Toggle bulk mode
+	BulkSelect    string `json:"bulk_select"`    // Select/deselect message in bulk mode
+	CommandMode   string `json:"command_mode"`   // Open command bar
 	Help          string `json:"help"`           // Toggle help
 	LoadMore      string `json:"load_more"`      // Load next 50 messages
 	ToggleHeaders string `json:"toggle_headers"` // Toggle header visibility
-	
+
 	// Saved queries
-	SaveQuery     string `json:"save_query"`     // Save current search as query
+	SaveQuery      string `json:"save_query"`      // Save current search as query
 	QueryBookmarks string `json:"query_bookmarks"` // Browse saved queries
 
 	// VIM sequence timeouts (in milliseconds)
@@ -252,6 +252,9 @@ type KeyBindings struct {
 	ThreadSummary       string `json:"thread_summary"`        // Generate AI summary of thread
 	NextThread          string `json:"next_thread"`           // Navigate to next thread
 	PrevThread          string `json:"prev_thread"`           // Navigate to previous thread
+
+	// Undo functionality
+	Undo string `json:"undo"` // Undo last action
 }
 
 // DefaultConfig returns a Config with sensible defaults
@@ -335,25 +338,25 @@ func DefaultKeyBindings() KeyBindings {
 		Quit:          "q",
 
 		// Additional configurable shortcuts
-		Obsidian:    "O",
-		Slack:       "K",
-		Markdown:    "M",
-		SaveMessage: "w",
-		SaveRaw:     "W",
-		RSVP:        "V",
-		LinkPicker:  "L",
-		ThemePicker: "H",
-		OpenGmail:   "O",
+		Obsidian:      "O",
+		Slack:         "K",
+		Markdown:      "M",
+		SaveMessage:   "w",
+		SaveRaw:       "W",
+		RSVP:          "V",
+		LinkPicker:    "L",
+		ThemePicker:   "H",
+		OpenGmail:     "O",
 		BulkMode:      "v",
 		BulkSelect:    "space", // Space key for bulk selection
 		CommandMode:   ":",
 		Help:          "?",
-		LoadMore:      "N",  // Shift+N for load more (n is used for search next)
-		ToggleHeaders: "h",  // Toggle header visibility
-		
+		LoadMore:      "N", // Shift+N for load more (n is used for search next)
+		ToggleHeaders: "h", // Toggle header visibility
+
 		// Saved queries
-		SaveQuery:     "Z",  // Save current search as query
-		QueryBookmarks: "Q",  // Browse saved queries
+		SaveQuery:      "Z", // Save current search as query
+		QueryBookmarks: "Q", // Browse saved queries
 
 		// VIM sequence timeouts (in milliseconds)
 		VimNavigationTimeoutMs: 1000, // 1 second for gg navigation
@@ -378,6 +381,9 @@ func DefaultKeyBindings() KeyBindings {
 		ThreadSummary:       "shift+t",  // Generate AI summary of thread
 		NextThread:          "ctrl+n",   // Navigate to next thread
 		PrevThread:          "ctrl+p",   // Navigate to previous thread
+
+		// Undo functionality
+		Undo: "U", // Undo last action
 	}
 }
 

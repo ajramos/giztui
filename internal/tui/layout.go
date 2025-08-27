@@ -14,7 +14,7 @@ func ForceFilledBorderFlex(f *tview.Flex) {
 	// Only process Flex containers that have borders enabled
 	// We need to check the Box's border state by looking at the current styling
 	// Since Flex embeds Box, we can access Box methods directly
-	
+
 	// Store current styling before replacing the Box
 	backgroundColor := f.GetBackgroundColor()
 	borderColor := f.GetBorderColor()
@@ -22,11 +22,11 @@ func ForceFilledBorderFlex(f *tview.Flex) {
 	title := f.GetTitle()
 	// For title color and alignment, we'll use the current theme values
 	// since these are not directly accessible from the Box
-	
+
 	// Replace the internal Box with a fresh one that has dontClear=false
 	// This ensures the Flex will clear/fill its background area like Table does
 	f.Box = tview.NewBox()
-	
+
 	// Reapply all the styling to the new Box
 	f.SetBackgroundColor(backgroundColor)
 	f.SetBorder(true)
@@ -341,19 +341,19 @@ func (a *App) RefreshBordersForFilledFlexes() {
 		tc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		tc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
 	}
-	
+
 	// Update labelsFlex
 	if a.labelsView != nil {
 		a.labelsView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		a.labelsView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
 	}
-	
+
 	// Update slackFlex
 	if a.slackView != nil {
 		a.slackView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		a.slackView.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
 	}
-	
+
 	// Update cmdPanel
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
 		cp.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)

@@ -100,8 +100,8 @@ func (c *OAuth2Config) GetToken(ctx context.Context) (*oauth2.Token, error) {
 		token, err = c.refreshToken(ctx, config, token)
 		if err != nil {
 			// Check if refresh token is invalid (expired or revoked)
-			if strings.Contains(err.Error(), "invalid_grant") || 
-			   strings.Contains(err.Error(), "Token has been expired or revoked") {
+			if strings.Contains(err.Error(), "invalid_grant") ||
+				strings.Contains(err.Error(), "Token has been expired or revoked") {
 				// Refresh token is invalid, need to re-authenticate
 				fmt.Println("\n⚠️  Your Gmail access token has expired or been revoked.")
 				fmt.Println("🔐 Re-authentication is required to continue using Gmail TUI.")

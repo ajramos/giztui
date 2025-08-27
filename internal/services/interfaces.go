@@ -23,7 +23,10 @@ type MessageRepository interface {
 type EmailService interface {
 	MarkAsRead(ctx context.Context, messageID string) error
 	MarkAsUnread(ctx context.Context, messageID string) error
+	BulkMarkAsRead(ctx context.Context, messageIDs []string) error
+	BulkMarkAsUnread(ctx context.Context, messageIDs []string) error
 	ArchiveMessage(ctx context.Context, messageID string) error
+	ArchiveMessageAsMove(ctx context.Context, messageID, labelID, labelName string) error
 	TrashMessage(ctx context.Context, messageID string) error
 	SendMessage(ctx context.Context, from, to, subject, body string) error
 	ReplyToMessage(ctx context.Context, originalID, replyBody string, send bool, cc []string) error
@@ -40,6 +43,8 @@ type LabelService interface {
 	DeleteLabel(ctx context.Context, labelID string) error
 	ApplyLabel(ctx context.Context, messageID, labelID string) error
 	RemoveLabel(ctx context.Context, messageID, labelID string) error
+	BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error
+	BulkRemoveLabel(ctx context.Context, messageIDs []string, labelID string) error
 	GetMessageLabels(ctx context.Context, messageID string) ([]string, error)
 }
 
@@ -105,13 +110,13 @@ type PromptService interface {
 	// Cache management
 	ClearPromptCache(ctx context.Context, accountEmail string) error
 	ClearAllPromptCaches(ctx context.Context) error
-	
+
 	// CRUD operations for prompt templates
 	CreatePrompt(ctx context.Context, name, description, promptText, category string) (int, error)
 	UpdatePrompt(ctx context.Context, id int, name, description, promptText, category string) error
 	DeletePrompt(ctx context.Context, id int) error
 	FindPromptByName(ctx context.Context, name string) (*PromptTemplate, error)
-	
+
 	// File operations for prompt templates
 	CreateFromFile(ctx context.Context, filePath string) (int, error)
 	ExportToFile(ctx context.Context, id int, filePath string) error
@@ -343,14 +348,14 @@ type ThemeService interface {
 	// Theme discovery and listing
 	ListAvailableThemes(ctx context.Context) ([]string, error)
 	GetCurrentTheme(ctx context.Context) (string, error)
-	
+
 	// Theme application
 	ApplyTheme(ctx context.Context, name string) error
-	
+
 	// Theme preview and information
 	PreviewTheme(ctx context.Context, name string) (*ThemeConfig, error)
 	GetThemeConfig(ctx context.Context, name string) (*ThemeConfig, error)
-	
+
 	// Theme validation
 	ValidateTheme(ctx context.Context, name string) error
 }
@@ -359,7 +364,7 @@ type ThemeService interface {
 type ThemeConfig struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	
+
 	// Color information for preview
 	EmailColors struct {
 		UnreadColor    string `json:"unread_color"`
@@ -368,33 +373,33 @@ type ThemeConfig struct {
 		SentColor      string `json:"sent_color"`
 		DraftColor     string `json:"draft_color"`
 	} `json:"email_colors"`
-	
+
 	UIColors struct {
 		// Basic UI colors
-		FgColor        string `json:"fg_color"`
-		BgColor        string `json:"bg_color"`
-		BorderColor    string `json:"border_color"`
-		FocusColor     string `json:"focus_color"`
-		
+		FgColor     string `json:"fg_color"`
+		BgColor     string `json:"bg_color"`
+		BorderColor string `json:"border_color"`
+		FocusColor  string `json:"focus_color"`
+
 		// Component colors (previously hardcoded)
-		TitleColor     string `json:"title_color"`
-		FooterColor    string `json:"footer_color"`
-		HintColor      string `json:"hint_color"`
-		
+		TitleColor  string `json:"title_color"`
+		FooterColor string `json:"footer_color"`
+		HintColor   string `json:"hint_color"`
+
 		// Selection colors
 		SelectionBgColor string `json:"selection_bg_color"`
 		SelectionFgColor string `json:"selection_fg_color"`
-		
+
 		// Status colors
-		ErrorColor     string `json:"error_color"`
-		SuccessColor   string `json:"success_color"`
-		WarningColor   string `json:"warning_color"`
-		InfoColor      string `json:"info_color"`
-		
+		ErrorColor   string `json:"error_color"`
+		SuccessColor string `json:"success_color"`
+		WarningColor string `json:"warning_color"`
+		InfoColor    string `json:"info_color"`
+
 		// Input colors
-		InputBgColor   string `json:"input_bg_color"`
-		InputFgColor   string `json:"input_fg_color"`
-		LabelColor     string `json:"label_color"`
+		InputBgColor string `json:"input_bg_color"`
+		InputFgColor string `json:"input_fg_color"`
+		LabelColor   string `json:"label_color"`
 	} `json:"ui_colors"`
 }
 
@@ -416,10 +421,10 @@ type QueryService interface {
 	SearchQueries(ctx context.Context, searchTerm string) ([]*SavedQueryInfo, error)
 	DeleteQuery(ctx context.Context, id int64) error
 	DeleteQueryByName(ctx context.Context, name string) error
-	
+
 	// Query usage tracking
 	RecordQueryUsage(ctx context.Context, id int64) error
-	
+
 	// Query organization
 	GetCategories(ctx context.Context) ([]string, error)
 	UpdateQueryCategory(ctx context.Context, id int64, category string) error
@@ -467,6 +472,24 @@ type ThreadService interface {
 	// Bulk thread operations
 	BulkExpandThreads(ctx context.Context, accountEmail string, threadIDs []string) error
 	BulkCollapseThreads(ctx context.Context, accountEmail string, threadIDs []string) error
+}
+
+// UndoService handles undo operations for reversible actions
+type UndoService interface {
+	// Record an action for potential undo
+	RecordAction(ctx context.Context, action *UndoableAction) error
+
+	// Undo the last recorded action
+	UndoLastAction(ctx context.Context) (*UndoResult, error)
+
+	// Check if undo is available
+	HasUndoableAction() bool
+
+	// Get description of what will be undone
+	GetUndoDescription() string
+
+	// Clear undo history (e.g., after app restart)
+	ClearUndoHistory() error
 }
 
 // Threading-related data structures
@@ -558,4 +581,51 @@ type ThreadingConfig struct {
 	MaxThreadDepth        int    `json:"max_thread_depth"`
 	ThreadSummaryEnabled  bool   `json:"thread_summary_enabled"`
 	PreserveThreadState   bool   `json:"preserve_thread_state"`
+}
+
+// Undo-related data structures
+
+// UndoActionType represents the type of action that can be undone
+type UndoActionType string
+
+const (
+	UndoActionArchive     UndoActionType = "archive"
+	UndoActionUnarchive   UndoActionType = "unarchive"
+	UndoActionTrash       UndoActionType = "trash"
+	UndoActionRestore     UndoActionType = "restore"
+	UndoActionMarkRead    UndoActionType = "mark_read"
+	UndoActionMarkUnread  UndoActionType = "mark_unread"
+	UndoActionLabelAdd    UndoActionType = "label_add"
+	UndoActionLabelRemove UndoActionType = "label_remove"
+	UndoActionMove        UndoActionType = "move"
+)
+
+// ActionState represents the previous state of a message for undo operations
+type ActionState struct {
+	Labels    []string `json:"labels"`   // Previous labels
+	IsRead    bool     `json:"is_read"`  // Previous read state
+	IsInInbox bool     `json:"is_inbox"` // Whether message was in inbox
+}
+
+// UndoableAction represents an action that can be undone
+type UndoableAction struct {
+	ID          string                 `json:"id"`          // Unique action ID
+	Type        UndoActionType         `json:"type"`        // Type of action
+	MessageIDs  []string               `json:"message_ids"` // Affected message IDs
+	Timestamp   time.Time              `json:"timestamp"`   // When action was performed
+	PrevState   map[string]ActionState `json:"prev_state"`  // Previous state for reversal
+	Description string                 `json:"description"` // Human-readable description
+	IsBulk      bool                   `json:"is_bulk"`     // Whether it was a bulk operation
+	ExtraData   map[string]interface{} `json:"extra_data"`  // Additional data for specific action types
+}
+
+// UndoResult represents the result of an undo operation
+type UndoResult struct {
+	Success      bool                   `json:"success"`       // Whether undo was successful
+	Description  string                 `json:"description"`   // Description of what was undone
+	MessageCount int                    `json:"message_count"` // Number of messages affected
+	Errors       []string               `json:"errors"`        // Any errors that occurred
+	ActionType   UndoActionType         `json:"action_type"`   // Type of action that was undone
+	MessageIDs   []string               `json:"message_ids"`   // IDs of messages affected
+	ExtraData    map[string]interface{} `json:"extra_data"`    // Additional data for cache updates
 }

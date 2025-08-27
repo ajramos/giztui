@@ -251,175 +251,179 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 
 	// First-level suggestions
 	commands := map[string][]string{
-		"/":           {"/"},
-		"l":           {"labels", "links", "list"},
-		"la":          {"labels"},
-		"lab":         {"labels"},
-		"labe":        {"labels"},
-		"label":       {"labels"},
-		"labels":      {"labels"},
-		"li":          {"links"},
-		"lin":         {"links"},
-		"link":        {"links"},
-		"links":       {"links"},
-		"at":          {"attachments"},
-		"att":         {"attachments"},
-		"atta":        {"attachments"},
-		"attac":       {"attachments"},
-		"attach":      {"attachments"},
-		"attachm":     {"attachments"},
-		"attachme":    {"attachments"},
-		"attachmen":   {"attachments"},
-		"attachment":  {"attachments"},
-		"attachments": {"attachments"},
-		"s":           {"search", "slack"},
-		"sl":          {"slack"},
-		"sla":         {"slack"},
-		"slac":        {"slack"},
-		"slack":       {"slack"},
-		"se":          {"search"},
-		"sea":         {"search"},
-		"sear":        {"search"},
-		"searc":       {"search"},
-		"search":      {"search"},
-		"i":           {"inbox"},
-		"in":          {"inbox"},
-		"inb":         {"inbox"},
-		"inbo":        {"inbox"},
-		"inbox":       {"inbox"},
-		"c":           {"compose"},
-		"co":          {"compose"},
-		"com":         {"compose"},
-		"comp":        {"compose"},
-		"compo":       {"compose"},
-		"compos":      {"compose"},
-		"compose":     {"compose"},
-		"h":           {"help"},
-		"he":          {"help", "headers"},
-		"hea":         {"headers"},
-		"head":        {"headers"},
-		"heade":       {"headers"},
-		"header":      {"headers"},
-		"headers":     {"headers"},
-		"hel":         {"help"},
-		"help":        {"help"},
-		"nu":          {"numbers"},
-		"num":         {"numbers"},
-		"numb":        {"numbers"},
-		"numbe":       {"numbers"},
-		"number":      {"numbers"},
-		"numbers":     {"numbers"},
-		"q":           {"quit"},
-		"qu":          {"quit"},
-		"qui":         {"quit"},
-		"quit":        {"quit"},
-		"g":           {"G"},
-		"G":           {"G"},
-		"1":           {"1"},
-		"$":           {"$"},
-		"5":           {"5"},
-		"10":          {"10"},
-		"st":          {"stats"},
-		"sta":         {"stats"},
-		"stat":        {"stats"},
-		"stats":       {"stats"},
-		"u":           {"usage"},
-		"us":          {"usage"},
-		"usa":         {"usage"},
-		"usag":        {"usage"},
-		"usage":       {"usage"},
-		"sel":         {"select"},
-		"sele":        {"select"},
-		"selec":       {"select"},
-		"select":      {"select"},
-		"m":           {"move", "more"},
-		"mov":         {"move"},
-		"move":        {"move"},
-		"mv":          {"move"},
-		"lbl":         {"label"},
-		"lo":          {"load"},
-		"loa":         {"load"},
-		"load":        {"load"},
-		"mor":         {"more"},
-		"more":        {"more"},
-		"n":           {"next", "numbers"},
-		"ne":          {"next"},
-		"nex":         {"next"},
-		"next":        {"next"},
-		"o":           {"obsidian"},
-		"ob":          {"obsidian"},
-		"obs":         {"obsidian"},
-		"obsi":        {"obsidian"},
-		"obsid":       {"obsidian"},
-		"obsidi":      {"obsidian"},
-		"obsidian":    {"obsidian"},
-		"p":           {"prompt"},
-		"pr":          {"prompt"},
-		"pro":         {"prompt"},
-		"prom":        {"prompt"},
-		"promp":       {"prompt"},
-		"prompt":      {"prompt"},
-		"a":           {"archive"},
-		"ar":          {"archive"},
-		"arc":         {"archive"},
-		"arch":        {"archive"},
-		"archi":       {"archive"},
-		"archiv":      {"archive"},
-		"archive":     {"archive"},
-		"archived":    {"archived"},
-		"b":           {"archived"},
-		"unr":         {"unread"},
-		"unre":        {"unread"},
-		"unrea":       {"unread"},
-		"unread":      {"unread"},
-		"d":           {"trash"},
-		"tr":          {"trash"},
-		"tra":         {"trash"},
-		"tras":        {"trash"},
-		"trash":       {"trash"},
-		"t":           {"read"},
-		"re":          {"read"},
-		"rea":         {"read"},
-		"read":        {"read"},
-		"toggle":       {"read"},
-		"toggle-":      {"read", "headers"},
-		"toggle-h":     {"headers"},
-		"toggle-he":    {"headers"},
-		"toggle-hea":   {"headers"},
-		"toggle-head":  {"headers"},
-		"toggle-heade": {"headers"},
+		"/":              {"/"},
+		"l":              {"labels", "links", "list"},
+		"la":             {"labels"},
+		"lab":            {"labels"},
+		"labe":           {"labels"},
+		"label":          {"labels"},
+		"labels":         {"labels"},
+		"li":             {"links"},
+		"lin":            {"links"},
+		"link":           {"links"},
+		"links":          {"links"},
+		"at":             {"attachments"},
+		"att":            {"attachments"},
+		"atta":           {"attachments"},
+		"attac":          {"attachments"},
+		"attach":         {"attachments"},
+		"attachm":        {"attachments"},
+		"attachme":       {"attachments"},
+		"attachmen":      {"attachments"},
+		"attachment":     {"attachments"},
+		"attachments":    {"attachments"},
+		"s":              {"search", "slack"},
+		"sl":             {"slack"},
+		"sla":            {"slack"},
+		"slac":           {"slack"},
+		"slack":          {"slack"},
+		"se":             {"search"},
+		"sea":            {"search"},
+		"sear":           {"search"},
+		"searc":          {"search"},
+		"search":         {"search"},
+		"i":              {"inbox"},
+		"in":             {"inbox"},
+		"inb":            {"inbox"},
+		"inbo":           {"inbox"},
+		"inbox":          {"inbox"},
+		"c":              {"compose"},
+		"co":             {"compose"},
+		"com":            {"compose"},
+		"comp":           {"compose"},
+		"compo":          {"compose"},
+		"compos":         {"compose"},
+		"compose":        {"compose"},
+		"h":              {"help"},
+		"he":             {"help", "headers"},
+		"hea":            {"headers"},
+		"head":           {"headers"},
+		"heade":          {"headers"},
+		"header":         {"headers"},
+		"headers":        {"headers"},
+		"hel":            {"help"},
+		"help":           {"help"},
+		"nu":             {"numbers"},
+		"num":            {"numbers"},
+		"numb":           {"numbers"},
+		"numbe":          {"numbers"},
+		"number":         {"numbers"},
+		"numbers":        {"numbers"},
+		"q":              {"quit"},
+		"qu":             {"quit"},
+		"qui":            {"quit"},
+		"quit":           {"quit"},
+		"g":              {"G"},
+		"G":              {"G"},
+		"1":              {"1"},
+		"$":              {"$"},
+		"5":              {"5"},
+		"10":             {"10"},
+		"st":             {"stats"},
+		"sta":            {"stats"},
+		"stat":           {"stats"},
+		"stats":          {"stats"},
+		"u":              {"usage"},
+		"us":             {"usage"},
+		"usa":            {"usage"},
+		"usag":           {"usage"},
+		"usage":          {"usage"},
+		"sel":            {"select"},
+		"sele":           {"select"},
+		"selec":          {"select"},
+		"select":         {"select"},
+		"m":              {"move", "more"},
+		"mov":            {"move"},
+		"move":           {"move"},
+		"mv":             {"move"},
+		"lbl":            {"label"},
+		"lo":             {"load"},
+		"loa":            {"load"},
+		"load":           {"load"},
+		"mor":            {"more"},
+		"more":           {"more"},
+		"n":              {"next", "numbers"},
+		"ne":             {"next"},
+		"nex":            {"next"},
+		"next":           {"next"},
+		"o":              {"obsidian"},
+		"ob":             {"obsidian"},
+		"obs":            {"obsidian"},
+		"obsi":           {"obsidian"},
+		"obsid":          {"obsidian"},
+		"obsidi":         {"obsidian"},
+		"obsidian":       {"obsidian"},
+		"p":              {"prompt"},
+		"pr":             {"prompt"},
+		"pro":            {"prompt"},
+		"prom":           {"prompt"},
+		"promp":          {"prompt"},
+		"prompt":         {"prompt"},
+		"a":              {"archive"},
+		"ar":             {"archive"},
+		"arc":            {"archive"},
+		"arch":           {"archive"},
+		"archi":          {"archive"},
+		"archiv":         {"archive"},
+		"archive":        {"archive"},
+		"archived":       {"archived"},
+		"b":              {"archived"},
+		"unr":            {"unread"},
+		"unre":           {"unread"},
+		"unrea":          {"unread"},
+		"unread":         {"unread"},
+		"un":             {"undo", "unread"},
+		"und":            {"undo"},
+		"undo":           {"undo"},
+		"U":              {"undo"},
+		"d":              {"trash"},
+		"tr":             {"trash"},
+		"tra":            {"trash"},
+		"tras":           {"trash"},
+		"trash":          {"trash"},
+		"t":              {"read"},
+		"re":             {"read"},
+		"rea":            {"read"},
+		"read":           {"read"},
+		"toggle":         {"read"},
+		"toggle-":        {"read", "headers"},
+		"toggle-h":       {"headers"},
+		"toggle-he":      {"headers"},
+		"toggle-hea":     {"headers"},
+		"toggle-head":    {"headers"},
+		"toggle-heade":   {"headers"},
 		"toggle-header":  {"headers"},
 		"toggle-headers": {"headers"},
-		"toggle-r":     {"read"},
-		"toggle-re":    {"read"},
-		"toggle-rea":   {"read"},
-		"toggle-read":  {"read"},
-		"sa":          {"save-query"},
-		"sav":         {"save-query"},
-		"save":        {"save-query"},
-		"save-":       {"save-query"},
-		"save-q":      {"save-query"},
-		"save-qu":     {"save-query"},
-		"save-que":    {"save-query"},
-		"save-quer":   {"save-query"},
-		"save-query":  {"save-query"},
-		"sq":          {"save-query"},
-		"bo":          {"bookmarks"},
-		"boo":         {"bookmarks"},
-		"book":        {"bookmarks"},
-		"bookm":       {"bookmarks"},
-		"bookma":      {"bookmarks"},
-		"bookmar":     {"bookmarks"},
-		"bookmark":    {"bookmark", "bookmarks"},
-		"bookmarks":   {"bookmarks"},
-		"bm":          {"bookmarks"},
-		"que":         {"queries", "query"},
-		"quer":        {"queries", "query"},
-		"queri":       {"queries"},
-		"querie":      {"queries"},
-		"queries":     {"queries"},
-		"query":       {"query"},
-		"qb":          {"bookmarks"},
+		"toggle-r":       {"read"},
+		"toggle-re":      {"read"},
+		"toggle-rea":     {"read"},
+		"toggle-read":    {"read"},
+		"sa":             {"save-query"},
+		"sav":            {"save-query"},
+		"save":           {"save-query"},
+		"save-":          {"save-query"},
+		"save-q":         {"save-query"},
+		"save-qu":        {"save-query"},
+		"save-que":       {"save-query"},
+		"save-quer":      {"save-query"},
+		"save-query":     {"save-query"},
+		"sq":             {"save-query"},
+		"bo":             {"bookmarks"},
+		"boo":            {"bookmarks"},
+		"book":           {"bookmarks"},
+		"bookm":          {"bookmarks"},
+		"bookma":         {"bookmarks"},
+		"bookmar":        {"bookmarks"},
+		"bookmark":       {"bookmark", "bookmarks"},
+		"bookmarks":      {"bookmarks"},
+		"bm":             {"bookmarks"},
+		"que":            {"queries", "query"},
+		"quer":           {"queries", "query"},
+		"queri":          {"queries"},
+		"querie":         {"queries"},
+		"queries":        {"queries"},
+		"query":          {"query"},
+		"qb":             {"bookmarks"},
 	}
 
 	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
@@ -470,9 +474,9 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		if strings.HasPrefix(buffer, "query ") {
 			prefix = "query "
 		}
-		
+
 		partialName := strings.TrimSpace(strings.TrimPrefix(buffer, prefix))
-		
+
 		// Get query service and list saved queries
 		queryService := a.GetQueryService()
 		if queryService != nil {
@@ -482,7 +486,7 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 					queryServiceImpl.SetAccountEmail(email)
 				}
 			}
-			
+
 			// Get saved queries
 			queries, err := queryService.ListQueries(a.ctx, "")
 			if err == nil && len(queries) > 0 {
@@ -609,6 +613,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLoadMoreCommand(args)
 	case "unread", "u":
 		a.executeUnreadCommand(args)
+	case "undo", "U":
+		a.executeUndoCommand(args)
 	case "archived", "arch-search", "b":
 		a.executeArchivedCommand(args)
 	case "select", "sel":
@@ -1180,6 +1186,11 @@ func (a *App) executeUnreadCommand(args []string) {
 	go a.listUnreadMessages()
 }
 
+// executeUndoCommand handles :undo command
+func (a *App) executeUndoCommand(args []string) {
+	go a.performUndo()
+}
+
 // executeArchivedCommand handles :archived/:arch-search commands
 func (a *App) executeArchivedCommand(args []string) {
 	go a.listArchivedMessages()
@@ -1321,7 +1332,7 @@ func (a *App) executePromptCreate(args []string) {
 	}
 
 	filePath := args[0]
-	
+
 	// Get services
 	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
@@ -1335,7 +1346,7 @@ func (a *App) executePromptCreate(args []string) {
 		// Add timeout protection for file operations
 		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
 		defer cancel()
-		
+
 		id, err := promptService.CreateFromFile(ctx, filePath)
 		if err != nil {
 			// Use separate goroutine for ErrorHandler to avoid potential deadlocks
@@ -1344,7 +1355,7 @@ func (a *App) executePromptCreate(args []string) {
 			}()
 			return
 		}
-		
+
 		// Use separate goroutine for ErrorHandler to avoid potential deadlocks
 		go func() {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Created prompt with ID %d", id))
@@ -1363,7 +1374,7 @@ func (a *App) executePromptUpdate(args []string) {
 
 	identifier := args[0]
 	filePath := args[1]
-	
+
 	// Get services
 	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
@@ -1448,7 +1459,7 @@ func (a *App) executePromptUpdate(args []string) {
 			Description string `yaml:"description"`
 			Category    string `yaml:"category"`
 		}
-		
+
 		if err := yaml.Unmarshal([]byte(yamlContent), &frontMatter); err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to parse YAML front matter: %v", err))
 			return
@@ -1478,7 +1489,7 @@ func (a *App) executePromptUpdate(args []string) {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to update prompt: %v", err))
 			return
 		}
-		
+
 		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated prompt: %s", promptName))
 	}()
 }
@@ -1508,7 +1519,7 @@ func (a *App) executePromptExport(args []string) {
 		// Add timeout protection for file operations
 		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
 		defer cancel()
-		
+
 		var promptID int
 		var err error
 
@@ -1571,7 +1582,7 @@ func (a *App) executePromptDelete(args []string) {
 		// Add timeout protection for database operations
 		ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
 		defer cancel()
-		
+
 		var promptID int
 		var promptName string
 
@@ -1709,7 +1720,7 @@ func (a *App) executeThemeList() {
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 🎨 Theme List ")
 				textContainer.SetTitleColor(a.GetStatusColor("warning"))
-				
+
 				// Store and hide message headers
 				if header, ok := a.views["header"].(*tview.TextView); ok {
 					headerContent := header.GetText(false)
@@ -1717,7 +1728,7 @@ func (a *App) executeThemeList() {
 					textContainer.ResizeItem(header, 0, 0)
 				}
 			}
-			
+
 			if textView, ok := a.views["text"].(*tview.TextView); ok {
 				textView.SetText(output)
 				textView.ScrollToBeginning()
@@ -1811,7 +1822,7 @@ func (a *App) executeSaveQueryCommand(args []string) {
 			a.showError("No current search to save. Perform a search first.")
 			return
 		}
-		
+
 		// Get query service
 		queryService := a.GetQueryService()
 		if queryService == nil {

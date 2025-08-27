@@ -106,17 +106,17 @@ type UIColors struct {
 	TitleColor  Color `yaml:"titleColor"`  // Panel titles
 	FooterColor Color `yaml:"footerColor"` // Footer/instruction text
 	HintColor   Color `yaml:"hintColor"`   // Hint text color
-	
+
 	// Selection colors
 	SelectionBgColor Color `yaml:"selectionBgColor"` // List selection background
 	SelectionFgColor Color `yaml:"selectionFgColor"` // List selection text
-	
+
 	// Status message colors
 	ErrorColor   Color `yaml:"errorColor"`   // Error messages
 	SuccessColor Color `yaml:"successColor"` // Success messages
 	WarningColor Color `yaml:"warningColor"` // Warning messages
 	InfoColor    Color `yaml:"infoColor"`    // Info messages
-	
+
 	// Input field colors
 	InputBgColor Color `yaml:"inputBgColor"` // Input field background
 	InputFgColor Color `yaml:"inputFgColor"` // Input field text
@@ -163,18 +163,18 @@ type ComponentColorSet struct {
 
 // ColorsConfig defines the complete color configuration
 type ColorsConfig struct {
-	Name        string      `yaml:"name"`        // Theme name (e.g., "Gmail Dark")
-	Description string      `yaml:"description"` // Theme description
-	Version     string      `yaml:"version"`     // Theme version
-	
-	Body       BodyColors       `yaml:"body"`
-	Frame      FrameColors      `yaml:"frame"`
-	Table      TableColors      `yaml:"table"`
-	Email      EmailColors      `yaml:"email"`
-	UI         UIColors         `yaml:"ui"`         // UI component colors (previously hardcoded)
-	Tags       TagColors        `yaml:"tags"`       // Color tags for text markup
-	Status     StatusColors     `yaml:"status"`     // Status message colors
-	Components ComponentColors  `yaml:"components"` // Component-specific colors
+	Name        string `yaml:"name"`        // Theme name (e.g., "Gmail Dark")
+	Description string `yaml:"description"` // Theme description
+	Version     string `yaml:"version"`     // Theme version
+
+	Body       BodyColors      `yaml:"body"`
+	Frame      FrameColors     `yaml:"frame"`
+	Table      TableColors     `yaml:"table"`
+	Email      EmailColors     `yaml:"email"`
+	UI         UIColors        `yaml:"ui"`         // UI component colors (previously hardcoded)
+	Tags       TagColors       `yaml:"tags"`       // Color tags for text markup
+	Status     StatusColors    `yaml:"status"`     // Status message colors
+	Components ComponentColors `yaml:"components"` // Component-specific colors
 }
 
 // DefaultColors returns the default color configuration
@@ -228,23 +228,23 @@ func DefaultColors() *ColorsConfig {
 			TitleColor:  NewColor("#f1fa8c"), // Yellow for titles
 			FooterColor: NewColor("#6272a4"), // Gray for footer text
 			HintColor:   NewColor("#6272a4"), // Gray for hints
-			
+
 			// Selection colors
 			SelectionBgColor: NewColor("#44475a"), // Dark selection background
 			SelectionFgColor: NewColor("#f8f8f2"), // Light selection text
-			
+
 			// Status message colors
 			ErrorColor:   NewColor("#ff5555"), // Red for errors
 			SuccessColor: NewColor("#50fa7b"), // Green for success
 			WarningColor: NewColor("#f1fa8c"), // Yellow for warnings
 			InfoColor:    NewColor("#8be9fd"), // Cyan for info
-			
+
 			// Input field colors
 			InputBgColor: NewColor("#44475a"), // Dark input background
 			InputFgColor: NewColor("#f8f8f2"), // Light input text
 			LabelColor:   NewColor("#f1fa8c"), // Yellow for labels
 		},
-		
+
 		// Color tags for text markup (replaces hardcoded [color] tags)
 		Tags: TagColors{
 			Title:     NewColor("#f1fa8c"), // Yellow for titles - replaces [yellow]
@@ -254,7 +254,7 @@ func DefaultColors() *ColorsConfig {
 			Link:      NewColor("#8be9fd"), // Cyan for links - replaces [blue]
 			Code:      NewColor("#bd93f9"), // Purple for code - replaces [purple]
 		},
-		
+
 		// Status message colors (replaces hardcoded tcell.Color* constants)
 		Status: StatusColors{
 			Error:    NewColor("#ff5555"), // Red for errors - replaces tcell.ColorRed
@@ -263,7 +263,7 @@ func DefaultColors() *ColorsConfig {
 			Info:     NewColor("#8be9fd"), // Cyan for info - replaces tcell.ColorBlue
 			Progress: NewColor("#ffb86c"), // Orange for progress - replaces tcell.ColorOrange
 		},
-		
+
 		// Component-specific colors (replaces hardcoded component colors)
 		Components: ComponentColors{
 			AI: ComponentColorSet{

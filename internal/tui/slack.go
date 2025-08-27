@@ -175,17 +175,17 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	reload := func(filter string) {
 		channelList.Clear()
 		visibleChannels = visibleChannels[:0]
-		
+
 		for _, channel := range allChannels {
 			if filter != "" && !strings.Contains(strings.ToLower(channel.Name), strings.ToLower(filter)) {
 				continue
 			}
 			visibleChannels = append(visibleChannels, channel)
-			
+
 			displayName := fmt.Sprintf("📺 %s", channel.Name)
 			channelList.AddItem(displayName, "", 0, nil)
 		}
-		
+
 		// Set default selection after filtering
 		if len(visibleChannels) > 0 {
 			defaultIndex := findDefaultIndex(visibleChannels)
@@ -203,12 +203,12 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(a.getTitleColor())                                     // Match search label color
+	userMessageInput.SetLabelColor(a.getTitleColor())                                          // Match search label color
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background
-	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())        // Component text color
+	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())             // Component text color
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
-	userMessageInput.SetPlaceholderTextColor(a.getHintColor())                            // Consistent placeholder color
+	userMessageInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
 
 	// Add spacing between optional message and instructions
 	spacer := tview.NewTextView()
@@ -221,8 +221,8 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	instructions.SetTextColor(a.getFooterColor())
 
 	// Set up search functionality
-	input.SetChangedFunc(func(text string) { 
-		reload(strings.TrimSpace(text)) 
+	input.SetChangedFunc(func(text string) {
+		reload(strings.TrimSpace(text))
 	})
 
 	// Set up Enter key handler for sending
@@ -340,7 +340,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Layout the panel with search input at top (3 lines for spacing like other pickers)
 	a.slackView.AddItem(input, 3, 0, false)
 	a.slackView.AddItem(channelList, 0, 1, true)
-	a.slackView.AddItem(userMessageInput, 2, 0, false)  // 2 lines for spacing like Obsidian
+	a.slackView.AddItem(userMessageInput, 2, 0, false) // 2 lines for spacing like Obsidian
 	a.slackView.AddItem(instructions, 1, 0, false)
 
 	// Initial load of channels
@@ -387,17 +387,17 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	reload := func(filter string) {
 		channelList.Clear()
 		visibleChannels = visibleChannels[:0]
-		
+
 		for _, channel := range allChannels {
 			if filter != "" && !strings.Contains(strings.ToLower(channel.Name), strings.ToLower(filter)) {
 				continue
 			}
 			visibleChannels = append(visibleChannels, channel)
-			
+
 			displayName := fmt.Sprintf("📺 %s", channel.Name)
 			channelList.AddItem(displayName, "", 0, nil)
 		}
-		
+
 		// Set default selection after filtering
 		if len(visibleChannels) > 0 {
 			defaultIndex := findDefaultIndex(visibleChannels)
@@ -424,7 +424,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background (not accent)
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
-	userMessageInput.SetPlaceholderTextColor(a.getHintColor())                            // Consistent placeholder color
+	userMessageInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
 
 	// Instructions
 	instructions := tview.NewTextView()
@@ -438,8 +438,8 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	commentRow.AddItem(userMessageInput, 0, 1, false)
 
 	// Set up search functionality
-	input.SetChangedFunc(func(text string) { 
-		reload(strings.TrimSpace(text)) 
+	input.SetChangedFunc(func(text string) {
+		reload(strings.TrimSpace(text))
 	})
 
 	// Add navigation support for search input
