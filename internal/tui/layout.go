@@ -77,7 +77,7 @@ func (a *App) initComponents() {
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	textContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	textContainer.SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(tview.Styles.BorderColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(a.getTitleColor()).
