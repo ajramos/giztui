@@ -17,7 +17,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("BulkArchive_3Messages", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -25,7 +25,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(5)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		// Expect bulk archive with exactly 3 messages
 		harness.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 			return len(ids) == 3
@@ -42,7 +42,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("BulkLabelApplication_2Messages", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -50,7 +50,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(3)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		// Setup individual label application expectations
 		harness.MockLabel.On("ApplyLabel", mock.Anything, "msg_0", "IMPORTANT").Return(nil).Once()
 		harness.MockLabel.On("ApplyLabel", mock.Anything, "msg_1", "IMPORTANT").Return(nil).Once()
@@ -68,7 +68,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("BulkTrash_5Messages", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -76,7 +76,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(10)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		// Expect bulk trash with exactly 5 messages
 		harness.MockEmail.On("BulkTrash", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 			return len(ids) == 5
@@ -93,7 +93,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("EmptySelection", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -105,7 +105,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("SingleMessage", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -113,7 +113,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(1)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		harness.MockEmail.On("BulkArchive", mock.Anything, []string{"msg_0"}).Return(nil).Once()
 
 		// Execute
@@ -126,7 +126,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("PartialFailure", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -152,7 +152,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 
 	t.Run("Performance_SmallBatch", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -161,7 +161,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(count)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		harness.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 			return len(ids) == count
 		})).Return(nil).Once()
@@ -179,13 +179,13 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Less(t, duration, 1*time.Second, "Small batch should complete quickly")
 		harness.MockEmail.AssertExpectations(t)
-		
+
 		t.Logf("Bulk operation on %d messages completed in %v", count, duration)
 	})
 
 	t.Run("Performance_MediumBatch", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -194,7 +194,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(count)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		harness.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 			return len(ids) == count
 		})).Return(nil).Once()
@@ -212,13 +212,13 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Less(t, duration, 2*time.Second, "Medium batch should complete in reasonable time")
 		harness.MockEmail.AssertExpectations(t)
-		
+
 		t.Logf("Bulk operation on %d messages completed in %v", count, duration)
 	})
 
 	t.Run("Performance_LargeBatch", func(t *testing.T) {
 		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-		
+
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
 
@@ -227,7 +227,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		messages := harness.GenerateTestMessages(count)
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 			Return(&services.MessagePage{Messages: messages}, nil).Once()
-		
+
 		harness.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 			return len(ids) == count
 		})).Return(nil).Once()
@@ -245,7 +245,7 @@ func TestBulkOperationsIsolated(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Less(t, duration, 5*time.Second, "Large batch should complete within reasonable time")
 		harness.MockEmail.AssertExpectations(t)
-		
+
 		t.Logf("Bulk operation on %d messages completed in %v", count, duration)
 	})
 }

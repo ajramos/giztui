@@ -230,7 +230,7 @@ func (eh *ErrorHandler) clearCurrentStatusSafely(expectedMsg string) {
 		eh.app.QueueUpdateDraw(func() {
 			eh.mu.Lock()
 			defer eh.mu.Unlock()
-			
+
 			// Only clear if the current message matches what we expect to clear
 			// This prevents clearing a newer message that was set after the timer started
 			if eh.currentStatus == expectedMsg {

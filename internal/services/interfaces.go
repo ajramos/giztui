@@ -150,7 +150,6 @@ type QueryOptions struct {
 	Query      string
 }
 
-
 type MessagePage struct {
 	Messages      []*gmail_v1.Message
 	NextPageToken string
@@ -448,27 +447,27 @@ type ThreadService interface {
 	GetThreads(ctx context.Context, opts ThreadQueryOptions) (*ThreadPage, error)
 	GetThreadMessages(ctx context.Context, threadID string, opts MessageQueryOptions) ([]*gmail_v1.Message, error)
 	GetThreadInfo(ctx context.Context, threadID string) (*ThreadInfo, error)
-	
+
 	// Thread state management
 	SetThreadExpanded(ctx context.Context, accountEmail, threadID string, expanded bool) error
 	IsThreadExpanded(ctx context.Context, accountEmail, threadID string) (bool, error)
 	ExpandAllThreads(ctx context.Context, accountEmail string) error
 	CollapseAllThreads(ctx context.Context, accountEmail string) error
-	
+
 	// Thread summaries and AI integration
 	GenerateThreadSummary(ctx context.Context, threadID string, options ThreadSummaryOptions) (*ThreadSummaryResult, error)
 	GenerateThreadSummaryStream(ctx context.Context, threadID string, options ThreadSummaryOptions, onToken func(string)) (*ThreadSummaryResult, error)
 	GetCachedThreadSummary(ctx context.Context, accountEmail, threadID string) (*ThreadSummaryResult, error)
-	
+
 	// Thread search and navigation
 	SearchWithinThread(ctx context.Context, threadID, query string) (*ThreadSearchResult, error)
 	GetNextThread(ctx context.Context, currentThreadID string) (string, error)
 	GetPreviousThread(ctx context.Context, currentThreadID string) (string, error)
-	
+
 	// Thread organization
 	GetThreadsByLabel(ctx context.Context, labelID string, opts ThreadQueryOptions) (*ThreadPage, error)
 	GetUnreadThreads(ctx context.Context, opts ThreadQueryOptions) (*ThreadPage, error)
-	
+
 	// Bulk thread operations
 	BulkExpandThreads(ctx context.Context, accountEmail string, threadIDs []string) error
 	BulkCollapseThreads(ctx context.Context, accountEmail string, threadIDs []string) error
@@ -517,17 +516,17 @@ type ThreadPage struct {
 
 // ThreadQueryOptions specifies options for querying threads
 type ThreadQueryOptions struct {
-	MaxResults int64    `json:"max_results"`
-	PageToken  string   `json:"page_token"`
-	LabelIDs   []string `json:"label_ids"`
-	Query      string   `json:"query"`
-	IncludeRead bool    `json:"include_read"`
+	MaxResults  int64    `json:"max_results"`
+	PageToken   string   `json:"page_token"`
+	LabelIDs    []string `json:"label_ids"`
+	Query       string   `json:"query"`
+	IncludeRead bool     `json:"include_read"`
 }
 
 // MessageQueryOptions specifies options for querying messages within a thread
 type MessageQueryOptions struct {
 	IncludeDeleted bool   `json:"include_deleted"`
-	Format         string `json:"format"` // "minimal", "full", "raw", "metadata"
+	Format         string `json:"format"`     // "minimal", "full", "raw", "metadata"
 	SortOrder      string `json:"sort_order"` // "asc", "desc"
 }
 
@@ -556,11 +555,11 @@ type ThreadSummaryResult struct {
 
 // ThreadSearchResult represents search results within a thread
 type ThreadSearchResult struct {
-	ThreadID    string         `json:"thread_id"`
-	Query       string         `json:"query"`
-	Matches     []ThreadMatch  `json:"matches"`
-	MatchCount  int            `json:"match_count"`
-	Duration    time.Duration  `json:"duration"`
+	ThreadID   string        `json:"thread_id"`
+	Query      string        `json:"query"`
+	Matches    []ThreadMatch `json:"matches"`
+	MatchCount int           `json:"match_count"`
+	Duration   time.Duration `json:"duration"`
 }
 
 // ThreadMatch represents a search match within a thread
@@ -573,14 +572,14 @@ type ThreadMatch struct {
 
 // ThreadingConfig represents threading configuration (mirrored from config package to avoid circular imports)
 type ThreadingConfig struct {
-	Enabled               bool   `json:"enabled"`
-	DefaultView           string `json:"default_view"`
-	AutoExpandUnread      bool   `json:"auto_expand_unread"`
-	ShowThreadCount       bool   `json:"show_thread_count"`
-	IndentReplies         bool   `json:"indent_replies"`
-	MaxThreadDepth        int    `json:"max_thread_depth"`
-	ThreadSummaryEnabled  bool   `json:"thread_summary_enabled"`
-	PreserveThreadState   bool   `json:"preserve_thread_state"`
+	Enabled              bool   `json:"enabled"`
+	DefaultView          string `json:"default_view"`
+	AutoExpandUnread     bool   `json:"auto_expand_unread"`
+	ShowThreadCount      bool   `json:"show_thread_count"`
+	IndentReplies        bool   `json:"indent_replies"`
+	MaxThreadDepth       int    `json:"max_thread_depth"`
+	ThreadSummaryEnabled bool   `json:"thread_summary_enabled"`
+	PreserveThreadState  bool   `json:"preserve_thread_state"`
 }
 
 // Undo-related data structures

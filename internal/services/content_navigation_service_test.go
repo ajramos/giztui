@@ -283,7 +283,7 @@ func TestContentNavigationService_FindNextParagraph(t *testing.T) {
 			expectedPos: 8, // After "Para 1\n\n"
 		},
 		{
-			name:        "next paragraph with empty line", 
+			name:        "next paragraph with empty line",
 			content:     "Para 1\n   \nPara 2",
 			currentPos:  0,
 			expectedPos: 11, // After empty line
@@ -414,7 +414,7 @@ func TestContentNavigationService_FindPreviousWord(t *testing.T) {
 		{
 			name:        "skip whitespace backwards",
 			content:     "word1   word2",
-			currentPos:  12, // At end of "word2" 
+			currentPos:  12, // At end of "word2"
 			expectedPos: 8,  // Start of "word2" (one word back)
 		},
 		{
@@ -596,7 +596,7 @@ func TestContentNavigationService_EdgeCases(t *testing.T) {
 
 	t.Run("single character content", func(t *testing.T) {
 		content := "a"
-		
+
 		nextWord, err := service.FindNextWord(ctx, content, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, nextWord)
@@ -608,7 +608,7 @@ func TestContentNavigationService_EdgeCases(t *testing.T) {
 
 	t.Run("only whitespace content", func(t *testing.T) {
 		content := "   \n\n   \n"
-		
+
 		nextPara, err := service.FindNextParagraph(ctx, content, 0)
 		assert.NoError(t, err)
 		assert.GreaterOrEqual(t, nextPara, 0)

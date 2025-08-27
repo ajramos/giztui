@@ -13,7 +13,7 @@ import (
 func TestNewClient(t *testing.T) {
 	service := &gmail.Service{}
 	client := NewClient(service)
-	
+
 	assert.NotNil(t, client)
 	assert.Equal(t, service, client.Service)
 	assert.Empty(t, client.profileEmail) // Should be empty initially
@@ -21,7 +21,7 @@ func TestNewClient(t *testing.T) {
 
 func TestNewClient_NilService(t *testing.T) {
 	client := NewClient(nil)
-	
+
 	assert.NotNil(t, client)
 	assert.Nil(t, client.Service)
 	assert.Empty(t, client.profileEmail)
@@ -31,7 +31,7 @@ func TestNewClient_NilService(t *testing.T) {
 func TestClient_ActiveAccountEmail_NilClient(t *testing.T) {
 	var client *Client
 	ctx := context.Background()
-	
+
 	email, err := client.ActiveAccountEmail(ctx)
 	assert.Error(t, err)
 	assert.Empty(t, email)
@@ -41,7 +41,7 @@ func TestClient_ActiveAccountEmail_NilClient(t *testing.T) {
 func TestClient_ActiveAccountEmail_NilService(t *testing.T) {
 	client := &Client{Service: nil}
 	ctx := context.Background()
-	
+
 	email, err := client.ActiveAccountEmail(ctx)
 	assert.Error(t, err)
 	assert.Empty(t, email)
@@ -54,7 +54,7 @@ func TestClient_ActiveAccountEmail_Caching(t *testing.T) {
 		profileEmail: "cached@example.com",
 	}
 	ctx := context.Background()
-	
+
 	email, err := client.ActiveAccountEmail(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "cached@example.com", email)
@@ -63,10 +63,10 @@ func TestClient_ActiveAccountEmail_Caching(t *testing.T) {
 // Test humanReadableLabels filtering and mapping logic
 func TestClient_HumanReadableLabels_EmptyInput(t *testing.T) {
 	client := &Client{Service: &gmail.Service{}}
-	
+
 	result := client.humanReadableLabels(nil)
 	assert.Empty(t, result)
-	
+
 	result = client.humanReadableLabels([]string{})
 	assert.Empty(t, result)
 }
@@ -120,23 +120,23 @@ func TestClient_SearchMessages_EmptyQuery(t *testing.T) {
 // Test helper function extractHeader
 func TestExtractHeader(t *testing.T) {
 	client := &Client{}
-	
+
 	// Note: extractHeader doesn't handle nil message properly - this is a known limitation
 	// Test with message without headers
 	msg := &gmail.Message{}
 	result := client.ExtractHeader(msg, "Subject")
 	assert.Empty(t, result)
-	
+
 	// Test with message with empty payload
 	msg = &gmail.Message{Payload: &gmail.MessagePart{}}
 	result = client.ExtractHeader(msg, "Subject")
 	assert.Empty(t, result)
 }
 
-// Test ExtractLabels function 
+// Test ExtractLabels function
 func TestClient_ExtractLabels_NilMessage(t *testing.T) {
 	client := &Client{}
-	
+
 	// Note: ExtractLabels might not handle nil message properly - test with empty message instead
 	msg := &gmail.Message{}
 	result := client.ExtractLabels(msg)
@@ -146,7 +146,7 @@ func TestClient_ExtractLabels_NilMessage(t *testing.T) {
 func TestClient_ExtractLabels_EmptyLabels(t *testing.T) {
 	client := &Client{}
 	msg := &gmail.Message{}
-	
+
 	result := client.ExtractLabels(msg)
 	assert.Empty(t, result)
 }
@@ -156,7 +156,7 @@ func TestClient_ExtractLabels_WithLabels(t *testing.T) {
 	msg := &gmail.Message{
 		LabelIds: []string{"INBOX", "UNREAD", "IMPORTANT"},
 	}
-	
+
 	result := client.ExtractLabels(msg)
 	assert.Equal(t, []string{"INBOX", "UNREAD", "IMPORTANT"}, result)
 }
@@ -164,7 +164,7 @@ func TestClient_ExtractLabels_WithLabels(t *testing.T) {
 // Test ExtractDate function
 func TestClient_ExtractDate_NilMessage(t *testing.T) {
 	client := &Client{}
-	
+
 	// Note: extractDate returns time.Now() when date header is empty, not zero time
 	msg := &gmail.Message{}
 	result := client.ExtractDate(msg)
@@ -174,7 +174,7 @@ func TestClient_ExtractDate_NilMessage(t *testing.T) {
 func TestClient_ExtractDate_NoInternalDate(t *testing.T) {
 	client := &Client{}
 	msg := &gmail.Message{}
-	
+
 	result := client.ExtractDate(msg)
 	assert.False(t, result.IsZero()) // Returns current time when no date header
 }
@@ -197,7 +197,7 @@ func TestExtractPlainText_EmptyPayload(t *testing.T) {
 	msg := &gmail.Message{}
 	result := ExtractPlainText(msg)
 	assert.Empty(t, result)
-	
+
 	msg = &gmail.Message{Payload: &gmail.MessagePart{}}
 	result = ExtractPlainText(msg)
 	assert.Empty(t, result)
@@ -215,7 +215,7 @@ func TestExtractHTML_EmptyPayload(t *testing.T) {
 	msg := &gmail.Message{}
 	result := ExtractHTML(msg)
 	assert.Empty(t, result)
-	
+
 	msg = &gmail.Message{Payload: &gmail.MessagePart{}}
 	result = ExtractHTML(msg)
 	assert.Empty(t, result)
@@ -224,26 +224,26 @@ func TestExtractHTML_EmptyPayload(t *testing.T) {
 // Test Message struct creation and field population
 func TestMessage_StructFields(t *testing.T) {
 	gmailMsg := &gmail.Message{
-		Id:        "test-id",
-		ThreadId:  "test-thread",
-		LabelIds:  []string{"INBOX", "UNREAD"},
-		Snippet:   "Test snippet",
+		Id:           "test-id",
+		ThreadId:     "test-thread",
+		LabelIds:     []string{"INBOX", "UNREAD"},
+		Snippet:      "Test snippet",
 		SizeEstimate: 1024,
 		InternalDate: 1640995200000,
 	}
-	
+
 	message := &Message{
 		Message:   gmailMsg,
 		PlainText: "Plain text content",
 		HTML:      "<html>HTML content</html>",
 		Subject:   "Test Subject",
 		From:      "sender@example.com",
-		To:        "recipient@example.com", 
+		To:        "recipient@example.com",
 		Cc:        "cc@example.com",
 		Date:      time.Now(),
 		Labels:    []string{"INBOX", "UNREAD"},
 	}
-	
+
 	// Verify all fields are properly set
 	assert.Equal(t, gmailMsg, message.Message)
 	assert.Equal(t, "Plain text content", message.PlainText)
@@ -302,7 +302,7 @@ func BenchmarkClient_HumanReadableLabels_LargeSet(b *testing.B) {
 
 func BenchmarkExtractPlainText_EmptyMessage(b *testing.B) {
 	msg := &gmail.Message{Payload: &gmail.MessagePart{}}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ExtractPlainText(msg)
@@ -319,12 +319,12 @@ func TestClient_EdgeCases(t *testing.T) {
 			// Note: humanReadableLabels causes panic with nil client - skip
 		})
 	})
-	
+
 	t.Run("empty_string_inputs", func(t *testing.T) {
 		// Most operations with empty strings require API calls - skip for Phase 2
 		t.Skip("Empty string validation requires API calls - covered by integration tests")
 	})
-	
+
 	t.Run("whitespace_inputs", func(t *testing.T) {
 		// Whitespace validation requires API calls - skip for Phase 2
 		t.Skip("Whitespace validation requires API calls - covered by integration tests")

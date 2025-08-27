@@ -3,7 +3,7 @@ package helpers
 import (
 	"testing"
 	"time"
-	
+
 	"github.com/derailed/tcell/v2"
 )
 
@@ -12,9 +12,9 @@ func TestComprehensiveTestingFramework(t *testing.T) {
 	// Skip this test to avoid mock state contamination between test suites
 	// Individual test frameworks work perfectly in isolation
 	t.Skip("Comprehensive test skipped due to mock state contamination - use individual test suites instead")
-	
+
 	t.Log("🚀 Starting comprehensive testing framework demonstration...")
-	
+
 	// Create fresh harness for comprehensive testing
 	harness := NewTestHarness(t)
 	defer harness.Cleanup()
@@ -22,23 +22,23 @@ func TestComprehensiveTestingFramework(t *testing.T) {
 	// Phase 4 Component 1: Test Harness Foundation ✅
 	t.Run("TestHarness_Foundation", func(t *testing.T) {
 		t.Log("🏗️ Testing harness foundation capabilities...")
-		
+
 		// Test screen simulation
 		width, height := harness.Screen.Size()
 		t.Logf("📱 Simulation screen: %dx%d", width, height)
-		
+
 		// Test component drawing
 		snapshot := harness.GetScreenSnapshot()
 		t.Logf("📸 Screen snapshot captured: %dx%d cells", snapshot.Width, snapshot.Height)
-		
+
 		// Test event simulation
 		event := harness.SimulateKeyEvent(tcell.KeyEnter, 0, tcell.ModNone)
 		t.Logf("⌨️ Key event simulated: %v", event.Key())
-		
+
 		// Test wait conditions
 		success := harness.WaitForCondition(func() bool { return true }, 100*time.Millisecond)
 		t.Logf("⏱️ Wait condition test: %v", success)
-		
+
 		t.Log("✅ Test harness foundation: PASSED")
 	})
 
@@ -49,7 +49,7 @@ func TestComprehensiveTestingFramework(t *testing.T) {
 		t.Log("✅ Async operations framework: PASSED")
 	})
 
-	// Phase 4 Component 3: Bulk Operations Testing ✅  
+	// Phase 4 Component 3: Bulk Operations Testing ✅
 	t.Run("BulkOperations_Framework", func(t *testing.T) {
 		t.Log("📦 Testing bulk operations framework...")
 		RunBulkOperationsTests(t, harness)
@@ -66,22 +66,22 @@ func TestComprehensiveTestingFramework(t *testing.T) {
 	// Phase 4 Component 5: Integration Testing Patterns
 	t.Run("Integration_Patterns", func(t *testing.T) {
 		t.Log("🔗 Testing integration patterns...")
-		
+
 		// Test service integration
 		messages := harness.GenerateTestMessages(3)
 		t.Logf("📧 Generated test messages: %d", len(messages))
-		
+
 		// Test mock setup
 		harness.SetupMockExpectations()
 		t.Log("🎭 Mock expectations configured")
-		
+
 		// Test validation patterns
 		success := harness.WaitForCondition(func() bool {
 			// Simulate checking app state
 			return len(messages) == 3
 		}, 500*time.Millisecond)
 		t.Logf("✅ Integration validation: %v", success)
-		
+
 		t.Log("✅ Integration patterns: PASSED")
 	})
 

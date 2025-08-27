@@ -168,7 +168,7 @@ func TestMessageRepository_ErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.testFunc()
 			assert.Error(t, err)
-			
+
 			// Check that error contains at least one of the expected error messages
 			found := false
 			for _, expectedErr := range tt.expectedErrors {

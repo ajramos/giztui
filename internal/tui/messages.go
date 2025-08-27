@@ -29,13 +29,13 @@ func (a *App) reformatListItems() {
 	if !ok || len(a.ids) == 0 {
 		return
 	}
-	
+
 	// Skip reformatting in thread mode - threads have their own formatting
 	if a.GetCurrentThreadViewMode() == ThreadViewThread {
 		a.reformatThreadItems()
 		return
 	}
-	
+
 	// Use the new column-based system for flat mode
 	a.refreshTableDisplay()
 }
@@ -198,7 +198,7 @@ func (a *App) reloadMessages() {
 		a.reloadThreadsWithSpinner()
 		return
 	}
-	
+
 	// Otherwise reload messages in flat mode
 	a.reloadMessagesFlat()
 }
@@ -215,7 +215,7 @@ func (a *App) reloadThreadsWithSpinner() {
 			table.SetTitle(" Loading conversations... ")
 		}
 	})
-	
+
 	// Clear cached data like reloadMessagesFlat does
 	a.ClearMessageIDs()
 	a.mu.Lock()
@@ -231,7 +231,7 @@ func (a *App) reloadThreadsWithSpinner() {
 			i := 0
 			ticker := time.NewTicker(150 * time.Millisecond)
 			defer ticker.Stop()
-			
+
 			for {
 				select {
 				case <-spinnerStop:
@@ -258,12 +258,12 @@ func (a *App) reloadThreadsWithSpinner() {
 	// Call the actual thread refresh with spinner cleanup
 	go func() {
 		a.refreshThreadView()
-		
+
 		// Stop the spinner when done
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
-		
+
 		// Mark loading as complete
 		a.SetMessagesLoading(false)
 	}()
@@ -3308,13 +3308,13 @@ func (a *App) toggleMarkReadUnread() {
 		a.showError("❌ No message selected")
 		return
 	}
-	
+
 	messageID := a.ids[messageIndex]
 	if messageID == "" {
 		a.showError("❌ Invalid message ID")
 		return
 	}
-	
+
 	// Determine unread state from cache if possible to avoid extra roundtrip
 	isUnread := false
 	if messageIndex < len(a.messagesMeta) && a.messagesMeta[messageIndex] != nil {

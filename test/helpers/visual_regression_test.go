@@ -65,9 +65,9 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 				return list
 			},
 			Validate: func(h *TestHarness, snapshot string) bool {
-				return len(snapshot) > 0 && 
-					   contains(snapshot, "Test Subject") &&
-					   contains(snapshot, "sender0@example.com")
+				return len(snapshot) > 0 &&
+					contains(snapshot, "Test Subject") &&
+					contains(snapshot, "sender0@example.com")
 			},
 		},
 		{
@@ -101,8 +101,8 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 			},
 			Validate: func(h *TestHarness, snapshot string) bool {
 				return contains(snapshot, "From: test@example.com") &&
-					   contains(snapshot, "Test Message") &&
-					   contains(snapshot, "Hello, this is a test")
+					contains(snapshot, "Test Message") &&
+					contains(snapshot, "Hello, this is a test")
 			},
 		},
 		{
@@ -122,7 +122,7 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 			},
 			Validate: func(h *TestHarness, snapshot string) bool {
 				return contains(snapshot, "Search Query") &&
-					   contains(snapshot, "Search Messages")
+					contains(snapshot, "Search Messages")
 			},
 		},
 		{
@@ -147,8 +147,8 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 			},
 			Validate: func(h *TestHarness, snapshot string) bool {
 				return contains(snapshot, "INBOX") &&
-					   contains(snapshot, "Work") &&
-					   contains(snapshot, "Personal")
+					contains(snapshot, "Work") &&
+					contains(snapshot, "Personal")
 			},
 		},
 		{
@@ -165,8 +165,8 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 			},
 			Validate: func(h *TestHarness, snapshot string) bool {
 				return contains(snapshot, "📧") &&
-					   contains(snapshot, "messages") &&
-					   contains(snapshot, "unread")
+					contains(snapshot, "messages") &&
+					contains(snapshot, "unread")
 			},
 		},
 	}
@@ -202,12 +202,12 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 
 			// Perform snapshot comparison
 			result := CompareSnapshot(t, test.Name, content)
-			
+
 			if !result.Matches {
 				t.Logf("Visual regression detected in test: %s", test.Name)
 				t.Logf("Expected MD5: %s", result.SnapshotMD5)
 				t.Logf("Actual MD5: %s", result.CurrentMD5)
-				
+
 				// In CI/CD, this would fail the test. In development, this logs the difference.
 				if os.Getenv("UPDATE_SNAPSHOTS") == "true" {
 					t.Logf("Updating snapshot for: %s", test.Name)
@@ -233,14 +233,14 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 // CompareSnapshot compares current content with stored snapshot
 func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 	snapshotPath := filepath.Join(SnapshotDir, testName+".snapshot")
-	
+
 	// Calculate MD5 of current content
 	currentMD5 := calculateMD5(content)
-	
+
 	// Read existing snapshot if it exists
 	var snapshotMD5 string
 	var matches bool
-	
+
 	if snapshotData, err := os.ReadFile(snapshotPath); err == nil {
 		snapshotMD5 = calculateMD5(string(snapshotData))
 		matches = snapshotMD5 == currentMD5
@@ -252,7 +252,7 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 		snapshotMD5 = currentMD5
 		matches = true
 	}
-	
+
 	return SnapshotResult{
 		TestName:    testName,
 		Matches:     matches,
@@ -348,10 +348,10 @@ func RunVisualStateChanges(t *testing.T, harness *TestHarness) {
 					component := state.Setup(harness)
 					harness.DrawComponent(component)
 					content := harness.GetScreenContent()
-					
+
 					testName := fmt.Sprintf("%s_%s", stateTest.name, state.Name)
 					result := CompareSnapshot(t, testName, content)
-					
+
 					if !result.Matches && os.Getenv("UPDATE_SNAPSHOTS") != "true" {
 						t.Logf("State transition visual change detected: %s -> %s", stateTest.name, state.Name)
 					}
@@ -390,7 +390,7 @@ func RunResponsiveLayoutTests(t *testing.T, harness *TestHarness) {
 			sidebar.SetBorder(true)
 			content := tview.NewTextView().SetText("Main Content Area")
 			content.SetBorder(true)
-			
+
 			if size.width >= 120 {
 				// Wide layout - side by side
 				flex.AddItem(sidebar, 30, 0, false)
@@ -404,10 +404,10 @@ func RunResponsiveLayoutTests(t *testing.T, harness *TestHarness) {
 
 			harness.DrawComponent(flex)
 			content_str := harness.GetScreenContent()
-			
+
 			testName := fmt.Sprintf("responsive_%s", size.name)
 			result := CompareSnapshot(t, testName, content_str)
-			
+
 			if !result.Matches && os.Getenv("UPDATE_SNAPSHOTS") != "true" {
 				t.Logf("Responsive layout change detected for size: %dx%d", size.width, size.height)
 			}
@@ -432,9 +432,9 @@ func calculateMD5(content string) string {
 }
 
 func contains(haystack, needle string) bool {
-	return len(haystack) > 0 && len(needle) > 0 && 
-		   (haystack == needle || len(haystack) > len(needle) && 
-		   findSubstring(haystack, needle))
+	return len(haystack) > 0 && len(needle) > 0 &&
+		(haystack == needle || len(haystack) > len(needle) &&
+			findSubstring(haystack, needle))
 }
 
 func findSubstring(haystack, needle string) bool {

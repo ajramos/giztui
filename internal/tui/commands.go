@@ -572,7 +572,7 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args)
 	case "headers", "toggle-headers":
 		a.executeToggleHeadersCommand(args)
-	
+
 	// Threading commands
 	case "threads", "thr":
 		a.executeThreadsCommand(args)
@@ -584,7 +584,7 @@ func (a *App) executeCommand(cmd string) {
 		a.executeExpandAllCommand(args)
 	case "collapse-all", "collapse":
 		a.executeCollapseAllCommand(args)
-	
+
 	case "help", "h", "?":
 		a.executeHelpCommand(args)
 	case "numbers", "n":
@@ -1879,17 +1879,17 @@ func (a *App) executeThreadsCommand(args []string) {
 		}()
 		return
 	}
-	
+
 	// Set focus state like the keyboard shortcut
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
-	
+
 	// Switch to thread mode
 	a.SetCurrentThreadViewMode(ThreadViewThread)
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, "📧 Switched to threaded view")
 	}()
-	
+
 	// Refresh the view to show threads
 	go a.refreshThreadView()
 }
@@ -1899,13 +1899,13 @@ func (a *App) executeFlattenCommand(args []string) {
 	// Set focus state like the keyboard shortcut
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
-	
+
 	// Switch to flat mode
 	a.SetCurrentThreadViewMode(ThreadViewFlat)
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, "📄 Switched to flat view")
 	}()
-	
+
 	// Refresh the view to show flat messages
 	go a.refreshFlatView()
 }
@@ -1918,14 +1918,14 @@ func (a *App) executeThreadSummaryCommand(args []string) {
 		}()
 		return
 	}
-	
+
 	if a.GetCurrentThreadViewMode() != ThreadViewThread {
 		go func() {
 			a.GetErrorHandler().ShowWarning(a.ctx, "Thread summary only available in threaded view")
 		}()
 		return
 	}
-	
+
 	go a.GenerateThreadSummary()
 }
 
@@ -1937,14 +1937,14 @@ func (a *App) executeExpandAllCommand(args []string) {
 		}()
 		return
 	}
-	
+
 	if a.GetCurrentThreadViewMode() != ThreadViewThread {
 		go func() {
 			a.GetErrorHandler().ShowWarning(a.ctx, "Thread expansion only available in threaded view")
 		}()
 		return
 	}
-	
+
 	go a.ExpandAllThreads()
 }
 
@@ -1956,13 +1956,13 @@ func (a *App) executeCollapseAllCommand(args []string) {
 		}()
 		return
 	}
-	
+
 	if a.GetCurrentThreadViewMode() != ThreadViewThread {
 		go func() {
 			a.GetErrorHandler().ShowWarning(a.ctx, "Thread collapse only available in threaded view")
 		}()
 		return
 	}
-	
+
 	go a.CollapseAllThreads()
 }

@@ -26,8 +26,8 @@ func TestLabelService_CreateLabel_ValidationErrors(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		labelName    string
+		name          string
+		labelName     string
 		expectedError string
 	}{
 		{"empty_name", "", "label name cannot be empty"},
@@ -215,21 +215,21 @@ func TestLabelService_ValidationLogic(t *testing.T) {
 
 	// Test that validation correctly identifies valid vs invalid inputs
 	// We only test the validation logic without making API calls
-	
+
 	// Valid inputs should not trigger validation errors (we test this indirectly)
 	validInputs := map[string]string{
-		"ValidLabel":    "valid label name",
-		"valid-ID":      "valid label ID",  
-		"valid_msg123":  "valid message ID",
+		"ValidLabel":        "valid label name",
+		"valid-ID":          "valid label ID",
+		"valid_msg123":      "valid message ID",
 		"Label With Spaces": "label name with spaces",
 	}
 
 	// These are valid for the validation logic (non-empty after trim)
 	for input, description := range validInputs {
 		t.Run("valid_input_"+description, func(t *testing.T) {
-			// Test that these inputs would pass validation 
+			// Test that these inputs would pass validation
 			// (they'll fail at API level but that's not validation)
-			
+
 			// For string operations that just trim and check empty
 			trimmed := input
 			assert.NotEmpty(t, trimmed, "Valid input should not be empty after processing")
@@ -416,15 +416,15 @@ func TestLabelService_Initialization(t *testing.T) {
 	// Test normal initialization
 	client := &gmail.Client{}
 	service := NewLabelService(client)
-	
+
 	assert.NotNil(t, service)
 	assert.Equal(t, client, service.gmailClient)
-	
+
 	// Test nil client initialization
 	serviceWithNil := NewLabelService(nil)
 	assert.NotNil(t, serviceWithNil)
 	assert.Nil(t, serviceWithNil.gmailClient)
-	
+
 	// Both services should be different instances
 	assert.NotEqual(t, service, serviceWithNil)
 }

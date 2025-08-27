@@ -15,7 +15,7 @@ func TestFrameworkIntegration(t *testing.T) {
 
 		// Verify mocks are created
 		assert.NotNil(t, harness.MockEmail, "EmailService mock should be created")
-		assert.NotNil(t, harness.MockAI, "AIService mock should be created") 
+		assert.NotNil(t, harness.MockAI, "AIService mock should be created")
 		assert.NotNil(t, harness.MockLabel, "LabelService mock should be created")
 		assert.NotNil(t, harness.MockCache, "CacheService mock should be created")
 		assert.NotNil(t, harness.MockRepo, "MessageRepository mock should be created")
@@ -29,7 +29,7 @@ func TestFrameworkIntegration(t *testing.T) {
 
 		// Verify screen is created and functional
 		assert.NotNil(t, harness.Screen, "SimulationScreen should be created")
-		
+
 		width, height := harness.Screen.Size()
 		assert.Equal(t, 120, width, "Screen width should be 120")
 		assert.Equal(t, 40, height, "Screen height should be 40")
@@ -42,7 +42,7 @@ func TestFrameworkIntegration(t *testing.T) {
 
 		messages := harness.GenerateTestMessages(5)
 		assert.Len(t, messages, 5, "Should generate 5 test messages")
-		
+
 		for i, msg := range messages {
 			assert.NotEmpty(t, msg.Id, "Message %d should have an ID", i)
 			assert.NotEmpty(t, msg.ThreadId, "Message %d should have a ThreadID", i)

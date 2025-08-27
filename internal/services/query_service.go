@@ -52,7 +52,7 @@ func (s *QueryServiceImpl) SaveQuery(ctx context.Context, name, query, descripti
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
@@ -87,7 +87,7 @@ func (s *QueryServiceImpl) GetQuery(ctx context.Context, name string) (*SavedQue
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
@@ -113,7 +113,7 @@ func (s *QueryServiceImpl) GetQueryByID(ctx context.Context, id int64) (*SavedQu
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
@@ -139,7 +139,7 @@ func (s *QueryServiceImpl) ListQueries(ctx context.Context, category string) ([]
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
@@ -166,7 +166,7 @@ func (s *QueryServiceImpl) SearchQueries(ctx context.Context, searchTerm string)
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}
@@ -256,7 +256,7 @@ func (s *QueryServiceImpl) GetCategories(ctx context.Context) ([]string, error) 
 	s.mu.RLock()
 	email := s.accountEmail
 	s.mu.RUnlock()
-	
+
 	if strings.TrimSpace(email) == "" {
 		return nil, fmt.Errorf("account email not set")
 	}

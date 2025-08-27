@@ -29,10 +29,10 @@ type ThreadServiceImpl struct {
 	gmailClient *gmail.Client
 	dbStore     *db.Store
 	aiService   AIService
-	
+
 	// In-memory state tracking when database is not available
 	memoryState sync.Map // key: "accountEmail:threadID" -> value: bool (expanded state)
-	
+
 	// Message cache for improved performance
 	messageCache sync.Map // key: "threadID" -> value: *threadMessageCache
 }
@@ -64,7 +64,7 @@ func (s *ThreadServiceImpl) GetThreads(ctx context.Context, opts ThreadQueryOpti
 
 	// Build Gmail threads query
 	call := s.gmailClient.Service.Users.Threads.List("me")
-	
+
 	if opts.MaxResults > 0 {
 		call = call.MaxResults(opts.MaxResults)
 	}
@@ -122,7 +122,7 @@ func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID stri
 			// Return cached messages, sorted as requested
 			messages := make([]*gmailapi.Message, len(cache.messages))
 			copy(messages, cache.messages)
-			
+
 			// Apply sorting
 			s.sortMessages(messages, opts.SortOrder)
 			return messages, nil
@@ -138,7 +138,7 @@ func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID stri
 	}
 
 	messages := thread.Messages
-	
+
 	// Cache the messages for future use (5 minute TTL)
 	cache := &threadMessageCache{
 		messages:  make([]*gmailapi.Message, len(messages)),
@@ -147,7 +147,7 @@ func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID stri
 	}
 	copy(cache.messages, messages)
 	s.messageCache.Store(threadID, cache)
-	
+
 	// Apply sorting to the returned messages
 	s.sortMessages(messages, opts.SortOrder)
 	return messages, nil
@@ -191,7 +191,7 @@ func (s *ThreadServiceImpl) SetThreadExpanded(ctx context.Context, accountEmail,
 
 	query := `INSERT OR REPLACE INTO thread_state (account_email, thread_id, is_expanded, last_updated) 
 			  VALUES (?, ?, ?, ?)`
-	
+
 	_, err := s.dbStore.DB().Exec(query, accountEmail, threadID, expanded, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to set thread expansion state: %w", err)
@@ -214,7 +214,7 @@ func (s *ThreadServiceImpl) IsThreadExpanded(ctx context.Context, accountEmail, 
 
 	var expanded bool
 	query := `SELECT is_expanded FROM thread_state WHERE account_email = ? AND thread_id = ?`
-	
+
 	row := s.dbStore.DB().QueryRow(query, accountEmail, threadID)
 	err := row.Scan(&expanded)
 	if err != nil {
@@ -236,7 +236,7 @@ func (s *ThreadServiceImpl) ExpandAllThreads(ctx context.Context, accountEmail s
 	}
 
 	query := `UPDATE thread_state SET is_expanded = true, last_updated = ? WHERE account_email = ?`
-	
+
 	_, err := s.dbStore.DB().Exec(query, time.Now(), accountEmail)
 	if err != nil {
 		return fmt.Errorf("failed to expand all threads: %w", err)
@@ -253,7 +253,7 @@ func (s *ThreadServiceImpl) CollapseAllThreads(ctx context.Context, accountEmail
 	}
 
 	query := `UPDATE thread_state SET is_expanded = false, last_updated = ? WHERE account_email = ?`
-	
+
 	_, err := s.dbStore.DB().Exec(query, time.Now(), accountEmail)
 	if err != nil {
 		return fmt.Errorf("failed to collapse all threads: %w", err)
@@ -287,10 +287,10 @@ func (s *ThreadServiceImpl) GenerateThreadSummary(ctx context.Context, threadID 
 	// Build combined content for AI processing
 	var contentBuilder strings.Builder
 	contentBuilder.WriteString("---START THREAD---\n")
-	
+
 	for i, msg := range messages {
 		contentBuilder.WriteString(fmt.Sprintf("---START MESSAGE %d---\n", i+1))
-		
+
 		// Extract message content
 		plainText := gmail.ExtractPlainText(msg)
 		if plainText != "" {
@@ -298,7 +298,7 @@ func (s *ThreadServiceImpl) GenerateThreadSummary(ctx context.Context, threadID 
 		} else {
 			contentBuilder.WriteString("[No content available]")
 		}
-		
+
 		contentBuilder.WriteString(fmt.Sprintf("\n---END MESSAGE %d---\n", i+1))
 	}
 	contentBuilder.WriteString("---END THREAD---\n")
@@ -365,7 +365,7 @@ func (s *ThreadServiceImpl) GenerateThreadSummaryStream(ctx context.Context, thr
 	// Build combined content
 	var contentBuilder strings.Builder
 	contentBuilder.WriteString("---START THREAD---\n")
-	
+
 	for i, msg := range messages {
 		contentBuilder.WriteString(fmt.Sprintf("---START MESSAGE %d---\n", i+1))
 		plainText := gmail.ExtractPlainText(msg)
@@ -420,7 +420,7 @@ func (s *ThreadServiceImpl) GetCachedThreadSummary(ctx context.Context, accountE
 	query := `SELECT summary, summary_type, language, message_count, cached_at 
 			  FROM thread_summary_cache 
 			  WHERE account_email = ? AND thread_id = ?`
-	
+
 	var summary, summaryType, language string
 	var messageCount int
 	var cachedAt time.Time
@@ -460,7 +460,7 @@ func (s *ThreadServiceImpl) SearchWithinThread(ctx context.Context, threadID, qu
 	for _, msg := range messages {
 		plainText := gmail.ExtractPlainText(msg)
 		plainTextLower := strings.ToLower(plainText)
-		
+
 		// Find all occurrences of the query in this message
 		startPos := 0
 		for {
@@ -468,9 +468,9 @@ func (s *ThreadServiceImpl) SearchWithinThread(ctx context.Context, threadID, qu
 			if pos == -1 {
 				break
 			}
-			
+
 			actualPos := startPos + pos
-			
+
 			// Extract context around the match
 			contextStart := actualPos - 50
 			if contextStart < 0 {
@@ -480,17 +480,17 @@ func (s *ThreadServiceImpl) SearchWithinThread(ctx context.Context, threadID, qu
 			if contextEnd > len(plainText) {
 				contextEnd = len(plainText)
 			}
-			
+
 			context := plainText[contextStart:contextEnd]
-			matchText := plainText[actualPos:actualPos+len(query)]
-			
+			matchText := plainText[actualPos : actualPos+len(query)]
+
 			matches = append(matches, ThreadMatch{
 				MessageID: msg.Id,
 				Position:  actualPos,
 				Context:   context,
 				MatchText: matchText,
 			})
-			
+
 			startPos = actualPos + 1
 		}
 	}
@@ -559,7 +559,7 @@ func (s *ThreadServiceImpl) buildThreadInfo(ctx context.Context, thread *gmailap
 
 	// Use the first message as the root
 	rootMsg := thread.Messages[0]
-	
+
 	// Extract participants
 	participants := make(map[string]bool)
 	var labels []string
@@ -633,8 +633,8 @@ func (s *ThreadServiceImpl) cacheThreadSummary(ctx context.Context, accountEmail
 	query := `INSERT OR REPLACE INTO thread_summary_cache 
 			  (account_email, thread_id, summary, summary_type, language, message_count, cached_at)
 			  VALUES (?, ?, ?, ?, ?, ?, ?)`
-	
-	_, err := s.dbStore.DB().Exec(query, accountEmail, result.ThreadID, result.Summary, 
+
+	_, err := s.dbStore.DB().Exec(query, accountEmail, result.ThreadID, result.Summary,
 		result.SummaryType, result.Language, result.MessageCount, result.CreatedAt)
 	if err != nil {
 		// Log error but don't fail the operation
@@ -648,13 +648,13 @@ func extractHeader(msg *gmailapi.Message, headerName string) string {
 	if msg.Payload == nil || msg.Payload.Headers == nil {
 		return ""
 	}
-	
+
 	for _, header := range msg.Payload.Headers {
 		if header.Name == headerName {
 			return header.Value
 		}
 	}
-	
+
 	return ""
 }
 
@@ -666,7 +666,7 @@ func hasAttachmentInMessage(msg *gmailapi.Message) bool {
 	if msg.Payload == nil {
 		return false
 	}
-	
+
 	// Check if message has parts with attachments
 	return hasAttachmentInPart(msg.Payload)
 }
@@ -675,12 +675,12 @@ func hasAttachmentInPart(part *gmailapi.MessagePart) bool {
 	if part.Body != nil && part.Body.AttachmentId != "" {
 		return true
 	}
-	
+
 	for _, subpart := range part.Parts {
 		if hasAttachmentInPart(subpart) {
 			return true
 		}
 	}
-	
+
 	return false
 }

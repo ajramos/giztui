@@ -56,7 +56,7 @@ func (a *App) executeLabelAdd(args []string) {
 		a.updateCachedMessageLabels(messageID, label.Id, true)
 		a.updateMessageCacheLabels(messageID, labelName, true)
 		a.refreshMessageContent(messageID)
-		
+
 		// Refresh message list to show updated label chips immediately
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()

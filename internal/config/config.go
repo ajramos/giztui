@@ -68,7 +68,7 @@ type Config struct {
 
 	// Attachments configuration
 	Attachments AttachmentsConfig `json:"attachments"`
-	
+
 	// Threading configuration
 	Threading ThreadingConfig `json:"threading"`
 }
@@ -160,25 +160,25 @@ type AttachmentsConfig struct {
 type ThreadingConfig struct {
 	// Enabled controls whether threading functionality is available
 	Enabled bool `json:"enabled"`
-	
+
 	// DefaultView specifies the default message view: "flat" or "thread"
 	DefaultView string `json:"default_view"`
-	
+
 	// AutoExpandUnread automatically expands threads containing unread messages
 	AutoExpandUnread bool `json:"auto_expand_unread"`
-	
+
 	// ShowThreadCount displays message count badges on threaded conversations (📧 5)
 	ShowThreadCount bool `json:"show_thread_count"`
-	
+
 	// IndentReplies visually indents reply messages to show conversation hierarchy
 	IndentReplies bool `json:"indent_replies"`
-	
+
 	// MaxThreadDepth limits the maximum nesting level for thread display
 	MaxThreadDepth int `json:"max_thread_depth"`
-	
+
 	// ThreadSummaryEnabled enables AI-powered thread summaries
 	ThreadSummaryEnabled bool `json:"thread_summary_enabled"`
-	
+
 	// PreserveThreadState remembers expanded/collapsed state between sessions
 	PreserveThreadState bool `json:"preserve_thread_state"`
 }
@@ -243,15 +243,15 @@ type KeyBindings struct {
 	WordRight     string `json:"word_right"`     // Word-wise navigation right
 	GotoTop       string `json:"goto_top"`       // Jump to top of content
 	GotoBottom    string `json:"goto_bottom"`    // Jump to bottom of content
-	
+
 	// Threading shortcuts
-	ToggleThreading     string `json:"toggle_threading"`      // Toggle between thread and flat view
-	ExpandThread        string `json:"expand_thread"`         // Expand/collapse selected thread
-	ExpandAllThreads    string `json:"expand_all_threads"`    // Expand all threads in current view  
-	CollapseAllThreads  string `json:"collapse_all_threads"`  // Collapse all threads
-	ThreadSummary       string `json:"thread_summary"`        // Generate AI summary of thread
-	NextThread          string `json:"next_thread"`           // Navigate to next thread
-	PrevThread          string `json:"prev_thread"`           // Navigate to previous thread
+	ToggleThreading    string `json:"toggle_threading"`     // Toggle between thread and flat view
+	ExpandThread       string `json:"expand_thread"`        // Expand/collapse selected thread
+	ExpandAllThreads   string `json:"expand_all_threads"`   // Expand all threads in current view
+	CollapseAllThreads string `json:"collapse_all_threads"` // Collapse all threads
+	ThreadSummary      string `json:"thread_summary"`       // Generate AI summary of thread
+	NextThread         string `json:"next_thread"`          // Navigate to next thread
+	PrevThread         string `json:"prev_thread"`          // Navigate to previous thread
 
 	// Undo functionality
 	Undo string `json:"undo"` // Undo last action
@@ -372,15 +372,15 @@ func DefaultKeyBindings() KeyBindings {
 		WordRight:     "ctrl+l", // Word right navigation
 		GotoTop:       "gg",     // Vim-like go to top
 		GotoBottom:    "G",      // Vim-like go to bottom
-		
+
 		// Threading shortcuts
-		ToggleThreading:     "T",        // Toggle between thread and flat view
-		ExpandThread:        "enter",    // Expand/collapse selected thread
-		ExpandAllThreads:    "E",        // Expand all threads in current view  
-		CollapseAllThreads:  "C",        // Collapse all threads
-		ThreadSummary:       "shift+t",  // Generate AI summary of thread
-		NextThread:          "ctrl+n",   // Navigate to next thread
-		PrevThread:          "ctrl+p",   // Navigate to previous thread
+		ToggleThreading:    "T",       // Toggle between thread and flat view
+		ExpandThread:       "enter",   // Expand/collapse selected thread
+		ExpandAllThreads:   "E",       // Expand all threads in current view
+		CollapseAllThreads: "C",       // Collapse all threads
+		ThreadSummary:      "shift+t", // Generate AI summary of thread
+		NextThread:         "ctrl+n",  // Navigate to next thread
+		PrevThread:         "ctrl+p",  // Navigate to previous thread
 
 		// Undo functionality
 		Undo: "U", // Undo last action
@@ -415,14 +415,14 @@ func DefaultLayoutConfig() LayoutConfig {
 // DefaultThreadingConfig returns default threading configuration
 func DefaultThreadingConfig() ThreadingConfig {
 	return ThreadingConfig{
-		Enabled:               true,
-		DefaultView:           "flat",
-		AutoExpandUnread:      true,
-		ShowThreadCount:       true,
-		IndentReplies:         true,
-		MaxThreadDepth:        10,
-		ThreadSummaryEnabled:  true,
-		PreserveThreadState:   true,
+		Enabled:              true,
+		DefaultView:          "flat",
+		AutoExpandUnread:     true,
+		ShowThreadCount:      true,
+		IndentReplies:        true,
+		MaxThreadDepth:       10,
+		ThreadSummaryEnabled: true,
+		PreserveThreadState:  true,
 	}
 }
 

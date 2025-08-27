@@ -14,9 +14,9 @@ func TestOpen_ValidationErrors(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		dbPath       string
-		expectedErr  string
+		name        string
+		dbPath      string
+		expectedErr string
 	}{
 		{"empty_path", "", "empty database path"},
 		{"whitespace_path", "   ", "empty database path"},
@@ -58,7 +58,7 @@ func TestOpen_DirectoryCreation(t *testing.T) {
 
 	// Verify nested directories were created
 	assert.DirExists(t, filepath.Dir(dbPath))
-	
+
 	// Cleanup
 	assert.NoError(t, store.Close())
 }
@@ -149,7 +149,7 @@ func TestMigration_V1_AISummariesTable(t *testing.T) {
 
 	// Verify ai_summaries table exists
 	var tableName string
-	err = store.db.QueryRowContext(ctx, 
+	err = store.db.QueryRowContext(ctx,
 		"SELECT name FROM sqlite_master WHERE type='table' AND name='ai_summaries'").Scan(&tableName)
 	assert.NoError(t, err)
 	assert.Equal(t, "ai_summaries", tableName)
@@ -360,10 +360,10 @@ func TestDatabase_ConcurrentAccess(t *testing.T) {
 	var version1, version2 int
 	err = store.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version1)
 	assert.NoError(t, err)
-	
+
 	err = store2.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version2)
 	assert.NoError(t, err)
-	
+
 	assert.Equal(t, version1, version2)
 }
 
@@ -371,7 +371,7 @@ func TestDatabase_ConcurrentAccess(t *testing.T) {
 func BenchmarkOpen(b *testing.B) {
 	ctx := context.Background()
 	tmpDir := b.TempDir()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		dbPath := filepath.Join(tmpDir, "bench_"+string(rune(i))+".db")
@@ -388,13 +388,13 @@ func BenchmarkInsert(b *testing.B) {
 	ctx := context.Background()
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench_insert.db")
-	
+
 	store, err := Open(ctx, dbPath)
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer store.Close()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := store.db.ExecContext(ctx,
@@ -410,13 +410,13 @@ func BenchmarkQuery(b *testing.B) {
 	ctx := context.Background()
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench_query.db")
-	
+
 	store, err := Open(ctx, dbPath)
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer store.Close()
-	
+
 	// Insert test data
 	_, err = store.db.ExecContext(ctx,
 		"INSERT INTO ai_summaries (account_email, message_id, summary, updated_at) VALUES (?, ?, ?, ?)",
@@ -424,7 +424,7 @@ func BenchmarkQuery(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var summary string
@@ -465,7 +465,7 @@ func TestSchema_Validation(t *testing.T) {
 	// Verify all expected tables exist
 	expectedTables := []string{
 		"ai_summaries",
-		"prompt_templates", 
+		"prompt_templates",
 		"prompt_results",
 		"bulk_prompt_results",
 		"saved_queries",
@@ -491,12 +491,12 @@ func TestDatabase_FileHandling(t *testing.T) {
 		store, err := Open(ctx, dbPath)
 		assert.NoError(t, err)
 		assert.NotNil(t, store)
-		
+
 		// Should be able to query
 		var version int
 		err = store.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version)
 		assert.NoError(t, err)
-		
+
 		err = store.Close()
 		assert.NoError(t, err)
 	}

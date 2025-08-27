@@ -82,17 +82,17 @@ func TestTestHarness_ScreenSnapshot(t *testing.T) {
 
 	// Create another identical snapshot
 	snapshot2 := harness.GetScreenSnapshot()
-	
+
 	// Verify snapshots are equal
 	assert.True(t, snapshot1.Equals(snapshot2))
 
 	// Change screen content
 	textView.SetText("Changed Content")
 	harness.DrawComponent(textView)
-	
+
 	// Capture new snapshot
 	snapshot3 := harness.GetScreenSnapshot()
-	
+
 	// Verify snapshots are different
 	assert.False(t, snapshot1.Equals(snapshot3))
 }
@@ -152,7 +152,7 @@ func TestTestHarness_MockSetup(t *testing.T) {
 
 	// Verify mock setup worked
 	assert.NotNil(t, harness.MockRepo)
-	
+
 	// The mock should be ready to use (though we can't easily test the expectations
 	// without triggering actual service calls)
 }
@@ -164,9 +164,9 @@ func TestTestHarness_MessageGeneration(t *testing.T) {
 
 	// Generate test messages
 	messages := harness.GenerateTestMessages(5)
-	
+
 	require.Len(t, messages, 5)
-	
+
 	// Verify message structure
 	for i, msg := range messages {
 		assert.Equal(t, fmt.Sprintf("msg_%d", i), msg.Id)
@@ -185,7 +185,7 @@ func TestTestHarness_TypingSimulation(t *testing.T) {
 
 	// Test with special characters
 	harness.SimulateTyping("test@example.com")
-	
+
 	// Test with unicode
 	harness.SimulateTyping("Testing 🎯")
 }

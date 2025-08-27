@@ -104,7 +104,7 @@ func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
 			Execute: func(h *TestHarness) context.CancelFunc {
 				ctx, cancel := context.WithCancel(h.Ctx)
 				messageIDs := []string{"msg_1", "msg_2", "msg_3", "msg_4", "msg_5"}
-				
+
 				go func() {
 					var wg sync.WaitGroup
 					for _, msgID := range messageIDs {
@@ -116,7 +116,7 @@ func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
 					}
 					wg.Wait()
 				}()
-				
+
 				return cancel
 			},
 			Validate: func(h *TestHarness) bool {
@@ -232,7 +232,7 @@ func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				callback := args.Get(3).(func(string))
-				
+
 				// Simulate streaming with cancellation check
 				for i := 0; i < 100; i++ {
 					select {
@@ -247,7 +247,7 @@ func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
 
 		// Start streaming operation
 		ctx, cancel := context.WithCancel(harness.Ctx)
-		
+
 		go func() {
 			opts := services.SummaryOptions{MaxLength: 100}
 			_, _ = harness.MockAI.GenerateSummaryStream(ctx, "test content", opts, func(chunk string) {
@@ -279,11 +279,11 @@ func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
 			Return(nil).
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
-				
+
 				mu.Lock()
 				callCount++
 				mu.Unlock()
-				
+
 				// Simulate work with cancellation check
 				for i := 0; i < 10; i++ {
 					select {
@@ -381,7 +381,7 @@ func RunAsyncOperationTimeoutTests(t *testing.T, harness *TestHarness) {
 			Return((*services.SummaryResult)(nil), fmt.Errorf("generation timeout")).
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
-				
+
 				// Simulate long AI processing with context checking
 				for i := 0; i < 100; i++ {
 					select {
@@ -405,7 +405,7 @@ func RunAsyncOperationTimeoutTests(t *testing.T, harness *TestHarness) {
 
 		// Should complete quickly due to timeout
 		assert.Less(t, duration, 1*time.Second, "Operation should have timed out quickly")
-		
+
 		// May or may not have error depending on mock implementation
 		t.Logf("AI generation result: error=%v, duration=%v", err, duration)
 	})

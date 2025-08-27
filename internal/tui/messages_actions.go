@@ -12,7 +12,7 @@ func (a *App) archiveSelected() {
 		a.showError("❌ No message selected")
 		return
 	}
-	
+
 	if a.currentFocus == "list" || a.currentFocus == "text" || a.currentFocus == "summary" {
 		// messageID is already correctly determined above
 	} else {

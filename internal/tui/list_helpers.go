@@ -57,13 +57,13 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	if count > 1 {
 		// Convert removeIndex (message index) to table row index (+1 for header)
 		removeTableRow := removeIndex + 1
-		
+
 		// Calculate pre-selection table row
 		pre := removeTableRow - 1
 		if removeIndex == 0 {
 			pre = 2 // Second message (table row 2) when removing first message
 		}
-		if pre < 1 {  // Never select header row (0)
+		if pre < 1 { // Never select header row (0)
 			pre = 1
 		}
 		if pre >= count {

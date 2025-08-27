@@ -14,8 +14,8 @@ import (
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 
@@ -176,7 +176,7 @@ func (h *TestHarness) GenerateTestMessages(count int) []*gmail_v1.Message {
 func (h *TestHarness) SetupMockExpectations() {
 	// Setup common mock expectations here
 	h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).Return(&services.MessagePage{
-		Messages: h.GenerateTestMessages(10),
+		Messages:      h.GenerateTestMessages(10),
 		NextPageToken: "",
 	}, nil)
 }
@@ -224,7 +224,7 @@ func (h *TestHarness) SimulateMouseClick(x, y int) *tcell.EventMouse {
 func (h *TestHarness) GetScreenSnapshot() *ScreenSnapshot {
 	width, height := h.Screen.Size()
 	cells := make([][]ScreenCell, height)
-	
+
 	for y := 0; y < height; y++ {
 		cells[y] = make([]ScreenCell, width)
 		for x := 0; x < width; x++ {
@@ -235,7 +235,7 @@ func (h *TestHarness) GetScreenSnapshot() *ScreenSnapshot {
 			}
 		}
 	}
-	
+
 	return &ScreenSnapshot{
 		Width:  width,
 		Height: height,
@@ -261,7 +261,7 @@ func (s *ScreenSnapshot) Equals(other *ScreenSnapshot) bool {
 	if s.Width != other.Width || s.Height != other.Height {
 		return false
 	}
-	
+
 	for y := 0; y < s.Height; y++ {
 		for x := 0; x < s.Width; x++ {
 			if s.Cells[y][x] != other.Cells[y][x] {
@@ -269,7 +269,7 @@ func (s *ScreenSnapshot) Equals(other *ScreenSnapshot) bool {
 			}
 		}
 	}
-	
+
 	return true
 }
 

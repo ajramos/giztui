@@ -457,10 +457,10 @@ func RunKeyboardShortcutCombinationsTests(t *testing.T, harness *TestHarness) {
 		{
 			name: "modal_escape_sequence",
 			sequence: []KeySpec{
-				{Key: tcell.KeyRune, Rune: '/', Modifiers: tcell.ModNone},  // Open search
-				{Key: tcell.KeyRune, Rune: 't', Modifiers: tcell.ModNone},  // Type 't'
-				{Key: tcell.KeyRune, Rune: 'e', Modifiers: tcell.ModNone},  // Type 'e'
-				{Key: tcell.KeyEscape, Modifiers: tcell.ModNone},            // Cancel search
+				{Key: tcell.KeyRune, Rune: '/', Modifiers: tcell.ModNone}, // Open search
+				{Key: tcell.KeyRune, Rune: 't', Modifiers: tcell.ModNone}, // Type 't'
+				{Key: tcell.KeyRune, Rune: 'e', Modifiers: tcell.ModNone}, // Type 'e'
+				{Key: tcell.KeyEscape, Modifiers: tcell.ModNone},          // Cancel search
 			},
 			description: "Search modal with escape cancel",
 			validate: func(h *TestHarness) bool {

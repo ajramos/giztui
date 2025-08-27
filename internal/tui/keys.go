@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
-	"github.com/ajramos/gmail-tui/internal/services"
 )
 
 // handleConfigurableKey checks if a key event matches a configurable shortcut and executes the corresponding action
@@ -346,7 +346,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.toggleHeaderVisibility()
 		return true
-	
+
 	// Threading shortcuts
 	case a.Keys.ToggleThreading:
 		if a.logger != nil {
@@ -1122,7 +1122,7 @@ func (a *App) bindKeys() {
 			a.openAdvancedSearchForm()
 			return nil
 		}
-		
+
 		// Threading special key handlers
 		// Handle Shift+T for thread summary
 		if event.Key() == tcell.KeyRune && (event.Modifiers()&tcell.ModShift) != 0 && event.Rune() == 'T' {
@@ -1132,7 +1132,7 @@ func (a *App) bindKeys() {
 			go a.GenerateThreadSummary()
 			return nil
 		}
-		
+
 		// Handle Ctrl+N for next thread
 		if (event.Key() == tcell.KeyCtrlN) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'n') {
 			if a.logger != nil {
@@ -1144,7 +1144,7 @@ func (a *App) bindKeys() {
 			}()
 			return nil
 		}
-		
+
 		// Handle Ctrl+P for previous thread
 		if (event.Key() == tcell.KeyCtrlP) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'p') {
 			if a.logger != nil {

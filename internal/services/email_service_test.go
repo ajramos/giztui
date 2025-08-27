@@ -463,7 +463,7 @@ func TestEmailService_FileOperations_Validation(t *testing.T) {
 
 	// Only test validation logic, don't try to make API calls
 	// These should pass validation but we won't call the method to avoid API calls
-	
+
 	// Test validation directly - this is already covered by SaveMessageToFile_ValidationErrors
 	// So this test just confirms the service can be created properly
 	assert.NotNil(t, service)
@@ -511,7 +511,7 @@ func TestEmailService_ComprehensiveValidation(t *testing.T) {
 			errorMsg:    "messageID cannot be empty",
 		},
 		{
-			name:        "ArchiveMessage_empty_id", 
+			name:        "ArchiveMessage_empty_id",
 			testFunc:    func() error { return service.ArchiveMessage(ctx, "") },
 			shouldError: true,
 			errorMsg:    "messageID cannot be empty",

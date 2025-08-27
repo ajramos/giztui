@@ -14,16 +14,16 @@ func TestGetConfigPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_CONFIG")
 	defer os.Setenv("GMAIL_TUI_CONFIG", originalEnv)
-	
+
 	// Test CLI flag takes precedence
 	result := getConfigPath("/custom/config.json")
 	assert.Equal(t, "/custom/config.json", result)
-	
+
 	// Test environment variable when no flag
 	os.Setenv("GMAIL_TUI_CONFIG", "/env/config.json")
 	result = getConfigPath("")
 	assert.Equal(t, "/env/config.json", result)
-	
+
 	// Test default when neither flag nor env
 	os.Unsetenv("GMAIL_TUI_CONFIG")
 	result = getConfigPath("")
@@ -34,21 +34,21 @@ func TestGetCredentialsPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_CREDENTIALS")
 	defer os.Setenv("GMAIL_TUI_CREDENTIALS", originalEnv)
-	
+
 	// Test CLI flag takes precedence
 	result := getCredentialsPath("/custom/creds.json", "/config/creds.json")
 	assert.Equal(t, "/custom/creds.json", result)
-	
+
 	// Test environment variable when no flag
 	os.Setenv("GMAIL_TUI_CREDENTIALS", "/env/creds.json")
 	result = getCredentialsPath("", "/config/creds.json")
 	assert.Equal(t, "/env/creds.json", result)
-	
+
 	// Test config value when no flag or env
 	os.Unsetenv("GMAIL_TUI_CREDENTIALS")
 	result = getCredentialsPath("", "/config/creds.json")
 	assert.Equal(t, "/config/creds.json", result)
-	
+
 	// Test default when nothing provided
 	result = getCredentialsPath("", "")
 	assert.Contains(t, result, "credentials.json")
@@ -58,21 +58,21 @@ func TestGetTokenPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_TOKEN")
 	defer os.Setenv("GMAIL_TUI_TOKEN", originalEnv)
-	
+
 	// Test CLI flag takes precedence
 	result := getTokenPath("/custom/token.json", "/config/token.json")
 	assert.Equal(t, "/custom/token.json", result)
-	
+
 	// Test environment variable when no flag
 	os.Setenv("GMAIL_TUI_TOKEN", "/env/token.json")
 	result = getTokenPath("", "/config/token.json")
 	assert.Equal(t, "/env/token.json", result)
-	
+
 	// Test config value when no flag or env
 	os.Unsetenv("GMAIL_TUI_TOKEN")
 	result = getTokenPath("", "/config/token.json")
 	assert.Equal(t, "/config/token.json", result)
-	
+
 	// Test default when nothing provided
 	result = getTokenPath("", "")
 	assert.Contains(t, result, "token.json")
@@ -91,11 +91,11 @@ func TestExpandPath(t *testing.T) {
 		{"home_with_subpath", "~/config/file", "config/file"},
 		{"empty_path", "", ""},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := expandPath(tc.input)
-			
+
 			if tc.input == tc.contains {
 				// For non-home paths, should be unchanged
 				assert.Equal(t, tc.input, result)
@@ -114,7 +114,7 @@ func TestExpandPath_HomeDirectory(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot get home directory")
 	}
-	
+
 	testCases := []struct {
 		input    string
 		expected string
@@ -123,7 +123,7 @@ func TestExpandPath_HomeDirectory(t *testing.T) {
 		{"~/test", filepath.Join(home, "test")},
 		{"~/config/file.json", filepath.Join(home, "config", "file.json")},
 	}
-	
+
 	for _, tc := range testCases {
 		result := expandPath(tc.input)
 		assert.Equal(t, tc.expected, result, "Path expansion for: %s", tc.input)
@@ -140,9 +140,9 @@ func TestExpandPath_EdgeCases(t *testing.T) {
 		{"tilde_middle", "/path/~/middle", "/path/~/middle"},
 		{"empty_string", "", ""},
 		{"just_slash", "/", "/"},
-		{"multiple_tildes", "~/~/test", "~/test"},  // Expands first ~ only
+		{"multiple_tildes", "~/~/test", "~/test"}, // Expands first ~ only
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.name == "multiple_tildes" {
@@ -151,7 +151,7 @@ func TestExpandPath_EdgeCases(t *testing.T) {
 				assert.Contains(t, result, tc.expected)
 				return
 			}
-			
+
 			result := expandPath(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -162,23 +162,23 @@ func TestExpandPath_EdgeCases(t *testing.T) {
 func TestEnvironmentVariables(t *testing.T) {
 	envVars := []string{
 		"GMAIL_TUI_CONFIG",
-		"GMAIL_TUI_CREDENTIALS", 
+		"GMAIL_TUI_CREDENTIALS",
 		"GMAIL_TUI_TOKEN",
 	}
-	
+
 	for _, envVar := range envVars {
 		t.Run(envVar, func(t *testing.T) {
 			// Save original value
 			original := os.Getenv(envVar)
 			defer os.Setenv(envVar, original)
-			
+
 			// Test setting and getting
 			testValue := "/test/path"
 			os.Setenv(envVar, testValue)
-			
+
 			result := os.Getenv(envVar)
 			assert.Equal(t, testValue, result)
-			
+
 			// Test unsetting
 			os.Unsetenv(envVar)
 			result = os.Getenv(envVar)
@@ -192,12 +192,12 @@ func TestAWSRegionHandling(t *testing.T) {
 	// Save original environment
 	originalRegion := os.Getenv("AWS_REGION")
 	defer os.Setenv("AWS_REGION", originalRegion)
-	
+
 	// Test setting AWS region
 	os.Setenv("AWS_REGION", "us-east-1")
 	result := os.Getenv("AWS_REGION")
 	assert.Equal(t, "us-east-1", result)
-	
+
 	// Test clearing AWS region
 	os.Unsetenv("AWS_REGION")
 	result = os.Getenv("AWS_REGION")
@@ -211,11 +211,11 @@ func TestStringManipulation(t *testing.T) {
 		email := "user@example.com"
 		replacer := strings.NewReplacer("/", "_", "\\", "_", ":", "_", "@", "_", " ", "_")
 		sanitized := replacer.Replace(strings.ToLower(strings.TrimSpace(email)))
-		
+
 		expected := "user_example.com"
 		assert.Equal(t, expected, sanitized)
 	})
-	
+
 	t.Run("path_sanitization_edge_cases", func(t *testing.T) {
 		testCases := []struct {
 			input    string
@@ -227,9 +227,9 @@ func TestStringManipulation(t *testing.T) {
 			{"", ""},
 			{"   ", ""},
 		}
-		
+
 		replacer := strings.NewReplacer("/", "_", "\\", "_", ":", "_", "@", "_", " ", "_")
-		
+
 		for _, tc := range testCases {
 			result := replacer.Replace(strings.ToLower(strings.TrimSpace(tc.input)))
 			if tc.expected == "" && tc.input != "" {
@@ -257,7 +257,7 @@ func TestFileExtensionHandling(t *testing.T) {
 		{"file.sqlite3", true, ".sqlite3"},
 		{"/path/file.", true, "."},
 	}
-	
+
 	for _, tc := range testCases {
 		ext := filepath.Ext(tc.path)
 		if tc.hasExt {
@@ -280,7 +280,7 @@ func TestPathJoining(t *testing.T) {
 		{".", "file.txt", "file.txt"},
 		{"", "file.txt", "file.txt"},
 	}
-	
+
 	for _, tc := range testCases {
 		result := filepath.Join(tc.base, tc.filename)
 		if tc.expected == result || strings.HasSuffix(result, tc.expected) {
@@ -296,27 +296,27 @@ func TestFlagParsing_Concepts(t *testing.T) {
 	t.Run("empty_string_flag", func(t *testing.T) {
 		// Simulate flag parsing - empty string should be treated as not provided
 		flagValue := ""
-		
+
 		if flagValue != "" {
 			t.Error("Empty string flag should be treated as not provided")
 		}
 	})
-	
+
 	t.Run("non_empty_flag", func(t *testing.T) {
 		// Simulate flag parsing - non-empty string should be used
 		flagValue := "/custom/path"
-		
+
 		if flagValue == "" {
 			t.Error("Non-empty flag should be used")
 		}
-		
+
 		assert.Equal(t, "/custom/path", flagValue)
 	})
-	
+
 	t.Run("boolean_flag", func(t *testing.T) {
 		// Simulate boolean flag handling
 		setupFlag := true
-		
+
 		if setupFlag {
 			assert.True(t, true, "Setup flag should trigger special handling")
 		}
@@ -329,32 +329,32 @@ func TestPathValidation_Concepts(t *testing.T) {
 		// Create a temporary file
 		tmpDir := t.TempDir()
 		testFile := filepath.Join(tmpDir, "test.json")
-		
+
 		// File doesn't exist yet
 		_, err := os.Stat(testFile)
 		assert.True(t, os.IsNotExist(err), "File should not exist initially")
-		
+
 		// Create the file
 		err = os.WriteFile(testFile, []byte("{}"), 0644)
 		assert.NoError(t, err)
-		
+
 		// File should exist now
 		_, err = os.Stat(testFile)
 		assert.NoError(t, err, "File should exist after creation")
 	})
-	
+
 	t.Run("directory_creation", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		subDir := filepath.Join(tmpDir, "subdir", "nested")
-		
+
 		// Directory doesn't exist
 		_, err := os.Stat(subDir)
 		assert.True(t, os.IsNotExist(err), "Directory should not exist initially")
-		
+
 		// Create directory
 		err = os.MkdirAll(subDir, 0755)
 		assert.NoError(t, err)
-		
+
 		// Directory should exist now
 		info, err := os.Stat(subDir)
 		assert.NoError(t, err, "Directory should exist after creation")
@@ -366,23 +366,23 @@ func TestPathValidation_Concepts(t *testing.T) {
 func TestConfigurationPriority(t *testing.T) {
 	// This tests the priority logic used in the main function
 	testCases := []struct {
-		name       string
-		flag       string
-		env        string
-		config     string
-		expected   string
+		name     string
+		flag     string
+		env      string
+		config   string
+		expected string
 	}{
 		{"flag_priority", "/flag/path", "/env/path", "/config/path", "/flag/path"},
 		{"env_priority", "", "/env/path", "/config/path", "/env/path"},
 		{"config_priority", "", "", "/config/path", "/config/path"},
 		{"all_empty", "", "", "", ""},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Simulate the priority logic from getCredentialsPath
 			var result string
-			
+
 			if tc.flag != "" {
 				result = tc.flag
 			} else if tc.env != "" {
@@ -390,7 +390,7 @@ func TestConfigurationPriority(t *testing.T) {
 			} else if tc.config != "" {
 				result = tc.config
 			}
-			
+
 			assert.Equal(t, tc.expected, result)
 		})
 	}

@@ -33,7 +33,7 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(5)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup bulk archive expectation for exactly 3 messages
 				h.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 					return len(ids) == 3
@@ -58,7 +58,7 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(3)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup individual label application expectations
 				h.MockLabel.On("ApplyLabel", mock.Anything, mock.AnythingOfType("string"), "IMPORTANT").
 					Return(nil).Times(2)
@@ -84,7 +84,7 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(10)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup bulk trash expectation for exactly 5 messages
 				h.MockEmail.On("BulkTrash", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 					return len(ids) == 5
@@ -129,7 +129,7 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(1000)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup expectation for bulk operations on large dataset
 				h.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 					return len(ids) == 1000
@@ -138,14 +138,14 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 			Execute: func(h *TestHarness) {
 				// Simulate large bulk operation
 				start := time.Now()
-				
+
 				messageIDs := make([]string, 1000)
 				for i := 0; i < 1000; i++ {
 					messageIDs[i] = fmt.Sprintf("msg_%d", i)
 				}
-				
+
 				_ = h.MockEmail.BulkArchive(h.Ctx, messageIDs)
-				
+
 				duration := time.Since(start)
 				assert.Less(t, duration, 10*time.Second, "Large bulk operation should complete quickly")
 			},
@@ -242,7 +242,7 @@ func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(3)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup partial failure scenario
 				h.MockEmail.On("ArchiveMessage", mock.Anything, "msg_0").Return(nil)
 				h.MockEmail.On("ArchiveMessage", mock.Anything, "msg_1").Return(fmt.Errorf("operation failed"))
@@ -272,7 +272,7 @@ func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(2)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup expectation for bulk operation with duplicates handled
 				h.MockEmail.On("BulkArchive", mock.Anything, mock.MatchedBy(func(ids []string) bool {
 					// Should deduplicate the IDs
@@ -295,7 +295,7 @@ func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(4)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Setup expectations for different operation types
 				h.MockEmail.On("BulkArchive", mock.Anything, []string{"msg_0", "msg_1"}).Return(nil)
 				h.MockEmail.On("BulkTrash", mock.Anything, []string{"msg_2", "msg_3"}).Return(nil)
@@ -345,12 +345,12 @@ func RunBulkOperationPerformanceTests(t *testing.T, harness *TestHarness) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
 
 	performanceTests := []struct {
-		name        string
+		name         string
 		messageCount int
 		maxDuration  time.Duration
-		setup       func(*TestHarness, int)
-		execute     func(*TestHarness, int) time.Duration
-		validate    func(*TestHarness, time.Duration) bool
+		setup        func(*TestHarness, int)
+		execute      func(*TestHarness, int) time.Duration
+		validate     func(*TestHarness, time.Duration) bool
 	}{
 		{
 			name:         "small_batch_performance",
@@ -442,7 +442,7 @@ func RunBulkOperationPerformanceTests(t *testing.T, harness *TestHarness) {
 			}
 
 			// Validate performance
-			assert.Less(t, duration, test.maxDuration, 
+			assert.Less(t, duration, test.maxDuration,
 				fmt.Sprintf("Operation took %v, expected less than %v", duration, test.maxDuration))
 
 			if test.validate != nil {

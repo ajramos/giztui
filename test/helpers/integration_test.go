@@ -29,7 +29,7 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 	// Note: These integration tests demonstrate the testing framework capabilities.
 	// They use mocks directly rather than the TUI app to avoid service injection complexity.
 	// In a production environment, these would be adapted to work with dependency injection.
-	
+
 	// Skip integration tests due to type mismatch between gmail_v1.Message and internal gmail.Message
 	// This demonstrates the framework structure but requires type alignment for full functionality
 	t.Skip("Integration tests skipped due to type mismatch - framework structure demonstrated")
@@ -42,13 +42,13 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(20)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{
-						Messages:  messages[:10],
+						Messages:      messages[:10],
 						NextPageToken: "token_1",
 					}, nil)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.MatchedBy(func(opts services.QueryOptions) bool {
 					return opts.PageToken == "token_1"
 				})).Return(&services.MessagePage{
-					Messages:  messages[10:],
+					Messages:      messages[10:],
 					NextPageToken: "",
 				}, nil)
 				h.MockRepo.On("GetMessage", mock.Anything, mock.AnythingOfType("string")).
@@ -57,7 +57,7 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 			Execute: func(h *TestHarness) error {
 				// Test the integration workflow using mocks directly
 				// This demonstrates how services would interact in a real scenario
-				
+
 				// Load initial batch using mock repository
 				page, err := h.MockRepo.GetMessages(context.Background(), services.QueryOptions{
 					MaxResults: 10,
@@ -103,7 +103,7 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 				messages := h.GenerateTestMessages(15)
 				h.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
 					Return(&services.MessagePage{Messages: messages}, nil)
-				
+
 				// Mock bulk archive operations
 				for i := 0; i < 5; i++ {
 					h.MockEmail.On("ArchiveMessage", mock.Anything, messages[i].Id).
@@ -345,7 +345,7 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 // RunServiceIntegrationTests tests service-to-service interactions
 func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-	
+
 	// Skip service integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Service integration tests skipped due to type mismatch - framework structure demonstrated")
 
@@ -439,7 +439,7 @@ func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
 // RunErrorHandlingIntegrationTests tests error scenarios across services
 func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-	
+
 	// Skip error handling integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Error handling integration tests skipped due to type mismatch - framework structure demonstrated")
 
@@ -509,7 +509,7 @@ func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
 // RunPerformanceIntegrationTests tests performance aspects of service integration
 func RunPerformanceIntegrationTests(t *testing.T, harness *TestHarness) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
-	
+
 	// Skip performance integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Performance integration tests skipped due to type mismatch - framework structure demonstrated")
 

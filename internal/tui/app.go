@@ -374,16 +374,16 @@ func (a *App) onWindowResize() {
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		// Store current selection to restore after refresh
 		currentRow, currentCol := table.GetSelection()
-		
+
 		// Force table reconstruction with new column widths
 		a.refreshTableDisplay()
-		
+
 		// Restore selection if valid
 		if currentRow > 0 && currentRow < table.GetRowCount() {
 			table.Select(currentRow, currentCol)
 		}
 	}
-	
+
 	// Also refresh message content if there's a current message
 	// This ensures message content adapts to new width
 	if currentMessageID := a.getCurrentSelectedMessageID(); currentMessageID != "" {
@@ -721,7 +721,7 @@ func (a *App) initServices() {
 	// Initialize thread service (database store and AI service are optional for basic functionality)
 	a.threadService = services.NewThreadService(a.Client, a.dbStore, a.aiService)
 	if a.logger != nil {
-		a.logger.Printf("initServices: thread service initialized: %v (dbStore: %v, AI service: %v)", 
+		a.logger.Printf("initServices: thread service initialized: %v (dbStore: %v, AI service: %v)",
 			a.threadService != nil, a.dbStore != nil, a.aiService != nil)
 	}
 
@@ -1802,7 +1802,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    :theme        🎨  Open theme picker\n")
 	help.WriteString("    :headers      📄  Toggle header visibility\n")
 	help.WriteString("    :numbers      🔢  Toggle message numbers\n")
-	
+
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
 		help.WriteString(fmt.Sprintf("    :threads      🧵  Same as %s (switch to threaded view)\n", a.Keys.ToggleThreading))
@@ -1813,7 +1813,7 @@ func (a *App) generateHelpText() string {
 			help.WriteString(fmt.Sprintf("    :thread-summary 🧵  Same as %s (generate thread summary)\n", a.Keys.ThreadSummary))
 		}
 	}
-	
+
 	help.WriteString("    :help         ❓  Show this help\n\n")
 
 	// Footer with tips
