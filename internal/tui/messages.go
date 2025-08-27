@@ -2663,13 +2663,63 @@ func (a *App) openRSVPModal() {
 		a.showError("❌ No message selected")
 		return
 	}
+	
+	// Debug logging for cache lookup
+	if a.logger != nil {
+		cacheKeys := make([]string, 0, len(a.inviteCache))
+		for k := range a.inviteCache {
+			cacheKeys = append(cacheKeys, k)
+		}
+		a.logger.Printf("RSVP DEBUG: openRSVPModal() - getCurrentMessageID()='%s', currentMessageID='%s', final mid='%s'", a.getCurrentMessageID(), a.currentMessageID, mid)
+		a.logger.Printf("RSVP DEBUG: inviteCache has %d entries: %v", len(a.inviteCache), cacheKeys)
+	}
+	
 	inv, ok := a.inviteCache[mid]
+	if a.logger != nil {
+		a.logger.Printf("RSVP DEBUG: Cache lookup for '%s': found=%t", mid, ok)
+		if ok {
+			a.logger.Printf("RSVP DEBUG: Found invite - UID='%s', Summary='%s'", inv.UID, inv.Summary)
+		}
+	}
+	
 	if !ok {
 		// Best-effort: re-detect from cache message
+		if a.logger != nil {
+			a.logger.Printf("RSVP DEBUG: Cache miss, attempting re-detection from messageCache")
+		}
 		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+			if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: Found message in messageCache, running detectCalendarInvite")
+			}
 			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
 				inv = parsed
 				a.inviteCache[mid] = inv
+				ok = true
+				if a.logger != nil {
+					a.logger.Printf("RSVP DEBUG: Re-detection successful - UID='%s', Summary='%s'", inv.UID, inv.Summary)
+				}
+			} else if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: Re-detection failed - no calendar invite found")
+			}
+		} else if a.logger != nil {
+			a.logger.Printf("RSVP DEBUG: Message not found in messageCache")
+		}
+		
+		// Ultimate fallback: search invite cache by any key if still not found
+		if !ok && len(a.inviteCache) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: Searching invite cache by any available entry")
+			}
+			// Try to find any invite in the cache - this handles cache key mismatches
+			for cacheKey, cachedInv := range a.inviteCache {
+				if cachedInv.UID != "" {
+					inv = cachedInv
+					ok = true
+					if a.logger != nil {
+						a.logger.Printf("RSVP DEBUG: Found invite via fallback search - key='%s', UID='%s', Summary='%s'", cacheKey, inv.UID, inv.Summary)
+					}
+					break
+				}
 			}
 		}
 	}
@@ -2814,10 +2864,71 @@ func (a *App) sendRSVP(partstat, comment string) {
 	if mid == "" {
 		mid = a.currentMessageID
 	}
+	
+	// Debug logging for cache lookup in sendRSVP
+	if a.logger != nil {
+		cacheKeys := make([]string, 0, len(a.inviteCache))
+		for k := range a.inviteCache {
+			cacheKeys = append(cacheKeys, k)
+		}
+		a.logger.Printf("RSVP DEBUG: sendRSVP() - getCurrentMessageID()='%s', currentMessageID='%s', final mid='%s'", a.getCurrentMessageID(), a.currentMessageID, mid)
+		a.logger.Printf("RSVP DEBUG: inviteCache has %d entries: %v", len(a.inviteCache), cacheKeys)
+	}
+	
 	inv, ok := a.inviteCache[mid]
+	if a.logger != nil {
+		a.logger.Printf("RSVP DEBUG: sendRSVP cache lookup for '%s': found=%t", mid, ok)
+		if ok {
+			a.logger.Printf("RSVP DEBUG: Found invite - UID='%s', Summary='%s'", inv.UID, inv.Summary)
+		}
+	}
+	
+	// Add fallback search if not found
 	if !ok || inv.UID == "" {
-		a.showError("❌ No invite to reply to")
-		return
+		if a.logger != nil {
+			a.logger.Printf("RSVP DEBUG: Initial lookup failed (ok=%t, UID='%s'), trying fallbacks", ok, inv.UID)
+		}
+		
+		// Fallback 1: Re-detect from message cache
+		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+			if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: Attempting re-detection from messageCache")
+			}
+			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
+				inv = parsed
+				a.inviteCache[mid] = inv
+				ok = true
+				if a.logger != nil {
+					a.logger.Printf("RSVP DEBUG: sendRSVP re-detection successful - UID='%s', Summary='%s'", inv.UID, inv.Summary)
+				}
+			}
+		}
+		
+		// Fallback 2: Search any invite in cache
+		if (!ok || inv.UID == "") && len(a.inviteCache) > 0 {
+			if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: sendRSVP searching invite cache by any available entry")
+			}
+			for cacheKey, cachedInv := range a.inviteCache {
+				if cachedInv.UID != "" {
+					inv = cachedInv
+					ok = true
+					if a.logger != nil {
+						a.logger.Printf("RSVP DEBUG: sendRSVP found invite via fallback - key='%s', UID='%s', Summary='%s'", cacheKey, inv.UID, inv.Summary)
+					}
+					break
+				}
+			}
+		}
+		
+		// Final check
+		if !ok || inv.UID == "" {
+			if a.logger != nil {
+				a.logger.Printf("RSVP DEBUG: All fallbacks failed (ok=%t, UID='%s') - showing error", ok, inv.UID)
+			}
+			a.showError("❌ No invite to reply to")
+			return
+		}
 	}
 	if a.Calendar == nil || a.Calendar.Service == nil {
 		a.showError("❌ Calendar API not available. Please re-authorize with Calendar permissions.")
