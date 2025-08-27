@@ -1315,8 +1315,8 @@ func (a *App) toggleFocus() {
 	ring := []tview.Primitive{}
 	ringNames := []string{}
 	// 1) Search (if visible)
-	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-		_, _, w, h := sp.GetRect()
+	if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
+		_, _, w, h := sc.GetRect()
 		if w > 0 && h > 0 {
 			if inp, ok2 := a.views["searchInput"].(*tview.InputField); ok2 {
 				ring = append(ring, inp)

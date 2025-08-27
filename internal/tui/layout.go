@@ -52,6 +52,9 @@ func (a *App) initComponents() {
 	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
 	searchPanel.SetBorder(false)
 	searchPanel.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+
+	ForceFilledBorderFlex(searchPanel)
+
 	// Container that holds search panel (top) and list (bottom)
 	listContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	listContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -154,6 +157,36 @@ func (a *App) initComponents() {
 	// Reapply title styling since the helper can't preserve it
 	cmdPanel.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
 	a.views["cmdPanel"] = cmdPanel
+
+	// Search container (hidden by default)
+	searchContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	searchContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	searchContainer.SetBorder(true).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 🔍 Search ").
+		SetTitleColor(a.getTitleColor()).
+		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(searchContainer)
+	// Reapply title styling since the helper can't preserve it
+	searchContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	a.views["searchContainer"] = searchContainer
+
+	// Advanced search container (hidden by default)
+	advancedSearchContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	advancedSearchContainer.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	advancedSearchContainer.SetBorder(true).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle(" 🔍 Advanced Search ").
+		SetTitleColor(a.getTitleColor()).
+		SetTitleAlign(tview.AlignCenter)
+	// Force filled background for consistent border rendering
+	ForceFilledBorderFlex(advancedSearchContainer)
+	// Reapply title styling since the helper can't preserve it
+	advancedSearchContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	a.views["advancedSearchContainer"] = advancedSearchContainer
 }
 
 // initViews initializes the main views
@@ -192,6 +225,14 @@ func (a *App) createMainLayout() tview.Primitive {
 	mainFlex.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	// Add flash notification at the top (hidden by default)
 	mainFlex.AddItem(a.flash.textView, 0, 0, false)
+
+	// Search containers mounted hidden (height 0). They will be resized when opened.
+	if sc, ok := a.views["searchContainer"]; ok {
+		mainFlex.AddItem(sc, 0, 0, false)
+	}
+	if asc, ok := a.views["advancedSearchContainer"]; ok {
+		mainFlex.AddItem(asc, 0, 0, false)
+	}
 
 	// Add list+search container (takes 40% of available height)
 	mainFlex.AddItem(a.views["listContainer"], 0, 40, true)
@@ -251,6 +292,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
 		cp.SetBorderColor(unfocusedColor)
 	}
+	if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
+		sc.SetBorderColor(unfocusedColor)
+	}
 
 	// Set focused view border to theme's focus color
 	focusedColor := tview.Styles.FocusColor // Use theme's focus color
@@ -280,8 +324,8 @@ func (a *App) updateFocusIndicators(focusedView string) {
 			a.labelsView.SetBorderColor(focusedColor)
 		}
 	case "search":
-		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-			sp.SetBorderColor(focusedColor)
+		if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
+			sc.SetBorderColor(focusedColor)
 		}
 	case "cmd":
 		if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
@@ -358,5 +402,17 @@ func (a *App) RefreshBordersForFilledFlexes() {
 	if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
 		cp.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		cp.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+
+	// Update searchContainer
+	if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
+		sc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		sc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
+	}
+
+	// Update advancedSearchContainer
+	if asc, ok := a.views["advancedSearchContainer"].(*tview.Flex); ok {
+		asc.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		asc.SetBorderColor(tview.Styles.PrimitiveBackgroundColor)
 	}
 }

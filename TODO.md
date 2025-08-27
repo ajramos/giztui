@@ -7,16 +7,12 @@
 - [ ] screen garbage
 - [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
-- [x] **Undo functionality** - Undo last action ✅ **COMPLETED** 
-  - ⚠️ **Known limitation**: Move undo only restores to inbox, doesn't remove applied label
-  - **Workaround**: Manually remove labels using label manager (`l` key) after move undo
-  - **Root cause**: Move = LabelService.ApplyLabel + EmailService.ArchiveMessage, but only last action recorded for undo
-  - **Status**: Complex architectural fix would risk application stability
-- [ ] **Message threading** - Show message threads and conversations
 - [ ] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
+- [x] **Undo functionality** - Undo last action ✅ 
+- [x] **Message threading** - Show message threads and conversations
 
 ### Medium Priority
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.

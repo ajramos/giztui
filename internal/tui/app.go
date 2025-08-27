@@ -1664,7 +1664,7 @@ func (a *App) getAIComponentColor(colorType config.ColorType) tcell.Color {
 	return a.getComponentColor(config.ComponentTypeAI, colorType)
 }
 
-// getPromptsComponentColor returns colors for prompt components  
+// getPromptsComponentColor returns colors for prompt components
 func (a *App) getPromptsComponentColor(colorType config.ColorType) tcell.Color {
 	return a.getComponentColor(config.ComponentTypePrompts, colorType)
 }

@@ -629,7 +629,7 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 	})
 }
 
-// openSearchOverlay opens a transient overlay above the message list for remote/local search
+// openSearchOverlay populates the existing persistent search container (like Slack panel)
 func (a *App) openSearchOverlay(mode string) {
 	if mode != "remote" && mode != "local" {
 		mode = "remote"
@@ -643,9 +643,23 @@ func (a *App) openSearchOverlay(mode string) {
 	if mode == "local" {
 		ph = "Type words to match (space-separated)"
 	}
+
+	// Get the existing persistent search container (created in initComponents like textContainer)
+	searchContainer, ok := a.views["searchContainer"].(*tview.Flex)
+	if !ok {
+		return
+	}
+
 	// Get component colors using hierarchical theme system
 	searchColors := a.GetComponentColors("search")
+
+	// Clear and populate the persistent container (like Slack does)
+	searchContainer.Clear()
 	
+	// Update container title dynamically (like Slack does)
+	searchContainer.SetTitle(" " + title + " ").
+		SetTitleColor(searchColors.Title.Color())
+
 	input := tview.NewInputField().
 		SetLabel("🔍 ").
 		SetFieldWidth(0).
@@ -658,33 +672,25 @@ func (a *App) openSearchOverlay(mode string) {
 	a.views["searchInput"] = input
 	
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(a.getFooterColor()).SetBackgroundColor(searchColors.Background.Color())
+	help.SetTextColor(a.getFooterColor()).SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	if mode == "remote" {
 		help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 	} else {
 		help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
 	}
 
-	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
-	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(title).
-		SetTitleColor(searchColors.Title.Color()).
-		SetBorderColor(searchColors.Border.Color()).
-		SetBackgroundColor(searchColors.Background.Color())
-	
-	// Apply ForceFilledBorderFlex for consistent border rendering
-	ForceFilledBorderFlex(box)
-	
-	// Re-apply title styling after ForceFilledBorderFlex
-	box.SetTitleColor(searchColors.Title.Color())
-	
-	// vertical center input; place help at bottom  
-	topSpacer := tview.NewBox().SetBackgroundColor(searchColors.Background.Color())
-	bottomSpacer := tview.NewBox().SetBackgroundColor(searchColors.Background.Color())
-	box.AddItem(topSpacer, 0, 1, false)
-	box.AddItem(input, 1, 0, true)
-	box.AddItem(bottomSpacer, 0, 2, false)
-	box.AddItem(help, 1, 0, false)
+	// Add content to the persistent container (like Slack panel)
+	topSpacer := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	bottomSpacer := tview.NewBox().SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	searchContainer.AddItem(topSpacer, 0, 1, false)
+	searchContainer.AddItem(input, 1, 0, true)
+	searchContainer.AddItem(bottomSpacer, 0, 2, false)
+	searchContainer.AddItem(help, 1, 0, false)
+
+	// Show the persistent container (like Slack panel does)
+	if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
+		mainFlex.ResizeItem(searchContainer, 5, 0) // Show with fixed height
+	}
 
 	// Capture Enter/ESC and Ctrl-T to toggle modes
 	curMode := mode
@@ -714,7 +720,7 @@ func (a *App) openSearchOverlay(mode string) {
 				lc.AddItem(a.views["searchPanel"], 0, 0, false)
 				lc.AddItem(a.views["list"], 0, 1, true)
 			} else {
-				a.Pages.RemovePage("searchOverlay")
+				a.hideSearchContainer()
 			}
 			a.currentFocus = "list"
 			a.updateFocusIndicators("list")
@@ -755,7 +761,7 @@ func (a *App) openSearchOverlay(mode string) {
 				lc.AddItem(a.views["searchPanel"], 0, 0, false)
 				lc.AddItem(a.views["list"], 0, 1, true)
 			} else {
-				a.Pages.RemovePage("searchOverlay")
+				a.hideSearchContainer()
 			}
 			a.currentFocus = "list"
 			a.updateFocusIndicators("list")
@@ -772,7 +778,7 @@ func (a *App) openSearchOverlay(mode string) {
 		if ev.Key() == tcell.KeyCtrlT || ((ev.Modifiers()&tcell.ModCtrl) != 0 && ev.Rune() == 't') {
 			if curMode == "remote" {
 				curMode = "local"
-				box.SetTitle("🔎 Local Filter")
+				searchContainer.SetTitle("🔎 Local Filter")
 				help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
 				input.SetPlaceholder("Type words to match (space-separated)")
 				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
@@ -780,7 +786,7 @@ func (a *App) openSearchOverlay(mode string) {
 				}
 			} else {
 				curMode = "remote"
-				box.SetTitle("🔍 Gmail Search")
+				searchContainer.SetTitle("🔍 Gmail Search")
 				help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 				input.SetPlaceholder("e.g., from:user@domain.com subject:\"report\" is:unread label:work")
 				if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
@@ -802,52 +808,35 @@ func (a *App) openSearchOverlay(mode string) {
 			return nil
 		}
 		if ev.Key() == tcell.KeyEscape {
-			// mirror ESC handling here to ensure consistent behavior
-			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
-				lc.Clear()
-				if sp, ok2 := a.views["searchPanel"].(*tview.Flex); ok2 {
-					sp.SetBorder(false)
-					sp.SetTitle("")
-				}
-				lc.AddItem(a.views["searchPanel"], 0, 0, false)
-				lc.AddItem(a.views["list"], 0, 1, true)
-			} else {
-				a.Pages.RemovePage("searchOverlay")
-			}
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-			a.SetFocus(a.views["list"])
-			delete(a.views, "searchInput")
+			a.hideSearchContainer()
 			return nil
 		}
 		return ev
 	})
 
-	if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
-		// vertical center input; place help at bottom
-		topSpacer := tview.NewBox()
-		bottomSpacer := tview.NewBox()
-		sp.Clear()
-		// Ensure container does not intercept ESC here; let input handle hiding
-		sp.SetInputCapture(nil)
-		sp.SetBorder(true).SetBorderColor(a.getTitleColor()).SetTitle(title).SetTitleColor(a.getTitleColor())
-		sp.AddItem(topSpacer, 0, 1, false)
-		sp.AddItem(input, 1, 0, true)
-		sp.AddItem(bottomSpacer, 0, 2, false)
-		sp.AddItem(help, 1, 0, false)
-		if lc, ok2 := a.views["listContainer"].(*tview.Flex); ok2 {
-			lc.Clear()
-			lc.AddItem(a.views["searchPanel"], 0, 1, true)
-			lc.AddItem(a.views["list"], 0, 3, true)
-		}
-		a.currentFocus = "search"
-		a.updateFocusIndicators("search")
-		a.SetFocus(input)
-		return
-	}
+	// Old searchPanel path removed - using persistent container approach only
 	
-	a.Pages.AddPage("searchOverlay", box, true, true)
+	// Focus the input field
+	a.currentFocus = "search"
+	a.updateFocusIndicators("search")
 	a.SetFocus(input)
+}
+
+// hideSearchContainer hides the persistent search container (like Slack panel)
+func (a *App) hideSearchContainer() {
+	if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
+		if searchContainer, ok := a.views["searchContainer"]; ok {
+			mainFlex.ResizeItem(searchContainer, 0, 0) // Hide container
+		}
+	}
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+	a.SetFocus(a.views["list"])
+	delete(a.views, "searchInput")
+	// If leaving overlay and a local filter was active, restore base
+	if a.searchMode == "local" {
+		go a.exitSearch()
+	}
 }
 
 // openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
@@ -1658,10 +1647,13 @@ func (a *App) openAdvancedSearchForm() {
 	
 	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-	modal.SetBorder(true).SetTitle("🔎 Advanced Search").
+	modal.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorder(true).
+		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderAttributes(tcell.AttrBold).
+		SetTitle("🔎 Advanced Search").
 		SetTitleColor(advancedSearchColors.Title.Color()).
-		SetBackgroundColor(advancedSearchColors.Background.Color()).
-		SetBorderColor(advancedSearchColors.Border.Color())
+		SetTitleAlign(tview.AlignCenter)
 	
 	// Apply ForceFilledBorderFlex for consistent border rendering
 	ForceFilledBorderFlex(modal)
