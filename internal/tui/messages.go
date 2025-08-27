@@ -658,21 +658,19 @@ func (a *App) openSearchOverlay(mode string) {
 	a.views["searchInput"] = input
 	
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(searchColors.Text.Color()).SetBackgroundColor(searchColors.Background.Color())
+	help.SetTextColor(a.getFooterColor()).SetBackgroundColor(searchColors.Background.Color())
 	if mode == "remote" {
 		help.SetText("Press Ctrl+F for advanced search | Enter=search, Ctrl-T=switch, ESC to back")
 	} else {
 		help.SetText("Type space-separated terms; all must match | Enter=apply, Ctrl-T=switch, ESC to back")
 	}
 
-	// Use wrapper pattern like textContainer to fix border background issues
-	wrapper := tview.NewFlex()
-	wrapper.SetBackgroundColor(searchColors.Background.Color())
-	
+	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
 	box.SetBorder(true).SetTitle(title).
 		SetTitleColor(searchColors.Title.Color()).
-		SetBorderColor(searchColors.Border.Color())
+		SetBorderColor(searchColors.Border.Color()).
+		SetBackgroundColor(searchColors.Background.Color())
 	
 	// Apply ForceFilledBorderFlex for consistent border rendering
 	ForceFilledBorderFlex(box)
@@ -847,10 +845,8 @@ func (a *App) openSearchOverlay(mode string) {
 		a.SetFocus(input)
 		return
 	}
-	// Add modal to wrapper like textContainer pattern
-	wrapper.AddItem(box, 0, 1, false)
 	
-	a.Pages.AddPage("searchOverlay", wrapper, true, true)
+	a.Pages.AddPage("searchOverlay", box, true, true)
 	a.SetFocus(input)
 }
 
@@ -1660,10 +1656,7 @@ func (a *App) openAdvancedSearchForm() {
 	// Fallback modal if searchPanel not present
 	advancedSearchColors := a.GetComponentColors("search")
 	
-	// Use wrapper pattern like textContainer to fix border background issues
-	wrapper := tview.NewFlex()
-	wrapper.SetBackgroundColor(advancedSearchColors.Background.Color())
-	
+	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
 	modal.SetBorder(true).SetTitle("🔎 Advanced Search").
 		SetTitleColor(advancedSearchColors.Title.Color()).
@@ -1677,9 +1670,7 @@ func (a *App) openAdvancedSearchForm() {
 	modal.SetTitleColor(advancedSearchColors.Title.Color())
 	modal.AddItem(form, 0, 1, true)
 	
-	// Add modal to wrapper
-	wrapper.AddItem(modal, 0, 1, false)
-	a.Pages.AddPage("advancedSearch", wrapper, true, true)
+	a.Pages.AddPage("advancedSearch", modal, true, true)
 	a.SetFocus(form)
 }
 
