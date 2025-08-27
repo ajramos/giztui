@@ -1,51 +1,66 @@
 # Gmail TUI Slate Blue Theme
-# Dark blue/slate theme inspired by terminal email clients
+# Dark blue/slate theme with hierarchical color system
+# Demonstrates modern theme structure (v2.0) with component overrides
 
 name: "Slate Blue"
 description: "Dark blue/slate theme with cyan accents"
 version: "2.0"
 
 gmailTUI:
-  # New hierarchical structure
+  # FOUNDATION COLORS
+  # Base colors that all components inherit by default
+  # These form the visual foundation of the entire application
   foundation:
-    background: "#1e2540"          # Dark slate blue background
-    foreground: "#c5d1eb"          # Light blue-gray text
-    border: "#3f4a5f"              # Medium slate border
-    focus: "#64b5f6"               # Light blue focus
+    background: "#1e2540"          # Primary dark slate blue - used for all component backgrounds
+    foreground: "#c5d1eb"          # Light blue-gray text - used for all readable text
+    border: "#3f4a5f"              # Medium slate borders - used for component borders
+    focus: "#64b5f6"               # Light blue focus - used for focused element highlights
 
+  # SEMANTIC COLORS  
+  # Meaning-based colors that convey specific states or importance
+  # Components map to these based on their semantic meaning
   semantic:
-    primary: "#81c784"             # Green for titles and main actions
-    secondary: "#7986cb"           # Muted blue for supporting elements
-    accent: "#4fc3f7"              # Cyan for highlights and links
-    success: "#81c784"             # Green for success states
-    warning: "#ffb74d"             # Orange for warnings
-    error: "#f48fb1"               # Pink for errors  
-    info: "#4fc3f7"                # Cyan for info
+    primary: "#81c784"             # Green - used for titles, main actions, important elements
+    secondary: "#7986cb"           # Muted blue - used for supporting elements, subtitles
+    accent: "#4fc3f7"              # Cyan - used for highlights, links, interactive elements
+    success: "#81c784"             # Green - used for success messages and positive states
+    warning: "#ffb74d"             # Orange - used for warning messages and caution states
+    error: "#f48fb1"               # Pink - used for error messages and negative states
+    info: "#4fc3f7"                # Cyan - used for informational messages and neutral states
 
+  # INTERACTION COLORS
+  # User interaction states that require specific visual feedback
+  # These override semantic colors for interactive elements
   interaction:
     selection:
       cursor:
-        bg: "#2d3748"              # Background when navigating/focusing
-        fg: "#c5d1eb"              # Text color when navigating/focusing
+        bg: "#2d3748"              # Single item selection background (keyboard navigation)
+        fg: "#c5d1eb"              # Single item selection text color
       bulk:
-        bg: "#1a202c"              # Subtle darker background for bulk-selected items
-        fg: "#c5d1eb"              # Text color for bulk-selected items
+        bg: "#1a202c"              # Multi-item selection background (bulk operations)
+        fg: "#c5d1eb"              # Multi-item selection text color
     input:
-      bg: "#2d3748"                # Dark input background
-      fg: "#c5d1eb"                # Light input text
-      label: "#81c784"             # Green labels
+      bg: "#2d3748"                # Input field background (darker than foundation)
+      fg: "#c5d1eb"                # Input field text color
+      label: "#81c784"             # Input field label color (semantic primary)
     statusBar:
-      bg: "#3f4a5f"                # Medium slate status bar background
-      fg: "#c5d1eb"                # Light text for status bar
+      bg: "#3f4a5f"                # Status bar background (matches border color)
+      fg: "#c5d1eb"                # Status bar text color
 
-  # Component-specific overrides (only specify what should override semantic/foundation)
+  # COMPONENT OVERRIDES
+  # Specific colors for individual components that should differ from semantic defaults
+  # Only specify colors that need to be different from the hierarchy
+  # Color resolution: override → semantic → foundation → legacy → default
   overrides:
     ai:
-      primary: "#ba68c8"           # Purple for AI titles (overrides semantic.primary)
-      accent: "#f48fb1"            # Pink accent for AI (overrides semantic.accent)
+      primary: "#ba68c8"           # Purple for AI component titles (overrides semantic.primary)
+      accent: "#f48fb1"            # Pink for AI highlights (overrides semantic.accent)
+      # background and text colors inherit from foundation
+      # border inherits from foundation.border
     prompts:
-      primary: "#f48fb1"           # Pink for prompt titles (overrides semantic.primary)
-      accent: "#ba68c8"            # Purple accent for prompts (overrides semantic.accent)
+      primary: "#f48fb1"           # Pink for prompt titles (overrides semantic.primary) 
+      accent: "#ba68c8"            # Purple for prompt highlights (overrides semantic.accent)
+      # Other colors resolved through hierarchy
   body:
     fgColor: "#c5d1eb"          # Light blue-gray text
     bgColor: "#1e2540"          # Dark slate blue background

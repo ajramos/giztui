@@ -1,25 +1,32 @@
-# Gmail TUI Color System
+# Gmail TUI Theme System
 
-Gmail TUI implements a dynamic, k9s-inspired color system that allows full customization of the application's visual appearance.
+Gmail TUI implements a modern hierarchical theme system that provides consistent, maintainable, and flexible color management across all UI components.
 
-## 🎨 Color System Architecture
+## 🎨 Hierarchical Theme Architecture
 
-### Configuration Layers
+### Theme Structure Layers
 
-1. **Theme YAML files** (`themes/`)
-   - Colors defined in YAML
-   - Predefined themes (dark, light)
-   - Full customization
+1. **Foundation Colors** - Base colors for all components
+   - `background` - Primary background color
+   - `foreground` - Primary text color  
+   - `border` - Default border color
+   - `focus` - Focus highlight color
 
-2. **Application Configuration**
-   - Dynamic theme loading
-   - Global color application
-   - Real-time updates (future work)
+2. **Semantic Colors** - Meaning-based colors
+   - `primary` - Main actions, titles
+   - `secondary` - Supporting elements
+   - `accent` - Highlights, links
+   - `success/warning/error/info` - Status states
 
-3. **Feature-specific Renderers**
-   - Dynamic colors based on email state
-   - Pluggable color functions
-   - Built-in state logic
+3. **Interaction Colors** - User interaction states
+   - `selection.cursor` - Single item selection
+   - `selection.bulk` - Multi-item selection
+   - `input` - Input field styling
+   - `statusBar` - Status bar colors
+
+4. **Component Overrides** - Specialized component colors
+   - Component-specific color customization
+   - Overrides semantic/foundation defaults
 
 ## 📁 File Structure
 
@@ -60,39 +67,51 @@ gmail-tui/
 
 ## 📝 Theme File Format
 
-### YAML Structure
+### Modern Theme Structure (v2.0+)
 
 ```yaml
 gmailTUI:
-  body:
-    fgColor: "#f8f8f2"          # Main text
-    bgColor: "#282a36"          # Main background
-    logoColor: "#bd93f9"        # Logo
+  # Foundation colors - base for all components
+  foundation:
+    background: "#1e2540"       # Primary background
+    foreground: "#c5d1eb"       # Primary text
+    border: "#3f4a5f"          # Default borders
+    focus: "#64b5f6"           # Focus highlights
 
-  frame:
-    border:
-      fgColor: "#44475a"        # Normal borders
-      focusColor: "#6272a4"     # Focused borders
-    
-    title:
-      fgColor: "#f8f8f2"        # Title
-      bgColor: "#282a36"        # Title background
-      highlightColor: "#f1fa8c" # Highlight
-      counterColor: "#50fa7b"   # Counter
-      filterColor: "#8be9fd"    # Filter
+  # Semantic colors - meaning-based
+  semantic:
+    primary: "#81c784"         # Titles, main actions
+    secondary: "#7986cb"       # Supporting elements  
+    accent: "#4fc3f7"          # Links, highlights
+    success: "#81c784"         # Success states
+    warning: "#ffb74d"         # Warning states
+    error: "#f48fb1"          # Error states
+    info: "#4fc3f7"           # Info states
 
-  table:
-    fgColor: "#f8f8f2"          # Table text
-    bgColor: "#282a36"          # Table background
-    headerFgColor: "#50fa7b"    # Headers
-    headerBgColor: "#282a36"    # Header background
+  # Interaction colors - user states
+  interaction:
+    selection:
+      cursor:
+        bg: "#2d3748"          # Single item cursor
+        fg: "#c5d1eb"          # Cursor text
+      bulk:
+        bg: "#1a202c"          # Multi-selection
+        fg: "#c5d1eb"          # Bulk text
+    input:
+      bg: "#2d3748"            # Input background
+      fg: "#c5d1eb"            # Input text
+      label: "#81c784"         # Input labels
+    statusBar:
+      bg: "#3f4a5f"            # Status background
+      fg: "#c5d1eb"            # Status text
 
-  email:
-    unreadColor: "#ffb86c"      # Unread
-    readColor: "#6272a4"        # Read
-    importantColor: "#ff5555"   # Important
-    sentColor: "#50fa7b"        # Sent
-    draftColor: "#f1fa8c"       # Drafts
+  # Component overrides (optional)
+  overrides:
+    ai:
+      primary: "#ba68c8"       # Purple AI titles
+      accent: "#f48fb1"        # Pink AI accents
+    search:
+      primary: "#4fc3f7"       # Custom search titles
 ```
 
 ### Supported Color Formats
@@ -104,72 +123,79 @@ gmailTUI:
 
 ## 🔧 Technical Implementation
 
-### Email Renderer
+### Color Resolution Hierarchy
+
+Colors are resolved in priority order:
+1. **Component Override** → 2. **Semantic** → 3. **Foundation** → 4. **Legacy Fallback**
+
+### Modern Theme API
 
 ```go
-// EmailColorer handles email colors
-type EmailColorer struct {
-    UnreadColor    tcell.Color
-    ReadColor      tcell.Color
-    ImportantColor tcell.Color
-    SentColor      tcell.Color
-    DraftColor     tcell.Color
-}
+// Get component-specific colors using hierarchical system
+componentColors := app.GetComponentColors("search")
 
-// ColorerFunc returns a color function for emails
-func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.Color {
-    return func(message *googleGmail.Message, column string) tcell.Color {
-        switch strings.ToUpper(column) {
-        case "STATUS":
-            if ec.isUnread(message) {
-                return ec.UnreadColor
-            }
-            return ec.ReadColor
-        case "FROM":
-            if ec.isImportant(message) {
-                return ec.ImportantColor
-            }
-            if ec.isUnread(message) {
-                return ec.UnreadColor
-            }
-            return tcell.ColorWhite
-        case "SUBJECT":
-            if ec.isDraft(message) {
-                return ec.DraftColor
-            }
-            if ec.isSent(message) {
-                return ec.SentColor
-            }
-            if ec.isUnread(message) {
-                return tcell.ColorWhite
-            }
-            return ec.ReadColor
-        }
-        return tcell.ColorWhite
-    }
+// Use component colors for consistent theming
+container.SetBackgroundColor(componentColors.Background.Color())
+container.SetBorderColor(componentColors.Border.Color())
+container.SetTitleColor(componentColors.Title.Color())
+
+input.SetFieldBackgroundColor(componentColors.Background.Color())
+input.SetFieldTextColor(componentColors.Text.Color())
+input.SetLabelColor(componentColors.Title.Color())
+```
+
+### Component Color Set
+
+```go
+type ComponentColorSet struct {
+    Border     Color // Component border color
+    Title      Color // Component title color  
+    Background Color // Component background color
+    Text       Color // Component text color
+    Accent     Color // Component accent/highlight color
 }
 ```
 
-### State Detection
+### Direct Color Access
 
 ```go
-// Helper methods to determine email state
-func (ec *EmailColorer) isUnread(message *googleGmail.Message) bool {
-    for _, labelId := range message.LabelIds {
-        if labelId == "UNREAD" { return true }
-    }
-    return false
-}
+// Get specific colors using the hierarchy
+titleColor := app.currentTheme.GetComponentColor(
+    config.ComponentTypeSearch, 
+    config.ColorTypePrimary
+).Color()
 
-func (ec *EmailColorer) isImportant(message *googleGmail.Message) bool {
-    importantLabels := []string{"IMPORTANT", "PRIORITY", "URGENT"}
-    for _, labelId := range message.LabelIds {
-        for _, important := range importantLabels {
-            if strings.Contains(strings.ToUpper(labelId), important) { return true }
-        }
-    }
-    return false
-}
+bgColor := app.currentTheme.GetComponentColor(
+    config.ComponentTypeGeneral,
+    config.ColorTypeBackground
+).Color()
+```
+
+### Component Registration
+
+```go
+// Register components to use hierarchical theming
+app.themeService.RegisterComponent("search", config.ComponentTypeSearch)
+app.themeService.RegisterComponent("ai", config.ComponentTypeAI)
+app.themeService.RegisterComponent("slack", config.ComponentTypeSlack)
+
+// Components automatically receive theme updates
+componentColors := app.GetComponentColors("search")
+```
+
+### Legacy Theme Support
+
+The system maintains full backward compatibility:
+
+```go
+// Legacy structure (v1.0) - still supported
+gmailTUI:
+  body:
+    fgColor: "#f8f8f2"
+    bgColor: "#282a36"
+  ui:
+    titleColor: "#f1fa8c"
+    inputBgColor: "#44475a"
 ```
 
 ## 🎨 Predefined Themes

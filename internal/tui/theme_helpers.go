@@ -224,22 +224,29 @@ func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
 	return bg.Color(), fg.Color()
 }
 
-// ConfigureInputFieldTheme applies consistent theme colors to input fields
+// ConfigureInputFieldTheme applies consistent theme colors to input fields using hierarchical system
 func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string) *tview.InputField {
-	bgColor, textColor := a.GetInputFieldColors()
+	// Use hierarchical theme system for consistent theming
+	var componentColors config.ComponentColorSet
+	switch component {
+	case "advanced", "overlay":
+		componentColors = a.GetComponentColors("search")
+	default:
+		componentColors = a.GetComponentColors("general")
+	}
 
 	// Configure basic field colors
-	field.SetFieldBackgroundColor(bgColor).
-		SetFieldTextColor(textColor).
-		SetLabelColor(a.getTitleColor()).
+	field.SetFieldBackgroundColor(componentColors.Background.Color()).
+		SetFieldTextColor(componentColors.Text.Color()).
+		SetLabelColor(componentColors.Title.Color()).
 		SetPlaceholderTextColor(a.getHintColor())
 
 	// For advanced search, apply more aggressive styling to override form defaults
 	if component == "advanced" {
 		// Force the background color and remove any borders that might cause color issues
-		field.SetBackgroundColor(bgColor).
+		field.SetBackgroundColor(componentColors.Background.Color()).
 			SetBorder(false).
-			SetBorderColor(bgColor)
+			SetBorderColor(componentColors.Background.Color())
 	}
 
 	return field
