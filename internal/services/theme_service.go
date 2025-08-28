@@ -196,38 +196,38 @@ func (s *ThemeServiceImpl) GetThemeConfig(ctx context.Context, name string) (*Th
 		Description: s.getThemeDescription(name),
 	}
 
-	// Email colors
-	themeConfig.EmailColors.UnreadColor = colorsConfig.Email.UnreadColor.String()
-	themeConfig.EmailColors.ReadColor = colorsConfig.Email.ReadColor.String()
-	themeConfig.EmailColors.ImportantColor = colorsConfig.Email.ImportantColor.String()
-	themeConfig.EmailColors.SentColor = colorsConfig.Email.SentColor.String()
-	themeConfig.EmailColors.DraftColor = colorsConfig.Email.DraftColor.String()
+	// Email colors - mapped to v2.0 hierarchical theme system
+	themeConfig.EmailColors.UnreadColor = colorsConfig.Semantic.Accent.String()    // Cyan/blue for attention
+	themeConfig.EmailColors.ReadColor = colorsConfig.Foundation.Foreground.String() // Default text color
+	themeConfig.EmailColors.ImportantColor = colorsConfig.Semantic.Warning.String() // Orange/yellow for importance
+	themeConfig.EmailColors.SentColor = colorsConfig.Semantic.Success.String()     // Green for sent items
+	themeConfig.EmailColors.DraftColor = colorsConfig.Semantic.Secondary.String()  // Gray for drafts
 
-	// Basic UI colors
-	themeConfig.UIColors.FgColor = colorsConfig.Body.FgColor.String()
-	themeConfig.UIColors.BgColor = colorsConfig.Body.BgColor.String()
-	themeConfig.UIColors.BorderColor = colorsConfig.Frame.Border.FgColor.String()
-	themeConfig.UIColors.FocusColor = colorsConfig.Frame.Border.FocusColor.String()
+	// Basic UI colors - mapped to v2.0 hierarchical theme system
+	themeConfig.UIColors.FgColor = colorsConfig.Foundation.Foreground.String()
+	themeConfig.UIColors.BgColor = colorsConfig.Foundation.Background.String()
+	themeConfig.UIColors.BorderColor = colorsConfig.Foundation.Border.String()
+	themeConfig.UIColors.FocusColor = colorsConfig.Foundation.Focus.String()
 
-	// Component colors (previously hardcoded)
-	themeConfig.UIColors.TitleColor = colorsConfig.UI.TitleColor.String()
-	themeConfig.UIColors.FooterColor = colorsConfig.UI.FooterColor.String()
-	themeConfig.UIColors.HintColor = colorsConfig.UI.HintColor.String()
+	// Component colors - mapped to v2.0 hierarchical theme system
+	themeConfig.UIColors.TitleColor = colorsConfig.Semantic.Primary.String()
+	themeConfig.UIColors.FooterColor = colorsConfig.Semantic.Secondary.String()
+	themeConfig.UIColors.HintColor = colorsConfig.Semantic.Info.String()
 
-	// Selection colors
-	themeConfig.UIColors.SelectionBgColor = colorsConfig.UI.SelectionBgColor.String()
-	themeConfig.UIColors.SelectionFgColor = colorsConfig.UI.SelectionFgColor.String()
+	// Selection colors - mapped to interaction layer
+	themeConfig.UIColors.SelectionBgColor = colorsConfig.Interaction.Selection.Cursor.Bg.String()
+	themeConfig.UIColors.SelectionFgColor = colorsConfig.Interaction.Selection.Cursor.Fg.String()
 
-	// Status colors
-	themeConfig.UIColors.ErrorColor = colorsConfig.UI.ErrorColor.String()
-	themeConfig.UIColors.SuccessColor = colorsConfig.UI.SuccessColor.String()
-	themeConfig.UIColors.WarningColor = colorsConfig.UI.WarningColor.String()
-	themeConfig.UIColors.InfoColor = colorsConfig.UI.InfoColor.String()
+	// Status colors - mapped to semantic layer
+	themeConfig.UIColors.ErrorColor = colorsConfig.Semantic.Error.String()
+	themeConfig.UIColors.SuccessColor = colorsConfig.Semantic.Success.String()
+	themeConfig.UIColors.WarningColor = colorsConfig.Semantic.Warning.String()
+	themeConfig.UIColors.InfoColor = colorsConfig.Semantic.Info.String()
 
-	// Input colors
-	themeConfig.UIColors.InputBgColor = colorsConfig.UI.InputBgColor.String()
-	themeConfig.UIColors.InputFgColor = colorsConfig.UI.InputFgColor.String()
-	themeConfig.UIColors.LabelColor = colorsConfig.UI.LabelColor.String()
+	// Input colors - mapped to interaction layer
+	themeConfig.UIColors.InputBgColor = colorsConfig.Interaction.Input.Bg.String()
+	themeConfig.UIColors.InputFgColor = colorsConfig.Interaction.Input.Fg.String()
+	themeConfig.UIColors.LabelColor = colorsConfig.Interaction.Input.Label.String()
 
 	return themeConfig, nil
 }

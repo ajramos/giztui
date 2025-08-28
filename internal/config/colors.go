@@ -415,27 +415,37 @@ func (c *ColorsConfig) getFoundationColor(colorType ColorType) Color {
 }
 
 // getLegacyColor gets colors from legacy structure for backward compatibility
+// Now maps to v2.0 hierarchical structure (foundation → semantic → interaction → overrides)
 func (c *ColorsConfig) getLegacyColor(component ComponentType, colorType ColorType) Color {
-	// Map to legacy UI colors
+	// Map to hierarchical v2.0 colors
 	switch colorType {
 	case ColorTypePrimary:
-		return c.UI.TitleColor
+		// Primary colors from semantic layer
+		return c.Semantic.Primary
 	case ColorTypeBackground:
-		return c.Body.BgColor
+		// Background from foundation layer
+		return c.Foundation.Background
 	case ColorTypeForeground:
-		return c.Body.FgColor
+		// Foreground from foundation layer
+		return c.Foundation.Foreground
 	case ColorTypeBorder:
-		return c.Frame.Border.FgColor
+		// Border from foundation layer
+		return c.Foundation.Border
 	case ColorTypeFocus:
-		return c.Frame.Border.FocusColor
+		// Focus from foundation layer
+		return c.Foundation.Focus
 	case ColorTypeSuccess:
-		return c.Status.Success
+		// Success from semantic layer
+		return c.Semantic.Success
 	case ColorTypeWarning:
-		return c.Status.Warning
+		// Warning from semantic layer
+		return c.Semantic.Warning
 	case ColorTypeError:
-		return c.Status.Error
+		// Error from semantic layer
+		return c.Semantic.Error
 	case ColorTypeInfo:
-		return c.Status.Info
+		// Info from semantic layer
+		return c.Semantic.Info
 	}
 	
 	// Check legacy component colors

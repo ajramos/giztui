@@ -82,13 +82,15 @@ func (ec *EmailColorer) ColorerFunc() func(*googleGmail.Message, string) tcell.C
 	}
 }
 
-// UpdateFromStyles updates colors from configuration
+// UpdateFromStyles updates colors from configuration using v2.0 hierarchical themes
 func (ec *EmailColorer) UpdateFromStyles(colors *config.ColorsConfig) {
-	ec.UnreadColor = colors.Email.UnreadColor.Color()
-	ec.ReadColor = colors.Email.ReadColor.Color()
-	ec.ImportantColor = colors.Email.ImportantColor.Color()
-	ec.SentColor = colors.Email.SentColor.Color()
-	ec.DraftColor = colors.Email.DraftColor.Color()
+	// Map email classification to hierarchical color system
+	// Using semantic colors for meaningful message states
+	ec.UnreadColor = colors.Semantic.Accent.Color()    // Cyan/blue for attention (unread)
+	ec.ReadColor = colors.Foundation.Foreground.Color() // Default text color (read)
+	ec.ImportantColor = colors.Semantic.Warning.Color() // Orange/yellow for importance
+	ec.SentColor = colors.Semantic.Success.Color()     // Green for sent items
+	ec.DraftColor = colors.Semantic.Secondary.Color()  // Gray for drafts
 }
 
 // Helper methods to determine email state

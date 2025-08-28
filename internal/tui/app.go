@@ -1405,18 +1405,21 @@ func (a *App) applyTheme() {
 	loader := config.NewThemeLoader("themes")
 	if theme, err := loader.LoadThemeFromFile("gmail-dark.yaml"); err == nil {
 		a.emailRenderer.UpdateFromConfig(theme)
-		// Aplicar a estilos globales
-		tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
-		tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
-		tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
-		tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+		// Apply hierarchical v2.0 theme to global styles
+		generalColors := a.GetComponentColors("general")
+		tview.Styles.PrimitiveBackgroundColor = generalColors.Background.Color()
+		tview.Styles.PrimaryTextColor = generalColors.Text.Color()
+		tview.Styles.BorderColor = generalColors.Border.Color()
+		tview.Styles.FocusColor = theme.Foundation.Focus.Color()
 	} else {
 		def := config.DefaultColors()
 		a.emailRenderer.UpdateFromConfig(def)
-		tview.Styles.PrimitiveBackgroundColor = def.Body.BgColor.Color()
-		tview.Styles.PrimaryTextColor = def.Body.FgColor.Color()
-		tview.Styles.BorderColor = def.Frame.Border.FgColor.Color()
-		tview.Styles.FocusColor = def.Frame.Border.FocusColor.Color()
+		// Fallback to hierarchical default colors
+		generalColors := a.GetComponentColors("general")
+		tview.Styles.PrimitiveBackgroundColor = generalColors.Background.Color()
+		tview.Styles.PrimaryTextColor = generalColors.Text.Color()
+		tview.Styles.BorderColor = generalColors.Border.Color()
+		tview.Styles.FocusColor = def.Foundation.Focus.Color()
 	}
 	// After updating global styles, also force background colors on existing widgets
 	if list, ok := a.views["list"].(*tview.Table); ok {
@@ -1469,11 +1472,12 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	// Update email renderer
 	a.emailRenderer.UpdateFromConfig(theme)
 
-	// Apply global styles
-	tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
-	tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
-	tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
-	tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+	// Apply global styles using hierarchical v2.0 theme
+	generalColors := a.GetComponentColors("general")
+	tview.Styles.PrimitiveBackgroundColor = generalColors.Background.Color()
+	tview.Styles.PrimaryTextColor = generalColors.Text.Color()
+	tview.Styles.BorderColor = generalColors.Border.Color()
+	tview.Styles.FocusColor = theme.Foundation.Focus.Color()
 
 	// Update existing widget colors
 	if list, ok := a.views["list"].(*tview.Table); ok {
