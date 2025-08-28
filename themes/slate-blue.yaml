@@ -1,76 +1,71 @@
 # Gmail TUI Slate Blue Theme
 # Pure v2.0 hierarchical theme structure ONLY
 # Uses foundation → semantic → interaction → overrides color resolution
-
 name: "Slate Blue"
 description: "Dark blue/slate theme with cyan accents"
 version: "2.0"
-
 gmailTUI:
   # FOUNDATION COLORS
   # Base colors that all components inherit by default
   foundation:
-    background: "#1e2540"          # Primary dark slate blue
-    foreground: "#c5d1eb"          # Light blue-gray text
-    border: "#3f4a5f"              # Medium slate borders
-    focus: "#64b5f6"               # Light blue focus
-
-  # SEMANTIC COLORS  
+    background: "#1e2540" # Primary dark slate blue
+    foreground: "#c5d1eb" # Light blue-gray text
+    border: "#3f4a5f" # Medium slate borders
+    focus: "#64b5f6" # Light blue focus
+  # SEMANTIC COLORS
   # Meaning-based colors that convey specific states
   semantic:
-    primary: "#81c784"             # Green - titles, main actions
-    secondary: "#7986cb"           # Muted blue - supporting elements
-    accent: "#4fc3f7"              # Cyan - highlights, links
-    success: "#81c784"             # Green - success messages
-    warning: "#ffb74d"             # Orange - warning messages
-    error: "#f48fb1"               # Pink - error messages
-    info: "#4fc3f7"                # Cyan - info messages
-
+    primary: "#81c784" # Green - titles, main actions
+    secondary: "#7986cb" # Muted blue - supporting elements
+    accent: "#4fc3f7" # Cyan - highlights, links
+    success: "#81c784" # Green - success messages
+    warning: "#ffb74d" # Orange - warning messages
+    error: "#f48fb1" # Pink - error messages
+    info: "#4fc3f7" # Cyan - info messages
   # INTERACTION COLORS
   # User interaction states
   interaction:
     selection:
       cursor:
-        bg: "#2d3748"              # Single item selection background
-        fg: "#c5d1eb"              # Single item selection text
+        bg: "#2d3748" # Single item selection background
+        fg: "#c5d1eb" # Single item selection text
       bulk:
-        bg: "#1a202c"              # Multi-item selection background
-        fg: "#c5d1eb"              # Multi-item selection text
+        bg: "#1a202c" # Multi-item selection background
+        fg: "#c5d1eb" # Multi-item selection text
     input:
-      bg: "#2d3748"                # Input field background
-      fg: "#c5d1eb"                # Input field text
-      label: "#81c784"             # Input field label color
+      bg: "#2d3748" # Input field background
+      fg: "#c5d1eb" # Input field text
+      label: "#81c784" # Input field label color
     statusBar:
-      bg: "#3f4a5f"                # Status bar background
-      fg: "#c5d1eb"                # Status bar text
-
+      bg: "#3f4a5f" # Status bar background
+      fg: "#c5d1eb" # Status bar text
   # COMPONENT OVERRIDES
   # Specific colors for components that differ from semantic defaults
   overrides:
     ai:
-      primary: "#ba68c8"           # Purple for AI titles
-      accent: "#f48fb1"            # Pink for AI highlights
-      
+      primary: "#ba68c8" # Purple for AI titles
+      accent: "#f48fb1" # Pink for AI highlights
     prompts:
-      primary: "#f48fb1"           # Pink for prompt titles
-      accent: "#ba68c8"            # Purple for prompt highlights
-      
+      primary: "#f48fb1" # Pink for prompt titles
+      accent: "#ba68c8" # Purple for prompt highlights
     obsidian:
-      primary: "#ffb74d"           # Orange for Obsidian titles
-      accent: "#81c784"            # Green for Obsidian highlights
-      
+      primary: "#ffb74d" # Orange for Obsidian titles
+      accent: "#81c784" # Green for Obsidian highlights
     links:
-      primary: "#4fc3f7"           # Cyan for link titles
-      accent: "#64b5f6"            # Blue for link highlights
-      
+      primary: "#4fc3f7" # Cyan for link titles
+      accent: "#64b5f6" # Blue for link highlights
     stats:
-      primary: "#64b5f6"           # Blue for stats titles
-      accent: "#81c784"            # Green for stats highlights
-      
+      primary: "#64b5f6" # Blue for stats titles
+      accent: "#81c784" # Green for stats highlights
     saved_queries:
-      primary: "#ba68c8"           # Purple for saved query titles
-      accent: "#4fc3f7"            # Cyan for saved query highlights
-      
+      primary: "#ba68c8" # Purple for saved query titles
+      accent: "#4fc3f7" # Cyan for saved query highlights
     attachments:
-      primary: "#ffb74d"           # Orange for attachment titles
-      accent: "#81c784"            # Green for attachment highlights
+      primary: "#ffb74d" # Orange for attachment titles
+      accent: "#81c784" # Green for attachment highlights
+    search:
+      primary: "#ba68c8" # Purple for AI titles
+      accent: "#f48fb1" # Pink for AI highlights
+    labels:
+      primary: "#ba68c8" # Purple for AI titles
+      accent: "#f48fb1" # Pink for AI highlights

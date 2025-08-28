@@ -156,6 +156,12 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	labelsList := tview.NewList()
 	labelsList.SetBorder(true)
 	labelsList.SetTitle(" 🏷️  Message Labels ")
+	
+	// Apply component-specific selection colors
+	labelColors := a.GetComponentColors("labels")
+	labelsList.SetMainTextColor(labelColors.Text.Color())
+	labelsList.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+	labelsList.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 
 	// Get current message labels
 	currentLabels := make(map[string]bool)
@@ -318,6 +324,12 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 		body := tview.NewList().ShowSecondaryText(false)
 		body.SetBorder(false)
+		
+		// Apply component-specific selection colors
+		labelColors := a.GetComponentColors("labels")
+		body.SetMainTextColor(labelColors.Text.Color())
+		body.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+		body.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 		// Helper to pad emoji to width 2 for alignment across fonts
 		padIcon := func(icon string) string {
 			if runewidth.StringWidth(icon) < 2 {
