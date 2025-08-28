@@ -1231,6 +1231,10 @@ func (a *App) bindKeys() {
 					a.aiPanelInPromptMode = false
 					// Don't change focus, just hide the panel
 				}
+				// CRITICAL DEBUG: Log cache synchronization
+				if a.logger != nil {
+					a.logger.Printf("SELECTION CALLBACK: Setting cached message ID to '%s' (index %d)", id, messageIndex)
+				}
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
 				a.refreshTableDisplay()

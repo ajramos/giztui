@@ -759,6 +759,14 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 								failed := 0
 
+								// Debug logging for move operation
+								if a.logger != nil {
+									a.logger.Printf("MOVE DEBUG: Starting move operation - messageID='%s', destination='%s', count=%d", messageID, name, len(idsToMove))
+									for i, mid := range idsToMove {
+										a.logger.Printf("MOVE DEBUG: Will move message %d: '%s'", i+1, mid)
+									}
+								}
+
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 								// Get services for undo support (keep individual operations for now)
 								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
@@ -1753,8 +1761,22 @@ func (a *App) removeLabelNameFromMessageCache(messageID, name string) {
 
 // moveSelected opens the labels picker to choose a destination label, applies it, then archives the message
 func (a *App) moveSelected() {
-	// Get the current message ID
+	// Get the current message ID from cached state (for undo functionality)
 	messageID := a.GetCurrentMessageID()
+	
+	// CRITICAL DEBUG: Compare cached vs cursor-based IDs to identify sync issues
+	if a.logger != nil {
+		cursorID := a.getCurrentSelectedMessageID()
+		a.logger.Printf("MOVE ID DEBUG: cached='%s', cursor='%s', match=%t", messageID, cursorID, messageID == cursorID)
+		
+		// If they don't match, sync the cached state and use cursor-based ID
+		if messageID != cursorID && cursorID != "" {
+			a.logger.Printf("MOVE ID SYNC: Cached ID is stale, updating from cursor position")
+			messageID = cursorID
+			a.SetCurrentMessageID(messageID)
+		}
+	}
+	
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return

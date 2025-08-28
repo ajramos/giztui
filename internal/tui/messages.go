@@ -91,8 +91,10 @@ func (a *App) captureLocalBaseSnapshot() {
 	var selID string
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.ids) {
-			selID = a.ids[row]
+		// Account for header row (row 0 is header, messages start at row 1)
+		messageIndex := row - 1
+		if messageIndex >= 0 && messageIndex < len(a.ids) {
+			selID = a.ids[messageIndex]
 		}
 	}
 	// Copy slices to avoid aliasing
@@ -2233,12 +2235,15 @@ func (a *App) getCurrentMessageID() string {
 	// Get selection safely
 	row, _ := tableView.GetSelection()
 
-	// Safety check: ensure ids slice exists and is not nil
-	if a.ids == nil || row < 0 || row >= len(a.ids) {
+	// Account for header row (row 0 is header, messages start at row 1)
+	messageIndex := row - 1
+	
+	// Safety check: ensure ids slice exists and is not nil, and messageIndex is valid
+	if a.ids == nil || messageIndex < 0 || messageIndex >= len(a.ids) {
 		return ""
 	}
 
-	return a.ids[row]
+	return a.ids[messageIndex]
 }
 
 // extractHeaderValue returns the value of a header (case-insensitive) from a Gmail message metadata
@@ -2297,8 +2302,10 @@ func (a *App) searchByFromCurrent() {
 	// Prefer cached metadata slice
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.messagesMeta) {
-			meta = a.messagesMeta[row]
+		// Account for header row (row 0 is header, messages start at row 1)
+		messageIndex := row - 1
+		if messageIndex >= 0 && messageIndex < len(a.messagesMeta) {
+			meta = a.messagesMeta[messageIndex]
 		}
 	}
 	if meta == nil {
@@ -2330,8 +2337,10 @@ func (a *App) searchByToCurrent() {
 	var meta *gmailapi.Message
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.messagesMeta) {
-			meta = a.messagesMeta[row]
+		// Account for header row (row 0 is header, messages start at row 1)
+		messageIndex := row - 1
+		if messageIndex >= 0 && messageIndex < len(a.messagesMeta) {
+			meta = a.messagesMeta[messageIndex]
 		}
 	}
 	if meta == nil {
@@ -2363,8 +2372,10 @@ func (a *App) searchBySubjectCurrent() {
 	var meta *gmailapi.Message
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.messagesMeta) {
-			meta = a.messagesMeta[row]
+		// Account for header row (row 0 is header, messages start at row 1)
+		messageIndex := row - 1
+		if messageIndex >= 0 && messageIndex < len(a.messagesMeta) {
+			meta = a.messagesMeta[messageIndex]
 		}
 	}
 	if meta == nil {
@@ -2396,8 +2407,10 @@ func (a *App) searchByDomainCurrent() {
 	var meta *gmailapi.Message
 	if table, ok := a.views["list"].(*tview.Table); ok {
 		row, _ := table.GetSelection()
-		if row >= 0 && row < len(a.messagesMeta) {
-			meta = a.messagesMeta[row]
+		// Account for header row (row 0 is header, messages start at row 1)
+		messageIndex := row - 1
+		if messageIndex >= 0 && messageIndex < len(a.messagesMeta) {
+			meta = a.messagesMeta[messageIndex]
 		}
 	}
 	if meta == nil {

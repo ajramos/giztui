@@ -66,8 +66,13 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	if count == 1 {
 		table.Clear()
 	} else {
-		if removeIndex >= 0 && removeIndex < table.GetRowCount() {
-			table.RemoveRow(removeIndex)
+		// CRITICAL FIX: Use correct table row index (removeIndex + 1 for header offset)
+		removeTableRow := removeIndex + 1
+		if removeTableRow >= 1 && removeTableRow < table.GetRowCount() {
+			if a.logger != nil {
+				a.logger.Printf("SAFE REMOVE FIX: Removing message at index %d (table row %d)", removeIndex, removeTableRow)
+			}
+			table.RemoveRow(removeTableRow)
 
 			// CRITICAL FIX: Ensure table row count matches a.ids length
 			// Sometimes RemoveRow doesn't properly sync, so force a refresh
@@ -151,12 +156,22 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 	i := 0
 	for i < len(a.ids) {
 		if _, ok := rm[a.ids[i]]; ok {
+			// Get message ID for debugging before removal
+			messageID := a.ids[i]
+			
 			a.RemoveMessageIDAt(i)
 			if i < len(a.messagesMeta) {
 				a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 			}
-			if i < table.GetRowCount() {
-				table.RemoveRow(i)
+			
+			// CRITICAL FIX: Account for header row offset when removing from table
+			// Message at index i is displayed in table row i+1 (because row 0 is header)
+			tableRowToRemove := i + 1
+			if tableRowToRemove < table.GetRowCount() && tableRowToRemove > 0 {
+				if a.logger != nil {
+					a.logger.Printf("MOVE FIX: Removing message '%s' at index %d (table row %d)", messageID, i, tableRowToRemove)
+				}
+				table.RemoveRow(tableRowToRemove)
 			}
 			continue
 		}

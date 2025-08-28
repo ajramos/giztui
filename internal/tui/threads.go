@@ -1128,7 +1128,22 @@ func (a *App) removeTableRow(table *tview.Table, index int) {
 
 // ExpandThread expands a thread to show its messages
 func (a *App) ExpandThread() error {
+	// Use cached thread ID (for undo functionality) with sync fallback
 	threadID := a.GetCurrentMessageID() // In thread mode, this is actually a thread ID
+	
+	// CRITICAL DEBUG: Ensure cache is synchronized with cursor position
+	if a.logger != nil {
+		cursorID := a.getCurrentSelectedMessageID()
+		a.logger.Printf("THREAD EXPAND DEBUG: cached='%s', cursor='%s', match=%t", threadID, cursorID, threadID == cursorID)
+		
+		// If they don't match, sync the cached state
+		if threadID != cursorID && cursorID != "" {
+			a.logger.Printf("THREAD EXPAND SYNC: Cached ID is stale, updating from cursor position")
+			threadID = cursorID
+			a.SetCurrentMessageID(threadID)
+		}
+	}
+	
 	if threadID == "" {
 		return fmt.Errorf("no thread selected")
 	}
@@ -1281,7 +1296,22 @@ func (a *App) CollapseAllThreads() error {
 
 // GenerateThreadSummary generates an AI summary for the selected thread
 func (a *App) GenerateThreadSummary() error {
+	// Use cached thread ID (for undo functionality) with sync fallback
 	threadID := a.GetCurrentMessageID() // In thread mode, this is actually a thread ID
+	
+	// CRITICAL DEBUG: Ensure cache is synchronized with cursor position
+	if a.logger != nil {
+		cursorID := a.getCurrentSelectedMessageID()
+		a.logger.Printf("THREAD SUMMARY DEBUG: cached='%s', cursor='%s', match=%t", threadID, cursorID, threadID == cursorID)
+		
+		// If they don't match, sync the cached state
+		if threadID != cursorID && cursorID != "" {
+			a.logger.Printf("THREAD SUMMARY SYNC: Cached ID is stale, updating from cursor position")
+			threadID = cursorID
+			a.SetCurrentMessageID(threadID)
+		}
+	}
+	
 	if threadID == "" {
 		return fmt.Errorf("no thread selected")
 	}
