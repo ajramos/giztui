@@ -417,7 +417,7 @@ func (a *App) reloadMessagesFlat() {
 			if table, ok := a.views["list"].(*tview.Table); ok {
 				cell := tview.NewTableCell(formattedText).
 					SetExpansion(1).
-					SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+					SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 				table.SetCell(i, 0, cell)
 			}
 			a.refreshTableDisplay()
@@ -572,7 +572,7 @@ func (a *App) loadMoreMessages() {
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
 			cell := tview.NewTableCell(text).
 				SetExpansion(1).
-				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+				SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 			table.SetCell(row, 0, cell)
 		}
 		loaded++
@@ -604,7 +604,7 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
 			cell := tview.NewTableCell(text).
 				SetExpansion(1).
-				SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+				SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 			table.SetCell(row, 0, cell)
 		}
 	}
@@ -1663,9 +1663,10 @@ func (a *App) openAdvancedSearchForm() {
 	
 	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-	modal.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+	generalColors := a.GetComponentColors("general")
+	modal.SetBackgroundColor(generalColors.Background.Color()).
 		SetBorder(true).
-		SetBorderColor(tview.Styles.PrimitiveBackgroundColor).
+		SetBorderColor(generalColors.Border.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle("🔎 Advanced Search").
 		SetTitleColor(advancedSearchColors.Title.Color()).
@@ -2794,7 +2795,7 @@ func (a *App) openRSVPModal() {
 	// Create container with meeting info at top
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.GetComponentColors("general").Title.Color())
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 
 	// Add meeting info section (fixed height)
 	container.AddItem(meetingContainer, 3, 0, false)

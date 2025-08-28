@@ -22,9 +22,9 @@ type emojiBox struct {
 	color tcell.Color
 }
 
-func newEmojiBox(text string, color tcell.Color) *emojiBox {
+func newEmojiBox(text string, color tcell.Color, backgroundColor tcell.Color) *emojiBox {
 	b := &emojiBox{Box: tview.NewBox(), text: text, color: color}
-	b.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	b.SetBackgroundColor(backgroundColor)
 	return b
 }
 
@@ -46,8 +46,9 @@ func (a *App) createCommandBar() tview.Primitive {
 	// Inner widget without its own border; the panel provides the border and title
 	cmdBar.SetBorder(false)
 	cmdBar.SetText("")
-	cmdBar.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	cmdBar.SetTextColor(tview.Styles.PrimaryTextColor)
+	generalColors := a.GetComponentColors("general")
+	cmdBar.SetBackgroundColor(generalColors.Background.Color())
+	cmdBar.SetTextColor(generalColors.Text.Color())
 
 	// Store reference to command bar
 	a.views["cmdBar"] = cmdBar
@@ -67,13 +68,14 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.cmdSuggestion = ""
 
 	// Build prompt pieces with an emoji-safe custom box
-	dog := newEmojiBox("🐶>", tview.Styles.PrimaryTextColor)
+	generalColors := a.GetComponentColors("general")
+	dog := newEmojiBox("🐶>", generalColors.Text.Color(), generalColors.Background.Color())
 
 	input := tview.NewInputField()
 	input.SetFieldWidth(0)
 	input.SetPlaceholder("")
 	input.SetBorder(false)
-	input.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	input.SetBackgroundColor(generalColors.Background.Color())
 	a.ConfigureInputFieldTheme(input, "command")
 	input.SetText(prefix)
 	input.SetDoneFunc(nil) // ensure we set it after capture
@@ -90,7 +92,7 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	// Suggestion view on the right
 	hint := tview.NewTextView()
 	hint.SetBorder(false)
-	hint.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	hint.SetBackgroundColor(generalColors.Background.Color())
 	hint.SetText("")
 	hint.SetTextColor(a.getHintColor())
 
@@ -143,7 +145,7 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	})
 
 	row := tview.NewFlex().SetDirection(tview.FlexColumn)
-	row.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	row.SetBackgroundColor(generalColors.Background.Color())
 
 	row.AddItem(dog, 3, 0, false)
 	row.AddItem(input, 0, 1, true)

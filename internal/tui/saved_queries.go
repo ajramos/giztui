@@ -41,8 +41,8 @@ func (a *App) showSavedQueriesPicker() {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("saved_queries").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	list.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background
@@ -207,9 +207,9 @@ func (a *App) showSavedQueriesPicker() {
 
 			// Create container and show
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor) // Consistent background
+			container.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Consistent background
 			container.SetBorder(true)
-			container.SetBorderColor(tview.Styles.BorderColor) // Set initial border color
+			container.SetBorderColor(a.GetComponentColors("saved_queries").Border.Color()) // Set initial border color
 			container.SetTitle(" 📚 Saved Queries ")
 			container.SetTitleColor(a.GetComponentColors("saved_queries").Title.Color()) // Use component colors
 
@@ -370,9 +370,9 @@ func (a *App) showSaveCurrentQueryDialog() {
 func (a *App) showSaveQueryInput(query string, queryService services.QueryService) {
 	// Create panel similar to Obsidian ingestion panel
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color())
 	container.SetBorder(true)
-	container.SetBorderColor(tview.Styles.BorderColor) // Set initial border color
+	container.SetBorderColor(a.GetComponentColors("saved_queries").Border.Color()) // Set initial border color
 	container.SetTitle(" 💾 Save Search Query ")
 	container.SetTitleColor(a.GetComponentColors("saved_queries").Title.Color())
 

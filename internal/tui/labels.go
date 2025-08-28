@@ -450,7 +450,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container.SetBorder(true)
 		container.SetTitle(" 🏷️  Message Labels ")
 		container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
-		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
 		container.AddItem(body, 0, 1, true)
 		// Footer hint: quick view uses ESC to close panel
 		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
@@ -1051,8 +1051,8 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("labels").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("labels").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("labels").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 
@@ -1118,7 +1118,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 				}
 			})
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
 			container.SetBorder(true)
 			container.SetTitle(title)
 			container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
@@ -1168,7 +1168,7 @@ func (a *App) editLabelInline(labelID, name string) {
 	footer.SetText(" Enter to rename  |  Esc to back ")
 	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 📝 Edit label ")
 	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
@@ -1224,7 +1224,7 @@ func (a *App) confirmDeleteLabel(labelID, name string) {
 	footer.SetText(" Enter to confirm  |  Esc to back ")
 	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 🗑 Remove label ")
 	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())

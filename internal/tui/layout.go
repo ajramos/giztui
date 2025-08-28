@@ -80,7 +80,7 @@ func (a *App) initComponents() {
 	textContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	textContainer.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	textContainer.SetBorder(true).
-		SetBorderColor(tview.Styles.BorderColor).
+		SetBorderColor(a.GetComponentColors("general").Border.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
 		SetTitleColor(a.GetComponentColors("general").Title.Color()).
@@ -270,7 +270,7 @@ func (a *App) createMainLayout() tview.Primitive {
 // updateFocusIndicators updates the visual indicators for the focused view
 func (a *App) updateFocusIndicators(focusedView string) {
 	// Reset all borders to theme's default border color
-	unfocusedColor := tview.Styles.BorderColor // Use theme's border color
+	unfocusedColor := a.GetComponentColors("general").Border.Color() // Use theme's border color
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetBorderColor(unfocusedColor)
 	}
@@ -301,7 +301,7 @@ func (a *App) updateFocusIndicators(focusedView string) {
 	}
 
 	// Set focused view border to theme's focus color
-	focusedColor := tview.Styles.FocusColor // Use theme's focus color
+	focusedColor := a.GetComponentColors("general").Accent.Color() // Use theme's focus color
 	switch focusedView {
 	case "list":
 		if list, ok := a.views["list"].(*tview.Table); ok {

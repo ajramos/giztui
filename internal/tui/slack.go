@@ -162,8 +162,8 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Channel selection list
 	channelList := tview.NewList()
@@ -374,8 +374,8 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
 
 	// Channel selection list
 	channelList := tview.NewList()

@@ -50,8 +50,8 @@ func (a *App) openBulkPromptPicker() {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 
@@ -212,7 +212,7 @@ func (a *App) openBulkPromptPicker() {
 
 	// Create container similar to individual prompt picker
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 🤖 Bulk Prompt Library (%d messages) ", messageCount))
 	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())

@@ -60,8 +60,8 @@ func (a *App) openPromptPicker() {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 
@@ -179,7 +179,7 @@ func (a *App) openPromptPicker() {
 
 			// Create container
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
 			container.SetBorder(true)
 			container.SetTitle(" 🤖 Prompt Library ")
 			container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
@@ -568,8 +568,8 @@ func (a *App) openPromptPickerForManagement() {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 
@@ -717,7 +717,7 @@ func (a *App) openPromptPickerForManagement() {
 
 	// Create container
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 📚 Prompt Library Manager ")
 	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())

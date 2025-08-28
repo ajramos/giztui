@@ -44,8 +44,8 @@ func (a *App) openAttachmentPicker() {
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("attachments").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetFieldBackgroundColor(a.GetComponentColors("attachments").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("attachments").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	
@@ -246,7 +246,7 @@ func (a *App) openAttachmentPicker() {
 
 			// Create container
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBackgroundColor(a.GetComponentColors("attachments").Background.Color())
 			container.SetBorder(true)
 			container.SetTitle(" 📎 Attachments in Message ")
 			container.SetTitleColor(a.GetComponentColors("attachments").Title.Color())

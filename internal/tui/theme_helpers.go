@@ -222,7 +222,9 @@ func (a *App) getStatusColorCompat(level string) tcell.Color {
 // GetInputFieldColors returns theme-aware colors for input fields using hierarchical system
 func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
 	if a.currentTheme == nil {
-		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor
+		// Use hierarchical default colors as fallback
+		generalColors := a.GetComponentColors("general")
+		return generalColors.Background.Color(), generalColors.Text.Color()
 	}
 	
 	// Use new hierarchical system with fallback to legacy
@@ -265,7 +267,9 @@ func (a *App) ConfigureInputFieldTheme(field *tview.InputField, component string
 // GetSearchFieldColors returns component-specific colors for search fields using hierarchical system
 func (a *App) GetSearchFieldColors(component string) (bgColor, textColor, labelColor tcell.Color) {
 	if a.currentTheme == nil {
-		return tview.Styles.PrimitiveBackgroundColor, tview.Styles.PrimaryTextColor, tcell.ColorYellow
+		// Use hierarchical default colors as fallback
+		generalColors := a.GetComponentColors("general")
+		return generalColors.Background.Color(), generalColors.Text.Color(), generalColors.Accent.Color()
 	}
 
 	// Use hierarchical system for all search components

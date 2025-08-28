@@ -64,7 +64,7 @@ gmailTUI:
       primary: "#ffb74d" # Orange for attachment titles
       accent: "#81c784" # Green for attachment highlights
     search:
-      primary: "#ba68c8" # Not used for search highlighting
+      primary: "#81c784" # Not used for search highlighting
       accent: "#f48fb1" # Background color for search
     labels:
       primary: "#ba68c8" # Purple for labels titles

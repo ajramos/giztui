@@ -146,7 +146,7 @@ func (a *App) toggleAISummary() {
 		a.SetFocus(a.aiSummaryView)
 		a.currentFocus = "summary"
 		a.aiSummaryView.SetBorderColor(a.GetComponentColors("ai").Border.Color())
-		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		a.aiSummaryView.SetBackgroundColor(a.GetComponentColors("ai").Background.Color())
 		// Reset title to AI Summary when switching from prompt mode
 		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
 		a.aiSummaryView.SetTitleColor(a.GetComponentColors("ai").Title.Color())
