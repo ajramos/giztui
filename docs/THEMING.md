@@ -366,6 +366,9 @@ bgColor := app.currentTheme.GetComponentColor(
 ### Slate Blue (Default)
 Modern dark theme with blue/slate color palette and cyan accents, optimized for low-light use.
 
+### Dracula
+Official Dracula theme implementation with characteristic dark purple background and vibrant accent colors (purple, pink, cyan, green, orange, red, yellow). Based on the official Dracula color specification.
+
 ### Gmail Dark  
 Dark theme inspired by Dracula palette with purple accents.
 

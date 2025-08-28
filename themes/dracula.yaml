@@ -1,0 +1,74 @@
+# Gmail TUI Dracula Theme
+# Official Dracula color scheme implementation
+# Based on https://draculatheme.com/spec
+name: "Dracula"
+description: "Official Dracula theme with dark background and vibrant accent colors"
+version: "2.0"
+gmailTUI:
+  # FOUNDATION COLORS
+  # Base colors using official Dracula palette
+  foundation:
+    background: "#282a36" # Main background
+    foreground: "#f8f8f2" # Default text
+    border: "#44475a" # Selection color repurposed for borders
+    focus: "#bd93f9" # Purple for focus highlights
+  # SEMANTIC COLORS
+  # Meaning-based colors using Dracula accent palette
+  semantic:
+    primary: "#f1fa8c" # Yellow - titles, main actions
+    secondary: "#6272a4" # Comment gray - supporting elements
+    accent: "#ff79c6" # Pink - highlights, links
+    success: "#50fa7b" # Green - success messages
+    warning: "#ffb86c" # Orange - warning messages
+    error: "#ff5555" # Red - error messages
+    info: "#8be9fd" # Cyan - info messages
+  # INTERACTION COLORS
+  # User interaction states
+  interaction:
+    selection:
+      cursor:
+        bg: "#44475a" # Selection background
+        fg: "#f8f8f2" # Selection text
+      bulk:
+        bg: "#373844" # Darker selection for bulk
+        fg: "#f8f8f2" # Bulk selection text
+    input:
+      bg: "#44475a" # Input field background
+      fg: "#f8f8f2" # Input field text
+      label: "#f1fa8c" # Input field label color (yellow)
+    statusBar:
+      bg: "#282a36" # Status bar background (main)
+      fg: "#f8f8f2" # Status bar text
+  # COMPONENT OVERRIDES
+  # Strategic use of Dracula accent colors for visual distinction
+  overrides:
+    ai:
+      primary: "#bd93f9" # Purple for AI titles
+      accent: "#ff79c6" # Pink for AI highlights
+    prompts:
+      primary: "#ff79c6" # Pink for prompt titles
+      accent: "#bd93f9" # Purple for prompt highlights
+    obsidian:
+      primary: "#ffb86c" # Orange for Obsidian titles
+      accent: "#50fa7b" # Green for Obsidian highlights
+    links:
+      primary: "#8be9fd" # Cyan for link titles
+      accent: "#bd93f9" # Purple for link highlights
+    stats:
+      primary: "#f1fa8c" # Yellow for stats titles
+      accent: "#50fa7b" # Green for stats highlights
+    saved_queries:
+      primary: "#bd93f9" # Purple for saved query titles
+      accent: "#8be9fd" # Cyan for saved query highlights
+    attachments:
+      primary: "#ffb86c" # Orange for attachment titles
+      accent: "#50fa7b" # Green for attachment highlights
+    search:
+      primary: "#50fa7b" # Green for search widgets
+      accent: "#ff79c6" # Pink for search highlighting
+    labels:
+      primary: "#bd93f9" # Purple for labels titles
+      accent: "#ff79c6" # Pink for labels highlights
+    themes:
+      primary: "#ff79c6" # Pink for themes titles
+      accent: "#bd93f9" # Purple for themes highlights

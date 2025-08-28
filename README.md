@@ -1309,6 +1309,7 @@ Gmail TUI supports customizable color themes to personalize your email experienc
 
 ### Built-in Themes
 - **slate-blue** - Modern dark theme with blue/slate palette and cyan accents ⭐ (default)
+- **dracula** - Official Dracula theme with dark background and vibrant accent colors
 - **gmail-dark** - Dark theme based on Dracula color scheme
 - **gmail-light** - Clean light theme for bright environments
 - **custom-example** - Demo custom theme showing customization possibilities
