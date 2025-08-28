@@ -44,7 +44,7 @@ func (a *App) openLinkPicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("links").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -253,7 +253,7 @@ func (a *App) openLinkPicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🔗 Links in Message ")
-			container.SetTitleColor(a.getTitleColor())
+			container.SetTitleColor(a.GetComponentColors("links").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 

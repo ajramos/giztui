@@ -29,7 +29,7 @@ func (a *App) openThemePicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("general").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 
@@ -177,7 +177,7 @@ func (a *App) openThemePicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🎨 Theme Picker ")
-			container.SetTitleColor(a.getTitleColor())
+			container.SetTitleColor(a.GetComponentColors("general").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
@@ -279,7 +279,7 @@ func (a *App) showThemePreview(themeName string) {
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 🎨 Theme Preview ")
 				// Use standard yellow for consistency with other titles
-				textContainer.SetTitleColor(a.getTitleColor())
+				textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 				// Store the current header height before hiding it
 				if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -377,7 +377,7 @@ func (a *App) closeThemePicker() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(a.getTitleColor())
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {

@@ -149,7 +149,7 @@ func (a *App) toggleAISummary() {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		// Reset title to AI Summary when switching from prompt mode
 		a.aiSummaryView.SetTitle(" 🧠 AI Summary ")
-		a.aiSummaryView.SetTitleColor(a.getTitleColor())
+		a.aiSummaryView.SetTitleColor(a.GetComponentColors("ai").Title.Color())
 		a.updateFocusIndicators("summary")
 	} else {
 		a.showError("❌ AI Summary view not accessible")
@@ -534,6 +534,11 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 		a.QueueUpdateDraw(func() {
 			body := tview.NewList().ShowSecondaryText(false)
 			body.SetBorder(false)
+			// Apply theme colors to list component
+			aiColors := a.GetComponentColors("ai")
+			body.SetMainTextColor(aiColors.Text.Color())
+			body.SetSelectedTextColor(aiColors.Background.Color()) // Use background for selected text (inverse)
+			body.SetSelectedBackgroundColor(aiColors.Accent.Color()) // Use accent for selection highlight
 			if len(suggestions) == 0 {
 				body.AddItem("(No suggestions)", "Use Browse all or Add custom", 0, nil)
 			}
@@ -604,13 +609,16 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
 			container.SetBorder(true)
 			container.SetTitle(" 🏷️  Suggested Labels ")
-			container.SetTitleColor(a.GetComponentColors("ai").Title.Color())
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			// Apply complete theme colors to container
+			container.SetTitleColor(aiColors.Title.Color())
+			container.SetBorderColor(aiColors.Border.Color())
+			container.SetBackgroundColor(aiColors.Background.Color())
 			container.AddItem(body, 0, 1, true)
-			// Footer hint
+			// Footer hint with theme colors
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply  |  Esc to back ")
-			footer.SetTextColor(a.GetComponentColors("ai").Text.Color()) // Standardized footer color
+			footer.SetTextColor(aiColors.Text.Color())
+			footer.SetBackgroundColor(aiColors.Background.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

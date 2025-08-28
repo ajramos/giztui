@@ -68,7 +68,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 📥 Send to Obsidian ")
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
 
 	// Show the configurable template
 	templateContent := a.getObsidianTemplate()
@@ -80,7 +80,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// Comment input field
 	commentLabel := tview.NewTextView().SetText("💬 Pre-message:")
-	commentLabel.SetTextColor(a.getTitleColor())
+	commentLabel.SetTextColor(a.GetComponentColors("obsidian").Title.Color())
 
 	commentInput := tview.NewInputField()
 	commentInput.SetLabel("")
@@ -474,7 +474,7 @@ func (a *App) openBulkObsidianPanel() {
 	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
 
 	// Show bulk template info
 	templateContent := a.getBulkObsidianTemplate(messageCount)
@@ -486,7 +486,7 @@ func (a *App) openBulkObsidianPanel() {
 
 	// Comment input field for bulk operation
 	commentLabel := tview.NewTextView().SetText("💬 Bulk comment:")
-	commentLabel.SetTextColor(a.getTitleColor())
+	commentLabel.SetTextColor(a.GetComponentColors("obsidian").Title.Color())
 
 	commentInput := tview.NewInputField()
 	commentInput.SetLabel("")

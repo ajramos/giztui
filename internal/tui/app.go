@@ -1479,7 +1479,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		list.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		// Update title color with the new theme
-		list.SetTitleColor(a.getTitleColor())
+		list.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		// Force table to refresh content with new email renderer colors
 		if a.messagesMeta != nil && len(a.messagesMeta) > 0 {
 			// Trigger reformatting of list items to apply new theme colors
@@ -1494,19 +1494,19 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	}
 	if a.aiSummaryView != nil {
 		a.aiSummaryView.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-		a.aiSummaryView.SetTitleColor(a.getTitleColor())
+		a.aiSummaryView.SetTitleColor(a.GetComponentColors("ai").Title.Color())
 	}
 	// Update text container title color if it exists
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		textContainer.SetTitleColor(a.getTitleColor())
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 	}
 	// Update command panel title color if it exists
 	if cmdPanel, ok := a.views["cmdPanel"].(*tview.Flex); ok {
-		cmdPanel.SetTitleColor(a.getTitleColor())
+		cmdPanel.SetTitleColor(a.GetComponentColors("general").Title.Color())
 	}
 	// Update slack widget title color if it exists
 	if a.slackView != nil {
-		a.slackView.SetTitleColor(a.getTitleColor())
+		a.slackView.SetTitleColor(a.GetComponentColors("slack").Title.Color())
 	}
 	// Update status bar colors if it exists
 	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
@@ -1532,10 +1532,6 @@ func (a *App) saveConfigAsync() error {
 
 // Theme-aware color helper functions
 
-// getTitleColor returns the theme's title color or fallback to yellow
-func (a *App) getTitleColor() tcell.Color {
-	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
-}
 
 // getComponentColor resolves a color using the hierarchical theme system
 func (a *App) getComponentColor(component config.ComponentType, colorType config.ColorType) tcell.Color {
@@ -1983,7 +1979,7 @@ func (a *App) toggleHelp() {
 		// Restore text container title
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(a.helpBackupTitle)
-			textContainer.SetTitleColor(a.getTitleColor())
+			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		}
 
 		// Clear backup content
@@ -2027,7 +2023,7 @@ func (a *App) toggleHelp() {
 		// Display help title in text container border
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(" 📚 Help & Shortcuts ")
-			textContainer.SetTitleColor(a.getTitleColor())
+			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		}
 
 		// Display help content in enhanced text view with proper content setting

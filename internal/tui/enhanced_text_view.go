@@ -186,7 +186,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 
 	// Create the overlay container
 	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(title).SetTitleColor(e.app.getTitleColor())
+	box.SetBorder(true).SetTitle(title).SetTitleColor(e.app.GetComponentColors("search").Title.Color())
 
 	// Layout: spacer, input, help, spacer
 	topSpacer := tview.NewBox()

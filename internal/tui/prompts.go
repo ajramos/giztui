@@ -59,7 +59,7 @@ func (a *App) openPromptPicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -182,7 +182,7 @@ func (a *App) openPromptPicker() {
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(" 🤖 Prompt Library ")
-			container.SetTitleColor(a.getTitleColor())
+			container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
@@ -241,7 +241,7 @@ func (a *App) closePromptPicker() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(a.getTitleColor())
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -317,7 +317,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 
 			// Update title to show prompt name
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s ", promptName))
-			a.aiSummaryView.SetTitleColor(a.getTitleColor())
+			a.aiSummaryView.SetTitleColor(a.GetComponentColors("ai").Title.Color())
 			// Show loading message
 			a.aiSummaryView.SetText("🤖 Applying prompt...")
 			a.aiSummaryView.ScrollToBeginning()
@@ -567,7 +567,7 @@ func (a *App) openPromptPickerForManagement() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -720,7 +720,7 @@ func (a *App) openPromptPickerForManagement() {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📚 Prompt Library Manager ")
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(list, 0, 1, true)
 
@@ -757,7 +757,7 @@ func (a *App) closePromptManager() {
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 		textContainer.SetTitle(" 📄 Message Content ")
-		textContainer.SetTitleColor(a.getTitleColor())
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 		// Restore message headers by resizing header back to original height
 		if header, ok := a.views["header"].(*tview.TextView); ok {
@@ -808,7 +808,7 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 			// Update the text container title and hide headers
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 📝 Prompt Details ")
-				textContainer.SetTitleColor(a.getTitleColor())
+				textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 				// Store the current header height before hiding it
 				if header, ok := a.views["header"].(*tview.TextView); ok {

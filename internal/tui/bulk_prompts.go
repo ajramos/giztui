@@ -49,7 +49,7 @@ func (a *App) openBulkPromptPicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -550,7 +550,7 @@ func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName
 
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText(fmt.Sprintf("📊 Bulk Prompt Result: %s", promptName))
-	title.SetTextColor(a.getTitleColor())
+	title.SetTextColor(a.GetComponentColors("prompts").Title.Color())
 	title.SetBorder(true)
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)

@@ -40,7 +40,7 @@ func (a *App) showSavedQueriesPicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("saved_queries").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -388,7 +388,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 
 	// Name input label and field (following Obsidian pattern exactly)
 	nameLabel := tview.NewTextView().SetText("💾 Query name:")
-	nameLabel.SetTextColor(a.getTitleColor())
+	nameLabel.SetTextColor(a.GetComponentColors("saved_queries").Title.Color())
 
 	nameInput := tview.NewInputField()
 	nameInput.SetLabel("") // No built-in label, using separate TextView like Obsidian

@@ -260,7 +260,7 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	// Title with message subject
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText(fmt.Sprintf("🏷️  Labels for: %s", subject))
-	title.SetTextColor(a.getTitleColor())
+	title.SetTextColor(a.GetComponentColors("labels").Title.Color())
 	title.SetBorder(true)
 
 	// Instructions
@@ -437,7 +437,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container := tview.NewFlex().SetDirection(tview.FlexRow)
 		container.SetBorder(true)
 		container.SetTitle(" 🏷️  Message Labels ")
-		container.SetTitleColor(a.getTitleColor())
+		container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 		container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		container.AddItem(body, 0, 1, true)
 		// Footer hint: quick view uses ESC to close panel
@@ -500,14 +500,21 @@ func (a *App) expandLabelsBrowse(messageID string) {
 // and then close the panel.
 func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	a.labelsExpanded = true
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
+	
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetLabelColor(labelColors.Title.Color()).
+		SetFieldBackgroundColor(labelColors.Background.Color()).
+		SetFieldTextColor(labelColors.Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	// Apply theme colors to list component
+	list.SetMainTextColor(labelColors.Text.Color())
+	list.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 
 	// Loader
 	type labelItem struct {
@@ -849,7 +856,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			})
 
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBackgroundColor(labelColors.Background.Color())
+			container.SetBorderColor(labelColors.Border.Color())
 			container.SetBorder(true)
 			titleText := " 🏷️ › 🔎 Browse all labels… "
 			if moveMode {
@@ -864,7 +872,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}
 			}
 			container.SetTitle(titleText)
-			container.SetTitleColor(a.getTitleColor())
+			container.SetTitleColor(labelColors.Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 			// Footer hint (bottom-right)
@@ -876,7 +884,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			} else {
 				footer.SetText(" Enter to apply 1st match  |  Esc to back ")
 			}
-			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+			footer.SetTextColor(labelColors.Text.Color())
+			footer.SetBackgroundColor(labelColors.Background.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -1029,7 +1038,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("labels").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
@@ -1100,7 +1109,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 			container.SetBorder(true)
 			container.SetTitle(title)
-			container.SetTitleColor(a.getTitleColor())
+			container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
@@ -1150,7 +1159,7 @@ func (a *App) editLabelInline(labelID, name string) {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📝 Edit label ")
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(footer, 1, 0, false)
 	input.SetDoneFunc(func(key tcell.Key) {
@@ -1206,7 +1215,7 @@ func (a *App) confirmDeleteLabel(labelID, name string) {
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	container.SetBorder(true)
 	container.SetTitle(" 🗑 Remove label ")
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 	container.AddItem(text, 0, 1, true)
 	container.AddItem(footer, 1, 0, false)
 	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -1331,20 +1340,28 @@ func (a *App) addCustomLabelInline(messageID string) {
 	if a.logger != nil {
 		a.logger.Printf("addCustomLabelInline: open mid=%s", messageID)
 	}
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
+	
 	// Inline input inside labels side panel (no modal)
 	input := tview.NewInputField().
 		SetLabel("Label name: ").
-		SetFieldWidth(30)
+		SetFieldWidth(30).
+		SetLabelColor(labelColors.Title.Color()).
+		SetFieldBackgroundColor(labelColors.Background.Color()).
+		SetFieldTextColor(labelColors.Text.Color())
 
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply  |  Esc to back ")
-	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetTextColor(labelColors.Text.Color())
+	footer.SetBackgroundColor(labelColors.Background.Color())
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+	container.SetBackgroundColor(labelColors.Background.Color())
+	container.SetBorderColor(labelColors.Border.Color())
 	container.SetBorder(true)
 	container.SetTitle(" ➕ Add custom label ")
-	container.SetTitleColor(a.getTitleColor())
+	container.SetTitleColor(labelColors.Title.Color())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(footer, 1, 0, false)
 
@@ -1598,7 +1615,7 @@ func (a *App) createNewLabelFromView() {
 
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	title.SetText("🏷️  Create New Label")
-	title.SetTextColor(a.getTitleColor())
+	title.SetTextColor(a.GetComponentColors("labels").Title.Color())
 	title.SetBorder(true)
 
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)

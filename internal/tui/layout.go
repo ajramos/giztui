@@ -46,7 +46,7 @@ func (a *App) initComponents() {
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📧 Messages ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("general").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 		// Search panel placeholder (hidden by default)
 	searchPanel := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -83,12 +83,12 @@ func (a *App) initComponents() {
 		SetBorderColor(tview.Styles.BorderColor).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📄 Message Content ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("general").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(textContainer)
 	// Reapply title styling since the helper can't preserve it
-	textContainer.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color()).SetTitleAlign(tview.AlignCenter)
 
 	// Fixed height for header (room for Subject, From, To, Cc, Date, Labels)
 	textContainer.AddItem(header, 6, 0, false)
@@ -101,7 +101,7 @@ func (a *App) initComponents() {
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🤖 AI Summary ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("ai").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 
 		// Store components
@@ -120,12 +120,12 @@ func (a *App) initComponents() {
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🏷️ Labels ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("labels").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(labelsFlex)
 	// Reapply title styling since the helper can't preserve it
-	labelsFlex.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	labelsFlex.SetTitleColor(a.GetComponentColors("labels").Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.labelsView = labelsFlex
 
 	// Slack contextual panel container (hidden by default)
@@ -135,12 +135,12 @@ func (a *App) initComponents() {
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 💬 Send to Slack channel ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("slack").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(slackFlex)
 	// Reapply title styling since the helper can't preserve it
-	slackFlex.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	slackFlex.SetTitleColor(a.GetComponentColors("slack").Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.slackView = slackFlex
 
 	// Command panel (hidden by default)
@@ -150,12 +150,12 @@ func (a *App) initComponents() {
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 🐶 Command ").
-		SetTitleColor(a.getTitleColor()).
+		SetTitleColor(a.GetComponentColors("general").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering
 	ForceFilledBorderFlex(cmdPanel)
 	// Reapply title styling since the helper can't preserve it
-	cmdPanel.SetTitleColor(a.getTitleColor()).SetTitleAlign(tview.AlignCenter)
+	cmdPanel.SetTitleColor(a.GetComponentColors("general").Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.views["cmdPanel"] = cmdPanel
 
 	// Search container (hidden by default)

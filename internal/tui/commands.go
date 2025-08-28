@@ -1733,7 +1733,7 @@ func (a *App) executeThemeList() {
 			// Update the text container title
 			if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 				textContainer.SetTitle(" 🎨 Theme List ")
-				textContainer.SetTitleColor(a.getTitleColor())
+				textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 				// Store and hide message headers
 				if header, ok := a.views["header"].(*tview.TextView); ok {

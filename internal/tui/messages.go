@@ -1837,7 +1837,7 @@ func (a *App) showMessage(id string) {
 	if !a.showHelp {
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(" 📄 Message Content ")
-			textContainer.SetTitleColor(a.getTitleColor())
+			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		}
 	}
 
@@ -2055,7 +2055,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 	if !a.showHelp {
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			textContainer.SetTitle(" 📄 Message Content ")
-			textContainer.SetTitleColor(a.getTitleColor())
+			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		}
 	}
 
@@ -2793,7 +2793,7 @@ func (a *App) openRSVPModal() {
 
 	// Create container with meeting info at top
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.getTitleColor())
+	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.GetComponentColors("general").Title.Color())
 	container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 
 	// Add meeting info section (fixed height)

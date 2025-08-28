@@ -161,7 +161,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 
@@ -217,7 +217,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(a.getTitleColor())                                          // Match search label color
+	userMessageInput.SetLabelColor(a.GetComponentColors("slack").Title.Color())                                          // Match search label color
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())             // Component text color
 	userMessageInput.SetBorder(false)
@@ -373,7 +373,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.getTitleColor()).
+		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
 		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 
@@ -428,7 +428,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 
 	// Comment input field for bulk operation (like Obsidian)
 	commentLabel := tview.NewTextView().SetText(fmt.Sprintf("💬 Bulk comment (%d emails):", messageCount))
-	commentLabel.SetTextColor(a.getTitleColor())
+	commentLabel.SetTextColor(a.GetComponentColors("slack").Title.Color())
 
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("")

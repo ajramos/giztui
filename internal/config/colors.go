@@ -152,12 +152,16 @@ type StatusColors struct {
 
 // ComponentColors defines colors for specific UI components
 type ComponentColors struct {
-	AI       ComponentColorSet `yaml:"ai"`
-	Slack    ComponentColorSet `yaml:"slack"`
-	Obsidian ComponentColorSet `yaml:"obsidian"`
-	Links    ComponentColorSet `yaml:"links"`
-	Stats    ComponentColorSet `yaml:"stats"`
-	Prompts  ComponentColorSet `yaml:"prompts"`
+	AI           ComponentColorSet `yaml:"ai"`
+	Slack        ComponentColorSet `yaml:"slack"`
+	Obsidian     ComponentColorSet `yaml:"obsidian"`
+	Links        ComponentColorSet `yaml:"links"`
+	Stats        ComponentColorSet `yaml:"stats"`
+	Prompts      ComponentColorSet `yaml:"prompts"`
+	Labels       ComponentColorSet `yaml:"labels"`       // Label management UI colors
+	Search       ComponentColorSet `yaml:"search"`       // Search interface colors
+	Attachments  ComponentColorSet `yaml:"attachments"`  // Attachment picker colors
+	SavedQueries ComponentColorSet `yaml:"saved_queries"` // Saved queries picker colors
 }
 
 // ComponentColorSet defines a complete color set for a UI component
@@ -214,12 +218,16 @@ type InteractionColors struct {
 // ComponentColorOverrides defines component-specific color overrides
 // Only specify colors that should override semantic/foundation defaults
 type ComponentColorOverrides struct {
-	AI       ComponentOverrideSet `yaml:"ai,omitempty"`
-	Slack    ComponentOverrideSet `yaml:"slack,omitempty"`
-	Obsidian ComponentOverrideSet `yaml:"obsidian,omitempty"`
-	Links    ComponentOverrideSet `yaml:"links,omitempty"`
-	Stats    ComponentOverrideSet `yaml:"stats,omitempty"`
-	Prompts  ComponentOverrideSet `yaml:"prompts,omitempty"`
+	AI           ComponentOverrideSet `yaml:"ai,omitempty"`
+	Slack        ComponentOverrideSet `yaml:"slack,omitempty"`
+	Obsidian     ComponentOverrideSet `yaml:"obsidian,omitempty"`
+	Links        ComponentOverrideSet `yaml:"links,omitempty"`
+	Stats        ComponentOverrideSet `yaml:"stats,omitempty"`
+	Prompts      ComponentOverrideSet `yaml:"prompts,omitempty"`
+	Labels       ComponentOverrideSet `yaml:"labels,omitempty"`       // Label management overrides
+	Search       ComponentOverrideSet `yaml:"search,omitempty"`       // Search interface overrides
+	Attachments  ComponentOverrideSet `yaml:"attachments,omitempty"`  // Attachment picker overrides
+	SavedQueries ComponentOverrideSet `yaml:"saved_queries,omitempty"` // Saved queries picker overrides
 }
 
 // ComponentOverrideSet defines optional color overrides for a specific component
@@ -276,13 +284,17 @@ const (
 type ComponentType string
 
 const (
-	ComponentTypeGeneral  ComponentType = "general"
-	ComponentTypeAI       ComponentType = "ai"
-	ComponentTypeSlack    ComponentType = "slack"
-	ComponentTypeObsidian ComponentType = "obsidian"
-	ComponentTypeLinks    ComponentType = "links"
-	ComponentTypeStats    ComponentType = "stats"
-	ComponentTypePrompts  ComponentType = "prompts"
+	ComponentTypeGeneral      ComponentType = "general"
+	ComponentTypeAI           ComponentType = "ai"
+	ComponentTypeSlack        ComponentType = "slack"
+	ComponentTypeObsidian     ComponentType = "obsidian"
+	ComponentTypeLinks        ComponentType = "links"
+	ComponentTypeStats        ComponentType = "stats"
+	ComponentTypePrompts      ComponentType = "prompts"
+	ComponentTypeSearch       ComponentType = "search"
+	ComponentTypeAttachments  ComponentType = "attachments"
+	ComponentTypeSavedQueries ComponentType = "saved_queries"
+	ComponentTypeLabels       ComponentType = "labels"
 )
 
 // GetComponentColor resolves a color for a specific component and color type
@@ -336,6 +348,14 @@ func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType C
 		override = c.Overrides.Stats
 	case ComponentTypePrompts:
 		override = c.Overrides.Prompts
+	case ComponentTypeLabels:
+		override = c.Overrides.Labels
+	case ComponentTypeSearch:
+		override = c.Overrides.Search
+	case ComponentTypeAttachments:
+		override = c.Overrides.Attachments
+	case ComponentTypeSavedQueries:
+		override = c.Overrides.SavedQueries
 	default:
 		return ""
 	}
@@ -433,6 +453,14 @@ func (c *ColorsConfig) getLegacyColor(component ComponentType, colorType ColorTy
 		legacyComponent = c.Components.Stats
 	case ComponentTypePrompts:
 		legacyComponent = c.Components.Prompts
+	case ComponentTypeLabels:
+		legacyComponent = c.Components.Labels
+	case ComponentTypeSearch:
+		legacyComponent = c.Components.Search
+	case ComponentTypeAttachments:
+		legacyComponent = c.Components.Attachments
+	case ComponentTypeSavedQueries:
+		legacyComponent = c.Components.SavedQueries
 	default:
 		return ""
 	}
