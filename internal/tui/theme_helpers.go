@@ -125,6 +125,14 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		componentType = config.ComponentTypeStats
 	case "prompts":
 		componentType = config.ComponentTypePrompts
+	case "search":
+		componentType = config.ComponentTypeSearch
+	case "attachments":
+		componentType = config.ComponentTypeAttachments
+	case "saved_queries":
+		componentType = config.ComponentTypeSavedQueries
+	case "labels":
+		componentType = config.ComponentTypeLabels
 	default:
 		componentType = config.ComponentTypeGeneral
 	}
