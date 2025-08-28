@@ -1308,7 +1308,8 @@ Gmail TUI supports customizable color themes to personalize your email experienc
 - `:theme preview <name>` - Preview theme before applying
 
 ### Built-in Themes
-- **gmail-dark** - Dark theme based on Dracula color scheme ⭐ (default)
+- **slate-blue** - Modern dark theme with blue/slate palette and cyan accents ⭐ (default)
+- **gmail-dark** - Dark theme based on Dracula color scheme
 - **gmail-light** - Clean light theme for bright environments
 - **custom-example** - Demo custom theme showing customization possibilities
 
@@ -1356,9 +1357,9 @@ Set default theme and custom theme directory in `config.json`:
 - ✅ **Visual preview** - See colors before applying themes
 - ✅ **Command parity** - Every UI action has equivalent command  
 - ✅ **Multi-directory support** - Built-in + user custom + configurable themes
-- ✅ **Developer guidelines** - Maintain theme consistency (`docs/THEME_DEVELOPMENT.md`)
+- ✅ **Developer guidelines** - Maintain theme consistency (`docs/THEMING.md`)
 
-See detailed documentation: `docs/COLORS.md` | `docs/THEME_DEVELOPMENT.md` | `docs/THEME_TESTING.md`
+See detailed documentation: `docs/THEMING.md`
 
 ## Terminal rendering: deterministic + optional LLM touch-up
 

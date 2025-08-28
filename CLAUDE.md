@@ -33,6 +33,40 @@ Claude should **ALWAYS** follow these patterns when developing new features:
 - **NEVER** access app struct fields directly
 - **ALWAYS** use proper mutex protection for new state fields
 
+### 🎨 **Theming Requirements**
+- **ALWAYS** use `app.GetComponentColors("component")` for all UI theming
+- **NEVER** use deprecated theme methods or hardcoded colors
+- **MANDATORY** component selection rules:
+  - **Feature components**: `ai`, `slack`, `obsidian`, `links`, `stats`, `prompts` - Use specific component colors
+  - **System components**: `general`, `search` - Use system component colors  
+  - **Picker components**: `attachments`, `saved_queries`, `labels` - Use picker-specific component colors
+- **Required theming pattern**:
+```go
+// ✅ ALWAYS - Use hierarchical theme system
+componentColors := app.GetComponentColors("search")
+container.SetBackgroundColor(componentColors.Background.Color())
+container.SetTitleColor(componentColors.Title.Color())
+container.SetBorderColor(componentColors.Border.Color())
+
+// Apply to ALL UI elements consistently
+input.SetFieldBackgroundColor(componentColors.Background.Color())
+text.SetBackgroundColor(componentColors.Background.Color())
+list.SetBackgroundColor(componentColors.Background.Color())
+```
+
+#### ❌ **Theming Anti-Patterns - NEVER Use These:**
+```go
+// ❌ NEVER - Hardcoded colors
+container.SetBackgroundColor(tcell.ColorBlue)
+
+// ❌ NEVER - Deprecated theme methods (REMOVED/DEPRECATED)
+container.SetTitleColor(a.getTitleColor())        // REMOVED
+container.SetBackgroundColor(a.getFooterColor())  // DEPRECATED
+
+// ❌ NEVER - Hardcoded styles
+container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+```
+
 ### ⚡ **ESC Key Handling Requirements**
 - **CRITICAL**: **NEVER** use `QueueUpdateDraw()` in ESC handlers or cleanup functions
 - **ALWAYS** use synchronous operations for UI cleanup to prevent deadlocks
@@ -1022,6 +1056,7 @@ testplan_content_search.md
 Always update:
 - `docs/ARCHITECTURE.md` for architectural changes
 - `docs/FOCUS_MANAGEMENT.md` for UI focus patterns and side panel behavior
+- `docs/THEMING.md` for theme system usage and component guidelines
 - `README.md` for user-facing features
 - `TODO.md` for completed tasks
 - `CLAUDE.md` for debugging sessions and architectural lessons learned

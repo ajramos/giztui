@@ -82,16 +82,16 @@
 - [ ] **Message filtering** - Filter messages by various criteria
 
 ### Theme System
-- [ ] **Review theme loading** - Verify theme files are loaded correctly
-- [ ] **Test theme switching** - Implement and test theme switching functionality
-- [ ] **Validate theme format** - Ensure YAML theme files are properly parsed
-- [ ] **Theme preview** - Add theme preview functionality in demo
-- [ ] **Custom theme creation** - Allow users to create custom themes
-- [ ] **Theme validation** - Validate theme structure and required fields
-- [ ] **Review gmail-dark.yaml** - Check dark theme implementation
-- [ ] **Review gmail-light.yaml** - Check light theme implementation
-- [ ] **Review custom-example.yaml** - Verify example theme structure
-- [ ] **Theme documentation** - Document theme format and options
+- [x] **Review theme loading** - Verify theme files are loaded correctly ✅ 
+- [x] **Test theme switching** - Implement and test theme switching functionality ✅ 
+- [x] **Validate theme format** - Ensure YAML theme files are properly parsed ✅ 
+- [x] **Theme preview** - Add theme preview functionality in demo ✅ 
+- [x] **Custom theme creation** - Allow users to create custom themes ✅ 
+- [x] **Theme validation** - Validate theme structure and required fields ✅ 
+- [x] **Review gmail-dark.yaml** - Check dark theme implementation ✅ 
+- [x] **Review gmail-light.yaml** - Check light theme implementation ✅ 
+- [x] **Review custom-example.yaml** - Verify example theme structure ✅ 
+- [x] **Theme documentation** - Document theme format and options ✅ 
 
 ### Help System
 - [ ] **Troubleshooting guide** - Add troubleshooting section

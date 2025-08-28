@@ -1590,11 +1590,6 @@ func (a *App) getComponentColor(component config.ComponentType, colorType config
 	return a.currentTheme.GetComponentColor(component, colorType).Color()
 }
 
-// getFooterColor returns the theme's footer color or fallback to gray
-func (a *App) getFooterColor() tcell.Color {
-	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
-}
-
 // getHintColor returns the theme's hint color or fallback to gray
 func (a *App) getHintColor() tcell.Color {
 	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
