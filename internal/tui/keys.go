@@ -1234,6 +1234,10 @@ func (a *App) bindKeys() {
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
 				a.refreshTableDisplay()
+				
+				// CRITICAL: Update focus indicators to show list has focus during arrow navigation
+				// This was missing - causing visual focus loss even though actual focus stayed on list
+				a.updateFocusIndicators("list")
 			}
 		})
 	}
