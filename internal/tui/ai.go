@@ -613,6 +613,8 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			container.SetTitleColor(aiColors.Title.Color())
 			container.SetBorderColor(aiColors.Border.Color())
 			container.SetBackgroundColor(aiColors.Background.Color())
+			// Set background on the body (list) component to prevent transparency
+			body.SetBackgroundColor(aiColors.Background.Color())
 			container.AddItem(body, 0, 1, true)
 			// Footer hint with theme colors
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)

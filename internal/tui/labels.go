@@ -1053,14 +1053,28 @@ func (a *App) browseLabelForRemove(messageID string) {
 
 // expandLabelsBrowseGeneric clones the browse-all list but calls onPick when the user confirms a label
 func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id, name string)) {
+	// Get theme colors for general component (same as working suggested labels)
+	labelColors := a.GetComponentColors("general")
+	if a.logger != nil {
+		a.logger.Printf("DEBUG expandLabelsBrowseGeneric: background color = %s", labelColors.Background.Color())
+	}
+	
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.GetComponentColors("labels").Title.Color()).
-		SetFieldBackgroundColor(a.GetComponentColors("labels").Background.Color()).
-		SetFieldTextColor(a.GetComponentColors("labels").Text.Color())
+		SetLabelColor(labelColors.Title.Color()).
+		SetFieldBackgroundColor(labelColors.Background.Color()).
+		SetFieldTextColor(labelColors.Text.Color())
+	// Set background on the input field component itself
+	input.SetBackgroundColor(labelColors.Background.Color())
+	
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	// Set background on list to prevent transparency
+	list.SetBackgroundColor(labelColors.Background.Color())
+	// Set selection colors like working suggested labels
+	list.SetSelectedTextColor(labelColors.Background.Color())
+	list.SetSelectedBackgroundColor(labelColors.Accent.Color())
 
 	type labelItem struct{ id, name string }
 	var all []labelItem
@@ -1124,15 +1138,17 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 				}
 			})
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
+			container.SetBackgroundColor(labelColors.Background.Color())
+			container.SetBorderColor(labelColors.Border.Color())
 			container.SetBorder(true)
 			container.SetTitle(title)
-			container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
+			container.SetTitleColor(labelColors.Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to pick 1st match  |  Esc to back ")
-			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+			footer.SetTextColor(labelColors.Text.Color())
+			footer.SetBackgroundColor(labelColors.Background.Color())
 			container.AddItem(footer, 1, 0, false)
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				if a.labelsView != nil {
@@ -1166,18 +1182,30 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 
 // editLabelInline opens an inline form to rename a label
 func (a *App) editLabelInline(labelID, name string) {
+	// Get theme colors for general component (same as working suggested labels)
+	labelColors := a.GetComponentColors("general")
+	
 	input := tview.NewInputField().
 		SetLabel("New name: ").
 		SetText(name).
-		SetFieldWidth(30)
+		SetFieldWidth(30).
+		SetFieldBackgroundColor(labelColors.Background.Color()).
+		SetFieldTextColor(labelColors.Text.Color()).
+		SetLabelColor(labelColors.Title.Color())
+	// Set background on the input field component itself
+	input.SetBackgroundColor(labelColors.Background.Color())
+		
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to rename  |  Esc to back ")
-	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetTextColor(labelColors.Text.Color())
+	footer.SetBackgroundColor(labelColors.Background.Color())
+	
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
+	container.SetBackgroundColor(labelColors.Background.Color())
+	container.SetBorderColor(labelColors.Border.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 📝 Edit label ")
-	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
+	container.SetTitleColor(labelColors.Title.Color())
 	container.AddItem(input, 3, 0, true)
 	container.AddItem(footer, 1, 0, false)
 	input.SetDoneFunc(func(key tcell.Key) {
@@ -1224,16 +1252,25 @@ func (a *App) editLabelInline(labelID, name string) {
 
 // confirmDeleteLabel shows a lightweight confirmation and deletes on Enter
 func (a *App) confirmDeleteLabel(labelID, name string) {
+	// Get theme colors for general component (same as working suggested labels)
+	labelColors := a.GetComponentColors("general")
+	
 	text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	text.SetText("Delete label ‘" + name + "’? This cannot be undone.")
+	text.SetText("Delete label '" + name + "'? This cannot be undone.")
+	text.SetBackgroundColor(labelColors.Background.Color())
+	text.SetTextColor(labelColors.Text.Color())
+	
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to confirm  |  Esc to back ")
-	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetTextColor(labelColors.Text.Color())
+	footer.SetBackgroundColor(labelColors.Background.Color())
+	
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
+	container.SetBackgroundColor(labelColors.Background.Color())
+	container.SetBorderColor(labelColors.Border.Color())
 	container.SetBorder(true)
 	container.SetTitle(" 🗑 Remove label ")
-	container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
+	container.SetTitleColor(labelColors.Title.Color())
 	container.AddItem(text, 0, 1, true)
 	container.AddItem(footer, 1, 0, false)
 	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -1358,8 +1395,11 @@ func (a *App) addCustomLabelInline(messageID string) {
 	if a.logger != nil {
 		a.logger.Printf("addCustomLabelInline: open mid=%s", messageID)
 	}
-	// Get theme colors for labels component
-	labelColors := a.GetComponentColors("labels")
+	// Get theme colors for general component (same as working suggested labels)
+	labelColors := a.GetComponentColors("general")
+	if a.logger != nil {
+		a.logger.Printf("DEBUG addCustomLabelInline: background color = %s", labelColors.Background.Color())
+	}
 	
 	// Inline input inside labels side panel (no modal)
 	input := tview.NewInputField().
@@ -1368,6 +1408,8 @@ func (a *App) addCustomLabelInline(messageID string) {
 		SetLabelColor(labelColors.Title.Color()).
 		SetFieldBackgroundColor(labelColors.Background.Color()).
 		SetFieldTextColor(labelColors.Text.Color())
+	// Set background on the input field component itself
+	input.SetBackgroundColor(labelColors.Background.Color())
 
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply  |  Esc to back ")
