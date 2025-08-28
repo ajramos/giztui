@@ -46,6 +46,12 @@ func (a *App) showSavedQueriesPicker() {
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	list.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background
+	
+	// Apply component-specific selection colors
+	queryColors := a.GetComponentColors("saved_queries")
+	list.SetMainTextColor(queryColors.Text.Color())
+	list.SetSelectedTextColor(queryColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedBackgroundColor(queryColors.Accent.Color()) // Use accent for selection highlight
 
 	var all []queryItem
 	var visible []queryItem

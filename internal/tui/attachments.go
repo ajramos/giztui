@@ -48,6 +48,12 @@ func (a *App) openAttachmentPicker() {
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	
+	// Apply component-specific selection colors
+	attachmentColors := a.GetComponentColors("attachments")
+	list.SetMainTextColor(attachmentColors.Text.Color())
+	list.SetSelectedTextColor(attachmentColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedBackgroundColor(attachmentColors.Accent.Color()) // Use accent for selection highlight
 
 	type attachmentItem struct {
 		index        int

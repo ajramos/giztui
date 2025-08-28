@@ -49,6 +49,12 @@ func (a *App) openLinkPicker() {
 		SetFieldTextColor(tview.Styles.PrimaryTextColor)
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	
+	// Apply component-specific selection colors
+	linkColors := a.GetComponentColors("links")
+	list.SetMainTextColor(linkColors.Text.Color())
+	list.SetSelectedTextColor(linkColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedBackgroundColor(linkColors.Accent.Color()) // Use accent for selection highlight
 
 	type linkItem struct {
 		index int
