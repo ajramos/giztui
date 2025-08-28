@@ -45,6 +45,9 @@ func (a *App) openBulkPromptPicker() {
 		a.logger.Printf("openBulkPromptPicker: prompt service available, creating UI")
 	}
 
+	// Get component colors for consistent theming
+	bgColor := a.GetComponentColors("prompts").Background.Color()
+	
 	// Create picker UI similar to individual prompts
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
@@ -52,8 +55,11 @@ func (a *App) openBulkPromptPicker() {
 		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
 		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
+	input.SetBackgroundColor(bgColor)
+	
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	list.SetBackgroundColor(bgColor)
 
 	type promptItem struct {
 		id          int
@@ -212,7 +218,7 @@ func (a *App) openBulkPromptPicker() {
 
 	// Create container similar to individual prompt picker
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
+	container.SetBackgroundColor(bgColor)
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 🤖 Bulk Prompt Library (%d messages) ", messageCount))
 	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
@@ -223,6 +229,7 @@ func (a *App) openBulkPromptPicker() {
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to apply | Esc to cancel ")
 	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetBackgroundColor(bgColor)
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split like individual prompt picker
