@@ -1,64 +1,76 @@
 # Gmail TUI Light Theme
+# Pure v2.0 hierarchical theme structure ONLY
 # Based on light color scheme
 
+name: "Gmail Light"
+description: "Light theme with dark text on light backgrounds"
+version: "2.0"
+
 gmailTUI:
-  body:
-    fgColor: "#2c3e50"          # Main text color
-    bgColor: "#ecf0f1"          # Main background color
-    logoColor: "#3498db"        # Logo color
+  # FOUNDATION COLORS
+  # Base colors that all components inherit by default
+  foundation:
+    background: "#ecf0f1"          # Light gray background
+    foreground: "#2c3e50"          # Dark text
+    border: "#bdc3c7"              # Light gray borders
+    focus: "#3498db"               # Blue focus
 
-  frame:
-    border:
-      fgColor: "#bdc3c7"        # Normal border color
-      focusColor: "#3498db"     # Focused border color
-    
-    title:
-      fgColor: "#2c3e50"        # Title color
-      bgColor: "#ecf0f1"        # Title background
-      highlightColor: "#f39c12" # Highlight color
-      counterColor: "#27ae60"   # Counter color
-      filterColor: "#3498db"    # Filter color
+  # SEMANTIC COLORS  
+  # Meaning-based colors that convey specific states
+  semantic:
+    primary: "#f39c12"             # Orange - titles, main actions
+    secondary: "#7f8c8d"           # Gray - supporting elements
+    accent: "#3498db"              # Blue - highlights, links
+    success: "#27ae60"             # Green - success messages
+    warning: "#f39c12"             # Orange - warning messages
+    error: "#e74c3c"               # Red - error messages
+    info: "#3498db"                # Blue - info messages
 
-  table:
-    fgColor: "#2c3e50"          # Table text color
-    bgColor: "#ecf0f1"          # Table background
-    headerFgColor: "#27ae60"    # Header color
-    headerBgColor: "#ecf0f1"    # Header background
+  # INTERACTION COLORS
+  # User interaction states
+  interaction:
+    selection:
+      cursor:
+        bg: "#3498db"              # Blue single item selection background
+        fg: "#ffffff"              # White single item selection text
+      bulk:
+        bg: "#ecf0f1"              # Light background for bulk-selected items
+        fg: "#2c3e50"              # Dark text for bulk-selected items
+    input:
+      bg: "#ecf0f1"                # Light input field background
+      fg: "#2c3e50"                # Dark input field text
+      label: "#f39c12"             # Orange input field label color
+    statusBar:
+      bg: "#3498db"                # Blue status bar background
+      fg: "#ffffff"                # White status bar text
 
-  # Specific colors for emails
-  email:
-    unreadColor: "#e67e22"      # Orange for unread
-    readColor: "#7f8c8d"        # Gray for read
-    importantColor: "#e74c3c"   # Red for important
-    sentColor: "#27ae60"        # Green for sent
-    draftColor: "#f39c12"       # Yellow for drafts
-
-  # UI component colors (previously hardcoded)
-  ui:
-    titleColor: "#f39c12"       # Panel titles (was tcell.ColorYellow)
-    footerColor: "#7f8c8d"      # Footer/instruction text (was tcell.ColorGray)
-    hintColor: "#7f8c8d"        # Hint text color
-    
-    # Selection colors (cursor/navigation)
-    selectionBgColor: "#3498db"  # Cursor selection background (was tcell.ColorBlue)
-    selectionFgColor: "#ffffff"  # Cursor selection text (was tcell.ColorWhite)
-    
-    # Bulk selection colors (checked items)
-    bulkSelectionBgColor: "#ecf0f1"  # Light gray background for bulk-selected items
-    bulkSelectionFgColor: "#2c3e50"  # Dark text color for bulk-selected items
-    
-    # Status message colors
-    errorColor: "#e74c3c"       # Error messages (was tcell.ColorRed)
-    successColor: "#27ae60"     # Success messages (was tcell.ColorGreen)
-    warningColor: "#f39c12"     # Warning messages (was tcell.ColorYellow)
-    infoColor: "#3498db"        # Info messages (was tcell.ColorBlue)
-    
-    # Input field colors
-    inputBgColor: "#ecf0f1"     # Input field background
-    inputFgColor: "#2c3e50"     # Input field text
-    labelColor: "#f39c12"       # Input field labels
-
-    # Status bar colors
-    statusBarBgColor: "#3498db" # Blue status bar background
-    statusBarFgColor: "#ffffff" # White text for status bar
-
+  # COMPONENT OVERRIDES
+  # Specific colors for components that differ from semantic defaults
+  overrides:
+    ai:
+      primary: "#9b59b6"           # Purple for AI titles
+      accent: "#e74c3c"            # Red for AI highlights
+      
+    prompts:
+      primary: "#e74c3c"           # Red for prompt titles
+      accent: "#e67e22"            # Orange for prompt highlights
+      
+    obsidian:
+      primary: "#e67e22"           # Orange for Obsidian titles
+      accent: "#27ae60"            # Green for Obsidian highlights
+      
+    links:
+      primary: "#3498db"           # Blue for link titles
+      accent: "#e67e22"            # Orange for link highlights
+      
+    stats:
+      primary: "#f39c12"           # Yellow for stats titles
+      accent: "#9b59b6"            # Purple for stats highlights
+      
+    saved_queries:
+      primary: "#9b59b6"           # Purple for saved query titles
+      accent: "#e74c3c"            # Red for saved query highlights
+      
+    attachments:
+      primary: "#e67e22"           # Orange for attachment titles
+      accent: "#f39c12"            # Yellow for attachment highlights

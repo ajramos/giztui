@@ -1,129 +1,76 @@
 # Gmail TUI Dark Theme
+# Pure v2.0 hierarchical theme structure ONLY
 # Based on Dracula color scheme
 
 name: "Gmail Dark"
 description: "Dark theme based on Dracula color scheme"
-version: "1.0"
+version: "2.0"
 
 gmailTUI:
-  body:
-    fgColor: "#f8f8f2"          # Main text color
-    bgColor: "#282a36"          # Main background color
-    logoColor: "#bd93f9"        # Logo color
+  # FOUNDATION COLORS
+  # Base colors that all components inherit by default
+  foundation:
+    background: "#282a36"          # Main background color (Dracula background)
+    foreground: "#f8f8f2"          # Main text color (Dracula foreground)
+    border: "#44475a"              # Normal border color (Dracula comment)
+    focus: "#6272a4"               # Focused border color (Dracula current line)
 
-  frame:
-    border:
-      fgColor: "#44475a"        # Normal border color
-      focusColor: "#6272a4"     # Focused border color
-    
-    title:
-      fgColor: "#f8f8f2"        # Title color
-      bgColor: "#282a36"        # Title background
-      highlightColor: "#f1fa8c" # Highlight color
-      counterColor: "#50fa7b"   # Counter color
-      filterColor: "#8be9fd"    # Filter color
+  # SEMANTIC COLORS  
+  # Meaning-based colors that convey specific states
+  semantic:
+    primary: "#50fa7b"             # Green - titles, main actions (Dracula green)
+    secondary: "#6272a4"           # Gray-blue - supporting elements
+    accent: "#8be9fd"              # Cyan - highlights, links (Dracula cyan)
+    success: "#50fa7b"             # Green - success messages
+    warning: "#f1fa8c"             # Yellow - warning messages (Dracula yellow)
+    error: "#ff5555"               # Red - error messages (Dracula red)
+    info: "#8be9fd"                # Cyan - info messages
 
-  table:
-    fgColor: "#f8f8f2"          # Table text color
-    bgColor: "#282a36"          # Table background
-    headerFgColor: "#50fa7b"    # Header color
-    headerBgColor: "#282a36"    # Header background
+  # INTERACTION COLORS
+  # User interaction states
+  interaction:
+    selection:
+      cursor:
+        bg: "#44475a"              # Single item selection background
+        fg: "#f8f8f2"              # Single item selection text
+      bulk:
+        bg: "#282a36"              # Multi-item selection background
+        fg: "#f8f8f2"              # Multi-item selection text
+    input:
+      bg: "#44475a"                # Input field background
+      fg: "#f8f8f2"                # Input field text
+      label: "#f1fa8c"             # Input field label color
+    statusBar:
+      bg: "#6272a4"                # Status bar background
+      fg: "#f8f8f2"                # Status bar text
 
-  # Specific colors for emails
-  email:
-    unreadColor: "#ffb86c"      # Orange for unread
-    readColor: "#6272a4"        # Gray for read
-    importantColor: "#ff5555"   # Red for important
-    sentColor: "#50fa7b"        # Green for sent
-    draftColor: "#f1fa8c"       # Yellow for drafts
-
-  # UI component colors (previously hardcoded)
-  ui:
-    titleColor: "#f1fa8c"       # Panel titles (was tcell.ColorYellow)
-    footerColor: "#6272a4"      # Footer/instruction text (was tcell.ColorGray)
-    hintColor: "#6272a4"        # Hint text color
-    
-    # Selection colors (cursor/navigation)
-    selectionBgColor: "#44475a"  # Cursor selection background (was tcell.ColorBlue)
-    selectionFgColor: "#f8f8f2"  # Cursor selection text (was tcell.ColorWhite)
-    
-    # Bulk selection colors (checked items)
-    bulkSelectionBgColor: "#282a36"  # Subtle darker background for bulk-selected items
-    bulkSelectionFgColor: "#f8f8f2"  # Text color for bulk-selected items
-    
-    # Status message colors
-    errorColor: "#ff5555"       # Error messages (was tcell.ColorRed)
-    successColor: "#50fa7b"     # Success messages (was tcell.ColorGreen)
-    warningColor: "#f1fa8c"     # Warning messages (was tcell.ColorYellow)
-    infoColor: "#8be9fd"        # Info messages (was tcell.ColorBlue)
-    
-    # Input field colors
-    inputBgColor: "#44475a"     # Input field background
-    inputFgColor: "#f8f8f2"     # Input field text
-    labelColor: "#f1fa8c"       # Input field labels
-
-    # Status bar colors
-    statusBarBgColor: "#6272a4" # Blue-gray status bar background
-    statusBarFgColor: "#f8f8f2" # Light text for status bar
-
-  # Color tags for text markup (replaces hardcoded [color] tags)
-  tags:
-    title: "#f1fa8c"            # Yellow for titles - replaces [yellow]
-    header: "#50fa7b"           # Green for headers - replaces [green]
-    emphasis: "#ffb86c"         # Orange for emphasis - replaces [orange]
-    secondary: "#6272a4"        # Gray for secondary text - replaces [dim]/[gray]
-    link: "#8be9fd"             # Cyan for links - replaces [blue]
-    code: "#bd93f9"             # Purple for code - replaces [purple]
-
-  # Status message colors (replaces hardcoded tcell.Color* constants)
-  status:
-    error: "#ff5555"            # Red for errors - replaces tcell.ColorRed
-    success: "#50fa7b"          # Green for success - replaces tcell.ColorGreen
-    warning: "#f1fa8c"          # Yellow for warnings - replaces tcell.ColorYellow
-    info: "#8be9fd"             # Cyan for info - replaces tcell.ColorBlue
-    progress: "#ffb86c"         # Orange for progress - replaces tcell.ColorOrange
-
-  # Component-specific colors (replaces hardcoded component colors)
-  components:
+  # COMPONENT OVERRIDES
+  # Specific colors for components that differ from semantic defaults
+  overrides:
     ai:
-      border: "#bd93f9"         # Purple border for AI
-      title: "#bd93f9"          # Purple title for AI
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#ff79c6"         # Pink accent
-      
-    slack:
-      border: "#50fa7b"         # Green border for Slack
-      title: "#50fa7b"          # Green title for Slack
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#8be9fd"         # Cyan accent
-      
-    obsidian:
-      border: "#ffb86c"         # Orange border for Obsidian
-      title: "#ffb86c"          # Orange title for Obsidian
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#f1fa8c"         # Yellow accent
-      
-    links:
-      border: "#8be9fd"         # Cyan border for links
-      title: "#8be9fd"          # Cyan title for links
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#50fa7b"         # Green accent
-      
-    stats:
-      border: "#f1fa8c"         # Yellow border for stats
-      title: "#f1fa8c"          # Yellow title for stats
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#bd93f9"         # Purple accent
+      primary: "#bd93f9"           # Purple for AI titles (Dracula purple)
+      accent: "#ff79c6"            # Pink for AI highlights (Dracula pink)
       
     prompts:
-      border: "#ff79c6"         # Pink border for prompts
-      title: "#ff79c6"          # Pink title for prompts
-      background: "#282a36"     # Dark background
-      text: "#f8f8f2"           # Light text
-      accent: "#ffb86c"         # Orange accent
-
+      primary: "#ff79c6"           # Pink for prompt titles
+      accent: "#ffb86c"            # Orange for prompt highlights (Dracula orange)
+      
+    obsidian:
+      primary: "#ffb86c"           # Orange for Obsidian titles
+      accent: "#f1fa8c"            # Yellow for Obsidian highlights
+      
+    links:
+      primary: "#8be9fd"           # Cyan for link titles
+      accent: "#50fa7b"            # Green for link highlights
+      
+    stats:
+      primary: "#f1fa8c"           # Yellow for stats titles
+      accent: "#bd93f9"            # Purple for stats highlights
+      
+    saved_queries:
+      primary: "#bd93f9"           # Purple for saved query titles
+      accent: "#ff79c6"            # Pink for saved query highlights
+      
+    attachments:
+      primary: "#ffb86c"           # Orange for attachment titles
+      accent: "#f1fa8c"            # Yellow for attachment highlights
