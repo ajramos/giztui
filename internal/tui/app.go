@@ -1512,10 +1512,10 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if a.slackView != nil {
 		a.slackView.SetTitleColor(a.GetComponentColors("slack").Title.Color())
 	}
-	// Update status bar colors if it exists
+	// Update status bar colors if it exists using hierarchical v2.0 theme
 	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
-		statusBar.SetBackgroundColor(a.currentTheme.UI.StatusBarBgColor.Color())
-		statusBar.SetTextColor(a.currentTheme.UI.StatusBarFgColor.Color())
+		statusBar.SetBackgroundColor(theme.Interaction.StatusBar.Bg.Color())
+		statusBar.SetTextColor(theme.Interaction.StatusBar.Fg.Color())
 	}
 
 	// Refresh borders for Flex containers that have been forced to use filled backgrounds
