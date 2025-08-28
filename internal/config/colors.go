@@ -228,6 +228,7 @@ type ComponentColorOverrides struct {
 	Search       ComponentOverrideSet `yaml:"search,omitempty"`       // Search interface overrides
 	Attachments  ComponentOverrideSet `yaml:"attachments,omitempty"`  // Attachment picker overrides
 	SavedQueries ComponentOverrideSet `yaml:"saved_queries,omitempty"` // Saved queries picker overrides
+	Themes       ComponentOverrideSet `yaml:"themes,omitempty"`       // Theme picker overrides
 }
 
 // ComponentOverrideSet defines optional color overrides for a specific component
@@ -295,6 +296,7 @@ const (
 	ComponentTypeAttachments  ComponentType = "attachments"
 	ComponentTypeSavedQueries ComponentType = "saved_queries"
 	ComponentTypeLabels       ComponentType = "labels"
+	ComponentTypeThemes       ComponentType = "themes"
 )
 
 // GetComponentColor resolves a color for a specific component and color type
@@ -356,6 +358,8 @@ func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType C
 		override = c.Overrides.Attachments
 	case ComponentTypeSavedQueries:
 		override = c.Overrides.SavedQueries
+	case ComponentTypeThemes:
+		override = c.Overrides.Themes
 	default:
 		return ""
 	}

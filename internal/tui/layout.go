@@ -43,7 +43,7 @@ func (a *App) initComponents() {
 	list := tview.NewTable().SetSelectable(true, false)
 	list.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
 	list.SetBorder(true).
-		SetBorderColor(a.GetComponentColors("general").Background.Color()).
+		SetBorderColor(a.GetComponentColors("general").Border.Color()).
 		SetBorderAttributes(tcell.AttrBold).
 		SetTitle(" 📧 Messages ").
 		SetTitleColor(a.GetComponentColors("general").Title.Color()).

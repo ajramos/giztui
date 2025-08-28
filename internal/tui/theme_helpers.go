@@ -133,6 +133,8 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		componentType = config.ComponentTypeSavedQueries
 	case "labels":
 		componentType = config.ComponentTypeLabels
+	case "themes":
+		componentType = config.ComponentTypeThemes
 	default:
 		componentType = config.ComponentTypeGeneral
 	}

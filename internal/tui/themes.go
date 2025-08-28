@@ -29,12 +29,18 @@ func (a *App) openThemePicker() {
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.GetComponentColors("general").Title.Color()).
-		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetFieldTextColor(tview.Styles.PrimaryTextColor)
+		SetLabelColor(a.GetComponentColors("themes").Title.Color()).
+		SetFieldBackgroundColor(a.GetComponentColors("themes").Background.Color()).
+		SetFieldTextColor(a.GetComponentColors("themes").Text.Color())
 
 	list := tview.NewList().ShowSecondaryText(false) // Keep clean list display
 	list.SetBorder(false)
+	
+	// Apply theme colors to the list
+	themesColors := a.GetComponentColors("themes")
+	list.SetMainTextColor(themesColors.Text.Color())
+	list.SetSelectedTextColor(themesColors.Background.Color())     // Inverse contrast for selection
+	list.SetSelectedBackgroundColor(themesColors.Accent.Color())  // Accent color as highlight
 
 	type themeItem struct {
 		name        string
@@ -174,17 +180,17 @@ func (a *App) openThemePicker() {
 
 			// Create container (same as prompt picker)
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+			container.SetBackgroundColor(a.GetComponentColors("themes").Background.Color())
 			container.SetBorder(true)
 			container.SetTitle(" 🎨 Theme Picker ")
-			container.SetTitleColor(a.GetComponentColors("general").Title.Color())
+			container.SetTitleColor(a.GetComponentColors("themes").Title.Color())
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter: preview | Space: apply | Esc: cancel ")
-			footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+			footer.SetTextColor(a.GetComponentColors("themes").Text.Color())
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list

@@ -98,6 +98,12 @@ func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode)
 	// Clear existing table structure
 	table.Clear()
 
+	// Reapply table theming (necessary after Clear())
+	generalColors := a.GetComponentColors("general")
+	table.SetBackgroundColor(generalColors.Background.Color())
+	table.SetBorderColor(generalColors.Border.Color())
+	table.SetTitleColor(generalColors.Title.Color())
+
 	// Set table properties
 	table.SetBorders(false).
 		SetSeparator('│').
@@ -108,7 +114,9 @@ func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode)
 	for col, columnConfig := range config {
 		cell := tview.NewTableCell(columnConfig.Header).
 			SetSelectable(false).
-			SetAlign(columnConfig.Alignment)
+			SetAlign(columnConfig.Alignment).
+			SetTextColor(generalColors.Title.Color()).         // Header text in title color
+			SetBackgroundColor(generalColors.Background.Color()) // Header background
 
 		if columnConfig.Expansion > 0 {
 			cell.SetExpansion(columnConfig.Expansion)
@@ -799,7 +807,7 @@ func (a *App) getBulkSelectionColor() tcell.Color {
 	bgColor, _ := a.currentTheme.GetBulkSelectionColors()
 	if bgColor == "" {
 		// Legacy fallback
-		return a.currentTheme.UI.BulkSelectionBgColor.Color()
+		return a.GetComponentColors("general").Accent.Color()
 	}
 	return bgColor.Color()
 }
@@ -812,7 +820,7 @@ func (a *App) getBulkSelectionTextColor() tcell.Color {
 	_, fgColor := a.currentTheme.GetBulkSelectionColors()
 	if fgColor == "" {
 		// Legacy fallback
-		return a.currentTheme.UI.BulkSelectionFgColor.Color()
+		return a.GetComponentColors("general").Background.Color()
 	}
 	return fgColor.Color()
 }
@@ -857,7 +865,7 @@ func (a *App) populateFlatRows(table *tview.Table) {
 					{"  ", tview.AlignCenter, 2, 0},                       // Calendar (empty, 2 spaces)
 					{"--", tview.AlignRight, 16, 0},                       // Date
 				},
-				Color: a.currentTheme.UI.FooterColor.Color(),
+				Color: a.GetComponentColors("general").Text.Color(),
 			}
 			a.populateTableRow(table, i+1, loadingData) // +1 for header row
 			continue
@@ -893,7 +901,7 @@ func (a *App) populateFlatRows(table *tview.Table) {
 			if cur != i+1 { // Not currently focused
 				for col := 0; col < table.GetColumnCount(); col++ {
 					if cell := table.GetCell(i+1, col); cell != nil {
-						cell.SetBackgroundColor(a.currentTheme.UI.SelectionFgColor.Color())
+						cell.SetBackgroundColor(a.GetComponentColors("general").Accent.Color())
 					}
 				}
 			}
@@ -942,7 +950,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 				{" ", tview.AlignCenter, 2, 0},          // Calendar: Space for alignment
 				{"--", tview.AlignRight, 16, 0},         // Date
 			},
-			Color: a.currentTheme.UI.FooterColor.Color(),
+			Color: a.GetComponentColors("general").Text.Color(),
 		}
 	}
 
@@ -1007,9 +1015,9 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 	// Determine thread color based on unread count
 	var color tcell.Color
 	if thread.UnreadCount > 0 {
-		color = a.currentTheme.UI.InfoColor.Color()
+		color = a.GetComponentColors("general").Text.Color()
 	} else {
-		color = a.currentTheme.UI.FooterColor.Color()
+		color = a.GetComponentColors("general").Text.Color()
 	}
 
 	return render.EmailColumnData{
@@ -1045,7 +1053,7 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 				{" ", tview.AlignCenter, 2, 0},                       // Calendar: Space for alignment
 				{"--", tview.AlignRight, 16, 0},                      // Date
 			},
-			Color: a.currentTheme.UI.FooterColor.Color(),
+			Color: a.GetComponentColors("general").Text.Color(),
 		}
 	}
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ajramos/gmail-tui/internal/services"
-	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"github.com/mattn/go-runewidth"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -278,8 +277,9 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 	// Use the column system to refresh display
 	a.refreshTableDisplay()
 
-	// Set final title with thread count
+	// Set final title with thread count using component theming
 	table.SetTitle(fmt.Sprintf(" 📧 Conversations (%d) ", len(threads)))
+	table.SetTitleColor(a.GetComponentColors("general").Title.Color())
 
 	// Auto-select first thread if available
 	if len(threads) > 0 {
@@ -878,7 +878,7 @@ func (a *App) insertThreadLoadingPlaceholder(table *tview.Table, insertIndex int
 	loadingCell := tview.NewTableCell(loadingText).
 		SetExpansion(0).
 		SetAlign(tview.AlignLeft).
-		SetTextColor(a.currentTheme.UI.InfoColor.Color())
+		SetTextColor(a.GetComponentColors("general").Text.Color())
 
 	table.SetCell(insertIndex, 0, loadingCell)
 
@@ -913,7 +913,7 @@ func (a *App) replaceLoadingWithMessages(table *tview.Table, loadingIndex int, t
 		messageCell := tview.NewTableCell(messageText).
 			SetExpansion(0).
 			SetAlign(tview.AlignLeft).
-			SetTextColor(a.currentTheme.UI.FooterColor.Color())
+			SetTextColor(a.GetComponentColors("general").Text.Color())
 
 		a.insertTableRow(table, insertIndex, messageCell, message.Id, message)
 	}
@@ -925,7 +925,7 @@ func (a *App) replaceLoadingWithError(table *tview.Table, loadingIndex int, thre
 	errorCell := tview.NewTableCell(errorText).
 		SetExpansion(0).
 		SetAlign(tview.AlignLeft).
-		SetTextColor(tcell.ColorOrange)
+		SetTextColor(a.currentTheme.Semantic.Warning.Color())
 
 	table.SetCell(loadingIndex, 0, errorCell)
 
@@ -1507,7 +1507,7 @@ func (a *App) updateThreadDisplay(threadID string, isExpanded bool) {
 					}
 					cell.SetText(expandedText)
 					// Make expanded threads more visually distinct
-					cell.SetTextColor(a.currentTheme.UI.InfoColor.Color())
+					cell.SetTextColor(a.GetComponentColors("general").Text.Color())
 					if a.logger != nil {
 						a.logger.Printf("updateThreadDisplay: cell text updated successfully")
 					}
@@ -1554,7 +1554,7 @@ func (a *App) updateThreadDisplay(threadID string, isExpanded bool) {
 							collapsedText = strings.Replace(collapsedText, " [EXPANDED - Press Enter to collapse]", "", 1)
 							cell.SetText(collapsedText)
 							// Reset color to default
-							cell.SetTextColor(a.currentTheme.UI.FooterColor.Color())
+							cell.SetTextColor(a.GetComponentColors("general").Text.Color())
 							// Force table redraw to show the changes
 							table.SetTitle(table.GetTitle()) // Trigger table refresh
 						}
