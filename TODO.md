@@ -10,11 +10,11 @@
 - [ ] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
+- [ ] **Configure headers view** - config file picks which columns are hidden.
+- [ ] **Brush-up stats** - Revamp this feature
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [x] **Undo functionality** - Undo last action ✅ 
-- [x] **Message threading** - Show message threads and conversations
-
-### Medium Priority
+- [ ] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
+- [ ] **Review makefile to reflect giztui**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Search & Filter Enhancements
@@ -27,10 +27,10 @@
 - [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
 
 ### Email Management
-- [ ] **Restore email to inbox** - Move archived emails back to inbox
-- [ ] **Delete email permanently** - Permanently delete emails from trash
 - [ ] **Move email to Spam** - Move to Spam
 - [ ] **Move email to Inbox** - Move to Inbox
+- [ ] **Restore email to inbox** - Move archived emails back to inbox
+- [ ] **Delete email permanently** - Permanently delete emails from trash
 
 ### Email Composition
 - [ ] **Create draft email** - Create new email drafts
@@ -79,19 +79,7 @@
 - [ ] **Sort options** - Sort messages by date, sender, subject, etc.
 - [ ] **Bookmarks** - Bookmark important messages
 - [ ] **Recent messages** - Quick access to recently viewed messages
-- [ ] **Message filtering** - Filter messages by various criteria
-
-### Theme System
-- [x] **Review theme loading** - Verify theme files are loaded correctly ✅ 
-- [x] **Test theme switching** - Implement and test theme switching functionality ✅ 
-- [x] **Validate theme format** - Ensure YAML theme files are properly parsed ✅ 
-- [x] **Theme preview** - Add theme preview functionality in demo ✅ 
-- [x] **Custom theme creation** - Allow users to create custom themes ✅ 
-- [x] **Theme validation** - Validate theme structure and required fields ✅ 
-- [x] **Review gmail-dark.yaml** - Check dark theme implementation ✅ 
-- [x] **Review gmail-light.yaml** - Check light theme implementation ✅ 
-- [x] **Review custom-example.yaml** - Verify example theme structure ✅ 
-- [x] **Theme documentation** - Document theme format and options ✅ 
+- [ ] **Message filtering** - Filter messages by various criteria 
 
 ### Help System
 - [ ] **Troubleshooting guide** - Add troubleshooting section
@@ -205,6 +193,9 @@
 - [x] **Bulk operations configuration** - Made sXs bulk operations configurable
 - [x] **Get unread emails** - List unread emails with count and preview
 - [x] **List archived emails** - Show archived emails
+- [x] **Undo functionality** - Undo last action ✅ 
+- [x] **Message threading** - Show message threads and conversations
+
 
 ### Labels and Organization
 - [x] **Create label** - Create new custom labels with visibility options
@@ -292,6 +283,18 @@
 - [x] **Self-emailed messages behavior** - Investigated and resolved behavior issues
 - [x] **Message auto-selection** - After loading messages, auto-select and render the first one
 - [x] **README updates** - Updated outdated README sections
+
+### Theme System
+- [x] **Review theme loading** - Verify theme files are loaded correctly ✅ 
+- [x] **Test theme switching** - Implement and test theme switching functionality ✅ 
+- [x] **Validate theme format** - Ensure YAML theme files are properly parsed ✅ 
+- [x] **Theme preview** - Add theme preview functionality in demo ✅ 
+- [x] **Custom theme creation** - Allow users to create custom themes ✅ 
+- [x] **Theme validation** - Validate theme structure and required fields ✅ 
+- [x] **Review gmail-dark.yaml** - Check dark theme implementation ✅ 
+- [x] **Review gmail-light.yaml** - Check light theme implementation ✅ 
+- [x] **Review custom-example.yaml** - Verify example theme structure ✅ 
+- [x] **Theme documentation** - Document theme format and options ✅
 
 ---
 
