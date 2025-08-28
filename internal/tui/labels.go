@@ -785,12 +785,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								failed := 0
 
 								// Debug logging for move operation
-								if a.logger != nil {
-									a.logger.Printf("MOVE DEBUG: Starting move operation - messageID='%s', destination='%s', count=%d", messageID, name, len(idsToMove))
-									for i, mid := range idsToMove {
-										a.logger.Printf("MOVE DEBUG: Will move message %d: '%s'", i+1, mid)
-									}
-								}
+								// Starting move operation for bulk messages
 
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 								// Get services for undo support (keep individual operations for now)
@@ -1804,14 +1799,11 @@ func (a *App) moveSelected() {
 	// Get the current message ID from cached state (for undo functionality)
 	messageID := a.GetCurrentMessageID()
 	
-	// CRITICAL DEBUG: Compare cached vs cursor-based IDs to identify sync issues
+	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
-		a.logger.Printf("MOVE ID DEBUG: cached='%s', cursor='%s', match=%t", messageID, cursorID, messageID == cursorID)
-		
 		// If they don't match, sync the cached state and use cursor-based ID
 		if messageID != cursorID && cursorID != "" {
-			a.logger.Printf("MOVE ID SYNC: Cached ID is stale, updating from cursor position")
 			messageID = cursorID
 			a.SetCurrentMessageID(messageID)
 		}

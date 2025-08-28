@@ -1231,10 +1231,6 @@ func (a *App) bindKeys() {
 					a.aiPanelInPromptMode = false
 					// Don't change focus, just hide the panel
 				}
-				// CRITICAL DEBUG: Log cache synchronization
-				if a.logger != nil {
-					a.logger.Printf("SELECTION CALLBACK: Setting cached message ID to '%s' (index %d)", id, messageIndex)
-				}
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
 				a.refreshTableDisplay()
@@ -1611,22 +1607,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 		// This prevents issues where cursor moves during the timeout delay
 		a.vimOriginalMessageID = a.GetCurrentMessageID()
 
-		// Also get table selection for debugging
-		var tableMessageID string = ""
-		messageIndex := a.getCurrentSelectedMessageIndex()
-		if messageIndex >= 0 {
-			tableMessageID = a.ids[messageIndex]
-		}
-
-		if a.logger != nil {
-			a.logger.Printf("=== VIM SEQUENCE START DEBUG ===")
-			a.logger.Printf("VIM sequence started: %c, operationType=%s, operationCount=%d", key, a.vimOperationType, a.vimOperationCount)
-			a.logger.Printf("Captured originalMessageID: %s", a.vimOriginalMessageID)
-			a.logger.Printf("Current table selection index: %d", messageIndex)
-			a.logger.Printf("Table selection messageID: %s", tableMessageID)
-			a.logger.Printf("IDs match: %t", a.vimOriginalMessageID == tableMessageID)
-			a.logger.Printf("================================")
-		}
+		// VIM sequence started
 
 		// Show status and consume the key to prevent single operation
 		go func() {

@@ -22,14 +22,11 @@ func (a *App) sendEmailToObsidian() {
 	// Single message logic - use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
 	
-	// CRITICAL DEBUG: Ensure cache is synchronized with cursor position
+	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
-		a.logger.Printf("OBSIDIAN DEBUG: cached='%s', cursor='%s', match=%t", messageID, cursorID, messageID == cursorID)
-		
 		// If they don't match, sync the cached state
 		if messageID != cursorID && cursorID != "" {
-			a.logger.Printf("OBSIDIAN SYNC: Cached ID is stale, updating from cursor position")
 			messageID = cursorID
 			a.SetCurrentMessageID(messageID)
 		}

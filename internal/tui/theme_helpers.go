@@ -101,14 +101,7 @@ func (a *App) GetEndTag() string {
 // GetComponentColors returns theme-aware colors for specific UI components using the new hierarchical system
 // Replaces: hardcoded component-specific colors
 func (a *App) GetComponentColors(component string) config.ComponentColorSet {
-	if a.logger != nil {
-		a.logger.Printf("GetComponentColors called for component='%s', currentTheme=%v", component, a.currentTheme != nil)
-	}
-	
 	if a.currentTheme == nil {
-		if a.logger != nil {
-			a.logger.Printf("GetComponentColors: currentTheme is nil, using hardcoded fallback colors")
-		}
 		// Fallback to generic colors if no theme is loaded
 		return config.ComponentColorSet{
 			Border:     config.NewColor("#44475a"),
@@ -147,18 +140,9 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		componentType = config.ComponentTypeGeneral
 	}
 
-	if a.logger != nil {
-		a.logger.Printf("GetComponentColors: mapped component='%s' to componentType='%s'", component, componentType)
-	}
-
 	// Use hierarchical color resolution for each component color type
 	bgColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeBackground)
 	titleColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypePrimary)
-	
-	if a.logger != nil {
-		a.logger.Printf("GetComponentColors: resolved colors for '%s' - Background='%s', Title='%s'", 
-			component, bgColor, titleColor)
-	}
 	
 	return config.ComponentColorSet{
 		Border:     a.currentTheme.GetComponentColor(componentType, config.ColorTypeBorder),

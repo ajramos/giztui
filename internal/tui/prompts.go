@@ -16,14 +16,11 @@ func (a *App) openPromptPicker() {
 	// Use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
 	
-	// CRITICAL DEBUG: Ensure cache is synchronized with cursor position
+	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
-		a.logger.Printf("PROMPTS DEBUG: cached='%s', cursor='%s', match=%t", messageID, cursorID, messageID == cursorID)
-		
 		// If they don't match, sync the cached state
 		if messageID != cursorID && cursorID != "" {
-			a.logger.Printf("PROMPTS SYNC: Cached ID is stale, updating from cursor position")
 			messageID = cursorID
 			a.SetCurrentMessageID(messageID)
 		}
@@ -180,11 +177,6 @@ func (a *App) openPromptPicker() {
 			// Create container
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
 			promptColors := a.GetComponentColors("prompts")
-			if a.logger != nil {
-				a.logger.Printf("PROMPTS DEBUG: currentTheme=%v, background='%s', tcell=%v", 
-					a.currentTheme != nil, promptColors.Background, promptColors.Background.Color())
-			}
-			
 			// Force background rendering for modal containers
 			bgColor := promptColors.Background.Color()
 			container.SetBackgroundColor(bgColor)
@@ -732,10 +724,6 @@ func (a *App) openPromptPickerForManagement() {
 	// Create container
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	promptColors := a.GetComponentColors("prompts")
-	if a.logger != nil {
-		a.logger.Printf("PROMPTS MANAGER DEBUG: currentTheme=%v, background='%s', tcell=%v", 
-			a.currentTheme != nil, promptColors.Background, promptColors.Background.Color())
-	}
 	
 	// Force background rendering for modal containers
 	bgColor := promptColors.Background.Color()
