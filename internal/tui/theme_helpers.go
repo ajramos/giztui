@@ -15,20 +15,21 @@ import (
 // Replaces: tcell.ColorRed, tcell.ColorGreen, tcell.ColorYellow, tcell.ColorBlue
 func (a *App) GetStatusColor(level string) tcell.Color {
 	if a.currentTheme == nil {
-		// Fallback to hardcoded colors if no theme is loaded
+		// Use default theme fallback instead of hardcoded colors
+		fallbackTheme := a.getDefaultTheme()
 		switch level {
 		case "error":
-			return tcell.ColorRed
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeError).Color()
 		case "success":
-			return tcell.ColorGreen
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeSuccess).Color()
 		case "warning":
-			return tcell.ColorYellow
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeWarning).Color()
 		case "info":
-			return tcell.ColorBlue
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeInfo).Color()
 		case "progress":
-			return tcell.ColorOrange
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeInfo).Color()
 		default:
-			return tcell.ColorWhite
+			return fallbackTheme.GetComponentColor(config.ComponentTypeGeneral, config.ColorTypeForeground).Color()
 		}
 	}
 
@@ -212,7 +213,8 @@ func (a *App) FormatCode(text string) string {
 // getThemeTitleColor returns theme-aware title color (new implementation)
 func (a *App) getThemeTitleColor() tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorYellow // Fallback
+		// Use hierarchical theme system instead of hardcoded color
+		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
 	}
 	return a.currentTheme.UI.TitleColor.Color()
 }
@@ -220,7 +222,8 @@ func (a *App) getThemeTitleColor() tcell.Color {
 // getThemeFooterColor returns theme-aware footer color (new implementation)
 func (a *App) getThemeFooterColor() tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorGray // Fallback
+		// Use hierarchical theme system instead of hardcoded color
+		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
 	}
 	return a.currentTheme.UI.FooterColor.Color()
 }
@@ -228,7 +231,8 @@ func (a *App) getThemeFooterColor() tcell.Color {
 // getThemeHintColor returns theme-aware hint color (new implementation)
 func (a *App) getThemeHintColor() tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorGray // Fallback
+		// Use hierarchical theme system instead of hardcoded color
+		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
 	}
 	return a.currentTheme.UI.HintColor.Color()
 }

@@ -217,8 +217,8 @@ func NewFlash() *Flash {
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetBorder(true).
-		SetBorderColor(tcell.ColorYellow) // Will be updated by theme
+		SetBorder(true)
+		// Border color will be set by theme system when flash is shown
 
 	flash := &Flash{
 		textView: textView,
@@ -1556,37 +1556,36 @@ func (a *App) saveConfigAsync() error {
 
 // Theme-aware color helper functions
 
+// getDefaultTheme returns a minimal default theme for fallback purposes
+func (a *App) getDefaultTheme() *config.ColorsConfig {
+	return &config.ColorsConfig{
+		Name:        "Default",
+		Description: "Built-in fallback theme",
+		Version:     "2.0",
+		Foundation: config.FoundationColors{
+			Background: config.Color("#000000"), // Black background
+			Foreground: config.Color("#ffffff"), // White text
+			Border:     config.Color("#808080"), // Gray borders
+			Focus:      config.Color("#0080ff"), // Blue focus
+		},
+		Semantic: config.SemanticColors{
+			Primary:   config.Color("#ffff00"), // Yellow primary
+			Secondary: config.Color("#808080"), // Gray secondary
+			Accent:    config.Color("#0080ff"), // Blue accent
+			Success:   config.Color("#00ff00"), // Green success
+			Warning:   config.Color("#ffff00"), // Yellow warning
+			Error:     config.Color("#ff0000"), // Red error
+			Info:      config.Color("#0080ff"), // Blue info
+		},
+	}
+}
 
 // getComponentColor resolves a color using the hierarchical theme system
 func (a *App) getComponentColor(component config.ComponentType, colorType config.ColorType) tcell.Color {
 	if a.currentTheme == nil {
-		// Fallback colors when no theme is loaded
-		switch colorType {
-		case config.ColorTypePrimary:
-			return tcell.ColorYellow
-		case config.ColorTypeSecondary:
-			return tcell.ColorGray
-		case config.ColorTypeAccent:
-			return tcell.ColorBlue
-		case config.ColorTypeBackground:
-			return tcell.ColorBlack
-		case config.ColorTypeForeground:
-			return tcell.ColorWhite
-		case config.ColorTypeBorder:
-			return tcell.ColorGray
-		case config.ColorTypeFocus:
-			return tcell.ColorBlue
-		case config.ColorTypeSuccess:
-			return tcell.ColorGreen
-		case config.ColorTypeWarning:
-			return tcell.ColorYellow
-		case config.ColorTypeError:
-			return tcell.ColorRed
-		case config.ColorTypeInfo:
-			return tcell.ColorBlue
-		default:
-			return tcell.ColorDefault
-		}
+		// Use default theme fallback colors instead of hardcoded tcell.Color constants
+		fallbackTheme := a.getDefaultTheme()
+		return fallbackTheme.GetComponentColor(component, colorType).Color()
 	}
 	return a.currentTheme.GetComponentColor(component, colorType).Color()
 }
@@ -1604,7 +1603,15 @@ func (a *App) getHintColor() tcell.Color {
 // getSelectionStyle returns the theme's cursor selection style or fallback
 func (a *App) getSelectionStyle() tcell.Style {
 	if a.currentTheme == nil {
-		return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+		// Use default theme fallback instead of hardcoded colors
+		fallbackTheme := a.getDefaultTheme()
+		bgColor, fgColor := fallbackTheme.GetCursorSelectionColors()
+		if bgColor == "" || fgColor == "" {
+			// If no selection colors in default theme, use foundation colors
+			bgColor = fallbackTheme.Foundation.Focus    // Blue background
+			fgColor = fallbackTheme.Foundation.Foreground // White text
+		}
+		return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
 	}
 	bgColor, fgColor := a.currentTheme.GetCursorSelectionColors()
 	if bgColor == "" || fgColor == "" {
@@ -1618,7 +1625,15 @@ func (a *App) getSelectionStyle() tcell.Style {
 // getBulkSelectionStyle returns the theme's bulk selection style
 func (a *App) getBulkSelectionStyle() tcell.Style {
 	if a.currentTheme == nil {
-		return tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDarkBlue)
+		// Use default theme fallback instead of hardcoded colors
+		fallbackTheme := a.getDefaultTheme()
+		bgColor, fgColor := fallbackTheme.GetBulkSelectionColors()
+		if bgColor == "" || fgColor == "" {
+			// If no bulk selection colors in default theme, use darker variant of focus color
+			bgColor = config.Color("#0060c0")  // Darker blue for bulk selection
+			fgColor = fallbackTheme.Foundation.Foreground // White text
+		}
+		return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
 	}
 	bgColor, fgColor := a.currentTheme.GetBulkSelectionColors()
 	if bgColor == "" || fgColor == "" {

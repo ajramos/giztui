@@ -802,7 +802,8 @@ func (a *App) getCurrentSelectedMessageID() string {
 // getBulkSelectionColor returns the background color for bulk-selected rows
 func (a *App) getBulkSelectionColor() tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorDarkBlue // Fallback
+		// Use hierarchical theme system instead of hardcoded color
+		return a.GetComponentColors("general").Accent.Color() // Blue accent for selection
 	}
 	bgColor, _ := a.currentTheme.GetBulkSelectionColors()
 	if bgColor == "" {
@@ -815,7 +816,8 @@ func (a *App) getBulkSelectionColor() tcell.Color {
 // getBulkSelectionTextColor returns the text color for bulk-selected rows
 func (a *App) getBulkSelectionTextColor() tcell.Color {
 	if a.currentTheme == nil {
-		return tcell.ColorWhite // Fallback
+		// Use hierarchical theme system instead of hardcoded color
+		return a.GetComponentColors("general").Background.Color() // Inverse of background for contrast
 	}
 	_, fgColor := a.currentTheme.GetBulkSelectionColors()
 	if fgColor == "" {
@@ -1173,7 +1175,7 @@ func (a *App) populateThreadedRows(table *tview.Table) {
 						{"", tview.AlignLeft, 0, 3},
 						{"--", tview.AlignRight, 16, 0},
 					},
-					Color: tcell.ColorOrange,
+					Color: a.GetStatusColor("warning"), // Use hierarchical theme system for warning color
 				}
 				a.populateTableRow(table, rowIndex, errorData)
 				rowIndex++
