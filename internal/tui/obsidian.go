@@ -65,7 +65,8 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// Create panel similar to prompt picker
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	bgColor := a.GetComponentColors("obsidian").Background.Color()
+	container.SetBackgroundColor(bgColor)
 	container.SetBorder(true)
 	container.SetTitle(" 📥 Send to Obsidian ")
 	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
@@ -77,10 +78,14 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 		SetScrollable(true).
 		SetWordWrap(true).
 		SetBorder(false)
+	
+	// Set background on child components as well
+	templateView.SetBackgroundColor(bgColor)
 
 	// Comment input field
 	commentLabel := tview.NewTextView().SetText("💬 Pre-message:")
 	commentLabel.SetTextColor(a.GetComponentColors("obsidian").Title.Color())
+	commentLabel.SetBackgroundColor(bgColor)
 
 	commentInput := tview.NewInputField()
 	commentInput.SetLabel("")
@@ -91,14 +96,17 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
 	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())             // Component text color
 	commentInput.SetPlaceholderTextColor(a.getHintColor())                                    // Consistent placeholder color
+	commentInput.SetBackgroundColor(bgColor)
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	instructions.SetText("Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
+	instructions.SetBackgroundColor(bgColor)
 
 	// Create a horizontal flex for label and input alignment
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
+	commentRow.SetBackgroundColor(bgColor)
 	commentRow.AddItem(commentLabel, 0, 1, false)
 	commentRow.AddItem(commentInput, 0, 1, false)
 

@@ -156,6 +156,10 @@ func (a *App) populateSlackBulkPanel() {
 func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
+	
+	// Apply component background color to main container
+	bgColor := a.GetComponentColors("slack").Background.Color()
+	a.slackView.SetBackgroundColor(bgColor)
 
 	// Create search input field like other pickers
 	input := tview.NewInputField().
@@ -164,11 +168,13 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
 		SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
+	input.SetBackgroundColor(bgColor)
 
 	// Channel selection list
 	channelList := tview.NewList()
 	channelList.ShowSecondaryText(false)
 	channelList.SetBorder(false)
+	channelList.SetBackgroundColor(bgColor)
 
 	// Data structures for filtering
 	var allChannels []services.SlackChannel
@@ -223,16 +229,19 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	userMessageInput.SetBorder(false)
 	userMessageInput.SetPlaceholder("Hey guys, heads up with this email...")
 	userMessageInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
+	userMessageInput.SetBackgroundColor(bgColor)
 
 	// Add spacing between optional message and instructions
 	spacer := tview.NewTextView()
 	spacer.SetText("\n")
+	spacer.SetBackgroundColor(bgColor)
 
 	// Instructions
 	instructions := tview.NewTextView()
 	instructions.SetText("Enter to Send | Esc to Close")
 	instructions.SetTextAlign(tview.AlignRight)
 	instructions.SetTextColor(a.GetComponentColors("slack").Text.Color())
+	instructions.SetBackgroundColor(bgColor)
 
 	// Set up search functionality
 	input.SetChangedFunc(func(text string) {
@@ -368,6 +377,10 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
+	
+	// Apply component background color to main container
+	bgColor := a.GetComponentColors("slack").Background.Color()
+	a.slackView.SetBackgroundColor(bgColor)
 
 	// Create search input field like other pickers
 	input := tview.NewInputField().
@@ -376,11 +389,13 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 		SetLabelColor(a.GetComponentColors("slack").Title.Color()).
 		SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
+	input.SetBackgroundColor(bgColor)
 
 	// Channel selection list
 	channelList := tview.NewList()
 	channelList.ShowSecondaryText(false)
 	channelList.SetBorder(false)
+	channelList.SetBackgroundColor(bgColor)
 
 	// Data structures for filtering
 	var allChannels []services.SlackChannel
@@ -429,6 +444,7 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	// Comment input field for bulk operation (like Obsidian)
 	commentLabel := tview.NewTextView().SetText(fmt.Sprintf("💬 Bulk comment (%d emails):", messageCount))
 	commentLabel.SetTextColor(a.GetComponentColors("slack").Title.Color())
+	commentLabel.SetBackgroundColor(bgColor)
 
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("")
@@ -439,15 +455,18 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background (not accent)
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())
 	userMessageInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
+	userMessageInput.SetBackgroundColor(bgColor)
 
 	// Instructions
 	instructions := tview.NewTextView()
 	instructions.SetText(fmt.Sprintf("Enter to Send %d emails | Esc to Close | Tab to navigate", messageCount))
 	instructions.SetTextAlign(tview.AlignCenter)
 	instructions.SetTextColor(a.GetComponentColors("slack").Text.Color())
+	instructions.SetBackgroundColor(bgColor)
 
 	// Create a horizontal flex for label and input alignment (like Obsidian)
 	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
+	commentRow.SetBackgroundColor(bgColor)
 	commentRow.AddItem(commentLabel, 0, 1, false)
 	commentRow.AddItem(userMessageInput, 0, 1, false)
 

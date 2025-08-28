@@ -207,11 +207,16 @@ func (a *App) showSavedQueriesPicker() {
 
 			// Create container and show
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Consistent background
+			bgColor := a.GetComponentColors("saved_queries").Background.Color()
+			container.SetBackgroundColor(bgColor) // Consistent background
 			container.SetBorder(true)
 			container.SetBorderColor(a.GetComponentColors("saved_queries").Border.Color()) // Set initial border color
 			container.SetTitle(" 📚 Saved Queries ")
 			container.SetTitleColor(a.GetComponentColors("saved_queries").Title.Color()) // Use component colors
+
+			// Set background on child components as well
+			input.SetBackgroundColor(bgColor)
+			list.SetBackgroundColor(bgColor)
 
 			// Add spacing like attachments picker (3 lines for input)
 			container.AddItem(input, 3, 0, true)
@@ -221,6 +226,7 @@ func (a *App) showSavedQueriesPicker() {
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter/1-9 to execute | d/D to delete | Esc to cancel ")
 			footer.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color like other pickers
+			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
 			// Initial population

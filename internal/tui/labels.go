@@ -447,15 +447,21 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		})
 
 		container := tview.NewFlex().SetDirection(tview.FlexRow)
+		bgColor := a.GetComponentColors("labels").Background.Color()
 		container.SetBorder(true)
 		container.SetTitle(" 🏷️  Message Labels ")
 		container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
-		container.SetBackgroundColor(a.GetComponentColors("labels").Background.Color())
+		container.SetBackgroundColor(bgColor)
+		
+		// Set background on child components as well
+		body.SetBackgroundColor(bgColor)
+		
 		container.AddItem(body, 0, 1, true)
 		// Footer hint: quick view uses ESC to close panel
 		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 		footer.SetText(" Esc to back ")
 		footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+		footer.SetBackgroundColor(bgColor)
 		container.AddItem(footer, 1, 0, false)
 
 		if a.logger != nil {
@@ -868,9 +874,14 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			})
 
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(labelColors.Background.Color())
+			bgColor := labelColors.Background.Color()
+			container.SetBackgroundColor(bgColor)
 			container.SetBorderColor(labelColors.Border.Color())
 			container.SetBorder(true)
+			
+			// Set background on child components as well
+			input.SetBackgroundColor(bgColor)
+			list.SetBackgroundColor(bgColor)
 			titleText := " 🏷️ › 🔎 Browse all labels… "
 			if moveMode {
 				count := 1

@@ -1501,6 +1501,37 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if a.slackView != nil {
 		a.slackView.SetTitleColor(a.GetComponentColors("slack").Title.Color())
 	}
+	
+	// Update picker components that were missing theme re-application
+	pickerComponents := []struct {
+		viewName  string
+		component string
+	}{
+		{"prompts", "prompts"},
+		{"obsidian", "obsidian"}, 
+		{"search", "search"},
+		{"attachments", "attachments"},
+		{"saved_queries", "saved_queries"},
+		{"themes", "themes"},
+		{"labels", "labels"},
+		{"links", "links"},
+		{"slack", "slack"},
+	}
+	
+	for _, pc := range pickerComponents {
+		if view, exists := a.views[pc.viewName]; exists {
+			colors := a.GetComponentColors(pc.component)
+			// Update background color for different view types
+			if list, ok := view.(*tview.List); ok {
+				list.SetBackgroundColor(colors.Background.Color())
+			} else if table, ok := view.(*tview.Table); ok {
+				table.SetBackgroundColor(colors.Background.Color())
+			} else if flex, ok := view.(*tview.Flex); ok {
+				flex.SetBackgroundColor(colors.Background.Color())
+			}
+		}
+	}
+	
 	// Update status bar colors if it exists using hierarchical v2.0 theme
 	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
 		statusBar.SetBackgroundColor(theme.Interaction.StatusBar.Bg.Color())

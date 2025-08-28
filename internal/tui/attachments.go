@@ -246,10 +246,16 @@ func (a *App) openAttachmentPicker() {
 
 			// Create container
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(a.GetComponentColors("attachments").Background.Color())
+			bgColor := a.GetComponentColors("attachments").Background.Color()
+			container.SetBackgroundColor(bgColor)
 			container.SetBorder(true)
 			container.SetTitle(" 📎 Attachments in Message ")
 			container.SetTitleColor(a.GetComponentColors("attachments").Title.Color())
+			
+			// Set background on child components as well
+			input.SetBackgroundColor(bgColor)
+			list.SetBackgroundColor(bgColor)
+			
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
@@ -257,6 +263,7 @@ func (a *App) openAttachmentPicker() {
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter/1-9 to download | Ctrl+S to save as | Esc to cancel ")
 			footer.SetTextColor(a.GetComponentColors("attachments").Text.Color()) // Standardized footer color
+			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list

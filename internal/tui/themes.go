@@ -180,8 +180,14 @@ func (a *App) openThemePicker() {
 
 			// Create container (same as prompt picker)
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(a.GetComponentColors("themes").Background.Color())
+			bgColor := a.GetComponentColors("themes").Background.Color()
+			container.SetBackgroundColor(bgColor)
 			container.SetBorder(true)
+			
+			// Set background on child components as well
+			input.SetBackgroundColor(bgColor)
+			list.SetBackgroundColor(bgColor)
+			
 			container.SetTitle(" 🎨 Theme Picker ")
 			container.SetTitleColor(a.GetComponentColors("themes").Title.Color())
 			container.AddItem(input, 3, 0, true)
@@ -191,6 +197,7 @@ func (a *App) openThemePicker() {
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter: preview | Space: apply | Esc: cancel ")
 			footer.SetTextColor(a.GetComponentColors("themes").Text.Color())
+			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list

@@ -179,8 +179,21 @@ func (a *App) openPromptPicker() {
 
 			// Create container
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
-			container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
+			promptColors := a.GetComponentColors("prompts")
+			if a.logger != nil {
+				a.logger.Printf("PROMPTS DEBUG: currentTheme=%v, background='%s', tcell=%v", 
+					a.currentTheme != nil, promptColors.Background, promptColors.Background.Color())
+			}
+			
+			// Force background rendering for modal containers
+			bgColor := promptColors.Background.Color()
+			container.SetBackgroundColor(bgColor)
 			container.SetBorder(true)
+			
+			// Set background on child components as well
+			input.SetBackgroundColor(bgColor)
+			list.SetBackgroundColor(bgColor)
+			
 			container.SetTitle(" 🤖 Prompt Library ")
 			container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 			container.AddItem(input, 3, 0, true)
@@ -190,6 +203,7 @@ func (a *App) openPromptPicker() {
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 			footer.SetText(" Enter to apply | Esc to cancel ")
 			footer.SetTextColor(a.GetComponentColors("prompts").Text.Color())
+			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
 			// Handle navigation between input and list
@@ -717,8 +731,21 @@ func (a *App) openPromptPickerForManagement() {
 
 	// Create container
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(a.GetComponentColors("prompts").Background.Color())
+	promptColors := a.GetComponentColors("prompts")
+	if a.logger != nil {
+		a.logger.Printf("PROMPTS MANAGER DEBUG: currentTheme=%v, background='%s', tcell=%v", 
+			a.currentTheme != nil, promptColors.Background, promptColors.Background.Color())
+	}
+	
+	// Force background rendering for modal containers
+	bgColor := promptColors.Background.Color()
+	container.SetBackgroundColor(bgColor)
 	container.SetBorder(true)
+	
+	// Set background on child components as well
+	input.SetBackgroundColor(bgColor)
+	list.SetBackgroundColor(bgColor)
+	
 	container.SetTitle(" 📚 Prompt Library Manager ")
 	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 	container.AddItem(input, 3, 0, true)
@@ -728,6 +755,7 @@ func (a *App) openPromptPickerForManagement() {
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter: view | e: export | d: delete | Esc: close ")
 	footer.SetTextColor(a.GetComponentColors("prompts").Text.Color())
+	footer.SetBackgroundColor(bgColor)
 	container.AddItem(footer, 1, 0, false)
 
 	// Add to content split
