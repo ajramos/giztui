@@ -593,7 +593,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			}
 			// Use magnifying glass like other places
 			body.AddItem("🔍 Browse all labels…", "Enter to apply 1st match | Esc to back", 0, func() { a.expandLabelsBrowse(messageID) })
-			body.AddItem("➕ Add custom label…", "Create or apply", 0, func() { a.addCustomLabelInline(messageID) })
+			body.AddItem("➕ Add custom label…", "Create or apply", 0, func() { go a.addCustomLabelInline(messageID) })
 			// Remove explicit Back item; ESC hint will be shown in footer and ESC returns to quick view
 
 			body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {

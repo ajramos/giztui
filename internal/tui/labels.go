@@ -1053,8 +1053,8 @@ func (a *App) browseLabelForRemove(messageID string) {
 
 // expandLabelsBrowseGeneric clones the browse-all list but calls onPick when the user confirms a label
 func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id, name string)) {
-	// Get theme colors for general component (same as working suggested labels)
-	labelColors := a.GetComponentColors("general")
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
 	if a.logger != nil {
 		a.logger.Printf("DEBUG expandLabelsBrowseGeneric: background color = %s", labelColors.Background.Color())
 	}
@@ -1182,8 +1182,8 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 
 // editLabelInline opens an inline form to rename a label
 func (a *App) editLabelInline(labelID, name string) {
-	// Get theme colors for general component (same as working suggested labels)
-	labelColors := a.GetComponentColors("general")
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
 	
 	input := tview.NewInputField().
 		SetLabel("New name: ").
@@ -1252,8 +1252,8 @@ func (a *App) editLabelInline(labelID, name string) {
 
 // confirmDeleteLabel shows a lightweight confirmation and deletes on Enter
 func (a *App) confirmDeleteLabel(labelID, name string) {
-	// Get theme colors for general component (same as working suggested labels)
-	labelColors := a.GetComponentColors("general")
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
 	
 	text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	text.SetText("Delete label '" + name + "'? This cannot be undone.")
@@ -1395,8 +1395,8 @@ func (a *App) addCustomLabelInline(messageID string) {
 	if a.logger != nil {
 		a.logger.Printf("addCustomLabelInline: open mid=%s", messageID)
 	}
-	// Get theme colors for general component (same as working suggested labels)
-	labelColors := a.GetComponentColors("general")
+	// Get theme colors for labels component
+	labelColors := a.GetComponentColors("labels")
 	if a.logger != nil {
 		a.logger.Printf("DEBUG addCustomLabelInline: background color = %s", labelColors.Background.Color())
 	}
