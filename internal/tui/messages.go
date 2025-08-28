@@ -666,6 +666,10 @@ func (a *App) openSearchOverlay(mode string) {
 	// Clear and populate the persistent container (like Slack does)
 	searchContainer.Clear()
 	
+	// Apply background color to main container
+	bgColor := searchColors.Background.Color()
+	searchContainer.SetBackgroundColor(bgColor)
+	
 	// Update container title dynamically (like Slack does)
 	searchContainer.SetTitle(" " + title + " ").
 		SetTitleColor(searchColors.Title.Color())
@@ -678,6 +682,7 @@ func (a *App) openSearchOverlay(mode string) {
 		SetFieldTextColor(searchColors.Text.Color()).
 		SetLabelColor(searchColors.Title.Color()).
 		SetPlaceholderTextColor(a.getHintColor())
+	input.SetBackgroundColor(bgColor)
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
 	
