@@ -17,10 +17,11 @@ type CompositionPanel struct {
 	app *App
 	
 	// UI Components
-	headerSection *tview.Form
-	bodySection   *EditableTextView // EditableTextView for multiline text editing
-	bodyContainer *tview.Flex       // Container for body section with border
-	buttonSection *tview.Flex
+	headerContainer *tview.Flex     // Container for header section with Form and toggle button
+	headerSection   *tview.Form     // Form for email fields
+	bodySection     *EditableTextView // EditableTextView for multiline text editing
+	bodyContainer   *tview.Flex     // Container for body section with border
+	buttonSection   *tview.Flex
 	
 	// Input fields
 	toField      *tview.InputField
@@ -123,6 +124,7 @@ func (c *CompositionPanel) createComponents() {
 	c.ccBccToggle = tview.NewButton("+CC/BCC")
 	c.ccBccToggle.SetBackgroundColor(componentColors.Border.Color())
 	c.ccBccToggle.SetLabelColor(componentColors.Text.Color())
+	c.ccBccToggle.SetSelectedFunc(c.toggleCCBCC)
 	
 	// Create message body with EditableTextView for multiline text editing
 	c.bodySection = NewEditableTextView(c.app)
@@ -162,6 +164,14 @@ func (c *CompositionPanel) createComponents() {
 	c.spacer3 = tview.NewBox()
 	c.spacer3.SetBackgroundColor(componentColors.Background.Color())
 	
+	// Create header container to hold Form and CC/BCC toggle
+	c.headerContainer = tview.NewFlex().SetDirection(tview.FlexColumn)
+	c.headerContainer.SetBackgroundColor(componentColors.Background.Color())
+	c.headerContainer.SetBorder(true)
+	c.headerContainer.SetTitle(" Recipients & Subject ")
+	c.headerContainer.SetTitleColor(componentColors.Title.Color())
+	c.headerContainer.SetBorderColor(componentColors.Border.Color())
+	
 	// Create button section with proper styling
 	c.buttonSection = tview.NewFlex()
 	c.buttonSection.SetDirection(tview.FlexColumn)
@@ -187,6 +197,9 @@ func (c *CompositionPanel) setupLayout() {
 	c.Flex.SetTitleColor(componentColors.Title.Color())
 	c.Flex.SetBorderColor(componentColors.Border.Color())
 	
+	// Setup header container (form + toggle button)
+	c.setupHeaderContainer()
+	
 	// Setup header section with form fields
 	c.setupHeaderSection()
 	
@@ -194,9 +207,30 @@ func (c *CompositionPanel) setupLayout() {
 	c.setupButtonSection()
 	
 	// Layout: Header (expanded) → Body (expand) → Buttons (fixed)
-	c.Flex.AddItem(c.headerSection, 0, 2, false)  // Header section - more space for To/Subject visibility
+	c.Flex.AddItem(c.headerContainer, 0, 2, false)  // Header container - more space for To/Subject visibility
 	c.Flex.AddItem(c.bodyContainer, 0, 4, false)  // Body container - most space
 	c.Flex.AddItem(c.buttonSection, 3, 0, false)  // Button section - fixed height
+}
+
+// setupHeaderContainer configures the composite header layout
+func (c *CompositionPanel) setupHeaderContainer() {
+	// Add the Form (email fields) - takes most of the space
+	c.headerContainer.AddItem(c.headerSection, 0, 1, false)
+	
+	// Create a vertical container for the CC/BCC toggle button
+	toggleContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	componentColors := c.app.GetComponentColors("compose")
+	toggleContainer.SetBackgroundColor(componentColors.Background.Color())
+	
+	// Add some spacing and the toggle button
+	spacer := tview.NewBox()
+	spacer.SetBackgroundColor(componentColors.Background.Color())
+	toggleContainer.AddItem(spacer, 0, 1, false) // Top spacer
+	toggleContainer.AddItem(c.ccBccToggle, 1, 0, false) // Button with fixed height
+	toggleContainer.AddItem(spacer, 0, 1, false) // Bottom spacer
+	
+	// Add the toggle container - small fixed width
+	c.headerContainer.AddItem(toggleContainer, 12, 0, false) // Fixed width for button
 }
 
 // setupHeaderSection configures the header form with dynamic CC/BCC visibility
@@ -204,13 +238,10 @@ func (c *CompositionPanel) setupHeaderSection() {
 	// Add To field (always visible)
 	c.headerSection.AddFormItem(c.toField)
 	
-	// Add Subject field (always visible)
+	// Add Subject field (always visible)  
 	c.headerSection.AddFormItem(c.subjectField)
 	
-	// Add CC/BCC toggle button
-	c.headerSection.AddButton("+CC/BCC", c.toggleCCBCC)
-	
-	// Initially hide CC/BCC fields
+	// Initially hide CC/BCC fields and set up visibility
 	c.updateCCBCCVisibility()
 	
 	// IMPORTANT: Apply field styling AFTER fields are added to Form
@@ -495,19 +526,19 @@ func (c *CompositionPanel) updateCCBCCVisibility() {
 	c.headerSection.AddFormItem(c.toField)
 	
 	// Add CC/BCC fields if visible
+	// Update and add CC/BCC toggle button
 	if c.ccBccVisible {
+		c.ccBccToggle.SetLabel("-CC/BCC")
 		c.headerSection.AddFormItem(c.ccField)
 		c.headerSection.AddFormItem(c.bccField)
-		c.ccBccToggle.SetLabel("-CC/BCC")
 	} else {
 		c.ccBccToggle.SetLabel("+CC/BCC")
 	}
 	
+	// Note: CC/BCC toggle button will be positioned separately in layout
+	
 	// Add Subject field (always visible)
 	c.headerSection.AddFormItem(c.subjectField)
-	
-	// Add CC/BCC toggle button
-	c.headerSection.AddButton(c.ccBccToggle.GetLabel(), c.toggleCCBCC)
 }
 
 // updateFocusOrder rebuilds the focus cycle based on current field visibility
@@ -516,6 +547,9 @@ func (c *CompositionPanel) updateFocusOrder() {
 	
 	// Add fields in tab order
 	c.focusableItems = append(c.focusableItems, c.toField)
+	
+	// Add CC/BCC toggle button (always accessible)
+	c.focusableItems = append(c.focusableItems, c.ccBccToggle)
 	
 	if c.ccBccVisible {
 		c.focusableItems = append(c.focusableItems, c.ccField)
