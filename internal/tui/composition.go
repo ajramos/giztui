@@ -30,15 +30,18 @@ type CompositionPanel struct {
 	subjectField *tview.InputField
 	
 	// Action buttons
-	sendButton   *tview.Button
-	draftButton  *tview.Button
-	cancelButton *tview.Button
-	ccBccToggle  *tview.Button
+	sendButton  *tview.Button
+	draftButton *tview.Button
+	ccBccToggle *tview.Button
 	
 	// Button section spacers (to apply theme colors)
-	spacer1 *tview.Box  // Between Send and Draft
-	spacer2 *tview.Box  // Between Draft and Cancel
+	spacer1 *tview.Box  // Left spacer to center buttons
+	spacer2 *tview.Box  // Between Send and Draft
 	spacer3 *tview.Box  // Right side push spacer
+	
+	// CC/BCC toggle container spacers
+	toggleTopSpacer    *tview.Box  // Top spacer around CC/BCC toggle
+	toggleBottomSpacer *tview.Box  // Bottom spacer around CC/BCC toggle
 	
 	// State management
 	composition    *services.Composition
@@ -80,13 +83,9 @@ func (c *CompositionPanel) createComponents() {
 			componentColors.Text.String())
 	}
 	
-	// Create header section with input fields
+	// Create header section with input fields (no border - integrated into container)
 	c.headerSection = tview.NewForm()
 	c.headerSection.SetBackgroundColor(componentColors.Background.Color())
-	c.headerSection.SetBorder(true)
-	c.headerSection.SetTitle(" Recipients & Subject ")
-	c.headerSection.SetTitleColor(componentColors.Title.Color())
-	c.headerSection.SetBorderColor(componentColors.Border.Color())
 	
 	// Set Form-level field styling with compose theme colors (applied first)
 	c.headerSection.SetFieldBackgroundColor(componentColors.Background.Color()) // Dark slate blue
@@ -141,18 +140,16 @@ func (c *CompositionPanel) createComponents() {
 	c.bodyContainer.SetBorderColor(componentColors.Border.Color())
 	c.bodyContainer.AddItem(c.bodySection, 0, 1, false)
 	
-	// Create action buttons with improved styling
-	c.sendButton = tview.NewButton("Send (Ctrl+Enter)")
+	// Create action buttons with modern emoji styling
+	c.sendButton = tview.NewButton("📧 Send")
 	c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for Send button prominence
 	c.sendButton.SetLabelColor(componentColors.Background.Color()) // Dark text on green background
 	
-	c.draftButton = tview.NewButton("Save Draft")
+	c.draftButton = tview.NewButton("💾 Save Draft")
 	c.draftButton.SetBackgroundColor(componentColors.Border.Color())
 	c.draftButton.SetLabelColor(componentColors.Text.Color())
 	
-	c.cancelButton = tview.NewButton("Cancel (Esc)")
-	c.cancelButton.SetBackgroundColor(componentColors.Border.Color())
-	c.cancelButton.SetLabelColor(componentColors.Text.Color())
+	// Cancel button removed - Esc key provides cancel functionality
 	
 	// Create button section spacers with theme colors
 	c.spacer1 = tview.NewBox()
@@ -207,9 +204,10 @@ func (c *CompositionPanel) setupLayout() {
 	c.setupButtonSection()
 	
 	// Layout: Header (expanded) → Body (expand) → Buttons (fixed)
-	c.Flex.AddItem(c.headerContainer, 0, 2, false)  // Header container - more space for To/Subject visibility
-	c.Flex.AddItem(c.bodyContainer, 0, 4, false)  // Body container - most space
-	c.Flex.AddItem(c.buttonSection, 3, 0, false)  // Button section - fixed height
+	// Initial sizing - will be updated by updateLayoutSizing() when CC/BCC is toggled
+	c.Flex.AddItem(c.headerContainer, 0, 2, false)  // Header container - show To + Subject initially
+	c.Flex.AddItem(c.bodyContainer, 0, 4, false)   // Body container - most space
+	c.Flex.AddItem(c.buttonSection, 6, 0, false)   // Button section - more height for buttons
 }
 
 // setupHeaderContainer configures the composite header layout
@@ -223,11 +221,14 @@ func (c *CompositionPanel) setupHeaderContainer() {
 	toggleContainer.SetBackgroundColor(componentColors.Background.Color())
 	
 	// Add some spacing and the toggle button
-	spacer := tview.NewBox()
-	spacer.SetBackgroundColor(componentColors.Background.Color())
-	toggleContainer.AddItem(spacer, 0, 1, false) // Top spacer
+	c.toggleTopSpacer = tview.NewBox()
+	c.toggleTopSpacer.SetBackgroundColor(componentColors.Background.Color())
+	c.toggleBottomSpacer = tview.NewBox()
+	c.toggleBottomSpacer.SetBackgroundColor(componentColors.Background.Color())
+	
+	toggleContainer.AddItem(c.toggleTopSpacer, 0, 1, false) // Top spacer
 	toggleContainer.AddItem(c.ccBccToggle, 1, 0, false) // Button with fixed height
-	toggleContainer.AddItem(spacer, 0, 1, false) // Bottom spacer
+	toggleContainer.AddItem(c.toggleBottomSpacer, 0, 1, false) // Bottom spacer
 	
 	// Add the toggle container - small fixed width
 	c.headerContainer.AddItem(toggleContainer, 12, 0, false) // Fixed width for button
@@ -283,20 +284,38 @@ func (c *CompositionPanel) applyFieldStyling() {
 	c.bccField.SetLabelColor(componentColors.Title.Color())
 }
 
-// setupButtonSection arranges action buttons horizontally
+// setupButtonSection arranges action buttons horizontally with hint text
 func (c *CompositionPanel) setupButtonSection() {
-	// Add buttons with themed spacers
-	c.buttonSection.AddItem(c.sendButton, 0, 1, false)
-	c.buttonSection.AddItem(c.spacer1, 0, 1, false) // themed spacer between Send and Draft
-	c.buttonSection.AddItem(c.draftButton, 0, 1, false)
-	c.buttonSection.AddItem(c.spacer2, 0, 1, false) // themed spacer between Draft and Cancel
-	c.buttonSection.AddItem(c.cancelButton, 0, 1, false)
-	c.buttonSection.AddItem(c.spacer3, 0, 2, false) // themed larger spacer to push buttons left
+	// Convert to vertical layout to include hint text
+	c.buttonSection.SetDirection(tview.FlexRow)
+	
+	// Create horizontal container for buttons
+	buttonRow := tview.NewFlex().SetDirection(tview.FlexColumn)
+	componentColors := c.app.GetComponentColors("compose")
+	buttonRow.SetBackgroundColor(componentColors.Background.Color())
+	
+	// Add buttons with themed spacers - center them better with only 2 buttons
+	buttonRow.AddItem(c.spacer1, 0, 2, false) // Larger left spacer to center buttons
+	buttonRow.AddItem(c.sendButton, 0, 1, false)
+	buttonRow.AddItem(c.spacer2, 0, 1, false) // Spacer between buttons
+	buttonRow.AddItem(c.draftButton, 0, 1, false)
+	buttonRow.AddItem(c.spacer3, 0, 2, false) // Larger right spacer to center buttons
+	
+	// Create hint text
+	hintText := tview.NewTextView()
+	hintText.SetText("Ctrl+Enter to Send | Esc to cancel")
+	hintText.SetTextAlign(tview.AlignCenter)
+	hintText.SetBackgroundColor(componentColors.Background.Color())
+	hintText.SetTextColor(componentColors.Border.Color()) // Subtle theme-compliant color
+	hintText.SetBorder(false)
+	
+	// Add button row and hint text to main button section
+	c.buttonSection.AddItem(buttonRow, 0, 1, false)      // Buttons take most space
+	c.buttonSection.AddItem(hintText, 1, 0, false)       // Hint text with fixed height
 	
 	// Configure button actions
 	c.sendButton.SetSelectedFunc(func() { go c.sendComposition() })
 	c.draftButton.SetSelectedFunc(func() { go c.saveDraft() })
-	c.cancelButton.SetSelectedFunc(func() { c.hide() })
 }
 
 // setupInputHandling implements comprehensive input capture to prevent global shortcuts
@@ -515,6 +534,7 @@ func (c *CompositionPanel) toggleCCBCC() {
 	c.ccBccVisible = !c.ccBccVisible
 	c.updateCCBCCVisibility()
 	c.updateFocusOrder() // Rebuild focus order
+	c.updateLayoutSizing() // Adjust header section size based on visibility
 }
 
 // updateCCBCCVisibility shows or hides CC/BCC fields dynamically
@@ -541,6 +561,23 @@ func (c *CompositionPanel) updateCCBCCVisibility() {
 	c.headerSection.AddFormItem(c.subjectField)
 }
 
+// updateLayoutSizing adjusts header section size based on CC/BCC visibility
+func (c *CompositionPanel) updateLayoutSizing() {
+	// Clear the main layout
+	c.Flex.Clear()
+	
+	// Determine header size based on CC/BCC visibility
+	headerWeight := 1 // Compact size for To + Subject when CC/BCC is hidden
+	if c.ccBccVisible {
+		headerWeight = 2 // Larger when CC/BCC + To + Subject visible
+	}
+	
+	// Re-add items with appropriate sizing
+	c.Flex.AddItem(c.headerContainer, 0, headerWeight, false) // Dynamic header size
+	c.Flex.AddItem(c.bodyContainer, 0, 4, false)              // Body container - most space
+	c.Flex.AddItem(c.buttonSection, 6, 0, false)              // Button section - more height for buttons
+}
+
 // updateFocusOrder rebuilds the focus cycle based on current field visibility
 func (c *CompositionPanel) updateFocusOrder() {
 	c.focusableItems = make([]tview.Primitive, 0)
@@ -560,7 +597,6 @@ func (c *CompositionPanel) updateFocusOrder() {
 	c.focusableItems = append(c.focusableItems, c.bodySection)
 	c.focusableItems = append(c.focusableItems, c.sendButton)
 	c.focusableItems = append(c.focusableItems, c.draftButton)
-	c.focusableItems = append(c.focusableItems, c.cancelButton)
 	
 	// Debug logging
 	if c.app.logger != nil {
@@ -895,6 +931,11 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.Flex.SetTitleColor(componentColors.Title.Color())
 	c.Flex.SetBorderColor(componentColors.Border.Color())
 	
+	// Update header container
+	c.headerContainer.SetBackgroundColor(componentColors.Background.Color())
+	c.headerContainer.SetTitleColor(componentColors.Title.Color())
+	c.headerContainer.SetBorderColor(componentColors.Border.Color())
+	
 	// Update header section with complete Form-level styling
 	c.headerSection.SetBackgroundColor(componentColors.Background.Color())
 	c.headerSection.SetTitleColor(componentColors.Title.Color())
@@ -940,9 +981,6 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.draftButton.SetBackgroundColor(componentColors.Border.Color())
 	c.draftButton.SetLabelColor(componentColors.Text.Color())
 	
-	c.cancelButton.SetBackgroundColor(componentColors.Border.Color())
-	c.cancelButton.SetLabelColor(componentColors.Text.Color())
-	
 	c.ccBccToggle.SetBackgroundColor(componentColors.Border.Color())
 	c.ccBccToggle.SetLabelColor(componentColors.Text.Color())
 	
@@ -955,6 +993,10 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.spacer1.SetBackgroundColor(componentColors.Background.Color())
 	c.spacer2.SetBackgroundColor(componentColors.Background.Color())
 	c.spacer3.SetBackgroundColor(componentColors.Background.Color())
+	
+	// Update CC/BCC toggle spacers to match theme background
+	c.toggleTopSpacer.SetBackgroundColor(componentColors.Background.Color())
+	c.toggleBottomSpacer.SetBackgroundColor(componentColors.Background.Color())
 	
 	// Note: Removed ForceFilledBorderFlex to fix black background issue
 	// Button section colors now apply directly without interference

@@ -2445,6 +2445,11 @@ func (a *App) showCompositionWithStatusBar(compositionType services.CompositionT
 	
 	// Add the combined layout as a page
 	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
+	
+	// Update the status bar now that the page is active
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(a.statusBaseline())
+	}
 }
 
 // (moved to ai.go) suggestLabel
