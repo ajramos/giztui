@@ -46,6 +46,7 @@ type CompositionPanel struct {
 	// UI components for theming and focus
 	hintTextView *tview.TextView
 	buttonRow    *tview.Flex
+	spacerLine   *tview.TextView
 	
 	// State management
 	composition    *services.Composition
@@ -173,14 +174,11 @@ func (c *CompositionPanel) createComponents() {
 	c.headerContainer.SetTitleColor(componentColors.Title.Color())
 	c.headerContainer.SetBorderColor(componentColors.Border.Color())
 	
-	// Create button section with proper styling
+	// Create button section with proper styling (no border to save space)
 	c.buttonSection = tview.NewFlex()
 	c.buttonSection.SetDirection(tview.FlexColumn)
 	c.buttonSection.SetBackgroundColor(componentColors.Background.Color())
-	c.buttonSection.SetBorder(true) // Add border for visual separation
-	c.buttonSection.SetTitle(" Actions ")
-	c.buttonSection.SetTitleColor(componentColors.Title.Color())
-	c.buttonSection.SetBorderColor(componentColors.Border.Color())
+	c.buttonSection.SetBorder(false) // Remove border to gain space
 	
 	// Note: Removed ForceFilledBorderFlex as it was causing black background issues
 	// Theme colors should now apply correctly without interference
@@ -211,7 +209,7 @@ func (c *CompositionPanel) setupLayout() {
 	// Initial sizing - will be updated by updateLayoutSizing() when CC/BCC is toggled
 	c.Flex.AddItem(c.headerContainer, 0, 2, false)  // Header container - show To + Subject initially
 	c.Flex.AddItem(c.bodyContainer, 0, 4, false)   // Body container - most space
-	c.Flex.AddItem(c.buttonSection, 6, 0, false)   // Button section - more height for buttons
+	c.Flex.AddItem(c.buttonSection, 3, 0, false)   // Button section - compact height
 }
 
 // setupHeaderContainer configures the composite header layout
@@ -298,25 +296,32 @@ func (c *CompositionPanel) setupButtonSection() {
 	componentColors := c.app.GetComponentColors("compose")
 	c.buttonRow.SetBackgroundColor(componentColors.Background.Color())
 	
-	// Add buttons with themed spacers - center them better with only 2 buttons
-	c.buttonRow.AddItem(c.spacer1, 0, 2, false) // Larger left spacer to center buttons
+	// Add buttons with themed spacers - align buttons to the right
+	c.buttonRow.AddItem(c.spacer1, 0, 4, false) // Large left spacer to push buttons right
 	c.buttonRow.AddItem(c.sendButton, 0, 1, false)
 	c.buttonRow.AddItem(c.spacer2, 0, 1, false) // Spacer between buttons
 	c.buttonRow.AddItem(c.draftButton, 0, 1, false)
-	c.buttonRow.AddItem(c.spacer3, 0, 2, false) // Larger right spacer to center buttons
+	c.buttonRow.AddItem(c.spacer3, 0, 1, false) // Small right spacer for padding
 	
 	// Create hint text
 	c.hintTextView = tview.NewTextView()
 	c.hintTextView.SetText("Ctrl+Enter to Send | Esc to cancel")
-	c.hintTextView.SetTextAlign(tview.AlignCenter)
+	c.hintTextView.SetTextAlign(tview.AlignRight)
 	c.hintTextView.SetBackgroundColor(componentColors.Background.Color())
 	// Use compose component text color for consistency with other widgets
 	c.hintTextView.SetTextColor(componentColors.Text.Color())
 	c.hintTextView.SetBorder(false)
 	
-	// Add button row and hint text to main button section
-	c.buttonSection.AddItem(c.buttonRow, 0, 1, false)      // Buttons take most space
-	c.buttonSection.AddItem(c.hintTextView, 1, 0, false)       // Hint text with fixed height
+	// Create spacer line between buttons and hint text
+	c.spacerLine = tview.NewTextView()
+	c.spacerLine.SetText("")
+	c.spacerLine.SetBackgroundColor(componentColors.Background.Color())
+	c.spacerLine.SetBorder(false)
+	
+	// Add button row, spacer line, and hint text to main button section
+	c.buttonSection.AddItem(c.buttonRow, 0, 1, false)       // Buttons take most space
+	c.buttonSection.AddItem(c.spacerLine, 1, 0, false)      // Empty line spacer
+	c.buttonSection.AddItem(c.hintTextView, 1, 0, false)    // Hint text with fixed height
 	
 	// Configure button actions
 	c.sendButton.SetSelectedFunc(func() { go c.sendComposition() })
@@ -580,7 +585,7 @@ func (c *CompositionPanel) updateLayoutSizing() {
 	// Re-add items with appropriate sizing
 	c.Flex.AddItem(c.headerContainer, 0, headerWeight, false) // Dynamic header size
 	c.Flex.AddItem(c.bodyContainer, 0, 4, false)              // Body container - most space
-	c.Flex.AddItem(c.buttonSection, 6, 0, false)              // Button section - more height for buttons
+	c.Flex.AddItem(c.buttonSection, 3, 0, false)              // Button section - compact height
 }
 
 // updateFocusOrder rebuilds the focus cycle based on current field visibility
@@ -989,10 +994,8 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.ccBccToggle.SetBackgroundColor(componentColors.Border.Color())
 	c.ccBccToggle.SetLabelColor(componentColors.Text.Color())
 	
-	// Update button section with complete styling
+	// Update button section with styling (no border)
 	c.buttonSection.SetBackgroundColor(componentColors.Background.Color())
-	c.buttonSection.SetTitleColor(componentColors.Title.Color())
-	c.buttonSection.SetBorderColor(componentColors.Border.Color())
 	
 	// Update button section spacers to match theme background
 	c.spacer1.SetBackgroundColor(componentColors.Background.Color())
@@ -1003,13 +1006,16 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.toggleTopSpacer.SetBackgroundColor(componentColors.Background.Color())
 	c.toggleBottomSpacer.SetBackgroundColor(componentColors.Background.Color())
 	
-	// Update hint text and button row with theme colors
+	// Update hint text, button row, and spacer line with theme colors
 	if c.hintTextView != nil {
 		c.hintTextView.SetTextColor(componentColors.Text.Color())
 		c.hintTextView.SetBackgroundColor(componentColors.Background.Color())
 	}
 	if c.buttonRow != nil {
 		c.buttonRow.SetBackgroundColor(componentColors.Background.Color())
+	}
+	if c.spacerLine != nil {
+		c.spacerLine.SetBackgroundColor(componentColors.Background.Color())
 	}
 	
 	// Note: Removed ForceFilledBorderFlex to fix black background issue
