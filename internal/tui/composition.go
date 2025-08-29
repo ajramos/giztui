@@ -43,6 +43,10 @@ type CompositionPanel struct {
 	toggleTopSpacer    *tview.Box  // Top spacer around CC/BCC toggle
 	toggleBottomSpacer *tview.Box  // Bottom spacer around CC/BCC toggle
 	
+	// UI components for theming and focus
+	hintTextView *tview.TextView
+	buttonRow    *tview.Flex
+	
 	// State management
 	composition    *services.Composition
 	isVisible      bool
@@ -290,28 +294,29 @@ func (c *CompositionPanel) setupButtonSection() {
 	c.buttonSection.SetDirection(tview.FlexRow)
 	
 	// Create horizontal container for buttons
-	buttonRow := tview.NewFlex().SetDirection(tview.FlexColumn)
+	c.buttonRow = tview.NewFlex().SetDirection(tview.FlexColumn)
 	componentColors := c.app.GetComponentColors("compose")
-	buttonRow.SetBackgroundColor(componentColors.Background.Color())
+	c.buttonRow.SetBackgroundColor(componentColors.Background.Color())
 	
 	// Add buttons with themed spacers - center them better with only 2 buttons
-	buttonRow.AddItem(c.spacer1, 0, 2, false) // Larger left spacer to center buttons
-	buttonRow.AddItem(c.sendButton, 0, 1, false)
-	buttonRow.AddItem(c.spacer2, 0, 1, false) // Spacer between buttons
-	buttonRow.AddItem(c.draftButton, 0, 1, false)
-	buttonRow.AddItem(c.spacer3, 0, 2, false) // Larger right spacer to center buttons
+	c.buttonRow.AddItem(c.spacer1, 0, 2, false) // Larger left spacer to center buttons
+	c.buttonRow.AddItem(c.sendButton, 0, 1, false)
+	c.buttonRow.AddItem(c.spacer2, 0, 1, false) // Spacer between buttons
+	c.buttonRow.AddItem(c.draftButton, 0, 1, false)
+	c.buttonRow.AddItem(c.spacer3, 0, 2, false) // Larger right spacer to center buttons
 	
 	// Create hint text
-	hintText := tview.NewTextView()
-	hintText.SetText("Ctrl+Enter to Send | Esc to cancel")
-	hintText.SetTextAlign(tview.AlignCenter)
-	hintText.SetBackgroundColor(componentColors.Background.Color())
-	hintText.SetTextColor(componentColors.Border.Color()) // Subtle theme-compliant color
-	hintText.SetBorder(false)
+	c.hintTextView = tview.NewTextView()
+	c.hintTextView.SetText("Ctrl+Enter to Send | Esc to cancel")
+	c.hintTextView.SetTextAlign(tview.AlignCenter)
+	c.hintTextView.SetBackgroundColor(componentColors.Background.Color())
+	// Use compose component text color for consistency with other widgets
+	c.hintTextView.SetTextColor(componentColors.Text.Color())
+	c.hintTextView.SetBorder(false)
 	
 	// Add button row and hint text to main button section
-	c.buttonSection.AddItem(buttonRow, 0, 1, false)      // Buttons take most space
-	c.buttonSection.AddItem(hintText, 1, 0, false)       // Hint text with fixed height
+	c.buttonSection.AddItem(c.buttonRow, 0, 1, false)      // Buttons take most space
+	c.buttonSection.AddItem(c.hintTextView, 1, 0, false)       // Hint text with fixed height
 	
 	// Configure button actions
 	c.sendButton.SetSelectedFunc(func() { go c.sendComposition() })
@@ -997,6 +1002,15 @@ func (c *CompositionPanel) UpdateTheme() {
 	// Update CC/BCC toggle spacers to match theme background
 	c.toggleTopSpacer.SetBackgroundColor(componentColors.Background.Color())
 	c.toggleBottomSpacer.SetBackgroundColor(componentColors.Background.Color())
+	
+	// Update hint text and button row with theme colors
+	if c.hintTextView != nil {
+		c.hintTextView.SetTextColor(componentColors.Text.Color())
+		c.hintTextView.SetBackgroundColor(componentColors.Background.Color())
+	}
+	if c.buttonRow != nil {
+		c.buttonRow.SetBackgroundColor(componentColors.Background.Color())
+	}
 	
 	// Note: Removed ForceFilledBorderFlex to fix black background issue
 	// Button section colors now apply directly without interference
