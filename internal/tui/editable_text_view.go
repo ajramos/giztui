@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -24,6 +25,10 @@ type EditableTextView struct {
 	// Editing capabilities
 	isEditable   bool
 	changeFunc   func(string)
+	
+	// Placeholder support
+	placeholder      string
+	placeholderColor tcell.Color
 	
 	// Display state
 	updating     bool  // Prevents recursive updateDisplay calls
@@ -191,6 +196,9 @@ func (e *EditableTextView) Focus(delegate func(p tview.Primitive)) {
 	if e.textView != nil {
 		delegate(e.textView)
 	}
+	
+	// Update display to hide placeholder and show cursor when focused
+	e.updateDisplay()
 }
 
 // HasFocus checks if the underlying TextView has focus
@@ -214,6 +222,9 @@ func (e *EditableTextView) Blur() {
 	if e.textView != nil {
 		e.textView.Blur()
 	}
+	
+	// Update display to show placeholder when not focused (if text is empty)
+	e.updateDisplay()
 }
 
 // GetFocusable delegates to the underlying TextView
@@ -315,6 +326,20 @@ func (e *EditableTextView) SetChangedFunc(changed func(string)) {
 // SetEditable enables or disables editing mode
 func (e *EditableTextView) SetEditable(editable bool) {
 	e.isEditable = editable
+}
+
+// SetPlaceholder sets the placeholder text to show when empty
+func (e *EditableTextView) SetPlaceholder(placeholder string) *EditableTextView {
+	e.placeholder = placeholder
+	e.updateDisplay() // Refresh display to show placeholder if text is empty
+	return e
+}
+
+// SetPlaceholderTextColor sets the color for placeholder text
+func (e *EditableTextView) SetPlaceholderTextColor(color tcell.Color) *EditableTextView {
+	e.placeholderColor = color
+	e.updateDisplay() // Refresh display to apply new placeholder color
+	return e
 }
 
 // Note: Input handling is now done through the InputHandler() method
@@ -511,12 +536,22 @@ func (e *EditableTextView) updateDisplay() {
 		e.updating = false
 	}()
 	
+	// Check if content is empty and we have a placeholder
+	isEmpty := len(e.lines) == 1 && e.lines[0] == ""
+	if isEmpty && e.placeholder != "" && !e.HasFocus() {
+		// Show placeholder text with subtle color
+		// For now, use simple tview color names instead of hex
+		placeholderText := fmt.Sprintf("[gray]%s[-]", e.placeholder)
+		e.textView.SetText(placeholderText)
+		return
+	}
+	
 	// Create display text with cursor indicator
 	displayLines := make([]string, len(e.lines))
 	copy(displayLines, e.lines)
 	
-	// Add cursor indicator (█ character) at current position
-	if e.cursorLine < len(displayLines) {
+	// Add cursor indicator (█ character) at current position when focused
+	if e.HasFocus() && e.cursorLine < len(displayLines) {
 		line := displayLines[e.cursorLine]
 		if e.cursorColumn <= len(line) {
 			// Insert cursor character

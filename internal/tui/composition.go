@@ -99,30 +99,38 @@ func (c *CompositionPanel) createComponents() {
 	c.headerSection.SetButtonBackgroundColor(componentColors.Border.Color())
 	c.headerSection.SetButtonTextColor(componentColors.Text.Color())
 	
-	// Create individual input fields with proper theming
+	// Create individual input fields with proper theming and placeholders
 	c.toField = tview.NewInputField()
 	c.toField.SetLabel("To: ")
+	c.toField.SetPlaceholder("recipient@example.com")
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
+	c.toField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
 	
 	c.ccField = tview.NewInputField()
 	c.ccField.SetLabel("CC: ")
+	c.ccField.SetPlaceholder("cc@example.com")
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
+	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
 	
 	c.bccField = tview.NewInputField()
 	c.bccField.SetLabel("BCC: ")
+	c.bccField.SetPlaceholder("bcc@example.com")
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
+	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
 	
 	c.subjectField = tview.NewInputField()
 	c.subjectField.SetLabel("Subject: ")
+	c.subjectField.SetPlaceholder("Enter email subject")
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
+	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
 	
 	// Create CC/BCC toggle button
 	c.ccBccToggle = tview.NewButton("+CC/BCC")
@@ -135,14 +143,13 @@ func (c *CompositionPanel) createComponents() {
 	c.bodySection.SetBackgroundColor(componentColors.Background.Color())
 	c.bodySection.SetTextColor(componentColors.Text.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
+	c.bodySection.SetPlaceholder("Enter your message here...")
+	c.bodySection.SetPlaceholderTextColor(componentColors.Border.Color())
 	
-	// Create a container for the body section with border
+	// Create a container for the body section (no border to save space)
 	c.bodyContainer = tview.NewFlex().SetDirection(tview.FlexRow)
 	c.bodyContainer.SetBackgroundColor(componentColors.Background.Color())
-	c.bodyContainer.SetBorder(true)
-	c.bodyContainer.SetTitle(" Message Body (Press Tab to focus, then type) ")
-	c.bodyContainer.SetTitleColor(componentColors.Title.Color())
-	c.bodyContainer.SetBorderColor(componentColors.Border.Color())
+	c.bodyContainer.SetBorder(false) // Remove border to gain space
 	c.bodyContainer.AddItem(c.bodySection, 0, 1, false)
 	
 	// Create action buttons with modern emoji styling
@@ -166,13 +173,10 @@ func (c *CompositionPanel) createComponents() {
 	c.spacer3 = tview.NewBox()
 	c.spacer3.SetBackgroundColor(componentColors.Background.Color())
 	
-	// Create header container to hold Form and CC/BCC toggle
+	// Create header container to hold Form and CC/BCC toggle (no border to save space)
 	c.headerContainer = tview.NewFlex().SetDirection(tview.FlexColumn)
 	c.headerContainer.SetBackgroundColor(componentColors.Background.Color())
-	c.headerContainer.SetBorder(true)
-	c.headerContainer.SetTitle(" Recipients & Subject ")
-	c.headerContainer.SetTitleColor(componentColors.Title.Color())
-	c.headerContainer.SetBorderColor(componentColors.Border.Color())
+	c.headerContainer.SetBorder(false) // Remove border to gain space
 	
 	// Create button section with proper styling (no border to save space)
 	c.buttonSection = tview.NewFlex()
@@ -207,7 +211,7 @@ func (c *CompositionPanel) setupLayout() {
 	
 	// Layout: Header (expanded) → Body (expand) → Buttons (fixed)
 	// Initial sizing - will be updated by updateLayoutSizing() when CC/BCC is toggled
-	c.Flex.AddItem(c.headerContainer, 0, 2, false)  // Header container - show To + Subject initially
+	c.Flex.AddItem(c.headerContainer, 0, 1, false)  // Header container - compact without border
 	c.Flex.AddItem(c.bodyContainer, 0, 4, false)   // Body container - most space
 	c.Flex.AddItem(c.buttonSection, 3, 0, false)   // Button section - compact height
 }
@@ -271,19 +275,23 @@ func (c *CompositionPanel) applyFieldStyling() {
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
+	c.toField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
+	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	// Apply to CC/BCC fields as well
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
+	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
+	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color())
 }
 
 // setupButtonSection arranges action buttons horizontally with hint text
@@ -576,10 +584,10 @@ func (c *CompositionPanel) updateLayoutSizing() {
 	// Clear the main layout
 	c.Flex.Clear()
 	
-	// Determine header size based on CC/BCC visibility
-	headerWeight := 1 // Compact size for To + Subject when CC/BCC is hidden
+	// Determine header size based on CC/BCC visibility (more compact without border)
+	headerWeight := 1 // Very compact for To + Subject when CC/BCC is hidden
 	if c.ccBccVisible {
-		headerWeight = 2 // Larger when CC/BCC + To + Subject visible
+		headerWeight = 2 // Slightly larger when CC/BCC + To + Subject visible
 	}
 	
 	// Re-add items with appropriate sizing
@@ -941,10 +949,8 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.Flex.SetTitleColor(componentColors.Title.Color())
 	c.Flex.SetBorderColor(componentColors.Border.Color())
 	
-	// Update header container
+	// Update header container (no border)
 	c.headerContainer.SetBackgroundColor(componentColors.Background.Color())
-	c.headerContainer.SetTitleColor(componentColors.Title.Color())
-	c.headerContainer.SetBorderColor(componentColors.Border.Color())
 	
 	// Update header section with complete Form-level styling
 	c.headerSection.SetBackgroundColor(componentColors.Background.Color())
@@ -957,32 +963,35 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.headerSection.SetButtonBackgroundColor(componentColors.Border.Color())
 	c.headerSection.SetButtonTextColor(componentColors.Text.Color())
 	
-	// Update individual input fields
+	// Update individual input fields with placeholder colors
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
+	c.toField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
+	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
+	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
+	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color())
 	
 	// Update body section (EditableTextView)
 	c.bodySection.SetBackgroundColor(componentColors.Background.Color())
 	c.bodySection.SetTextColor(componentColors.Text.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
+	c.bodySection.SetPlaceholderTextColor(componentColors.Border.Color())
 	
-	// Update body container
+	// Update body container (no border)
 	c.bodyContainer.SetBackgroundColor(componentColors.Background.Color())
-	c.bodyContainer.SetTitleColor(componentColors.Title.Color())
-	c.bodyContainer.SetBorderColor(componentColors.Border.Color())
 	
 	// Update buttons with improved styling
 	c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for Send button prominence
