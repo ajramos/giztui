@@ -17,7 +17,8 @@ type CompositionPanel struct {
 	
 	// UI Components
 	headerSection *tview.Form
-	bodySection   *tview.TextView // TextView with enhanced direct editing capability
+	bodySection   *EditableTextView // EditableTextView for multiline text editing
+	bodyContainer *tview.Flex       // Container for body section with border
 	buttonSection *tview.Flex
 	
 	// Input fields
@@ -122,19 +123,20 @@ func (c *CompositionPanel) createComponents() {
 	c.ccBccToggle.SetBackgroundColor(componentColors.Border.Color())
 	c.ccBccToggle.SetLabelColor(componentColors.Text.Color())
 	
-	// Create message body with enhanced TextView for direct editing (no modal popup)
-	c.bodySection = tview.NewTextView()
+	// Create message body with EditableTextView for multiline text editing
+	c.bodySection = NewEditableTextView(c.app)
 	c.bodySection.SetBackgroundColor(componentColors.Background.Color())
 	c.bodySection.SetTextColor(componentColors.Text.Color())
-	c.bodySection.SetBorder(true)
-	c.bodySection.SetTitle(" Message Body (Click and type directly) ")
-	c.bodySection.SetTitleColor(componentColors.Title.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
-	c.bodySection.SetWrap(true)
-	c.bodySection.SetWordWrap(true)
-	c.bodySection.SetDynamicColors(false)
-	// Make TextView scrollable and focused-editable
-	c.bodySection.SetScrollable(true)
+	
+	// Create a container for the body section with border
+	c.bodyContainer = tview.NewFlex().SetDirection(tview.FlexRow)
+	c.bodyContainer.SetBackgroundColor(componentColors.Background.Color())
+	c.bodyContainer.SetBorder(true)
+	c.bodyContainer.SetTitle(" Message Body (Press Tab to focus, then type) ")
+	c.bodyContainer.SetTitleColor(componentColors.Title.Color())
+	c.bodyContainer.SetBorderColor(componentColors.Border.Color())
+	c.bodyContainer.AddItem(c.bodySection, 0, 1, false)
 	
 	// Create action buttons with improved styling
 	c.sendButton = tview.NewButton("Send (Ctrl+Enter)")
@@ -192,7 +194,7 @@ func (c *CompositionPanel) setupLayout() {
 	
 	// Layout: Header (fixed) → Body (expand) → Buttons (fixed)
 	c.Flex.AddItem(c.headerSection, 0, 1, false)  // Header section - compact
-	c.Flex.AddItem(c.bodySection, 0, 4, false)    // Body section - most space
+	c.Flex.AddItem(c.bodyContainer, 0, 4, false)  // Body container - most space
 	c.Flex.AddItem(c.buttonSection, 3, 0, false)  // Button section - fixed height
 }
 
@@ -269,6 +271,7 @@ func (c *CompositionPanel) setupButtonSection() {
 func (c *CompositionPanel) setupInputHandling() {
 	// Main panel input capture - blocks ALL global shortcuts
 	c.Flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Handle special navigation keys first
 		switch event.Key() {
 		case tcell.KeyEscape:
 			c.hide()
@@ -284,7 +287,74 @@ func (c *CompositionPanel) setupInputHandling() {
 			return nil
 		}
 		
+		// Check if EditableTextView has focus and handle character input
+		if c.bodySection != nil && c.bodySection.HasFocus() {
+			// Log focus state for debugging
+			if c.app.logger != nil {
+				c.app.logger.Printf("=== CompositionPanel: EditableTextView has focus, handling key='%c' (rune=%d) ===", event.Rune(), event.Rune())
+			}
+			
+			// For printable characters, forward to EditableTextView and consume the event
+			if event.Key() == tcell.KeyRune && event.Rune() > 0 {
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding printable character '%c' to EditableTextView ===", event.Rune())
+				}
+				// Forward to EditableTextView's input handler
+				c.bodySection.HandleCharInput(event.Rune())
+				return nil // Consume the event to prevent global shortcuts
+			}
+			
+			// For special keys like Enter, Backspace, etc., forward them too
+			switch event.Key() {
+			case tcell.KeyEnter:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Enter to EditableTextView ===")
+				}
+				c.bodySection.HandleEnter()
+				return nil
+			case tcell.KeyBackspace, tcell.KeyBackspace2:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Backspace to EditableTextView ===")
+				}
+				c.bodySection.HandleBackspace()
+				return nil
+			case tcell.KeyDelete:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Delete to EditableTextView ===")
+				}
+				c.bodySection.HandleDelete()
+				return nil
+			case tcell.KeyUp:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Up to EditableTextView ===")
+				}
+				c.bodySection.HandleArrowUp()
+				return nil
+			case tcell.KeyDown:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Down to EditableTextView ===")
+				}
+				c.bodySection.HandleArrowDown()
+				return nil
+			case tcell.KeyLeft:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Left to EditableTextView ===")
+				}
+				c.bodySection.HandleArrowLeft()
+				return nil
+			case tcell.KeyRight:
+				if c.app.logger != nil {
+					c.app.logger.Printf("=== CompositionPanel: Forwarding Right to EditableTextView ===")
+				}
+				c.bodySection.HandleArrowRight()
+				return nil
+			}
+		}
+		
 		// Allow all other keys to pass through to focused component
+		if c.app.logger != nil {
+			c.app.logger.Printf("=== CompositionPanel: Allowing key to pass through to focused component ===")
+		}
 		return event
 	})
 	
@@ -326,65 +396,9 @@ func (c *CompositionPanel) setupFieldInputCapture() {
 	c.bccField.SetInputCapture(inputCapture)
 	c.subjectField.SetInputCapture(inputCapture)
 	
-	// Enhanced input capture for TextView body section to enable direct editing
-	c.bodySection.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			return event // Allow ESC to bubble up
-		case tcell.KeyTab, tcell.KeyBacktab:
-			return event // Allow Tab navigation to bubble up
-		case tcell.KeyCtrlJ:
-			return event // Allow Ctrl+J to bubble up for send
-		case tcell.KeyEnter:
-			// Handle Enter key for newlines in direct editing mode
-			c.handleDirectBodyInput("\n")
-			return nil
-		case tcell.KeyBackspace, tcell.KeyBackspace2:
-			// Handle backspace
-			c.handleBackspaceInBody()
-			return nil
-		}
-		
-		// Handle character input for direct editing
-		if event.Rune() != 0 {
-			c.handleDirectBodyInput(string(event.Rune()))
-			return nil
-		}
-		
-		// Block other global shortcuts when body is focused
-		return event
-	})
+	// EditableTextView has its own input capture for editing - no need to override
 }
 
-// handleDirectBodyInput appends text to the body section for direct editing
-func (c *CompositionPanel) handleDirectBodyInput(text string) {
-	currentText := c.bodySection.GetText(false)
-	newText := currentText + text
-	c.bodySection.SetText(newText)
-	
-	// Update composition in real-time
-	if c.composition != nil {
-		c.composition.Body = newText
-	}
-}
-
-// handleBackspaceInBody removes the last character from body text
-func (c *CompositionPanel) handleBackspaceInBody() {
-	currentText := c.bodySection.GetText(false)
-	if len(currentText) > 0 {
-		// Remove last character (handling UTF-8 properly)
-		runes := []rune(currentText)
-		if len(runes) > 0 {
-			newText := string(runes[:len(runes)-1])
-			c.bodySection.SetText(newText)
-			
-			// Update composition in real-time
-			if c.composition != nil {
-				c.composition.Body = newText
-			}
-		}
-	}
-}
 
 // Show displays the composition panel with improved focus management
 func (c *CompositionPanel) Show(compositionType services.CompositionType, originalMessageID string) {
@@ -456,8 +470,12 @@ func (c *CompositionPanel) setupChangeHandlers() {
 		}
 	})
 	
-	// Note: TextView doesn't have SetChangedFunc - we'll handle body updates differently
-	// Body updates will be handled on send/save actions
+	// Add body field change handler for real-time updates
+	c.bodySection.SetChangedFunc(func(text string) {
+		if c.composition != nil {
+			c.composition.Body = text
+		}
+	})
 }
 
 // toggleCCBCC toggles the visibility of CC and BCC fields
@@ -509,6 +527,23 @@ func (c *CompositionPanel) updateFocusOrder() {
 	c.focusableItems = append(c.focusableItems, c.draftButton)
 	c.focusableItems = append(c.focusableItems, c.cancelButton)
 	
+	// Debug logging
+	if c.app.logger != nil {
+		c.app.logger.Printf("FOCUS DEBUG: updateFocusOrder - %d focusable items", len(c.focusableItems))
+		for i, item := range c.focusableItems {
+			switch item.(type) {
+			case *tview.InputField:
+				c.app.logger.Printf("  [%d] InputField", i)
+			case *EditableTextView:
+				c.app.logger.Printf("  [%d] EditableTextView (body section)", i)
+			case *tview.Button:
+				c.app.logger.Printf("  [%d] Button", i)
+			default:
+				c.app.logger.Printf("  [%d] %T", i, item)
+			}
+		}
+	}
+	
 	// Ensure current focus index is still valid
 	if c.currentFocusIndex >= len(c.focusableItems) {
 		c.currentFocusIndex = 0
@@ -521,7 +556,14 @@ func (c *CompositionPanel) focusNext() {
 		return
 	}
 	
+	oldIndex := c.currentFocusIndex
 	c.currentFocusIndex = (c.currentFocusIndex + 1) % len(c.focusableItems)
+	
+	// Debug logging
+	if c.app.logger != nil {
+		c.app.logger.Printf("FOCUS DEBUG: focusNext - from index %d to %d", oldIndex, c.currentFocusIndex)
+	}
+	
 	c.focusCurrent()
 }
 
@@ -541,7 +583,23 @@ func (c *CompositionPanel) focusCurrent() {
 		return
 	}
 	
-	c.app.SetFocus(c.focusableItems[c.currentFocusIndex])
+	focusTarget := c.focusableItems[c.currentFocusIndex]
+	
+	// Debug logging
+	if c.app.logger != nil {
+		switch focusTarget.(type) {
+		case *tview.InputField:
+			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to InputField at index %d", c.currentFocusIndex)
+		case *EditableTextView:
+			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to EditableTextView (body section) at index %d", c.currentFocusIndex)
+		case *tview.Button:
+			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to Button at index %d", c.currentFocusIndex)
+		default:
+			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to %T at index %d", focusTarget, c.currentFocusIndex)
+		}
+	}
+	
+	c.app.SetFocus(focusTarget)
 }
 
 // formatRecipients converts recipient structs to display strings
@@ -666,7 +724,7 @@ func (c *CompositionPanel) saveDraft() {
 func (c *CompositionPanel) updateCompositionFromForm() {
 	// Real-time updates handle most fields, but we need to get body text manually
 	if c.composition != nil {
-		c.composition.Body = c.bodySection.GetText(false) // TextView GetText() needs boolean parameter
+		c.composition.Body = c.bodySection.GetText() // InputField GetText() has no parameters
 	}
 }
 
@@ -771,11 +829,15 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
 	
-	// Update body section (enhanced TextView)
+	// Update body section (EditableTextView)
 	c.bodySection.SetBackgroundColor(componentColors.Background.Color())
 	c.bodySection.SetTextColor(componentColors.Text.Color())
-	c.bodySection.SetTitleColor(componentColors.Title.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
+	
+	// Update body container
+	c.bodyContainer.SetBackgroundColor(componentColors.Background.Color())
+	c.bodyContainer.SetTitleColor(componentColors.Title.Color())
+	c.bodyContainer.SetBorderColor(componentColors.Border.Color())
 	
 	// Update buttons with improved styling
 	c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for Send button prominence

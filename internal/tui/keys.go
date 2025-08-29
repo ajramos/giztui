@@ -455,6 +455,15 @@ func (a *App) bindKeys() {
 			return a.handleCommandInput(event)
 		}
 
+		// CRITICAL: Check if composition panel is visible first - let it handle ALL input
+		if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+			if a.logger != nil {
+				a.logger.Printf("=== COMPOSITION PANEL ACTIVE: Allowing event to pass through to composition panel ===")
+			}
+			// Let the composition panel handle ALL input events
+			return event
+		}
+
 		// If focus is on form widgets (advanced/simple search), don't intercept
 		switch focused := a.GetFocus().(type) {
 		case *tview.InputField:
