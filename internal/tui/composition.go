@@ -32,6 +32,11 @@ type CompositionPanel struct {
 	cancelButton *tview.Button
 	ccBccToggle  *tview.Button
 	
+	// Button section spacers (to apply theme colors)
+	spacer1 *tview.Box  // Between Send and Draft
+	spacer2 *tview.Box  // Between Draft and Cancel
+	spacer3 *tview.Box  // Right side push spacer
+	
 	// State management
 	composition    *services.Composition
 	isVisible      bool
@@ -144,6 +149,16 @@ func (c *CompositionPanel) createComponents() {
 	c.cancelButton.SetBackgroundColor(componentColors.Border.Color())
 	c.cancelButton.SetLabelColor(componentColors.Text.Color())
 	
+	// Create button section spacers with theme colors
+	c.spacer1 = tview.NewBox()
+	c.spacer1.SetBackgroundColor(componentColors.Background.Color())
+	
+	c.spacer2 = tview.NewBox()
+	c.spacer2.SetBackgroundColor(componentColors.Background.Color())
+	
+	c.spacer3 = tview.NewBox()
+	c.spacer3.SetBackgroundColor(componentColors.Background.Color())
+	
 	// Create button section with proper styling
 	c.buttonSection = tview.NewFlex()
 	c.buttonSection.SetDirection(tview.FlexColumn)
@@ -153,13 +168,8 @@ func (c *CompositionPanel) createComponents() {
 	c.buttonSection.SetTitleColor(componentColors.Title.Color())
 	c.buttonSection.SetBorderColor(componentColors.Border.Color())
 	
-	// Apply ForceFilledBorderFlex for consistent background rendering (like other bordered Flex containers)
-	ForceFilledBorderFlex(c.buttonSection)
-	
-	// IMPORTANT: Reapply theme colors AFTER ForceFilledBorderFlex (it overrides colors)
-	c.buttonSection.SetBackgroundColor(componentColors.Background.Color()) // Dark slate blue, not black
-	c.buttonSection.SetTitleColor(componentColors.Title.Color()) // Cyan, not white
-	c.buttonSection.SetBorderColor(componentColors.Border.Color())
+	// Note: Removed ForceFilledBorderFlex as it was causing black background issues
+	// Theme colors should now apply correctly without interference
 }
 
 // setupLayout creates the improved three-section layout
@@ -241,13 +251,13 @@ func (c *CompositionPanel) applyFieldStyling() {
 
 // setupButtonSection arranges action buttons horizontally
 func (c *CompositionPanel) setupButtonSection() {
-	// Add buttons with spacing
+	// Add buttons with themed spacers
 	c.buttonSection.AddItem(c.sendButton, 0, 1, false)
-	c.buttonSection.AddItem(tview.NewBox(), 0, 1, false) // spacer
+	c.buttonSection.AddItem(c.spacer1, 0, 1, false) // themed spacer between Send and Draft
 	c.buttonSection.AddItem(c.draftButton, 0, 1, false)
-	c.buttonSection.AddItem(tview.NewBox(), 0, 1, false) // spacer
+	c.buttonSection.AddItem(c.spacer2, 0, 1, false) // themed spacer between Draft and Cancel
 	c.buttonSection.AddItem(c.cancelButton, 0, 1, false)
-	c.buttonSection.AddItem(tview.NewBox(), 0, 2, false) // larger spacer to push buttons left
+	c.buttonSection.AddItem(c.spacer3, 0, 2, false) // themed larger spacer to push buttons left
 	
 	// Configure button actions
 	c.sendButton.SetSelectedFunc(func() { go c.sendComposition() })
@@ -719,7 +729,8 @@ func (c *CompositionPanel) UpdateTheme() {
 		c.app.logger.Printf("DEBUG BUTTON STYLING:")
 		c.app.logger.Printf("  Send button: bg=%s (accent), text=%s (background)", string(componentColors.Accent), string(componentColors.Background))
 		c.app.logger.Printf("  Draft/Cancel buttons: bg=%s (border), text=%s", string(componentColors.Border), string(componentColors.Text))
-		c.app.logger.Printf("  Button section: bg=%s (background), border=%s", string(componentColors.Background), string(componentColors.Border))
+		c.app.logger.Printf("  Button section: bg=%s (background), title=%s (title), border=%s", string(componentColors.Background), string(componentColors.Title), string(componentColors.Border))
+		c.app.logger.Printf("  EXPECTED: bg=#1e2540 (dark slate), title=#4fc3f7 (cyan), border=#3f4a5f (medium slate)")
 		c.app.logger.Printf("DEBUG FIELD STYLING:")
 		c.app.logger.Printf("  Form field background: %s (should be dark slate #1e2540)", string(componentColors.Background))
 		c.app.logger.Printf("  Form field text: %s (should be light blue-gray #c5d1eb)", string(componentColors.Text))
@@ -784,13 +795,13 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.buttonSection.SetTitleColor(componentColors.Title.Color())
 	c.buttonSection.SetBorderColor(componentColors.Border.Color())
 	
-	// Apply ForceFilledBorderFlex for consistent background rendering
-	ForceFilledBorderFlex(c.buttonSection)
+	// Update button section spacers to match theme background
+	c.spacer1.SetBackgroundColor(componentColors.Background.Color())
+	c.spacer2.SetBackgroundColor(componentColors.Background.Color())
+	c.spacer3.SetBackgroundColor(componentColors.Background.Color())
 	
-	// IMPORTANT: Reapply theme colors AFTER ForceFilledBorderFlex (it overrides colors)
-	c.buttonSection.SetBackgroundColor(componentColors.Background.Color()) // Dark slate blue, not black
-	c.buttonSection.SetTitleColor(componentColors.Title.Color()) // Cyan, not white
-	c.buttonSection.SetBorderColor(componentColors.Border.Color())
+	// Note: Removed ForceFilledBorderFlex to fix black background issue
+	// Button section colors now apply directly without interference
 	
 	// IMPORTANT: Re-apply field styling after theme update
 	c.applyFieldStyling()
