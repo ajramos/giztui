@@ -40,7 +40,7 @@ func (a *App) archiveSelected() {
 	}
 
 	// Archive message using EmailService for undo support
-	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving message: %v", err))
 		return
@@ -80,7 +80,7 @@ func (a *App) trashSelectedByID(messageID string) {
 	}
 
 	// Move message to trash using EmailService for undo support
-	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	err = emailService.TrashMessage(a.ctx, messageID)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
@@ -132,7 +132,7 @@ func (a *App) trashSelected() {
 	}
 
 	// Move message to trash using EmailService for undo support
-	emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	err = emailService.TrashMessage(a.ctx, messageID)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))

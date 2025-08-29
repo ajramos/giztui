@@ -15,6 +15,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/config"
 	"github.com/ajramos/gmail-tui/internal/gmail"
 	"github.com/ajramos/gmail-tui/internal/render"
+	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/ajramos/gmail-tui/pkg/auth"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -3386,7 +3387,18 @@ func (a *App) trashSelectedBulk() {
 */
 
 // replySelected replies to the selected message (placeholder)
-func (a *App) replySelected() { a.showInfo("Reply functionality not yet implemented") }
+func (a *App) replySelected() {
+	messageID := a.GetCurrentMessageID()
+	if messageID == "" {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		}()
+		return
+	}
+	
+	a.compositionPanel.Show(services.CompositionTypeReply, messageID)
+	a.Pages.AddPage("compose", a.compositionPanel, true, true)
+}
 
 // showAttachments opens the attachment picker for the current message
 func (a *App) showAttachments() {
@@ -3431,7 +3443,7 @@ func (a *App) toggleMarkReadUnread() {
 	}
 	go func(markUnread bool) {
 		// Get EmailService to ensure undo actions are recorded
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 		if markUnread {
 			if err := emailService.MarkAsUnread(a.ctx, messageID); err != nil {
@@ -3471,9 +3483,18 @@ func (a *App) listArchivedMessages() {
 // loadDrafts placeholder
 func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemented") }
 
-// composeMessage placeholder
+// composeMessage starts composing a new email
 func (a *App) composeMessage(draft bool) {
-	a.showInfo("Compose message functionality not yet implemented")
+	if draft {
+		// TODO: [FUTURE] Load draft composition using loadDrafts()
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Draft loading functionality not yet implemented")
+		}()
+		return
+	}
+	
+	a.compositionPanel.Show(services.CompositionTypeNew, "")
+	a.Pages.AddPage("compose", a.compositionPanel, true, true)
 }
 
 // calculateHeaderHeight calculates the height needed for header content (same logic as adjustHeaderHeight)
@@ -3495,7 +3516,7 @@ func (a *App) calculateHeaderHeight(headerContent string) int {
 // toggleHeaderVisibility toggles the visibility of email headers and refreshes the current message display
 func (a *App) toggleHeaderVisibility() {
 	// Get DisplayService
-	_, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
+	_, _, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
 	if displayService == nil {
 		if a.logger != nil {
 			a.logger.Printf("toggleHeaderVisibility: displayService is nil")

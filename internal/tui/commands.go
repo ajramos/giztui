@@ -1019,7 +1019,7 @@ func (a *App) executeStatsCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
@@ -1052,7 +1052,7 @@ func (a *App) executeCacheInfo(args []string) {
 
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+		_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return
@@ -1347,7 +1347,7 @@ func (a *App) executePromptCreate(args []string) {
 	filePath := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1389,7 +1389,7 @@ func (a *App) executePromptUpdate(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1520,7 +1520,7 @@ func (a *App) executePromptExport(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1583,7 +1583,7 @@ func (a *App) executePromptDelete(args []string) {
 	identifier := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")

@@ -74,3 +74,7 @@ gmailTUI:
     attachments:
       primary: "#ffb86c"           # Orange for attachment titles
       accent: "#f1fa8c"            # Yellow for attachment highlights
+      
+    compose:
+      primary: "#6272a4"           # Blue for email composition titles
+      accent: "#50fa7b"            # Green for send/success actions

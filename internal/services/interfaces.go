@@ -628,3 +628,107 @@ type UndoResult struct {
 	MessageIDs   []string               `json:"message_ids"`   // IDs of messages affected
 	ExtraData    map[string]interface{} `json:"extra_data"`    // Additional data for cache updates
 }
+
+// CompositionService handles email composition operations
+type CompositionService interface {
+	// Composition lifecycle
+	CreateComposition(ctx context.Context, compositionType CompositionType, originalMessageID string) (*Composition, error)
+	LoadDraftComposition(ctx context.Context, draftID string) (*Composition, error)
+	SaveDraft(ctx context.Context, composition *Composition) (string, error)
+	SendComposition(ctx context.Context, composition *Composition) error
+	
+	// Validation & processing
+	ValidateComposition(composition *Composition) []ValidationError
+	ProcessReply(ctx context.Context, originalMessageID string) (*ReplyContext, error)
+	ProcessForward(ctx context.Context, originalMessageID string) (*ForwardContext, error)
+	
+	// Templates & suggestions
+	GetTemplates(ctx context.Context, category string) ([]*EmailTemplate, error)
+	ApplyTemplate(ctx context.Context, composition *Composition, templateID string) error
+	GetRecipientSuggestions(ctx context.Context, query string) ([]Recipient, error)
+}
+
+// Composition-related data structures
+
+// CompositionType represents different types of email composition
+type CompositionType string
+
+const (
+	CompositionTypeNew     CompositionType = "new"
+	CompositionTypeReply   CompositionType = "reply"
+	CompositionTypeReplyAll CompositionType = "reply_all"
+	CompositionTypeForward CompositionType = "forward"
+	CompositionTypeDraft   CompositionType = "draft"
+)
+
+// Composition represents an email being composed
+type Composition struct {
+	ID           string          `json:"id"`
+	Type         CompositionType `json:"type"`
+	To           []Recipient     `json:"to"`
+	CC           []Recipient     `json:"cc"`
+	BCC          []Recipient     `json:"bcc"`
+	Subject      string          `json:"subject"`
+	Body         string          `json:"body"`
+	Attachments  []Attachment    `json:"attachments"`
+	OriginalID   string          `json:"original_id,omitempty"`
+	DraftID      string          `json:"draft_id,omitempty"`
+	IsDraft      bool            `json:"is_draft"`
+	CreatedAt    time.Time       `json:"created_at"`
+	ModifiedAt   time.Time       `json:"modified_at"`
+}
+
+// Recipient represents an email recipient
+type Recipient struct {
+	Email string `json:"email"`
+	Name  string `json:"name,omitempty"`
+}
+
+// ValidationError represents a validation error for composition
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// ReplyContext contains context information for replying to a message
+type ReplyContext struct {
+	OriginalMessage *gmail.Message `json:"-"` // Don't serialize the full message
+	Recipients      []Recipient    `json:"recipients"`
+	Subject         string         `json:"subject"`
+	QuotedBody      string         `json:"quoted_body"`
+	ThreadID        string         `json:"thread_id,omitempty"`
+	OriginalSender  Recipient      `json:"original_sender"`
+	OriginalDate    time.Time      `json:"original_date"`
+}
+
+// ForwardContext contains context information for forwarding a message
+type ForwardContext struct {
+	OriginalMessage *gmail.Message `json:"-"` // Don't serialize the full message
+	Subject         string         `json:"subject"`
+	ForwardedBody   string         `json:"forwarded_body"`
+	OriginalSender  Recipient      `json:"original_sender"`
+	OriginalDate    time.Time      `json:"original_date"`
+}
+
+// EmailTemplate represents a reusable email template
+type EmailTemplate struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Category    string            `json:"category"`
+	Subject     string            `json:"subject"`
+	Body        string            `json:"body"`
+	Variables   []string          `json:"variables"`
+	Metadata    map[string]string `json:"metadata"`
+	CreatedAt   time.Time         `json:"created_at"`
+	ModifiedAt  time.Time         `json:"modified_at"`
+}
+
+// Attachment represents a file attachment (reusing existing pattern if available)
+type Attachment struct {
+	ID       string `json:"id"`
+	Filename string `json:"filename"`
+	MimeType string `json:"mime_type"`
+	Size     int64  `json:"size"`
+	FilePath string `json:"file_path,omitempty"`
+	Data     []byte `json:"-"` // Don't serialize attachment data
+}

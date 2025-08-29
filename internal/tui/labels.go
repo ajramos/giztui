@@ -46,7 +46,7 @@ func (a *App) executeLabelAdd(args []string) {
 			}
 		}
 		// Use LabelService for undo support
-		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		if err := labelService.ApplyLabel(a.ctx, messageID, label.Id); err != nil {
 			a.showError(fmt.Sprintf("❌ Error applying label: %v", err))
 			return
@@ -98,7 +98,7 @@ func (a *App) executeLabelRemove(args []string) {
 			return
 		}
 		// Use LabelService for undo support
-		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		if err := labelService.RemoveLabel(a.ctx, messageID, labelID); err != nil {
 			a.showError(fmt.Sprintf("❌ Error removing label: %v", err))
 			return
@@ -598,7 +598,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 
 					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 					// Get services for undo support - use proper move function
-					emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+					emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 					for _, mid := range idsToMove {
 						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 							failed++
@@ -789,7 +789,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 
 								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 								// Get services for undo support (keep individual operations for now)
-								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 								for _, mid := range idsToMove {
 									if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
 										failed++
@@ -930,7 +930,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								failed := 0
-								emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 								for _, mid := range idsToMove {
 									if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
 										failed++
@@ -1491,7 +1491,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 					a.logger.Printf("addCustomLabelInline: ApplyLabel mid=%s id=%s", messageID, id)
 				}
 				// Use LabelService for undo support
-				_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+				_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 				if err := labelService.ApplyLabel(a.ctx, messageID, id); err != nil {
 					if a.logger != nil {
 						a.logger.Printf("addCustomLabelInline: ApplyLabel error: %v", err)
@@ -1553,7 +1553,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurrentlyApplied bool, onDone func(newApplied bool, err error)) {
 	go func() {
 		// Use LabelService for undo support
-		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 		if isCurrentlyApplied {
 			if err := labelService.RemoveLabel(a.ctx, messageID, labelID); err != nil {
@@ -1903,7 +1903,7 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 				}
 
 				// Apply label and archive using dedicated move function for undo support
-				emailService, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+				emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 				if !has {
 					if err := labelService.ApplyLabel(a.ctx, message.Id, labelID); err != nil {
 						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error applying label: %v", err))
@@ -2207,7 +2207,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		total := len(messageIDs)
 
 		// Use bulk label service methods for proper undo recording
-		_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		var err error
 		if action == "add" {
 			if a.logger != nil {

@@ -72,3 +72,6 @@ gmailTUI:
     themes:
       primary: "#ff79c6" # Pink for themes titles
       accent: "#bd93f9" # Purple for themes highlights
+    compose:
+      primary: "#8be9fd" # Cyan for email composition titles
+      accent: "#50fa7b" # Green for send/success actions

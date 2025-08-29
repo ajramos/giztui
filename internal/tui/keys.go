@@ -1990,7 +1990,7 @@ func (a *App) archiveRange(startIndex, count int) {
 	// Archive in background using bulk service for proper undo recording
 	go func() {
 		// Use bulk archive service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkArchive(a.ctx, messageIDs)
 
 		// Clear progress and show result
@@ -2031,7 +2031,7 @@ func (a *App) trashRange(startIndex, count int) {
 	// Trash in background using bulk service for proper undo recording
 	go func() {
 		// Use bulk trash service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkTrash(a.ctx, messageIDs)
 
 		// Clear progress and show result
@@ -2079,7 +2079,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 
 	// Toggle read status in background
 	go func() {
-		_, _, _, _, repository, _, _, _, _, _, _ := a.GetServices()
+		_, _, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
 		undoService := a.GetUndoService()
 
 		// Create a single comprehensive undo action for the entire range operation

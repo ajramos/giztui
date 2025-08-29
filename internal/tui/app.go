@@ -120,6 +120,9 @@ type App struct {
 	// Slack contextual panel
 	slackView    *tview.Flex
 	slackVisible bool
+	
+	// Composition panel
+	compositionPanel *CompositionPanel
 	// RSVP side panel state
 	rsvpVisible bool
 
@@ -149,11 +152,12 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	emailService      services.EmailService
-	aiService         services.AIService
-	labelService      services.LabelService
-	cacheService      services.CacheService
-	repository        services.MessageRepository
+	emailService        services.EmailService
+	aiService           services.AIService
+	labelService        services.LabelService
+	cacheService        services.CacheService
+	repository          services.MessageRepository
+	compositionService  services.CompositionService
 	bulkPromptService *services.BulkPromptServiceImpl
 	promptService     services.PromptService
 	slackService      services.SlackService
@@ -577,6 +581,16 @@ func (a *App) initServices() {
 		emailServiceImpl.SetLogger(a.logger)
 	}
 
+	// Initialize composition service
+	a.compositionService = services.NewCompositionService(a.emailService, a.Client, a.repository)
+	if a.logger != nil {
+		a.logger.Printf("initServices: composition service initialized: %v", a.compositionService != nil)
+	}
+	// Wire logger to composition service for debug output
+	if compositionServiceImpl, ok := a.compositionService.(*services.CompositionServiceImpl); ok && a.logger != nil {
+		compositionServiceImpl.SetLogger(a.logger)
+	}
+
 	// Initialize link service
 	a.linkService = services.NewLinkService(a.Client, a.emailRenderer)
 	if a.logger != nil {
@@ -980,8 +994,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.CompositionService, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.compositionService, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
 }
 
 // GetUndoService returns the undo service instance
@@ -1243,7 +1257,7 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 	}
 
 	// Get label name mapping for cache updates
-	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
 		if a.logger != nil {
@@ -1300,7 +1314,7 @@ func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
 	}
 
 	// Get label name mapping for cache updates
-	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
 		return // Silently fail, will refresh from server later
@@ -1536,6 +1550,11 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
 		statusBar.SetBackgroundColor(theme.Interaction.StatusBar.Bg.Color())
 		statusBar.SetTextColor(theme.Interaction.StatusBar.Fg.Color())
+	}
+
+	// Update composition panel theme if it exists
+	if a.compositionPanel != nil {
+		a.compositionPanel.UpdateTheme()
 	}
 
 	// Refresh borders for Flex containers that have been forced to use filled backgrounds
@@ -1881,6 +1900,9 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    :archive 3    📁  Same as %s3%s (archive next 3)\n", a.Keys.Archive, a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    :trash 7      🗑️   Same as %s7%s (delete next 7)\n", a.Keys.Trash, a.Keys.Trash))
 	help.WriteString(fmt.Sprintf("    :undo         ↩️   Same as %s (undo last action)\n", a.Keys.Undo))
+	help.WriteString(fmt.Sprintf("    :compose      ✏️   Same as %s (compose new message)\n", a.Keys.Compose))
+	help.WriteString(fmt.Sprintf("    :reply        💬  Same as %s (reply to message)\n", a.Keys.Reply))
+	help.WriteString("    :new          ✏️   Same as :compose (compose new message)\n")
 	help.WriteString("    :search term  🔍  Search for 'term'\n")
 	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
 	help.WriteString("    :bookmarks    📚  Browse saved query bookmarks\n")
@@ -2402,7 +2424,16 @@ func (a *App) summarizeSelected() {
 
 // generateReply generates a reply using LLM
 func (a *App) generateReply() {
-	a.showInfo("Generate reply functionality not yet implemented")
+	messageID := a.GetCurrentMessageID()
+	if messageID == "" {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		}()
+		return
+	}
+	
+	a.compositionPanel.Show(services.CompositionTypeReply, messageID)
+	a.Pages.AddPage("compose", a.compositionPanel, true, true)
 }
 
 // (moved to ai.go) suggestLabel

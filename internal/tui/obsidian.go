@@ -270,7 +270,7 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 
 
 	// Get Obsidian service
-	_, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
 	if obsidianService == nil {
 		a.GetErrorHandler().ClearProgress()
 		a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
@@ -319,7 +319,7 @@ func (a *App) getObsidianVaultPath() string {
 // showObsidianHistory shows the history of Obsidian forwards
 func (a *App) showObsidianHistory() {
 	// Get Obsidian service
-	_, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
 	if obsidianService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
 		return
@@ -385,7 +385,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 		}
 
 		// Get Obsidian service
-		_, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
+		_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
 		if obsidianService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
 			return

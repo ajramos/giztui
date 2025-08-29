@@ -136,6 +136,11 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		componentType = config.ComponentTypeLabels
 	case "themes":
 		componentType = config.ComponentTypeThemes
+	case "compose":
+		componentType = config.ComponentTypeCompose
+		if a.logger != nil {
+			a.logger.Printf("DEBUG: GetComponentColors requested 'compose' - using ComponentTypeCompose")
+		}
 	default:
 		componentType = config.ComponentTypeGeneral
 	}
@@ -143,13 +148,22 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 	// Use hierarchical color resolution for each component color type
 	bgColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeBackground)
 	titleColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypePrimary)
+	borderColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeBorder)
+	textColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeForeground)
+	accentColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeAccent)
+	
+	// Debug logging for compose theme specifically
+	if component == "compose" && a.logger != nil {
+		a.logger.Printf("DEBUG COMPOSE COLORS: bg=%s, title=%s, border=%s, text=%s, accent=%s",
+			bgColor.String(), titleColor.String(), borderColor.String(), textColor.String(), accentColor.String())
+	}
 	
 	return config.ComponentColorSet{
-		Border:     a.currentTheme.GetComponentColor(componentType, config.ColorTypeBorder),
+		Border:     borderColor,
 		Title:      titleColor,
 		Background: bgColor,
-		Text:       a.currentTheme.GetComponentColor(componentType, config.ColorTypeForeground),
-		Accent:     a.currentTheme.GetComponentColor(componentType, config.ColorTypeAccent),
+		Text:       textColor,
+		Accent:     accentColor,
 	}
 }
 
