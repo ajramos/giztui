@@ -2432,8 +2432,19 @@ func (a *App) generateReply() {
 		return
 	}
 	
-	a.compositionPanel.Show(services.CompositionTypeReply, messageID)
-	a.Pages.AddPage("compose", a.compositionPanel, true, true)
+	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
+}
+
+// showCompositionWithStatusBar shows the composition panel with persistent status bar
+func (a *App) showCompositionWithStatusBar(compositionType services.CompositionType, originalMessageID string) {
+	// Show the composition panel (this handles the business logic)
+	a.compositionPanel.Show(compositionType, originalMessageID)
+	
+	// Create layout with composition panel + status bar
+	compositionLayout := a.createCompositionLayoutWithStatus()
+	
+	// Add the combined layout as a page
+	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
 }
 
 // (moved to ai.go) suggestLabel

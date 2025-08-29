@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ajramos/gmail-tui/internal/services"
 	"github.com/derailed/tcell/v2"
@@ -192,8 +193,8 @@ func (c *CompositionPanel) setupLayout() {
 	// Setup button section with actions
 	c.setupButtonSection()
 	
-	// Layout: Header (fixed) → Body (expand) → Buttons (fixed)
-	c.Flex.AddItem(c.headerSection, 0, 1, false)  // Header section - compact
+	// Layout: Header (expanded) → Body (expand) → Buttons (fixed)
+	c.Flex.AddItem(c.headerSection, 0, 2, false)  // Header section - more space for To/Subject visibility
 	c.Flex.AddItem(c.bodyContainer, 0, 4, false)  // Body container - most space
 	c.Flex.AddItem(c.buttonSection, 3, 0, false)  // Button section - fixed height
 }
@@ -656,7 +657,38 @@ func (c *CompositionPanel) parseRecipients(text string) []services.Recipient {
 	return recipients
 }
 
-// sendComposition sends the current composition
+// updateSendButtonState updates the send button appearance and state
+func (c *CompositionPanel) updateSendButtonState(state string) {
+	componentColors := c.app.GetComponentColors("compose")
+	
+	switch state {
+	case "normal":
+		c.sendButton.SetLabel("Send (Ctrl+Enter)")
+		c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for active
+		c.sendButton.SetLabelColor(componentColors.Background.Color())
+		// Re-enable button action
+		c.sendButton.SetSelectedFunc(func() { go c.sendComposition() })
+	case "sending":
+		c.sendButton.SetLabel("Sending...")
+		c.sendButton.SetBackgroundColor(componentColors.Border.Color()) // Gray for disabled
+		c.sendButton.SetLabelColor(componentColors.Text.Color())
+		// Don't override SetSelectedFunc completely - might interfere with ESC handling
+		// Just make it a no-op for button clicks but keep the handler structure intact
+		c.sendButton.SetSelectedFunc(func() { 
+			// Button disabled during sending - ignore clicks but don't block ESC
+		})
+	case "sent":
+		c.sendButton.SetLabel("Sent!")
+		c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for success
+		c.sendButton.SetLabelColor(componentColors.Background.Color())
+		// Keep handler but make it no-op
+		c.sendButton.SetSelectedFunc(func() { 
+			// Email sent - button disabled but ESC should still work
+		})
+	}
+}
+
+// sendComposition sends the current composition with enhanced feedback
 func (c *CompositionPanel) sendComposition() {
 	if c.composition == nil {
 		c.app.GetErrorHandler().ShowError(c.app.ctx, "No composition to send")
@@ -679,19 +711,47 @@ func (c *CompositionPanel) sendComposition() {
 		return
 	}
 	
-	// Send composition
-	c.app.GetErrorHandler().ShowProgress(c.app.ctx, "Sending email...")
+	// 1. Update button state to show sending
+	c.updateSendButtonState("sending")
 	
-	err := compositionService.SendComposition(context.Background(), c.composition)
-	c.app.GetErrorHandler().ClearProgress()
+	// 2. Show initial progress in status bar
+	c.app.GetErrorHandler().ShowProgress(c.app.ctx, "Preparing email...")
 	
-	if err != nil {
-		c.app.GetErrorHandler().ShowError(c.app.ctx, fmt.Sprintf("Failed to send email: %v", err))
-		return
-	}
-	
-	c.app.GetErrorHandler().ShowSuccess(c.app.ctx, "Email sent successfully!")
-	c.hide()
+	// 3. Simplified send operation - avoid nested goroutines that can deadlock
+	go func() {
+		// Brief delay to show preparation step
+		time.Sleep(200 * time.Millisecond)
+		c.app.GetErrorHandler().ShowProgress(c.app.ctx, "Sending email...")
+		
+		// Send composition
+		err := compositionService.SendComposition(context.Background(), c.composition)
+		c.app.GetErrorHandler().ClearProgress()
+		
+		if err != nil {
+			// Handle error case immediately
+			c.app.QueueUpdateDraw(func() {
+				c.updateSendButtonState("normal")
+				c.app.GetErrorHandler().ShowError(c.app.ctx, fmt.Sprintf("Failed to send email: %v", err))
+			})
+			return
+		}
+		
+		// Success case - handle immediately without complex nested logic
+		c.app.QueueUpdateDraw(func() {
+			c.updateSendButtonState("sent")
+		})
+		
+		// Show success message
+		recipientCount := len(c.composition.To) + len(c.composition.CC) + len(c.composition.BCC)
+		successMsg := fmt.Sprintf("Email sent to %d recipient(s)!", recipientCount)
+		c.app.GetErrorHandler().ShowSuccess(c.app.ctx, successMsg)
+		
+		// Auto-close after brief delay
+		time.Sleep(1500 * time.Millisecond)
+		c.app.QueueUpdateDraw(func() {
+			c.hide()
+		})
+	}()
 }
 
 // saveDraft saves the current composition as a draft
@@ -747,8 +807,8 @@ func (c *CompositionPanel) hide() {
 	c.updateCCBCCVisibility()
 	c.updateFocusOrder()
 	
-	// Remove the composition page
-	c.app.Pages.RemovePage("compose")
+	// Remove the composition page (with status bar layout)
+	c.app.Pages.RemovePage("compose_with_status")
 	
 	// Return focus to main view
 	if list := c.app.views["list"]; list != nil {

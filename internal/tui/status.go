@@ -90,6 +90,12 @@ func (a *App) statusBaseline() string {
 	} else {
 		base += " | 🧾"
 	}
-	// Simplified baseline message per request
+	
+	// Check if composition panel is active and show context-appropriate message
+	if a != nil && a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+		return base + " | Press ? for help | Email composer view"
+	}
+	
+	// Default baseline message
 	return base + " | Press ? for help"
 }

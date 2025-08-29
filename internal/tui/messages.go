@@ -3396,8 +3396,7 @@ func (a *App) replySelected() {
 		return
 	}
 	
-	a.compositionPanel.Show(services.CompositionTypeReply, messageID)
-	a.Pages.AddPage("compose", a.compositionPanel, true, true)
+	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
 }
 
 // showAttachments opens the attachment picker for the current message
@@ -3493,8 +3492,7 @@ func (a *App) composeMessage(draft bool) {
 		return
 	}
 	
-	a.compositionPanel.Show(services.CompositionTypeNew, "")
-	a.Pages.AddPage("compose", a.compositionPanel, true, true)
+	a.showCompositionWithStatusBar(services.CompositionTypeNew, "")
 }
 
 // calculateHeaderHeight calculates the height needed for header content (same logic as adjustHeaderHeight)
