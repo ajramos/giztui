@@ -243,6 +243,48 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 	return createdDraft.Id, nil
 }
 
+// UpdateDraft updates an existing draft message
+func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) error {
+	msg := &mail.Message{
+		Header: mail.Header{
+			"From":    []string{"me"},
+			"To":      []string{to},
+			"Subject": []string{subject},
+		},
+		Body: strings.NewReader(body),
+	}
+
+	if len(cc) > 0 {
+		msg.Header["Cc"] = cc
+	}
+
+	var sb strings.Builder
+	for k, v := range msg.Header {
+		sb.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+	}
+	sb.WriteString("MIME-Version: 1.0\r\n")
+	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	sb.WriteString("\r\n")
+	sb.WriteString(body)
+
+	raw := base64.URLEncoding.EncodeToString([]byte(sb.String()))
+
+	draft := &gmail.Draft{
+		Id: draftID,
+		Message: &gmail.Message{
+			Raw: raw,
+		},
+	}
+
+	user := "me"
+	_, err := c.Service.Users.Drafts.Update(user, draftID, draft).Do()
+	if err != nil {
+		return fmt.Errorf("could not update draft: %w", err)
+	}
+
+	return nil
+}
+
 // SendMessage sends a message
 func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
 	msg := &mail.Message{

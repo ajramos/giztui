@@ -361,6 +361,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(focusedColor)
 		}
+	case "drafts":
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(focusedColor)
+		}
 	}
 }
 

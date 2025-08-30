@@ -141,6 +141,8 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 		if a.logger != nil {
 			a.logger.Printf("DEBUG: GetComponentColors requested 'compose' - using ComponentTypeCompose")
 		}
+	case "drafts":
+		componentType = config.ComponentTypeDrafts
 	default:
 		componentType = config.ComponentTypeGeneral
 	}

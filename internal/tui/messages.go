@@ -3539,8 +3539,15 @@ func (a *App) listArchivedMessages() {
 	a.performSearch("in:archive")
 }
 
-// loadDrafts placeholder
-func (a *App) loadDrafts() { a.showInfo("Drafts functionality not yet implemented") }
+// loadDrafts shows a draft picker in the side panel
+func (a *App) loadDrafts() {
+	if a.logger != nil {
+		a.logger.Printf("loadDrafts: opening draft picker")
+	}
+
+	// Use side panel like labels
+	go a.populateDraftsView()
+}
 
 // composeMessage starts composing a new email
 func (a *App) composeMessage(draft bool) {
@@ -3603,4 +3610,340 @@ func (a *App) toggleHeaderVisibility() {
 	if a.logger != nil {
 		a.logger.Printf("toggleHeaderVisibility: headers now %v", map[bool]string{true: "visible", false: "hidden"}[newState])
 	}
+}
+
+// populateDraftsView loads and displays drafts in an enhanced picker with search functionality
+func (a *App) populateDraftsView() {
+	if a.logger != nil {
+		a.logger.Printf("populateDraftsView: starting enhanced draft picker")
+	}
+
+	// Get services
+	_, _, _, _, messageRepo, compositionService, _, _, _, _, _, _ := a.GetServices()
+
+	// Create enhanced draft picker components
+	input := tview.NewInputField()
+	list := tview.NewList().ShowSecondaryText(true)
+	list.SetBorder(false)
+	
+	// Apply drafts theme colors
+	draftsColors := a.GetComponentColors("drafts")
+	input.SetFieldBackgroundColor(draftsColors.Background.Color())
+	input.SetFieldTextColor(draftsColors.Text.Color())
+	input.SetLabelColor(draftsColors.Title.Color())
+	input.SetLabel("🔍 Search drafts: ")
+	
+	list.SetMainTextColor(draftsColors.Text.Color())
+	list.SetSelectedTextColor(draftsColors.Background.Color())
+	list.SetSelectedBackgroundColor(draftsColors.Accent.Color())
+	list.SetBackgroundColor(draftsColors.Background.Color())
+
+	// Draft data structures
+	type draftItem struct {
+		id       string
+		subject  string
+		snippet  string
+		date     string
+		to       string
+	}
+
+	var allDrafts []draftItem
+	var visibleDrafts []draftItem
+
+	// Reload function for filtering
+	reload := func(filter string) {
+		list.Clear()
+		visibleDrafts = visibleDrafts[:0]
+		
+		for i, draft := range allDrafts {
+			if filter != "" {
+				filterLower := strings.ToLower(filter)
+				if !strings.Contains(strings.ToLower(draft.subject), filterLower) &&
+					!strings.Contains(strings.ToLower(draft.snippet), filterLower) &&
+					!strings.Contains(strings.ToLower(draft.to), filterLower) {
+					// Check for special filters
+					if strings.HasPrefix(filterLower, "to:") {
+						toFilter := strings.TrimPrefix(filterLower, "to:")
+						if !strings.Contains(strings.ToLower(draft.to), toFilter) {
+							continue
+						}
+					} else if strings.HasPrefix(filterLower, "subject:") {
+						subjectFilter := strings.TrimPrefix(filterLower, "subject:")
+						if !strings.Contains(strings.ToLower(draft.subject), subjectFilter) {
+							continue
+						}
+					} else {
+						continue
+					}
+				}
+			}
+			
+			visibleDrafts = append(visibleDrafts, draft)
+			
+			// Create display text
+			displayText := fmt.Sprintf("📝 %s", draft.subject)
+			secondaryText := draft.snippet
+			if draft.to != "" {
+				secondaryText = fmt.Sprintf("To: %s | %s", draft.to, draft.snippet)
+			}
+			
+			// Capture draft ID for closure
+			draftID := draft.id
+			shortcut := rune(0)
+			if i < 9 {
+				shortcut = rune('1' + i)
+			}
+			
+			list.AddItem(displayText, secondaryText, shortcut, func() {
+				a.hideDraftsPicker()
+				a.loadDraftForEditing(draftID, compositionService)
+			})
+		}
+
+		// Add "Compose New Message" option if we have space
+		if len(visibleDrafts) < 9 {
+			list.AddItem("", "", 0, func() {}) // Separator
+			list.AddItem("✏️ Compose New Message", "Create a new email", 'n', func() {
+				a.hideDraftsPicker()
+				a.composeMessage(false)
+			})
+		}
+
+		// Update search input label with count
+		if len(allDrafts) > 0 {
+			input.SetLabel(fmt.Sprintf("🔍 Search drafts (%d/%d): ", len(visibleDrafts), len(allDrafts)))
+		} else {
+			input.SetLabel("🔍 Search drafts: ")
+		}
+	}
+
+	// Load drafts in background
+	go func() {
+		drafts, err := messageRepo.GetDrafts(a.ctx, 50)
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("populateDraftsView: failed to load drafts: %v", err)
+			}
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load drafts: %v", err))
+			return
+		}
+
+		if len(drafts) == 0 {
+			a.GetErrorHandler().ShowInfo(a.ctx, "No drafts found")
+			return
+		}
+
+		// Convert to draftItem format
+		allDrafts = make([]draftItem, 0, len(drafts))
+		for _, draft := range drafts {
+			subject := "No Subject"
+			snippet := ""
+			to := ""
+			
+			if draft.Message != nil && draft.Message.Payload != nil && draft.Message.Payload.Headers != nil {
+				for _, header := range draft.Message.Payload.Headers {
+					switch header.Name {
+					case "Subject":
+						subject = header.Value
+					case "To":
+						to = header.Value
+						if len(to) > 30 {
+							to = to[:30] + "..."
+						}
+					}
+				}
+				if draft.Message.Snippet != "" {
+					snippet = draft.Message.Snippet
+					if len(snippet) > 50 {
+						snippet = snippet[:50] + "..."
+					}
+				}
+			}
+
+			allDrafts = append(allDrafts, draftItem{
+				id:      draft.Id,
+				subject: subject,
+				snippet: snippet,
+				to:      to,
+			})
+		}
+
+		a.QueueUpdateDraw(func() {
+			if a.logger != nil {
+				a.logger.Printf("populateDraftsView: rendering enhanced picker with %d drafts", len(allDrafts))
+			}
+			
+			// Set up search functionality
+			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
+
+			// Navigation from input to list
+			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyTab {
+					if list.GetItemCount() > 0 {
+						a.SetFocus(list)
+						return nil
+					}
+				}
+				if e.Key() == tcell.KeyEscape {
+					a.hideDraftsPicker()
+					return nil
+				}
+				if e.Key() == tcell.KeyEnter {
+					// Select first visible draft if any
+					if len(visibleDrafts) > 0 {
+						a.hideDraftsPicker()
+						a.loadDraftForEditing(visibleDrafts[0].id, compositionService)
+						return nil
+					}
+				}
+				// Handle number shortcuts
+				if e.Rune() >= '1' && e.Rune() <= '9' {
+					num := int(e.Rune() - '0')
+					if num <= len(visibleDrafts) {
+						a.hideDraftsPicker()
+						a.loadDraftForEditing(visibleDrafts[num-1].id, compositionService)
+						return nil
+					}
+				}
+				if e.Rune() == 'n' || e.Rune() == 'N' {
+					a.hideDraftsPicker()
+					a.composeMessage(false)
+					return nil
+				}
+				return e
+			})
+
+			// Navigation from list back to input
+			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
+					a.SetFocus(input)
+					return nil
+				}
+				if e.Key() == tcell.KeyEscape {
+					a.hideDraftsPicker()
+					return nil
+				}
+				// Handle number shortcuts in list too
+				if e.Rune() >= '1' && e.Rune() <= '9' {
+					num := int(e.Rune() - '0')
+					if num <= len(visibleDrafts) {
+						a.hideDraftsPicker()
+						a.loadDraftForEditing(visibleDrafts[num-1].id, compositionService)
+						return nil
+					}
+				}
+				if e.Rune() == 'n' || e.Rune() == 'N' {
+					a.hideDraftsPicker()
+					a.composeMessage(false)
+					return nil
+				}
+				return e
+			})
+
+			// Create container with proper layout
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			container.SetBackgroundColor(draftsColors.Background.Color())
+			container.SetBorder(true)
+			container.SetTitle(" 📝 Drafts ")
+			container.SetTitleColor(draftsColors.Title.Color())
+			container.SetBorderColor(draftsColors.Border.Color())
+			
+			// Set background on child components
+			input.SetBackgroundColor(draftsColors.Background.Color())
+			list.SetBackgroundColor(draftsColors.Background.Color())
+			
+			// Add components to container
+			container.AddItem(input, 3, 0, true)   // Search input (3 lines, fixed)
+			container.AddItem(list, 0, 1, true)    // Draft list (flexible)
+
+			// Footer with instructions
+			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+			footer.SetText(" Enter/1-9 to edit | n to compose new | Esc to cancel ")
+			footer.SetTextColor(draftsColors.Text.Color())
+			footer.SetBackgroundColor(draftsColors.Background.Color())
+			container.AddItem(footer, 1, 0, false) // Instructions (1 line, fixed)
+
+			// Show the enhanced picker
+			a.showDraftsPicker(container)
+			
+			// Initial load and focus on input
+			reload("")
+			a.SetFocus(input)
+		})
+	}()
+}
+
+// showDraftsPicker shows the enhanced draft picker in the side panel
+func (a *App) showDraftsPicker(container *tview.Flex) {
+	// Following the pattern from other side panels (labels, attachments, etc.)
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		// Hide any existing panels first
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		
+		// Replace a.labelsView with our enhanced container (same pattern as other pickers)
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true) // true = focusable for tab navigation
+		split.ResizeItem(a.labelsView, 0, 1)
+		
+		// Update state
+		a.labelsVisible = true // Reuse the labels state for side panel visibility
+		a.currentFocus = "drafts" // Set focus state to drafts
+		a.updateFocusIndicators("drafts")
+		
+		if a.logger != nil {
+			a.logger.Printf("showDraftsPicker: enhanced draft picker visible")
+		}
+	}
+}
+
+// hideDraftsPicker hides the draft picker and restores normal layout
+func (a *App) hideDraftsPicker() {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
+		// Remove drafts list (using same slot as labels)
+		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
+		
+		// Update state
+		a.labelsVisible = false
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
+		
+		if a.logger != nil {
+			a.logger.Printf("hideDraftsPicker: draft picker hidden")
+		}
+	}
+}
+
+// loadDraftForEditing loads a draft and opens it in the composition panel
+func (a *App) loadDraftForEditing(draftID string, compositionService services.CompositionService) {
+	if a.logger != nil {
+		a.logger.Printf("loadDraftForEditing: loading draft %s", draftID)
+	}
+	
+	// Hide the drafts picker first
+	a.hideDraftsPicker()
+	
+	// Load the draft using the composition service
+	go func() {
+		composition, err := compositionService.LoadDraftComposition(a.ctx, draftID)
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("loadDraftForEditing: failed to load draft: %v", err)
+			}
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load draft: %v", err))
+			return
+		}
+		
+		// Show the composition panel with the loaded draft
+		// Call ShowWithComposition directly from the goroutine (it handles its own QueueUpdateDraw)
+		if a.compositionPanel != nil {
+			a.compositionPanel.ShowWithComposition(composition)
+		}
+		
+		if a.logger != nil {
+			a.logger.Printf("loadDraftForEditing: draft loaded and composition panel opened")
+		}
+	}()
 }

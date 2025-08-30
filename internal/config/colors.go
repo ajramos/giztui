@@ -300,6 +300,7 @@ const (
 	ComponentTypeLabels       ComponentType = "labels"
 	ComponentTypeThemes       ComponentType = "themes"
 	ComponentTypeCompose      ComponentType = "compose"
+	ComponentTypeDrafts       ComponentType = "drafts"
 )
 
 // GetComponentColor resolves a color for a specific component and color type

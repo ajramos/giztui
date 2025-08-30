@@ -75,3 +75,6 @@ gmailTUI:
     compose:
       primary: "#8be9fd" # Cyan for email composition titles
       accent: "#50fa7b" # Green for send/success actions
+    drafts:
+      primary: "#ffb86c" # Orange for draft picker titles
+      accent: "#f1fa8c" # Yellow for draft highlights

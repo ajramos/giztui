@@ -181,25 +181,43 @@ func (s *CompositionServiceImpl) SaveDraft(ctx context.Context, composition *Com
 		return "", fmt.Errorf("composition validation failed: %v", errors)
 	}
 
-	// Convert composition to email format (will be used when implementing actual Gmail API calls)
-	_ = s.formatRecipients(composition.To)   // to
-	_ = s.formatRecipients(composition.CC)   // cc
-	_ = s.formatRecipients(composition.BCC)  // bcc
+	// Convert composition to email format for Gmail API
+	to := s.formatRecipients(composition.To)
+	cc := make([]string, len(composition.CC))
+	for i, recipient := range composition.CC {
+		cc[i] = recipient.Email
+	}
 	
-	// Create draft via Gmail API (simplified)
-	// Real implementation would use gmailClient to create/update draft
-	draftID := composition.DraftID
-	if draftID == "" {
-		draftID = "draft_" + composition.ID
+	var draftID string
+	var err error
+	
+	// Check if this composition already has a draft ID (update existing) or create new
+	if composition.DraftID != "" {
+		// Update existing draft
+		err = s.gmailClient.UpdateDraft(composition.DraftID, to, composition.Subject, composition.Body, cc)
+		if err != nil {
+			return "", fmt.Errorf("failed to update existing draft via Gmail API: %w", err)
+		}
+		draftID = composition.DraftID
+		
+		if s.logger != nil {
+			s.logger.Printf("CompositionService: Updated existing Gmail draft %s for composition %s", draftID, composition.ID)
+		}
+	} else {
+		// Create new draft
+		draftID, err = s.gmailClient.CreateDraft(to, composition.Subject, composition.Body, cc)
+		if err != nil {
+			return "", fmt.Errorf("failed to create new draft via Gmail API: %w", err)
+		}
+		
+		if s.logger != nil {
+			s.logger.Printf("CompositionService: Created new Gmail draft %s for composition %s", draftID, composition.ID)
+		}
 	}
 
 	composition.DraftID = draftID
 	composition.IsDraft = true
 	composition.ModifiedAt = time.Now()
-
-	if s.logger != nil {
-		s.logger.Printf("CompositionService: Saved composition %s as draft %s", composition.ID, draftID)
-	}
 
 	return draftID, nil
 }
