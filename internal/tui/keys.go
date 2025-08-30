@@ -61,6 +61,18 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.replySelected()
 		return true
+	case a.Keys.ReplyAll:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> reply_all", key)
+		}
+		go a.replyAllSelected()
+		return true
+	case a.Keys.Forward:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> forward", key)
+		}
+		go a.forwardSelected()
+		return true
 	case a.Keys.Compose:
 		// CRITICAL: Check if this is 'n' and we're in content search context
 		if key == "n" && a.currentFocus == "text" && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
@@ -394,6 +406,8 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.GenerateReply ||
 		keyStr == a.Keys.SuggestLabel ||
 		keyStr == a.Keys.Reply ||
+		keyStr == a.Keys.ReplyAll ||
+		keyStr == a.Keys.Forward ||
 		keyStr == a.Keys.Compose ||
 		keyStr == a.Keys.Refresh ||
 		keyStr == a.Keys.Search ||

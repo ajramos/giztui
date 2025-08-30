@@ -58,6 +58,8 @@
     "generate_reply": "gr", // generate reply
     "suggest_label": "gl",  // suggest label
     "reply": "r",           // reply (same as default)
+    "reply_all": "ra",      // reply all (vim-style sequence)
+    "forward": "f",         // forward message
     "compose": "i",         // insert mode for new message
     "load_more": "G",       // go to bottom (load more)
     "refresh": "R",         // refresh (same as default)

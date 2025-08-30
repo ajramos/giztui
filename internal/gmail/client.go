@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"mime"
 	"mime/quotedprintable"
 	"net/mail"
 	"strings"
@@ -510,7 +511,14 @@ func extractHeader(msg *gmail.Message, name string) string {
 
 	for _, header := range msg.Payload.Headers {
 		if header.Name == name {
-			return header.Value
+			// Decode MIME-encoded headers (RFC 2047)
+			decoder := &mime.WordDecoder{}
+			decoded, err := decoder.DecodeHeader(header.Value)
+			if err != nil {
+				// If decoding fails, return the original value
+				return header.Value
+			}
+			return decoded
 		}
 	}
 

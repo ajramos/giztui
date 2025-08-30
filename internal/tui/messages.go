@@ -3433,6 +3433,32 @@ func (a *App) replySelected() {
 	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
 }
 
+// replyAllSelected opens the composition panel for replying to all recipients
+func (a *App) replyAllSelected() {
+	messageID := a.GetCurrentMessageID()
+	if messageID == "" {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		}()
+		return
+	}
+	
+	a.showCompositionWithStatusBar(services.CompositionTypeReplyAll, messageID)
+}
+
+// forwardSelected opens the composition panel for forwarding the current message
+func (a *App) forwardSelected() {
+	messageID := a.GetCurrentMessageID()
+	if messageID == "" {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		}()
+		return
+	}
+	
+	a.showCompositionWithStatusBar(services.CompositionTypeForward, messageID)
+}
+
 // showAttachments opens the attachment picker for the current message
 func (a *App) showAttachments() {
 	go a.openAttachmentPicker()

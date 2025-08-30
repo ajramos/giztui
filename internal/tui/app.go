@@ -1770,6 +1770,8 @@ func (a *App) generateHelpText() string {
 	// Essential Operations
 	help.WriteString("📧 MESSAGE BASICS\n\n")
 	help.WriteString(fmt.Sprintf("    %-8s  💬  Reply to message\n", a.Keys.Reply))
+	help.WriteString(fmt.Sprintf("    %-8s  👥  Reply to all recipients\n", a.Keys.ReplyAll))
+	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Forward message\n", a.Keys.Forward))
 	help.WriteString(fmt.Sprintf("    %-8s  ✏️   Compose new message\n", a.Keys.Compose))
 	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive message\n", a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Move to trash\n", a.Keys.Trash))

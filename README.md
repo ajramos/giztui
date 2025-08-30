@@ -14,7 +14,8 @@ A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses t
 - ✅ Search and navigation support with VIM-style commands (`:5`, `G`, `gg`)
 - ✅ **Enhanced content navigation** - Fast browsing within message content with search, paragraph jumping, and word navigation
 - ✅ **Dynamic header visibility** 🆕 - Toggle email headers to maximize content space for complex messages
-- 🚧 WIP: Compose, Reply, Drafts, Attachments
+- ✅ **Email Composition** - Compose, Reply, Reply-All, and Forward messages with CC/BCC support
+- 🚧 WIP: Drafts, Attachments
 
 ### 🧵 **Message Threading** 🆕
 - ✅ **Smart conversation grouping** - Messages grouped by Gmail thread ID with visual hierarchy
@@ -476,6 +477,8 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `t` | `:read` or `:toggle-read` or `:t` | Toggle read/unread status |
 | `U` | `:undo` or `:U` | 🆕 **Undo last action** |
 | `r` | `:reply` or `:r` | Reply to message |
+| `E` | `:reply-all` or `:ra` | Reply to all recipients |
+| `w` | `:forward` or `:f` | Forward message |
 | `c` | `:compose` or `:new` | Compose new message |
 | `N` | `:load` or `:more` or `:next` | Load next 50 messages |
 | `u` | `:unread` or `:u` | Show unread messages |
