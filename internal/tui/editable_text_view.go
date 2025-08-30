@@ -159,9 +159,9 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 			e.updateDisplay()
 			return nil // CONSUME the event
 		case tcell.KeyEnd:
-			// Move to end of line
+			// Move to end of line using rune-based length
 			if e.cursorLine < len(e.lines) {
-				e.cursorColumn = len(e.lines[e.cursorLine])
+				e.cursorColumn = len([]rune(e.lines[e.cursorLine]))
 			}
 			e.updateDisplay()
 			return nil // CONSUME the event
@@ -358,13 +358,20 @@ func (e *EditableTextView) insertCharacter(ch rune) {
 	}
 	
 	line := e.lines[e.cursorLine]
-	if e.cursorColumn > len(line) {
-		e.cursorColumn = len(line)
+	runes := []rune(line)
+	
+	// Ensure cursor position is valid in rune space
+	if e.cursorColumn > len(runes) {
+		e.cursorColumn = len(runes)
 	}
 	
-	// Insert character at cursor position
-	newLine := line[:e.cursorColumn] + string(ch) + line[e.cursorColumn:]
-	e.lines[e.cursorLine] = newLine
+	// Insert character at cursor position using rune-based indexing
+	newRunes := make([]rune, len(runes)+1)
+	copy(newRunes, runes[:e.cursorColumn])
+	newRunes[e.cursorColumn] = ch
+	copy(newRunes[e.cursorColumn+1:], runes[e.cursorColumn:])
+	
+	e.lines[e.cursorLine] = string(newRunes)
 	e.cursorColumn++
 	
 	e.textChanged()
@@ -378,13 +385,16 @@ func (e *EditableTextView) insertNewline() {
 	}
 	
 	line := e.lines[e.cursorLine]
-	if e.cursorColumn > len(line) {
-		e.cursorColumn = len(line)
+	runes := []rune(line)
+	
+	// Ensure cursor position is valid in rune space
+	if e.cursorColumn > len(runes) {
+		e.cursorColumn = len(runes)
 	}
 	
-	// Split line at cursor position
-	leftPart := line[:e.cursorColumn]
-	rightPart := line[e.cursorColumn:]
+	// Split line at cursor position using rune-based indexing
+	leftPart := string(runes[:e.cursorColumn])
+	rightPart := string(runes[e.cursorColumn:])
 	
 	// Update current line and insert new line
 	e.lines[e.cursorLine] = leftPart
@@ -404,11 +414,17 @@ func (e *EditableTextView) insertNewline() {
 // handleBackspace handles backspace key
 func (e *EditableTextView) handleBackspace() {
 	if e.cursorColumn > 0 {
-		// Remove character before cursor
+		// Remove character before cursor using rune-based indexing
 		line := e.lines[e.cursorLine]
-		newLine := line[:e.cursorColumn-1] + line[e.cursorColumn:]
-		e.lines[e.cursorLine] = newLine
-		e.cursorColumn--
+		runes := []rune(line)
+		
+		if e.cursorColumn <= len(runes) {
+			newRunes := make([]rune, len(runes)-1)
+			copy(newRunes, runes[:e.cursorColumn-1])
+			copy(newRunes[e.cursorColumn-1:], runes[e.cursorColumn:])
+			e.lines[e.cursorLine] = string(newRunes)
+			e.cursorColumn--
+		}
 	} else if e.cursorLine > 0 {
 		// Join current line with previous line
 		prevLine := e.lines[e.cursorLine-1]
@@ -420,9 +436,9 @@ func (e *EditableTextView) handleBackspace() {
 		copy(newLines[e.cursorLine:], e.lines[e.cursorLine+1:])
 		e.lines = newLines
 		
-		// Move cursor to end of previous line
+		// Move cursor to end of previous line (rune-based length)
 		e.cursorLine--
-		e.cursorColumn = len(prevLine)
+		e.cursorColumn = len([]rune(prevLine))
 		
 		// Join the lines
 		e.lines[e.cursorLine] = prevLine + currentLine
@@ -438,10 +454,14 @@ func (e *EditableTextView) handleDelete() {
 	}
 	
 	line := e.lines[e.cursorLine]
-	if e.cursorColumn < len(line) {
-		// Remove character at cursor
-		newLine := line[:e.cursorColumn] + line[e.cursorColumn+1:]
-		e.lines[e.cursorLine] = newLine
+	runes := []rune(line)
+	
+	if e.cursorColumn < len(runes) {
+		// Remove character at cursor using rune-based indexing
+		newRunes := make([]rune, len(runes)-1)
+		copy(newRunes, runes[:e.cursorColumn])
+		copy(newRunes[e.cursorColumn:], runes[e.cursorColumn+1:])
+		e.lines[e.cursorLine] = string(newRunes)
 	} else if e.cursorLine < len(e.lines)-1 {
 		// Join with next line
 		nextLine := e.lines[e.cursorLine+1]
@@ -465,9 +485,10 @@ func (e *EditableTextView) handleDelete() {
 func (e *EditableTextView) moveCursorUp() {
 	if e.cursorLine > 0 {
 		e.cursorLine--
-		// Clamp column to line length
-		if e.cursorColumn > len(e.lines[e.cursorLine]) {
-			e.cursorColumn = len(e.lines[e.cursorLine])
+		// Clamp column to line length using rune-based length
+		lineLength := len([]rune(e.lines[e.cursorLine]))
+		if e.cursorColumn > lineLength {
+			e.cursorColumn = lineLength
 		}
 		e.updateDisplay()
 	}
@@ -477,9 +498,10 @@ func (e *EditableTextView) moveCursorUp() {
 func (e *EditableTextView) moveCursorDown() {
 	if e.cursorLine < len(e.lines)-1 {
 		e.cursorLine++
-		// Clamp column to line length
-		if e.cursorColumn > len(e.lines[e.cursorLine]) {
-			e.cursorColumn = len(e.lines[e.cursorLine])
+		// Clamp column to line length using rune-based length
+		lineLength := len([]rune(e.lines[e.cursorLine]))
+		if e.cursorColumn > lineLength {
+			e.cursorColumn = lineLength
 		}
 		e.updateDisplay()
 	}
@@ -491,23 +513,26 @@ func (e *EditableTextView) moveCursorLeft() {
 		e.cursorColumn--
 		e.updateDisplay()
 	} else if e.cursorLine > 0 {
-		// Move to end of previous line
+		// Move to end of previous line using rune-based length
 		e.cursorLine--
-		e.cursorColumn = len(e.lines[e.cursorLine])
+		e.cursorColumn = len([]rune(e.lines[e.cursorLine]))
 		e.updateDisplay()
 	}
 }
 
 // moveCursorRight moves cursor right one character
 func (e *EditableTextView) moveCursorRight() {
-	if e.cursorLine < len(e.lines) && e.cursorColumn < len(e.lines[e.cursorLine]) {
-		e.cursorColumn++
-		e.updateDisplay()
-	} else if e.cursorLine < len(e.lines)-1 {
-		// Move to beginning of next line
-		e.cursorLine++
-		e.cursorColumn = 0
-		e.updateDisplay()
+	if e.cursorLine < len(e.lines) {
+		lineLength := len([]rune(e.lines[e.cursorLine]))
+		if e.cursorColumn < lineLength {
+			e.cursorColumn++
+			e.updateDisplay()
+		} else if e.cursorLine < len(e.lines)-1 {
+			// Move to beginning of next line
+			e.cursorLine++
+			e.cursorColumn = 0
+			e.updateDisplay()
+		}
 	}
 }
 
@@ -569,15 +594,23 @@ func (e *EditableTextView) updateDisplay() {
 	// Add cursor indicator (█ character) at current position when focused
 	if e.HasFocus() && e.cursorLine < len(displayLines) {
 		line := displayLines[e.cursorLine]
-		if e.cursorColumn <= len(line) {
-			// Insert cursor character
-			cursorChar := "█"
-			if e.cursorColumn == len(line) {
+		runes := []rune(line)
+		
+		if e.cursorColumn <= len(runes) {
+			// Insert cursor character using rune-based indexing
+			cursorRune := '█'
+			if e.cursorColumn == len(runes) {
 				// Cursor at end of line
-				displayLines[e.cursorLine] = line + cursorChar
+				newRunes := make([]rune, len(runes)+1)
+				copy(newRunes, runes)
+				newRunes[len(runes)] = cursorRune
+				displayLines[e.cursorLine] = string(newRunes)
 			} else {
-				// Cursor in middle of line
-				displayLines[e.cursorLine] = line[:e.cursorColumn] + cursorChar + line[e.cursorColumn+1:]
+				// Cursor in middle of line - replace character at cursor position
+				newRunes := make([]rune, len(runes))
+				copy(newRunes, runes)
+				newRunes[e.cursorColumn] = cursorRune
+				displayLines[e.cursorLine] = string(newRunes)
 			}
 		}
 	}
@@ -598,10 +631,11 @@ func (e *EditableTextView) GetCursorPosition() (int, int) {
 func (e *EditableTextView) SetCursorPosition(line, column int) {
 	if line >= 0 && line < len(e.lines) {
 		e.cursorLine = line
-		if column >= 0 && column <= len(e.lines[line]) {
+		lineLength := len([]rune(e.lines[line]))
+		if column >= 0 && column <= lineLength {
 			e.cursorColumn = column
 		} else {
-			e.cursorColumn = len(e.lines[line])
+			e.cursorColumn = lineLength
 		}
 		e.updateDisplay()
 	}

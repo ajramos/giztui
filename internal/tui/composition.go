@@ -54,7 +54,7 @@ type CompositionPanel struct {
 	ccBccVisible      bool
 	currentFocusIndex int
 	focusableItems    []tview.Primitive
-	
+
 	// Auto-save functionality
 	autoSaveTimer   *time.Timer
 	autoSaveEnabled bool
@@ -162,7 +162,7 @@ func (c *CompositionPanel) createComponents() {
 	c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for Send button prominence
 	c.sendButton.SetLabelColor(componentColors.Background.Color())  // Dark text on green background
 
-	c.draftButton = tview.NewButton("💾 Save Draft")
+	c.draftButton = tview.NewButton("💾 Save")
 	c.draftButton.SetBackgroundColor(componentColors.Border.Color())
 	c.draftButton.SetLabelColor(componentColors.Text.Color())
 
@@ -491,10 +491,10 @@ func (c *CompositionPanel) Show(compositionType services.CompositionType, origin
 			if c.app.logger != nil {
 				c.app.logger.Printf("📝 COMPOSER: Panel is now VISIBLE - setting up focus")
 			}
-			c.UpdateTheme() // Ensure theme is applied when shown
+			c.UpdateTheme()                   // Ensure theme is applied when shown
 			c.updateSendButtonState("normal") // Reset send button state for new composition
 			c.currentFocusIndex = 0
-			c.focusCurrent() // Focus first field (To)
+			c.focusCurrent()  // Focus first field (To)
 			c.startAutoSave() // Enable auto-save for composition
 		})
 	}()
@@ -508,10 +508,10 @@ func (c *CompositionPanel) ShowWithComposition(composition *services.Composition
 		if c.app.logger != nil {
 			c.app.logger.Printf("📝 COMPOSER: Panel is now VISIBLE - loading existing composition")
 		}
-		c.UpdateTheme() // Ensure theme is applied when shown
+		c.UpdateTheme()                   // Ensure theme is applied when shown
 		c.updateSendButtonState("normal") // Reset send button state for draft editing
 		c.currentFocusIndex = 0
-		c.focusCurrent() // Focus first field (To)
+		c.focusCurrent()  // Focus first field (To)
 		c.startAutoSave() // Enable auto-save for draft editing
 	})
 }
@@ -925,7 +925,7 @@ func (c *CompositionPanel) hide() {
 
 	// Remove the composition page (with status bar layout)
 	c.app.Pages.RemovePage("compose_with_status")
-	
+
 	// Switch back to main page explicitly
 	c.app.Pages.SwitchToPage("main")
 
@@ -1085,10 +1085,10 @@ func (c *CompositionPanel) startAutoSave() {
 	if c.autoSaveEnabled {
 		return // Already enabled
 	}
-	
+
 	c.autoSaveEnabled = true
 	c.scheduleNextAutoSave()
-	
+
 	if c.app.logger != nil {
 		c.app.logger.Printf("CompositionPanel: Auto-save started")
 	}
@@ -1097,12 +1097,12 @@ func (c *CompositionPanel) startAutoSave() {
 // stopAutoSave disables auto-saving and cleans up the timer
 func (c *CompositionPanel) stopAutoSave() {
 	c.autoSaveEnabled = false
-	
+
 	if c.autoSaveTimer != nil {
 		c.autoSaveTimer.Stop()
 		c.autoSaveTimer = nil
 	}
-	
+
 	if c.app.logger != nil {
 		c.app.logger.Printf("CompositionPanel: Auto-save stopped")
 	}
@@ -1113,10 +1113,10 @@ func (c *CompositionPanel) scheduleNextAutoSave() {
 	if !c.autoSaveEnabled {
 		return
 	}
-	
+
 	// Auto-save every 30 seconds
 	const autoSaveInterval = 30 * time.Second
-	
+
 	c.autoSaveTimer = time.AfterFunc(autoSaveInterval, func() {
 		if c.autoSaveEnabled {
 			c.performAutoSave()
@@ -1130,21 +1130,21 @@ func (c *CompositionPanel) performAutoSave() {
 	if !c.autoSaveEnabled || c.composition == nil {
 		return
 	}
-	
+
 	// Capture current content for comparison
 	currentContent := c.getCurrentContent()
-	
+
 	// Only save if content has changed
 	if currentContent == c.lastSaveContent {
 		return
 	}
-	
+
 	// Update composition with current values
 	c.updateCompositionFromFields()
-	
+
 	// Get composition service
 	_, _, _, _, _, compositionService, _, _, _, _, _, _ := c.app.GetServices()
-	
+
 	// Save as draft
 	go func() {
 		draftID, err := compositionService.SaveDraft(context.Background(), c.composition)
@@ -1155,15 +1155,15 @@ func (c *CompositionPanel) performAutoSave() {
 			// Don't show error to user for background auto-save failures
 			return
 		}
-		
+
 		// Update the draft ID in the composition
 		c.composition.DraftID = draftID
 		c.lastSaveContent = currentContent
-		
+
 		if c.app.logger != nil {
 			c.app.logger.Printf("CompositionPanel: Auto-saved as draft %s", draftID)
 		}
-		
+
 		// Show subtle feedback to user
 		go func() {
 			c.app.GetErrorHandler().ShowInfo(context.Background(), "📝 Draft auto-saved")
@@ -1176,22 +1176,22 @@ func (c *CompositionPanel) getCurrentContent() string {
 	if c.composition == nil {
 		return ""
 	}
-	
+
 	to := ""
 	if c.toField != nil {
 		to = c.toField.GetText()
 	}
-	
+
 	subject := ""
 	if c.subjectField != nil {
 		subject = c.subjectField.GetText()
 	}
-	
+
 	body := ""
 	if c.bodySection != nil {
 		body = c.bodySection.GetText()
 	}
-	
+
 	cc := ""
 	bcc := ""
 	if c.ccBccVisible {
@@ -1202,7 +1202,7 @@ func (c *CompositionPanel) getCurrentContent() string {
 			bcc = c.bccField.GetText()
 		}
 	}
-	
+
 	return fmt.Sprintf("to:%s|cc:%s|bcc:%s|subject:%s|body:%s", to, cc, bcc, subject, body)
 }
 
@@ -1211,7 +1211,7 @@ func (c *CompositionPanel) updateCompositionFromFields() {
 	if c.composition == nil {
 		return
 	}
-	
+
 	// Update recipients
 	if c.toField != nil {
 		c.composition.To = c.parseRecipients(c.toField.GetText())
@@ -1222,7 +1222,7 @@ func (c *CompositionPanel) updateCompositionFromFields() {
 	if c.bccField != nil {
 		c.composition.BCC = c.parseRecipients(c.bccField.GetText())
 	}
-	
+
 	// Update subject and body
 	if c.subjectField != nil {
 		c.composition.Subject = c.subjectField.GetText()
