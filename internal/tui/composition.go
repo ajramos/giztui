@@ -925,6 +925,9 @@ func (c *CompositionPanel) hide() {
 
 	// Remove the composition page (with status bar layout)
 	c.app.Pages.RemovePage("compose_with_status")
+	
+	// Switch back to main page explicitly
+	c.app.Pages.SwitchToPage("main")
 
 	// Return focus to main view
 	if list := c.app.views["list"]; list != nil {

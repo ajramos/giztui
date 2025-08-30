@@ -306,6 +306,15 @@ func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) err
 	return nil
 }
 
+// DeleteDraft deletes a draft message
+func (c *Client) DeleteDraft(draftID string) error {
+	user := "me"
+	if err := c.Service.Users.Drafts.Delete(user, draftID).Do(); err != nil {
+		return fmt.Errorf("could not delete draft %s: %w", draftID, err)
+	}
+	return nil
+}
+
 // SendMessage sends a message
 func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
 	msg := &mail.Message{

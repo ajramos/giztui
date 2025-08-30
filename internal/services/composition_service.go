@@ -244,6 +244,20 @@ func (s *CompositionServiceImpl) SendComposition(ctx context.Context, compositio
 			return fmt.Errorf("failed to send message: %w", err)
 		}
 		
+		// If this was a draft, delete it from Gmail after successful send
+		if composition.DraftID != "" {
+			if deleteErr := s.gmailClient.DeleteDraft(composition.DraftID); deleteErr != nil {
+				// Log the error but don't fail the send operation
+				if s.logger != nil {
+					s.logger.Printf("CompositionService: Failed to delete draft %s after sending: %v", composition.DraftID, deleteErr)
+				}
+			} else {
+				if s.logger != nil {
+					s.logger.Printf("CompositionService: Successfully deleted draft %s after sending", composition.DraftID)
+				}
+			}
+		}
+		
 	case CompositionTypeReply, CompositionTypeReplyAll:
 		// Send as reply
 		if composition.OriginalID == "" {
