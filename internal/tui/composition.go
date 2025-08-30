@@ -487,6 +487,7 @@ func (c *CompositionPanel) Show(compositionType services.CompositionType, origin
 				c.app.logger.Printf("📝 COMPOSER: Panel is now VISIBLE - setting up focus")
 			}
 			c.UpdateTheme() // Ensure theme is applied when shown
+			c.updateSendButtonState("normal") // Reset send button state for new composition
 			c.currentFocusIndex = 0
 			c.focusCurrent() // Focus first field (To)
 		})
@@ -753,7 +754,7 @@ func (c *CompositionPanel) updateSendButtonState(state string) {
 
 	switch state {
 	case "normal":
-		c.sendButton.SetLabel("Send (Ctrl+Enter)")
+		c.sendButton.SetLabel("📧 Send")
 		c.sendButton.SetBackgroundColor(componentColors.Accent.Color()) // Green for active
 		c.sendButton.SetLabelColor(componentColors.Background.Color())
 		// Re-enable button action
