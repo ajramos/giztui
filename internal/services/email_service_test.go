@@ -55,8 +55,8 @@ func (m *MockGmailServiceClient) TrashMessage(messageID string) error {
 	return args.Error(0)
 }
 
-func (m *MockGmailServiceClient) SendMessage(from, to, subject, body string) (string, error) {
-	args := m.Called(from, to, subject, body)
+func (m *MockGmailServiceClient) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
+	args := m.Called(from, to, subject, body, cc, bcc)
 	return args.String(0), args.Error(1)
 }
 
@@ -208,7 +208,7 @@ func TestEmailService_SendMessage_ValidationErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := service.SendMessage(ctx, "from@example.com", tt.to, tt.subject, tt.body)
+			err := service.SendMessage(ctx, "from@example.com", tt.to, tt.subject, tt.body, nil, nil)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expected)
 		})
@@ -382,7 +382,7 @@ func BenchmarkEmailService_ValidationOnly(b *testing.B) {
 	b.Run("SendMessage_EmptyFields", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = service.SendMessage(ctx, "from@example.com", "", "", "")
+			_ = service.SendMessage(ctx, "from@example.com", "", "", "", nil, nil)
 		}
 	})
 
@@ -524,7 +524,7 @@ func TestEmailService_ComprehensiveValidation(t *testing.T) {
 		},
 		{
 			name:        "SendMessage_empty_fields",
-			testFunc:    func() error { return service.SendMessage(ctx, "from@test.com", "", "", "") },
+			testFunc:    func() error { return service.SendMessage(ctx, "from@test.com", "", "", "", nil, nil) },
 			shouldError: true,
 			errorMsg:    "to, subject, and body cannot be empty",
 		},

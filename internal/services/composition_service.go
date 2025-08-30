@@ -224,8 +224,18 @@ func (s *CompositionServiceImpl) SendComposition(ctx context.Context, compositio
 	// Handle different composition types
 	switch composition.Type {
 	case CompositionTypeNew, CompositionTypeForward, CompositionTypeDraft:
+		// Convert CC and BCC recipients to string slices
+		cc := make([]string, len(composition.CC))
+		for i, recipient := range composition.CC {
+			cc[i] = recipient.Email
+		}
+		bcc := make([]string, len(composition.BCC))
+		for i, recipient := range composition.BCC {
+			bcc[i] = recipient.Email
+		}
+		
 		// Send as new message
-		err := s.emailService.SendMessage(ctx, "", to, composition.Subject, composition.Body)
+		err := s.emailService.SendMessage(ctx, "", to, composition.Subject, composition.Body, cc, bcc)
 		if err != nil {
 			return fmt.Errorf("failed to send message: %w", err)
 		}

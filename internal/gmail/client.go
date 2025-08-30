@@ -243,7 +243,7 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 }
 
 // SendMessage sends a message
-func (c *Client) SendMessage(from, to, subject, body string) (string, error) {
+func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{from},
@@ -251,6 +251,14 @@ func (c *Client) SendMessage(from, to, subject, body string) (string, error) {
 			"Subject": []string{subject},
 		},
 		Body: strings.NewReader(body),
+	}
+
+	if len(cc) > 0 {
+		msg.Header["Cc"] = cc
+	}
+
+	if len(bcc) > 0 {
+		msg.Header["Bcc"] = bcc
 	}
 
 	var sb strings.Builder
@@ -306,7 +314,7 @@ func (c *Client) ReplyMessage(originalMsgID, replyBody string, send bool, cc []s
 	from := extractHeader(originalMsg, "From")
 
 	if send {
-		return c.SendMessage("me", from, subject, replyBody)
+		return c.SendMessage("me", from, subject, replyBody, cc, nil) // Pass cc and empty bcc
 	} else {
 		return c.CreateDraft(from, subject, replyBody, cc)
 	}

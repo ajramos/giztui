@@ -307,12 +307,12 @@ func (s *EmailServiceImpl) TrashMessage(ctx context.Context, messageID string) e
 	return s.gmailClient.TrashMessage(messageID)
 }
 
-func (s *EmailServiceImpl) SendMessage(ctx context.Context, from, to, subject, body string) error {
+func (s *EmailServiceImpl) SendMessage(ctx context.Context, from, to, subject, body string, cc, bcc []string) error {
 	if to == "" || subject == "" || body == "" {
 		return fmt.Errorf("to, subject, and body cannot be empty")
 	}
 
-	_, err := s.gmailClient.SendMessage(from, to, subject, body)
+	_, err := s.gmailClient.SendMessage(from, to, subject, body, cc, bcc)
 	return err
 }
 
