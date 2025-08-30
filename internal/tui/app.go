@@ -2217,19 +2217,22 @@ func (a *App) performSearch(query string) {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(a.ids), originalQuery))
 			if table.GetRowCount() > 1 {
-				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
-				if len(a.ids) > 0 {
-					firstID := a.ids[0]
-					a.SetCurrentMessageID(firstID)
-					go a.showMessageWithoutFocus(firstID)
-					// Close AI panel when loading new messages to avoid conflicts
-					if a.aiSummaryVisible {
-						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-							split.ResizeItem(a.aiSummaryView, 0, 0)
-						}
-						a.aiSummaryVisible = false
-						a.aiPanelInPromptMode = false
+				// Only auto-select if composition panel is not active
+				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+					table.Select(1, 0) // Select first message (row 1, since row 0 is header)
+					if len(a.ids) > 0 {
+						firstID := a.ids[0]
+						a.SetCurrentMessageID(firstID)
+						go a.showMessageWithoutFocus(firstID)
 					}
+				}
+				// Close AI panel when loading new messages to avoid conflicts
+				if a.aiSummaryVisible {
+					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+						split.ResizeItem(a.aiSummaryView, 0, 0)
+					}
+					a.aiSummaryVisible = false
+					a.aiPanelInPromptMode = false
 				}
 			}
 		}

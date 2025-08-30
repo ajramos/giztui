@@ -106,7 +106,7 @@ func (c *CompositionPanel) createComponents() {
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
-	c.toField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
+	c.toField.SetPlaceholderTextColor(c.app.getHintColor()) // Match Advanced Search placeholder color
 	
 	c.ccField = tview.NewInputField()
 	c.ccField.SetLabel("CC: ")
@@ -114,7 +114,7 @@ func (c *CompositionPanel) createComponents() {
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
-	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
+	c.ccField.SetPlaceholderTextColor(c.app.getHintColor()) // Match Advanced Search placeholder color
 	
 	c.bccField = tview.NewInputField()
 	c.bccField.SetLabel("BCC: ")
@@ -122,7 +122,7 @@ func (c *CompositionPanel) createComponents() {
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
-	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
+	c.bccField.SetPlaceholderTextColor(c.app.getHintColor()) // Match Advanced Search placeholder color
 	
 	c.subjectField = tview.NewInputField()
 	c.subjectField.SetLabel("Subject: ")
@@ -130,7 +130,7 @@ func (c *CompositionPanel) createComponents() {
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
-	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color()) // Subtle placeholder color
+	c.subjectField.SetPlaceholderTextColor(c.app.getHintColor()) // Match Advanced Search placeholder color
 	
 	// Create CC/BCC toggle button
 	c.ccBccToggle = tview.NewButton("+CC/BCC")
@@ -144,7 +144,7 @@ func (c *CompositionPanel) createComponents() {
 	c.bodySection.SetTextColor(componentColors.Text.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
 	c.bodySection.SetPlaceholder("Enter your message here...")
-	c.bodySection.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.bodySection.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	// Create a container for the body section (no border to save space)
 	c.bodyContainer = tview.NewFlex().SetDirection(tview.FlexRow)
@@ -275,23 +275,23 @@ func (c *CompositionPanel) applyFieldStyling() {
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
-	c.toField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.toField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
-	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.subjectField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	// Apply to CC/BCC fields as well
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
-	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.ccField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
-	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.bccField.SetPlaceholderTextColor(c.app.getHintColor())
 }
 
 // setupButtonSection arranges action buttons horizontally with hint text
@@ -902,6 +902,18 @@ func (c *CompositionPanel) hide() {
 	if list := c.app.views["list"]; list != nil {
 		c.app.SetFocus(list)
 		c.app.currentFocus = "list"
+		
+		// Check if we need to auto-select a message after closing composer
+		if table, ok := list.(*tview.Table); ok {
+			currentRow, _ := table.GetSelection()
+			// If no message is selected and we have messages, select the first one
+			if (currentRow < 1 || c.app.GetCurrentMessageID() == "") && len(c.app.ids) > 0 && table.GetRowCount() > 1 {
+				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
+				firstID := c.app.ids[0]
+				c.app.SetCurrentMessageID(firstID)
+				go c.app.showMessageWithoutFocus(firstID)
+			}
+		}
 	}
 }
 
@@ -967,28 +979,28 @@ func (c *CompositionPanel) UpdateTheme() {
 	c.toField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.toField.SetFieldTextColor(componentColors.Text.Color())
 	c.toField.SetLabelColor(componentColors.Title.Color())
-	c.toField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.toField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	c.ccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.ccField.SetFieldTextColor(componentColors.Text.Color())
 	c.ccField.SetLabelColor(componentColors.Title.Color())
-	c.ccField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.ccField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	c.bccField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.bccField.SetFieldTextColor(componentColors.Text.Color())
 	c.bccField.SetLabelColor(componentColors.Title.Color())
-	c.bccField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.bccField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	c.subjectField.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.subjectField.SetFieldTextColor(componentColors.Text.Color())
 	c.subjectField.SetLabelColor(componentColors.Title.Color())
-	c.subjectField.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.subjectField.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	// Update body section (EditableTextView)
 	c.bodySection.SetBackgroundColor(componentColors.Background.Color())
 	c.bodySection.SetTextColor(componentColors.Text.Color())
 	c.bodySection.SetBorderColor(componentColors.Border.Color())
-	c.bodySection.SetPlaceholderTextColor(componentColors.Border.Color())
+	c.bodySection.SetPlaceholderTextColor(c.app.getHintColor())
 	
 	// Update body container (no border)
 	c.bodyContainer.SetBackgroundColor(componentColors.Background.Color())

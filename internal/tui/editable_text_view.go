@@ -29,6 +29,7 @@ type EditableTextView struct {
 	// Placeholder support
 	placeholder      string
 	placeholderColor tcell.Color
+	originalTextColor tcell.Color  // Store original text color to restore after placeholder
 	
 	// Display state
 	updating     bool  // Prevents recursive updateDisplay calls
@@ -253,10 +254,11 @@ func (e *EditableTextView) SetBackgroundColor(color tcell.Color) *EditableTextVi
 	return e
 }
 
-// SetTextColor delegates to TextView
+// SetTextColor delegates to TextView and stores the color for placeholder restoration
 func (e *EditableTextView) SetTextColor(color tcell.Color) *EditableTextView {
 	if e.textView != nil {
 		e.textView.SetTextColor(color)
+		e.originalTextColor = color // Store for placeholder restoration
 	}
 	return e
 }
@@ -539,11 +541,25 @@ func (e *EditableTextView) updateDisplay() {
 	// Check if content is empty and we have a placeholder
 	isEmpty := len(e.lines) == 1 && e.lines[0] == ""
 	if isEmpty && e.placeholder != "" && !e.HasFocus() {
-		// Show placeholder text with subtle color
-		// For now, use simple tview color names instead of hex
-		placeholderText := fmt.Sprintf("[gray]%s[-]", e.placeholder)
-		e.textView.SetText(placeholderText)
+		// Show placeholder text with theme-aware color
+		// Use the placeholder color that was set, fallback to dim text
+		if e.placeholderColor != tcell.ColorDefault {
+			// Apply the theme-aware placeholder color directly to the TextView
+			e.textView.SetTextColor(e.placeholderColor)
+			e.textView.SetText(e.placeholder)
+			// Note: Text color will be restored by theme system when content is shown
+		} else {
+			// Fallback to grey if no specific color was set
+			placeholderText := fmt.Sprintf("[grey]%s[-]", e.placeholder)
+			e.textView.SetText(placeholderText)
+		}
 		return
+	}
+	
+	// Restore normal text color if we had changed it for placeholder
+	// This is important when transitioning from placeholder to content
+	if e.originalTextColor != tcell.ColorDefault {
+		e.textView.SetTextColor(e.originalTextColor)
 	}
 	
 	// Create display text with cursor indicator

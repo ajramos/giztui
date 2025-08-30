@@ -437,15 +437,19 @@ func (a *App) reloadMessagesFlat() {
 
 			// Always ensure the first message is selected when loading messages
 			if table.GetRowCount() > 1 && len(a.ids) > 0 {
-				// Force selection of first message (row 1, since row 0 is header)
-				table.Select(1, 0)
+				firstID := a.ids[0] // Define firstID here so it's available for both conditions
+				
+				// Only auto-select first message if composition panel is not active
+				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+					// Force selection of first message (row 1, since row 0 is header)
+					table.Select(1, 0)
 
-				// Set the current message ID to the first message
-				firstID := a.ids[0]
-				a.SetCurrentMessageID(firstID)
-
-				// Auto-load content for the first message
-				go a.showMessageWithoutFocus(firstID)
+					// Set the current message ID to the first message
+					a.SetCurrentMessageID(firstID)
+					
+					// Auto-load content for the first message
+					go a.showMessageWithoutFocus(firstID)
+				}
 
 				// Generate AI summary if panel is visible
 				if a.aiSummaryVisible {
@@ -618,12 +622,15 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 				currentRow, _ := table.GetSelection()
 				// If no selection or selection is invalid, select the first message
 				if currentRow < 1 || currentRow >= table.GetRowCount() {
-					table.Select(1, 0) // Select first message (row 1, since row 0 is header)
-					// Update current message ID if not set
-					if a.GetCurrentMessageID() == "" && len(a.ids) > 0 {
-						firstID := a.ids[0]
-						a.SetCurrentMessageID(firstID)
-						go a.showMessageWithoutFocus(firstID)
+					// Only auto-select if composition panel is not active
+					if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+						table.Select(1, 0) // Select first message (row 1, since row 0 is header)
+						// Update current message ID if not set
+						if a.GetCurrentMessageID() == "" && len(a.ids) > 0 {
+							firstID := a.ids[0]
+							a.SetCurrentMessageID(firstID)
+							go a.showMessageWithoutFocus(firstID)
+						}
 					}
 				}
 			}
@@ -1825,12 +1832,15 @@ func (a *App) applyLocalFilter(expr string) {
 			}
 			table.SetTitle(fmt.Sprintf(" 🔎 Filter (%d) — %s ", len(rows), expr))
 			if table.GetRowCount() > 1 {
-				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
-				// Set current message ID to the first filtered message
-				if len(filteredIDs) > 0 {
-					firstID := filteredIDs[0]
-					a.SetCurrentMessageID(firstID)
-					go a.showMessageWithoutFocus(firstID)
+				// Only auto-select if composition panel is not active
+				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+					table.Select(1, 0) // Select first message (row 1, since row 0 is header)
+					// Set current message ID to the first filtered message
+					if len(filteredIDs) > 0 {
+						firstID := filteredIDs[0]
+						a.SetCurrentMessageID(firstID)
+						go a.showMessageWithoutFocus(firstID)
+					}
 				}
 			}
 		}
