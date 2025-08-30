@@ -17,6 +17,7 @@ type MessageRepository interface {
 	SearchMessages(ctx context.Context, query string, opts QueryOptions) (*MessagePage, error)
 	UpdateMessage(ctx context.Context, id string, updates MessageUpdates) error
 	GetDrafts(ctx context.Context, maxResults int64) ([]*gmail_v1.Draft, error)
+	GetDraft(ctx context.Context, draftID string) (*gmail_v1.Draft, error)
 }
 
 // EmailService handles email business logic

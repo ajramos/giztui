@@ -2461,6 +2461,35 @@ func (a *App) showCompositionWithStatusBar(compositionType services.CompositionT
 	}
 }
 
+// showCompositionWithDraft shows the composition panel with a loaded draft and persistent status bar
+func (a *App) showCompositionWithDraft(composition *services.Composition) {
+	// Show the composition panel with the loaded draft
+	a.compositionPanel.ShowWithComposition(composition)
+	
+	// Create layout with composition panel + status bar
+	compositionLayout := a.createCompositionLayoutWithStatus()
+	
+	// Add the combined layout as a page
+	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
+	
+	// Switch to the composition page to make it visible
+	a.Pages.SwitchToPage("compose_with_status")
+	
+	// Force UI redraw to make page switch visible
+	a.Draw()
+	
+	// Update the status bar now that the page is active
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(a.statusBaseline())
+	}
+	
+	// Simulate a Tab key to trigger the composition panel's focus management
+	if a.compositionPanel != nil {
+		tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+		a.compositionPanel.InputHandler()(tabEvent, nil)
+	}
+}
+
 // (moved to ai.go) suggestLabel
 
 // (moved to ai.go) showLabelSuggestions

@@ -186,10 +186,10 @@ func (c *Client) SearchMessagesPage(query string, maxResults int64, pageToken st
 	return res.Messages, res.NextPageToken, nil
 }
 
-// ListDrafts returns draft messages
+// ListDrafts returns draft messages with full message content
 func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 	user := "me"
-	call := c.Service.Users.Drafts.List(user)
+	call := c.Service.Users.Drafts.List(user).IncludeSpamTrash(false)
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}
@@ -199,7 +199,28 @@ func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 		return nil, fmt.Errorf("could not list drafts: %w", err)
 	}
 
-	return res.Drafts, nil
+	// Get full draft details for each draft
+	var fullDrafts []*gmail.Draft
+	for _, draft := range res.Drafts {
+		fullDraft, err := c.Service.Users.Drafts.Get(user, draft.Id).Format("full").Do()
+		if err != nil {
+			// Log error but continue with other drafts
+			continue
+		}
+		fullDrafts = append(fullDrafts, fullDraft)
+	}
+
+	return fullDrafts, nil
+}
+
+// GetDraft returns a specific draft by ID with full content
+func (c *Client) GetDraft(draftID string) (*gmail.Draft, error) {
+	user := "me"
+	draft, err := c.Service.Users.Drafts.Get(user, draftID).Format("full").Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not get draft %s: %w", draftID, err)
+	}
+	return draft, nil
 }
 
 // CreateDraft creates a new draft message

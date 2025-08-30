@@ -3623,7 +3623,7 @@ func (a *App) populateDraftsView() {
 
 	// Create enhanced draft picker components
 	input := tview.NewInputField()
-	list := tview.NewList().ShowSecondaryText(true)
+	list := tview.NewList().ShowSecondaryText(true) // Enable secondary text for recipient display
 	list.SetBorder(false)
 	
 	// Apply drafts theme colors
@@ -3655,7 +3655,7 @@ func (a *App) populateDraftsView() {
 		list.Clear()
 		visibleDrafts = visibleDrafts[:0]
 		
-		for i, draft := range allDrafts {
+		for _, draft := range allDrafts {
 			if filter != "" {
 				filterLower := strings.ToLower(filter)
 				if !strings.Contains(strings.ToLower(draft.subject), filterLower) &&
@@ -3680,22 +3680,19 @@ func (a *App) populateDraftsView() {
 			
 			visibleDrafts = append(visibleDrafts, draft)
 			
-			// Create display text
-			displayText := fmt.Sprintf("📝 %s", draft.subject)
-			secondaryText := draft.snippet
+			// Use visibleDrafts index for display
+			visibleIndex := len(visibleDrafts) - 1
+			
+			// Create display text with subject on main line, recipient on secondary line
+			displayText := fmt.Sprintf("📝 [%d] %s", visibleIndex + 1, draft.subject)
+			secondaryText := ""
 			if draft.to != "" {
-				secondaryText = fmt.Sprintf("To: %s | %s", draft.to, draft.snippet)
+				secondaryText = fmt.Sprintf("       %s", draft.to) // Indent to align with subject
 			}
 			
-			// Capture draft ID for closure
+			// Capture draft ID for closure - no shortcut rune to avoid yellow numbers
 			draftID := draft.id
-			shortcut := rune(0)
-			if i < 9 {
-				shortcut = rune('1' + i)
-			}
-			
-			list.AddItem(displayText, secondaryText, shortcut, func() {
-				a.hideDraftsPicker()
+			list.AddItem(displayText, secondaryText, 0, func() {
 				a.loadDraftForEditing(draftID, compositionService)
 			})
 		}
@@ -3703,7 +3700,7 @@ func (a *App) populateDraftsView() {
 		// Add "Compose New Message" option if we have space
 		if len(visibleDrafts) < 9 {
 			list.AddItem("", "", 0, func() {}) // Separator
-			list.AddItem("✏️ Compose New Message", "Create a new email", 'n', func() {
+			list.AddItem("✏️ Compose New Message", "", 0, func() {
 				a.hideDraftsPicker()
 				a.composeMessage(false)
 			})
@@ -3740,6 +3737,7 @@ func (a *App) populateDraftsView() {
 			snippet := ""
 			to := ""
 			
+			
 			if draft.Message != nil && draft.Message.Payload != nil && draft.Message.Payload.Headers != nil {
 				for _, header := range draft.Message.Payload.Headers {
 					switch header.Name {
@@ -3759,6 +3757,7 @@ func (a *App) populateDraftsView() {
 					}
 				}
 			}
+			
 
 			allDrafts = append(allDrafts, draftItem{
 				id:      draft.Id,
@@ -3791,7 +3790,6 @@ func (a *App) populateDraftsView() {
 				if e.Key() == tcell.KeyEnter {
 					// Select first visible draft if any
 					if len(visibleDrafts) > 0 {
-						a.hideDraftsPicker()
 						a.loadDraftForEditing(visibleDrafts[0].id, compositionService)
 						return nil
 					}
@@ -3800,12 +3798,11 @@ func (a *App) populateDraftsView() {
 				if e.Rune() >= '1' && e.Rune() <= '9' {
 					num := int(e.Rune() - '0')
 					if num <= len(visibleDrafts) {
-						a.hideDraftsPicker()
 						a.loadDraftForEditing(visibleDrafts[num-1].id, compositionService)
 						return nil
 					}
 				}
-				if e.Rune() == 'n' || e.Rune() == 'N' {
+				if e.Key() == tcell.KeyCtrlN {
 					a.hideDraftsPicker()
 					a.composeMessage(false)
 					return nil
@@ -3827,12 +3824,11 @@ func (a *App) populateDraftsView() {
 				if e.Rune() >= '1' && e.Rune() <= '9' {
 					num := int(e.Rune() - '0')
 					if num <= len(visibleDrafts) {
-						a.hideDraftsPicker()
 						a.loadDraftForEditing(visibleDrafts[num-1].id, compositionService)
 						return nil
 					}
 				}
-				if e.Rune() == 'n' || e.Rune() == 'N' {
+				if e.Key() == tcell.KeyCtrlN {
 					a.hideDraftsPicker()
 					a.composeMessage(false)
 					return nil
@@ -3858,7 +3854,7 @@ func (a *App) populateDraftsView() {
 
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 to edit | n to compose new | Esc to cancel ")
+			footer.SetText(" Enter/1-9 to edit | Ctrl+N to compose new | Esc to cancel ")
 			footer.SetTextColor(draftsColors.Text.Color())
 			footer.SetBackgroundColor(draftsColors.Background.Color())
 			container.AddItem(footer, 1, 0, false) // Instructions (1 line, fixed)
@@ -3916,34 +3912,33 @@ func (a *App) hideDraftsPicker() {
 	}
 }
 
+// hideDraftsPickerNoFocus hides the draft picker without setting focus to list (used when opening composition)
+func (a *App) hideDraftsPickerNoFocus() {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
+		// Remove drafts list (using same slot as labels)
+		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
+		
+		// Update state but don't set focus
+		a.labelsVisible = false
+	}
+}
+
 // loadDraftForEditing loads a draft and opens it in the composition panel
 func (a *App) loadDraftForEditing(draftID string, compositionService services.CompositionService) {
-	if a.logger != nil {
-		a.logger.Printf("loadDraftForEditing: loading draft %s", draftID)
-	}
-	
-	// Hide the drafts picker first
-	a.hideDraftsPicker()
-	
 	// Load the draft using the composition service
 	go func() {
 		composition, err := compositionService.LoadDraftComposition(a.ctx, draftID)
 		if err != nil {
-			if a.logger != nil {
-				a.logger.Printf("loadDraftForEditing: failed to load draft: %v", err)
-			}
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load draft: %v", err))
 			return
 		}
 		
-		// Show the composition panel with the loaded draft
-		// Call ShowWithComposition directly from the goroutine (it handles its own QueueUpdateDraw)
-		if a.compositionPanel != nil {
-			a.compositionPanel.ShowWithComposition(composition)
-		}
+		// Hide the drafts picker and show composition panel
+		a.hideDraftsPickerNoFocus()
 		
-		if a.logger != nil {
-			a.logger.Printf("loadDraftForEditing: draft loaded and composition panel opened")
+		// Show the composition panel with the loaded draft
+		if a.compositionPanel != nil {
+			a.showCompositionWithDraft(composition)
 		}
 	}()
 }

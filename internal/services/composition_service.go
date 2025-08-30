@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"regexp"
@@ -108,23 +109,10 @@ func (s *CompositionServiceImpl) LoadDraftComposition(ctx context.Context, draft
 		return nil, fmt.Errorf("draft ID cannot be empty")
 	}
 
-	// Get drafts from the repository
-	drafts, err := s.messageRepo.GetDrafts(ctx, 100) // Get up to 100 drafts
+	// Get the specific draft directly
+	targetDraft, err := s.messageRepo.GetDraft(ctx, draftID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load drafts: %w", err)
-	}
-
-	// Find the specific draft
-	var targetDraft *gmail_v1.Draft
-	for _, draft := range drafts {
-		if draft.Id == draftID {
-			targetDraft = draft
-			break
-		}
-	}
-
-	if targetDraft == nil {
-		return nil, fmt.Errorf("draft not found: %s", draftID)
+		return nil, fmt.Errorf("failed to load draft: %w", err)
 	}
 
 	// Parse the draft message into a composition
@@ -157,10 +145,8 @@ func (s *CompositionServiceImpl) LoadDraftComposition(ctx context.Context, draft
 			}
 		}
 
-		// Extract body (this is simplified - real implementation would parse MIME)
-		if msg.Snippet != "" {
-			composition.Body = msg.Snippet
-		}
+		// Extract body from draft message  
+		composition.Body = s.extractDraftBody(targetDraft.Message)
 	}
 
 	if s.logger != nil {
@@ -640,4 +626,81 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 	}
 	
 	return body.String()
+}
+
+// extractDraftBody extracts the full body text from a draft message, preserving line breaks
+func (s *CompositionServiceImpl) extractDraftBody(message *gmail_v1.Message) string {
+	if message.Payload == nil {
+		return ""
+	}
+	
+	// Try to get plain text body first
+	body := s.extractPlainTextBodyFromPayload(message.Payload)
+	if body == "" {
+		// Fallback to HTML body converted to text
+		body = s.extractHTMLBodyFromPayload(message.Payload)
+	}
+	
+	// If still no body, fallback to snippet
+	if body == "" && message.Snippet != "" {
+		body = message.Snippet
+	}
+	
+	return strings.TrimSpace(body)
+}
+
+// extractPlainTextBodyFromPayload extracts plain text from email payload recursively
+func (s *CompositionServiceImpl) extractPlainTextBodyFromPayload(payload *gmail_v1.MessagePart) string {
+	if payload.MimeType == "text/plain" && payload.Body != nil && payload.Body.Data != "" {
+		decoded, err := base64.URLEncoding.DecodeString(payload.Body.Data)
+		if err == nil {
+			return string(decoded)
+		}
+	}
+	
+	// Check parts recursively
+	for _, part := range payload.Parts {
+		if body := s.extractPlainTextBodyFromPayload(part); body != "" {
+			return body
+		}
+	}
+	
+	return ""
+}
+
+// extractHTMLBodyFromPayload extracts and converts HTML body to plain text
+func (s *CompositionServiceImpl) extractHTMLBodyFromPayload(payload *gmail_v1.MessagePart) string {
+	if payload.MimeType == "text/html" && payload.Body != nil && payload.Body.Data != "" {
+		decoded, err := base64.URLEncoding.DecodeString(payload.Body.Data)
+		if err == nil {
+			// Basic HTML to text conversion
+			text := string(decoded)
+			text = strings.ReplaceAll(text, "<br>", "\n")
+			text = strings.ReplaceAll(text, "<br/>", "\n")
+			text = strings.ReplaceAll(text, "<p>", "\n")
+			text = strings.ReplaceAll(text, "</p>", "\n")
+			
+			// Remove HTML tags (basic)
+			for strings.Contains(text, "<") && strings.Contains(text, ">") {
+				start := strings.Index(text, "<")
+				end := strings.Index(text[start:], ">")
+				if end > 0 {
+					text = text[:start] + text[start+end+1:]
+				} else {
+					break
+				}
+			}
+			
+			return text
+		}
+	}
+	
+	// Check parts recursively
+	for _, part := range payload.Parts {
+		if body := s.extractHTMLBodyFromPayload(part); body != "" {
+			return body
+		}
+	}
+	
+	return ""
 }
