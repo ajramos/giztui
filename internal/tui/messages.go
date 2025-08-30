@@ -441,6 +441,9 @@ func (a *App) reloadMessagesFlat() {
 				
 				// Only auto-select first message if composition panel is not active
 				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+					if a.logger != nil {
+						a.logger.Printf("📧 MESSAGE LOAD: Auto-selecting first message (composer not active)")
+					}
 					// Force selection of first message (row 1, since row 0 is header)
 					table.Select(1, 0)
 
@@ -449,6 +452,10 @@ func (a *App) reloadMessagesFlat() {
 					
 					// Auto-load content for the first message
 					go a.showMessageWithoutFocus(firstID)
+				} else {
+					if a.logger != nil {
+						a.logger.Printf("📧 MESSAGE LOAD: Skipping auto-select - composer is active")
+					}
 				}
 
 				// Generate AI summary if panel is visible
@@ -471,11 +478,21 @@ func (a *App) reloadMessagesFlat() {
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
-		// Force focus to list unless advanced search is visible
+		// Force focus to list unless advanced search is visible OR composer is active
 		if spt, ok := a.views["searchPanel"].(*tview.Flex); !(ok && spt.GetTitle() == "🔎 Advanced Search") {
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-			a.SetFocus(a.views["list"])
+			// Only set focus if composition panel is not active
+			if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+				if a.logger != nil {
+					a.logger.Printf("📧 RELOAD: Setting focus to list (no advanced search, no composer)")
+				}
+				a.currentFocus = "list"
+				a.updateFocusIndicators("list")
+				a.SetFocus(a.views["list"])
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("📧 RELOAD: Skipping focus to list - composer is active")
+				}
+			}
 		}
 	})
 
@@ -624,12 +641,19 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 				if currentRow < 1 || currentRow >= table.GetRowCount() {
 					// Only auto-select if composition panel is not active
 					if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+						if a.logger != nil {
+							a.logger.Printf("📧 APPEND: Auto-selecting first message (invalid selection, composer not active)")
+						}
 						table.Select(1, 0) // Select first message (row 1, since row 0 is header)
 						// Update current message ID if not set
 						if a.GetCurrentMessageID() == "" && len(a.ids) > 0 {
 							firstID := a.ids[0]
 							a.SetCurrentMessageID(firstID)
 							go a.showMessageWithoutFocus(firstID)
+						}
+					} else {
+						if a.logger != nil {
+							a.logger.Printf("📧 APPEND: Skipping auto-select - composer is active")
 						}
 					}
 				}

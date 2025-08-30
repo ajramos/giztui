@@ -2043,10 +2043,12 @@ func (a *App) toggleHelp() {
 		a.helpBackupHeader = ""
 		a.helpBackupTitle = ""
 
-		// Update focus state and set focus to text view
-		a.currentFocus = "text"
-		a.SetFocus(a.views["text"])
-		a.updateFocusIndicators("text")
+		// Update focus state and set focus to text view (unless composer is active)
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			a.currentFocus = "text"
+			a.SetFocus(a.views["text"])
+			a.updateFocusIndicators("text")
+		}
 	} else {
 		// Save current content before showing help
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2098,10 +2100,12 @@ func (a *App) toggleHelp() {
 			}
 		}
 
-		// Update focus state and set focus to text view so users can search immediately
-		a.currentFocus = "text"
-		a.SetFocus(a.views["text"])
-		a.updateFocusIndicators("text")
+		// Update focus state and set focus to text view so users can search immediately (unless composer is active)
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			a.currentFocus = "text"
+			a.SetFocus(a.views["text"])
+			a.updateFocusIndicators("text")
+		}
 	}
 }
 
@@ -2501,6 +2505,66 @@ func (a *App) showCompositionWithStatusBar(compositionType services.CompositionT
 
 // refreshMessageContent reloads the message and updates the text view without changing focus
 // (moved to messages.go)
+
+// SetFocus overrides the default tview.Application.SetFocus to add composition focus protection
+func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
+	// Always log focus changes for debugging
+	if a.logger != nil {
+		// Get more detailed info about the target
+		targetInfo := "Unknown"
+		switch p := primitive.(type) {
+		case *tview.Table:
+			if p == a.views["list"] {
+				targetInfo = "MessageList"
+			} else {
+				targetInfo = "Table(other)"
+			}
+		case *tview.TextView:
+			if p == a.views["text"] {
+				targetInfo = "MessageText" 
+			} else {
+				targetInfo = "TextView(other)"
+			}
+		case *tview.InputField:
+			targetInfo = "InputField"
+		case *EditableTextView:
+			targetInfo = "EditableTextView(body)"
+		case *tview.Button:
+			targetInfo = "Button"
+		default:
+			targetInfo = fmt.Sprintf("%T", primitive)
+		}
+		
+		composerActive := a.compositionPanel != nil && a.compositionPanel.IsVisible()
+		a.logger.Printf("🎯 FOCUS: Setting focus to %s | Composer active: %v", targetInfo, composerActive)
+	}
+	
+	// Check if composition panel is active and log potential focus stealing
+	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+		// Allow focus to stay within composition panel components
+		if primitive == a.compositionPanel.toField || 
+		   primitive == a.compositionPanel.ccField || 
+		   primitive == a.compositionPanel.bccField || 
+		   primitive == a.compositionPanel.subjectField || 
+		   primitive == a.compositionPanel.bodySection {
+			// This is internal composition navigation - allow it
+			if a.logger != nil {
+				a.logger.Printf("✅ FOCUS: Internal composer navigation - ALLOWED")
+			}
+			return a.Application.SetFocus(primitive)
+		}
+		
+		// Log external focus changes that might steal from composer
+		if a.logger != nil {
+			a.logger.Printf("⚠️ FOCUS: EXTERNAL focus change while composer active! This might steal focus!")
+		}
+		
+		// For now, still allow the focus change but log it for debugging
+		// In a more aggressive fix, we could block it here: return a.Application
+	}
+	
+	return a.Application.SetFocus(primitive)
+}
 
 // refreshMessageContentWithOverride reloads message and overrides labels shown with provided names
 // (moved to messages.go)

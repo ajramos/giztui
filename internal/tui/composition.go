@@ -484,6 +484,9 @@ func (c *CompositionPanel) Show(compositionType services.CompositionType, origin
 		c.app.QueueUpdateDraw(func() {
 			c.loadComposition(composition)
 			c.isVisible = true
+			if c.app.logger != nil {
+				c.app.logger.Printf("📝 COMPOSER: Panel is now VISIBLE - setting up focus")
+			}
 			c.UpdateTheme() // Ensure theme is applied when shown
 			c.currentFocusIndex = 0
 			c.focusCurrent() // Focus first field (To)
@@ -879,6 +882,9 @@ func (c *CompositionPanel) updateCompositionFromForm() {
 
 // hide hides the composition panel and restores focus
 func (c *CompositionPanel) hide() {
+	if c.app.logger != nil {
+		c.app.logger.Printf("📝 COMPOSER: Panel is now HIDDEN - restoring focus")
+	}
 	c.isVisible = false
 	c.composition = nil
 	c.currentFocusIndex = 0
@@ -919,6 +925,9 @@ func (c *CompositionPanel) hide() {
 
 // IsVisible returns whether the composition panel is currently visible
 func (c *CompositionPanel) IsVisible() bool {
+	if c.app.logger != nil {
+		c.app.logger.Printf("📝 COMPOSER: IsVisible() called - returning %v", c.isVisible)
+	}
 	return c.isVisible
 }
 
