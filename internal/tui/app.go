@@ -2472,7 +2472,7 @@ func (a *App) showCompositionWithDraft(composition *services.Composition) {
 	// Add the combined layout as a page
 	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
 	
-	// Switch to the composition page to make it visible
+	// Switch to the composition page to make it immediately visible
 	a.Pages.SwitchToPage("compose_with_status")
 	
 	// Force UI redraw to make page switch visible
