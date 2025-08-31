@@ -325,7 +325,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		messageCache:      make(map[string]*gmail.Message),
 		inviteCache:       make(map[string]Invite),
 		debug:             true,
-		logger:            log.New(os.Stdout, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds),
+		logger:            log.New(os.Stdout, "[giztui] ", log.LstdFlags|log.Lmicroseconds),
 		logFile:           nil,
 		selected:          make(map[string]bool),
 		bulkMode:          false,

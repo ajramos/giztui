@@ -1596,7 +1596,7 @@ sqlite3 -header -csv ~/.config/giztui/gmail-tui-{your-email}.db \
 - Regular prompts are filtered out from bulk mode picker
 
 CLI flags override config (subset): `--llm-provider`, `--llm-model`, `--llm-region`, `--ollama-endpoint`, `--ollama-model`, `--ollama-timeout`.
-Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/giztui/gmail-tui.log`.
+Logging: set `"log_file"` in `config.json` to direct logs to a custom path; defaults to `~/.config/giztui/giztui.log`.
 
 ### Internals
 

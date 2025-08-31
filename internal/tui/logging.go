@@ -8,7 +8,7 @@ import (
 	"github.com/ajramos/gmail-tui/internal/config"
 )
 
-// initLogger initializes file logger under ~/.config/gmail-tui/gmail-tui.log if possible
+// initLogger initializes file logger under ~/.config/giztui/giztui.log if possible
 func (a *App) initLogger() {
 	if a.logger != nil && a.logFile != nil {
 		return
@@ -17,7 +17,7 @@ func (a *App) initLogger() {
 	if a.Config != nil && a.Config.LogFile != "" {
 		if f, err := os.OpenFile(a.Config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
 			a.logFile = f
-			a.logger = log.New(f, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds)
+			a.logger = log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
 			return
 		}
 		// if it fails, fall back to default path
@@ -25,10 +25,10 @@ func (a *App) initLogger() {
 	logDir := config.DefaultLogDir()
 	if logDir != "" {
 		if err := os.MkdirAll(logDir, 0o755); err == nil {
-			lf := filepath.Join(logDir, "gmail-tui.log")
+			lf := filepath.Join(logDir, "giztui.log")
 			if f, err := os.OpenFile(lf, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
 				a.logFile = f
-				a.logger = log.New(f, "[gmail-tui] ", log.LstdFlags|log.Lmicroseconds)
+				a.logger = log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
 			}
 		}
 	}
