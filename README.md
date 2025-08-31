@@ -481,7 +481,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `E` | `:reply-all` or `:ra` | Reply to all recipients |
 | `w` | `:forward` or `:f` | Forward message |
 | `c` | `:compose` or `:new` | Compose new message |
-| `D` | `:drafts` or `:d` | View and edit drafts |
+| `D` | `:drafts` or `:dr` | View and edit drafts |
 | `N` | `:load` or `:more` or `:next` | Load next 50 messages |
 | `u` | `:unread` or `:u` | Show unread messages |
 | `B` | `:archived` or `:b` | Show archived messages |

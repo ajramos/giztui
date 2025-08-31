@@ -296,6 +296,28 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"compo":          {"compose"},
 		"compos":         {"compose"},
 		"compose":        {"compose"},
+		"r":              {"reply"},
+		"re":             {"reply"},
+		"rep":            {"reply"},
+		"repl":           {"reply"},
+		"reply":          {"reply"},
+		"ra":             {"reply-all"},
+		"reply-":         {"reply-all"},
+		"reply-a":        {"reply-all"},
+		"reply-al":       {"reply-all"},
+		"reply-all":      {"reply-all"},
+		"f":              {"forward"},
+		"fo":             {"forward"},
+		"for":            {"forward"},
+		"forw":           {"forward"},
+		"forwa":          {"forward"},
+		"forwar":         {"forward"},
+		"forward":        {"forward"},
+		"dr":             {"drafts"},
+		"dra":            {"drafts"},
+		"draf":           {"drafts"},
+		"draft":          {"drafts"},
+		"drafts":         {"drafts"},
 		"h":              {"help"},
 		"he":             {"help", "headers"},
 		"hea":            {"headers"},
@@ -384,7 +406,6 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"tras":           {"trash"},
 		"trash":          {"trash"},
 		"t":              {"read"},
-		"re":             {"read"},
 		"rea":            {"read"},
 		"read":           {"read"},
 		"toggle":         {"read"},
@@ -609,6 +630,12 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args) // "new" as alias for compose
 	case "reply", "r":
 		a.executeReplyCommand(args)
+	case "reply-all", "ra":
+		a.executeReplyAllCommand(args)
+	case "forward", "f":
+		a.executeForwardCommand(args)
+	case "drafts", "dr":
+		a.executeDraftsCommand(args)
 	case "refresh":
 		a.executeRefreshCommand(args)
 	case "load", "more", "next":
@@ -1978,4 +2005,19 @@ func (a *App) executeCollapseAllCommand(args []string) {
 	}
 
 	go a.CollapseAllThreads()
+}
+
+// executeReplyAllCommand handles :reply-all/:ra commands
+func (a *App) executeReplyAllCommand(args []string) {
+	go a.replyAllSelected()
+}
+
+// executeForwardCommand handles :forward/:f commands  
+func (a *App) executeForwardCommand(args []string) {
+	go a.forwardSelected()
+}
+
+// executeDraftsCommand handles :drafts/:dr commands
+func (a *App) executeDraftsCommand(args []string) {
+	go a.loadDrafts()
 }

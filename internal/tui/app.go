@@ -1778,7 +1778,8 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
 	help.WriteString(fmt.Sprintf("    %-8s  ↩️   Undo last action\n", a.Keys.Undo))
 	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n\n", a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n", a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n\n", a.Keys.Drafts))
 
 	// Navigation & Search
 	help.WriteString("🧭 NAVIGATION & SEARCH\n\n")
@@ -1904,6 +1905,12 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    :undo         ↩️   Same as %s (undo last action)\n", a.Keys.Undo))
 	help.WriteString(fmt.Sprintf("    :compose      ✏️   Same as %s (compose new message)\n", a.Keys.Compose))
 	help.WriteString(fmt.Sprintf("    :reply        💬  Same as %s (reply to message)\n", a.Keys.Reply))
+	help.WriteString(fmt.Sprintf("    :reply-all    👥  Same as %s (reply to all recipients)\n", a.Keys.ReplyAll))
+	help.WriteString("    :ra           👥  Same as :reply-all (reply to all)\n")
+	help.WriteString(fmt.Sprintf("    :forward      ➡️   Same as %s (forward message)\n", a.Keys.Forward))
+	help.WriteString("    :f            ➡️   Same as :forward (forward message)\n")
+	help.WriteString(fmt.Sprintf("    :drafts       📝  Same as %s (view drafts)\n", a.Keys.Drafts))
+	help.WriteString("    :dr           📝  Same as :drafts (view drafts)\n")
 	help.WriteString("    :new          ✏️   Same as :compose (compose new message)\n")
 	help.WriteString("    :search term  🔍  Search for 'term'\n")
 	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
