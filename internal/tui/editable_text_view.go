@@ -618,6 +618,11 @@ func (e *EditableTextView) updateDisplay() {
 	// Update the TextView content (clean delegation)
 	displayText := strings.Join(displayLines, "\n")
 	e.textView.SetText(displayText)
+	
+	// Scroll to ensure cursor is visible when focused
+	if e.HasFocus() {
+		e.textView.ScrollTo(e.cursorLine, 0)
+	}
 }
 
 // Utility methods
