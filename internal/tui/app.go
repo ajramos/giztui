@@ -120,7 +120,7 @@ type App struct {
 	// Slack contextual panel
 	slackView    *tview.Flex
 	slackVisible bool
-	
+
 	// Composition panel
 	compositionPanel *CompositionPanel
 	// RSVP side panel state
@@ -152,27 +152,27 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	emailService        services.EmailService
-	aiService           services.AIService
-	labelService        services.LabelService
-	cacheService        services.CacheService
-	repository          services.MessageRepository
-	compositionService  services.CompositionService
-	bulkPromptService *services.BulkPromptServiceImpl
-	promptService     services.PromptService
-	slackService      services.SlackService
-	obsidianService   services.ObsidianService
-	linkService       services.LinkService
-	attachmentService services.AttachmentService
-	gmailWebService   services.GmailWebService
-	contentNavService services.ContentNavigationService
-	themeService      services.ThemeService
-	displayService    services.DisplayService
-	queryService      services.QueryService
-	threadService     services.ThreadService
-	undoService       services.UndoService
-	currentTheme      *config.ColorsConfig // Current theme cache for helper functions
-	errorHandler      *ErrorHandler
+	emailService       services.EmailService
+	aiService          services.AIService
+	labelService       services.LabelService
+	cacheService       services.CacheService
+	repository         services.MessageRepository
+	compositionService services.CompositionService
+	bulkPromptService  *services.BulkPromptServiceImpl
+	promptService      services.PromptService
+	slackService       services.SlackService
+	obsidianService    services.ObsidianService
+	linkService        services.LinkService
+	attachmentService  services.AttachmentService
+	gmailWebService    services.GmailWebService
+	contentNavService  services.ContentNavigationService
+	themeService       services.ThemeService
+	displayService     services.DisplayService
+	queryService       services.QueryService
+	threadService      services.ThreadService
+	undoService        services.UndoService
+	currentTheme       *config.ColorsConfig // Current theme cache for helper functions
+	errorHandler       *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
@@ -1163,7 +1163,7 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 			if existingID == messageID {
 				found = true
 				if a.logger != nil {
-					}
+				}
 				break
 			}
 		}
@@ -1173,12 +1173,12 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 			message, err := a.Client.GetMessage(messageID)
 			if err != nil {
 				if a.logger != nil {
-					}
+				}
 				continue
 			}
 
 			if a.logger != nil {
-				}
+			}
 			// Add to front of list (most recent)
 			a.ids = append([]string{messageID}, a.ids...)
 			a.messagesMeta = append([]*gmailapi.Message{message}, a.messagesMeta...)
@@ -1423,8 +1423,8 @@ func (a *App) applyTheme() {
 		def := config.DefaultColors()
 		a.emailRenderer.UpdateFromConfig(def)
 	}
-	
-	// Get component colors for widget updates  
+
+	// Get component colors for widget updates
 	generalColors := a.GetComponentColors("general")
 	// Apply component-specific colors to existing widgets
 	if list, ok := a.views["list"].(*tview.Table); ok {
@@ -1515,14 +1515,14 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 	if a.slackView != nil {
 		a.slackView.SetTitleColor(a.GetComponentColors("slack").Title.Color())
 	}
-	
+
 	// Update picker components that were missing theme re-application
 	pickerComponents := []struct {
 		viewName  string
 		component string
 	}{
 		{"prompts", "prompts"},
-		{"obsidian", "obsidian"}, 
+		{"obsidian", "obsidian"},
 		{"search", "search"},
 		{"attachments", "attachments"},
 		{"saved_queries", "saved_queries"},
@@ -1531,7 +1531,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		{"links", "links"},
 		{"slack", "slack"},
 	}
-	
+
 	for _, pc := range pickerComponents {
 		if view, exists := a.views[pc.viewName]; exists {
 			colors := a.GetComponentColors(pc.component)
@@ -1545,7 +1545,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 			}
 		}
 	}
-	
+
 	// Update status bar colors if it exists using hierarchical v2.0 theme
 	if statusBar, ok := a.views["status"].(*tview.TextView); ok {
 		statusBar.SetBackgroundColor(theme.Interaction.StatusBar.Bg.Color())
@@ -1622,7 +1622,7 @@ func (a *App) getSelectionStyle() tcell.Style {
 		bgColor, fgColor := fallbackTheme.GetCursorSelectionColors()
 		if bgColor == "" || fgColor == "" {
 			// If no selection colors in default theme, use foundation colors
-			bgColor = fallbackTheme.Foundation.Focus    // Blue background
+			bgColor = fallbackTheme.Foundation.Focus      // Blue background
 			fgColor = fallbackTheme.Foundation.Foreground // White text
 		}
 		return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
@@ -1644,7 +1644,7 @@ func (a *App) getBulkSelectionStyle() tcell.Style {
 		bgColor, fgColor := fallbackTheme.GetBulkSelectionColors()
 		if bgColor == "" || fgColor == "" {
 			// If no bulk selection colors in default theme, use darker variant of focus color
-			bgColor = config.Color("#0060c0")  // Darker blue for bulk selection
+			bgColor = config.Color("#0060c0")             // Darker blue for bulk selection
 			fgColor = fallbackTheme.Foundation.Foreground // White text
 		}
 		return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
@@ -2251,6 +2251,11 @@ func (a *App) performSearch(query string) {
 		}
 		// Keep policy for system labels on list while user is in search mode
 		a.emailRenderer.SetShowSystemLabelsInList(true)
+
+		// Set focus to list and update focus indicators after search results are loaded
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
 	})
 }
 
@@ -2447,7 +2452,7 @@ func (a *App) generateReply() {
 		}()
 		return
 	}
-	
+
 	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
 }
 
@@ -2455,13 +2460,13 @@ func (a *App) generateReply() {
 func (a *App) showCompositionWithStatusBar(compositionType services.CompositionType, originalMessageID string) {
 	// Show the composition panel (this handles the business logic)
 	a.compositionPanel.Show(compositionType, originalMessageID)
-	
+
 	// Create layout with composition panel + status bar
 	compositionLayout := a.createCompositionLayoutWithStatus()
-	
+
 	// Add the combined layout as a page
 	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
-	
+
 	// Update the status bar now that the page is active
 	if status, ok := a.views["status"].(*tview.TextView); ok {
 		status.SetText(a.statusBaseline())
@@ -2472,24 +2477,24 @@ func (a *App) showCompositionWithStatusBar(compositionType services.CompositionT
 func (a *App) showCompositionWithDraft(composition *services.Composition) {
 	// Show the composition panel with the loaded draft
 	a.compositionPanel.ShowWithComposition(composition)
-	
+
 	// Create layout with composition panel + status bar
 	compositionLayout := a.createCompositionLayoutWithStatus()
-	
+
 	// Add the combined layout as a page
 	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
-	
+
 	// Switch to the composition page to make it immediately visible
 	a.Pages.SwitchToPage("compose_with_status")
-	
+
 	// Force UI redraw to make page switch visible
 	a.Draw()
-	
+
 	// Update the status bar now that the page is active
 	if status, ok := a.views["status"].(*tview.TextView); ok {
 		status.SetText(a.statusBaseline())
 	}
-	
+
 	// Simulate a Tab key to trigger the composition panel's focus management
 	if a.compositionPanel != nil {
 		tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
@@ -2559,7 +2564,7 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 			}
 		case *tview.TextView:
 			if p == a.views["text"] {
-				targetInfo = "MessageText" 
+				targetInfo = "MessageText"
 			} else {
 				targetInfo = "TextView(other)"
 			}
@@ -2572,35 +2577,35 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 		default:
 			targetInfo = fmt.Sprintf("%T", primitive)
 		}
-		
+
 		composerActive := a.compositionPanel != nil && a.compositionPanel.IsVisible()
 		a.logger.Printf("🎯 FOCUS: Setting focus to %s | Composer active: %v", targetInfo, composerActive)
 	}
-	
+
 	// Check if composition panel is active and log potential focus stealing
 	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
 		// Allow focus to stay within composition panel components
-		if primitive == a.compositionPanel.toField || 
-		   primitive == a.compositionPanel.ccField || 
-		   primitive == a.compositionPanel.bccField || 
-		   primitive == a.compositionPanel.subjectField || 
-		   primitive == a.compositionPanel.bodySection {
+		if primitive == a.compositionPanel.toField ||
+			primitive == a.compositionPanel.ccField ||
+			primitive == a.compositionPanel.bccField ||
+			primitive == a.compositionPanel.subjectField ||
+			primitive == a.compositionPanel.bodySection {
 			// This is internal composition navigation - allow it
 			if a.logger != nil {
 				a.logger.Printf("✅ FOCUS: Internal composer navigation - ALLOWED")
 			}
 			return a.Application.SetFocus(primitive)
 		}
-		
+
 		// Log external focus changes that might steal from composer
 		if a.logger != nil {
 			a.logger.Printf("⚠️ FOCUS: EXTERNAL focus change while composer active! This might steal focus!")
 		}
-		
+
 		// For now, still allow the focus change but log it for debugging
 		// In a more aggressive fix, we could block it here: return a.Application
 	}
-	
+
 	return a.Application.SetFocus(primitive)
 }
 

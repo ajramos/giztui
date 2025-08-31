@@ -112,6 +112,10 @@ func (a *App) restoreLocalBaseSnapshot() {
 	next := a.baseNextPageToken
 	selID := a.baseSelectionID
 
+	if a.logger != nil {
+		a.logger.Printf("🔍 ESC: Restoring base snapshot with %d messages (was searchMode=%q)", len(ids), a.searchMode)
+	}
+
 	a.QueueUpdateDraw(func() {
 		a.searchMode = ""
 		a.currentQuery = ""
@@ -171,17 +175,53 @@ func (a *App) restoreLocalBaseSnapshot() {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 		}
 		a.refreshTableDisplay()
+
+		// Ensure focus is properly set to list after restore
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
+
+		if a.logger != nil {
+			a.logger.Printf("🔍 ESC: Focus restored to list after base snapshot restoration")
+		}
 	})
 }
 
 // exitSearch handles ESC from search contexts
 func (a *App) exitSearch() {
 	if a.searchMode == "local" {
+		if a.logger != nil {
+			a.logger.Printf("🔍 ESC: exitSearch for local search - hiding container and restoring data")
+		}
+		// Hide search container first, then restore data
+		if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
+			if searchContainer, ok := a.views["searchContainer"]; ok {
+				mainFlex.ResizeItem(searchContainer, 0, 0) // Hide container
+				if a.logger != nil {
+					a.logger.Printf("🔍 ESC: Search container hidden via ResizeItem(0,0)")
+				}
+			}
+		}
+		delete(a.views, "searchInput") // Remove search input from views
 		a.restoreLocalBaseSnapshot()
 		return
 	}
 	if a.searchMode == "remote" {
-		// Remote search returns to inbox (fresh from server)
+		if a.logger != nil {
+			a.logger.Printf("🔍 ESC: exitSearch for remote search - hiding container and reloading inbox")
+		}
+		// Hide search container first, then reload inbox from server
+		if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
+			if searchContainer, ok := a.views["searchContainer"]; ok {
+				mainFlex.ResizeItem(searchContainer, 0, 0) // Hide container
+				if a.logger != nil {
+					a.logger.Printf("🔍 ESC: Remote search container hidden via ResizeItem(0,0)")
+				}
+			}
+		}
+		delete(a.views, "searchInput") // Remove search input from views
+
+		// Clear search state
 		a.searchMode = ""
 		a.currentQuery = ""
 		a.localFilter = ""
@@ -438,7 +478,7 @@ func (a *App) reloadMessagesFlat() {
 			// Always ensure the first message is selected when loading messages
 			if table.GetRowCount() > 1 && len(a.ids) > 0 {
 				firstID := a.ids[0] // Define firstID here so it's available for both conditions
-				
+
 				// Only auto-select first message if composition panel is not active
 				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
 					if a.logger != nil {
@@ -449,7 +489,7 @@ func (a *App) reloadMessagesFlat() {
 
 					// Set the current message ID to the first message
 					a.SetCurrentMessageID(firstID)
-					
+
 					// Auto-load content for the first message
 					go a.showMessageWithoutFocus(firstID)
 				} else {
@@ -672,7 +712,7 @@ func (a *App) openSearchOverlay(mode string) {
 			sp.SetBorder(false).SetTitle("")
 		}
 	}
-	
+
 	if mode != "remote" && mode != "local" {
 		mode = "remote"
 	}
@@ -697,11 +737,11 @@ func (a *App) openSearchOverlay(mode string) {
 
 	// Clear and populate the persistent container (like Slack does)
 	searchContainer.Clear()
-	
+
 	// Apply background color to main container
 	bgColor := searchColors.Background.Color()
 	searchContainer.SetBackgroundColor(bgColor)
-	
+
 	// Update container title dynamically (like Slack does)
 	searchContainer.SetTitle(" " + title + " ").
 		SetTitleColor(searchColors.Title.Color())
@@ -717,7 +757,7 @@ func (a *App) openSearchOverlay(mode string) {
 	input.SetBackgroundColor(bgColor)
 	// expose input so Tab from list can focus it
 	a.views["searchInput"] = input
-	
+
 	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
 	help.SetTextColor(searchColors.Text.Color()).SetBackgroundColor(searchColors.Background.Color())
 	if mode == "remote" {
@@ -769,18 +809,27 @@ func (a *App) openSearchOverlay(mode string) {
 			} else {
 				a.hideSearchContainer()
 			}
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
-			a.SetFocus(a.views["list"])
 			if curMode == "remote" {
 				go a.performSearch(query)
 			} else {
-				// Before applying local filter, capture base snapshot
-				a.captureLocalBaseSnapshot()
+				// Before applying local filter, capture base snapshot only if not already in search mode
+				// This preserves the original inbox during search refinement
+				if a.searchMode != "local" {
+					if a.logger != nil {
+						a.logger.Printf("🔍 LOCAL SEARCH: Capturing base snapshot (searchMode=%q)", a.searchMode)
+					}
+					a.captureLocalBaseSnapshot()
+				} else {
+					if a.logger != nil {
+						a.logger.Printf("🔍 LOCAL SEARCH: Preserving existing base snapshot during refinement (searchMode=%q)", a.searchMode)
+					}
+				}
 				a.localFilter = query
 				go a.applyLocalFilter(query)
 			}
-			delete(a.views, "searchInput")
+			// Keep searchInput in views map for Tab navigation - do NOT delete it
+			// delete(a.views, "searchInput") // REMOVED: Allow Tab cycling back to search
+			// Focus management will be handled in applyLocalFilter's QueueUpdateDraw callback
 		}
 		if key == tcell.KeyEscape {
 			// If simple overlay is visible, hide it; else, restore list
@@ -862,7 +911,7 @@ func (a *App) openSearchOverlay(mode string) {
 	})
 
 	// Old searchPanel path removed - using persistent container approach only
-	
+
 	// Focus the input field
 	a.currentFocus = "search"
 	a.updateFocusIndicators("search")
@@ -871,6 +920,19 @@ func (a *App) openSearchOverlay(mode string) {
 
 // hideSearchContainer hides the persistent search container (like Slack panel)
 func (a *App) hideSearchContainer() {
+	// For local search, let exitSearch handle everything (container hiding + data restoration)
+	if a.searchMode == "local" {
+		go a.exitSearch()
+		return
+	}
+
+	// For remote search, also call exitSearch to handle data restoration
+	if a.searchMode == "remote" {
+		go a.exitSearch()
+		return
+	}
+
+	// For non-search modes, just hide the container
 	if mainFlex, ok := a.views["mainFlex"].(*tview.Flex); ok {
 		if searchContainer, ok := a.views["searchContainer"]; ok {
 			mainFlex.ResizeItem(searchContainer, 0, 0) // Hide container
@@ -880,17 +942,13 @@ func (a *App) hideSearchContainer() {
 	a.updateFocusIndicators("list")
 	a.SetFocus(a.views["list"])
 	delete(a.views, "searchInput")
-	// If leaving overlay and a local filter was active, restore base
-	if a.searchMode == "local" {
-		go a.exitSearch()
-	}
 }
 
 // openAdvancedSearchForm shows a guided form to compose a Gmail query, splitting the list area
 func (a *App) openAdvancedSearchForm() {
 	// Hide simple search container if it's visible (mutual exclusion)
 	a.hideSearchContainer()
-	
+
 	// Build form fields similar to Gmail advanced search (with placeholders)
 	form := tview.NewForm()
 
@@ -1697,7 +1755,7 @@ func (a *App) openAdvancedSearchForm() {
 
 	// Fallback modal if searchPanel not present
 	advancedSearchColors := a.GetComponentColors("search")
-	
+
 	// Apply ForceFilledBorderFlex directly to bordered container (like textContainer)
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
 	generalColors := a.GetComponentColors("general")
@@ -1708,14 +1766,14 @@ func (a *App) openAdvancedSearchForm() {
 		SetTitle("🔎 Advanced Search").
 		SetTitleColor(advancedSearchColors.Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
-	
+
 	// Apply ForceFilledBorderFlex for consistent border rendering
 	ForceFilledBorderFlex(modal)
-	
+
 	// Re-apply title styling after ForceFilledBorderFlex
 	modal.SetTitleColor(advancedSearchColors.Title.Color())
 	modal.AddItem(form, 0, 1, true)
-	
+
 	a.Pages.AddPage("advancedSearch", modal, true, true)
 	a.SetFocus(form)
 }
@@ -1869,6 +1927,11 @@ func (a *App) applyLocalFilter(expr string) {
 			}
 		}
 		a.refreshTableDisplay()
+
+		// Set focus to list and update focus indicators after table is fully rebuilt
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
+		a.SetFocus(a.views["list"])
 	})
 }
 
@@ -2278,7 +2341,7 @@ func (a *App) getCurrentMessageID() string {
 
 	// Account for header row (row 0 is header, messages start at row 1)
 	messageIndex := row - 1
-	
+
 	// Safety check: ensure ids slice exists and is not nil, and messageIndex is valid
 	if a.ids == nil || messageIndex < 0 || messageIndex >= len(a.ids) {
 		return ""
@@ -2748,9 +2811,9 @@ func (a *App) openRSVPModal() {
 		a.showError("❌ No message selected")
 		return
 	}
-	
+
 	inv, ok := a.inviteCache[mid]
-	
+
 	if !ok {
 		// Fallback 1: Re-detect from message cache
 		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
@@ -2763,7 +2826,7 @@ func (a *App) openRSVPModal() {
 				}
 			}
 		}
-		
+
 		// Fallback 2: Search any invite in cache (handles cache key mismatches)
 		if !ok && len(a.inviteCache) > 0 {
 			for _, cachedInv := range a.inviteCache {
@@ -2913,9 +2976,9 @@ func (a *App) sendRSVP(partstat, comment string) {
 	if mid == "" {
 		mid = a.currentMessageID
 	}
-	
+
 	inv, ok := a.inviteCache[mid]
-	
+
 	// Use fallback strategies if invite not found
 	if !ok || inv.UID == "" {
 		// Fallback 1: Re-detect from message cache
@@ -2926,7 +2989,7 @@ func (a *App) sendRSVP(partstat, comment string) {
 				ok = true
 			}
 		}
-		
+
 		// Fallback 2: Search any invite in cache (handles cache key mismatches)
 		if (!ok || inv.UID == "") && len(a.inviteCache) > 0 {
 			for _, cachedInv := range a.inviteCache {
@@ -2940,7 +3003,7 @@ func (a *App) sendRSVP(partstat, comment string) {
 				}
 			}
 		}
-		
+
 		// Final check after all fallbacks
 		if !ok || inv.UID == "" {
 			a.showError("❌ No invite to reply to")
@@ -3429,7 +3492,7 @@ func (a *App) replySelected() {
 		}()
 		return
 	}
-	
+
 	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
 }
 
@@ -3442,7 +3505,7 @@ func (a *App) replyAllSelected() {
 		}()
 		return
 	}
-	
+
 	a.showCompositionWithStatusBar(services.CompositionTypeReplyAll, messageID)
 }
 
@@ -3455,7 +3518,7 @@ func (a *App) forwardSelected() {
 		}()
 		return
 	}
-	
+
 	a.showCompositionWithStatusBar(services.CompositionTypeForward, messageID)
 }
 
@@ -3558,7 +3621,7 @@ func (a *App) composeMessage(draft bool) {
 		}()
 		return
 	}
-	
+
 	a.showCompositionWithStatusBar(services.CompositionTypeNew, "")
 }
 
@@ -3625,14 +3688,14 @@ func (a *App) populateDraftsView() {
 	input := tview.NewInputField()
 	list := tview.NewList().ShowSecondaryText(true) // Enable secondary text for recipient display
 	list.SetBorder(false)
-	
+
 	// Apply drafts theme colors
 	draftsColors := a.GetComponentColors("drafts")
 	input.SetFieldBackgroundColor(draftsColors.Background.Color())
 	input.SetFieldTextColor(draftsColors.Text.Color())
 	input.SetLabelColor(draftsColors.Title.Color())
 	input.SetLabel("🔍 Search drafts: ")
-	
+
 	list.SetMainTextColor(draftsColors.Text.Color())
 	list.SetSelectedTextColor(draftsColors.Background.Color())
 	list.SetSelectedBackgroundColor(draftsColors.Accent.Color())
@@ -3640,11 +3703,11 @@ func (a *App) populateDraftsView() {
 
 	// Draft data structures
 	type draftItem struct {
-		id       string
-		subject  string
-		snippet  string
-		date     string
-		to       string
+		id      string
+		subject string
+		snippet string
+		date    string
+		to      string
 	}
 
 	var allDrafts []draftItem
@@ -3654,7 +3717,7 @@ func (a *App) populateDraftsView() {
 	reload := func(filter string) {
 		list.Clear()
 		visibleDrafts = visibleDrafts[:0]
-		
+
 		for _, draft := range allDrafts {
 			if filter != "" {
 				filterLower := strings.ToLower(filter)
@@ -3677,19 +3740,19 @@ func (a *App) populateDraftsView() {
 					}
 				}
 			}
-			
+
 			visibleDrafts = append(visibleDrafts, draft)
-			
+
 			// Use visibleDrafts index for display
 			visibleIndex := len(visibleDrafts) - 1
-			
+
 			// Create display text with subject on main line, recipient on secondary line
-			displayText := fmt.Sprintf("📝 [%d] %s", visibleIndex + 1, draft.subject)
+			displayText := fmt.Sprintf("📝 [%d] %s", visibleIndex+1, draft.subject)
 			secondaryText := ""
 			if draft.to != "" {
 				secondaryText = fmt.Sprintf("       %s", draft.to) // Indent to align with subject
 			}
-			
+
 			// Capture draft ID for closure - no shortcut rune to avoid yellow numbers
 			draftID := draft.id
 			list.AddItem(displayText, secondaryText, 0, func() {
@@ -3736,8 +3799,7 @@ func (a *App) populateDraftsView() {
 			subject := "No Subject"
 			snippet := ""
 			to := ""
-			
-			
+
 			if draft.Message != nil && draft.Message.Payload != nil && draft.Message.Payload.Headers != nil {
 				for _, header := range draft.Message.Payload.Headers {
 					switch header.Name {
@@ -3757,7 +3819,6 @@ func (a *App) populateDraftsView() {
 					}
 				}
 			}
-			
 
 			allDrafts = append(allDrafts, draftItem{
 				id:      draft.Id,
@@ -3771,7 +3832,7 @@ func (a *App) populateDraftsView() {
 			if a.logger != nil {
 				a.logger.Printf("populateDraftsView: rendering enhanced picker with %d drafts", len(allDrafts))
 			}
-			
+
 			// Set up search functionality
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 
@@ -3861,14 +3922,14 @@ func (a *App) populateDraftsView() {
 			container.SetTitle(" 📝 Drafts ")
 			container.SetTitleColor(draftsColors.Title.Color())
 			container.SetBorderColor(draftsColors.Border.Color())
-			
+
 			// Set background on child components
 			input.SetBackgroundColor(draftsColors.Background.Color())
 			list.SetBackgroundColor(draftsColors.Background.Color())
-			
+
 			// Add components to container
-			container.AddItem(input, 3, 0, true)   // Search input (3 lines, fixed)
-			container.AddItem(list, 0, 1, true)    // Draft list (flexible)
+			container.AddItem(input, 3, 0, true) // Search input (3 lines, fixed)
+			container.AddItem(list, 0, 1, true)  // Draft list (flexible)
 
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
@@ -3879,7 +3940,7 @@ func (a *App) populateDraftsView() {
 
 			// Show the enhanced picker
 			a.showDraftsPicker(container)
-			
+
 			// Initial load and focus on input
 			reload("")
 			a.SetFocus(input)
@@ -3895,17 +3956,17 @@ func (a *App) showDraftsPicker(container *tview.Flex) {
 		if a.labelsView != nil {
 			split.RemoveItem(a.labelsView)
 		}
-		
+
 		// Replace a.labelsView with our enhanced container (same pattern as other pickers)
 		a.labelsView = container
 		split.AddItem(a.labelsView, 0, 1, true) // true = focusable for tab navigation
 		split.ResizeItem(a.labelsView, 0, 1)
-		
+
 		// Update state
-		a.labelsVisible = true // Reuse the labels state for side panel visibility
+		a.labelsVisible = true    // Reuse the labels state for side panel visibility
 		a.currentFocus = "drafts" // Set focus state to drafts
 		a.updateFocusIndicators("drafts")
-		
+
 		if a.logger != nil {
 			a.logger.Printf("showDraftsPicker: enhanced draft picker visible")
 		}
@@ -3917,13 +3978,13 @@ func (a *App) hideDraftsPicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
 		// Remove drafts list (using same slot as labels)
 		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
-		
+
 		// Update state
 		a.labelsVisible = false
 		a.currentFocus = "list"
 		a.updateFocusIndicators("list")
 		a.SetFocus(a.views["list"])
-		
+
 		if a.logger != nil {
 			a.logger.Printf("hideDraftsPicker: draft picker hidden")
 		}
@@ -3935,7 +3996,7 @@ func (a *App) hideDraftsPickerNoFocus() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
 		// Remove drafts list (using same slot as labels)
 		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
-		
+
 		// Update state but don't set focus
 		a.labelsVisible = false
 	}
@@ -3950,10 +4011,10 @@ func (a *App) loadDraftForEditing(draftID string, compositionService services.Co
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load draft: %v", err))
 			return
 		}
-		
+
 		// Hide the drafts picker and show composition panel
 		a.hideDraftsPickerNoFocus()
-		
+
 		// Show the composition panel with the loaded draft
 		if a.compositionPanel != nil {
 			a.showCompositionWithDraft(composition)
