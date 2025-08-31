@@ -3833,6 +3833,24 @@ func (a *App) populateDraftsView() {
 					a.composeMessage(false)
 					return nil
 				}
+				// Delete draft functionality
+				if e.Rune() == 'D' || e.Key() == tcell.KeyDelete {
+					currentIdx := list.GetCurrentItem()
+					if currentIdx >= 0 && currentIdx < len(visibleDrafts) {
+						draftToDelete := visibleDrafts[currentIdx]
+						go func() {
+							// Delete the draft
+							if err := compositionService.DeleteComposition(a.ctx, draftToDelete.id); err != nil {
+								a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete draft: %v", err))
+								return
+							}
+							a.GetErrorHandler().ShowSuccess(a.ctx, "Draft deleted")
+							// Reload the drafts list
+							a.populateDraftsView()
+						}()
+					}
+					return nil
+				}
 				return e
 			})
 
@@ -3854,7 +3872,7 @@ func (a *App) populateDraftsView() {
 
 			// Footer with instructions
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 to edit | Ctrl+N to compose new | Esc to cancel ")
+			footer.SetText(" Enter/1-9 to edit | D to delete | Ctrl+N to compose new | Esc to cancel ")
 			footer.SetTextColor(draftsColors.Text.Color())
 			footer.SetBackgroundColor(draftsColors.Background.Color())
 			container.AddItem(footer, 1, 0, false) // Instructions (1 line, fixed)

@@ -636,11 +636,13 @@ type CompositionService interface {
 	CreateComposition(ctx context.Context, compositionType CompositionType, originalMessageID string) (*Composition, error)
 	LoadDraftComposition(ctx context.Context, draftID string) (*Composition, error)
 	SaveDraft(ctx context.Context, composition *Composition) (string, error)
+	DeleteComposition(ctx context.Context, compositionID string) error
 	SendComposition(ctx context.Context, composition *Composition) error
 	
 	// Validation & processing
 	ValidateComposition(composition *Composition) []ValidationError
 	ProcessReply(ctx context.Context, originalMessageID string) (*ReplyContext, error)
+	ProcessReplyAll(ctx context.Context, originalMessageID string) (*ReplyAllContext, error)
 	ProcessForward(ctx context.Context, originalMessageID string) (*ForwardContext, error)
 	
 	// Templates & suggestions
@@ -695,6 +697,18 @@ type ValidationError struct {
 type ReplyContext struct {
 	OriginalMessage *gmail.Message `json:"-"` // Don't serialize the full message
 	Recipients      []Recipient    `json:"recipients"`
+	Subject         string         `json:"subject"`
+	QuotedBody      string         `json:"quoted_body"`
+	ThreadID        string         `json:"thread_id,omitempty"`
+	OriginalSender  Recipient      `json:"original_sender"`
+	OriginalDate    time.Time      `json:"original_date"`
+}
+
+// ReplyAllContext contains context information for replying to all recipients
+type ReplyAllContext struct {
+	OriginalMessage *gmail.Message `json:"-"` // Don't serialize the full message
+	Recipients      []Recipient    `json:"recipients"`      // To recipients (including original sender)
+	CC              []Recipient    `json:"cc"`              // CC recipients from original
 	Subject         string         `json:"subject"`
 	QuotedBody      string         `json:"quoted_body"`
 	ThreadID        string         `json:"thread_id,omitempty"`

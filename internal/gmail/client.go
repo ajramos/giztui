@@ -225,11 +225,14 @@ func (c *Client) GetDraft(draftID string) (*gmail.Draft, error) {
 
 // CreateDraft creates a new draft message
 func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, error) {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{"me"},
 			"To":      []string{to},
-			"Subject": []string{subject},
+			"Subject": []string{encodedSubject},
 		},
 		Body: strings.NewReader(body),
 	}
@@ -266,11 +269,14 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 
 // UpdateDraft updates an existing draft message
 func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) error {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{"me"},
 			"To":      []string{to},
-			"Subject": []string{subject},
+			"Subject": []string{encodedSubject},
 		},
 		Body: strings.NewReader(body),
 	}
@@ -317,11 +323,14 @@ func (c *Client) DeleteDraft(draftID string) error {
 
 // SendMessage sends a message
 func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{from},
 			"To":      []string{to},
-			"Subject": []string{subject},
+			"Subject": []string{encodedSubject},
 		},
 		Body: strings.NewReader(body),
 	}

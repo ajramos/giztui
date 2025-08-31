@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"mime"
 	"regexp"
 	"strings"
 	"time"
@@ -69,8 +70,14 @@ func (s *CompositionServiceImpl) CreateComposition(ctx context.Context, composit
 		composition.To = replyContext.Recipients
 		
 		if compositionType == CompositionTypeReplyAll {
-			// Add all original recipients except sender
-			// This will be enhanced based on the original message analysis
+			// For reply-all, we need to get all recipients from the original message
+			replyAllContext, err := s.ProcessReplyAll(ctx, originalMessageID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process reply-all context: %w", err)
+			}
+			// Override recipients with reply-all recipients
+			composition.To = replyAllContext.Recipients
+			composition.CC = replyAllContext.CC
 		}
 		
 	case CompositionTypeForward:
@@ -140,7 +147,7 @@ func (s *CompositionServiceImpl) LoadDraftComposition(ctx context.Context, draft
 				case "Bcc":
 					composition.BCC = s.parseRecipients(header.Value)
 				case "Subject":
-					composition.Subject = header.Value
+					composition.Subject = s.decodeHeaderValue(header.Value)
 				}
 			}
 		}
@@ -206,6 +213,24 @@ func (s *CompositionServiceImpl) SaveDraft(ctx context.Context, composition *Com
 	composition.ModifiedAt = time.Now()
 
 	return draftID, nil
+}
+
+// DeleteComposition deletes a draft composition
+func (s *CompositionServiceImpl) DeleteComposition(ctx context.Context, compositionID string) error {
+	if compositionID == "" {
+		return fmt.Errorf("composition ID cannot be empty")
+	}
+
+	// Delete the draft from Gmail
+	if err := s.gmailClient.DeleteDraft(compositionID); err != nil {
+		return fmt.Errorf("failed to delete draft: %w", err)
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("CompositionService: Deleted composition %s", compositionID)
+	}
+
+	return nil
 }
 
 // SendComposition sends the composition as an email
@@ -373,7 +398,7 @@ func (s *CompositionServiceImpl) ProcessReply(ctx context.Context, originalMessa
 					originalDate = parsedDate
 				}
 			case "Subject":
-				originalSubject = header.Value
+				originalSubject = s.decodeHeaderValue(header.Value)
 			}
 		}
 	}
@@ -402,6 +427,106 @@ func (s *CompositionServiceImpl) ProcessReply(ctx context.Context, originalMessa
 	}
 
 	return replyContext, nil
+}
+
+// ProcessReplyAll processes an original message to create reply-all context
+func (s *CompositionServiceImpl) ProcessReplyAll(ctx context.Context, originalMessageID string) (*ReplyAllContext, error) {
+	if originalMessageID == "" {
+		return nil, fmt.Errorf("original message ID cannot be empty")
+	}
+
+	// Get the original message
+	message, err := s.messageRepo.GetMessage(ctx, originalMessageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get original message: %w", err)
+	}
+
+	// Extract recipients from headers
+	var toRecipients []Recipient
+	var ccRecipients []Recipient
+	var originalSender Recipient
+	var originalDate time.Time
+	var originalSubject string
+
+	if message.Payload != nil && message.Payload.Headers != nil {
+		for _, header := range message.Payload.Headers {
+			switch header.Name {
+			case "From":
+				recipients := s.parseRecipients(header.Value)
+				if len(recipients) > 0 {
+					originalSender = recipients[0]
+				}
+			case "To":
+				toRecipients = s.parseRecipients(header.Value)
+			case "Cc":
+				ccRecipients = s.parseRecipients(header.Value)
+			case "Date":
+				if parsedDate, err := time.Parse(time.RFC1123Z, header.Value); err == nil {
+					originalDate = parsedDate
+				}
+			case "Subject":
+				originalSubject = s.decodeHeaderValue(header.Value)
+			}
+		}
+	}
+
+	// Get current user's email to exclude from recipients
+	currentUserEmail := ""
+	if s.gmailClient != nil {
+		if email, err := s.gmailClient.ActiveAccountEmail(ctx); err == nil {
+			currentUserEmail = email
+		}
+	}
+
+	// Combine all recipients: original sender + To + CC, excluding current user
+	allRecipients := []Recipient{}
+	
+	// Add original sender first
+	if originalSender.Email != "" && originalSender.Email != currentUserEmail {
+		allRecipients = append(allRecipients, originalSender)
+	}
+	
+	// Add all To recipients
+	for _, recipient := range toRecipients {
+		if recipient.Email != currentUserEmail {
+			allRecipients = append(allRecipients, recipient)
+		}
+	}
+	
+	// Keep CC recipients separate for CC field
+	finalCCRecipients := []Recipient{}
+	for _, recipient := range ccRecipients {
+		if recipient.Email != currentUserEmail {
+			finalCCRecipients = append(finalCCRecipients, recipient)
+		}
+	}
+
+	// Create reply subject
+	replySubject := originalSubject
+	if !strings.HasPrefix(strings.ToLower(replySubject), "re:") {
+		replySubject = "Re: " + replySubject
+	}
+
+	// Create quoted body
+	quotedBody := s.createQuotedBody(message, originalSender, originalDate)
+
+	replyAllContext := &ReplyAllContext{
+		OriginalMessage: message,
+		Recipients:      allRecipients,
+		CC:              finalCCRecipients,
+		Subject:         replySubject,
+		QuotedBody:      quotedBody,
+		ThreadID:        message.ThreadId,
+		OriginalSender:  originalSender,
+		OriginalDate:    originalDate,
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("CompositionService: Processed reply-all context for message %s with %d recipients and %d CC", 
+			originalMessageID, len(allRecipients), len(finalCCRecipients))
+	}
+
+	return replyAllContext, nil
 }
 
 // ProcessForward processes an original message to create forward context
@@ -434,7 +559,7 @@ func (s *CompositionServiceImpl) ProcessForward(ctx context.Context, originalMes
 					originalDate = parsedDate
 				}
 			case "Subject":
-				originalSubject = header.Value
+				originalSubject = s.decodeHeaderValue(header.Value)
 			}
 		}
 	}
@@ -599,9 +724,10 @@ func (s *CompositionServiceImpl) createQuotedBody(message *gmail.Message, sender
 	body.WriteString("\n\n")
 	body.WriteString(fmt.Sprintf("On %s, %s wrote:\n", date.Format("Jan 2, 2006 at 3:04 PM"), sender.Email))
 	
-	// Get message content (simplified)
-	content := ""
-	if message.Snippet != "" {
+	// Get full message content
+	content := message.PlainText
+	if content == "" && message.Snippet != "" {
+		// Fallback to snippet if body extraction fails
 		content = message.Snippet
 	}
 	
@@ -626,7 +752,7 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 	if message.Payload != nil && message.Payload.Headers != nil {
 		for _, header := range message.Payload.Headers {
 			if header.Name == "Subject" {
-				body.WriteString(fmt.Sprintf("Subject: %s\n", header.Value))
+				body.WriteString(fmt.Sprintf("Subject: %s\n", s.decodeHeaderValue(header.Value)))
 				break
 			}
 		}
@@ -634,10 +760,13 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 	
 	body.WriteString("\n")
 	
-	// Get message content (simplified)
-	if message.Snippet != "" {
-		body.WriteString(message.Snippet)
+	// Get full message content
+	content := message.PlainText
+	if content == "" && message.Snippet != "" {
+		// Fallback to snippet if body extraction fails
+		content = message.Snippet
 	}
+	body.WriteString(content)
 	
 	return body.String()
 }
@@ -717,4 +846,16 @@ func (s *CompositionServiceImpl) extractHTMLBodyFromPayload(payload *gmail_v1.Me
 	}
 	
 	return ""
+}
+
+// decodeHeaderValue decodes MIME-encoded header values (e.g., =?UTF-8?Q?...?=)
+func (s *CompositionServiceImpl) decodeHeaderValue(headerValue string) string {
+	// Use mime.WordDecoder to decode MIME headers
+	decoder := mime.WordDecoder{}
+	decoded, err := decoder.DecodeHeader(headerValue)
+	if err != nil {
+		// If decoding fails, return the original value
+		return headerValue
+	}
+	return decoded
 }
