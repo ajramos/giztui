@@ -1,5 +1,11 @@
 # TODO List - GizTUI Project
 
+## 📋 Detected ISSUES - Short term to fix.
+- [ ] When an UNDO is performed, focus is lost (it should return to the message list)
+- [ ] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts.
+- [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
+- [ ] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
+
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
@@ -32,13 +38,18 @@
 - [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 
-### Email Composition
-- [ ] **Create draft email** - Create new email drafts
-- [ ] **Send email** - Send emails directly via Gmail (with CC/BCC support)
-- [ ] **Reply to email** - Reply to existing email threads
-- [ ] **Forward email** - Forward emails to other recipients
-- [ ] **Delete draft** - Remove draft emails
-- [ ] **List drafts** - Show all draft emails
+### Email Composition - Advanced Features
+- [ ] **AI-powered reply generation** - Integrate with existing AIService for smart reply suggestions
+- [ ] **Email template system** - Create reusable email templates with picker UI and variable substitution
+- [ ] **Recipient autocomplete** - Smart recipient suggestions from Gmail contacts and email history
+- [ ] **Template variable substitution** - Dynamic template variables ({{name}}, {{date}}, {{subject}})
+- [ ] **Tone/style AI suggestions** - AI assistance for professional, friendly, brief writing styles
+- [ ] **Grammar and spell-check integration** - Basic text improvement and validation suggestions
+- [ ] **Bulk reply operations** - Reply to multiple selected messages simultaneously  
+- [ ] **Bulk forward operations** - Forward multiple messages as combined or separate forwards
+- [ ] **Advanced composition configuration** - Auto-save intervals, default signatures, reply behavior settings
+- [ ] **Attachment handling in composition** - File selection, drag-and-drop, attachment preview
+- [ ] **Comprehensive composition testing** - Unit tests, integration tests, and UI component tests
 
 ### Attachments
 - [ ] **Advanced attachment search filters** - `type:image`, `type:pdf`, `size:>1mb` filtering
@@ -195,6 +206,21 @@
 - [x] **List archived emails** - Show archived emails
 - [x] **Undo functionality** - Undo last action ✅ 
 - [x] **Message threading** - Show message threads and conversations
+
+### Email Composition - Core Features ✅
+- [x] **Complete composition UI** - Full-screen modal composition panel with proper theming and focus management
+- [x] **Create new emails** - Compose new emails with To/CC/BCC/Subject/Body fields and validation
+- [x] **Reply to emails** - Reply to existing email threads with proper context and quoted text
+- [x] **Reply-all functionality** - Reply to all recipients with proper recipient extraction and exclusion
+- [x] **Forward emails** - Forward emails with "Fwd:" prefix and proper quoted message formatting
+- [x] **Draft management** - Create, edit, save, and delete email drafts with picker UI
+- [x] **Send email functionality** - Send emails directly via Gmail with CC/BCC support and UTF-8 encoding
+- [x] **Command system integration** - All composition commands (`:compose`, `:reply`, `:forward`, `:drafts`) with shortcuts
+- [x] **Real-time validation** - Email format validation, recipient checking, and visual error indicators
+- [x] **Auto-save drafts** - Automatic draft saving during composition
+- [x] **Keyboard navigation** - Complete Tab/Shift+Tab focus cycling and ESC handling
+- [x] **Message context processing** - Proper threading headers, recipient extraction, and Gmail compatibility
+- [x] **Multi-line text editing** - Advanced EditableTextView with cursor visibility and scroll management
 
 
 ### Labels and Organization
