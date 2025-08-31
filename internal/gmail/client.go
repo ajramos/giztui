@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"mime"
 	"mime/quotedprintable"
 	"net/mail"
 	"strings"
@@ -185,10 +186,10 @@ func (c *Client) SearchMessagesPage(query string, maxResults int64, pageToken st
 	return res.Messages, res.NextPageToken, nil
 }
 
-// ListDrafts returns draft messages
+// ListDrafts returns draft messages with full message content
 func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 	user := "me"
-	call := c.Service.Users.Drafts.List(user)
+	call := c.Service.Users.Drafts.List(user).IncludeSpamTrash(false)
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}
@@ -198,16 +199,40 @@ func (c *Client) ListDrafts(maxResults int64) ([]*gmail.Draft, error) {
 		return nil, fmt.Errorf("could not list drafts: %w", err)
 	}
 
-	return res.Drafts, nil
+	// Get full draft details for each draft
+	var fullDrafts []*gmail.Draft
+	for _, draft := range res.Drafts {
+		fullDraft, err := c.Service.Users.Drafts.Get(user, draft.Id).Format("full").Do()
+		if err != nil {
+			// Log error but continue with other drafts
+			continue
+		}
+		fullDrafts = append(fullDrafts, fullDraft)
+	}
+
+	return fullDrafts, nil
+}
+
+// GetDraft returns a specific draft by ID with full content
+func (c *Client) GetDraft(draftID string) (*gmail.Draft, error) {
+	user := "me"
+	draft, err := c.Service.Users.Drafts.Get(user, draftID).Format("full").Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not get draft %s: %w", draftID, err)
+	}
+	return draft, nil
 }
 
 // CreateDraft creates a new draft message
 func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, error) {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{"me"},
 			"To":      []string{to},
-			"Subject": []string{subject},
+			"Subject": []string{encodedSubject},
 		},
 		Body: strings.NewReader(body),
 	}
@@ -242,15 +267,80 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 	return createdDraft.Id, nil
 }
 
+// UpdateDraft updates an existing draft message
+func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) error {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
+	msg := &mail.Message{
+		Header: mail.Header{
+			"From":    []string{"me"},
+			"To":      []string{to},
+			"Subject": []string{encodedSubject},
+		},
+		Body: strings.NewReader(body),
+	}
+
+	if len(cc) > 0 {
+		msg.Header["Cc"] = cc
+	}
+
+	var sb strings.Builder
+	for k, v := range msg.Header {
+		sb.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+	}
+	sb.WriteString("MIME-Version: 1.0\r\n")
+	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	sb.WriteString("\r\n")
+	sb.WriteString(body)
+
+	raw := base64.URLEncoding.EncodeToString([]byte(sb.String()))
+
+	draft := &gmail.Draft{
+		Id: draftID,
+		Message: &gmail.Message{
+			Raw: raw,
+		},
+	}
+
+	user := "me"
+	_, err := c.Service.Users.Drafts.Update(user, draftID, draft).Do()
+	if err != nil {
+		return fmt.Errorf("could not update draft: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteDraft deletes a draft message
+func (c *Client) DeleteDraft(draftID string) error {
+	user := "me"
+	if err := c.Service.Users.Drafts.Delete(user, draftID).Do(); err != nil {
+		return fmt.Errorf("could not delete draft %s: %w", draftID, err)
+	}
+	return nil
+}
+
 // SendMessage sends a message
-func (c *Client) SendMessage(from, to, subject, body string) (string, error) {
+func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
+	// Properly encode the subject for email headers
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{from},
 			"To":      []string{to},
-			"Subject": []string{subject},
+			"Subject": []string{encodedSubject},
 		},
 		Body: strings.NewReader(body),
+	}
+
+	if len(cc) > 0 {
+		msg.Header["Cc"] = cc
+	}
+
+	if len(bcc) > 0 {
+		msg.Header["Bcc"] = bcc
 	}
 
 	var sb strings.Builder
@@ -306,7 +396,7 @@ func (c *Client) ReplyMessage(originalMsgID, replyBody string, send bool, cc []s
 	from := extractHeader(originalMsg, "From")
 
 	if send {
-		return c.SendMessage("me", from, subject, replyBody)
+		return c.SendMessage("me", from, subject, replyBody, cc, nil) // Pass cc and empty bcc
 	} else {
 		return c.CreateDraft(from, subject, replyBody, cc)
 	}
@@ -502,7 +592,14 @@ func extractHeader(msg *gmail.Message, name string) string {
 
 	for _, header := range msg.Payload.Headers {
 		if header.Name == name {
-			return header.Value
+			// Decode MIME-encoded headers (RFC 2047)
+			decoder := &mime.WordDecoder{}
+			decoded, err := decoder.DecodeHeader(header.Value)
+			if err != nil {
+				// If decoding fails, return the original value
+				return header.Value
+			}
+			return decoded
 		}
 	}
 

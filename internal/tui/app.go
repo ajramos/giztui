@@ -120,6 +120,9 @@ type App struct {
 	// Slack contextual panel
 	slackView    *tview.Flex
 	slackVisible bool
+	
+	// Composition panel
+	compositionPanel *CompositionPanel
 	// RSVP side panel state
 	rsvpVisible bool
 
@@ -149,11 +152,12 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	emailService      services.EmailService
-	aiService         services.AIService
-	labelService      services.LabelService
-	cacheService      services.CacheService
-	repository        services.MessageRepository
+	emailService        services.EmailService
+	aiService           services.AIService
+	labelService        services.LabelService
+	cacheService        services.CacheService
+	repository          services.MessageRepository
+	compositionService  services.CompositionService
 	bulkPromptService *services.BulkPromptServiceImpl
 	promptService     services.PromptService
 	slackService      services.SlackService
@@ -577,6 +581,16 @@ func (a *App) initServices() {
 		emailServiceImpl.SetLogger(a.logger)
 	}
 
+	// Initialize composition service
+	a.compositionService = services.NewCompositionService(a.emailService, a.Client, a.repository)
+	if a.logger != nil {
+		a.logger.Printf("initServices: composition service initialized: %v", a.compositionService != nil)
+	}
+	// Wire logger to composition service for debug output
+	if compositionServiceImpl, ok := a.compositionService.(*services.CompositionServiceImpl); ok && a.logger != nil {
+		compositionServiceImpl.SetLogger(a.logger)
+	}
+
 	// Initialize link service
 	a.linkService = services.NewLinkService(a.Client, a.emailRenderer)
 	if a.logger != nil {
@@ -980,8 +994,8 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 }
 
 // GetServices returns the service instances for business logic operations
-func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
-	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.CompositionService, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
+	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.compositionService, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
 }
 
 // GetUndoService returns the undo service instance
@@ -1243,7 +1257,7 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 	}
 
 	// Get label name mapping for cache updates
-	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
 		if a.logger != nil {
@@ -1300,7 +1314,7 @@ func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
 	}
 
 	// Get label name mapping for cache updates
-	_, _, labelService, _, _, _, _, _, _, _, _ := a.GetServices()
+	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
 		return // Silently fail, will refresh from server later
@@ -1538,6 +1552,11 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		statusBar.SetTextColor(theme.Interaction.StatusBar.Fg.Color())
 	}
 
+	// Update composition panel theme if it exists
+	if a.compositionPanel != nil {
+		a.compositionPanel.UpdateTheme()
+	}
+
 	// Refresh borders for Flex containers that have been forced to use filled backgrounds
 	// This ensures consistent border rendering when themes change
 	a.RefreshBordersForFilledFlexes()
@@ -1751,13 +1770,16 @@ func (a *App) generateHelpText() string {
 	// Essential Operations
 	help.WriteString("📧 MESSAGE BASICS\n\n")
 	help.WriteString(fmt.Sprintf("    %-8s  💬  Reply to message\n", a.Keys.Reply))
+	help.WriteString(fmt.Sprintf("    %-8s  👥  Reply to all recipients\n", a.Keys.ReplyAll))
+	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Forward message\n", a.Keys.Forward))
 	help.WriteString(fmt.Sprintf("    %-8s  ✏️   Compose new message\n", a.Keys.Compose))
 	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive message\n", a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Move to trash\n", a.Keys.Trash))
 	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
 	help.WriteString(fmt.Sprintf("    %-8s  ↩️   Undo last action\n", a.Keys.Undo))
 	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n\n", a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n", a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n\n", a.Keys.Drafts))
 
 	// Navigation & Search
 	help.WriteString("🧭 NAVIGATION & SEARCH\n\n")
@@ -1881,6 +1903,15 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    :archive 3    📁  Same as %s3%s (archive next 3)\n", a.Keys.Archive, a.Keys.Archive))
 	help.WriteString(fmt.Sprintf("    :trash 7      🗑️   Same as %s7%s (delete next 7)\n", a.Keys.Trash, a.Keys.Trash))
 	help.WriteString(fmt.Sprintf("    :undo         ↩️   Same as %s (undo last action)\n", a.Keys.Undo))
+	help.WriteString(fmt.Sprintf("    :compose      ✏️   Same as %s (compose new message)\n", a.Keys.Compose))
+	help.WriteString(fmt.Sprintf("    :reply        💬  Same as %s (reply to message)\n", a.Keys.Reply))
+	help.WriteString(fmt.Sprintf("    :reply-all    👥  Same as %s (reply to all recipients)\n", a.Keys.ReplyAll))
+	help.WriteString("    :ra           👥  Same as :reply-all (reply to all)\n")
+	help.WriteString(fmt.Sprintf("    :forward      ➡️   Same as %s (forward message)\n", a.Keys.Forward))
+	help.WriteString("    :f            ➡️   Same as :forward (forward message)\n")
+	help.WriteString(fmt.Sprintf("    :drafts       📝  Same as %s (view drafts)\n", a.Keys.Drafts))
+	help.WriteString("    :dr           📝  Same as :drafts (view drafts)\n")
+	help.WriteString("    :new          ✏️   Same as :compose (compose new message)\n")
 	help.WriteString("    :search term  🔍  Search for 'term'\n")
 	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
 	help.WriteString("    :bookmarks    📚  Browse saved query bookmarks\n")
@@ -2021,10 +2052,12 @@ func (a *App) toggleHelp() {
 		a.helpBackupHeader = ""
 		a.helpBackupTitle = ""
 
-		// Update focus state and set focus to text view
-		a.currentFocus = "text"
-		a.SetFocus(a.views["text"])
-		a.updateFocusIndicators("text")
+		// Update focus state and set focus to text view (unless composer is active)
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			a.currentFocus = "text"
+			a.SetFocus(a.views["text"])
+			a.updateFocusIndicators("text")
+		}
 	} else {
 		// Save current content before showing help
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2076,10 +2109,12 @@ func (a *App) toggleHelp() {
 			}
 		}
 
-		// Update focus state and set focus to text view so users can search immediately
-		a.currentFocus = "text"
-		a.SetFocus(a.views["text"])
-		a.updateFocusIndicators("text")
+		// Update focus state and set focus to text view so users can search immediately (unless composer is active)
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			a.currentFocus = "text"
+			a.SetFocus(a.views["text"])
+			a.updateFocusIndicators("text")
+		}
 	}
 }
 
@@ -2195,19 +2230,22 @@ func (a *App) performSearch(query string) {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 🔍 Search Results (%d) — %s ", len(a.ids), originalQuery))
 			if table.GetRowCount() > 1 {
-				table.Select(1, 0) // Select first message (row 1, since row 0 is header)
-				if len(a.ids) > 0 {
-					firstID := a.ids[0]
-					a.SetCurrentMessageID(firstID)
-					go a.showMessageWithoutFocus(firstID)
-					// Close AI panel when loading new messages to avoid conflicts
-					if a.aiSummaryVisible {
-						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-							split.ResizeItem(a.aiSummaryView, 0, 0)
-						}
-						a.aiSummaryVisible = false
-						a.aiPanelInPromptMode = false
+				// Only auto-select if composition panel is not active
+				if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+					table.Select(1, 0) // Select first message (row 1, since row 0 is header)
+					if len(a.ids) > 0 {
+						firstID := a.ids[0]
+						a.SetCurrentMessageID(firstID)
+						go a.showMessageWithoutFocus(firstID)
 					}
+				}
+				// Close AI panel when loading new messages to avoid conflicts
+				if a.aiSummaryVisible {
+					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+						split.ResizeItem(a.aiSummaryView, 0, 0)
+					}
+					a.aiSummaryVisible = false
+					a.aiPanelInPromptMode = false
 				}
 			}
 		}
@@ -2402,7 +2440,61 @@ func (a *App) summarizeSelected() {
 
 // generateReply generates a reply using LLM
 func (a *App) generateReply() {
-	a.showInfo("Generate reply functionality not yet implemented")
+	messageID := a.GetCurrentMessageID()
+	if messageID == "" {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "No message selected")
+		}()
+		return
+	}
+	
+	a.showCompositionWithStatusBar(services.CompositionTypeReply, messageID)
+}
+
+// showCompositionWithStatusBar shows the composition panel with persistent status bar
+func (a *App) showCompositionWithStatusBar(compositionType services.CompositionType, originalMessageID string) {
+	// Show the composition panel (this handles the business logic)
+	a.compositionPanel.Show(compositionType, originalMessageID)
+	
+	// Create layout with composition panel + status bar
+	compositionLayout := a.createCompositionLayoutWithStatus()
+	
+	// Add the combined layout as a page
+	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
+	
+	// Update the status bar now that the page is active
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(a.statusBaseline())
+	}
+}
+
+// showCompositionWithDraft shows the composition panel with a loaded draft and persistent status bar
+func (a *App) showCompositionWithDraft(composition *services.Composition) {
+	// Show the composition panel with the loaded draft
+	a.compositionPanel.ShowWithComposition(composition)
+	
+	// Create layout with composition panel + status bar
+	compositionLayout := a.createCompositionLayoutWithStatus()
+	
+	// Add the combined layout as a page
+	a.Pages.AddPage("compose_with_status", compositionLayout, true, true)
+	
+	// Switch to the composition page to make it immediately visible
+	a.Pages.SwitchToPage("compose_with_status")
+	
+	// Force UI redraw to make page switch visible
+	a.Draw()
+	
+	// Update the status bar now that the page is active
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(a.statusBaseline())
+	}
+	
+	// Simulate a Tab key to trigger the composition panel's focus management
+	if a.compositionPanel != nil {
+		tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+		a.compositionPanel.InputHandler()(tabEvent, nil)
+	}
 }
 
 // (moved to ai.go) suggestLabel
@@ -2451,6 +2543,66 @@ func (a *App) generateReply() {
 
 // refreshMessageContent reloads the message and updates the text view without changing focus
 // (moved to messages.go)
+
+// SetFocus overrides the default tview.Application.SetFocus to add composition focus protection
+func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
+	// Always log focus changes for debugging
+	if a.logger != nil {
+		// Get more detailed info about the target
+		targetInfo := "Unknown"
+		switch p := primitive.(type) {
+		case *tview.Table:
+			if p == a.views["list"] {
+				targetInfo = "MessageList"
+			} else {
+				targetInfo = "Table(other)"
+			}
+		case *tview.TextView:
+			if p == a.views["text"] {
+				targetInfo = "MessageText" 
+			} else {
+				targetInfo = "TextView(other)"
+			}
+		case *tview.InputField:
+			targetInfo = "InputField"
+		case *EditableTextView:
+			targetInfo = "EditableTextView(body)"
+		case *tview.Button:
+			targetInfo = "Button"
+		default:
+			targetInfo = fmt.Sprintf("%T", primitive)
+		}
+		
+		composerActive := a.compositionPanel != nil && a.compositionPanel.IsVisible()
+		a.logger.Printf("🎯 FOCUS: Setting focus to %s | Composer active: %v", targetInfo, composerActive)
+	}
+	
+	// Check if composition panel is active and log potential focus stealing
+	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+		// Allow focus to stay within composition panel components
+		if primitive == a.compositionPanel.toField || 
+		   primitive == a.compositionPanel.ccField || 
+		   primitive == a.compositionPanel.bccField || 
+		   primitive == a.compositionPanel.subjectField || 
+		   primitive == a.compositionPanel.bodySection {
+			// This is internal composition navigation - allow it
+			if a.logger != nil {
+				a.logger.Printf("✅ FOCUS: Internal composer navigation - ALLOWED")
+			}
+			return a.Application.SetFocus(primitive)
+		}
+		
+		// Log external focus changes that might steal from composer
+		if a.logger != nil {
+			a.logger.Printf("⚠️ FOCUS: EXTERNAL focus change while composer active! This might steal focus!")
+		}
+		
+		// For now, still allow the focus change but log it for debugging
+		// In a more aggressive fix, we could block it here: return a.Application
+	}
+	
+	return a.Application.SetFocus(primitive)
+}
 
 // refreshMessageContentWithOverride reloads message and overrides labels shown with provided names
 // (moved to messages.go)

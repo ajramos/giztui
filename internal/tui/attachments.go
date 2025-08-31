@@ -30,7 +30,7 @@ func (a *App) openAttachmentPicker() {
 	}
 
 	// Get attachment service
-	_, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
+	_, _, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
 	if attachmentService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Attachment service not available")
 		return
@@ -371,7 +371,7 @@ func (a *App) closeAttachmentPicker() {
 // downloadAndOpenAttachment downloads and optionally opens an attachment
 func (a *App) downloadAndOpenAttachment(messageID, attachmentID, filename, fileType string) {
 	// Get attachment service
-	_, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
+	_, _, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
 	if attachmentService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Attachment service not available")
 		return
@@ -407,7 +407,7 @@ func (a *App) saveAttachmentAs(messageID, attachmentID, filename string) {
 	a.closeAttachmentPicker()
 
 	// Get attachment service for default path
-	_, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
+	_, _, _, _, _, _, _, _, _, _, attachmentService, _ := a.GetServices()
 	defaultPath := ""
 	if attachmentService != nil {
 		defaultPath = filepath.Join(attachmentService.GetDefaultDownloadPath(), filename)

@@ -139,17 +139,17 @@ func (_m *EmailService) SaveMessageToFile(ctx context.Context, messageID string,
 	return r0
 }
 
-// SendMessage provides a mock function with given fields: ctx, from, to, subject, body
-func (_m *EmailService) SendMessage(ctx context.Context, from string, to string, subject string, body string) error {
-	ret := _m.Called(ctx, from, to, subject, body)
+// SendMessage provides a mock function with given fields: ctx, from, to, subject, body, cc, bcc
+func (_m *EmailService) SendMessage(ctx context.Context, from string, to string, subject string, body string, cc []string, bcc []string) error {
+	ret := _m.Called(ctx, from, to, subject, body, cc, bcc)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendMessage")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
-		r0 = rf(ctx, from, to, subject, body)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, []string, []string) error); ok {
+		r0 = rf(ctx, from, to, subject, body, cc, bcc)
 	} else {
 		r0 = ret.Error(0)
 	}

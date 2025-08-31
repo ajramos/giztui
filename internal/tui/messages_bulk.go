@@ -20,7 +20,7 @@ func (a *App) archiveSelectedBulk() {
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkArchive(a.ctx, ids)
 
 		failed := 0
@@ -66,7 +66,7 @@ func (a *App) trashSelectedBulk() {
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkTrash(a.ctx, ids)
 
 		failed := 0
@@ -142,7 +142,7 @@ func (a *App) toggleMarkReadUnreadBulk() {
 
 	go func() {
 		// Get EmailService to ensure undo actions are recorded
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 		var err error
 		if markAsUnread {

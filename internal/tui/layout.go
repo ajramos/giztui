@@ -143,6 +143,9 @@ func (a *App) initComponents() {
 	slackFlex.SetTitleColor(a.GetComponentColors("slack").Title.Color()).SetTitleAlign(tview.AlignCenter)
 	a.slackView = slackFlex
 
+	// Composition panel (hidden by default)
+	a.compositionPanel = NewCompositionPanel(a)
+
 	// Command panel (hidden by default)
 	cmdPanel := tview.NewFlex().SetDirection(tview.FlexRow)
 	cmdPanel.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
@@ -267,6 +270,25 @@ func (a *App) createMainLayout() tview.Primitive {
 	return mainFlex
 }
 
+// createCompositionLayoutWithStatus creates a composition layout that preserves the status bar
+func (a *App) createCompositionLayoutWithStatus() tview.Primitive {
+	// Create a vertical flex container for composition + status bar
+	compositionLayout := tview.NewFlex().SetDirection(tview.FlexRow)
+	compositionLayout.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+	
+	// Add composition panel (takes most of the screen)
+	if a.compositionPanel != nil {
+		compositionLayout.AddItem(a.compositionPanel, 0, 1, true) // flexible, focusable
+	}
+	
+	// Add status bar (fixed height at bottom)
+	if statusBar, exists := a.views["status"]; exists {
+		compositionLayout.AddItem(statusBar, 1, 0, false) // fixed height, not focusable
+	}
+	
+	return compositionLayout
+}
+
 // updateFocusIndicators updates the visual indicators for the focused view
 func (a *App) updateFocusIndicators(focusedView string) {
 	// Reset all borders to theme's default border color
@@ -336,6 +358,10 @@ func (a *App) updateFocusIndicators(focusedView string) {
 			cp.SetBorderColor(focusedColor)
 		}
 	case "obsidian":
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(focusedColor)
+		}
+	case "drafts":
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(focusedColor)
 		}

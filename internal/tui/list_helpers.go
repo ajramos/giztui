@@ -51,7 +51,10 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		if pre >= count {
 			pre = count - 1
 		}
-		table.Select(pre, 0)
+		// Only auto-select if composition panel is not active
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			table.Select(pre, 0)
+		}
 	}
 
 	// Update caches using removeIndex
@@ -104,10 +107,13 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		if desired >= newCount {
 			desired = newCount - 1
 		}
-		if desired >= 1 && desired < newCount { // Never select header row (0)
-			table.Select(desired, 0)
-		} else if newCount > 1 {
-			table.Select(1, 0) // Select first message if no other option
+		// Only auto-select if composition panel is not active
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			if desired >= 1 && desired < newCount { // Never select header row (0)
+				table.Select(desired, 0)
+			} else if newCount > 1 {
+				table.Select(1, 0) // Select first message if no other option
+			}
 		}
 	}
 
@@ -188,7 +194,10 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 		cur = 1
 	}
 	if cur >= 1 && cur < table.GetRowCount() {
-		table.Select(cur, 0)
+		// Only auto-select if composition panel is not active
+		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+			table.Select(cur, 0)
+		}
 		// Convert table row index to message index (-1 for header)
 		messageIndex := cur - 1
 		if messageIndex >= 0 && messageIndex < len(a.ids) {

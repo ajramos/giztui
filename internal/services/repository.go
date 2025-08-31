@@ -106,3 +106,12 @@ func (r *MessageRepositoryImpl) GetDrafts(ctx context.Context, maxResults int64)
 
 	return drafts, nil
 }
+
+func (r *MessageRepositoryImpl) GetDraft(ctx context.Context, draftID string) (*gmail_v1.Draft, error) {
+	draft, err := r.gmailClient.GetDraft(draftID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get draft %s: %w", draftID, err)
+	}
+
+	return draft, nil
+}

@@ -79,6 +79,8 @@
     "generate_reply": "g",
     "suggest_label": "o",
     "reply": "r",
+    "reply_all": "E",
+    "forward": "f",
     "compose": "c",
     "load_more": "N",
     "refresh": "R",

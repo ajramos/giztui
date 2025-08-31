@@ -61,6 +61,18 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		go a.replySelected()
 		return true
+	case a.Keys.ReplyAll:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> reply_all", key)
+		}
+		go a.replyAllSelected()
+		return true
+	case a.Keys.Forward:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> forward", key)
+		}
+		go a.forwardSelected()
+		return true
 	case a.Keys.Compose:
 		// CRITICAL: Check if this is 'n' and we're in content search context
 		if key == "n" && a.currentFocus == "text" && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
@@ -394,6 +406,8 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.GenerateReply ||
 		keyStr == a.Keys.SuggestLabel ||
 		keyStr == a.Keys.Reply ||
+		keyStr == a.Keys.ReplyAll ||
+		keyStr == a.Keys.Forward ||
 		keyStr == a.Keys.Compose ||
 		keyStr == a.Keys.Refresh ||
 		keyStr == a.Keys.Search ||
@@ -453,6 +467,15 @@ func (a *App) bindKeys() {
 				}
 			}
 			return a.handleCommandInput(event)
+		}
+
+		// CRITICAL: Check if composition panel is visible first - let it handle ALL input
+		if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+			if a.logger != nil {
+				a.logger.Printf("=== COMPOSITION PANEL ACTIVE: Allowing event to pass through to composition panel ===")
+			}
+			// Let the composition panel handle ALL input events
+			return event
 		}
 
 		// If focus is on form widgets (advanced/simple search), don't intercept
@@ -1990,7 +2013,7 @@ func (a *App) archiveRange(startIndex, count int) {
 	// Archive in background using bulk service for proper undo recording
 	go func() {
 		// Use bulk archive service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkArchive(a.ctx, messageIDs)
 
 		// Clear progress and show result
@@ -2031,7 +2054,7 @@ func (a *App) trashRange(startIndex, count int) {
 	// Trash in background using bulk service for proper undo recording
 	go func() {
 		// Use bulk trash service method for proper undo recording
-		emailService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		err := emailService.BulkTrash(a.ctx, messageIDs)
 
 		// Clear progress and show result
@@ -2079,7 +2102,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 
 	// Toggle read status in background
 	go func() {
-		_, _, _, _, repository, _, _, _, _, _, _ := a.GetServices()
+		_, _, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
 		undoService := a.GetUndoService()
 
 		// Create a single comprehensive undo action for the entire range operation

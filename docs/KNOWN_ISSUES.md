@@ -216,4 +216,93 @@ The undo functionality had limitations that have been resolved:
 
 ---
 
+## ⚠️ Draft Composition Focus Flow Minor UX Issue
+
+### Issue Description
+**Type**: User Experience Issue  
+**Severity**: Low (Minor UX)  
+**Status**: Known Limitation  
+**Date Identified**: August 30, 2025  
+
+When loading a draft for editing via the draft picker, the composition panel displays correctly but requires one additional key press to fully activate focus in the +CC/BCC area and achieve optimal focus flow.
+
+### Behavior Description
+**Current Flow**:
+1. Press `D` to open draft picker
+2. Select a draft and press Enter
+3. ✅ Composition panel displays immediately with draft content loaded
+4. ✅ Focus works correctly for most fields (To, Subject, Body)  
+5. ⚠️ **Minor Issue**: Requires one key press (any key) to fully activate focus for +CC/BCC area
+
+**Expected vs Actual**:
+- **Expected**: Seamless focus flow from draft selection to composition editing
+- **Actual**: 99% seamless with minor focus activation step needed
+
+### Technical Investigation
+Extensive investigation revealed this is a **complex UI synchronization issue**:
+
+**Root Cause**: Draft composition requires different UI initialization sequence than new composition:
+- **New compositions** (Ctrl+N): Natural tview page flow handles focus automatically
+- **Draft compositions**: Explicit page switching + UI redraw creates timing conflict
+
+**Attempted Solutions**:
+1. **Remove Tab simulation**: ❌ Caused app to hang completely
+2. **Add delay to Tab simulation**: ❌ Still required extra key press  
+3. **Remove redundant page operations**: ❌ Caused focus issues and hanging
+4. **Simplify to match new composition flow**: ❌ Draft loading needs explicit page management
+
+**Current Workaround**: Tab key simulation approach provides reliable, stable operation with minor UX impact.
+
+### Impact Assessment
+- **Functional Impact**: None - all draft editing features work correctly
+- **User Experience**: Minor - requires one extra key press for optimal focus
+- **Workaround Available**: ✅ Current approach is stable and reliable
+- **Blocking Issues**: None - does not prevent draft editing workflow
+
+### Current Implementation
+The draft composition uses a **Tab simulation approach** in `internal/tui/app.go`:
+
+```go
+// Simulate a Tab key to trigger the composition panel's focus management
+if a.compositionPanel != nil {
+    tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+    a.compositionPanel.InputHandler()(tabEvent, nil)
+}
+```
+
+This approach ensures:
+- ✅ Stable, non-hanging operation
+- ✅ Draft content loads correctly  
+- ✅ All editing functionality works
+- ⚠️ Minor focus activation step needed
+
+### Comparison with Other Workflows
+- **New Email Composition (Ctrl+N)**: Perfect focus flow
+- **Reply/Forward**: Perfect focus flow
+- **Draft Editing**: 99% perfect with minor focus activation needed
+
+### Dependencies
+- **Framework**: tview focus management system
+- **Architecture**: Page-based UI switching with explicit Draft → Composition flow
+- **Files Affected**: 
+  - `internal/tui/app.go` - `showCompositionWithDraft()` method
+  - `internal/tui/composition.go` - `ShowWithComposition()` method
+
+### Resolution Status
+**Acceptable Limitation** - The current implementation provides:
+- Reliable, stable operation without hanging
+- Full draft editing functionality
+- Minor UX trade-off for system stability
+
+The focus flow issue represents a **cosmetic user experience consideration** rather than a functional problem. All draft management features work correctly with this approach.
+
+### Future Investigation
+Consider revisiting when:
+- tview framework focus management is updated
+- Alternative draft loading approaches are developed  
+- Focus flow becomes a critical user-reported concern
+- Major UI architecture refactoring is undertaken
+
+---
+
 *For additional context and research approaches, see the LLM research prompt in this directory.*

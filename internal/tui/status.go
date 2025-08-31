@@ -90,6 +90,25 @@ func (a *App) statusBaseline() string {
 	} else {
 		base += " | 🧾"
 	}
-	// Simplified baseline message per request
+	
+	// Check if composition panel is active and show context-appropriate message
+	if a != nil && a.compositionPanel != nil {
+		// Check if we're on the composition page
+		if currentPage, _ := a.Pages.GetFrontPage(); currentPage == "compose_with_status" {
+			return base + " | Press ? for help | Email composer view"
+		}
+		// Debug logging to understand page detection
+		if a.logger != nil {
+			if currentPage, _ := a.Pages.GetFrontPage(); currentPage != "" {
+				a.logger.Printf("STATUS DEBUG: Current page: '%s', IsVisible: %v", currentPage, a.compositionPanel.IsVisible())
+			}
+		}
+		// Fallback to original visibility check
+		if a.compositionPanel.IsVisible() {
+			return base + " | Press ? for help | Email composer view"
+		}
+	}
+	
+	// Default baseline message
 	return base + " | Press ? for help"
 }

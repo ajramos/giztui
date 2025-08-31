@@ -162,6 +162,7 @@ type ComponentColors struct {
 	Search       ComponentColorSet `yaml:"search"`       // Search interface colors
 	Attachments  ComponentColorSet `yaml:"attachments"`  // Attachment picker colors
 	SavedQueries ComponentColorSet `yaml:"saved_queries"` // Saved queries picker colors
+	Compose      ComponentColorSet `yaml:"compose"`      // Email composition UI colors
 }
 
 // ComponentColorSet defines a complete color set for a UI component
@@ -229,6 +230,7 @@ type ComponentColorOverrides struct {
 	Attachments  ComponentOverrideSet `yaml:"attachments,omitempty"`  // Attachment picker overrides
 	SavedQueries ComponentOverrideSet `yaml:"saved_queries,omitempty"` // Saved queries picker overrides
 	Themes       ComponentOverrideSet `yaml:"themes,omitempty"`       // Theme picker overrides
+	Compose      ComponentOverrideSet `yaml:"compose,omitempty"`      // Email composition overrides
 }
 
 // ComponentOverrideSet defines optional color overrides for a specific component
@@ -297,6 +299,8 @@ const (
 	ComponentTypeSavedQueries ComponentType = "saved_queries"
 	ComponentTypeLabels       ComponentType = "labels"
 	ComponentTypeThemes       ComponentType = "themes"
+	ComponentTypeCompose      ComponentType = "compose"
+	ComponentTypeDrafts       ComponentType = "drafts"
 )
 
 // GetComponentColor resolves a color for a specific component and color type
@@ -360,6 +364,8 @@ func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType C
 		override = c.Overrides.SavedQueries
 	case ComponentTypeThemes:
 		override = c.Overrides.Themes
+	case ComponentTypeCompose:
+		override = c.Overrides.Compose
 	default:
 		return ""
 	}
@@ -768,6 +774,13 @@ func DefaultColors() *ColorsConfig {
 				Background: NewColor("#282a36"), // Dark background
 				Text:       NewColor("#f8f8f2"), // Light text
 				Accent:     NewColor("#ffb86c"), // Orange accent
+			},
+			Compose: ComponentColorSet{
+				Border:     NewColor("#6272a4"), // Blue border for email composition
+				Title:      NewColor("#6272a4"), // Blue title for email composition
+				Background: NewColor("#282a36"), // Dark background
+				Text:       NewColor("#f8f8f2"), // Light text
+				Accent:     NewColor("#50fa7b"), // Green accent for send/success actions
 			},
 		},
 	}

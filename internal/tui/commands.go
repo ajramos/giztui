@@ -296,6 +296,28 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"compo":          {"compose"},
 		"compos":         {"compose"},
 		"compose":        {"compose"},
+		"r":              {"reply"},
+		"re":             {"reply"},
+		"rep":            {"reply"},
+		"repl":           {"reply"},
+		"reply":          {"reply"},
+		"ra":             {"reply-all"},
+		"reply-":         {"reply-all"},
+		"reply-a":        {"reply-all"},
+		"reply-al":       {"reply-all"},
+		"reply-all":      {"reply-all"},
+		"f":              {"forward"},
+		"fo":             {"forward"},
+		"for":            {"forward"},
+		"forw":           {"forward"},
+		"forwa":          {"forward"},
+		"forwar":         {"forward"},
+		"forward":        {"forward"},
+		"dr":             {"drafts"},
+		"dra":            {"drafts"},
+		"draf":           {"drafts"},
+		"draft":          {"drafts"},
+		"drafts":         {"drafts"},
 		"h":              {"help"},
 		"he":             {"help", "headers"},
 		"hea":            {"headers"},
@@ -384,7 +406,6 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"tras":           {"trash"},
 		"trash":          {"trash"},
 		"t":              {"read"},
-		"re":             {"read"},
 		"rea":            {"read"},
 		"read":           {"read"},
 		"toggle":         {"read"},
@@ -609,6 +630,12 @@ func (a *App) executeCommand(cmd string) {
 		a.executeComposeCommand(args) // "new" as alias for compose
 	case "reply", "r":
 		a.executeReplyCommand(args)
+	case "reply-all", "ra":
+		a.executeReplyAllCommand(args)
+	case "forward", "f":
+		a.executeForwardCommand(args)
+	case "drafts", "dr":
+		a.executeDraftsCommand(args)
 	case "refresh":
 		a.executeRefreshCommand(args)
 	case "load", "more", "next":
@@ -1019,7 +1046,7 @@ func (a *App) executeStatsCommand(args []string) {
 // executeCacheClear clears prompt caches
 func (a *App) executeCacheClear(args []string) {
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.showError("Prompt service not available")
 		return
@@ -1052,7 +1079,7 @@ func (a *App) executeCacheInfo(args []string) {
 
 	go func() {
 		// Get services to check if database is available
-		_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+		_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 		if promptService == nil {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 			return
@@ -1347,7 +1374,7 @@ func (a *App) executePromptCreate(args []string) {
 	filePath := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1389,7 +1416,7 @@ func (a *App) executePromptUpdate(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1520,7 +1547,7 @@ func (a *App) executePromptExport(args []string) {
 	filePath := args[1]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1583,7 +1610,7 @@ func (a *App) executePromptDelete(args []string) {
 	identifier := args[0]
 
 	// Get services
-	_, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		go func() {
 			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
@@ -1978,4 +2005,19 @@ func (a *App) executeCollapseAllCommand(args []string) {
 	}
 
 	go a.CollapseAllThreads()
+}
+
+// executeReplyAllCommand handles :reply-all/:ra commands
+func (a *App) executeReplyAllCommand(args []string) {
+	go a.replyAllSelected()
+}
+
+// executeForwardCommand handles :forward/:f commands  
+func (a *App) executeForwardCommand(args []string) {
+	go a.forwardSelected()
+}
+
+// executeDraftsCommand handles :drafts/:dr commands
+func (a *App) executeDraftsCommand(args []string) {
+	go a.loadDrafts()
 }

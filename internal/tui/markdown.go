@@ -108,7 +108,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 		hv.SetDynamicColors(true)
 
 		// Check header visibility via DisplayService
-		_, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
+		_, _, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
 		if displayService != nil && displayService.IsHeaderVisible() {
 			headerWidth := a.getHeaderWidth()
 			headerContent := a.emailRenderer.FormatHeaderPlainWithWidth(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels, headerWidth)

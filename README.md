@@ -14,7 +14,9 @@ A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses t
 - ✅ Search and navigation support with VIM-style commands (`:5`, `G`, `gg`)
 - ✅ **Enhanced content navigation** - Fast browsing within message content with search, paragraph jumping, and word navigation
 - ✅ **Dynamic header visibility** 🆕 - Toggle email headers to maximize content space for complex messages
-- 🚧 WIP: Compose, Reply, Drafts, Attachments
+- ✅ **Email Composition** - Compose, Reply, Reply-All, and Forward messages with CC/BCC support
+- ✅ **Draft Management** - Create, edit, auto-save, and load drafts with side panel picker
+- 🚧 WIP: Attachments
 
 ### 🧵 **Message Threading** 🆕
 - ✅ **Smart conversation grouping** - Messages grouped by Gmail thread ID with visual hierarchy
@@ -476,7 +478,10 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `t` | `:read` or `:toggle-read` or `:t` | Toggle read/unread status |
 | `U` | `:undo` or `:U` | 🆕 **Undo last action** |
 | `r` | `:reply` or `:r` | Reply to message |
+| `E` | `:reply-all` or `:ra` | Reply to all recipients |
+| `w` | `:forward` or `:f` | Forward message |
 | `c` | `:compose` or `:new` | Compose new message |
+| `D` | `:drafts` or `:dr` | View and edit drafts |
 | `N` | `:load` or `:more` or `:next` | Load next 50 messages |
 | `u` | `:unread` or `:u` | Show unread messages |
 | `B` | `:archived` or `:b` | Show archived messages |
@@ -501,9 +506,9 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 |-----|--------|
 | `Enter` | View selected message |
 | `r` | Refresh (in drafts mode, reload drafts) |
-| `c` | Compose new message (WIP) |
+| `c` | ✅ **Compose new message** - Full composition with CC/BCC |
 | `N` | Load next 50 messages (when list is focused) |
-| `R` | Reply (WIP) |
+| `R` | ✅ **Reply to message** - Full composition with threading |
 | `s` | Search |
 | `/` | Local filter |
 | `F` | Quick search: from current sender |
@@ -516,7 +521,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `U` | 🆕 **Undo last action** - Reverse archive, trash, read/unread, or label operations |
 | `d` | Move to trash |
 | `a` | Archive |
-| `D` | View drafts (experimental) |
+| `D` | ✅ **View and edit drafts** - Side panel picker with auto-save |
 | `A` | View attachments (WIP) |
 | `w` | Save current message to file (.txt, rendered) |
 | `W` | Save current message as raw .eml (server format) |
