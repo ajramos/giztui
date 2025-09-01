@@ -1124,30 +1124,13 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 		})
 		return
 	} else if result.ActionType == services.UndoActionMove {
-		// Move changes - handle system folder moves properly
-		isSystemFolderMove := false
-		if systemFolder, exists := result.ExtraData["system_folder"]; exists {
-			isSystemFolderMove = systemFolder.(bool)
-		}
-		
+		// Move changes - use consistent UI-only restoration for all moves
 		if a.logger != nil {
-			a.logger.Printf("RELOAD: UndoActionMove - isSystemFolderMove=%t", isSystemFolderMove)
+			a.logger.Printf("RELOAD: UndoActionMove - using UI-only restoration (no server reload)")
 		}
 		
-		if isSystemFolderMove {
-			// For system folder moves, we need a full reload to show the message in its restored location
-			needsReload = true
-			if a.logger != nil {
-				a.logger.Printf("RELOAD: Setting needsReload=true for system folder move")
-			}
-		} else {
-			// Regular label-based moves can be handled with cache updates
-			a.restoreMessagesToInboxList(result.MessageIDs)
-			if a.logger != nil {
-				a.logger.Printf("RELOAD: Using restoreMessagesToInboxList for regular move")
-			}
-		}
-		
+		// All move undos use the same fast UI restoration logic
+		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.updateCacheAfterMoveUndo(result)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
@@ -1158,18 +1141,7 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 				}
 			}
 		})
-		
-		// Don't return here if we need reload - let it fall through to the reload logic
-		if !needsReload {
-			if a.logger != nil {
-				a.logger.Printf("RELOAD: Returning early, no reload needed")
-			}
-			return
-		}
-		
-		if a.logger != nil {
-			a.logger.Printf("RELOAD: Falling through to reload logic")
-		}
+		return
 	}
 
 	if needsReload {
