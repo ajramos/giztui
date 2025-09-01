@@ -19,7 +19,6 @@ import (
 	"github.com/ajramos/gmail-tui/pkg/auth"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
-	"github.com/mattn/go-runewidth"
 	cal "google.golang.org/api/calendar/v3"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
@@ -1174,55 +1173,54 @@ func (a *App) openAdvancedSearchForm() {
 			return
 		}
 		if twoCol, ok := a.views["searchTwoCol"].(*tview.Flex); ok {
-			// Ensure right column is visible when options are rendered
-			twoCol.ResizeItem(right, 0, 1)
-			// shrink form to half width
+			// FIX: Use fixed width to prevent viewport scrolling mode
+			twoCol.ResizeItem(right, 35, 0)  // Width: 35 columns to prevent wrapping
+			// form takes remaining space
 			if form != nil {
 				twoCol.ResizeItem(form, 0, 1)
 			}
 		}
 		rightVisible = true
 		right.Clear()
-		// Helper to pad emoji to width 2 for alignment across fonts
-		padIcon := func(icon string) string {
-			if runewidth.StringWidth(icon) < 2 {
-				return icon + " "
-			}
-			return icon
-		}
-
 		type optionItem struct {
 			display string
 			action  func()
 		}
 		options := make([]optionItem, 0, 256)
-		// Folders
+		// Folders (safe emoji alternatives)
 		options = append(options,
-			optionItem{padIcon("📮") + "All Mail", func() { scopeVal = "All Mail"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("📥") + "Inbox", func() { scopeVal = "Inbox"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("📁") + "Archive", func() { scopeVal = "Archive"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("📤") + "Sent Mail", func() { scopeVal = "Sent"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("📝") + "Drafts", func() { scopeVal = "Drafts"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("🚫") + "Spam", func() { scopeVal = "Spam"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("🗑️") + "Trash", func() { scopeVal = "Trash"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📧 All Mail", func() { scopeVal = "All Mail"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📥 Inbox", func() { scopeVal = "Inbox"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📦 Archive", func() { scopeVal = "Archive"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📤 Sent Mail", func() { scopeVal = "Sent"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📝 Drafts", func() { scopeVal = "Drafts"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"🚫 Spam", func() { scopeVal = "Spam"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"🗑 Trash", func() { scopeVal = "Trash"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
 		)
 		// Anywhere
-		options = append(options, optionItem{padIcon("📬") + "Mail & Spam & Trash", func() {
+		options = append(options, optionItem{"🔖 Mail & Spam & Trash", func() {
 			scopeVal = "Mail & Spam & Trash"
 			scopeField.SetText(scopeVal)
 			hideRight()
 			a.SetFocus(scopeField)
 		}})
-		// State
+		// State  
 		options = append(options,
-			optionItem{padIcon("✅") + "Read Mail", func() { scopeField.SetText("is:read"); hideRight(); a.SetFocus(scopeField) }},
-			optionItem{padIcon("✉️") + "Unread Mail", func() { scopeField.SetText("is:unread"); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"✅ Read Mail", func() { scopeField.SetText("is:read"); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{"📬 Unread Mail", func() { scopeField.SetText("is:unread"); hideRight(); a.SetFocus(scopeField) }},
 		)
-		// Categories
+		// Categories (testing safe emoji alternatives)
+		categoryEmojis := map[string]string{
+			"social":     "👥", // People emoji
+			"updates":    "🔄", // Refresh/update emoji  
+			"forums":     "💬", // Speech balloon
+			"promotions": "💰", // Money bag - represents promotions/deals
+		}
 		for _, c := range []string{"social", "updates", "forums", "promotions"} {
 			cc := c
 			disp := strings.Title(cc)
-			options = append(options, optionItem{padIcon("🗂️") + disp, func() { scopeField.SetText("category:" + cc); hideRight(); a.SetFocus(scopeField) }})
+			emoji := categoryEmojis[cc]
+			options = append(options, optionItem{emoji + " " + disp, func() { scopeField.SetText("category:" + cc); hideRight(); a.SetFocus(scopeField) }})
 		}
 		// Labels (all user labels in 'scopes' beyond base)
 		baseSet := map[string]struct{}{"All Mail": {}, "Inbox": {}, "Archive": {}, "Sent": {}, "Drafts": {}, "Spam": {}, "Trash": {}, "Starred": {}, "Important": {}}
@@ -1231,12 +1229,12 @@ func (a *App) openAdvancedSearchForm() {
 				continue
 			}
 			name := s
-			options = append(options, optionItem{padIcon("🔖") + name, func() { scopeField.SetText("label:\"" + name + "\""); hideRight(); a.SetFocus(scopeField) }})
+			options = append(options, optionItem{"🔖 " + name, func() { scopeField.SetText("label:\"" + name + "\""); hideRight(); a.SetFocus(scopeField) }})
 		}
 
 		filter := tview.NewInputField().SetLabel("🔎 ")
 		filter.SetPlaceholder("filter options…")
-		filter.SetFieldWidth(30)
+		filter.SetFieldWidth(31)  // Adjusted width to match 35-column container
 		// Apply consistent theme styling to filter field
 		a.ConfigureInputFieldTheme(filter, "advanced")
 
@@ -1248,6 +1246,12 @@ func (a *App) openAdvancedSearchForm() {
 		list.SetMainTextColor(searchOptionsColors.Text.Color())
 		list.SetSelectedBackgroundColor(searchOptionsColors.Accent.Color())
 		list.SetSelectedTextColor(searchOptionsColors.Background.Color())
+		
+		// FORCE REDRAW: Add selection change callback to force complete redraw
+		list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+			// Force the entire List widget to redraw when selection changes
+			list.SetBorder(false) // Trigger internal redraw
+		})
 
 		// Container con borde para incluir picker + lista
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -1287,7 +1291,7 @@ func (a *App) openAdvancedSearchForm() {
 		})
 		box.AddItem(filter, 1, 0, true)
 		box.AddItem(list, 0, 1, true)
-		right.AddItem(box, 0, 1, true)
+		right.AddItem(box, 0, 1, true)  // Full height: occupy whole search panel
 		apply("")
 		box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			if e.Key() == tcell.KeyEscape {
