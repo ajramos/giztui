@@ -29,10 +29,10 @@ type labelItem struct {
 
 // System folder configuration for move panel
 type systemFolder struct {
-	id          string // Gmail label ID or special value
-	name        string // Display name with icon
-	icon        string // Icon only (for logging)
-	condition   func(labels []string) bool // When to show this option
+	id        string                     // Gmail label ID or special value
+	name      string                     // Display name with icon
+	icon      string                     // Icon only (for logging)
+	condition func(labels []string) bool // When to show this option
 }
 
 // getSystemFolders returns the available system folders based on current message labels
@@ -41,9 +41,9 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 	for _, label := range messageLabels {
 		labelSet[label] = true
 	}
-	
+
 	folders := []systemFolder{}
-	
+
 	// Show Inbox if message is not in inbox (archived, spam, trash, etc.)
 	if !labelSet[GMAIL_INBOX] {
 		folders = append(folders, systemFolder{
@@ -60,7 +60,7 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 			},
 		})
 	}
-	
+
 	// Show Trash if message is not in trash
 	if !labelSet[GMAIL_TRASH] {
 		folders = append(folders, systemFolder{
@@ -77,7 +77,7 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 			},
 		})
 	}
-	
+
 	// Show Archive if message is currently in inbox
 	if labelSet[GMAIL_INBOX] {
 		folders = append(folders, systemFolder{
@@ -94,7 +94,7 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 			},
 		})
 	}
-	
+
 	// Show Spam if message is not in spam
 	if !labelSet[GMAIL_SPAM] {
 		folders = append(folders, systemFolder{
@@ -111,7 +111,7 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 			},
 		})
 	}
-	
+
 	if a.logger != nil {
 		folderNames := make([]string, len(folders))
 		for i, f := range folders {
@@ -119,7 +119,7 @@ func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
 		}
 		a.logger.Printf("getSystemFolders: messageLabels=%v, returning folders=[%s]", messageLabels, strings.Join(folderNames, ", "))
 	}
-	
+
 	return folders
 }
 
@@ -128,7 +128,7 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 	if a.logger != nil {
 		a.logger.Printf("buildMoveOptions: building options for messageID=%s", messageID)
 	}
-	
+
 	// Get message details to determine current labels
 	msg, err := a.Client.GetMessage(messageID)
 	if err != nil {
@@ -137,7 +137,7 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 		}
 		return nil, fmt.Errorf("failed to get message: %v", err)
 	}
-	
+
 	// Get all available labels
 	labels, err := a.Client.ListLabels()
 	if err != nil {
@@ -146,10 +146,10 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 		}
 		return nil, fmt.Errorf("failed to get labels: %v", err)
 	}
-	
+
 	// Create options list
 	options := []labelItem{}
-	
+
 	// Add system folders at the top
 	systemFolders := a.getSystemFolders(msg.LabelIds)
 	for _, folder := range systemFolders {
@@ -159,7 +159,7 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 			applied: false, // System folders are never "applied" - they're destinations
 		})
 	}
-	
+
 	if a.logger != nil && len(systemFolders) > 0 {
 		folderNames := make([]string, len(systemFolders))
 		for i, f := range systemFolders {
@@ -167,13 +167,13 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 		}
 		a.logger.Printf("buildMoveOptions: added %d system folders: [%s]", len(systemFolders), strings.Join(folderNames, ", "))
 	}
-	
+
 	// Add regular labels (filtered and sorted)
 	currentLabels := make(map[string]bool)
 	for _, lid := range msg.LabelIds {
 		currentLabels[lid] = true
 	}
-	
+
 	filtered := a.filterAndSortLabels(labels)
 	for _, label := range filtered {
 		options = append(options, labelItem{
@@ -182,12 +182,12 @@ func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
 			applied: currentLabels[label.Id],
 		})
 	}
-	
+
 	if a.logger != nil {
-		a.logger.Printf("buildMoveOptions: returning %d total options (%d system folders + %d regular labels)", 
+		a.logger.Printf("buildMoveOptions: returning %d total options (%d system folders + %d regular labels)",
 			len(options), len(systemFolders), len(filtered))
 	}
-	
+
 	return options, nil
 }
 
@@ -312,7 +312,6 @@ func (a *App) manageLabels() {
 		return
 	}
 
-
 	// Ensure message content is shown without stealing focus
 	a.showMessageWithoutFocus(messageID)
 
@@ -335,11 +334,11 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	labelsList := tview.NewList()
 	labelsList.SetBorder(true)
 	labelsList.SetTitle(" 🔖  Message Labels ")
-	
+
 	// Apply component-specific selection colors
 	labelColors := a.GetComponentColors("labels")
 	labelsList.SetMainTextColor(labelColors.Text.Color())
-	labelsList.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+	labelsList.SetSelectedTextColor(labelColors.Background.Color())   // Use background for selected text (inverse)
 	labelsList.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 
 	// Get current message labels
@@ -503,11 +502,11 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 		body := tview.NewList().ShowSecondaryText(false)
 		body.SetBorder(false)
-		
+
 		// Apply component-specific selection colors
 		labelColors := a.GetComponentColors("labels")
 		body.SetMainTextColor(labelColors.Text.Color())
-		body.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+		body.SetSelectedTextColor(labelColors.Background.Color())   // Use background for selected text (inverse)
 		body.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 		// Helper to pad emoji to width 2 for alignment across fonts
 		padIcon := func(icon string) string {
@@ -631,10 +630,10 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container.SetTitle(" 🔖  Message Labels ")
 		container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 		container.SetBackgroundColor(bgColor)
-		
+
 		// Set background on child components as well
 		body.SetBackgroundColor(bgColor)
-		
+
 		container.AddItem(body, 0, 1, true)
 		// Footer hint: quick view uses ESC to close panel
 		footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
@@ -699,7 +698,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	a.labelsExpanded = true
 	// Get theme colors for labels component
 	labelColors := a.GetComponentColors("labels")
-	
+
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
@@ -710,7 +709,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	list.SetBorder(false)
 	// Apply theme colors to list component
 	list.SetMainTextColor(labelColors.Text.Color())
-	list.SetSelectedTextColor(labelColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedTextColor(labelColors.Background.Color())   // Use background for selected text (inverse)
 	list.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 
 	// Loader
@@ -725,11 +724,11 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				continue
 			}
 			visible = append(visible, it)
-			
+
 			// Handle display differently for system folders vs regular labels
 			var display string
-			if moveMode && (strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") || 
-							strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫")) {
+			if moveMode && (strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") ||
+				strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫")) {
 				// System folders: show icon and name directly (no toggle indicators)
 				display = it.name
 			} else {
@@ -742,12 +741,12 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			id := it.id
 			name := it.name
 			applied := it.applied
-			
+
 			// Set appropriate secondary text based on mode and item type
 			var secondaryText string
 			if moveMode {
-				if strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") || 
-				   strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫") {
+				if strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") ||
+					strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫") {
 					secondaryText = "Enter: move here"
 				} else {
 					secondaryText = "Enter: move to label"
@@ -755,7 +754,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			} else {
 				secondaryText = "Enter: toggle"
 			}
-			
+
 			list.AddItem(display, secondaryText, 0, func() {
 				if a.logger != nil {
 					a.logger.Printf("📋 LIST ITEM CALLBACK TRIGGERED: id='%s', name='%s', moveMode=%v", id, name, moveMode)
@@ -798,13 +797,13 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							idsToMove = append(idsToMove, sid)
 						}
 					}
-					
+
 					failed := 0
 					var operationName string
 
 					// Get services for undo support - use proper move function
 					emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-					
+
 					// Handle system folders vs regular labels
 					if a.logger != nil {
 						a.logger.Printf("🔍 SWITCH DEBUG: About to switch on id='%s', name='%s'", id, name)
@@ -837,7 +836,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 							}
 						}
-					
+
 					case GMAIL_TRASH:
 						// Move to Trash: Use undo-aware system folder move
 						operationName = "Trash"
@@ -849,7 +848,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 							}
 						}
-					
+
 					case GMAIL_SPAM:
 						// Move to Spam: Use undo-aware system folder move
 						operationName = "Spam"
@@ -861,7 +860,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 							}
 						}
-					
+
 					case "REMOVE_INBOX":
 						// Archive: Remove INBOX label (ArchiveMessage handles both label removal and undo)
 						operationName = "Archive"
@@ -874,7 +873,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								}
 							}
 						}
-					
+
 					default:
 						// Regular label: Apply label and archive (original behavior)
 						operationName = name
@@ -888,7 +887,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							}
 						}
 					}
-					
+
 					if a.logger != nil {
 						a.logger.Printf("Move operation completed: %s, failed=%d/%d", operationName, failed, len(idsToMove))
 					}
@@ -1091,9 +1090,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								if a.logger != nil {
 									a.logger.Printf("🔥 SEARCH INPUT ENTER: Executing move for id='%s', name='%s'", id, name)
 								}
-								
+
 								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-								
+
 								// Handle system folders vs regular labels (same logic as list handlers)
 								switch id {
 								case GMAIL_INBOX:
@@ -1209,7 +1208,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			container.SetBackgroundColor(bgColor)
 			container.SetBorderColor(labelColors.Border.Color())
 			container.SetBorder(true)
-			
+
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
@@ -1252,110 +1251,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				if a.logger != nil {
 					a.logger.Printf("🎹 LIST INPUT CAPTURE: key=%d, rune=%c, currentFocus=%s", int(e.Key()), e.Rune(), a.currentFocus)
 				}
-				if e.Key() == tcell.KeyEnter {
-					// Force trigger the move operation for the current selected item
-					idx := list.GetCurrentItem()
-					if a.logger != nil {
-						a.logger.Printf("🎯 ENTER PRESSED: Current list index=%d, visible items count=%d", idx, len(visible))
-					}
-					if idx >= 0 && idx < len(visible) {
-						selectedLabel := visible[idx]
-						if a.logger != nil {
-							a.logger.Printf("🎯 SELECTED ITEM: id='%s', name='%s'", selectedLabel.id, selectedLabel.name)
-						}
-						// Manually trigger the move operation
-						if moveMode {
-							go func() {
-								// Use the same logic as in the callback
-								idsToMove := []string{messageID}
-								if a.bulkMode && len(a.selected) > 0 {
-									idsToMove = idsToMove[:0]
-									for sid := range a.selected {
-										idsToMove = append(idsToMove, sid)
-									}
-								}
-								failed := 0
-								if a.logger != nil {
-									a.logger.Printf("🔥 ENTER KEY INPUT CAPTURE: Executing move for id='%s', name='%s'", selectedLabel.id, selectedLabel.name)
-								}
-								
-								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-								
-								// Handle system folders vs regular labels (same logic as list callback)
-								switch selectedLabel.id {
-								case GMAIL_INBOX:
-									for _, mid := range idsToMove {
-										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_INBOX, "Inbox"); err != nil {
-											failed++
-											if a.logger != nil {
-												a.logger.Printf("Failed to move message %s to Inbox: %v", mid, err)
-											}
-										}
-									}
-								case GMAIL_TRASH:
-									for _, mid := range idsToMove {
-										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_TRASH, "Trash"); err != nil {
-											failed++
-										}
-									}
-								case GMAIL_SPAM:
-									for _, mid := range idsToMove {
-										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_SPAM, "Spam"); err != nil {
-											failed++
-										}
-									}
-								case "REMOVE_INBOX":
-									for _, mid := range idsToMove {
-										if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
-											failed++
-										}
-									}
-								default:
-									// Regular label: Apply label and archive (original behavior)
-									for _, mid := range idsToMove {
-										if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
-											failed++
-										}
-										// Use ArchiveMessageAsMove to record proper move undo action
-										if err := emailService.ArchiveMessageAsMove(a.ctx, mid, selectedLabel.id, selectedLabel.name); err != nil {
-											failed++
-										}
-									}
-								}
-								// UI cleanup and message removal (same as callback)
-								a.QueueUpdateDraw(func() {
-									// Close the panel first
-									if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-										split.ResizeItem(a.labelsView, 0, 0)
-									}
-									a.labelsVisible = false
-									a.labelsExpanded = false
-									// Exit bulk mode
-									a.selected = make(map[string]bool)
-									a.bulkMode = false
-									a.reformatListItems()
-									// Restore focus
-									a.SetFocus(a.views["list"])
-									a.currentFocus = "list"
-									a.updateFocusIndicators("list")
-								})
-								go func() {
-									time.Sleep(100 * time.Millisecond)
-									a.QueueUpdateDraw(func() {
-										a.removeIDsFromCurrentList(idsToMove)
-									})
-								}()
-								// Status message
-								if len(idsToMove) <= 1 && failed == 0 {
-									a.showStatusMessage("📦 Moved to: " + selectedLabel.name)
-								} else {
-									a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), selectedLabel.name))
-								}
-							}()
-						}
-					}
-					return nil
-				}
+				// Remove custom Enter handling to let tview's built-in mechanism handle it
+				// This allows both Enter and Space to work identically via AddItem selectedFunc
 				if e.Key() == tcell.KeyEscape {
 					// CRITICAL FIX: Make ESC operations synchronous to prevent deadlock
 					a.labelsExpanded = false
@@ -1443,7 +1340,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 	if a.logger != nil {
 		a.logger.Printf("DEBUG expandLabelsBrowseGeneric: background color = %s", labelColors.Background.Color())
 	}
-	
+
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
 		SetFieldWidth(30).
@@ -1452,7 +1349,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 		SetFieldTextColor(labelColors.Text.Color())
 	// Set background on the input field component itself
 	input.SetBackgroundColor(labelColors.Background.Color())
-	
+
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	// Set background on list to prevent transparency
@@ -1569,7 +1466,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 func (a *App) editLabelInline(labelID, name string) {
 	// Get theme colors for labels component
 	labelColors := a.GetComponentColors("labels")
-	
+
 	input := tview.NewInputField().
 		SetLabel("New name: ").
 		SetText(name).
@@ -1579,12 +1476,12 @@ func (a *App) editLabelInline(labelID, name string) {
 		SetLabelColor(labelColors.Title.Color())
 	// Set background on the input field component itself
 	input.SetBackgroundColor(labelColors.Background.Color())
-		
+
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to rename  |  Esc to back ")
 	footer.SetTextColor(labelColors.Text.Color())
 	footer.SetBackgroundColor(labelColors.Background.Color())
-	
+
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(labelColors.Background.Color())
 	container.SetBorderColor(labelColors.Border.Color())
@@ -1639,17 +1536,17 @@ func (a *App) editLabelInline(labelID, name string) {
 func (a *App) confirmDeleteLabel(labelID, name string) {
 	// Get theme colors for labels component
 	labelColors := a.GetComponentColors("labels")
-	
+
 	text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	text.SetText("Delete label '" + name + "'? This cannot be undone.")
 	text.SetBackgroundColor(labelColors.Background.Color())
 	text.SetTextColor(labelColors.Text.Color())
-	
+
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to confirm  |  Esc to back ")
 	footer.SetTextColor(labelColors.Text.Color())
 	footer.SetBackgroundColor(labelColors.Background.Color())
-	
+
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(labelColors.Background.Color())
 	container.SetBorderColor(labelColors.Border.Color())
@@ -1749,7 +1646,6 @@ func (a *App) manageLabelsBulk() {
 		return
 	}
 
-
 	// Ensure panel visible
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
@@ -1766,7 +1662,6 @@ func (a *App) manageLabelsBulk() {
 			break
 		}
 	}
-
 
 	// Use browse mode (not move mode) for bulk label management
 	a.expandLabelsBrowseWithMode(mid, false)
@@ -1785,7 +1680,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 	if a.logger != nil {
 		a.logger.Printf("DEBUG addCustomLabelInline: background color = %s", labelColors.Background.Color())
 	}
-	
+
 	// Inline input inside labels side panel (no modal)
 	input := tview.NewInputField().
 		SetLabel("Label name: ").
@@ -2225,7 +2120,7 @@ func (a *App) removeLabelNameFromMessageCache(messageID, name string) {
 func (a *App) moveSelected() {
 	// Get the current message ID from cached state (for undo functionality)
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -2235,7 +2130,7 @@ func (a *App) moveSelected() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
