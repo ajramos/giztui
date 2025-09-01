@@ -48,8 +48,6 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 		return fmt.Errorf("messageID cannot be empty")
 	}
 
-	if s.logger != nil {
-	}
 
 	// Record move undo action before performing the operation
 	if s.undoService != nil {
@@ -88,8 +86,6 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 		RemoveLabels: []string{"INBOX"},
 	}
 
-	if s.logger != nil {
-	}
 	return s.repo.UpdateMessage(ctx, messageID, updates)
 }
 

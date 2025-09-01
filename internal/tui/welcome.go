@@ -129,9 +129,6 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 // getWelcomeShortcuts builds the shortcuts string dynamically from user configuration
 // loggedIn parameter determines which shortcuts to show (logged in vs credentials missing)
 func (a *App) getWelcomeShortcuts(loggedIn bool) string {
-	if a.logger != nil {
-		a.logger.Printf("getWelcomeShortcuts: loggedIn=%v, building shortcuts from config", loggedIn)
-	}
 
 	shortcuts := []string{}
 
@@ -153,25 +150,14 @@ func (a *App) getWelcomeShortcuts(loggedIn bool) string {
 		addShortcut(a.Keys.Unread, "u", "Unread") 
 		addShortcut(a.Keys.CommandMode, ":", "Commands")
 		
-		if a.logger != nil {
-			a.logger.Printf("getWelcomeShortcuts: loggedIn shortcuts - Help:%s, Search:%s, Unread:%s, Commands:%s",
-				a.Keys.Help, a.Keys.Search, a.Keys.Unread, a.Keys.CommandMode)
-		}
 	} else {
 		// Credentials missing state - show basic shortcuts only
 		addShortcut(a.Keys.Help, "?", "Help")
 		addShortcut(a.Keys.Quit, "q", "Quit")
 		
-		if a.logger != nil {
-			a.logger.Printf("getWelcomeShortcuts: credentials missing shortcuts - Help:%s, Quit:%s",
-				a.Keys.Help, a.Keys.Quit)
-		}
 	}
 
 	result := strings.Join(shortcuts, "  ")
-	if a.logger != nil {
-		a.logger.Printf("getWelcomeShortcuts: result='%s'", result)
-	}
 	
 	return result
 }

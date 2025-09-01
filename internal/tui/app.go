@@ -2573,35 +2573,18 @@ func (a *App) showCompositionWithDraft(composition *services.Composition) {
 
 // SetFocus overrides the default tview.Application.SetFocus to add composition focus protection
 func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
-	// Always log focus changes for debugging
-	if a.logger != nil {
-		// Get more detailed info about the target
+	// Only log potential focus conflicts when composer is active
+	if a.logger != nil && a.compositionPanel != nil && a.compositionPanel.IsVisible() {
 		targetInfo := "Unknown"
-		switch p := primitive.(type) {
+		switch primitive.(type) {
 		case *tview.Table:
-			if p == a.views["list"] {
-				targetInfo = "MessageList"
-			} else {
-				targetInfo = "Table(other)"
-			}
+			targetInfo = "MessageList"
 		case *tview.TextView:
-			if p == a.views["text"] {
-				targetInfo = "MessageText"
-			} else {
-				targetInfo = "TextView(other)"
-			}
-		case *tview.InputField:
-			targetInfo = "InputField"
-		case *EditableTextView:
-			targetInfo = "EditableTextView(body)"
-		case *tview.Button:
-			targetInfo = "Button"
+			targetInfo = "TextView"
 		default:
 			targetInfo = fmt.Sprintf("%T", primitive)
 		}
-
-		composerActive := a.compositionPanel != nil && a.compositionPanel.IsVisible()
-		a.logger.Printf("🎯 FOCUS: Setting focus to %s | Composer active: %v", targetInfo, composerActive)
+		a.logger.Printf("🎯 FOCUS: Potential focus conflict - setting focus to %s while composer active", targetInfo)
 	}
 
 	// Check if composition panel is active and log potential focus stealing

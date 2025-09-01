@@ -233,28 +233,14 @@ func (a *App) exitSearch() {
 
 // reloadMessages loads messages from the inbox, respecting current threading mode
 func (a *App) reloadMessages() {
-	if a.logger != nil {
-		a.logger.Printf("RELOAD_MSG: reloadMessages() called")
-		a.logger.Printf("RELOAD_MSG: Threading enabled: %t", a.IsThreadingEnabled())
-		if a.IsThreadingEnabled() {
-			a.logger.Printf("RELOAD_MSG: Current thread view mode: %v", a.GetCurrentThreadViewMode())
-		}
-		a.logger.Printf("RELOAD_MSG: Current query: '%s'", a.currentQuery)
-	}
 	
 	// Check if we're in threading mode and should reload threads instead
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
-		if a.logger != nil {
-			a.logger.Printf("RELOAD_MSG: currently in thread mode, calling refreshThreadView instead")
-		}
 		a.reloadThreadsWithSpinner()
 		return
 	}
 
 	// Otherwise reload messages in flat mode
-	if a.logger != nil {
-		a.logger.Printf("RELOAD_MSG: calling reloadMessagesFlat()")
-	}
 	a.reloadMessagesFlat()
 }
 

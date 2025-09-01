@@ -266,8 +266,6 @@ func (c *CompositionPanel) applyFieldStyling() {
 
 	// Debug logging for field styling
 	if c.app.logger != nil {
-		c.app.logger.Printf("DEBUG applyFieldStyling: Applying colors AFTER fields added to Form")
-		c.app.logger.Printf("  Field bg: %s, Field text: %s, Labels: %s",
 			string(componentColors.Background), string(componentColors.Text), string(componentColors.Title))
 	}
 
@@ -950,9 +948,6 @@ func (c *CompositionPanel) hide() {
 
 // IsVisible returns whether the composition panel is currently visible
 func (c *CompositionPanel) IsVisible() bool {
-	if c.app.logger != nil {
-		c.app.logger.Printf("📝 COMPOSER: IsVisible() called - returning %v", c.isVisible)
-	}
 	return c.isVisible
 }
 
@@ -987,7 +982,6 @@ func (c *CompositionPanel) UpdateTheme() {
 		c.app.logger.Printf("  Form field background: %s (should be dark slate #1e2540)", string(componentColors.Background))
 		c.app.logger.Printf("  Form field text: %s (should be light blue-gray #c5d1eb)", string(componentColors.Text))
 		c.app.logger.Printf("  Form labels: %s (should be cyan #4fc3f7, NOT yellow)", string(componentColors.Title))
-		c.app.logger.Printf("  Expected vs Actual - Background: %s, Labels: %s", string(componentColors.Background), string(componentColors.Title))
 	}
 
 	// Update main container

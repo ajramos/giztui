@@ -1418,11 +1418,6 @@ func (a *App) restoreFocusAfterModal() {
 
 // handleVimSequence handles VIM-style key sequences including navigation and range operations
 func (a *App) handleVimSequence(key rune) bool {
-	if a.logger != nil {
-		a.logger.Printf("=== handleVimSequence called with key='%c' ===", key)
-		a.logger.Printf("Current state: vimOperationType='%s', vimOperationCount=%d, vimSequence='%s'", a.vimOperationType, a.vimOperationCount, a.vimSequence)
-		a.logger.Printf("Bulk mode: %v, selected count: %d", a.bulkMode, len(a.selected))
-	}
 
 	// Check if we're in a context where VIM sequences should work
 	// Allow VIM sequences when focus is on list or text (for content navigation)

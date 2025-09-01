@@ -255,6 +255,7 @@ func (a *App) closePromptPicker() {
 			height := a.originalHeaderHeight
 			if height == 0 {
 				height = 6 // Fallback to default height
+			} else {
 			}
 			textContainer.ResizeItem(header, height, 0)
 			a.originalHeaderHeight = 0 // Reset the stored height
@@ -781,6 +782,7 @@ func (a *App) closePromptManager() {
 			height := a.originalHeaderHeight
 			if height == 0 {
 				height = 6 // Fallback to default height
+			} else {
 			}
 			textContainer.ResizeItem(header, height, 0)
 			a.originalHeaderHeight = 0 // Reset the stored height

@@ -55,10 +55,6 @@ func NewEditableTextView(app *App) *EditableTextView {
 	
 	// Input handling is done through InputHandler() method, not SetInputCapture
 	
-	// Add focus debugging
-	if app.logger != nil {
-		app.logger.Printf("FOCUS DEBUG: Created EditableTextView with proxy TextView: %p", textView)
-	}
 	
 	return editable
 }
@@ -103,13 +99,6 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 	
 	// Set custom input handler directly on the TextView
 	e.textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if e.app.logger != nil {
-			if event.Rune() != 0 {
-				e.app.logger.Printf("FOCUS DEBUG: TextView InputCapture processing rune: %c", event.Rune())
-			} else {
-				e.app.logger.Printf("FOCUS DEBUG: TextView InputCapture processing key: %v", event.Key())
-			}
-		}
 		
 		if !e.isEditable {
 			return event // Pass through if not editable
@@ -169,26 +158,17 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 		
 		// Handle character input
 		if event.Rune() != 0 && unicode.IsPrint(event.Rune()) {
-			if e.app.logger != nil {
-				e.app.logger.Printf("FOCUS DEBUG: TextView InputCapture inserting character: %c", event.Rune())
-			}
 			e.insertCharacter(event.Rune())
 			return nil // CONSUME the event - critical for blocking global shortcuts
 		}
 		
 		// For unhandled keys, pass them through
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: TextView InputCapture passing through unhandled key")
-		}
 		return event
 	})
 }
 
 // Focus delegates focus to the underlying TextView (but TextView has custom input handler)
 func (e *EditableTextView) Focus(delegate func(p tview.Primitive)) {
-	if e.app.logger != nil {
-		e.app.logger.Printf("FOCUS DEBUG: EditableTextView.Focus() - delegating to TextView with custom input handler")
-	}
 	
 	// Set our custom input handler on the TextView before focusing it
 	e.setupTextViewInputHandler()
@@ -206,9 +186,6 @@ func (e *EditableTextView) Focus(delegate func(p tview.Primitive)) {
 func (e *EditableTextView) HasFocus() bool {
 	if e.textView != nil {
 		hasFocus := e.textView.HasFocus()
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HasFocus() = %v (from TextView)", hasFocus)
-		}
 		return hasFocus
 	}
 	return false
@@ -216,9 +193,6 @@ func (e *EditableTextView) HasFocus() bool {
 
 // Blur removes focus from the underlying TextView
 func (e *EditableTextView) Blur() {
-	if e.app.logger != nil {
-		e.app.logger.Printf("FOCUS DEBUG: EditableTextView.Blur() - delegating to TextView")
-	}
 	
 	if e.textView != nil {
 		e.textView.Blur()
@@ -319,9 +293,6 @@ func (e *EditableTextView) GetText() string {
 
 // SetChangedFunc sets the callback for text changes
 func (e *EditableTextView) SetChangedFunc(changed func(string)) {
-	if e.app.logger != nil {
-		e.app.logger.Printf("FOCUS DEBUG: EditableTextView.SetChangedFunc() called")
-	}
 	e.changeFunc = changed
 }
 
@@ -545,9 +516,6 @@ func (e *EditableTextView) textChanged() {
 	
 	// Call change callback if not already updating (prevents loops)
 	if e.changeFunc != nil && !e.updating {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.textChanged() calling changeFunc")
-		}
 		e.changeFunc(e.text)
 	}
 }
@@ -652,9 +620,6 @@ func (e *EditableTextView) SetCursorPosition(line, column int) {
 // HandleCharInput handles character input from external sources
 func (e *EditableTextView) HandleCharInput(char rune) {
 	if e.isEditable && unicode.IsPrint(char) {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleCharInput inserting character: %c", char)
-		}
 		e.insertCharacter(char)
 	}
 }
@@ -662,9 +627,6 @@ func (e *EditableTextView) HandleCharInput(char rune) {
 // HandleEnter handles enter key from external sources
 func (e *EditableTextView) HandleEnter() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleEnter inserting newline")
-		}
 		e.insertNewline()
 	}
 }
@@ -672,9 +634,6 @@ func (e *EditableTextView) HandleEnter() {
 // HandleBackspace handles backspace key from external sources
 func (e *EditableTextView) HandleBackspace() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleBackspace")
-		}
 		e.handleBackspace()
 	}
 }
@@ -682,9 +641,6 @@ func (e *EditableTextView) HandleBackspace() {
 // HandleDelete handles delete key from external sources
 func (e *EditableTextView) HandleDelete() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleDelete")
-		}
 		e.handleDelete()
 	}
 }
@@ -692,9 +648,6 @@ func (e *EditableTextView) HandleDelete() {
 // HandleArrowUp handles up arrow key from external sources
 func (e *EditableTextView) HandleArrowUp() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleArrowUp")
-		}
 		e.moveCursorUp()
 	}
 }
@@ -702,9 +655,6 @@ func (e *EditableTextView) HandleArrowUp() {
 // HandleArrowDown handles down arrow key from external sources
 func (e *EditableTextView) HandleArrowDown() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleArrowDown")
-		}
 		e.moveCursorDown()
 	}
 }
@@ -712,9 +662,6 @@ func (e *EditableTextView) HandleArrowDown() {
 // HandleArrowLeft handles left arrow key from external sources
 func (e *EditableTextView) HandleArrowLeft() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleArrowLeft")
-		}
 		e.moveCursorLeft()
 	}
 }
@@ -722,9 +669,6 @@ func (e *EditableTextView) HandleArrowLeft() {
 // HandleArrowRight handles right arrow key from external sources
 func (e *EditableTextView) HandleArrowRight() {
 	if e.isEditable {
-		if e.app.logger != nil {
-			e.app.logger.Printf("FOCUS DEBUG: EditableTextView.HandleArrowRight")
-		}
 		e.moveCursorRight()
 	}
 }
