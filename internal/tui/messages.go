@@ -233,16 +233,28 @@ func (a *App) exitSearch() {
 
 // reloadMessages loads messages from the inbox, respecting current threading mode
 func (a *App) reloadMessages() {
+	if a.logger != nil {
+		a.logger.Printf("RELOAD_MSG: reloadMessages() called")
+		a.logger.Printf("RELOAD_MSG: Threading enabled: %t", a.IsThreadingEnabled())
+		if a.IsThreadingEnabled() {
+			a.logger.Printf("RELOAD_MSG: Current thread view mode: %v", a.GetCurrentThreadViewMode())
+		}
+		a.logger.Printf("RELOAD_MSG: Current query: '%s'", a.currentQuery)
+	}
+	
 	// Check if we're in threading mode and should reload threads instead
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
 		if a.logger != nil {
-			a.logger.Printf("reloadMessages: currently in thread mode, calling refreshThreadView instead")
+			a.logger.Printf("RELOAD_MSG: currently in thread mode, calling refreshThreadView instead")
 		}
 		a.reloadThreadsWithSpinner()
 		return
 	}
 
 	// Otherwise reload messages in flat mode
+	if a.logger != nil {
+		a.logger.Printf("RELOAD_MSG: calling reloadMessagesFlat()")
+	}
 	a.reloadMessagesFlat()
 }
 
@@ -349,8 +361,24 @@ func (a *App) reloadMessagesFlat() {
 		return
 	}
 
-	messages, next, err := a.Client.ListMessagesPage(50, "")
+	// Use current query for reload to maintain current view context
+	query := a.currentQuery
+	
+	// Fallback: if currentQuery is empty but we're clearly in a specific folder,
+	// try to detect the folder from current message and construct appropriate query
+	if query == "" {
+		query = a.detectCurrentFolderQuery()
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("RELOAD_MSG: Loading messages with query: '%s'", query)
+	}
+
+	messages, next, err := a.Client.ListMessagesPage(50, query)
 	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("RELOAD_MSG: Error loading messages: %v", err)
+		}
 		a.showError(fmt.Sprintf("❌ Error loading messages: %v", err))
 		return
 	}
@@ -1016,7 +1044,7 @@ func (a *App) openAdvancedSearchForm() {
 	a.ConfigureInputFieldTheme(dateWithinField, "advanced")
 	form.AddFormItem(dateWithinField)
 	// Scope
-	baseScopes := []string{"All Mail", "Inbox", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
+	baseScopes := []string{"All Mail", "Inbox", "Archive", "Sent", "Drafts", "Spam", "Trash", "Starred", "Important"}
 	scopes := append([]string{}, baseScopes...)
 	scopeVal := "All Mail"
 	if a.logger != nil {
@@ -1184,8 +1212,9 @@ func (a *App) openAdvancedSearchForm() {
 		options := make([]optionItem, 0, 256)
 		// Folders
 		options = append(options,
-			optionItem{padIcon("📁") + "All Mail", func() { scopeVal = "All Mail"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("📮") + "All Mail", func() { scopeVal = "All Mail"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
 			optionItem{padIcon("📥") + "Inbox", func() { scopeVal = "Inbox"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
+			optionItem{padIcon("📁") + "Archive", func() { scopeVal = "Archive"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
 			optionItem{padIcon("📤") + "Sent Mail", func() { scopeVal = "Sent"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
 			optionItem{padIcon("📝") + "Drafts", func() { scopeVal = "Drafts"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
 			optionItem{padIcon("🚫") + "Spam", func() { scopeVal = "Spam"; scopeField.SetText(scopeVal); hideRight(); a.SetFocus(scopeField) }},
@@ -1210,7 +1239,7 @@ func (a *App) openAdvancedSearchForm() {
 			options = append(options, optionItem{padIcon("🗂️") + disp, func() { scopeField.SetText("category:" + cc); hideRight(); a.SetFocus(scopeField) }})
 		}
 		// Labels (all user labels in 'scopes' beyond base)
-		baseSet := map[string]struct{}{"All Mail": {}, "Inbox": {}, "Sent": {}, "Drafts": {}, "Spam": {}, "Trash": {}, "Starred": {}, "Important": {}}
+		baseSet := map[string]struct{}{"All Mail": {}, "Inbox": {}, "Archive": {}, "Sent": {}, "Drafts": {}, "Spam": {}, "Trash": {}, "Starred": {}, "Important": {}}
 		for _, s := range scopes {
 			if _, okb := baseSet[s]; okb {
 				continue
@@ -1496,6 +1525,8 @@ func (a *App) openAdvancedSearchForm() {
 			// no-op
 		case "Inbox":
 			parts = append(parts, "in:inbox")
+		case "Archive":
+			parts = append(parts, "in:archive")
 		case "Sent":
 			parts = append(parts, "in:sent")
 		case "Drafts":
@@ -4021,3 +4052,77 @@ func (a *App) loadDraftForEditing(draftID string, compositionService services.Co
 		}
 	}()
 }
+
+// detectCurrentFolderQuery attempts to detect what folder we're viewing based on current messages
+func (a *App) detectCurrentFolderQuery() string {
+	// Check if we have any messages in the current view
+	messageIDs := a.GetMessageIDs()
+	if len(messageIDs) == 0 {
+		if a.logger != nil {
+			a.logger.Printf("FOLDER_DETECT: No messages in current view, defaulting to inbox")
+		}
+		return "" // Default to inbox
+	}
+	
+	// Sample a few messages to detect the common folder
+	sampleSize := min(3, len(messageIDs))
+	folderCounts := make(map[string]int)
+	
+	for i := 0; i < sampleSize; i++ {
+		messageID := messageIDs[i]
+		
+		// Check message cache first
+		if cached, ok := a.messageCache[messageID]; ok {
+			folder := a.detectMessageFolder(cached.Labels)
+			if folder != "" {
+				folderCounts[folder]++
+			}
+		}
+	}
+	
+	// Find the most common folder
+	var detectedFolder string
+	maxCount := 0
+	for folder, count := range folderCounts {
+		if count > maxCount {
+			maxCount = count
+			detectedFolder = folder
+		}
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("FOLDER_DETECT: Detected folder '%s' based on %d messages", detectedFolder, maxCount)
+	}
+	
+	return detectedFolder
+}
+
+// detectMessageFolder determines what folder a message belongs to based on its labels
+func (a *App) detectMessageFolder(labels []string) string {
+	labelSet := make(map[string]bool)
+	for _, label := range labels {
+		labelSet[label] = true
+	}
+	
+	// Priority order for folder detection (most specific first)
+	if labelSet["SPAM"] {
+		return "in:spam"
+	}
+	if labelSet["TRASH"] {
+		return "in:trash"  
+	}
+	if labelSet["SENT"] {
+		return "in:sent"
+	}
+	if labelSet["DRAFT"] {
+		return "in:draft"
+	}
+	if !labelSet["INBOX"] {
+		// If no INBOX label, likely archived
+		return "in:archive"
+	}
+	
+	// Default to inbox if INBOX label is present or no special labels detected
+	return ""
+}
+

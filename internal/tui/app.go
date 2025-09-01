@@ -1069,6 +1069,13 @@ func (a *App) getUndoStatusMessage(result *services.UndoResult) string {
 
 // smartUndoReload only reloads when necessary to show restored messages
 func (a *App) smartUndoReload(result *services.UndoResult) {
+	if a.logger != nil {
+		a.logger.Printf("RELOAD: smartUndoReload called with ActionType=%s, Description=%s", result.ActionType, result.Description)
+		if result.ExtraData != nil {
+			a.logger.Printf("RELOAD: ExtraData=%+v", result.ExtraData)
+		}
+	}
+	
 	if result == nil {
 		return
 	}
@@ -1117,8 +1124,30 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 		})
 		return
 	} else if result.ActionType == services.UndoActionMove {
-		// Move changes - restore message to list and update cache
-		a.restoreMessagesToInboxList(result.MessageIDs)
+		// Move changes - handle system folder moves properly
+		isSystemFolderMove := false
+		if systemFolder, exists := result.ExtraData["system_folder"]; exists {
+			isSystemFolderMove = systemFolder.(bool)
+		}
+		
+		if a.logger != nil {
+			a.logger.Printf("RELOAD: UndoActionMove - isSystemFolderMove=%t", isSystemFolderMove)
+		}
+		
+		if isSystemFolderMove {
+			// For system folder moves, we need a full reload to show the message in its restored location
+			needsReload = true
+			if a.logger != nil {
+				a.logger.Printf("RELOAD: Setting needsReload=true for system folder move")
+			}
+		} else {
+			// Regular label-based moves can be handled with cache updates
+			a.restoreMessagesToInboxList(result.MessageIDs)
+			if a.logger != nil {
+				a.logger.Printf("RELOAD: Using restoreMessagesToInboxList for regular move")
+			}
+		}
+		
 		a.updateCacheAfterMoveUndo(result)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
@@ -1129,15 +1158,36 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 				}
 			}
 		})
-		return
+		
+		// Don't return here if we need reload - let it fall through to the reload logic
+		if !needsReload {
+			if a.logger != nil {
+				a.logger.Printf("RELOAD: Returning early, no reload needed")
+			}
+			return
+		}
+		
+		if a.logger != nil {
+			a.logger.Printf("RELOAD: Falling through to reload logic")
+		}
 	}
 
 	if needsReload {
+		if a.logger != nil {
+			a.logger.Printf("RELOAD: needsReload=true, starting reload goroutine")
+		}
 		go func() {
 			// Small delay to let success message show first
 			time.Sleep(200 * time.Millisecond)
+			if a.logger != nil {
+				a.logger.Printf("RELOAD: Calling reloadMessages()")
+			}
 			a.reloadMessages()
 		}()
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("RELOAD: needsReload=false, no reload triggered")
+		}
 	}
 }
 

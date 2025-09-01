@@ -12,6 +12,185 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// Gmail system folder constants
+const (
+	GMAIL_INBOX = "INBOX"
+	GMAIL_TRASH = "TRASH"
+	GMAIL_SPAM  = "SPAM"
+	GMAIL_SENT  = "SENT"
+	// Archive is represented by absence of INBOX label
+)
+
+// labelItem represents a label option in the move/manage panel
+type labelItem struct {
+	id, name string
+	applied  bool
+}
+
+// System folder configuration for move panel
+type systemFolder struct {
+	id          string // Gmail label ID or special value
+	name        string // Display name with icon
+	icon        string // Icon only (for logging)
+	condition   func(labels []string) bool // When to show this option
+}
+
+// getSystemFolders returns the available system folders based on current message labels
+func (a *App) getSystemFolders(messageLabels []string) []systemFolder {
+	labelSet := make(map[string]bool)
+	for _, label := range messageLabels {
+		labelSet[label] = true
+	}
+	
+	folders := []systemFolder{}
+	
+	// Show Inbox if message is not in inbox (archived, spam, trash, etc.)
+	if !labelSet[GMAIL_INBOX] {
+		folders = append(folders, systemFolder{
+			id:   GMAIL_INBOX,
+			name: "📥 Inbox",
+			icon: "📥",
+			condition: func(labels []string) bool {
+				for _, l := range labels {
+					if l == GMAIL_INBOX {
+						return false
+					}
+				}
+				return true
+			},
+		})
+	}
+	
+	// Show Trash if message is not in trash
+	if !labelSet[GMAIL_TRASH] {
+		folders = append(folders, systemFolder{
+			id:   GMAIL_TRASH,
+			name: "🗑️ Trash",
+			icon: "🗑️",
+			condition: func(labels []string) bool {
+				for _, l := range labels {
+					if l == GMAIL_TRASH {
+						return false
+					}
+				}
+				return true
+			},
+		})
+	}
+	
+	// Show Archive if message is currently in inbox
+	if labelSet[GMAIL_INBOX] {
+		folders = append(folders, systemFolder{
+			id:   "REMOVE_INBOX", // Special identifier for archive operation
+			name: "📁 Archive",
+			icon: "📁",
+			condition: func(labels []string) bool {
+				for _, l := range labels {
+					if l == GMAIL_INBOX {
+						return true
+					}
+				}
+				return false
+			},
+		})
+	}
+	
+	// Show Spam if message is not in spam
+	if !labelSet[GMAIL_SPAM] {
+		folders = append(folders, systemFolder{
+			id:   GMAIL_SPAM,
+			name: "🚫 Spam",
+			icon: "🚫",
+			condition: func(labels []string) bool {
+				for _, l := range labels {
+					if l == GMAIL_SPAM {
+						return false
+					}
+				}
+				return true
+			},
+		})
+	}
+	
+	if a.logger != nil {
+		folderNames := make([]string, len(folders))
+		for i, f := range folders {
+			folderNames[i] = f.icon + " " + strings.TrimPrefix(f.name, f.icon+" ")
+		}
+		a.logger.Printf("getSystemFolders: messageLabels=%v, returning folders=[%s]", messageLabels, strings.Join(folderNames, ", "))
+	}
+	
+	return folders
+}
+
+// buildMoveOptions creates a combined list of system folders and regular labels for the move panel
+func (a *App) buildMoveOptions(messageID string) ([]labelItem, error) {
+	if a.logger != nil {
+		a.logger.Printf("buildMoveOptions: building options for messageID=%s", messageID)
+	}
+	
+	// Get message details to determine current labels
+	msg, err := a.Client.GetMessage(messageID)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("buildMoveOptions: failed to get message: %v", err)
+		}
+		return nil, fmt.Errorf("failed to get message: %v", err)
+	}
+	
+	// Get all available labels
+	labels, err := a.Client.ListLabels()
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("buildMoveOptions: failed to get labels: %v", err)
+		}
+		return nil, fmt.Errorf("failed to get labels: %v", err)
+	}
+	
+	// Create options list
+	options := []labelItem{}
+	
+	// Add system folders at the top
+	systemFolders := a.getSystemFolders(msg.LabelIds)
+	for _, folder := range systemFolders {
+		options = append(options, labelItem{
+			id:      folder.id,
+			name:    folder.name,
+			applied: false, // System folders are never "applied" - they're destinations
+		})
+	}
+	
+	if a.logger != nil && len(systemFolders) > 0 {
+		folderNames := make([]string, len(systemFolders))
+		for i, f := range systemFolders {
+			folderNames[i] = strings.TrimPrefix(f.name, f.icon+" ")
+		}
+		a.logger.Printf("buildMoveOptions: added %d system folders: [%s]", len(systemFolders), strings.Join(folderNames, ", "))
+	}
+	
+	// Add regular labels (filtered and sorted)
+	currentLabels := make(map[string]bool)
+	for _, lid := range msg.LabelIds {
+		currentLabels[lid] = true
+	}
+	
+	filtered := a.filterAndSortLabels(labels)
+	for _, label := range filtered {
+		options = append(options, labelItem{
+			id:      label.Id,
+			name:    label.Name,
+			applied: currentLabels[label.Id],
+		})
+	}
+	
+	if a.logger != nil {
+		a.logger.Printf("buildMoveOptions: returning %d total options (%d system folders + %d regular labels)", 
+			len(options), len(systemFolders), len(filtered))
+	}
+	
+	return options, nil
+}
+
 // executeLabelAdd adds a label to the current message
 func (a *App) executeLabelAdd(args []string) {
 	labelName := strings.Join(args, " ")
@@ -535,10 +714,6 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	list.SetSelectedBackgroundColor(labelColors.Accent.Color()) // Use accent for selection highlight
 
 	// Loader
-	type labelItem struct {
-		id, name string
-		applied  bool
-	}
 	var all []labelItem
 	var visible []labelItem
 	var reload func(filter string)
@@ -550,14 +725,41 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				continue
 			}
 			visible = append(visible, it)
-			display := "○ " + it.name
-			if it.applied {
-				display = "✅ " + it.name
+			
+			// Handle display differently for system folders vs regular labels
+			var display string
+			if moveMode && (strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") || 
+							strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫")) {
+				// System folders: show icon and name directly (no toggle indicators)
+				display = it.name
+			} else {
+				// Regular labels: show toggle indicators
+				display = "○ " + it.name
+				if it.applied {
+					display = "✅ " + it.name
+				}
 			}
 			id := it.id
 			name := it.name
 			applied := it.applied
-			list.AddItem(display, "Enter: toggle", 0, func() {
+			
+			// Set appropriate secondary text based on mode and item type
+			var secondaryText string
+			if moveMode {
+				if strings.HasPrefix(it.name, "📥") || strings.HasPrefix(it.name, "🗑️") || 
+				   strings.HasPrefix(it.name, "📁") || strings.HasPrefix(it.name, "🚫") {
+					secondaryText = "Enter: move here"
+				} else {
+					secondaryText = "Enter: move to label"
+				}
+			} else {
+				secondaryText = "Enter: toggle"
+			}
+			
+			list.AddItem(display, secondaryText, 0, func() {
+				if a.logger != nil {
+					a.logger.Printf("📋 LIST ITEM CALLBACK TRIGGERED: id='%s', name='%s', moveMode=%v", id, name, moveMode)
+				}
 				if !moveMode {
 					// Check if we need to apply to bulk selection
 					if a.bulkMode && len(a.selected) > 0 {
@@ -583,8 +785,11 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					return
 				}
-				// Move mode: aplicar etiqueta y archivar para todos los seleccionados (o el actual)
+				// Move mode: handle system folders and regular labels differently
 				go func() {
+					if a.logger != nil {
+						a.logger.Printf("🚀 MOVE OPERATION GOROUTINE STARTED: id='%s', name='%s'", id, name)
+					}
 					// Construir conjunto de mensajes a mover
 					idsToMove := []string{messageID}
 					if a.bulkMode && len(a.selected) > 0 {
@@ -593,20 +798,99 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							idsToMove = append(idsToMove, sid)
 						}
 					}
-					// Aplicar etiqueta y archivar (Gmail ignora duplicados en ApplyLabel)
+					
 					failed := 0
+					var operationName string
 
-					// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
 					// Get services for undo support - use proper move function
 					emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-					for _, mid := range idsToMove {
-						if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
-							failed++
+					
+					// Handle system folders vs regular labels
+					if a.logger != nil {
+						a.logger.Printf("🔍 SWITCH DEBUG: About to switch on id='%s', name='%s'", id, name)
+						a.logger.Printf("🔍 Comparing with GMAIL_INBOX='%s', GMAIL_TRASH='%s', GMAIL_SPAM='%s'", GMAIL_INBOX, GMAIL_TRASH, GMAIL_SPAM)
+					}
+					switch id {
+					case GMAIL_INBOX:
+						// Move to Inbox: Use undo-aware system folder move
+						operationName = "Inbox"
+						if a.logger != nil {
+							a.logger.Printf("🔥 INBOX MOVE OPERATION STARTED - User triggered move to inbox with %d messages", len(idsToMove))
 						}
-						// Use ArchiveMessageAsMove to record proper move undo action
-						if err := emailService.ArchiveMessageAsMove(a.ctx, mid, id, name); err != nil {
-							failed++
+						for _, mid := range idsToMove {
+							if a.logger != nil {
+								a.logger.Printf("=== INBOX MOVE TEST LOG ===")
+								a.logger.Printf("[UI DEBUG] About to call emailService.MoveToSystemFolder for message %s to INBOX", mid)
+								a.logger.Printf("Logger is working! File path should be ~/.config/giztui/giztui.log")
+							} else {
+								// Fallback logging if logger is nil
+								fmt.Printf("WARNING: a.logger is nil! Cannot log to file.\n")
+							}
+							if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_INBOX, "Inbox"); err != nil {
+								failed++
+								if a.logger != nil {
+									a.logger.Printf("[UI ERROR] Failed to move message %s to Inbox: %v", mid, err)
+								}
+							} else {
+								if a.logger != nil {
+									a.logger.Printf("[UI SUCCESS] Successfully moved message %s to Inbox", mid)
+								}
+							}
 						}
+					
+					case GMAIL_TRASH:
+						// Move to Trash: Use undo-aware system folder move
+						operationName = "Trash"
+						for _, mid := range idsToMove {
+							if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_TRASH, "Trash"); err != nil {
+								failed++
+								if a.logger != nil {
+									a.logger.Printf("Failed to move message %s to Trash: %v", mid, err)
+								}
+							}
+						}
+					
+					case GMAIL_SPAM:
+						// Move to Spam: Use undo-aware system folder move
+						operationName = "Spam"
+						for _, mid := range idsToMove {
+							if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_SPAM, "Spam"); err != nil {
+								failed++
+								if a.logger != nil {
+									a.logger.Printf("Failed to move message %s to Spam: %v", mid, err)
+								}
+							}
+						}
+					
+					case "REMOVE_INBOX":
+						// Archive: Remove INBOX label (ArchiveMessage handles both label removal and undo)
+						operationName = "Archive"
+						for _, mid := range idsToMove {
+							// Use ArchiveMessage which removes INBOX label and records undo action
+							if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
+								failed++
+								if a.logger != nil {
+									a.logger.Printf("Failed to archive message %s: %v", mid, err)
+								}
+							}
+						}
+					
+					default:
+						// Regular label: Apply label and archive (original behavior)
+						operationName = name
+						for _, mid := range idsToMove {
+							if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
+								failed++
+							}
+							// Use ArchiveMessageAsMove to record proper move undo action
+							if err := emailService.ArchiveMessageAsMove(a.ctx, mid, id, name); err != nil {
+								failed++
+							}
+						}
+					}
+					
+					if a.logger != nil {
+						a.logger.Printf("Move operation completed: %s, failed=%d/%d", operationName, failed, len(idsToMove))
 					}
 					// Simplified UI update to avoid complex operations that might hang
 					a.QueueUpdateDraw(func() {
@@ -656,9 +940,14 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 
 					// Simple status update without complex threading
 					if len(idsToMove) <= 1 && failed == 0 {
-						a.showStatusMessage("📦 Moved to: " + name)
+						a.showStatusMessage("📦 Moved to: " + operationName)
 					} else {
-						a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", len(idsToMove), name))
+						successCount := len(idsToMove) - failed
+						if failed == 0 {
+							a.showStatusMessage(fmt.Sprintf("📦 Moved %d message(s) to %s", successCount, operationName))
+						} else {
+							a.showStatusMessage(fmt.Sprintf("📦 Moved %d/%d message(s) to %s", successCount, len(idsToMove), operationName))
+						}
 					}
 				}()
 			})
@@ -666,24 +955,35 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 	}
 
 	go func() {
-		msg, err := a.Client.GetMessage(messageID)
-		if err != nil {
-			a.showError("❌ Error loading message")
-			return
-		}
-		labels, err := a.Client.ListLabels()
-		if err != nil {
-			a.showError("❌ Error loading labels")
-			return
-		}
-		current := make(map[string]bool)
-		for _, lid := range msg.LabelIds {
-			current[lid] = true
-		}
-		filtered := a.filterAndSortLabels(labels)
-		all = make([]labelItem, 0, len(filtered))
-		for _, l := range filtered {
-			all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
+		if moveMode {
+			// Use the new system folders + labels builder for move mode
+			options, err := a.buildMoveOptions(messageID)
+			if err != nil {
+				a.showError(fmt.Sprintf("❌ Error loading move options: %v", err))
+				return
+			}
+			all = options
+		} else {
+			// Original logic for non-move mode (manage labels)
+			msg, err := a.Client.GetMessage(messageID)
+			if err != nil {
+				a.showError("❌ Error loading message")
+				return
+			}
+			labels, err := a.Client.ListLabels()
+			if err != nil {
+				a.showError("❌ Error loading labels")
+				return
+			}
+			current := make(map[string]bool)
+			for _, lid := range msg.LabelIds {
+				current[lid] = true
+			}
+			filtered := a.filterAndSortLabels(labels)
+			all = make([]labelItem, 0, len(filtered))
+			for _, l := range filtered {
+				all = append(all, labelItem{l.Id, l.Name, current[l.Id]})
+			}
 		}
 
 		// CRITICAL FIX: Set up ESC handler OUTSIDE QueueUpdateDraw to prevent deadlock
@@ -787,15 +1087,51 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								// Debug logging for move operation
 								// Starting move operation for bulk messages
 
-								// Process messages WITHOUT progress updates during the loop to avoid goroutine spam
-								// Get services for undo support (keep individual operations for now)
+								// Process messages using proper system folder handling
+								if a.logger != nil {
+									a.logger.Printf("🔥 SEARCH INPUT ENTER: Executing move for id='%s', name='%s'", id, name)
+								}
+								
 								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-								for _, mid := range idsToMove {
-									if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
-										failed++
+								
+								// Handle system folders vs regular labels (same logic as list handlers)
+								switch id {
+								case GMAIL_INBOX:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_INBOX, "Inbox"); err != nil {
+											failed++
+											if a.logger != nil {
+												a.logger.Printf("Failed to move message %s to Inbox: %v", mid, err)
+											}
+										}
 									}
-									if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
-										failed++
+								case GMAIL_TRASH:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_TRASH, "Trash"); err != nil {
+											failed++
+										}
+									}
+								case GMAIL_SPAM:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_SPAM, "Spam"); err != nil {
+											failed++
+										}
+									}
+								case "REMOVE_INBOX":
+									for _, mid := range idsToMove {
+										if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
+											failed++
+										}
+									}
+								default:
+									// Regular label: Apply label and archive (original behavior)
+									for _, mid := range idsToMove {
+										if err := labelService.ApplyLabel(a.ctx, mid, id); err != nil {
+											failed++
+										}
+										if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
+											failed++
+										}
 									}
 								}
 								// Simplified UI update to avoid complex operations that might hang
@@ -913,11 +1249,20 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			}
 			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.logger != nil {
+					a.logger.Printf("🎹 LIST INPUT CAPTURE: key=%d, rune=%c, currentFocus=%s", int(e.Key()), e.Rune(), a.currentFocus)
+				}
 				if e.Key() == tcell.KeyEnter {
 					// Force trigger the move operation for the current selected item
 					idx := list.GetCurrentItem()
+					if a.logger != nil {
+						a.logger.Printf("🎯 ENTER PRESSED: Current list index=%d, visible items count=%d", idx, len(visible))
+					}
 					if idx >= 0 && idx < len(visible) {
 						selectedLabel := visible[idx]
+						if a.logger != nil {
+							a.logger.Printf("🎯 SELECTED ITEM: id='%s', name='%s'", selectedLabel.id, selectedLabel.name)
+						}
 						// Manually trigger the move operation
 						if moveMode {
 							go func() {
@@ -930,14 +1275,51 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									}
 								}
 								failed := 0
+								if a.logger != nil {
+									a.logger.Printf("🔥 ENTER KEY INPUT CAPTURE: Executing move for id='%s', name='%s'", selectedLabel.id, selectedLabel.name)
+								}
+								
 								emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
-								for _, mid := range idsToMove {
-									if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
-										failed++
+								
+								// Handle system folders vs regular labels (same logic as list callback)
+								switch selectedLabel.id {
+								case GMAIL_INBOX:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_INBOX, "Inbox"); err != nil {
+											failed++
+											if a.logger != nil {
+												a.logger.Printf("Failed to move message %s to Inbox: %v", mid, err)
+											}
+										}
 									}
-									// Use ArchiveMessageAsMove to record proper move undo action
-									if err := emailService.ArchiveMessageAsMove(a.ctx, mid, selectedLabel.id, selectedLabel.name); err != nil {
-										failed++
+								case GMAIL_TRASH:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_TRASH, "Trash"); err != nil {
+											failed++
+										}
+									}
+								case GMAIL_SPAM:
+									for _, mid := range idsToMove {
+										if err := emailService.MoveToSystemFolder(a.ctx, mid, GMAIL_SPAM, "Spam"); err != nil {
+											failed++
+										}
+									}
+								case "REMOVE_INBOX":
+									for _, mid := range idsToMove {
+										if err := emailService.ArchiveMessage(a.ctx, mid); err != nil {
+											failed++
+										}
+									}
+								default:
+									// Regular label: Apply label and archive (original behavior)
+									for _, mid := range idsToMove {
+										if err := labelService.ApplyLabel(a.ctx, mid, selectedLabel.id); err != nil {
+											failed++
+										}
+										// Use ArchiveMessageAsMove to record proper move undo action
+										if err := emailService.ArchiveMessageAsMove(a.ctx, mid, selectedLabel.id, selectedLabel.name); err != nil {
+											failed++
+										}
 									}
 								}
 								// UI cleanup and message removal (same as callback)
@@ -1024,6 +1406,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						a.updateFocusIndicators("labels")
 						return nil
 					}
+				}
+				if a.logger != nil {
+					a.logger.Printf("🎹 LIST INPUT CAPTURE: Returning event key=%d to system", int(e.Key()))
 				}
 				return e
 			})

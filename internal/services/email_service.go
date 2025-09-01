@@ -448,3 +448,132 @@ func (s *EmailServiceImpl) SaveMessageToFile(ctx context.Context, messageID, fil
 
 	return nil
 }
+
+// MoveToSystemFolder moves a message to a system folder (Inbox, Trash, Spam) with undo support
+func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, systemFolderID, folderName string) error {
+	if messageID == "" || systemFolderID == "" {
+		return fmt.Errorf("messageID and systemFolderID cannot be empty")
+	}
+
+	if s.logger != nil {
+		s.logger.Printf("Moving message %s to system folder %s (%s)", messageID, systemFolderID, folderName)
+	}
+
+	// Record move undo action before performing the operation
+	if s.undoService != nil {
+		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
+			prevState, err := undoServiceImpl.CaptureMessageState(ctx, messageID)
+			if err == nil {
+				action := &UndoableAction{
+					Type:        UndoActionMove,
+					MessageIDs:  []string{messageID},
+					PrevState:   map[string]ActionState{messageID: prevState},
+					Description: fmt.Sprintf("Moved to %s", folderName),
+					IsBulk:      false,
+					ExtraData: map[string]interface{}{
+						"applied_labels": []string{systemFolderID},
+						"label_name":     folderName,
+						"system_folder":  true,
+					},
+				}
+				if s.logger != nil {
+					s.logger.Printf("Recording undo action for system folder move: %s -> %s", messageID, folderName)
+				}
+				s.undoService.RecordAction(ctx, action)
+			} else {
+				if s.logger != nil {
+					s.logger.Printf("Failed to capture message state for undo: %v", err)
+				}
+			}
+		}
+	}
+
+	// Perform the system folder move operation based on folder type
+	switch systemFolderID {
+	case "INBOX":
+		// Move to Inbox: Add INBOX, conditionally remove TRASH/SPAM only if they exist
+		if s.logger != nil {
+			s.logger.Printf("=== INBOX MOVE DEBUG ===")
+			s.logger.Printf("Moving message %s to INBOX", messageID)
+		}
+		
+		// First, add the INBOX label
+		updates := MessageUpdates{
+			AddLabels: []string{"INBOX"},
+		}
+		
+		if s.logger != nil {
+			s.logger.Printf("About to call s.repo.UpdateMessage to ADD INBOX label to message %s", messageID)
+			s.logger.Printf("UpdateMessage will call r.gmailClient.ApplyLabel(messageID=%s, labelID=%s)", messageID, "INBOX")
+		}
+		
+		// Apply inbox label first
+		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("ERROR: Failed to add INBOX label to message %s: %v", messageID, err)
+				s.logger.Printf("This means the Gmail API Users.Messages.Modify call failed")
+			}
+			return fmt.Errorf("failed to add INBOX label: %w", err)
+		}
+		
+		if s.logger != nil {
+			s.logger.Printf("SUCCESS: Added INBOX label to message %s", messageID)
+			s.logger.Printf("Gmail API Users.Messages.Modify succeeded for INBOX label")
+		}
+		
+		// Then try to remove TRASH and SPAM labels individually, ignoring errors if they don't exist
+		// This prevents the entire operation from failing if the message doesn't have these labels
+		if s.logger != nil {
+			s.logger.Printf("Attempting to remove TRASH label from message %s", messageID)
+		}
+		trashUpdates := MessageUpdates{RemoveLabels: []string{"TRASH"}}
+		if err := s.repo.UpdateMessage(ctx, messageID, trashUpdates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("Expected error removing TRASH label (probably doesn't exist): %v", err)
+			}
+		} else {
+			if s.logger != nil {
+				s.logger.Printf("Successfully removed TRASH label from message %s", messageID)
+			}
+		}
+		
+		if s.logger != nil {
+			s.logger.Printf("Attempting to remove SPAM label from message %s", messageID)
+		}
+		spamUpdates := MessageUpdates{RemoveLabels: []string{"SPAM"}}
+		if err := s.repo.UpdateMessage(ctx, messageID, spamUpdates); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("Expected error removing SPAM label (probably doesn't exist): %v", err)
+			}
+		} else {
+			if s.logger != nil {
+				s.logger.Printf("Successfully removed SPAM label from message %s", messageID)
+			}
+		}
+		
+		if s.logger != nil {
+			s.logger.Printf("=== INBOX MOVE COMPLETED ===")
+		}
+		
+		return nil
+
+	case "TRASH":
+		// Move to Trash: Add TRASH, remove INBOX
+		updates := MessageUpdates{
+			AddLabels:    []string{"TRASH"},
+			RemoveLabels: []string{"INBOX"},
+		}
+		return s.repo.UpdateMessage(ctx, messageID, updates)
+
+	case "SPAM":
+		// Move to Spam: Add SPAM, remove INBOX
+		updates := MessageUpdates{
+			AddLabels:    []string{"SPAM"},
+			RemoveLabels: []string{"INBOX"},
+		}
+		return s.repo.UpdateMessage(ctx, messageID, updates)
+
+	default:
+		return fmt.Errorf("unsupported system folder: %s", systemFolderID)
+	}
+}

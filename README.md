@@ -113,7 +113,8 @@ A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses t
 ### 🔥 **Bulk Operations** 🆕
 - ✅ **Multi-email analysis** - Apply prompts to multiple emails simultaneously
 - ✅ **Bulk labeling** - Apply labels to multiple selected messages at once
-- ✅ **Bulk moving** - Move multiple messages with label+archive in one operation
+- ✅ **Enhanced move panel** - Context-aware system folders (Inbox, Trash, Archive, Spam) with regular labels
+- ✅ **Bulk moving** - Move multiple messages to system folders or labels in one operation
 - ✅ **Search-enabled operations** - Filter labels during bulk operations for quick selection
 - ✅ **Consolidated insights** - Get unified analysis across multiple messages
 - ✅ **Cloud product tracking** - Specialized prompts for AWS/Azure/GCP updates
@@ -527,7 +528,7 @@ Every keyboard shortcut has an equivalent command for better accessibility and d
 | `W` | Save current message as raw .eml (server format) |
 | `l` | Manage labels (contextual panel) |
 | `L` | 🆕 **Open link picker** |
-| `m` | Move message (choose label) |
+| `m` | 🆕 **Enhanced move panel** - System folders + labels with context-aware options |
 | `M` | Toggle Markdown rendering |
 | `h` | 🆕 **Toggle header visibility** - Hide/show email headers to maximize content space |
 | `y` | Toggle AI summary |
@@ -641,7 +642,7 @@ Bulk operations allow you to select multiple messages and perform actions on the
 | `a` | Archive selected messages |
 | `d` | Move selected messages to trash |
 | `t` | 🆕 **Toggle read/unread status for selected messages** |
-| `m` | Move selected messages to label |
+| `m` | 🆕 **Move selected messages** - Enhanced panel with system folders + labels |
 | `p` | Apply AI prompt to all selected messages |
 | `K` | 🆕 **Forward selected messages to Slack** |
 | `O` | 🆕 **Ingest selected messages to Obsidian** |
@@ -1200,13 +1201,20 @@ Navigation niceties:
 
 ### 📦 Move Message (Contextual)
 
-- Press `m` to open the side panel directly in "Browse all labels" mode
-  - Type to filter labels. In the search field, `Enter` applies/moves the 1st visible match. `Enter` on a list item will:
-  - Apply the label (if not already applied)
-  - Archive the message (move semantics)
+- Press `m` to open the enhanced move panel with system folders and labels
+  - **System folders at top** (context-aware):
+    - 📥 **Inbox** - appears when message not in inbox (archived, spam, trash)
+    - 🗑️ **Trash** - appears when message not in trash
+    - 📁 **Archive** - appears when message is in inbox
+    - 🚫 **Spam** - appears when message not in spam
+  - **Regular labels below** with standard behavior
+  - Type to filter all options (folders and labels)
+  - `Enter` on system folder: moves to that folder with proper Gmail semantics
+  - `Enter` on regular label: applies label and archives message
   - Update the list and content in place
   - Close the panel automatically
-- `ESC` closes the panel (no intermediate quick view)
+- `ESC` closes the panel
+- **Bulk mode**: Same enhanced panel works with multiple selected messages
 
 ### 🔎 Search & Filter UX
 
@@ -1229,7 +1237,7 @@ Navigation niceties:
  - Advanced search (`Ctrl+F`):
    - Shows a form with fields: `From`, `To`, `Subject`, `Has the words`, `Doesn't have`, `Size`, `Date within`, `Search`, and `Has attachment`.
    - `Search` field with quick options: toggle the “📂 Search options” panel with `Enter/Tab`. The panel includes icons and a live filter.
-     - Folders: All Mail, Inbox, Sent, Drafts, Spam, Trash
+     - Folders: All Mail, Inbox, Archive, Sent, Drafts, Spam, Trash
      - Anywhere: Mail & Spam & Trash
      - State: Read, Unread
      - Categories: social, updates, forums, promotions
