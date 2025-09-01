@@ -102,8 +102,9 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	}
 
 	if loading {
-		// Shortcuts while logged in
-		b.WriteString("[white::b]Shortcuts:[-:-:-]  [? Help]  [s Search]  [u Unread]  [: Commands]\n\n")
+		// Shortcuts while logged in - use configured shortcuts
+		shortcuts := a.getWelcomeShortcuts(true)
+		b.WriteString(fmt.Sprintf("[white::b]Shortcuts:[-:-:-]  %s\n\n", shortcuts))
 		// Do not duplicate loading text; progress is visible in the list title/spinner
 		return b.String()
 	}
@@ -119,6 +120,58 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	b.WriteString(fmt.Sprintf("  2. Place the file at `%s`.\n", configuredCredPath))
 	b.WriteString("  3. Restart the application.\n\n")
 	b.WriteString("See README.md for details.\n\n")
-	b.WriteString("[white::b]Shortcuts:[-:-:-]  [? Help]  [q Quit]\n")
+	// Use configured shortcuts for credentials missing state
+	shortcuts := a.getWelcomeShortcuts(false)
+	b.WriteString(fmt.Sprintf("[white::b]Shortcuts:[-:-:-]  %s\n", shortcuts))
 	return b.String()
+}
+
+// getWelcomeShortcuts builds the shortcuts string dynamically from user configuration
+// loggedIn parameter determines which shortcuts to show (logged in vs credentials missing)
+func (a *App) getWelcomeShortcuts(loggedIn bool) string {
+	if a.logger != nil {
+		a.logger.Printf("getWelcomeShortcuts: loggedIn=%v, building shortcuts from config", loggedIn)
+	}
+
+	shortcuts := []string{}
+
+	// Helper function to add shortcut with fallback
+	addShortcut := func(key, fallback, label string) {
+		displayKey := key
+		if displayKey == "" {
+			displayKey = fallback
+		}
+		if displayKey != "" {
+			shortcuts = append(shortcuts, fmt.Sprintf("[%s %s]", displayKey, label))
+		}
+	}
+
+	if loggedIn {
+		// Logged in state - show main functionality shortcuts
+		addShortcut(a.Keys.Help, "?", "Help")
+		addShortcut(a.Keys.Search, "s", "Search")
+		addShortcut(a.Keys.Unread, "u", "Unread") 
+		addShortcut(a.Keys.CommandMode, ":", "Commands")
+		
+		if a.logger != nil {
+			a.logger.Printf("getWelcomeShortcuts: loggedIn shortcuts - Help:%s, Search:%s, Unread:%s, Commands:%s",
+				a.Keys.Help, a.Keys.Search, a.Keys.Unread, a.Keys.CommandMode)
+		}
+	} else {
+		// Credentials missing state - show basic shortcuts only
+		addShortcut(a.Keys.Help, "?", "Help")
+		addShortcut(a.Keys.Quit, "q", "Quit")
+		
+		if a.logger != nil {
+			a.logger.Printf("getWelcomeShortcuts: credentials missing shortcuts - Help:%s, Quit:%s",
+				a.Keys.Help, a.Keys.Quit)
+		}
+	}
+
+	result := strings.Join(shortcuts, "  ")
+	if a.logger != nil {
+		a.logger.Printf("getWelcomeShortcuts: result='%s'", result)
+	}
+	
+	return result
 }

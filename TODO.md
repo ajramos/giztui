@@ -4,13 +4,14 @@
 - [ ] When an UNDO is performed, focus is lost (it should return to the message list)
 - [ ] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts.
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
-- [ ] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
+- [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
+- [x] Welcome screen doesn't pool the shortcuts from the customization.
 
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] add a prompt to make an analysis of the inbox itself
-- [ ] screen garbage
+- [ ] Screen garbage
+- [ ] Add a prompt to make an analysis of the inbox itself
 - [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Status bar experience** - Improve status bar functionality and UX
@@ -19,8 +20,8 @@
 - [ ] **Configure headers view** - config file picks which columns are hidden.
 - [ ] **Brush-up stats** - Revamp this feature
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [ ] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
-- [ ] **Review makefile to reflect giztui**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
+- [x] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
+- [ ] **Review makefile to reflect giztui**
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Search & Filter Enhancements
