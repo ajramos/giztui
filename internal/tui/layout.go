@@ -353,6 +353,9 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
 			sc.SetBorderColor(focusedColor)
 		}
+		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok {
+			sp.SetBorderColor(focusedColor)
+		}
 	case "cmd":
 		if cp, ok := a.views["cmdPanel"].(*tview.Flex); ok {
 			cp.SetBorderColor(focusedColor)
