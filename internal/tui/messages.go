@@ -582,6 +582,13 @@ func (a *App) loadMoreMessages() {
 		}
 		a.appendMessages(messages)
 		a.nextPageToken = next
+		
+		// FOCUS FIX: Restore focus to message list after loading more search results
+		a.QueueUpdateDraw(func() {
+			a.SetFocus(a.views["list"])
+			a.currentFocus = "list"
+			a.updateFocusIndicators("list")
+		})
 		return
 	}
 
@@ -661,6 +668,11 @@ func (a *App) loadMoreMessages() {
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
+		
+		// FOCUS FIX: Restore focus to message list after loading more messages
+		a.SetFocus(a.views["list"])
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
 	})
 }
 

@@ -4,23 +4,19 @@
 - [ ] When an UNDO is performed, focus is lost (it should return to the message list)
 - [ ] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts.
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
-- [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
-- [x] Welcome screen doesn't pool the shortcuts from the customization.
+
 
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] Screen garbage
 - [ ] Add a prompt to make an analysis of the inbox itself
 - [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
 - [ ] **Status bar experience** - Improve status bar functionality and UX
-- [ ] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Configure headers view** - config file picks which columns are hidden.
 - [ ] **Brush-up stats** - Revamp this feature
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [x] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
 - [ ] **Review makefile to reflect giztui**
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
@@ -34,9 +30,6 @@
 - [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
 
 ### Email Management
-- [ ] **Move email to Spam** - Move to Spam
-- [ ] **Move email to Inbox** - Move to Inbox
-- [ ] **Restore email to inbox** - Move archived emails back to inbox
 - [ ] **Delete email permanently** - Permanently delete emails from trash
 
 ### Email Composition - Advanced Features
@@ -207,6 +200,9 @@
 - [x] **List archived emails** - Show archived emails
 - [x] **Undo functionality** - Undo last action ✅ 
 - [x] **Message threading** - Show message threads and conversations
+- [x] **Move email to Spam** - Move to Spam
+- [x] **Move email to Inbox** - Move to Inbox
+- [x] **Restore email to inbox** - Move archived emails back to inbox
 
 ### Email Composition - Core Features ✅
 - [x] **Complete composition UI** - Full-screen modal composition panel with proper theming and focus management
@@ -262,6 +258,8 @@
 - [x] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
 - [x] **Progress indicators** - Show loading progress for long operations
 - [x] **Search highlighting** - Highlight search terms in results
+- [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
+- [x] Welcome screen doesn't pool the shortcuts from the customization.
 
 ### Message Rendering
 - [x] **HTML message processing** - Substituted markdown rendering with improved HTML processing
@@ -273,6 +271,7 @@
 - [x] **Attachment filter fix** - Resolved issues with has:attachment filter
 - [x] **Search by date** - Search by date with enhanced date filtering
 - [x] **Date range search improvements** - Enhanced date filtering with after:/before: operators
+- [x] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
 
 ### Plugin System
 - [x] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
@@ -303,8 +302,10 @@
 - [x] **Service Integration** - Services automatically initialized and injected into TUI
 - [x] **Improved Code Organization** - Better separation of UI and business logic concerns
 - [x] **Execution parameters review** - Resolved duplication between llm and ollama configurations
+- [x] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
 
 ### Bug Fixes
+- [x] Screen garbage
 - [x] **Message list duplication bug** - Fixed issue where moved emails were removed but count remained at 50, causing duplicate messages
 - [x] **Unnecessary message list reload** - Fixed reload after move operations (August 2025)
 - [x] **Self-emailed messages behavior** - Investigated and resolved behavior issues
