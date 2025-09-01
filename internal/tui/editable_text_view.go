@@ -15,24 +15,24 @@ type EditableTextView struct {
 	// Underlying TextView (composition, not embedding)
 	textView *tview.TextView
 	app      *App
-	
+
 	// Editing state
 	text         string
 	cursorLine   int
 	cursorColumn int
 	lines        []string
-	
+
 	// Editing capabilities
-	isEditable   bool
-	changeFunc   func(string)
-	
+	isEditable bool
+	changeFunc func(string)
+
 	// Placeholder support
-	placeholder      string
-	placeholderColor tcell.Color
-	originalTextColor tcell.Color  // Store original text color to restore after placeholder
-	
+	placeholder       string
+	placeholderColor  tcell.Color
+	originalTextColor tcell.Color // Store original text color to restore after placeholder
+
 	// Display state
-	updating     bool  // Prevents recursive updateDisplay calls
+	updating bool // Prevents recursive updateDisplay calls
 }
 
 // NewEditableTextView creates a new multiline text editor using proxy pattern
@@ -42,7 +42,7 @@ func NewEditableTextView(app *App) *EditableTextView {
 		SetDynamicColors(true).
 		SetWrap(true).
 		SetScrollable(true)
-	
+
 	editable := &EditableTextView{
 		textView:     textView,
 		app:          app,
@@ -52,10 +52,9 @@ func NewEditableTextView(app *App) *EditableTextView {
 		lines:        []string{""},
 		isEditable:   true,
 	}
-	
+
 	// Input handling is done through InputHandler() method, not SetInputCapture
-	
-	
+
 	return editable
 }
 
@@ -96,20 +95,20 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 	if e.textView == nil {
 		return
 	}
-	
+
 	// Set custom input handler directly on the TextView
 	e.textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		
+
 		if !e.isEditable {
 			return event // Pass through if not editable
 		}
-		
+
 		switch event.Key() {
 		case tcell.KeyEscape:
 			// Allow ESC to bubble up (composition cancel)
 			return event
 		case tcell.KeyTab, tcell.KeyBacktab:
-			// Allow Tab navigation to bubble up  
+			// Allow Tab navigation to bubble up
 			return event
 		case tcell.KeyCtrlJ:
 			// Allow Ctrl+J to bubble up (send composition)
@@ -155,13 +154,13 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 			e.updateDisplay()
 			return nil // CONSUME the event
 		}
-		
+
 		// Handle character input
 		if event.Rune() != 0 && unicode.IsPrint(event.Rune()) {
 			e.insertCharacter(event.Rune())
 			return nil // CONSUME the event - critical for blocking global shortcuts
 		}
-		
+
 		// For unhandled keys, pass them through
 		return event
 	})
@@ -169,15 +168,15 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 
 // Focus delegates focus to the underlying TextView (but TextView has custom input handler)
 func (e *EditableTextView) Focus(delegate func(p tview.Primitive)) {
-	
+
 	// Set our custom input handler on the TextView before focusing it
 	e.setupTextViewInputHandler()
-	
+
 	// Delegate focus to TextView (which now has our custom handler)
 	if e.textView != nil {
 		delegate(e.textView)
 	}
-	
+
 	// Update display to hide placeholder and show cursor when focused
 	e.updateDisplay()
 }
@@ -193,11 +192,11 @@ func (e *EditableTextView) HasFocus() bool {
 
 // Blur removes focus from the underlying TextView
 func (e *EditableTextView) Blur() {
-	
+
 	if e.textView != nil {
 		e.textView.Blur()
 	}
-	
+
 	// Update display to show placeholder when not focused (if text is empty)
 	e.updateDisplay()
 }
@@ -278,11 +277,11 @@ func (e *EditableTextView) SetText(text string) {
 	if len(e.lines) == 0 {
 		e.lines = []string{""}
 	}
-	
+
 	// Reset cursor to start
 	e.cursorLine = 0
 	e.cursorColumn = 0
-	
+
 	e.updateDisplay()
 }
 
@@ -327,24 +326,24 @@ func (e *EditableTextView) insertCharacter(ch rune) {
 		e.lines = append(e.lines, "")
 		e.cursorLine = len(e.lines) - 1
 	}
-	
+
 	line := e.lines[e.cursorLine]
 	runes := []rune(line)
-	
+
 	// Ensure cursor position is valid in rune space
 	if e.cursorColumn > len(runes) {
 		e.cursorColumn = len(runes)
 	}
-	
+
 	// Insert character at cursor position using rune-based indexing
 	newRunes := make([]rune, len(runes)+1)
 	copy(newRunes, runes[:e.cursorColumn])
 	newRunes[e.cursorColumn] = ch
 	copy(newRunes[e.cursorColumn+1:], runes[e.cursorColumn:])
-	
+
 	e.lines[e.cursorLine] = string(newRunes)
 	e.cursorColumn++
-	
+
 	e.textChanged()
 }
 
@@ -354,19 +353,19 @@ func (e *EditableTextView) insertNewline() {
 		e.lines = append(e.lines, "")
 		e.cursorLine = len(e.lines) - 1
 	}
-	
+
 	line := e.lines[e.cursorLine]
 	runes := []rune(line)
-	
+
 	// Ensure cursor position is valid in rune space
 	if e.cursorColumn > len(runes) {
 		e.cursorColumn = len(runes)
 	}
-	
+
 	// Split line at cursor position using rune-based indexing
 	leftPart := string(runes[:e.cursorColumn])
 	rightPart := string(runes[e.cursorColumn:])
-	
+
 	// Update current line and insert new line
 	e.lines[e.cursorLine] = leftPart
 	newLines := make([]string, len(e.lines)+1)
@@ -374,11 +373,11 @@ func (e *EditableTextView) insertNewline() {
 	newLines[e.cursorLine+1] = rightPart
 	copy(newLines[e.cursorLine+2:], e.lines[e.cursorLine+1:])
 	e.lines = newLines
-	
+
 	// Move cursor to beginning of new line
 	e.cursorLine++
 	e.cursorColumn = 0
-	
+
 	e.textChanged()
 }
 
@@ -388,7 +387,7 @@ func (e *EditableTextView) handleBackspace() {
 		// Remove character before cursor using rune-based indexing
 		line := e.lines[e.cursorLine]
 		runes := []rune(line)
-		
+
 		if e.cursorColumn <= len(runes) {
 			newRunes := make([]rune, len(runes)-1)
 			copy(newRunes, runes[:e.cursorColumn-1])
@@ -400,21 +399,21 @@ func (e *EditableTextView) handleBackspace() {
 		// Join current line with previous line
 		prevLine := e.lines[e.cursorLine-1]
 		currentLine := e.lines[e.cursorLine]
-		
+
 		// Remove current line
 		newLines := make([]string, len(e.lines)-1)
 		copy(newLines, e.lines[:e.cursorLine])
 		copy(newLines[e.cursorLine:], e.lines[e.cursorLine+1:])
 		e.lines = newLines
-		
+
 		// Move cursor to end of previous line (rune-based length)
 		e.cursorLine--
 		e.cursorColumn = len([]rune(prevLine))
-		
+
 		// Join the lines
 		e.lines[e.cursorLine] = prevLine + currentLine
 	}
-	
+
 	e.textChanged()
 }
 
@@ -423,10 +422,10 @@ func (e *EditableTextView) handleDelete() {
 	if e.cursorLine >= len(e.lines) {
 		return
 	}
-	
+
 	line := e.lines[e.cursorLine]
 	runes := []rune(line)
-	
+
 	if e.cursorColumn < len(runes) {
 		// Remove character at cursor using rune-based indexing
 		newRunes := make([]rune, len(runes)-1)
@@ -436,17 +435,17 @@ func (e *EditableTextView) handleDelete() {
 	} else if e.cursorLine < len(e.lines)-1 {
 		// Join with next line
 		nextLine := e.lines[e.cursorLine+1]
-		
+
 		// Remove next line
 		newLines := make([]string, len(e.lines)-1)
 		copy(newLines, e.lines[:e.cursorLine+1])
 		copy(newLines[e.cursorLine+1:], e.lines[e.cursorLine+2:])
 		e.lines = newLines
-		
+
 		// Join the lines
 		e.lines[e.cursorLine] = line + nextLine
 	}
-	
+
 	e.textChanged()
 }
 
@@ -513,7 +512,7 @@ func (e *EditableTextView) moveCursorRight() {
 func (e *EditableTextView) textChanged() {
 	e.text = strings.Join(e.lines, "\n")
 	e.updateDisplay()
-	
+
 	// Call change callback if not already updating (prevents loops)
 	if e.changeFunc != nil && !e.updating {
 		e.changeFunc(e.text)
@@ -530,7 +529,7 @@ func (e *EditableTextView) updateDisplay() {
 	defer func() {
 		e.updating = false
 	}()
-	
+
 	// Check if content is empty and we have a placeholder
 	isEmpty := len(e.lines) == 1 && e.lines[0] == ""
 	if isEmpty && e.placeholder != "" && !e.HasFocus() {
@@ -548,22 +547,22 @@ func (e *EditableTextView) updateDisplay() {
 		}
 		return
 	}
-	
+
 	// Restore normal text color if we had changed it for placeholder
 	// This is important when transitioning from placeholder to content
 	if e.originalTextColor != tcell.ColorDefault {
 		e.textView.SetTextColor(e.originalTextColor)
 	}
-	
+
 	// Create display text with cursor indicator
 	displayLines := make([]string, len(e.lines))
 	copy(displayLines, e.lines)
-	
+
 	// Add cursor indicator (█ character) at current position when focused
 	if e.HasFocus() && e.cursorLine < len(displayLines) {
 		line := displayLines[e.cursorLine]
 		runes := []rune(line)
-		
+
 		if e.cursorColumn <= len(runes) {
 			// Insert cursor character using rune-based indexing
 			cursorRune := '█'
@@ -582,15 +581,104 @@ func (e *EditableTextView) updateDisplay() {
 			}
 		}
 	}
-	
+
 	// Update the TextView content (clean delegation)
 	displayText := strings.Join(displayLines, "\n")
 	e.textView.SetText(displayText)
-	
-	// Scroll to ensure cursor is visible when focused
+
+	// Smart scroll management - only scroll when cursor is outside visible area
 	if e.HasFocus() {
-		e.textView.ScrollTo(e.cursorLine, 0)
+		e.smartScroll()
 	}
+}
+
+// smartScroll implements intelligent scrolling that preserves context
+func (e *EditableTextView) smartScroll() {
+	if e.textView == nil {
+		return
+	}
+
+	// Get viewport height
+	viewportHeight := e.getViewportHeight()
+	if viewportHeight <= 0 {
+		// Fallback to basic scrolling if we can't determine viewport height
+		e.textView.ScrollTo(e.cursorLine, 0)
+		return
+	}
+
+	// Get current scroll position
+	scrollRow, _ := e.textView.GetScrollOffset()
+
+	// Calculate visible range
+	visibleStartLine := scrollRow
+	visibleEndLine := scrollRow + viewportHeight - 1
+
+	// Check if cursor is already visible
+	if e.cursorLine >= visibleStartLine && e.cursorLine <= visibleEndLine {
+		// Cursor is already visible, no need to scroll
+		if e.app.logger != nil {
+			e.app.logger.Printf("EditableTextView: Cursor line %d already visible (range: %d-%d), no scroll needed",
+				e.cursorLine, visibleStartLine, visibleEndLine)
+		}
+		return
+	}
+
+	// Determine optimal scroll position
+	var targetScrollRow int
+
+	if e.cursorLine < visibleStartLine {
+		// Cursor is above visible area - scroll up but keep some context
+		contextLines := viewportHeight / 4 // Show 25% context above cursor
+		if contextLines < 1 {
+			contextLines = 1
+		}
+		targetScrollRow = e.cursorLine - contextLines
+		if targetScrollRow < 0 {
+			targetScrollRow = 0
+		}
+	} else {
+		// Cursor is below visible area - scroll down but keep context
+		contextLines := viewportHeight / 3 // Show 33% context below cursor
+		if contextLines < 1 {
+			contextLines = 1
+		}
+		targetScrollRow = e.cursorLine - viewportHeight + contextLines + 1
+		if targetScrollRow < 0 {
+			targetScrollRow = 0
+		}
+	}
+
+	// Perform the smart scroll
+	if e.app.logger != nil {
+		e.app.logger.Printf("EditableTextView: Smart scroll from line %d to %d (cursor at %d, viewport height %d)",
+			scrollRow, targetScrollRow, e.cursorLine, viewportHeight)
+	}
+	e.textView.ScrollTo(targetScrollRow, 0)
+}
+
+// getViewportHeight calculates the visible text area height
+func (e *EditableTextView) getViewportHeight() int {
+	if e.textView == nil {
+		return 0
+	}
+
+	// Get the inner rectangle (content area without borders)
+	_, _, _, height := e.textView.GetInnerRect()
+
+	// TextView height represents the number of visible text lines
+	if height > 0 {
+		return height
+	}
+
+	// Fallback: use the full rectangle if GetInnerRect doesn't work
+	_, _, _, fullHeight := e.textView.GetRect()
+
+	// Account for potential borders (subtract 2 if bordered)
+	if fullHeight > 2 {
+		return fullHeight - 2
+	}
+
+	return fullHeight
 }
 
 // Utility methods
