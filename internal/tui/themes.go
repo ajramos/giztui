@@ -263,7 +263,7 @@ func (a *App) showThemePreview(themeName string) {
 		// Enhanced preview with actual color samples
 		details := fmt.Sprintf("🎨 Theme: %s\n", themeConfig.Name)
 		details += fmt.Sprintf("📄 Description: %s\n", themeConfig.Description)
-		details += fmt.Sprintf("🏷️  Version: 1.0\n\n")
+		details += fmt.Sprintf("🔖 Version: 1.0\n\n")
 
 		// Color samples using actual theme colors from service ThemeConfig
 		details += "📧 Email Colors:\n"
@@ -279,7 +279,7 @@ func (a *App) showThemePreview(themeName string) {
 		details += a.formatColorSampleString("Borders", themeConfig.UIColors.BorderColor)
 		details += a.formatColorSampleString("Focus", themeConfig.UIColors.FocusColor)
 
-		details += "\n🏷️  Status Colors:\n"
+		details += "\n🔖 Status Colors:\n"
 		details += a.formatColorSampleString("Error", themeConfig.UIColors.ErrorColor)
 		details += a.formatColorSampleString("Success", themeConfig.UIColors.SuccessColor)
 		details += a.formatColorSampleString("Warning", themeConfig.UIColors.WarningColor)

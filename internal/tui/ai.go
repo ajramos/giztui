@@ -416,7 +416,7 @@ func (a *App) suggestLabel() {
 	if a.currentFocus == "search" {
 		return
 	}
-	a.setStatusPersistent("🏷️ Suggesting labels…")
+	a.setStatusPersistent("🔖 Suggesting labels…")
 	go func() {
 		m, err := a.Client.GetMessageWithContent(messageID)
 		if err != nil {
@@ -518,7 +518,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 		a.showStatusMessage("🔎 Search active — suggestions deferred")
 		return
 	}
-	a.setStatusPersistent("🏷️ Showing suggested labels…")
+	a.setStatusPersistent("🔖 Showing suggested labels…")
 	// Do network work off the UI thread
 	go func() {
 		labels, err := a.Client.ListLabels()
@@ -608,7 +608,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 
 			container := tview.NewFlex().SetDirection(tview.FlexRow)
 			container.SetBorder(true)
-			container.SetTitle(" 🏷️  Suggested Labels ")
+			container.SetTitle(" 🔖  Suggested Labels ")
 			// Apply complete theme colors to container
 			container.SetTitleColor(aiColors.Title.Color())
 			container.SetBorderColor(aiColors.Border.Color())

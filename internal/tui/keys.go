@@ -2287,7 +2287,7 @@ func (a *App) labelRange(startIndex, count int) {
 
 	// Show status and open labels panel
 	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🏷️ Selected %d messages for labeling (l%dl)", actualCount, count))
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("🔖 Selected %d messages for labeling (l%dl)", actualCount, count))
 	}()
 
 	// Open labels panel (which will work in bulk mode)

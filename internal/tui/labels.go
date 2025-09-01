@@ -242,7 +242,7 @@ func (a *App) executeLabelAdd(args []string) {
 		})
 
 		go func() {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied label: %s", labelName))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🔖 Applied label: %s", labelName))
 		}()
 	}()
 }
@@ -282,7 +282,7 @@ func (a *App) executeLabelRemove(args []string) {
 			a.showError(fmt.Sprintf("❌ Error removing label: %v", err))
 			return
 		}
-		a.showStatusMessage(fmt.Sprintf("🏷️  Removed label: %s", labelName))
+		a.showStatusMessage(fmt.Sprintf("🔖  Removed label: %s", labelName))
 	}()
 }
 
@@ -334,7 +334,7 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 	// Create labels list view
 	labelsList := tview.NewList()
 	labelsList.SetBorder(true)
-	labelsList.SetTitle(" 🏷️  Message Labels ")
+	labelsList.SetTitle(" 🔖  Message Labels ")
 	
 	// Apply component-specific selection colors
 	labelColors := a.GetComponentColors("labels")
@@ -444,7 +444,7 @@ func (a *App) showMessageLabelsView(labels []*gmailapi.Label, message *gmailapi.
 
 	// Title with message subject
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetText(fmt.Sprintf("🏷️  Labels for: %s", subject))
+	title.SetText(fmt.Sprintf("🔖  Labels for: %s", subject))
 	title.SetTextColor(a.GetComponentColors("labels").Title.Color())
 	title.SetBorder(true)
 
@@ -628,7 +628,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 		container := tview.NewFlex().SetDirection(tview.FlexRow)
 		bgColor := a.GetComponentColors("labels").Background.Color()
 		container.SetBorder(true)
-		container.SetTitle(" 🏷️  Message Labels ")
+		container.SetTitle(" 🔖  Message Labels ")
 		container.SetTitleColor(a.GetComponentColors("labels").Title.Color())
 		container.SetBackgroundColor(bgColor)
 		
@@ -1213,7 +1213,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
-			titleText := " 🏷️ › 🔎 Browse all labels… "
+			titleText := " 🔖 › 🔎 Browse all labels… "
 			if moveMode {
 				count := 1
 				if a.bulkMode && len(a.selected) > 0 {
@@ -1947,7 +1947,7 @@ func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurr
 				return
 			}
 			go func() {
-				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Removed label: %s", labelName))
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🔖 Removed label: %s", labelName))
 			}()
 			onDone(false, nil)
 			return
@@ -1958,7 +1958,7 @@ func (a *App) toggleLabelForMessage(messageID, labelID, labelName string, isCurr
 			return
 		}
 		go func() {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🏷️ Applied label: %s", labelName))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🔖 Applied label: %s", labelName))
 		}()
 		onDone(true, nil)
 	}()
@@ -2059,7 +2059,7 @@ func (a *App) createNewLabelFromView() {
 	modal := tview.NewFlex().SetDirection(tview.FlexRow)
 
 	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetText("🏷️  Create New Label")
+	title.SetText("🔖  Create New Label")
 	title.SetTextColor(a.GetComponentColors("labels").Title.Color())
 	title.SetBorder(true)
 

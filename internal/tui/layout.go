@@ -119,7 +119,7 @@ func (a *App) initComponents() {
 	labelsFlex.SetBorder(true).
 		SetBorderColor(a.GetComponentColors("general").Background.Color()).
 		SetBorderAttributes(tcell.AttrBold).
-		SetTitle(" 🏷️ Labels ").
+		SetTitle(" 🔖 Labels ").
 		SetTitleColor(a.GetComponentColors("labels").Title.Color()).
 		SetTitleAlign(tview.AlignCenter)
 	// Force filled background for consistent border rendering

@@ -1800,7 +1800,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
 	help.WriteString(fmt.Sprintf("    %-8s  ↩️   Undo last action\n", a.Keys.Undo))
 	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %-8s  🏷️   Manage labels\n", a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %-8s  🔖  Manage labels\n", a.Keys.ManageLabels))
 	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n\n", a.Keys.Drafts))
 
 	// Navigation & Search
@@ -1858,7 +1858,7 @@ func (a *App) generateHelpText() string {
 		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
 		help.WriteString(fmt.Sprintf("    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt))
 		help.WriteString(fmt.Sprintf("    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply))
-		help.WriteString(fmt.Sprintf("    %-8s  🏷️   AI suggest label\n\n", a.Keys.SuggestLabel))
+		help.WriteString(fmt.Sprintf("    %-8s  🔖  AI suggest label\n\n", a.Keys.SuggestLabel))
 	}
 
 	// Threading Features (if enabled)
@@ -1887,7 +1887,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %s7%s       🗑️   Delete next 7 messages\n", a.Keys.Trash, a.Keys.Trash))
 	help.WriteString(fmt.Sprintf("    %s5%s       👁️   Toggle read status for next 5 messages\n", a.Keys.ToggleRead, a.Keys.ToggleRead))
 	help.WriteString(fmt.Sprintf("    %s4%s       📦  Move next 4 messages\n", a.Keys.Move, a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %s6%s       🏷️   Label next 6 messages\n", a.Keys.ManageLabels, a.Keys.ManageLabels))
+	help.WriteString(fmt.Sprintf("    %s6%s       🔖  Label next 6 messages\n", a.Keys.ManageLabels, a.Keys.ManageLabels))
 	if a.Config.Slack.Enabled {
 		help.WriteString(fmt.Sprintf("    %s3%s       💬  Send next 3 messages to Slack\n", a.Keys.Slack, a.Keys.Slack))
 	}

@@ -1164,7 +1164,7 @@ Contextual search shorthands supported in command mode:
 :search domain:current    # messages from the current sender's domain (@example.com)
 ```
 
-### 🏷️ Labels Management (Contextual)
+### 🔖 Labels Management (Contextual)
 
 - Press `l` to open a side panel with labels for the current message. The panel follows the selected message.
 - Status:
@@ -1250,7 +1250,7 @@ Navigation niceties:
    - Vertical layout: form on top (50%) and message content below for context.
    - Execution: move focus to the `🔎 Search` button and press Enter. The advanced search view closes and the search runs.
 
-### 📎 Icons & 🏷️ Label Chips in the list
+### 📎 Icons & 🔖 Label Chips in the list
 
 - The list shows attachment (📎) and calendar invite/update (🗓️) icons computed from message metadata.
 - Label chips are rendered in Title Case and limited to 3; extra labels appear as `+N`.
