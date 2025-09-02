@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/db"
-	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/giztui/internal/db"
+	"github.com/ajramos/giztui/internal/gmail"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 

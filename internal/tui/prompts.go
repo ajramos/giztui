@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )

@@ -49,7 +49,7 @@
     "custom_dir": ""
   },
   "keys": {
-    "_comment": "Vim-style shortcuts for Gmail TUI",
+    "_comment": "Vim-style shortcuts for GizTUI",
     "_vim_timeouts": "VIM sequence timeouts in milliseconds (faster for VIM users)",
     "vim_navigation_timeout_ms": 800,
     "vim_range_timeout_ms": 1500,

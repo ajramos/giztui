@@ -1,6 +1,6 @@
-# 🏗️ Gmail TUI Architecture Guide
+# 🏗️ GizTUI Architecture Guide
 
-This document outlines the architectural patterns and conventions for Gmail TUI development.
+This document outlines the architectural patterns and conventions for GizTUI development.
 
 ## 📋 **Development Principles**
 

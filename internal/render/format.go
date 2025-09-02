@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
+	gmailwrap "github.com/ajramos/giztui/internal/gmail"
 	"golang.org/x/net/html"
 	gmailapi "google.golang.org/api/gmail/v1"
 )

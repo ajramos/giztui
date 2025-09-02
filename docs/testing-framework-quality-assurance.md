@@ -422,7 +422,7 @@ rm -rf internal/services/mocks && mkdir -p internal/services/mocks
 ✅ **Edge cases and errors** are handled gracefully
 ✅ **User workflows** function reliably end-to-end
 
-This comprehensive testing framework provides **multiple layers of protection** ensuring that your Gmail TUI application maintains high quality, reliability, and user satisfaction as it evolves.
+This comprehensive testing framework provides **multiple layers of protection** ensuring that your GizTUI application maintains high quality, reliability, and user satisfaction as it evolves.
 
 ## 📚 **Additional Resources**
 

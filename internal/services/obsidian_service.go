@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/config"
-	"github.com/ajramos/gmail-tui/internal/db"
-	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/ajramos/gmail-tui/internal/obsidian"
+	"github.com/ajramos/giztui/internal/config"
+	"github.com/ajramos/giztui/internal/db"
+	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/obsidian"
 )
 
 // ObsidianServiceImpl implements ObsidianService

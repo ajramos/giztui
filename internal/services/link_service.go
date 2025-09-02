@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/ajramos/gmail-tui/internal/render"
+	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/render"
 )
 
 // LinkServiceImpl implements LinkService

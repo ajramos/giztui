@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ajramos/gmail-tui/internal/services"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

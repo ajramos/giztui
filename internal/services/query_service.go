@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ajramos/gmail-tui/internal/config"
-	"github.com/ajramos/gmail-tui/internal/db"
+	"github.com/ajramos/giztui/internal/config"
+	"github.com/ajramos/giztui/internal/db"
 )
 
 // QueryServiceImpl implements QueryService

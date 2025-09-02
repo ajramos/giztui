@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/giztui/internal/config"
 )
 
 // initLogger initializes file logger under ~/.config/giztui/giztui.log if possible

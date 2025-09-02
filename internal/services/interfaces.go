@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/ajramos/gmail-tui/internal/obsidian"
-	"github.com/ajramos/gmail-tui/internal/prompts"
+	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/obsidian"
+	"github.com/ajramos/giztui/internal/prompts"
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 

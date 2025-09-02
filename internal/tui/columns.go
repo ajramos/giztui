@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/render"
-	"github.com/ajramos/gmail-tui/internal/services"
+	"github.com/ajramos/giztui/internal/render"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"

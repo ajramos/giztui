@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ajramos/gmail-tui/internal/services"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

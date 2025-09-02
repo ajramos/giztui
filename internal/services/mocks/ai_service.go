@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	services "github.com/ajramos/gmail-tui/internal/services"
+	services "github.com/ajramos/giztui/internal/services"
 	mock "github.com/stretchr/testify/mock"
 )
 

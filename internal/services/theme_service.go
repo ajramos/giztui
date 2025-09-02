@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/giztui/internal/config"
 )
 
 // ThemeUpdateCallback represents a function that gets called when theme changes

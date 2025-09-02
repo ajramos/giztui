@@ -150,7 +150,7 @@ func TestErrorHandler_getBaselineStatus_WithoutAppRef(t *testing.T) {
 	eh := &ErrorHandler{appRef: nil}
 
 	result := eh.getBaselineStatus()
-	assert.Equal(t, "Gmail TUI • Press ? for help • : for commands", result)
+	assert.Equal(t, "GizTUI • Press ? for help • : for commands", result)
 }
 
 // Test persistent message functionality
@@ -309,7 +309,7 @@ func TestErrorHandler_refreshStatusDisplay_Priority(t *testing.T) {
 
 	eh.refreshStatusDisplay()
 	text = strings.TrimSpace(statusView.GetText(false))
-	assert.Equal(t, "Gmail TUI • Press ? for help • : for commands", text)
+	assert.Equal(t, "GizTUI • Press ? for help • : for commands", text)
 }
 
 func TestErrorHandler_refreshStatusDisplay_NoStatusView(t *testing.T) {

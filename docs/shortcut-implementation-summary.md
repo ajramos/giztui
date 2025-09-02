@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the implementation of the shortcut customization feature for Gmail TUI. The feature allows users to fully customize keyboard shortcuts through configuration files while maintaining backward compatibility.
+This document summarizes the implementation of the shortcut customization feature for GizTUI. The feature allows users to fully customize keyboard shortcuts through configuration files while maintaining backward compatibility.
 
 ## What Was Implemented
 
@@ -183,10 +183,10 @@ config.json → config.Config → App.Keys → handleConfigurableKey()
 
 ## Conclusion
 
-The shortcut customization feature provides Gmail TUI users with:
+The shortcut customization feature provides GizTUI users with:
 - **Full control** over their keyboard shortcuts
 - **Flexibility** to match their workflow preferences
 - **Backward compatibility** with existing configurations
 - **Professional-grade** customization capabilities
 
-This implementation follows the service-oriented architecture principles and maintains the high code quality standards of the Gmail TUI project.
+This implementation follows the service-oriented architecture principles and maintains the high code quality standards of the GizTUI project.

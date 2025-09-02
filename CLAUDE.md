@@ -1,6 +1,6 @@
 # 🤖 Claude Code Development Guide
 
-This file provides essential architectural patterns and requirements for Claude Code when working on Gmail TUI.
+This file provides essential architectural patterns and requirements for Claude Code when working on GizTUI.
 
 ## 📝 **Git Commit Guidelines**
 

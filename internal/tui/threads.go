@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/services"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tview"
 	"github.com/mattn/go-runewidth"
 	gmailapi "google.golang.org/api/gmail/v1"

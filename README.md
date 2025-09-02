@@ -1,4 +1,4 @@
-# 📨 Gmail TUI - Gmail Client with Local AI
+# 📨 GizTUI - Gmail Client with Local AI
 
 A **TUI (Terminal User Interface)** Gmail client developed in **Go** that uses the **Gmail API** via OAuth2 and features **local AI integration** through Ollama.
 
@@ -343,23 +343,23 @@ This architecture ensures that business logic is separated from UI concerns, mak
 
 ```bash
 # Clone the repository
-git clone https://github.com/ajramos/gmail-tui.git
-cd gmail-tui
+git clone https://github.com/ajramos/giztui.git
+cd giztui
 
 # Install dependencies
 go mod tidy
 
 # Build
-go build -o gmail-tui cmd/gmail-tui/main.go
+go build -o giztui cmd/giztui/main.go
 
 # Run
-./gmail-tui
+./giztui
 ```
 
 ### Installation with Go install
 
 ```bash
-go install github.com/ajramos/gmail-tui/cmd/gmail-tui@latest
+go install github.com/ajramos/giztui/cmd/giztui@latest
 ```
 
 ## 📁 Configuration
@@ -411,16 +411,16 @@ cp -r ~/.config/gmail-tui/* ~/.config/giztui/
 
 ```bash
 # First time setup (interactive wizard)
-./gmail-tui --setup
+./giztui --setup
 
 # Run with default configuration (zero parameters needed)
-./gmail-tui
+./giztui
 
 # Use custom configuration file
-./gmail-tui --config ~/custom-config.json
+./giztui --config ~/custom-config.json
 
 # Specify custom credentials (rarely needed)
-./gmail-tui --credentials ~/path/to/credentials.json
+./giztui --credentials ~/path/to/credentials.json
 ```
 
 ### Environment Variables
@@ -434,7 +434,7 @@ export GMAIL_TUI_CREDENTIALS=~/.config/giztui/credentials.json
 export GMAIL_TUI_TOKEN=~/.config/giztui/token.json
 
 # Run with environment settings
-./gmail-tui
+./giztui
 ```
 
 ### Command Line Options
@@ -442,15 +442,15 @@ export GMAIL_TUI_TOKEN=~/.config/giztui/token.json
 The CLI has been simplified to focus on essential parameters:
 
 ```bash
-Gmail TUI - Terminal-based Gmail client
+GizTUI - Terminal-based Gmail client
 
 Usage:
-  gmail-tui [options]
+  giztui [options]
 
 Examples:
-  gmail-tui                        # Run with default configuration
-  gmail-tui --setup                # Run interactive setup wizard
-  gmail-tui --config custom.json   # Use custom configuration
+  giztui                        # Run with default configuration
+  giztui --setup                # Run interactive setup wizard
+  giztui --config custom.json   # Use custom configuration
 
 Options:
   --config string
@@ -1028,7 +1028,7 @@ Notes for Bedrock on-demand:
 Run with a custom config:
 
 ```bash
-AWS_PROFILE=your-profile ./gmail-tui --config ~/.config/giztui/config.bedrock.json
+AWS_PROFILE=your-profile ./giztui --config ~/.config/giztui/config.bedrock.json
 ```
 
 Minimal debugging example (standalone):
@@ -1423,7 +1423,7 @@ The Prompt Library system is automatically initialized with default prompts on f
 
 **Database Location:**
 - Prompts and results are stored in the same SQLite database as AI summaries
-- Location: `~/.config/giztui/gmail-tui-{account}.db`
+- Location: `~/.config/giztui/giztui-{account}.db`
 
 **Default Prompts:**
 The system comes with pre-configured prompts:
@@ -1437,7 +1437,7 @@ You can add your own prompt templates directly to the database using SQLite comm
 
 ```bash
 # Connect to your database (replace {your-email} with your actual email)
-sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db
+sqlite3 ~/.config/giztui/giztui-{your-email}.db
 
 # Add a custom prompt
 INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
@@ -1481,7 +1481,7 @@ The prompt library uses SQLite for storage. You can directly manage prompts usin
 **Connect to Database:**
 ```bash
 # Replace {your-email} with your actual email address
-sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db
+sqlite3 ~/.config/giztui/giztui-{your-email}.db
 ```
 
 **View Existing Prompts:**
@@ -1562,15 +1562,15 @@ UPDATE prompt_templates SET usage_count = 0;
 **Backup and Restore:**
 ```bash
 # Backup prompts to SQL file
-sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db \
+sqlite3 ~/.config/giztui/giztui-{your-email}.db \
   ".dump prompt_templates" > prompts_backup.sql
 
 # Restore from backup
-sqlite3 ~/.config/giztui/gmail-tui-{your-email}.db \
+sqlite3 ~/.config/giztui/giztui-{your-email}.db \
   ".read prompts_backup.sql"
 
 # Export prompts to CSV
-sqlite3 -header -csv ~/.config/giztui/gmail-tui-{your-email}.db \
+sqlite3 -header -csv ~/.config/giztui/giztui-{your-email}.db \
   "SELECT * FROM prompt_templates;" > prompts.csv
 ```
 

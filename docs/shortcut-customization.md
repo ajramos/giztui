@@ -1,6 +1,6 @@
 # Shortcut Customization Guide
 
-Gmail TUI now supports fully customizable keyboard shortcuts through the configuration file. You can personalize your experience by mapping actions to keys that feel natural to you.
+GizTUI now supports fully customizable keyboard shortcuts through the configuration file. You can personalize your experience by mapping actions to keys that feel natural to you.
 
 ## Overview
 

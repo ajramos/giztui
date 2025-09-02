@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/obsidian"
+	"github.com/ajramos/giztui/internal/obsidian"
 )
 
 // ObsidianStore handles Obsidian forward history operations

@@ -103,13 +103,13 @@ jobs:
 
     - name: Build for multiple platforms
       run: |
-        GOOS=linux GOARCH=amd64 go build -o build/gmail-tui-linux-amd64 ./cmd/gmail-tui
-        GOOS=darwin GOARCH=amd64 go build -o build/gmail-tui-darwin-amd64 ./cmd/gmail-tui
-        GOOS=darwin GOARCH=arm64 go build -o build/gmail-tui-darwin-arm64 ./cmd/gmail-tui
-        GOOS=windows GOARCH=amd64 go build -o build/gmail-tui-windows-amd64.exe ./cmd/gmail-tui
+        GOOS=linux GOARCH=amd64 go build -o build/giztui-linux-amd64 ./cmd/giztui
+        GOOS=darwin GOARCH=amd64 go build -o build/giztui-darwin-amd64 ./cmd/giztui
+        GOOS=darwin GOARCH=arm64 go build -o build/giztui-darwin-arm64 ./cmd/giztui
+        GOOS=windows GOARCH=amd64 go build -o build/giztui-windows-amd64.exe ./cmd/giztui
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: gmail-tui-binaries
+        name: giztui-binaries
         path: build/

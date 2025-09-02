@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/google/uuid"
 	"log"
 	"sync"

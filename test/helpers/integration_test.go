@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/services"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/goleak"

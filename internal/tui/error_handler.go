@@ -291,7 +291,7 @@ func (eh *ErrorHandler) getBaselineStatus() string {
 	if eh.appRef != nil {
 		return eh.appRef.statusBaseline()
 	}
-	return "Gmail TUI • Press ? for help • : for commands"
+	return "GizTUI • Press ? for help • : for commands"
 }
 
 // Convenience methods for common operations

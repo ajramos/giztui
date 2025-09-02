@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/config"
-	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/ajramos/giztui/internal/config"
+	"github.com/ajramos/giztui/internal/gmail"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -59,7 +59,7 @@ func (s *SlackServiceImpl) ForwardEmail(ctx context.Context, messageID string, o
 // ValidateWebhook validates a Slack webhook URL by sending a test message
 func (s *SlackServiceImpl) ValidateWebhook(ctx context.Context, webhookURL string) error {
 	testMessage := SlackMessage{
-		Text: "📧 Gmail TUI - Webhook validation test",
+		Text: "📧 GizTUI - Webhook validation test",
 	}
 
 	return s.sendToSlack(ctx, testMessage, webhookURL)

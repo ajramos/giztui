@@ -2,7 +2,6 @@
 
 ## 📋 Detected ISSUES - Short term to fix.
 - [ ] When an UNDO is performed, focus is lost (it should return to the message list)
-- [x] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts. This also happens when the initial 50 messages are loaded and i before they finished loading i open the drafts pickers, when the 50 messages finished loading the labels picker is opened (as if i have pressed the l)
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
 
 
@@ -260,6 +259,7 @@
 - [x] **Search highlighting** - Highlight search terms in results
 - [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
 - [x] Welcome screen doesn't pool the shortcuts from the customization.
+- [x] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts. This also happens when the initial 50 messages are loaded and i before they finished loading i open the drafts pickers, when the 50 messages finished loading the labels picker is opened (as if i have pressed the l)
 
 ### Message Rendering
 - [x] **HTML message processing** - Substituted markdown rendering with improved HTML processing

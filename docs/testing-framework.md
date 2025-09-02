@@ -1,8 +1,8 @@
-# Gmail TUI Testing Framework
+# GizTUI Testing Framework
 
 ## Overview
 
-This document describes the comprehensive testing framework implemented for the Gmail TUI application. The framework follows the service-oriented architecture principles and provides robust testing capabilities for TUI applications built with Go and tview.
+This document describes the comprehensive testing framework implemented for the GizTUI application. The framework follows the service-oriented architecture principles and provides robust testing capabilities for TUI applications built with Go and tview.
 
 ## Architecture
 
@@ -353,6 +353,6 @@ repos:
 
 ## Conclusion
 
-This testing framework provides a robust foundation for ensuring the quality and reliability of the Gmail TUI application. By following the established patterns and best practices, developers can maintain high test coverage while preventing regressions in both functionality and user experience.
+This testing framework provides a robust foundation for ensuring the quality and reliability of the GizTUI application. By following the established patterns and best practices, developers can maintain high test coverage while preventing regressions in both functionality and user experience.
 
 The framework's emphasis on component-level testing, comprehensive mocking, and visual regression detection makes it particularly well-suited for TUI applications where traditional testing approaches fall short.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 

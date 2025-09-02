@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ajramos/gmail-tui/internal/db"
+	"github.com/ajramos/giztui/internal/db"
 	"github.com/stretchr/testify/assert"
 )
 

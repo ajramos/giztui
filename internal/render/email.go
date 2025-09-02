@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/ajramos/gmail-tui/internal/config"
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"github.com/mattn/go-runewidth"

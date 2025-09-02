@@ -1,10 +1,10 @@
-# 🎨 Gmail TUI Theming System
+# 🎨 GizTUI Theming System
 
-A comprehensive guide for creating themes and implementing theme-compliant components in Gmail TUI.
+A comprehensive guide for creating themes and implementing theme-compliant components in GizTUI.
 
 ## 📖 Overview
 
-Gmail TUI implements a modern hierarchical theme system that provides consistent, maintainable, and flexible color management across all UI components. This system ensures visual consistency while allowing complete customization of the user interface.
+GizTUI implements a modern hierarchical theme system that provides consistent, maintainable, and flexible color management across all UI components. This system ensures visual consistency while allowing complete customization of the user interface.
 
 ## 🎨 Hierarchical Theme Architecture
 
@@ -153,7 +153,7 @@ Themes are automatically validated on load:
 
 ### All Supported Components
 
-Gmail TUI supports these 11 components, each with full theme integration:
+GizTUI supports these 11 components, each with full theme integration:
 
 | Component | Usage | Code Calls |
 |-----------|-------|------------|

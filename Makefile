@@ -1,11 +1,11 @@
-# Gmail TUI Makefile
+# GizTUI Makefile
 
 .PHONY: help build run test clean lint fmt vet coverage install deps theme-demo
 
 # Variables
-BINARY_NAME=gmail-tui
+BINARY_NAME=giztui
 BUILD_DIR=build
-MAIN_PATH=cmd/gmail-tui/main.go
+MAIN_PATH=cmd/giztui/main.go
 
 # Colors for output
 GREEN=\033[0;32m
@@ -14,7 +14,7 @@ RED=\033[0;31m
 NC=\033[0m # No Color
 
 help: ## Show this help
-	@echo "$(GREEN)Gmail TUI - Available commands:$(NC)"
+	@echo "$(GREEN)GizTUI - Available commands:$(NC)"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/prompts"
+	"github.com/ajramos/giztui/internal/prompts"
 )
 
 // PromptStore handles prompt template and result operations

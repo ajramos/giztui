@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/ajramos/gmail-tui/test/helpers"
+	"github.com/ajramos/giztui/test/helpers"
 )
 
 // Main test suite runner that orchestrates all test categories

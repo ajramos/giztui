@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	gmailwrap "github.com/ajramos/gmail-tui/internal/gmail"
+	gmailwrap "github.com/ajramos/giztui/internal/gmail"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 

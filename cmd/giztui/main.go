@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ajramos/gmail-tui/internal/calendar"
-	"github.com/ajramos/gmail-tui/internal/config"
-	"github.com/ajramos/gmail-tui/internal/db"
-	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/ajramos/gmail-tui/internal/llm"
-	"github.com/ajramos/gmail-tui/internal/tui"
-	"github.com/ajramos/gmail-tui/pkg/auth"
+	"github.com/ajramos/giztui/internal/calendar"
+	"github.com/ajramos/giztui/internal/config"
+	"github.com/ajramos/giztui/internal/db"
+	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/llm"
+	"github.com/ajramos/giztui/internal/tui"
+	"github.com/ajramos/giztui/pkg/auth"
 )
 
 func main() {

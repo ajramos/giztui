@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/db"
+	"github.com/ajramos/giztui/internal/db"
 	"gopkg.in/yaml.v3"
 )
 

@@ -1,4 +1,4 @@
-module github.com/ajramos/gmail-tui
+module github.com/ajramos/giztui
 
 go 1.23.0
 

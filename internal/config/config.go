@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/gmail-tui/internal/obsidian"
+	"github.com/ajramos/giztui/internal/obsidian"
 )
 
 // LLMConfig holds all LLM-related configuration
@@ -49,7 +49,7 @@ type ThemeConfig struct {
 	CustomDir string `json:"custom_dir"` // Custom themes directory (empty = default)
 }
 
-// Config holds all configuration for the Gmail TUI application
+// Config holds all configuration for the GizTUI application
 type Config struct {
 	Credentials string `json:"credentials"`
 	Token       string `json:"token"`

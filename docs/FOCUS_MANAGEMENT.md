@@ -2,7 +2,7 @@
 
 ## Overview
 
-Gmail TUI uses a **centralized focus management system** that coordinates UI element highlighting, state transitions, and user navigation. Understanding this system is crucial for implementing new UI components consistently.
+GizTUI uses a **centralized focus management system** that coordinates UI element highlighting, state transitions, and user navigation. Understanding this system is crucial for implementing new UI components consistently.
 
 ## Core Focus States
 
