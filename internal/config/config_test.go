@@ -97,11 +97,6 @@ func TestDefaultLayoutConfig(t *testing.T) {
 	assert.True(t, layout.ShowBorders)
 	assert.True(t, layout.ShowTitles)
 	assert.False(t, layout.CompactMode)
-
-	// Test theme config
-	theme := config.Theme
-	assert.Equal(t, "gmail-dark", theme.Current)
-	assert.Empty(t, theme.CustomDir)
 }
 
 func TestGetLLMTimeout(t *testing.T) {

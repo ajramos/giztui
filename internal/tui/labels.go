@@ -1338,7 +1338,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 	// Get theme colors for labels component
 	labelColors := a.GetComponentColors("labels")
 	if a.logger != nil {
-		a.logger.Printf("DEBUG expandLabelsBrowseGeneric: background color = %s", labelColors.Background.Color())
+		a.logger.Printf("DEBUG expandLabelsBrowseGeneric: background color = %v", labelColors.Background.Color())
 	}
 
 	input := tview.NewInputField().
@@ -1678,7 +1678,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 	// Get theme colors for labels component
 	labelColors := a.GetComponentColors("labels")
 	if a.logger != nil {
-		a.logger.Printf("DEBUG addCustomLabelInline: background color = %s", labelColors.Background.Color())
+		a.logger.Printf("DEBUG addCustomLabelInline: background color = %v", labelColors.Background.Color())
 	}
 
 	// Inline input inside labels side panel (no modal)

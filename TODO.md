@@ -2,7 +2,7 @@
 
 ## 📋 Detected ISSUES - Short term to fix.
 - [ ] When an UNDO is performed, focus is lost (it should return to the message list)
-- [ ] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts.
+- [x] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts. This also happens when the initial 50 messages are loaded and i before they finished loading i open the drafts pickers, when the 50 messages finished loading the labels picker is opened (as if i have pressed the l)
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
 
 

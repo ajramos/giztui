@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/derailed/tcell/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -132,7 +133,7 @@ func TestExecuteCommand_AmbiguousS(t *testing.T) {
 // Test emojiBox component
 func TestEmojiBox_Creation(t *testing.T) {
 	text := "🔥 Test"
-	eb := newEmojiBox(text, 0x0)
+	eb := newEmojiBox(text, tcell.ColorWhite, tcell.ColorBlack)
 
 	assert.NotNil(t, eb)
 	assert.NotNil(t, eb.Box)
@@ -140,7 +141,7 @@ func TestEmojiBox_Creation(t *testing.T) {
 }
 
 func TestEmojiBox_EmptyText(t *testing.T) {
-	eb := newEmojiBox("", 0x0)
+	eb := newEmojiBox("", tcell.ColorWhite, tcell.ColorBlack)
 
 	assert.NotNil(t, eb)
 	assert.Empty(t, eb.text)
@@ -155,7 +156,7 @@ func TestEmojiBox_UnicodeHandling(t *testing.T) {
 	}
 
 	for _, text := range testCases {
-		eb := newEmojiBox(text, 0x0)
+		eb := newEmojiBox(text, tcell.ColorWhite, tcell.ColorBlack)
 		assert.Equal(t, text, eb.text, "Unicode handling for: '%s'", text)
 	}
 }

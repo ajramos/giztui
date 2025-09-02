@@ -45,6 +45,14 @@ func (m *MockEmailRepository) GetDrafts(ctx context.Context, maxResults int64) (
 	return args.Get(0).([]*gmail_v1.Draft), args.Error(1)
 }
 
+func (m *MockEmailRepository) GetDraft(ctx context.Context, draftID string) (*gmail_v1.Draft, error) {
+	args := m.Called(ctx, draftID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gmail_v1.Draft), args.Error(1)
+}
+
 // MockGmailServiceClient implements the Gmail client methods used by EmailService
 type MockGmailServiceClient struct {
 	mock.Mock
