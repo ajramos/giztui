@@ -888,7 +888,7 @@ func (a *App) populateFlatRows(table *tview.Table) {
 			cur, _ := table.GetSelection()
 			if cur == i+1 { // +1 for header
 				// Keep normal colors for focused selection
-				columnData.Color = columnData.Color
+				// No color change needed for focused selection
 			} else {
 				// Use bulk selection background
 				columnData.Color = a.currentTheme.Body.BgColor.Color()

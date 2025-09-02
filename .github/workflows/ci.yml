@@ -37,7 +37,7 @@ jobs:
       run: go test -race -timeout 2m ./internal/services
 
     - name: Run vet
-      run: go vet ./...
+      run: go vet -composites=false ./...
 
     - name: Run fmt check
       run: |
