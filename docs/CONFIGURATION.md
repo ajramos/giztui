@@ -40,10 +40,12 @@ cp -r ~/.config/gmail-tui/* ~/.config/giztui/
     "timeout": "30s"
   },
   "ui": {
-    "theme": "slate-blue",
     "layout": {
       "default_breakpoint": "wide"
     }
+  },
+  "theme": {
+    "current": "slate-blue"
   },
   "shortcuts": {
     "help": "?",
@@ -90,9 +92,10 @@ Configure Gmail API settings and behavior:
 
 ```json
 {
-  "ui": {
-    "theme": "slate-blue",
-    "custom_theme_path": "~/.config/giztui/themes/my-theme.yaml"
+  "theme": {
+    "current": "slate-blue",
+    "custom_dir": "/path/to/custom/themes",
+    "auto_apply": true
   }
 }
 ```
@@ -103,6 +106,19 @@ Configure Gmail API settings and behavior:
 - `gmail-dark`
 - `gmail-light`
 - `custom-example`
+
+**Theme directory resolution (priority order):**
+1. `custom_dir` - Custom themes directory (if specified)
+2. `~/.config/giztui/themes/` - User config themes directory
+3. Built-in themes directory - Embedded themes in binary
+
+### Theme Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `current` | string | Active theme name | `slate-blue` |
+| `custom_dir` | string | Path to custom themes directory | Empty (uses default resolution) |
+| `auto_apply` | boolean | Automatically apply theme changes | `true` |
 
 ### Layout Configuration
 
@@ -235,6 +251,34 @@ Configure Gmail API settings and behavior:
 - Shift+key format: `"Shift+t"`
 - Function keys: `"F1"`, `"F2"`, etc.
 - Special keys: `"space"`, `"tab"`, `"enter"`, `"esc"`
+
+### Shortcut Conflicts and Override Behavior
+
+**Important**: Custom shortcuts override default shortcuts. Be aware of potential conflicts:
+
+**Common Conflicts:**
+- `search: "f"` conflicts with default `forward: "f"`
+- `search_to: "X"` differs from default `search_to: "T"`
+
+**VIM Timeout Configuration:**
+```json
+{
+  "keys": {
+    "vim_navigation_timeout_ms": 250,
+    "vim_range_timeout_ms": 500
+  }
+}
+```
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `vim_navigation_timeout_ms` | Timeout for VIM navigation sequences (e.g., "gg") | `1000ms` |
+| `vim_range_timeout_ms` | Timeout for bulk operations (e.g., "d3d") | `2000ms` |
+
+**Resolution Strategy:**
+- Check default shortcuts before customizing
+- Use `:help` command to see current key bindings  
+- Test shortcuts after configuration changes
 
 ## 🧠 AI Configuration
 
@@ -384,9 +428,24 @@ Available variables in prompts:
     "prevent_duplicates": true,
     "max_file_size": 1048576,
     "include_attachments": true,
-    "template": "templates/obsidian/email.md"
+    "template_file": "templates/obsidian/email.md"
   }
 }
+```
+
+### Obsidian Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Enable Obsidian integration | `true` |
+| `vault_path` | string | Path to Obsidian vault | Required |
+| `ingest_folder` | string | Folder for imported emails | `"00-Inbox"` |
+| `filename_format` | string | Template for filename generation | `"{{date}}_{{subject_slug}}_{{from_domain}}"` |
+| `history_enabled` | boolean | Track import history | `true` |
+| `prevent_duplicates` | boolean | Prevent duplicate imports | `true` |
+| `max_file_size` | integer | Maximum file size in bytes | `1048576` |
+| `include_attachments` | boolean | Include email attachments | `true` |
+| `template_file` | string | Path to email template file | `"templates/obsidian/email.md"` |
 ```
 
 #### Obsidian Template Example
@@ -482,11 +541,25 @@ tags: [email, {{labels}}]
     "auto_expand_unread": true,
     "show_thread_count": true,
     "indent_replies": true,
+    "max_thread_depth": 10,
     "thread_summary_enabled": true,
-    "max_thread_depth": 10
+    "preserve_thread_state": true
   }
 }
 ```
+
+### Threading Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Enable threading functionality | `true` |
+| `default_view` | string | Default message view: "flat" or "thread" | `"flat"` |
+| `auto_expand_unread` | boolean | Auto-expand threads with unread messages | `true` |
+| `show_thread_count` | boolean | Show message count badges on threads | `true` |
+| `indent_replies` | boolean | Indent reply messages in thread view | `true` |
+| `max_thread_depth` | integer | Maximum thread nesting level | `10` |
+| `thread_summary_enabled` | boolean | Enable AI-powered thread summaries | `true` |
+| `preserve_thread_state` | boolean | Remember expanded/collapsed state | `true` |
 
 ### Performance Settings
 
@@ -591,7 +664,6 @@ Here's a complete example configuration with common customizations:
     "timeout": "45s"
   },
   "ui": {
-    "theme": "dracula",
     "layout": {
       "default_breakpoint": "wide",
       "show_line_numbers": true
@@ -601,6 +673,10 @@ Here's a complete example configuration with common customizations:
       "relative_dates": true,
       "compact_headers": true
     }
+  },
+  "theme": {
+    "current": "dracula",
+    "auto_apply": true
   },
   "shortcuts": {
     "ai_summary": "s",

@@ -93,6 +93,31 @@ echo '{
 }' > ~/.config/giztui/config.json
 ```
 
+### Theme Configuration
+
+GizTUI includes several built-in themes and supports custom themes:
+
+**Built-in themes**: `slate-blue` (default), `gmail-dark`, `gmail-light`, `dracula`, `custom-example`
+
+**Configure theme:**
+```json
+{
+  "theme": {
+    "current": "gmail-dark",
+    "custom_dir": "/path/to/your/custom/themes"
+  }
+}
+```
+
+**Theme directory resolution** (priority order):
+1. `custom_dir` - Your custom themes directory (if specified)  
+2. `~/.config/giztui/themes/` - User themes directory
+3. Built-in themes (embedded in binary)
+
+**Runtime theme switching**: Press `H` to open theme picker with live preview.
+
+> **⚠️ Important for `go install` users**: If themes don't work, ensure your config has the correct `theme.current` parameter (not `ui.theme`). See the [Configuration Guide](docs/CONFIGURATION.md#theme-settings) for details.
+
 ## 🎯 Essential Shortcuts
 
 | Key | Action | Description |
