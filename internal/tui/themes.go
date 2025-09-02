@@ -35,12 +35,12 @@ func (a *App) openThemePicker() {
 
 	list := tview.NewList().ShowSecondaryText(false) // Keep clean list display
 	list.SetBorder(false)
-	
+
 	// Apply theme colors to the list
 	themesColors := a.GetComponentColors("themes")
 	list.SetMainTextColor(themesColors.Text.Color())
-	list.SetSelectedTextColor(themesColors.Background.Color())     // Inverse contrast for selection
-	list.SetSelectedBackgroundColor(themesColors.Accent.Color())  // Accent color as highlight
+	list.SetSelectedTextColor(themesColors.Background.Color())   // Inverse contrast for selection
+	list.SetSelectedBackgroundColor(themesColors.Accent.Color()) // Accent color as highlight
 
 	type themeItem struct {
 		name        string
@@ -183,11 +183,11 @@ func (a *App) openThemePicker() {
 			bgColor := a.GetComponentColors("themes").Background.Color()
 			container.SetBackgroundColor(bgColor)
 			container.SetBorder(true)
-			
+
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
-			
+
 			container.SetTitle(" 🎨 Theme Picker ")
 			container.SetTitleColor(a.GetComponentColors("themes").Title.Color())
 			container.AddItem(input, 3, 0, true)
@@ -234,7 +234,7 @@ func (a *App) openThemePicker() {
 			a.SetFocus(input)
 			a.currentFocus = "prompts" // Use same focus identifier as prompts for consistency
 			a.updateFocusIndicators("prompts")
-			a.labelsVisible = true // Needed for proper visual state
+			a.setActivePicker(PickerThemes) // Needed for proper visual state
 
 			// Show info message
 			go func() {
@@ -385,7 +385,7 @@ func (a *App) closeThemePicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {

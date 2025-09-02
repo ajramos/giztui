@@ -232,7 +232,7 @@ func (a *App) exitSearch() {
 
 // reloadMessages loads messages from the inbox, respecting current threading mode
 func (a *App) reloadMessages() {
-	
+
 	// Check if we're in threading mode and should reload threads instead
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
 		a.reloadThreadsWithSpinner()
@@ -348,13 +348,13 @@ func (a *App) reloadMessagesFlat() {
 
 	// Use current query for reload to maintain current view context
 	query := a.currentQuery
-	
+
 	// Fallback: if currentQuery is empty but we're clearly in a specific folder,
 	// try to detect the folder from current message and construct appropriate query
 	if query == "" {
 		query = a.detectCurrentFolderQuery()
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("RELOAD_MSG: Loading messages with query: '%s'", query)
 	}
@@ -582,7 +582,7 @@ func (a *App) loadMoreMessages() {
 		}
 		a.appendMessages(messages)
 		a.nextPageToken = next
-		
+
 		// FOCUS FIX: Restore focus to message list after loading more search results
 		a.QueueUpdateDraw(func() {
 			a.SetFocus(a.views["list"])
@@ -668,7 +668,7 @@ func (a *App) loadMoreMessages() {
 		if spinnerStop != nil {
 			close(spinnerStop)
 		}
-		
+
 		// FOCUS FIX: Restore focus to message list after loading more messages
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
@@ -1186,7 +1186,7 @@ func (a *App) openAdvancedSearchForm() {
 		}
 		if twoCol, ok := a.views["searchTwoCol"].(*tview.Flex); ok {
 			// FIX: Use fixed width to prevent viewport scrolling mode
-			twoCol.ResizeItem(right, 35, 0)  // Width: 35 columns to prevent wrapping
+			twoCol.ResizeItem(right, 35, 0) // Width: 35 columns to prevent wrapping
 			// form takes remaining space
 			if form != nil {
 				twoCol.ResizeItem(form, 0, 1)
@@ -1216,7 +1216,7 @@ func (a *App) openAdvancedSearchForm() {
 			hideRight()
 			a.SetFocus(scopeField)
 		}})
-		// State  
+		// State
 		options = append(options,
 			optionItem{"✅ Read Mail", func() { scopeField.SetText("is:read"); hideRight(); a.SetFocus(scopeField) }},
 			optionItem{"📬 Unread Mail", func() { scopeField.SetText("is:unread"); hideRight(); a.SetFocus(scopeField) }},
@@ -1224,7 +1224,7 @@ func (a *App) openAdvancedSearchForm() {
 		// Categories (testing safe emoji alternatives)
 		categoryEmojis := map[string]string{
 			"social":     "👥", // People emoji
-			"updates":    "🔄", // Refresh/update emoji  
+			"updates":    "🔄", // Refresh/update emoji
 			"forums":     "💬", // Speech balloon
 			"promotions": "💰", // Money bag - represents promotions/deals
 		}
@@ -1246,7 +1246,7 @@ func (a *App) openAdvancedSearchForm() {
 
 		filter := tview.NewInputField().SetLabel("🔎 ")
 		filter.SetPlaceholder("filter options…")
-		filter.SetFieldWidth(31)  // Adjusted width to match 35-column container
+		filter.SetFieldWidth(31) // Adjusted width to match 35-column container
 		// Apply consistent theme styling to filter field
 		a.ConfigureInputFieldTheme(filter, "advanced")
 
@@ -1258,7 +1258,7 @@ func (a *App) openAdvancedSearchForm() {
 		list.SetMainTextColor(searchOptionsColors.Text.Color())
 		list.SetSelectedBackgroundColor(searchOptionsColors.Accent.Color())
 		list.SetSelectedTextColor(searchOptionsColors.Background.Color())
-		
+
 		// FORCE REDRAW: Add selection change callback to force complete redraw
 		list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 			// Force the entire List widget to redraw when selection changes
@@ -1303,7 +1303,7 @@ func (a *App) openAdvancedSearchForm() {
 		})
 		box.AddItem(filter, 1, 0, true)
 		box.AddItem(list, 0, 1, true)
-		right.AddItem(box, 0, 1, true)  // Full height: occupy whole search panel
+		right.AddItem(box, 0, 1, true) // Full height: occupy whole search panel
 		apply("")
 		box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 			if e.Key() == tcell.KeyEscape {
@@ -2966,7 +2966,7 @@ func (a *App) openRSVPModal() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		a.rsvpVisible = false
 		a.restoreFocusAfterModal()
 	}
@@ -2979,7 +2979,7 @@ func (a *App) openRSVPModal() {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.labelsView, 0, 0)
 			}
-			a.labelsVisible = false
+			a.setActivePicker(PickerNone)
 			a.rsvpVisible = false
 			a.restoreFocusAfterModal()
 			return nil
@@ -2995,7 +2995,7 @@ func (a *App) openRSVPModal() {
 			split.AddItem(a.labelsView, 0, 1, true)
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
-		a.labelsVisible = true
+		a.setActivePicker(PickerDrafts)
 		a.rsvpVisible = true
 		a.currentFocus = "labels"
 		a.updateFocusIndicators("labels")
@@ -3996,8 +3996,8 @@ func (a *App) showDraftsPicker(container *tview.Flex) {
 		split.ResizeItem(a.labelsView, 0, 1)
 
 		// Update state
-		a.labelsVisible = true    // Reuse the labels state for side panel visibility
-		a.currentFocus = "drafts" // Set focus state to drafts
+		a.setActivePicker(PickerDrafts) // Set specific drafts picker state
+		a.currentFocus = "drafts"       // Set focus state to drafts
 		a.updateFocusIndicators("drafts")
 
 		if a.logger != nil {
@@ -4008,12 +4008,12 @@ func (a *App) showDraftsPicker(container *tview.Flex) {
 
 // hideDraftsPicker hides the draft picker and restores normal layout
 func (a *App) hideDraftsPicker() {
-	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.currentActivePicker == PickerDrafts {
 		// Remove drafts list (using same slot as labels)
 		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
 
 		// Update state
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		a.currentFocus = "list"
 		a.updateFocusIndicators("list")
 		a.SetFocus(a.views["list"])
@@ -4026,12 +4026,12 @@ func (a *App) hideDraftsPicker() {
 
 // hideDraftsPickerNoFocus hides the draft picker without setting focus to list (used when opening composition)
 func (a *App) hideDraftsPickerNoFocus() {
-	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.labelsVisible {
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok && a.currentActivePicker == PickerDrafts {
 		// Remove drafts list (using same slot as labels)
 		split.ResizeItem(a.labelsView, 0, 0) // This hides the side panel
 
 		// Update state but don't set focus
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 	}
 }
 
@@ -4065,14 +4065,14 @@ func (a *App) detectCurrentFolderQuery() string {
 		}
 		return "" // Default to inbox
 	}
-	
+
 	// Sample a few messages to detect the common folder
 	sampleSize := min(3, len(messageIDs))
 	folderCounts := make(map[string]int)
-	
+
 	for i := 0; i < sampleSize; i++ {
 		messageID := messageIDs[i]
-		
+
 		// Check message cache first
 		if cached, ok := a.messageCache[messageID]; ok {
 			folder := a.detectMessageFolder(cached.Labels)
@@ -4081,7 +4081,7 @@ func (a *App) detectCurrentFolderQuery() string {
 			}
 		}
 	}
-	
+
 	// Find the most common folder
 	var detectedFolder string
 	maxCount := 0
@@ -4091,11 +4091,11 @@ func (a *App) detectCurrentFolderQuery() string {
 			detectedFolder = folder
 		}
 	}
-	
+
 	if a.logger != nil {
 		a.logger.Printf("FOLDER_DETECT: Detected folder '%s' based on %d messages", detectedFolder, maxCount)
 	}
-	
+
 	return detectedFolder
 }
 
@@ -4105,13 +4105,13 @@ func (a *App) detectMessageFolder(labels []string) string {
 	for _, label := range labels {
 		labelSet[label] = true
 	}
-	
+
 	// Priority order for folder detection (most specific first)
 	if labelSet["SPAM"] {
 		return "in:spam"
 	}
 	if labelSet["TRASH"] {
-		return "in:trash"  
+		return "in:trash"
 	}
 	if labelSet["SENT"] {
 		return "in:sent"
@@ -4123,8 +4123,7 @@ func (a *App) detectMessageFolder(labels []string) string {
 		// If no INBOX label, likely archived
 		return "in:archive"
 	}
-	
+
 	// Default to inbox if INBOX label is present or no special labels detected
 	return ""
 }
-

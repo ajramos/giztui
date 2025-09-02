@@ -14,7 +14,7 @@ import (
 func (a *App) openLinkPicker() {
 	// Use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -24,7 +24,7 @@ func (a *App) openLinkPicker() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
@@ -46,11 +46,11 @@ func (a *App) openLinkPicker() {
 		SetFieldTextColor(a.GetComponentColors("links").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
-	
+
 	// Apply component-specific selection colors
 	linkColors := a.GetComponentColors("links")
 	list.SetMainTextColor(linkColors.Text.Color())
-	list.SetSelectedTextColor(linkColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedTextColor(linkColors.Background.Color())   // Use background for selected text (inverse)
 	list.SetSelectedBackgroundColor(linkColors.Accent.Color()) // Use accent for selection highlight
 
 	type linkItem struct {
@@ -258,11 +258,11 @@ func (a *App) openLinkPicker() {
 			container.SetBorder(true)
 			container.SetTitle(" 🔗 Links in Message ")
 			container.SetTitleColor(a.GetComponentColors("links").Title.Color())
-			
+
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
-			
+
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
@@ -347,7 +347,7 @@ func (a *App) openLinkPicker() {
 			a.SetFocus(input)
 			a.currentFocus = "labels" // Reuse labels focus state for consistency
 			a.updateFocusIndicators("labels")
-			a.labelsVisible = true // Reuse labels visibility state
+			a.setActivePicker(PickerLinks) // Reuse labels visibility state
 
 			// Initial load
 			reload("")
@@ -371,7 +371,7 @@ func (a *App) closeLinkPicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)

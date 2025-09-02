@@ -23,6 +23,25 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// ActivePicker represents the currently active side panel picker
+type ActivePicker string
+
+const (
+	PickerNone          ActivePicker = ""
+	PickerLabels        ActivePicker = "labels"
+	PickerDrafts        ActivePicker = "drafts"
+	PickerObsidian      ActivePicker = "obsidian"
+	PickerAttachments   ActivePicker = "attachments"
+	PickerLinks         ActivePicker = "links"
+	PickerPrompts       ActivePicker = "prompts"
+	PickerBulkPrompts   ActivePicker = "bulk_prompts"
+	PickerSavedQueries  ActivePicker = "saved_queries"
+	PickerThemes        ActivePicker = "themes"
+	PickerAI            ActivePicker = "ai_labels"
+	PickerContentSearch ActivePicker = "content_search"
+	PickerRSVP          ActivePicker = "rsvp"
+)
+
 // App encapsulates the terminal UI and the Gmail client
 type App struct {
 	*tview.Application
@@ -112,10 +131,10 @@ type App struct {
 	logger  *log.Logger
 	logFile *os.File
 
-	// Labels contextual panel
-	labelsView     *tview.Flex
-	labelsVisible  bool
-	labelsExpanded bool
+	// Side panel picker state management
+	labelsView          *tview.Flex
+	currentActivePicker ActivePicker // Replaces labelsVisible - tracks which picker is active
+	labelsExpanded      bool
 
 	// Slack contextual panel
 	slackView    *tview.Flex
@@ -1075,7 +1094,7 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 			a.logger.Printf("RELOAD: ExtraData=%+v", result.ExtraData)
 		}
 	}
-	
+
 	if result == nil {
 		return
 	}
@@ -1128,7 +1147,7 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 		if a.logger != nil {
 			a.logger.Printf("RELOAD: UndoActionMove - using UI-only restoration (no server reload)")
 		}
-		
+
 		// All move undos use the same fast UI restoration logic
 		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.updateCacheAfterMoveUndo(result)
@@ -2647,3 +2666,28 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 // applyLabelAndRefresh aplica una etiqueta usando el mismo mecanismo que en la vista de 'l'
 // y refresca el contenido del mensaje cuando termina
 // (moved to labels.go) applyLabelAndRefresh
+
+// Picker state management helper methods
+
+// isAnyPickerActive returns true if any side panel picker is currently active
+func (a *App) isAnyPickerActive() bool {
+	return a.currentActivePicker != PickerNone
+}
+
+// clearActivePicker resets the active picker state to none
+func (a *App) clearActivePicker() {
+	a.currentActivePicker = PickerNone
+}
+
+// isLabelsPickerActive returns true if the Labels picker is currently active
+func (a *App) isLabelsPickerActive() bool {
+	return a.currentActivePicker == PickerLabels
+}
+
+// setActivePicker sets the current active picker and logs the change for debugging
+func (a *App) setActivePicker(picker ActivePicker) {
+	if a.logger != nil {
+		a.logger.Printf("Picker state change: %s -> %s", a.currentActivePicker, picker)
+	}
+	a.currentActivePicker = picker
+}

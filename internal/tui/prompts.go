@@ -15,7 +15,7 @@ import (
 func (a *App) openPromptPicker() {
 	// Use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -25,7 +25,7 @@ func (a *App) openPromptPicker() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
@@ -181,11 +181,11 @@ func (a *App) openPromptPicker() {
 			bgColor := promptColors.Background.Color()
 			container.SetBackgroundColor(bgColor)
 			container.SetBorder(true)
-			
+
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
-			
+
 			container.SetTitle(" 🤖 Prompt Library ")
 			container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 			container.AddItem(input, 3, 0, true)
@@ -223,7 +223,7 @@ func (a *App) openPromptPicker() {
 			a.SetFocus(input)
 			a.currentFocus = "prompts"
 			a.updateFocusIndicators("prompts")
-			a.labelsVisible = true // Needed for proper visual state
+			a.setActivePicker(PickerPrompts) // Needed for proper visual state
 
 			// Initial load
 			reload("")
@@ -242,7 +242,7 @@ func (a *App) closePromptPicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
@@ -280,7 +280,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 	})
 
 	// Get services
@@ -725,16 +725,16 @@ func (a *App) openPromptPickerForManagement() {
 	// Create container
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	promptColors := a.GetComponentColors("prompts")
-	
+
 	// Force background rendering for modal containers
 	bgColor := promptColors.Background.Color()
 	container.SetBackgroundColor(bgColor)
 	container.SetBorder(true)
-	
+
 	// Set background on child components as well
 	input.SetBackgroundColor(bgColor)
 	list.SetBackgroundColor(bgColor)
-	
+
 	container.SetTitle(" 📚 Prompt Library Manager ")
 	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
 	container.AddItem(input, 3, 0, true)
@@ -759,7 +759,7 @@ func (a *App) openPromptPickerForManagement() {
 	a.SetFocus(input)
 	a.currentFocus = "prompts"
 	a.updateFocusIndicators("prompts")
-	a.labelsVisible = true
+	a.setActivePicker(PickerPrompts)
 }
 
 // closePromptManager closes the prompt manager and restores the original view
@@ -769,7 +769,7 @@ func (a *App) closePromptManager() {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 
 	// Restore original text container title and show headers
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {

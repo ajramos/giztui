@@ -290,11 +290,11 @@ func (a *App) executeLabelRemove(args []string) {
 func (a *App) manageLabels() {
 
 	// Toggle contextual panel like AI Summary
-	if a.labelsVisible {
+	if a.isLabelsPickerActive() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		a.SetFocus(a.views["text"])
 		a.currentFocus = "text"
 		a.updateFocusIndicators("text")
@@ -319,7 +319,7 @@ func (a *App) manageLabels() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
-	a.labelsVisible = true
+	a.setActivePicker(PickerLabels)
 	a.labelsExpanded = false
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
@@ -592,7 +592,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 					split.ResizeItem(a.labelsView, 0, 0)
 				}
-				a.labelsVisible = false
+				a.setActivePicker(PickerNone)
 				// Also exit bulk mode if it was active
 				if a.bulkMode {
 					a.bulkMode = false
@@ -664,7 +664,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			// Tab a la lista, las flechas deben funcionar normalmente.
 			if l, ok := a.views["list"].(*tview.Table); ok {
 				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-					if a.labelsVisible && a.currentFocus == "labels" {
+					if a.isLabelsPickerActive() && a.currentFocus == "labels" {
 						switch ev.Key() {
 						case tcell.KeyUp, tcell.KeyDown, tcell.KeyPgUp, tcell.KeyPgDn, tcell.KeyHome, tcell.KeyEnd:
 							return nil
@@ -897,7 +897,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
-						a.labelsVisible = false
+						a.setActivePicker(PickerNone)
 						a.labelsExpanded = false
 
 						// Exit bulk mode
@@ -993,7 +993,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 					split.ResizeItem(a.labelsView, 0, 0)
 				}
-				a.labelsVisible = false
+				a.setActivePicker(PickerNone)
 				if a.bulkMode {
 					a.bulkMode = false
 					a.selected = make(map[string]bool)
@@ -1139,7 +1139,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 										split.ResizeItem(a.labelsView, 0, 0)
 									}
-									a.labelsVisible = false
+									a.setActivePicker(PickerNone)
 									a.labelsExpanded = false
 
 									// Exit bulk mode
@@ -1260,7 +1260,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
-						a.labelsVisible = false
+						a.setActivePicker(PickerNone)
 						if a.bulkMode {
 							a.bulkMode = false
 							a.selected = make(map[string]bool)
@@ -1453,7 +1453,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 				}
 				return e
 			})
-			a.labelsVisible = true
+			a.setActivePicker(PickerLabels)
 			a.currentFocus = "labels"
 			a.updateFocusIndicators("labels")
 			a.SetFocus(input)
@@ -1605,7 +1605,7 @@ func (a *App) openMovePanel() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
-	a.labelsVisible = true
+	a.setActivePicker(PickerLabels)
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
 	// Open browse in move mode
@@ -1623,7 +1623,7 @@ func (a *App) openMovePanelBulk() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
-	a.labelsVisible = true
+	a.setActivePicker(PickerLabels)
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
@@ -1650,7 +1650,7 @@ func (a *App) manageLabelsBulk() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
-	a.labelsVisible = true
+	a.setActivePicker(PickerLabels)
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
 
@@ -1822,7 +1822,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 			split.AddItem(a.labelsView, 0, 1, true)
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
-		a.labelsVisible = true
+		a.setActivePicker(PickerLabels)
 		a.currentFocus = "labels"
 		a.updateFocusIndicators("labels")
 		a.SetFocus(input)
@@ -2472,7 +2472,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		a.labelsExpanded = false
 
 		// Stay in bulk mode (don't exit like move operations do)

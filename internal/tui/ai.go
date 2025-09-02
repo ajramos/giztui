@@ -537,7 +537,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			// Apply theme colors to list component
 			aiColors := a.GetComponentColors("ai")
 			body.SetMainTextColor(aiColors.Text.Color())
-			body.SetSelectedTextColor(aiColors.Background.Color()) // Use background for selected text (inverse)
+			body.SetSelectedTextColor(aiColors.Background.Color())   // Use background for selected text (inverse)
 			body.SetSelectedBackgroundColor(aiColors.Accent.Color()) // Use accent for selection highlight
 			if len(suggestions) == 0 {
 				body.AddItem("(No suggestions)", "Use Browse all or Add custom", 0, nil)
@@ -631,7 +631,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 				split.AddItem(a.labelsView, 0, 1, true)
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
-			a.labelsVisible = true
+			a.setActivePicker(PickerAI)
 			a.currentFocus = "labels"
 			a.updateFocusIndicators("labels")
 			a.SetFocus(body)

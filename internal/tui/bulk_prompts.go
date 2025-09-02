@@ -47,7 +47,7 @@ func (a *App) openBulkPromptPicker() {
 
 	// Get component colors for consistent theming
 	bgColor := a.GetComponentColors("prompts").Background.Color()
-	
+
 	// Create picker UI similar to individual prompts
 	input := tview.NewInputField().
 		SetLabel("🔍 Search: ").
@@ -56,7 +56,7 @@ func (a *App) openBulkPromptPicker() {
 		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
 	input.SetBackgroundColor(bgColor)
-	
+
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	list.SetBackgroundColor(bgColor)
@@ -244,7 +244,7 @@ func (a *App) openBulkPromptPicker() {
 	a.SetFocus(input)
 	a.currentFocus = "prompts"
 	a.updateFocusIndicators("prompts")
-	a.labelsVisible = true // Needed for proper visual state
+	a.setActivePicker(PickerBulkPrompts) // Needed for proper visual state
 }
 
 // closeBulkPromptPicker closes the bulk prompt picker and restores the original view
@@ -260,7 +260,7 @@ func (a *App) closeBulkPromptPicker() {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	a.SetFocus(a.views["list"])
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")

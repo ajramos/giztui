@@ -21,7 +21,7 @@ func (a *App) sendEmailToObsidian() {
 
 	// Single message logic - use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -31,7 +31,7 @@ func (a *App) sendEmailToObsidian() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
@@ -75,7 +75,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 		SetScrollable(true).
 		SetWordWrap(true).
 		SetBorder(false)
-	
+
 	// Set background on child components as well
 	templateView.SetBackgroundColor(bgColor)
 
@@ -131,7 +131,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	// Set focus and state
 	a.currentFocus = "obsidian"
 	a.updateFocusIndicators("obsidian")
-	a.labelsVisible = true
+	a.setActivePicker(PickerObsidian)
 
 	// Configure Tab navigation between template view and comment input
 	templateView.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -173,7 +173,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	// Set focus immediately and force redraw
 	a.currentFocus = "obsidian"
 	a.updateFocusIndicators("obsidian")
-	a.labelsVisible = true // Needed for proper visual state
+	a.setActivePicker(PickerObsidian) // Needed for proper visual state
 
 	// Force focus with multiple attempts
 	a.SetFocus(commentInput)
@@ -258,7 +258,7 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
@@ -268,7 +268,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Show progress
 	a.GetErrorHandler().ShowProgress(a.ctx, "📝 Saving email to your notes...")
 
-
 	// Get Obsidian service
 	_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
 	if obsidianService == nil {
@@ -276,7 +275,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 		a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
 		return
 	}
-
 
 	// Create options for ingestion
 	options := obsidian.ObsidianOptions{
@@ -293,7 +291,6 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to ingest email: %v", err))
 		return
 	}
-
 
 	// Clear progress and show success
 	a.GetErrorHandler().ClearProgress()
@@ -531,7 +528,7 @@ func (a *App) openBulkObsidianPanel() {
 	// Set focus and state
 	a.currentFocus = "obsidian"
 	a.updateFocusIndicators("obsidian")
-	a.labelsVisible = true
+	a.setActivePicker(PickerObsidian)
 
 	// Configure input handling
 	commentInput.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -589,7 +586,7 @@ func (a *App) performBulkObsidianIngest(accountEmail, comment string) {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
@@ -605,6 +602,6 @@ func (a *App) closeObsidianPanel() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	a.restoreFocusAfterModal()
 }

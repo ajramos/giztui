@@ -13,7 +13,7 @@ import (
 func (a *App) openAttachmentPicker() {
 	// Use cached message ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -23,7 +23,7 @@ func (a *App) openAttachmentPicker() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
@@ -45,11 +45,11 @@ func (a *App) openAttachmentPicker() {
 		SetFieldTextColor(a.GetComponentColors("attachments").Text.Color())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
-	
+
 	// Apply component-specific selection colors
 	attachmentColors := a.GetComponentColors("attachments")
 	list.SetMainTextColor(attachmentColors.Text.Color())
-	list.SetSelectedTextColor(attachmentColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedTextColor(attachmentColors.Background.Color())   // Use background for selected text (inverse)
 	list.SetSelectedBackgroundColor(attachmentColors.Accent.Color()) // Use accent for selection highlight
 
 	type attachmentItem struct {
@@ -248,11 +248,11 @@ func (a *App) openAttachmentPicker() {
 			container.SetBorder(true)
 			container.SetTitle(" 📎 Attachments in Message ")
 			container.SetTitleColor(a.GetComponentColors("attachments").Title.Color())
-			
+
 			// Set background on child components as well
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
-			
+
 			container.AddItem(input, 3, 0, true)
 			container.AddItem(list, 0, 1, true)
 
@@ -334,7 +334,7 @@ func (a *App) openAttachmentPicker() {
 			a.SetFocus(input)
 			a.currentFocus = "labels" // Reuse labels focus state for consistency
 			a.updateFocusIndicators("labels")
-			a.labelsVisible = true // Reuse labels visibility state
+			a.setActivePicker(PickerAttachments)
 
 			// Initial load
 			reload("")
@@ -359,7 +359,7 @@ func (a *App) closeAttachmentPicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
@@ -489,7 +489,7 @@ func (a *App) saveAttachmentAs(messageID, attachmentID, filename string) {
 	a.SetFocus(pathInput)
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
-	a.labelsVisible = true
+	a.setActivePicker(PickerAttachments)
 }
 
 // closeSaveAsPanel closes the save as panel and restores focus
@@ -497,7 +497,7 @@ func (a *App) closeSaveAsPanel() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)

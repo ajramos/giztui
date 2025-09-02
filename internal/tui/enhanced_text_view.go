@@ -225,7 +225,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 		e.app.previousFocus = e.app.currentFocus
 
 		// Hide any existing side panels
-		if e.app.labelsVisible && e.app.labelsView != nil {
+		if e.app.currentActivePicker != PickerNone && e.app.labelsView != nil {
 			split.RemoveItem(e.app.labelsView)
 		}
 
@@ -236,7 +236,7 @@ func (e *EnhancedTextView) openContentSearchOverlay() {
 
 		// Set focus and update state
 		e.app.currentFocus = "contentSearch"
-		e.app.labelsVisible = true
+		e.app.setActivePicker(PickerContentSearch)
 		e.app.updateFocusIndicators("contentSearch")
 		e.app.SetFocus(input)
 	}
@@ -574,7 +574,7 @@ func (e *EnhancedTextView) closeContentSearchOverlay() {
 
 		// Clear the search overlay state
 		e.app.labelsView = nil
-		e.app.labelsVisible = false
+		e.app.setActivePicker(PickerNone)
 
 		// Restore focus to the text view
 		e.app.currentFocus = e.app.previousFocus
@@ -677,9 +677,9 @@ func (e *EnhancedTextView) highlightSearchResults(query string, matches []int) {
 			// Use hierarchical theme system for search highlight colors
 			searchColors := e.app.GetComponentColors("search")
 			// Use accent color for highlight background and contrasting text
-			highlighted := fmt.Sprintf("[%s:%s:b]%s[:-:-]", 
-				searchColors.Background.String(), 
-				searchColors.Accent.String(), 
+			highlighted := fmt.Sprintf("[%s:%s:b]%s[:-:-]",
+				searchColors.Background.String(),
+				searchColors.Accent.String(),
 				actualText)
 
 			// Replace in the content

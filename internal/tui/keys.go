@@ -269,7 +269,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.labelsView, 0, 0)
 			}
-			a.labelsVisible = false
+			a.setActivePicker(PickerNone)
 			a.rsvpVisible = false
 			a.restoreFocusAfterModal()
 		} else {
@@ -977,7 +977,7 @@ func (a *App) bindKeys() {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 						split.ResizeItem(a.labelsView, 0, 0)
 					}
-					a.labelsVisible = false
+					a.setActivePicker(PickerNone)
 					a.rsvpVisible = false
 					a.restoreFocusAfterModal()
 					return nil
@@ -1105,7 +1105,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If focus is on prompts panel, close it
-			if a.currentFocus == "prompts" && a.labelsVisible {
+			if a.currentFocus == "prompts" && a.currentActivePicker != PickerNone {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - closing prompts panel")
 				}
@@ -1242,7 +1242,7 @@ func (a *App) bindKeys() {
 				a.setStatusPersistent(fmt.Sprintf("Message %d/%d", messageIndex+1, len(a.ids)))
 				id := a.ids[messageIndex]
 				go a.showMessageWithoutFocus(id)
-				if a.labelsVisible {
+				if a.isLabelsPickerActive() {
 					go a.populateLabelsQuickView(id)
 				}
 				// Close AI panel when changing messages to avoid conflicts and storm requests
@@ -1257,7 +1257,7 @@ func (a *App) bindKeys() {
 				a.SetCurrentMessageID(id)
 				// Re-render list items so bulk selection backgrounds update when focus moves
 				a.refreshTableDisplay()
-				
+
 				// CRITICAL: Update focus indicators to show list has focus during arrow navigation
 				// This was missing - causing visual focus loss even though actual focus stayed on list
 				a.updateFocusIndicators("list")
@@ -1341,7 +1341,7 @@ func (a *App) toggleFocus() {
 	ring = append(ring, a.views["text"])
 	ringNames = append(ringNames, "text")
 	// 4) Labels/Prompts (if visible)
-	if a.labelsVisible {
+	if a.currentActivePicker != PickerNone {
 		ring = append(ring, a.labelsView)
 		// Use more specific name based on current focus state
 		if a.currentFocus == "prompts" {

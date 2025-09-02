@@ -46,11 +46,11 @@ func (a *App) showSavedQueriesPicker() {
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	list.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background
-	
+
 	// Apply component-specific selection colors
 	queryColors := a.GetComponentColors("saved_queries")
 	list.SetMainTextColor(queryColors.Text.Color())
-	list.SetSelectedTextColor(queryColors.Background.Color()) // Use background for selected text (inverse)
+	list.SetSelectedTextColor(queryColors.Background.Color())   // Use background for selected text (inverse)
 	list.SetSelectedBackgroundColor(queryColors.Accent.Color()) // Use accent for selection highlight
 
 	var all []queryItem
@@ -245,7 +245,7 @@ func (a *App) showSavedQueriesPicker() {
 			// Set focus and state (use "labels" for proper border highlighting)
 			a.currentFocus = "labels"
 			a.updateFocusIndicators("labels")
-			a.labelsVisible = true
+			a.setActivePicker(PickerSavedQueries)
 
 			// Set focus to input
 			a.SetFocus(input)
@@ -302,7 +302,7 @@ func (a *App) closeSavedQueriesPicker() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	a.restoreFocusAfterModal()
 }
 
@@ -311,7 +311,7 @@ func (a *App) closeSaveQueryPanel() {
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
 	}
-	a.labelsVisible = false
+	a.setActivePicker(PickerNone)
 	a.restoreFocusAfterModal()
 }
 
@@ -322,7 +322,7 @@ func (a *App) performQuerySave(name, query, description, category string, queryS
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
-		a.labelsVisible = false
+		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
 		a.currentFocus = "list"
@@ -447,7 +447,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	// Set focus and state (use "labels" for proper border highlighting)
 	a.currentFocus = "labels"
 	a.updateFocusIndicators("labels")
-	a.labelsVisible = true
+	a.setActivePicker(PickerSavedQueries)
 
 	// Configure input handling
 	nameInput.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -550,7 +550,6 @@ func (a *App) getCurrentSearchQuery() string {
 	// No current search
 	return ""
 }
-
 
 // editSavedQuery shows edit dialog for a saved query (placeholder for future implementation)
 func (a *App) editSavedQuery(query *services.SavedQueryInfo) {
