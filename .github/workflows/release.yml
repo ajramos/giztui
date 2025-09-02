@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Get version info
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+        # Get git commit info
+        echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD || echo 'HEAD')" >> $GITHUB_OUTPUT
+        echo "BUILD_DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+        echo "BUILD_USER=github-actions" >> $GITHUB_OUTPUT
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: |
+        go test -v -race ./internal/services ./internal/config ./internal/db ./pkg/...
+        go vet -composites=false ./...
+    
+    - name: Create build directory
+      run: mkdir -p build
+    
+    - name: Build binaries with version injection
+      env:
+        VERSION: ${{ steps.version.outputs.VERSION }}
+        GIT_COMMIT: ${{ steps.version.outputs.GIT_COMMIT }}
+        GIT_BRANCH: ${{ steps.version.outputs.GIT_BRANCH }}
+        BUILD_DATE: ${{ steps.version.outputs.BUILD_DATE }}
+        BUILD_USER: ${{ steps.version.outputs.BUILD_USER }}
+      run: |
+        # Define ldflags for version injection
+        LDFLAGS="-w -s \
+          -X 'github.com/ajramos/giztui/internal/version.Version=${VERSION#v}' \
+          -X 'github.com/ajramos/giztui/internal/version.GitCommit=${GIT_COMMIT}' \
+          -X 'github.com/ajramos/giztui/internal/version.GitBranch=${GIT_BRANCH}' \
+          -X 'github.com/ajramos/giztui/internal/version.BuildDate=${BUILD_DATE}' \
+          -X 'github.com/ajramos/giztui/internal/version.BuildUser=${BUILD_USER}'"
+        
+        # Build for multiple platforms
+        echo "Building Linux AMD64..."
+        GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-linux-amd64 ./cmd/giztui
+        
+        echo "Building Linux ARM64..."
+        GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-linux-arm64 ./cmd/giztui
+        
+        echo "Building macOS AMD64..."
+        GOOS=darwin GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-darwin-amd64 ./cmd/giztui
+        
+        echo "Building macOS ARM64..."
+        GOOS=darwin GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-darwin-arm64 ./cmd/giztui
+        
+        echo "Building Windows AMD64..."
+        GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-windows-amd64.exe ./cmd/giztui
+        
+        echo "Building Windows ARM64..."
+        GOOS=windows GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-windows-arm64.exe ./cmd/giztui
+    
+    - name: Generate checksums
+      run: |
+        cd build
+        sha256sum * > checksums.txt
+        echo "Generated checksums:"
+        cat checksums.txt
+    
+    - name: Create release archives
+      run: |
+        cd build
+        
+        # Create tar.gz archives for Unix systems
+        tar -czf giztui-linux-amd64.tar.gz giztui-linux-amd64
+        tar -czf giztui-linux-arm64.tar.gz giztui-linux-arm64
+        tar -czf giztui-darwin-amd64.tar.gz giztui-darwin-amd64
+        tar -czf giztui-darwin-arm64.tar.gz giztui-darwin-arm64
+        
+        # Create zip archives for Windows
+        zip giztui-windows-amd64.zip giztui-windows-amd64.exe
+        zip giztui-windows-arm64.zip giztui-windows-arm64.exe
+        
+        # Generate checksums for archives
+        sha256sum *.tar.gz *.zip > archive-checksums.txt
+    
+    - name: Generate release notes from changelog
+      id: release_notes
+      run: |
+        # Extract release notes for this version from CHANGELOG.md
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        
+        # Create release notes
+        cat > release-notes.md << 'EOF'
+        # GizTUI ${{ steps.version.outputs.VERSION }}
+        
+        🎉 **GizTUI (formerly Gmail TUI) - Terminal-based Gmail client with AI integration**
+        
+        ## Installation
+        
+        ### Download Binary
+        1. Download the appropriate binary for your platform from the assets below
+        2. Extract the archive: `tar -xzf giztui-*.tar.gz` (Linux/macOS) or unzip `giztui-*.zip` (Windows)  
+        3. Move to your PATH: `mv giztui /usr/local/bin/` (Linux/macOS)
+        4. Run: `giztui --setup` for first-time configuration
+        
+        ### Go Install
+        ```bash
+        go install github.com/ajramos/giztui/cmd/giztui@${{ steps.version.outputs.VERSION }}
+        ```
+        
+        ## What's New
+        
+        See [CHANGELOG.md](https://github.com/ajramos/giztui/blob/main/CHANGELOG.md) for complete release notes.
+        
+        ## Platform Support
+        - ✅ Linux (AMD64, ARM64)
+        - ✅ macOS (Intel, Apple Silicon)  
+        - ✅ Windows (AMD64, ARM64)
+        
+        ## Requirements
+        - Gmail API credentials (see setup guide)
+        - Terminal with 256-color support
+        - Optional: Ollama for local AI features
+        
+        ---
+        
+        **Full Changelog**: https://github.com/ajramos/giztui/blob/main/CHANGELOG.md
+        EOF
+        
+        # Set output for GitHub release
+        {
+          echo 'RELEASE_NOTES<<EOF'
+          cat release-notes.md
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.TAG_NAME }}
+        name: GizTUI ${{ steps.version.outputs.VERSION }}
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+        files: |
+          build/giztui-linux-amd64.tar.gz
+          build/giztui-linux-arm64.tar.gz
+          build/giztui-darwin-amd64.tar.gz
+          build/giztui-darwin-arm64.tar.gz
+          build/giztui-windows-amd64.zip
+          build/giztui-windows-arm64.zip
+          build/checksums.txt
+          build/archive-checksums.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: giztui-${{ steps.version.outputs.VERSION }}-binaries
+        path: build/
+        retention-days: 90

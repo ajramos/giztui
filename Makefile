@@ -1,11 +1,26 @@
 # GizTUI Makefile
 
-.PHONY: help build run test clean lint fmt vet coverage install deps theme-demo
+.PHONY: help build run test clean lint fmt vet coverage install deps theme-demo version release release-build cross-build
 
 # Variables
 BINARY_NAME=giztui
 BUILD_DIR=build
 MAIN_PATH=cmd/giztui/main.go
+
+# Version information
+VERSION ?= $(shell cat VERSION 2>/dev/null || echo "dev")
+GIT_COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u '+%Y-%m-%d %H:%M:%S UTC')
+BUILD_USER ?= $(shell whoami)
+
+# Linker flags for version injection
+LDFLAGS = -w -s \
+	-X 'github.com/ajramos/giztui/internal/version.Version=$(VERSION)' \
+	-X 'github.com/ajramos/giztui/internal/version.GitCommit=$(GIT_COMMIT)' \
+	-X 'github.com/ajramos/giztui/internal/version.GitBranch=$(GIT_BRANCH)' \
+	-X 'github.com/ajramos/giztui/internal/version.BuildDate=$(BUILD_DATE)' \
+	-X 'github.com/ajramos/giztui/internal/version.BuildUser=$(BUILD_USER)'
 
 # Colors for output
 GREEN=\033[0;32m
@@ -23,11 +38,11 @@ deps: ## Install dependencies
 	go mod tidy
 	go mod download
 
-build: deps ## Build the application
-	@echo "$(GREEN)Building $(BINARY_NAME)...$(NC)"
+build: deps ## Build the application with version injection
+	@echo "$(GREEN)Building $(BINARY_NAME) v$(VERSION)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
-	@echo "$(GREEN)Built in $(BUILD_DIR)/$(BINARY_NAME)$(NC)"
+	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
+	@echo "$(GREEN)Built $(BUILD_DIR)/$(BINARY_NAME) v$(VERSION)$(NC)"
 
 run: build ## Run the application
 	@echo "$(GREEN)Running $(BINARY_NAME)...$(NC)"
@@ -87,10 +102,64 @@ theme-demo: deps ## Run the theme system demo (preview and validate themes)
 # Legacy testing commands (replaced by more specific ones below)
 # test-unit and test-integration moved to testing section below
 
+# Version commands
+version: ## Show version information
+	@echo "$(GREEN)Version Information:$(NC)"
+	@echo "Version: $(VERSION)"
+	@echo "Git Commit: $(GIT_COMMIT)"
+	@echo "Git Branch: $(GIT_BRANCH)"
+	@echo "Build Date: $(BUILD_DATE)"
+	@echo "Build User: $(BUILD_USER)"
+
 # Release commands
-release: clean build ## Prepare release
-	@echo "$(GREEN)Preparing release...$(NC)"
-	@echo "$(YELLOW)Files generated in $(BUILD_DIR)/$(NC)"
+release-build: clean deps test ## Build release binaries for all platforms
+	@echo "$(GREEN)Building release binaries for v$(VERSION)...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	
+	@echo "$(YELLOW)Building Linux AMD64...$(NC)"
+	GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	
+	@echo "$(YELLOW)Building Linux ARM64...$(NC)"
+	GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	
+	@echo "$(YELLOW)Building macOS AMD64...$(NC)"
+	GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	
+	@echo "$(YELLOW)Building macOS ARM64...$(NC)"
+	GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	
+	@echo "$(YELLOW)Building Windows AMD64...$(NC)"
+	GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
+	
+	@echo "$(YELLOW)Building Windows ARM64...$(NC)"
+	GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-arm64.exe $(MAIN_PATH)
+	
+	@echo "$(GREEN)Generating checksums...$(NC)"
+	cd $(BUILD_DIR) && sha256sum * > checksums.txt
+	
+	@echo "$(GREEN)Release binaries built in $(BUILD_DIR)/$(NC)"
+	@echo "$(YELLOW)Files:$(NC)"
+	@ls -la $(BUILD_DIR)/
+
+cross-build: ## Build for multiple platforms (same as release-build)
+	@make release-build
+
+release: release-build ## Prepare release (build binaries and generate archives)
+	@echo "$(GREEN)Creating release archives...$(NC)"
+	cd $(BUILD_DIR) && \
+		tar -czf $(BINARY_NAME)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64 && \
+		tar -czf $(BINARY_NAME)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64 && \
+		tar -czf $(BINARY_NAME)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64 && \
+		tar -czf $(BINARY_NAME)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64 && \
+		zip $(BINARY_NAME)-windows-amd64.zip $(BINARY_NAME)-windows-amd64.exe && \
+		zip $(BINARY_NAME)-windows-arm64.zip $(BINARY_NAME)-windows-arm64.exe
+	
+	@echo "$(GREEN)Generating archive checksums...$(NC)"
+	cd $(BUILD_DIR) && sha256sum *.tar.gz *.zip > archive-checksums.txt
+	
+	@echo "$(GREEN)Release v$(VERSION) prepared successfully!$(NC)"
+	@echo "$(YELLOW)Archives created:$(NC)"
+	@ls -la $(BUILD_DIR)/*.tar.gz $(BUILD_DIR)/*.zip
 
 # Debugging commands
 debug: ## Build with debug information

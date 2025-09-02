@@ -15,6 +15,7 @@ import (
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/tui"
+	"github.com/ajramos/giztui/internal/version"
 	"github.com/ajramos/giztui/pkg/auth"
 )
 
@@ -23,20 +24,23 @@ func main() {
 	configPathFlag := flag.String("config", "", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
 	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
+	versionFlag := flag.Bool("version", false, "Show version information and exit")
 
 	// Override flag usage text to show clean, simple usage
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Gmail TUI - Terminal-based Gmail client\n\n")
+		fmt.Fprintf(os.Stderr, "%s\n\n", version.GetVersionString())
 		fmt.Fprintf(os.Stderr, "Usage:\n")
 		fmt.Fprintf(os.Stderr, "  %s [options]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Examples:\n")
 		fmt.Fprintf(os.Stderr, "  %s                        # Run with default configuration\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --setup                # Run interactive setup wizard\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --version              # Show version information\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --config custom.json   # Use custom configuration\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fmt.Fprintf(os.Stderr, "  --config string\n        %s\n", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
 		fmt.Fprintf(os.Stderr, "  --credentials string\n        %s\n", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
-		fmt.Fprintf(os.Stderr, "  --setup\n        %s\n\n", "Run interactive setup wizard")
+		fmt.Fprintf(os.Stderr, "  --setup\n        %s\n", "Run interactive setup wizard")
+		fmt.Fprintf(os.Stderr, "  --version\n        %s\n\n", "Show version information and exit")
 		fmt.Fprintf(os.Stderr, "Environment Variables:\n")
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CONFIG      Override default config file path\n")
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CREDENTIALS Override default credentials file path\n")
@@ -45,6 +49,12 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// Handle version flag
+	if *versionFlag {
+		fmt.Println(version.GetDetailedVersionString())
+		return
+	}
 
 	// Handle setup mode
 	if *setupFlag {
