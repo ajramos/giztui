@@ -142,8 +142,7 @@ type App struct {
 
 	// Composition panel
 	compositionPanel *CompositionPanel
-	// RSVP side panel state
-	rsvpVisible bool
+	// RSVP side panel state managed by ActivePicker enum
 
 	// Bulk selection
 	selected map[string]bool // messageID -> selected

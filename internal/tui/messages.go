@@ -2881,6 +2881,7 @@ func (a *App) openRSVPModal() {
 
 	// Create meeting details sections - separate TextView for each line to control colors
 	meetingContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	meetingContainer.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 
 	// Meeting title
 	titleView := tview.NewTextView().SetWordWrap(true)
@@ -2889,16 +2890,24 @@ func (a *App) openRSVPModal() {
 	} else {
 		titleView.SetText("📅 Meeting Invitation")
 	}
-	titleView.SetTextColor(a.currentTheme.UI.TitleColor.Color())
+	titleView.SetTextColor(a.GetComponentColors("rsvp").Title.Color())
 	meetingContainer.AddItem(titleView, 1, 0, false)
 
 	// Organizer
 	if inv.Organizer != "" {
 		organizerName := formatOrganizerName(inv.Organizer)
-		organizerView := tview.NewTextView().SetWordWrap(true)
-		organizerView.SetText(fmt.Sprintf("👤 %s", organizerName))
-		organizerView.SetTextColor(a.GetStatusColor("info"))
-		meetingContainer.AddItem(organizerView, 1, 0, false)
+		if a.logger != nil {
+			a.logger.Printf("RSVP Debug: Raw organizer='%s', formatted='%s'", inv.Organizer, organizerName)
+		}
+		if organizerName != "" {
+			organizerView := tview.NewTextView().SetWordWrap(true)
+			organizerView.SetText(fmt.Sprintf("👤 %s", organizerName))
+			organizerView.SetTextColor(a.GetComponentColors("rsvp").Text.Color())
+			organizerView.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
+			meetingContainer.AddItem(organizerView, 1, 0, false)
+		}
+	} else if a.logger != nil {
+		a.logger.Printf("RSVP Debug: No organizer field found in invite")
 	}
 
 	// Date and time
@@ -2916,6 +2925,9 @@ func (a *App) openRSVPModal() {
 	// Build RSVP options list
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
+	list.SetMainTextColor(a.GetComponentColors("rsvp").Text.Color())
+	list.SetSelectedTextColor(a.GetComponentColors("rsvp").Accent.Color())
+	list.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 	list.AddItem("✅ Accept", "I'll be there", 0, nil)
 	list.AddItem("🤔 Tentative", "Maybe attending", 0, nil)
 	list.AddItem("❌ Decline", "Cannot attend", 0, nil)
@@ -2926,12 +2938,12 @@ func (a *App) openRSVPModal() {
 	// Footer with instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to respond | Esc to close ")
-	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetTextColor(a.GetComponentColors("rsvp").Text.Color())
 
 	// Create container with meeting info at top
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.GetComponentColors("general").Title.Color())
-	container.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.GetComponentColors("rsvp").Title.Color())
+	container.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 
 	// Add meeting info section (fixed height)
 	container.AddItem(meetingContainer, 3, 0, false)
@@ -2967,7 +2979,6 @@ func (a *App) openRSVPModal() {
 			split.ResizeItem(a.labelsView, 0, 0)
 		}
 		a.setActivePicker(PickerNone)
-		a.rsvpVisible = false
 		a.restoreFocusAfterModal()
 	}
 	list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -2980,7 +2991,6 @@ func (a *App) openRSVPModal() {
 				split.ResizeItem(a.labelsView, 0, 0)
 			}
 			a.setActivePicker(PickerNone)
-			a.rsvpVisible = false
 			a.restoreFocusAfterModal()
 			return nil
 		}
@@ -2995,8 +3005,7 @@ func (a *App) openRSVPModal() {
 			split.AddItem(a.labelsView, 0, 1, true)
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
-		a.setActivePicker(PickerDrafts)
-		a.rsvpVisible = true
+		a.setActivePicker(PickerRSVP)
 		a.currentFocus = "labels"
 		a.updateFocusIndicators("labels")
 		a.SetFocus(list)
@@ -3194,14 +3203,18 @@ func formatMeetingTimeRange(dtStart, dtEnd string) string {
 	startStr := formatICalDateTime(dtStart)
 	endStr := formatICalDateTime(dtEnd)
 
+	// Debug logging
+	fmt.Printf("RSVP Debug: dtStart='%s' -> '%s', dtEnd='%s' -> '%s'\n", dtStart, startStr, dtEnd, endStr)
+
 	// If start parsing failed, try to show something meaningful
-	if startStr == "" || strings.Contains(startStr, "T") || len(startStr) < 10 {
+	// Check if startStr is empty or still contains unparsed format (like "DTSTART:" prefix)
+	if startStr == "" || len(startStr) < 10 || strings.HasPrefix(startStr, "DTSTART") {
 		// Return a generic message if we can't parse the dates
 		return "Meeting time details not available"
 	}
 
 	// If no end time, just show start
-	if endStr == "" || strings.Contains(endStr, "T") || len(endStr) < 10 {
+	if endStr == "" || len(endStr) < 10 || strings.HasPrefix(endStr, "DTEND") {
 		return startStr
 	}
 

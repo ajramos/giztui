@@ -265,12 +265,11 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> rsvp", key)
 		}
-		if a.rsvpVisible {
+		if a.currentActivePicker == PickerRSVP {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.labelsView, 0, 0)
 			}
 			a.setActivePicker(PickerNone)
-			a.rsvpVisible = false
 			a.restoreFocusAfterModal()
 		} else {
 			go a.openRSVPModal()
@@ -973,12 +972,11 @@ func (a *App) bindKeys() {
 					return nil
 				}
 				// Toggle RSVP side panel
-				if a.rsvpVisible {
+				if a.currentActivePicker == PickerRSVP {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 						split.ResizeItem(a.labelsView, 0, 0)
 					}
 					a.setActivePicker(PickerNone)
-					a.rsvpVisible = false
 					a.restoreFocusAfterModal()
 					return nil
 				}
