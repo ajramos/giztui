@@ -1,0 +1,692 @@
+# ⚙️ GizTUI Configuration Guide
+
+Complete configuration reference for GizTUI - the AI-powered Gmail terminal client.
+
+## 📁 Configuration Structure
+
+GizTUI uses a unified configuration directory with the following structure:
+
+```
+~/.config/giztui/
+├── config.json           # Main application configuration
+├── credentials.json      # Gmail API OAuth2 credentials
+├── token.json           # OAuth2 token cache (auto-generated)
+├── giztui.log           # Application logs
+├── giztui-{email}.db    # SQLite database (per account)
+└── templates/           # Template files
+    ├── obsidian/
+    │   └── email.md     # Obsidian ingestion template
+    └── slack/
+        └── summary.md   # Slack forwarding template
+```
+
+### Migration from gmail-tui
+
+If you previously used Gmail TUI, migrate your configuration:
+
+```bash
+# One-time migration
+cp -r ~/.config/gmail-tui/* ~/.config/giztui/
+```
+
+## 🔧 Main Configuration (config.json)
+
+### Basic Structure
+
+```json
+{
+  "gmail": {
+    "max_results": 50,
+    "timeout": "30s"
+  },
+  "ui": {
+    "theme": "slate-blue",
+    "layout": {
+      "default_breakpoint": "wide"
+    }
+  },
+  "shortcuts": {
+    "help": "?",
+    "quit": "q"
+  },
+  "llm": {
+    "provider": "ollama",
+    "timeout": "2m"
+  }
+}
+```
+
+## 📧 Gmail Configuration
+
+Configure Gmail API settings and behavior:
+
+```json
+{
+  "gmail": {
+    "max_results": 50,
+    "timeout": "30s",
+    "user_email": "your-email@gmail.com",
+    "search_timeout": "10s",
+    "batch_size": 25,
+    "auto_refresh_interval": "5m"
+  }
+}
+```
+
+### Gmail Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `max_results` | integer | Messages to fetch per request | `50` |
+| `timeout` | string | API request timeout | `30s` |
+| `user_email` | string | Gmail account (optional) | Auto-detected |
+| `search_timeout` | string | Search operation timeout | `10s` |
+| `batch_size` | integer | Batch operation size | `25` |
+| `auto_refresh_interval` | string | Auto-refresh interval | Disabled |
+
+## 🎨 UI Configuration
+
+### Theme Settings
+
+```json
+{
+  "ui": {
+    "theme": "slate-blue",
+    "custom_theme_path": "~/.config/giztui/themes/my-theme.yaml"
+  }
+}
+```
+
+**Available built-in themes:**
+- `slate-blue` (default)
+- `dracula`
+- `gmail-dark`
+- `gmail-light`
+- `custom-example`
+
+### Layout Configuration
+
+```json
+{
+  "ui": {
+    "layout": {
+      "default_breakpoint": "wide",
+      "message_list_width": 40,
+      "content_width": 60,
+      "show_line_numbers": true,
+      "wrap_content": true,
+      "max_content_width": 120
+    }
+  }
+}
+```
+
+**Layout breakpoints:**
+- `wide` (≥120x30) - Full layout with all panels
+- `medium` (≥80x25) - Condensed layout
+- `narrow` (≥60x20) - Minimal layout
+- `mobile` (<60x20) - Single-panel layout
+
+### Display Options
+
+```json
+{
+  "ui": {
+    "display": {
+      "show_thread_count": true,
+      "show_unread_count": true,
+      "show_label_colors": true,
+      "compact_headers": false,
+      "show_attachment_icons": true,
+      "date_format": "2006-01-02 15:04",
+      "relative_dates": true
+    }
+  }
+}
+```
+
+## ⌨️ Keyboard Shortcuts
+
+### Default Shortcuts
+
+```json
+{
+  "shortcuts": {
+    "quit": "q",
+    "help": "?",
+    "search": "s",
+    "unread": "u",
+    "refresh": "r",
+    "compose": "c",
+    "reply": "R",
+    "reply_all": "E",
+    "forward": "w",
+    "archive": "a",
+    "trash": "d",
+    "toggle_read": "t",
+    "undo": "U",
+    "labels": "l",
+    "move": "m",
+    "bulk_select": "space",
+    "bulk_mode": "v",
+    "select_all": "*"
+  }
+}
+```
+
+### AI & Integration Shortcuts
+
+```json
+{
+  "shortcuts": {
+    "ai_summary": "y",
+    "ai_regenerate": "Y",
+    "prompts": "p",
+    "slack_forward": "K",
+    "obsidian_ingest": "O",
+    "links": "L",
+    "attachments": "A",
+    "open_gmail": "o",
+    "toggle_headers": "h",
+    "save_message": "w",
+    "save_raw": "W"
+  }
+}
+```
+
+### Navigation Shortcuts
+
+```json
+{
+  "shortcuts": {
+    "focus_toggle": "f",
+    "fullscreen": "F",
+    "next_message": "j",
+    "prev_message": "k",
+    "first_message": "gg",
+    "last_message": "G",
+    "load_more": "N",
+    "thread_toggle": "T",
+    "expand_all": "E",
+    "collapse_all": "C"
+  }
+}
+```
+
+### Search Shortcuts
+
+```json
+{
+  "shortcuts": {
+    "quick_search_from": "F",
+    "quick_search_to": "T",
+    "quick_search_subject": "S",
+    "quick_search_archived": "B",
+    "local_filter": "/",
+    "advanced_search": "Ctrl+s"
+  }
+}
+```
+
+### Customization Tips
+
+- Use single characters or key combinations
+- Ctrl+key format: `"Ctrl+s"`
+- Shift+key format: `"Shift+t"`
+- Function keys: `"F1"`, `"F2"`, etc.
+- Special keys: `"space"`, `"tab"`, `"enter"`, `"esc"`
+
+## 🧠 AI Configuration
+
+### Ollama (Local AI)
+
+```json
+{
+  "llm": {
+    "provider": "ollama",
+    "timeout": "2m",
+    "cache_enabled": true,
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "model": "llama2",
+      "temperature": 0.7,
+      "max_tokens": 2000,
+      "timeout": "120s"
+    }
+  }
+}
+```
+
+### Amazon Bedrock (Cloud AI)
+
+```json
+{
+  "llm": {
+    "provider": "bedrock",
+    "timeout": "2m",
+    "cache_enabled": true,
+    "bedrock": {
+      "region": "us-east-1",
+      "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "max_tokens": 2000,
+      "temperature": 0.7,
+      "timeout": "120s"
+    }
+  }
+}
+```
+
+### AI Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `provider` | string | AI provider (`ollama` or `bedrock`) | `ollama` |
+| `timeout` | string | Overall AI operation timeout | `2m` |
+| `cache_enabled` | boolean | Enable SQLite result caching | `true` |
+| `temperature` | number | AI creativity (0.0-1.0) | `0.7` |
+| `max_tokens` | integer | Maximum response length | `2000` |
+
+## 📝 Prompt Configuration
+
+### Built-in Prompts
+
+GizTUI includes several built-in AI prompts:
+
+```json
+{
+  "llm": {
+    "prompts": {
+      "summary": "templates/prompts/summary.md",
+      "label_suggestion": "Suggest appropriate Gmail labels for this email...",
+      "reply_draft": "Generate a professional reply to this email..."
+    }
+  }
+}
+```
+
+### Custom Prompts
+
+Create custom prompt templates in `~/.config/giztui/templates/prompts/`:
+
+**Example: `summary.md`**
+```markdown
+---
+name: "Email Summary"
+description: "Generate a concise summary of the email"
+category: "summary"
+---
+
+Please provide a concise summary of this email:
+
+**From:** {{from}}
+**Subject:** {{subject}}
+**Date:** {{date}}
+
+**Content:**
+{{body}}
+
+Summarize in 2-3 sentences focusing on key points and any action items.
+```
+
+### Variable Substitution
+
+Available variables in prompts:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{from}}` | Sender email | `john@example.com` |
+| `{{to}}` | Recipient email | `you@gmail.com` |
+| `{{subject}}` | Email subject | `Meeting Tomorrow` |
+| `{{body}}` | Email content | Full email text |
+| `{{date}}` | Email date | `2025-01-02 15:04:05` |
+| `{{labels}}` | Gmail labels | `Work, Important` |
+| `{{message_id}}` | Gmail message ID | `17a2b3c4d5e6f7g8` |
+| `{{messages}}` | Multiple messages (bulk) | Combined content |
+
+## 🔌 Integration Configuration
+
+### Slack Integration
+
+```json
+{
+  "slack": {
+    "enabled": true,
+    "channels": [
+      {
+        "name": "general",
+        "webhook_url": "https://hooks.slack.com/services/...",
+        "default_format": "summary"
+      },
+      {
+        "name": "work-updates",
+        "webhook_url": "https://hooks.slack.com/services/...",
+        "default_format": "compact"
+      }
+    ],
+    "default_channel": "general",
+    "summary_prompt": "templates/slack/summary.md",
+    "include_attachments": true,
+    "max_message_length": 4000
+  }
+}
+```
+
+### Obsidian Integration
+
+```json
+{
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Documents/Obsidian/MyVault",
+    "ingest_folder": "00-Inbox",
+    "filename_format": "{{date}}_{{subject_slug}}_{{from_domain}}",
+    "history_enabled": true,
+    "prevent_duplicates": true,
+    "max_file_size": 1048576,
+    "include_attachments": true,
+    "template": "templates/obsidian/email.md"
+  }
+}
+```
+
+#### Obsidian Template Example
+
+Create `~/.config/giztui/templates/obsidian/email.md`:
+
+```markdown
+---
+title: "{{subject}}"
+date: {{date}}
+from: {{from}}
+type: email
+status: inbox
+tags: [email, {{labels}}]
+---
+
+# {{subject}}
+
+**Email Details:**
+- **From:** {{from}}
+- **To:** {{to}}
+- **Date:** {{date}}
+- **Labels:** {{labels}}
+
+{% if comment %}**Personal Note:** {{comment}}
+
+{% endif %}**Content:**
+{{body}}
+
+**Message ID:** {{message_id}}
+**Ingested:** {{ingest_date}}
+```
+
+## 🔍 Search Configuration
+
+### Search Settings
+
+```json
+{
+  "search": {
+    "case_sensitive": false,
+    "regex_enabled": true,
+    "highlight_matches": true,
+    "max_results": 100,
+    "search_timeout": "30s",
+    "include_archived": false,
+    "auto_complete": true
+  }
+}
+```
+
+### Quick Search Templates
+
+```json
+{
+  "search": {
+    "quick_searches": {
+      "unread": "is:unread",
+      "important": "is:important",
+      "today": "newer_than:1d",
+      "this_week": "newer_than:7d",
+      "has_attachment": "has:attachment",
+      "large_emails": "size:>1M"
+    }
+  }
+}
+```
+
+## 📎 Attachment Configuration
+
+```json
+{
+  "attachments": {
+    "download_dir": "~/Downloads/giztui",
+    "auto_open": false,
+    "max_file_size": 104857600,
+    "allowed_types": ["pdf", "doc", "docx", "txt", "jpg", "png"],
+    "preview_images": true,
+    "organize_by_date": true
+  }
+}
+```
+
+## 🔧 Advanced Configuration
+
+### Threading Configuration
+
+```json
+{
+  "threading": {
+    "enabled": true,
+    "default_view": "flat",
+    "auto_expand_unread": true,
+    "show_thread_count": true,
+    "indent_replies": true,
+    "thread_summary_enabled": true,
+    "max_thread_depth": 10
+  }
+}
+```
+
+### Performance Settings
+
+```json
+{
+  "performance": {
+    "cache_size": 1000,
+    "background_sync": true,
+    "lazy_loading": true,
+    "compression_enabled": true,
+    "max_memory_usage": "500MB"
+  }
+}
+```
+
+### Logging Configuration
+
+```json
+{
+  "logging": {
+    "level": "info",
+    "file": "~/.config/giztui/giztui.log",
+    "max_size": "10MB",
+    "max_backups": 3,
+    "compress": true
+  }
+}
+```
+
+## 🌍 Environment Variables
+
+Override configuration paths with environment variables:
+
+```bash
+# Configuration paths
+export GMAIL_TUI_CONFIG=~/.config/giztui/config.json
+export GMAIL_TUI_CREDENTIALS=~/.config/giztui/credentials.json
+export GMAIL_TUI_TOKEN=~/.config/giztui/token.json
+
+# Runtime settings
+export GIZTUI_LOG_LEVEL=debug
+export GIZTUI_CACHE_DIR=~/.cache/giztui
+export GIZTUI_THEME=dracula
+```
+
+## 📋 Command Line Options
+
+Override configuration settings from command line:
+
+```bash
+# Basic options
+giztui --config custom-config.json
+giztui --credentials /path/to/creds.json
+giztui --setup
+
+# Theme and UI options
+giztui --theme dracula
+giztui --layout compact
+
+# AI provider options
+giztui --llm-provider bedrock
+giztui --llm-model claude-3
+giztui --ollama-model llama2
+```
+
+## 🔒 Security Settings
+
+### OAuth2 Security
+
+```json
+{
+  "security": {
+    "token_refresh_threshold": "5m",
+    "max_retry_attempts": 3,
+    "secure_token_storage": true,
+    "revoke_on_exit": false
+  }
+}
+```
+
+### Privacy Settings
+
+```json
+{
+  "privacy": {
+    "cache_sensitive_data": false,
+    "clear_cache_on_exit": false,
+    "log_email_content": false,
+    "anonymize_logs": true
+  }
+}
+```
+
+## 📊 Example Complete Configuration
+
+Here's a complete example configuration with common customizations:
+
+```json
+{
+  "gmail": {
+    "max_results": 75,
+    "timeout": "45s"
+  },
+  "ui": {
+    "theme": "dracula",
+    "layout": {
+      "default_breakpoint": "wide",
+      "show_line_numbers": true
+    },
+    "display": {
+      "show_thread_count": true,
+      "relative_dates": true,
+      "compact_headers": true
+    }
+  },
+  "shortcuts": {
+    "ai_summary": "s",
+    "quick_search_from": "f",
+    "obsidian_ingest": "o",
+    "bulk_select": "space"
+  },
+  "llm": {
+    "provider": "ollama",
+    "timeout": "3m",
+    "cache_enabled": true,
+    "ollama": {
+      "model": "llama3",
+      "temperature": 0.5,
+      "max_tokens": 1500
+    }
+  },
+  "slack": {
+    "enabled": true,
+    "channels": [
+      {
+        "name": "email-updates",
+        "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        "default_format": "summary"
+      }
+    ]
+  },
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "~/Obsidian/SecondBrain",
+    "template": "templates/obsidian/email.md"
+  },
+  "search": {
+    "highlight_matches": true,
+    "case_sensitive": false
+  },
+  "threading": {
+    "enabled": true,
+    "default_view": "thread",
+    "auto_expand_unread": true
+  }
+}
+```
+
+## 🔧 Troubleshooting Configuration
+
+### Common Issues
+
+1. **Configuration not loading**
+   - Check JSON syntax with `jq . ~/.config/giztui/config.json`
+   - Verify file permissions are readable
+   - Check logs for parsing errors
+
+2. **Shortcuts not working**
+   - Ensure no conflicts between shortcuts
+   - Check terminal key capture (some terminals intercept certain keys)
+   - Verify quotes around multi-key shortcuts
+
+3. **AI features not working**
+   - Verify Ollama is running: `ollama list`
+   - Check model name matches exactly
+   - Test API connectivity
+
+4. **Theme not applying**
+   - Verify theme file exists
+   - Check theme YAML syntax
+   - Ensure theme name matches filename
+
+### Configuration Validation
+
+Use the built-in validation:
+
+```bash
+# Validate configuration
+giztui --validate-config
+
+# Show current configuration
+giztui --show-config
+
+# Reset to defaults
+giztui --reset-config
+```
+
+## 📚 Learn More
+
+- [Getting Started Guide](GETTING_STARTED.md) - Setup and first steps
+- [Features Documentation](FEATURES.md) - Complete feature list
+- [Keyboard Shortcuts](KEYBOARD_SHORTCUTS.md) - Complete shortcut reference
+- [Theming Guide](THEMING.md) - Theme customization

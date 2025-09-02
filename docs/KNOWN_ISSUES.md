@@ -1,4 +1,6 @@
-# Known Issues
+# Known Issues - GizTUI v1.0.0
+
+Current known issues and limitations in GizTUI v1.0.0.
 
 ## ✅ Border Rendering Inconsistency in tview Components (RESOLVED)
 

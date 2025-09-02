@@ -1,10 +1,26 @@
-# GizTUI Testing Framework
+# Testing Guide
 
 ## Overview
 
-This document describes the comprehensive testing framework implemented for the GizTUI application. The framework follows the service-oriented architecture principles and provides robust testing capabilities for TUI applications built with Go and tview.
+GizTUI uses a comprehensive testing framework designed specifically for TUI applications. The framework follows service-oriented architecture principles and provides robust testing capabilities for Go applications built with tview.
 
-## Architecture
+## Quick Start
+
+```bash
+# Generate mocks first
+make test-mocks
+
+# Run all tests
+make test-all
+
+# Run specific test types
+make test-unit      # Service layer tests
+make test-tui       # TUI component tests
+make test-integration # Integration tests
+make test-coverage  # Tests with coverage report
+```
+
+## Testing Architecture
 
 ### Testing Layers
 
@@ -24,9 +40,9 @@ This document describes the comprehensive testing framework implemented for the 
 
 ## Framework Components
 
-### Test Harness (`test/helpers/test_harness.go`)
+### Test Harness
 
-The central testing utility that provides:
+The central testing utility (`test/helpers/test_harness.go`) provides:
 
 - `SimulationScreen` for TUI component testing
 - Mocked service instances
@@ -44,41 +60,23 @@ harness.SimulateKeyEvent(tcell.KeyCtrlA, 0, tcell.ModCtrl)
 harness.AssertScreenContains(t, "Expected Text")
 ```
 
-### Bulk Operations Testing (`test/helpers/bulk_operations_test.go`)
+### Specialized Test Helpers
 
-Comprehensive testing for bulk email operations:
-
+#### Bulk Operations Testing
 - Range selection testing
 - Pattern-based selection
 - Bulk archive/trash operations
 - Edge case handling
 - Performance validation
 
-```go
-helpers.TestBulkOperations(t, harness)
-helpers.TestBulkOperationEdgeCases(t, harness)
-```
-
-### Keyboard Shortcuts Testing (`test/helpers/keyboard_shortcuts_test.go`)
-
-Testing framework for keyboard interactions:
-
+#### Keyboard Shortcuts Testing
 - Navigation shortcuts
 - Message operation shortcuts
 - Bulk operation shortcuts
 - Search and filter shortcuts
 - AI feature shortcuts
 
-```go
-helpers.TestKeyboardShortcuts(t, harness)
-helpers.TestKeyboardShortcutRegression(t, harness)
-helpers.TestKeyboardShortcutCombinations(t, harness)
-```
-
-### Async Operations Testing (`test/helpers/async_operations_test.go`)
-
-Testing for asynchronous operations:
-
+#### Async Operations Testing
 - Message loading
 - AI summary generation
 - Bulk label application
@@ -86,63 +84,16 @@ Testing for asynchronous operations:
 - Cancellation and timeout handling
 - Goroutine leak detection
 
-```go
-helpers.TestAsyncOperations(t, harness)
-helpers.TestAsyncOperationCancellation(t, harness)
-helpers.TestAsyncOperationTimeout(t, harness)
-```
-
-### Visual Regression Testing (`test/helpers/visual_regression_test.go`)
-
-UI consistency testing using snapshots:
-
+#### Visual Regression Testing
 - Component rendering tests
 - State change visualization
 - Responsive layout testing
 - Focus indicator testing
 - Color scheme testing
-- Accessibility feature testing
 
-```go
-helpers.TestVisualRegression(t, harness)
-helpers.TestVisualStateChanges(t, harness)
-helpers.TestResponsiveLayout(t, harness)
-```
+## Writing Tests
 
-## Usage
-
-### Running Tests
-
-```bash
-# Generate mocks first
-make test-mocks
-
-# Run all tests
-make test-all
-
-# Run specific test types
-make test-unit      # Service layer tests
-make test-tui       # TUI component tests
-make test-integration # Integration tests
-make test-coverage  # Tests with coverage report
-
-# Update snapshots (use with caution)
-make test-snapshots-update
-```
-
-### Test Organization
-
-```
-test/
-├── helpers/           # Testing utilities and frameworks
-├── integration/       # Integration tests
-├── fixtures/          # Test data and VCR cassettes
-└── main_test.go      # Main test suite runner
-```
-
-### Writing Tests
-
-#### Basic Component Test
+### Basic Component Test
 
 ```go
 func TestMessageList(t *testing.T) {
@@ -164,7 +115,7 @@ func TestMessageList(t *testing.T) {
 }
 ```
 
-#### Keyboard Shortcut Test
+### Keyboard Shortcut Test
 
 ```go
 func TestSelectAllShortcut(t *testing.T) {
@@ -182,7 +133,7 @@ func TestSelectAllShortcut(t *testing.T) {
 }
 ```
 
-#### Visual Regression Test
+### Visual Regression Test
 
 ```go
 func TestMessageListRendering(t *testing.T) {
@@ -197,6 +148,16 @@ func TestMessageListRendering(t *testing.T) {
     snapshot := harness.GetScreenContent()
     snaps.MatchSnapshot(t, snapshot, "message_list_rendering")
 }
+```
+
+## Test Organization
+
+```
+test/
+├── helpers/           # Testing utilities and frameworks
+├── integration/       # Integration tests
+├── fixtures/          # Test data and VCR cassettes
+└── main_test.go      # Main test suite runner
 ```
 
 ## Mocking Strategy
@@ -225,8 +186,6 @@ harness.MockEmail.AssertExpectations(t)
 
 ## CI/CD Integration
 
-### GitHub Actions Workflow
-
 The framework includes a comprehensive CI/CD pipeline:
 
 - **Matrix Testing** - Multiple Go versions and OS combinations
@@ -234,7 +193,6 @@ The framework includes a comprehensive CI/CD pipeline:
 - **Visual Regression** - Automated UI consistency checking
 - **Security Scanning** - Vulnerability detection with Trivy
 - **Coverage Reporting** - Code coverage tracking
-- **Notifications** - Slack and PR comment notifications
 
 ### Pre-commit Hooks
 
@@ -316,23 +274,6 @@ repos:
 - Use `t.Log()` for additional test information
 - Check mock call history with `ExpectedCalls`
 
-## Future Enhancements
-
-### Planned Features
-
-1. **Property-Based Testing** - Using `quick.Check` for invariant testing
-2. **Fuzzing Support** - Input validation testing
-3. **Accessibility Testing** - Screen reader compatibility
-4. **Cross-Platform Testing** - Windows and macOS compatibility
-5. **Performance Profiling** - CPU and memory profiling integration
-
-### Integration Opportunities
-
-1. **Playwright** - Browser-based testing for web components
-2. **Grafana** - Test metrics visualization
-3. **Jaeger** - Distributed tracing for complex workflows
-4. **Prometheus** - Test execution metrics
-
 ## Contributing
 
 ### Adding New Tests
@@ -351,8 +292,6 @@ repos:
 4. Update mocks when interfaces change
 5. Maintain test data consistency
 
-## Conclusion
+---
 
-This testing framework provides a robust foundation for ensuring the quality and reliability of the GizTUI application. By following the established patterns and best practices, developers can maintain high test coverage while preventing regressions in both functionality and user experience.
-
-The framework's emphasis on component-level testing, comprehensive mocking, and visual regression detection makes it particularly well-suited for TUI applications where traditional testing approaches fall short.
+This testing framework provides a robust foundation for ensuring the quality and reliability of GizTUI. The emphasis on component-level testing, comprehensive mocking, and visual regression detection makes it particularly well-suited for TUI applications where traditional testing approaches fall short.
