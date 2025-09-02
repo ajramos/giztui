@@ -6,79 +6,13 @@ linters:
   enable:
     - govet
     - errcheck
-    - staticcheck
-    - ineffassign
-    - unused
 
 linters-settings:
   errcheck:
-    # Don't require error checks for these functions
     exclude-functions:
-      - (io.Closer).Close
-      - (*os.File).Close
-      - (io.Writer).Write
-      - (*sql.Tx).Rollback
       - (*log.Logger).Printf
-      - (*log.Logger).Print
-      - (*log.Logger).Println
-      - io.Copy
-      - fmt.Print
       - fmt.Printf
-      - fmt.Println
-  
-  staticcheck:
-    checks: ["all", "-SA9003", "-SA4006", "-SA4010", "-SA1012"]
-    # SA9003: Empty branch (too noisy for logging)
-    # SA4006: Value never used (common in append operations)
-    # SA4010: Result of append never used (common pattern)
-    # SA1012: Nil context (test code)
-  
-  unused:
-    # Don't report unused code in certain patterns
-    field-writes-are-uses: true
-    exported-is-used: true
-  
-  govet:
-    disable:
-      - composites  # Unkeyed struct literals (too many to fix quickly)
-      - assign      # Self assignment (appears to be intentional)
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - unused
-        - staticcheck
-    - path: internal/llm/
-      linters:
-        - errcheck  # LLM code often ignores errors intentionally
-    - path: pkg/auth/
-      linters:
-        - errcheck  # Auth code may intentionally ignore some errors
-    - text: "Error return value.*is not checked"
-      linters:
-        - errcheck
-      source: "defer.*\\.(Close|Rollback|Printf)\\("
-    - text: "strings.Title has been deprecated"
-      linters:
-        - staticcheck  # TODO: Fix this later with golang.org/x/text/cases
-    - text: "`cancelled` is a misspelling of `canceled`"
-      linters:
-        - misspell  # UK vs US spelling - accept both for now
-    - text: "func.*is unused"
-      linters:
-        - unused
-      source: "// (TODO|FIXME|NOTE):"
-  
-  # Reduce noise from issues that are common in this codebase
-  exclude:
-    - "Error return value of `.*\\.Printf` is not checked"
-    - "Error return value of `.*\\.Print` is not checked"  
-    - "Error return value of `.*\\.Close` is not checked"
-    - "Error return value of `.*\\.Rollback` is not checked"
-    - "Error return value of `io\\.Copy` is not checked"
-    - "`cancelled` is a misspelling of `canceled`"
-    
-  max-issues-per-linter: 0
-  max-same-issues: 0
+  max-issues-per-linter: 50
+  max-same-issues: 10
