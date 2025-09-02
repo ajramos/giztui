@@ -90,7 +90,7 @@ func (a *App) statusBaseline() string {
 	} else {
 		base += " | 🧾"
 	}
-	
+
 	// Check if composition panel is active and show context-appropriate message
 	if a != nil && a.compositionPanel != nil {
 		// Check if we're on the composition page
@@ -102,7 +102,7 @@ func (a *App) statusBaseline() string {
 			return base + " | Press ? for help | Email composer view"
 		}
 	}
-	
+
 	// Default baseline message
 	return base + " | Press ? for help"
 }

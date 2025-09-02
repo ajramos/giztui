@@ -17,10 +17,10 @@ import (
 
 // CompositionServiceImpl implements CompositionService
 type CompositionServiceImpl struct {
-	emailService    EmailService
-	gmailClient     *gmail.Client
-	messageRepo     MessageRepository
-	logger          *log.Logger
+	emailService EmailService
+	gmailClient  *gmail.Client
+	messageRepo  MessageRepository
+	logger       *log.Logger
 }
 
 // NewCompositionService creates a new composition service
@@ -40,18 +40,18 @@ func (s *CompositionServiceImpl) SetLogger(logger *log.Logger) {
 // CreateComposition creates a new composition of the specified type
 func (s *CompositionServiceImpl) CreateComposition(ctx context.Context, compositionType CompositionType, originalMessageID string) (*Composition, error) {
 	composition := &Composition{
-		ID:         uuid.New().String(),
-		Type:       compositionType,
-		To:         []Recipient{},
-		CC:         []Recipient{},
-		BCC:        []Recipient{},
-		Subject:    "",
-		Body:       "",
+		ID:          uuid.New().String(),
+		Type:        compositionType,
+		To:          []Recipient{},
+		CC:          []Recipient{},
+		BCC:         []Recipient{},
+		Subject:     "",
+		Body:        "",
 		Attachments: []Attachment{},
-		OriginalID: originalMessageID,
-		IsDraft:    false,
-		CreatedAt:  time.Now(),
-		ModifiedAt: time.Now(),
+		OriginalID:  originalMessageID,
+		IsDraft:     false,
+		CreatedAt:   time.Now(),
+		ModifiedAt:  time.Now(),
 	}
 
 	// Process based on composition type
@@ -64,11 +64,11 @@ func (s *CompositionServiceImpl) CreateComposition(ctx context.Context, composit
 		if err != nil {
 			return nil, fmt.Errorf("failed to process reply context: %w", err)
 		}
-		
+
 		composition.Subject = replyContext.Subject
 		composition.Body = replyContext.QuotedBody
 		composition.To = replyContext.Recipients
-		
+
 		if compositionType == CompositionTypeReplyAll {
 			// For reply-all, we need to get all recipients from the original message
 			replyAllContext, err := s.ProcessReplyAll(ctx, originalMessageID)
@@ -79,7 +79,7 @@ func (s *CompositionServiceImpl) CreateComposition(ctx context.Context, composit
 			composition.To = replyAllContext.Recipients
 			composition.CC = replyAllContext.CC
 		}
-		
+
 	case CompositionTypeForward:
 		if originalMessageID == "" {
 			return nil, fmt.Errorf("original message ID required for forward")
@@ -88,17 +88,17 @@ func (s *CompositionServiceImpl) CreateComposition(ctx context.Context, composit
 		if err != nil {
 			return nil, fmt.Errorf("failed to process forward context: %w", err)
 		}
-		
+
 		composition.Subject = forwardContext.Subject
 		composition.Body = forwardContext.ForwardedBody
 		// Recipients remain empty for user selection
-		
+
 	case CompositionTypeNew:
 		// Empty composition for new message
-		
+
 	case CompositionTypeDraft:
 		return nil, fmt.Errorf("use LoadDraftComposition for draft compositions")
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported composition type: %s", compositionType)
 	}
@@ -135,7 +135,7 @@ func (s *CompositionServiceImpl) LoadDraftComposition(ctx context.Context, draft
 	// Extract recipients, subject, and body from the draft
 	if targetDraft.Message != nil {
 		msg := targetDraft.Message
-		
+
 		// Parse To recipients
 		if msg.Payload != nil && msg.Payload.Headers != nil {
 			for _, header := range msg.Payload.Headers {
@@ -152,7 +152,7 @@ func (s *CompositionServiceImpl) LoadDraftComposition(ctx context.Context, draft
 			}
 		}
 
-		// Extract body from draft message  
+		// Extract body from draft message
 		composition.Body = s.extractDraftBody(targetDraft.Message)
 	}
 
@@ -180,10 +180,10 @@ func (s *CompositionServiceImpl) SaveDraft(ctx context.Context, composition *Com
 	for i, recipient := range composition.CC {
 		cc[i] = recipient.Email
 	}
-	
+
 	var draftID string
 	var err error
-	
+
 	// Check if this composition already has a draft ID (update existing) or create new
 	if composition.DraftID != "" {
 		// Update existing draft
@@ -192,7 +192,7 @@ func (s *CompositionServiceImpl) SaveDraft(ctx context.Context, composition *Com
 			return "", fmt.Errorf("failed to update existing draft via Gmail API: %w", err)
 		}
 		draftID = composition.DraftID
-		
+
 		if s.logger != nil {
 			s.logger.Printf("CompositionService: Updated existing Gmail draft %s for composition %s", draftID, composition.ID)
 		}
@@ -202,7 +202,7 @@ func (s *CompositionServiceImpl) SaveDraft(ctx context.Context, composition *Com
 		if err != nil {
 			return "", fmt.Errorf("failed to create new draft via Gmail API: %w", err)
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("CompositionService: Created new Gmail draft %s for composition %s", draftID, composition.ID)
 		}
@@ -262,13 +262,13 @@ func (s *CompositionServiceImpl) SendComposition(ctx context.Context, compositio
 		for i, recipient := range composition.BCC {
 			bcc[i] = recipient.Email
 		}
-		
+
 		// Send as new message
 		err := s.emailService.SendMessage(ctx, "", to, composition.Subject, composition.Body, cc, bcc)
 		if err != nil {
 			return fmt.Errorf("failed to send message: %w", err)
 		}
-		
+
 		// If this was a draft, delete it from Gmail after successful send
 		if composition.DraftID != "" {
 			if deleteErr := s.gmailClient.DeleteDraft(composition.DraftID); deleteErr != nil {
@@ -282,24 +282,24 @@ func (s *CompositionServiceImpl) SendComposition(ctx context.Context, compositio
 				}
 			}
 		}
-		
+
 	case CompositionTypeReply, CompositionTypeReplyAll:
 		// Send as reply
 		if composition.OriginalID == "" {
 			return fmt.Errorf("original message ID required for reply")
 		}
-		
+
 		// Extract CC recipients for reply
 		var ccList []string
 		for _, recipient := range composition.CC {
 			ccList = append(ccList, recipient.Email)
 		}
-		
+
 		err := s.emailService.ReplyToMessage(ctx, composition.OriginalID, composition.Body, true, ccList)
 		if err != nil {
 			return fmt.Errorf("failed to send reply: %w", err)
 		}
-		
+
 	default:
 		return fmt.Errorf("unsupported composition type for sending: %s", composition.Type)
 	}
@@ -327,7 +327,7 @@ func (s *CompositionServiceImpl) ValidateComposition(composition *Composition) [
 
 	// Validate email formats
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	
+
 	for i, recipient := range composition.To {
 		if !emailRegex.MatchString(recipient.Email) {
 			errors = append(errors, ValidationError{
@@ -336,7 +336,7 @@ func (s *CompositionServiceImpl) ValidateComposition(composition *Composition) [
 			})
 		}
 	}
-	
+
 	for i, recipient := range composition.CC {
 		if !emailRegex.MatchString(recipient.Email) {
 			errors = append(errors, ValidationError{
@@ -345,7 +345,7 @@ func (s *CompositionServiceImpl) ValidateComposition(composition *Composition) [
 			})
 		}
 	}
-	
+
 	for i, recipient := range composition.BCC {
 		if !emailRegex.MatchString(recipient.Email) {
 			errors = append(errors, ValidationError{
@@ -480,19 +480,19 @@ func (s *CompositionServiceImpl) ProcessReplyAll(ctx context.Context, originalMe
 
 	// Combine all recipients: original sender + To + CC, excluding current user
 	allRecipients := []Recipient{}
-	
+
 	// Add original sender first
 	if originalSender.Email != "" && originalSender.Email != currentUserEmail {
 		allRecipients = append(allRecipients, originalSender)
 	}
-	
+
 	// Add all To recipients
 	for _, recipient := range toRecipients {
 		if recipient.Email != currentUserEmail {
 			allRecipients = append(allRecipients, recipient)
 		}
 	}
-	
+
 	// Keep CC recipients separate for CC field
 	finalCCRecipients := []Recipient{}
 	for _, recipient := range ccRecipients {
@@ -522,7 +522,7 @@ func (s *CompositionServiceImpl) ProcessReplyAll(ctx context.Context, originalMe
 	}
 
 	if s.logger != nil {
-		s.logger.Printf("CompositionService: Processed reply-all context for message %s with %d recipients and %d CC", 
+		s.logger.Printf("CompositionService: Processed reply-all context for message %s with %d recipients and %d CC",
 			originalMessageID, len(allRecipients), len(finalCCRecipients))
 	}
 
@@ -594,25 +594,25 @@ func (s *CompositionServiceImpl) GetTemplates(ctx context.Context, category stri
 	// Real implementation would load from database or file system
 	templates := []*EmailTemplate{
 		{
-			ID:       "thanks",
-			Name:     "Thank You",
-			Category: "response",
-			Subject:  "Thank you",
-			Body:     "Thank you for your message. I appreciate you taking the time to reach out.",
-			Variables: []string{},
-			Metadata:  map[string]string{"type": "polite"},
-			CreatedAt: time.Now(),
+			ID:         "thanks",
+			Name:       "Thank You",
+			Category:   "response",
+			Subject:    "Thank you",
+			Body:       "Thank you for your message. I appreciate you taking the time to reach out.",
+			Variables:  []string{},
+			Metadata:   map[string]string{"type": "polite"},
+			CreatedAt:  time.Now(),
 			ModifiedAt: time.Now(),
 		},
 		{
-			ID:       "meeting",
-			Name:     "Meeting Request",
-			Category: "business",
-			Subject:  "Meeting Request - {{topic}}",
-			Body:     "Hi {{name}},\n\nI'd like to schedule a meeting to discuss {{topic}}. Are you available {{date}}?\n\nBest regards",
-			Variables: []string{"name", "topic", "date"},
-			Metadata:  map[string]string{"type": "meeting"},
-			CreatedAt: time.Now(),
+			ID:         "meeting",
+			Name:       "Meeting Request",
+			Category:   "business",
+			Subject:    "Meeting Request - {{topic}}",
+			Body:       "Hi {{name}},\n\nI'd like to schedule a meeting to discuss {{topic}}. Are you available {{date}}?\n\nBest regards",
+			Variables:  []string{"name", "topic", "date"},
+			Metadata:   map[string]string{"type": "meeting"},
+			CreatedAt:  time.Now(),
 			ModifiedAt: time.Now(),
 		},
 	}
@@ -678,7 +678,7 @@ func (s *CompositionServiceImpl) GetRecipientSuggestions(ctx context.Context, qu
 // parseRecipients parses a recipient header string into Recipient structs
 func (s *CompositionServiceImpl) parseRecipients(headerValue string) []Recipient {
 	var recipients []Recipient
-	
+
 	// Simple parsing - real implementation would handle complex formats
 	addresses := strings.Split(headerValue, ",")
 	for _, addr := range addresses {
@@ -686,7 +686,7 @@ func (s *CompositionServiceImpl) parseRecipients(headerValue string) []Recipient
 		if addr == "" {
 			continue
 		}
-		
+
 		// Extract name and email if in format "Name <email@domain.com>"
 		if strings.Contains(addr, "<") && strings.Contains(addr, ">") {
 			parts := strings.Split(addr, "<")
@@ -700,7 +700,7 @@ func (s *CompositionServiceImpl) parseRecipients(headerValue string) []Recipient
 			recipients = append(recipients, Recipient{Email: addr})
 		}
 	}
-	
+
 	return recipients
 }
 
@@ -720,34 +720,34 @@ func (s *CompositionServiceImpl) formatRecipients(recipients []Recipient) string
 // createQuotedBody creates a quoted body for replies
 func (s *CompositionServiceImpl) createQuotedBody(message *gmail.Message, sender Recipient, date time.Time) string {
 	var body strings.Builder
-	
+
 	body.WriteString("\n\n")
 	body.WriteString(fmt.Sprintf("On %s, %s wrote:\n", date.Format("Jan 2, 2006 at 3:04 PM"), sender.Email))
-	
+
 	// Get full message content
 	content := message.PlainText
 	if content == "" && message.Snippet != "" {
 		// Fallback to snippet if body extraction fails
 		content = message.Snippet
 	}
-	
+
 	// Quote the content
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		body.WriteString("> " + line + "\n")
 	}
-	
+
 	return body.String()
 }
 
 // createForwardedBody creates a forwarded body
 func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sender Recipient, date time.Time) string {
 	var body strings.Builder
-	
+
 	body.WriteString("\n\n---------- Forwarded message ---------\n")
 	body.WriteString(fmt.Sprintf("From: %s\n", sender.Email))
 	body.WriteString(fmt.Sprintf("Date: %s\n", date.Format("Mon, Jan 2, 2006 at 3:04 PM")))
-	
+
 	// Add subject
 	if message.Payload != nil && message.Payload.Headers != nil {
 		for _, header := range message.Payload.Headers {
@@ -757,9 +757,9 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 			}
 		}
 	}
-	
+
 	body.WriteString("\n")
-	
+
 	// Get full message content
 	content := message.PlainText
 	if content == "" && message.Snippet != "" {
@@ -767,7 +767,7 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 		content = message.Snippet
 	}
 	body.WriteString(content)
-	
+
 	return body.String()
 }
 
@@ -776,19 +776,19 @@ func (s *CompositionServiceImpl) extractDraftBody(message *gmail_v1.Message) str
 	if message.Payload == nil {
 		return ""
 	}
-	
+
 	// Try to get plain text body first
 	body := s.extractPlainTextBodyFromPayload(message.Payload)
 	if body == "" {
 		// Fallback to HTML body converted to text
 		body = s.extractHTMLBodyFromPayload(message.Payload)
 	}
-	
+
 	// If still no body, fallback to snippet
 	if body == "" && message.Snippet != "" {
 		body = message.Snippet
 	}
-	
+
 	return strings.TrimSpace(body)
 }
 
@@ -800,14 +800,14 @@ func (s *CompositionServiceImpl) extractPlainTextBodyFromPayload(payload *gmail_
 			return string(decoded)
 		}
 	}
-	
+
 	// Check parts recursively
 	for _, part := range payload.Parts {
 		if body := s.extractPlainTextBodyFromPayload(part); body != "" {
 			return body
 		}
 	}
-	
+
 	return ""
 }
 
@@ -822,7 +822,7 @@ func (s *CompositionServiceImpl) extractHTMLBodyFromPayload(payload *gmail_v1.Me
 			text = strings.ReplaceAll(text, "<br/>", "\n")
 			text = strings.ReplaceAll(text, "<p>", "\n")
 			text = strings.ReplaceAll(text, "</p>", "\n")
-			
+
 			// Remove HTML tags (basic)
 			for strings.Contains(text, "<") && strings.Contains(text, ">") {
 				start := strings.Index(text, "<")
@@ -833,18 +833,18 @@ func (s *CompositionServiceImpl) extractHTMLBodyFromPayload(payload *gmail_v1.Me
 					break
 				}
 			}
-			
+
 			return text
 		}
 	}
-	
+
 	// Check parts recursively
 	for _, part := range payload.Parts {
 		if body := s.extractHTMLBodyFromPayload(part); body != "" {
 			return body
 		}
 	}
-	
+
 	return ""
 }
 

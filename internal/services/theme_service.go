@@ -26,7 +26,7 @@ type ThemeServiceImpl struct {
 	customThemeDir string
 	themeLoader    *config.ThemeLoader
 	applyThemeFunc func(*config.ColorsConfig) error // Function to apply theme to the app
-	
+
 	// Component registration system
 	registeredComponents []ComponentRegistration
 	currentThemeConfig   *config.ColorsConfig // Cache current theme for new registrations
@@ -115,7 +115,7 @@ func (s *ThemeServiceImpl) ApplyTheme(ctx context.Context, name string) error {
 
 	// Cache the theme configuration
 	s.currentThemeConfig = themeConfig
-	
+
 	// Notify all registered components
 	if err := s.notifyComponents(themeConfig); err != nil {
 		return fmt.Errorf("failed to notify components of theme change: %w", err)
@@ -133,14 +133,14 @@ func (s *ThemeServiceImpl) RegisterComponent(name string, callback ThemeUpdateCa
 		name:     name,
 		callback: callback,
 	})
-	
+
 	// If we have a current theme, apply it to the new component immediately
 	if s.currentThemeConfig != nil {
 		if err := callback(s.currentThemeConfig); err != nil {
 			return fmt.Errorf("failed to apply current theme to component '%s': %w", name, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -163,17 +163,17 @@ func (s *ThemeServiceImpl) GetCurrentThemeConfig() *config.ColorsConfig {
 // notifyComponents sends theme updates to all registered components
 func (s *ThemeServiceImpl) notifyComponents(themeConfig *config.ColorsConfig) error {
 	var errors []string
-	
+
 	for _, component := range s.registeredComponents {
 		if err := component.callback(themeConfig); err != nil {
 			errors = append(errors, fmt.Sprintf("component '%s': %v", component.name, err))
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("theme update errors: %s", strings.Join(errors, "; "))
 	}
-	
+
 	return nil
 }
 
@@ -197,11 +197,11 @@ func (s *ThemeServiceImpl) GetThemeConfig(ctx context.Context, name string) (*Th
 	}
 
 	// Email colors - mapped to v2.0 hierarchical theme system
-	themeConfig.EmailColors.UnreadColor = colorsConfig.Semantic.Accent.String()    // Cyan/blue for attention
+	themeConfig.EmailColors.UnreadColor = colorsConfig.Semantic.Accent.String()     // Cyan/blue for attention
 	themeConfig.EmailColors.ReadColor = colorsConfig.Foundation.Foreground.String() // Default text color
 	themeConfig.EmailColors.ImportantColor = colorsConfig.Semantic.Warning.String() // Orange/yellow for importance
-	themeConfig.EmailColors.SentColor = colorsConfig.Semantic.Success.String()     // Green for sent items
-	themeConfig.EmailColors.DraftColor = colorsConfig.Semantic.Secondary.String()  // Gray for drafts
+	themeConfig.EmailColors.SentColor = colorsConfig.Semantic.Success.String()      // Green for sent items
+	themeConfig.EmailColors.DraftColor = colorsConfig.Semantic.Secondary.String()   // Gray for drafts
 
 	// Basic UI colors - mapped to v2.0 hierarchical theme system
 	themeConfig.UIColors.FgColor = colorsConfig.Foundation.Foreground.String()

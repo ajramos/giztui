@@ -264,7 +264,6 @@ func (c *CompositionPanel) setupHeaderSection() {
 func (c *CompositionPanel) applyFieldStyling() {
 	componentColors := c.app.GetComponentColors("compose")
 
-
 	// Re-apply Form-level styling (crucial for tview Forms)
 	c.headerSection.SetFieldBackgroundColor(componentColors.Background.Color())
 	c.headerSection.SetFieldTextColor(componentColors.Text.Color())

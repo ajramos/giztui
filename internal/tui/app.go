@@ -417,10 +417,10 @@ func (a *App) onWindowResize() {
 				// Preserve current focus state during resize refresh
 				currentFocusState := a.GetCurrentFocus()
 				currentPickerState := a.currentActivePicker
-				
+
 				// Use showMessageWithoutFocus to avoid changing focus
 				a.showMessageWithoutFocus(currentMessageID)
-				
+
 				// Restore previous focus and picker state
 				if currentPickerState != PickerNone {
 					// If a picker was active, restore its focus

@@ -197,8 +197,8 @@ type KeyBindings struct {
 	GenerateReply string `json:"generate_reply"`
 	SuggestLabel  string `json:"suggest_label"`
 	Reply         string `json:"reply"`
-	ReplyAll      string `json:"reply_all"`    // Reply to all recipients
-	Forward       string `json:"forward"`      // Forward message
+	ReplyAll      string `json:"reply_all"` // Reply to all recipients
+	Forward       string `json:"forward"`   // Forward message
 	Compose       string `json:"compose"`
 	Refresh       string `json:"refresh"`
 	Search        string `json:"search"`
@@ -330,7 +330,7 @@ func DefaultKeyBindings() KeyBindings {
 		SuggestLabel:  "o",
 		Reply:         "r",
 		ReplyAll:      "E",
-		Forward:       "f", 
+		Forward:       "f",
 		Compose:       "c",
 		Refresh:       "R",
 		Search:        "s",

@@ -153,13 +153,13 @@ func (a *App) GetComponentColors(component string) config.ComponentColorSet {
 	borderColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeBorder)
 	textColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeForeground)
 	accentColor := a.currentTheme.GetComponentColor(componentType, config.ColorTypeAccent)
-	
+
 	// Debug logging for compose theme specifically
 	if component == "compose" && a.logger != nil {
 		a.logger.Printf("DEBUG COMPOSE COLORS: bg=%s, title=%s, border=%s, text=%s, accent=%s",
 			bgColor.String(), titleColor.String(), borderColor.String(), textColor.String(), accentColor.String())
 	}
-	
+
 	return config.ComponentColorSet{
 		Border:     borderColor,
 		Title:      titleColor,
@@ -249,7 +249,7 @@ func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {
 		generalColors := a.GetComponentColors("general")
 		return generalColors.Background.Color(), generalColors.Text.Color()
 	}
-	
+
 	// Use new hierarchical system with fallback to legacy
 	bg, fg, _ := a.currentTheme.GetInputColors()
 	if bg == "" || fg == "" {

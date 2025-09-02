@@ -275,17 +275,17 @@ func (a *App) createCompositionLayoutWithStatus() tview.Primitive {
 	// Create a vertical flex container for composition + status bar
 	compositionLayout := tview.NewFlex().SetDirection(tview.FlexRow)
 	compositionLayout.SetBackgroundColor(a.GetComponentColors("general").Background.Color())
-	
+
 	// Add composition panel (takes most of the screen)
 	if a.compositionPanel != nil {
 		compositionLayout.AddItem(a.compositionPanel, 0, 1, true) // flexible, focusable
 	}
-	
+
 	// Add status bar (fixed height at bottom)
 	if statusBar, exists := a.views["status"]; exists {
 		compositionLayout.AddItem(statusBar, 1, 0, false) // fixed height, not focusable
 	}
-	
+
 	return compositionLayout
 }
 

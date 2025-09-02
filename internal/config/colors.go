@@ -158,11 +158,11 @@ type ComponentColors struct {
 	Links        ComponentColorSet `yaml:"links"`
 	Stats        ComponentColorSet `yaml:"stats"`
 	Prompts      ComponentColorSet `yaml:"prompts"`
-	Labels       ComponentColorSet `yaml:"labels"`       // Label management UI colors
-	Search       ComponentColorSet `yaml:"search"`       // Search interface colors
-	Attachments  ComponentColorSet `yaml:"attachments"`  // Attachment picker colors
+	Labels       ComponentColorSet `yaml:"labels"`        // Label management UI colors
+	Search       ComponentColorSet `yaml:"search"`        // Search interface colors
+	Attachments  ComponentColorSet `yaml:"attachments"`   // Attachment picker colors
 	SavedQueries ComponentColorSet `yaml:"saved_queries"` // Saved queries picker colors
-	Compose      ComponentColorSet `yaml:"compose"`      // Email composition UI colors
+	Compose      ComponentColorSet `yaml:"compose"`       // Email composition UI colors
 }
 
 // ComponentColorSet defines a complete color set for a UI component
@@ -225,12 +225,12 @@ type ComponentColorOverrides struct {
 	Links        ComponentOverrideSet `yaml:"links,omitempty"`
 	Stats        ComponentOverrideSet `yaml:"stats,omitempty"`
 	Prompts      ComponentOverrideSet `yaml:"prompts,omitempty"`
-	Labels       ComponentOverrideSet `yaml:"labels,omitempty"`       // Label management overrides
-	Search       ComponentOverrideSet `yaml:"search,omitempty"`       // Search interface overrides
-	Attachments  ComponentOverrideSet `yaml:"attachments,omitempty"`  // Attachment picker overrides
+	Labels       ComponentOverrideSet `yaml:"labels,omitempty"`        // Label management overrides
+	Search       ComponentOverrideSet `yaml:"search,omitempty"`        // Search interface overrides
+	Attachments  ComponentOverrideSet `yaml:"attachments,omitempty"`   // Attachment picker overrides
 	SavedQueries ComponentOverrideSet `yaml:"saved_queries,omitempty"` // Saved queries picker overrides
-	Themes       ComponentOverrideSet `yaml:"themes,omitempty"`       // Theme picker overrides
-	Compose      ComponentOverrideSet `yaml:"compose,omitempty"`      // Email composition overrides
+	Themes       ComponentOverrideSet `yaml:"themes,omitempty"`        // Theme picker overrides
+	Compose      ComponentOverrideSet `yaml:"compose,omitempty"`       // Email composition overrides
 }
 
 // ComponentOverrideSet defines optional color overrides for a specific component
@@ -250,10 +250,10 @@ type ColorsConfig struct {
 	Version     string `yaml:"version"`     // Theme version
 
 	// New hierarchical structure
-	Foundation  FoundationColors         `yaml:"foundation"`  // Base colors for all components
-	Semantic    SemanticColors           `yaml:"semantic"`    // Meaning-based colors
-	Interaction InteractionColors        `yaml:"interaction"` // User interaction colors
-	Overrides   ComponentColorOverrides  `yaml:"overrides"`   // Component-specific overrides
+	Foundation  FoundationColors        `yaml:"foundation"`  // Base colors for all components
+	Semantic    SemanticColors          `yaml:"semantic"`    // Meaning-based colors
+	Interaction InteractionColors       `yaml:"interaction"` // User interaction colors
+	Overrides   ComponentColorOverrides `yaml:"overrides"`   // Component-specific overrides
 
 	// Legacy structure (for backward compatibility)
 	Body       BodyColors      `yaml:"body"`
@@ -311,23 +311,23 @@ func (c *ColorsConfig) GetComponentColor(component ComponentType, colorType Colo
 		if override := c.getComponentOverride(component, colorType); override != "" {
 			return override
 		}
-		
+
 		// Step 2: Check semantic colors
 		if semantic := c.getSemanticColor(colorType); semantic != "" {
 			return semantic
 		}
-		
-		// Step 3: Check foundation colors  
+
+		// Step 3: Check foundation colors
 		if foundation := c.getFoundationColor(colorType); foundation != "" {
 			return foundation
 		}
 	}
-	
+
 	// Step 4: Fallback to legacy structure for backward compatibility
 	if legacy := c.getLegacyColor(component, colorType); legacy != "" {
 		return legacy
 	}
-	
+
 	// Step 5: Final fallback colors
 	return c.getFallbackColor(colorType)
 }
@@ -340,7 +340,7 @@ func (c *ColorsConfig) hasNewStructure() bool {
 // getComponentOverride checks for component-specific color overrides
 func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType ColorType) Color {
 	var override ComponentOverrideSet
-	
+
 	switch component {
 	case ComponentTypeAI:
 		override = c.Overrides.AI
@@ -369,7 +369,7 @@ func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType C
 	default:
 		return ""
 	}
-	
+
 	switch colorType {
 	case ColorTypePrimary:
 		return override.Primary
@@ -384,7 +384,7 @@ func (c *ColorsConfig) getComponentOverride(component ComponentType, colorType C
 	case ColorTypeBorder:
 		return override.Border
 	}
-	
+
 	return ""
 }
 
@@ -457,7 +457,7 @@ func (c *ColorsConfig) getLegacyColor(component ComponentType, colorType ColorTy
 		// Info from semantic layer
 		return c.Semantic.Info
 	}
-	
+
 	// Check legacy component colors
 	var legacyComponent ComponentColorSet
 	switch component {
@@ -484,7 +484,7 @@ func (c *ColorsConfig) getLegacyColor(component ComponentType, colorType ColorTy
 	default:
 		return ""
 	}
-	
+
 	switch colorType {
 	case ColorTypePrimary:
 		return legacyComponent.Title
@@ -497,7 +497,7 @@ func (c *ColorsConfig) getLegacyColor(component ComponentType, colorType ColorTy
 	case ColorTypeBorder:
 		return legacyComponent.Border
 	}
-	
+
 	return ""
 }
 
@@ -539,7 +539,7 @@ func (c *ColorsConfig) GetCursorSelectionColors() (bg, fg Color) {
 	return c.UI.SelectionBgColor, c.UI.SelectionFgColor
 }
 
-// GetBulkSelectionColors returns bulk selection colors  
+// GetBulkSelectionColors returns bulk selection colors
 func (c *ColorsConfig) GetBulkSelectionColors() (bg, fg Color) {
 	if c.hasNewStructure() {
 		return c.Interaction.Selection.Bulk.Bg, c.Interaction.Selection.Bulk.Fg
@@ -562,7 +562,7 @@ func (c *ColorsConfig) GetStatusBarColors() (bg, fg Color) {
 	if c.hasNewStructure() {
 		return c.Interaction.StatusBar.Bg, c.Interaction.StatusBar.Fg
 	}
-	// Legacy fallback  
+	// Legacy fallback
 	return c.UI.StatusBarBgColor, c.UI.StatusBarFgColor
 }
 

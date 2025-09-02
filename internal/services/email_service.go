@@ -48,7 +48,6 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 		return fmt.Errorf("messageID cannot be empty")
 	}
 
-
 	// Record move undo action before performing the operation
 	if s.undoService != nil {
 		if undoServiceImpl, ok := s.undoService.(*UndoServiceImpl); ok {
@@ -492,17 +491,17 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 			s.logger.Printf("=== INBOX MOVE DEBUG ===")
 			s.logger.Printf("Moving message %s to INBOX", messageID)
 		}
-		
+
 		// First, add the INBOX label
 		updates := MessageUpdates{
 			AddLabels: []string{"INBOX"},
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("About to call s.repo.UpdateMessage to ADD INBOX label to message %s", messageID)
 			s.logger.Printf("UpdateMessage will call r.gmailClient.ApplyLabel(messageID=%s, labelID=%s)", messageID, "INBOX")
 		}
-		
+
 		// Apply inbox label first
 		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
 			if s.logger != nil {
@@ -511,12 +510,12 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 			}
 			return fmt.Errorf("failed to add INBOX label: %w", err)
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("SUCCESS: Added INBOX label to message %s", messageID)
 			s.logger.Printf("Gmail API Users.Messages.Modify succeeded for INBOX label")
 		}
-		
+
 		// Then try to remove TRASH and SPAM labels individually, ignoring errors if they don't exist
 		// This prevents the entire operation from failing if the message doesn't have these labels
 		if s.logger != nil {
@@ -532,7 +531,7 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 				s.logger.Printf("Successfully removed TRASH label from message %s", messageID)
 			}
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("Attempting to remove SPAM label from message %s", messageID)
 		}
@@ -546,11 +545,11 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 				s.logger.Printf("Successfully removed SPAM label from message %s", messageID)
 			}
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("=== INBOX MOVE COMPLETED ===")
 		}
-		
+
 		return nil
 
 	case "TRASH":

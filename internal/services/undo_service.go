@@ -1,13 +1,15 @@
 package services
+
 import (
 	"context"
 	"fmt"
+	"github.com/ajramos/gmail-tui/internal/gmail"
+	"github.com/google/uuid"
 	"log"
 	"sync"
 	"time"
-	"github.com/ajramos/gmail-tui/internal/gmail"
-	"github.com/google/uuid"
 )
+
 // UndoServiceImpl implements UndoService
 type UndoServiceImpl struct {
 	repo         MessageRepository
@@ -17,6 +19,7 @@ type UndoServiceImpl struct {
 	mu           sync.RWMutex
 	logger       *log.Logger // Optional - for debug logging
 }
+
 // NewUndoService creates a new undo service
 func NewUndoService(repo MessageRepository, labelService LabelService, gmailClient *gmail.Client) *UndoServiceImpl {
 	return &UndoServiceImpl{
@@ -25,10 +28,12 @@ func NewUndoService(repo MessageRepository, labelService LabelService, gmailClie
 		gmailClient:  gmailClient,
 	}
 }
+
 // SetLogger sets the logger for debug output
 func (s *UndoServiceImpl) SetLogger(logger *log.Logger) {
 	s.logger = logger
 }
+
 // RecordAction records an action for potential undo
 func (s *UndoServiceImpl) RecordAction(ctx context.Context, action *UndoableAction) error {
 	if action == nil {
@@ -48,6 +53,7 @@ func (s *UndoServiceImpl) RecordAction(ctx context.Context, action *UndoableActi
 	s.lastAction = action
 	return nil
 }
+
 // UndoLastAction undoes the last recorded action
 func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, error) {
 	s.mu.Lock()
@@ -130,12 +136,14 @@ func (s *UndoServiceImpl) UndoLastAction(ctx context.Context) (*UndoResult, erro
 	}
 	return result, nil
 }
+
 // HasUndoableAction checks if there's an action that can be undone
 func (s *UndoServiceImpl) HasUndoableAction() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lastAction != nil
 }
+
 // GetUndoDescription returns a description of what will be undone
 func (s *UndoServiceImpl) GetUndoDescription() string {
 	s.mu.RLock()
@@ -145,6 +153,7 @@ func (s *UndoServiceImpl) GetUndoDescription() string {
 	}
 	return s.lastAction.Description
 }
+
 // ClearUndoHistory clears the undo history
 func (s *UndoServiceImpl) ClearUndoHistory() error {
 	s.mu.Lock()
@@ -152,6 +161,7 @@ func (s *UndoServiceImpl) ClearUndoHistory() error {
 	s.lastAction = nil
 	return nil
 }
+
 // Helper methods for specific undo operations
 func (s *UndoServiceImpl) undoArchive(ctx context.Context, action *UndoableAction) error {
 	// To undo archive, we need to restore messages to their previous state
@@ -278,13 +288,13 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 		s.logger.Printf("UNDO: Action description: %s", action.Description)
 		s.logger.Printf("UNDO: ExtraData: %+v", action.ExtraData)
 	}
-	
+
 	// To undo move: restore each message to its exact previous state using smart diff
 	for _, messageID := range action.MessageIDs {
 		if s.logger != nil {
 			s.logger.Printf("UNDO: Processing message %s", messageID)
 		}
-		
+
 		prevState, exists := action.PrevState[messageID]
 		if !exists {
 			if s.logger != nil {
@@ -301,7 +311,7 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 		}
 
 		if s.logger != nil {
-			s.logger.Printf("UNDO: Previous state for %s: Labels=%v, IsRead=%t, IsInInbox=%t", 
+			s.logger.Printf("UNDO: Previous state for %s: Labels=%v, IsRead=%t, IsInInbox=%t",
 				messageID, prevState.Labels, prevState.IsRead, prevState.IsInInbox)
 		}
 
@@ -316,19 +326,19 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 
 		// Calculate smart diff: what to add and what to remove
 		labelsToAdd, labelsToRemove := s.calculateLabelDiff(currentLabels, prevState.Labels)
-		
+
 		updates := MessageUpdates{
 			RemoveLabels: labelsToRemove,
 			AddLabels:    labelsToAdd,
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("UNDO: Current labels: %v", currentLabels)
-			s.logger.Printf("UNDO: Target labels: %v", prevState.Labels)  
-			s.logger.Printf("UNDO: Smart diff for %s: RemoveLabels=%v, AddLabels=%v", 
+			s.logger.Printf("UNDO: Target labels: %v", prevState.Labels)
+			s.logger.Printf("UNDO: Smart diff for %s: RemoveLabels=%v, AddLabels=%v",
 				messageID, updates.RemoveLabels, updates.AddLabels)
 		}
-		
+
 		// Skip if no changes needed
 		if len(labelsToAdd) == 0 && len(labelsToRemove) == 0 {
 			if s.logger != nil {
@@ -336,24 +346,25 @@ func (s *UndoServiceImpl) undoMove(ctx context.Context, action *UndoableAction) 
 			}
 			continue
 		}
-		
+
 		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
 			if s.logger != nil {
 				s.logger.Printf("UNDO: Failed to update message %s: %v", messageID, err)
 			}
 			return fmt.Errorf("failed to restore message %s to previous state: %v", messageID, err)
 		}
-		
+
 		if s.logger != nil {
 			s.logger.Printf("UNDO: Successfully restored message %s", messageID)
 		}
 	}
-	
+
 	if s.logger != nil {
 		s.logger.Printf("UNDO: Completed undoMove successfully")
 	}
 	return nil
 }
+
 // formatUndoDescription creates a human-readable description for undo result
 func (s *UndoServiceImpl) formatUndoDescription(actionVerb string, action *UndoableAction) string {
 	count := len(action.MessageIDs)
@@ -362,12 +373,13 @@ func (s *UndoServiceImpl) formatUndoDescription(actionVerb string, action *Undoa
 	}
 	return fmt.Sprintf("%s %d messages", actionVerb, count)
 }
+
 // Helper function to capture message state for undo operations
 func (s *UndoServiceImpl) CaptureMessageState(ctx context.Context, messageID string) (ActionState, error) {
 	if s.logger != nil {
 		s.logger.Printf("CAPTURE: Starting capture for message %s", messageID)
 	}
-	
+
 	// Get current message labels
 	labels, err := s.labelService.GetMessageLabels(ctx, messageID)
 	if err != nil {
@@ -376,11 +388,11 @@ func (s *UndoServiceImpl) CaptureMessageState(ctx context.Context, messageID str
 		}
 		return ActionState{}, fmt.Errorf("failed to get message labels: %v", err)
 	}
-	
+
 	if s.logger != nil {
 		s.logger.Printf("CAPTURE: Message %s has labels: %v", messageID, labels)
 	}
-	
+
 	// Check if message is read (doesn't have UNREAD label)
 	isRead := true
 	isInInbox := false
@@ -392,18 +404,18 @@ func (s *UndoServiceImpl) CaptureMessageState(ctx context.Context, messageID str
 			isInInbox = true
 		}
 	}
-	
+
 	state := ActionState{
 		Labels:    labels,
 		IsRead:    isRead,
 		IsInInbox: isInInbox,
 	}
-	
+
 	if s.logger != nil {
-		s.logger.Printf("CAPTURE: Captured state for message %s: Labels=%v, IsRead=%t, IsInInbox=%t", 
+		s.logger.Printf("CAPTURE: Captured state for message %s: Labels=%v, IsRead=%t, IsInInbox=%t",
 			messageID, state.Labels, state.IsRead, state.IsInInbox)
 	}
-	
+
 	return state, nil
 }
 
@@ -414,25 +426,25 @@ func (s *UndoServiceImpl) calculateLabelDiff(currentLabels, targetLabels []strin
 	for _, label := range currentLabels {
 		currentSet[label] = true
 	}
-	
+
 	targetSet := make(map[string]bool)
 	for _, label := range targetLabels {
 		targetSet[label] = true
 	}
-	
+
 	// Find labels to add (in target but not in current)
 	for label := range targetSet {
 		if !currentSet[label] {
 			labelsToAdd = append(labelsToAdd, label)
 		}
 	}
-	
+
 	// Find labels to remove (in current but not in target)
 	for label := range currentSet {
 		if !targetSet[label] {
 			labelsToRemove = append(labelsToRemove, label)
 		}
 	}
-	
+
 	return labelsToAdd, labelsToRemove
 }

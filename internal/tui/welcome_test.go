@@ -13,7 +13,7 @@ func TestGetWelcomeShortcuts_CustomConfig(t *testing.T) {
 	app := &App{
 		Keys: config.KeyBindings{
 			Help:        "F1",
-			Search:      "/", 
+			Search:      "/",
 			Unread:      "U",
 			CommandMode: ";",
 			Quit:        "Q",
@@ -35,7 +35,7 @@ func TestGetWelcomeShortcuts_CustomConfig(t *testing.T) {
 		t.Errorf("Expected custom Commands shortcut ;, got: %s", loggedInShortcuts)
 	}
 
-	// Test credentials missing shortcuts  
+	// Test credentials missing shortcuts
 	credentialsMissingShortcuts := app.getWelcomeShortcuts(false)
 	if !strings.Contains(credentialsMissingShortcuts, "[F1 Help]") {
 		t.Errorf("Expected custom Help shortcut F1, got: %s", credentialsMissingShortcuts)
@@ -86,7 +86,7 @@ func TestBuildWelcomeText_UsesCustomShortcuts(t *testing.T) {
 			Credentials: "",
 		},
 		Keys: config.KeyBindings{
-			Help:        "F1", 
+			Help:        "F1",
 			Search:      "/",
 			Unread:      "U",
 			CommandMode: ";",
@@ -104,7 +104,7 @@ func TestBuildWelcomeText_UsesCustomShortcuts(t *testing.T) {
 	}
 
 	// Test credentials missing state
-	credentialsText := app.buildWelcomeText(false, "", 0) 
+	credentialsText := app.buildWelcomeText(false, "", 0)
 	if !strings.Contains(credentialsText, "[F1 Help]") {
 		t.Errorf("Credentials missing welcome text should contain custom Help shortcut F1")
 	}
@@ -115,7 +115,7 @@ func TestBuildWelcomeText_UsesCustomShortcuts(t *testing.T) {
 
 func TestWelcomeShortcuts_Integration(t *testing.T) {
 	// Test that the shortcuts are displayed correctly in different states
-	
+
 	// Create app with mixed custom and default shortcuts
 	app := &App{
 		Application: tview.NewApplication(),
@@ -123,18 +123,18 @@ func TestWelcomeShortcuts_Integration(t *testing.T) {
 			Credentials: "/path/to/creds.json",
 		},
 		Keys: config.KeyBindings{
-			Help:        "F1",  // Custom
-			Search:      "",    // Empty, should use fallback 's'
-			Unread:      "U",   // Custom
-			CommandMode: "",    // Empty, should use fallback ':'
-			Quit:        "Q",   // Custom
+			Help:        "F1", // Custom
+			Search:      "",   // Empty, should use fallback 's'
+			Unread:      "U",  // Custom
+			CommandMode: "",   // Empty, should use fallback ':'
+			Quit:        "Q",  // Custom
 		},
 	}
 
 	// Test mixed configuration
 	shortcuts := app.getWelcomeShortcuts(true)
 	expectedShortcuts := []string{"[F1 Help]", "[s Search]", "[U Unread]", "[: Commands]"}
-	
+
 	for _, expected := range expectedShortcuts {
 		if !strings.Contains(shortcuts, expected) {
 			t.Errorf("Expected shortcut %s not found in: %s", expected, shortcuts)

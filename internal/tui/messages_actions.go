@@ -87,12 +87,10 @@ func (a *App) trashSelectedByID(messageID string) {
 		return
 	}
 
-
 	// Show success message
 	go func() {
 		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("🗑️ Moved to trash: %s", subject))
 	}()
-
 
 	// Remove the message from the list and adjust selection (UI thread)
 	a.QueueUpdateDraw(func() { a.safeRemoveCurrentSelection(messageID) })

@@ -29,7 +29,6 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		}
 	}
 
-
 	// If message not found, don't remove anything
 	if removeIndex < 0 || removeIndex >= count {
 		return
@@ -135,7 +134,6 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		}
 	}
 
-
 	// Propagate to base snapshot if in local filter
 	if removedMessageID != "" {
 		a.baseRemoveByID(removedMessageID)
@@ -164,12 +162,12 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 		if _, ok := rm[a.ids[i]]; ok {
 			// Get message ID for debugging before removal
 			messageID := a.ids[i]
-			
+
 			a.RemoveMessageIDAt(i)
 			if i < len(a.messagesMeta) {
 				a.messagesMeta = append(a.messagesMeta[:i], a.messagesMeta[i+1:]...)
 			}
-			
+
 			// CRITICAL FIX: Account for header row offset when removing from table
 			// Message at index i is displayed in table row i+1 (because row 0 is header)
 			tableRowToRemove := i + 1

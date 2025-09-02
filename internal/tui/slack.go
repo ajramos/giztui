@@ -36,7 +36,7 @@ func (a *App) showSlackForwardDialog() {
 
 	// Check if we have a selected message - use cached ID (for undo functionality) with sync fallback
 	messageID := a.GetCurrentMessageID()
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -46,7 +46,7 @@ func (a *App) showSlackForwardDialog() {
 			a.SetCurrentMessageID(messageID)
 		}
 	}
-	
+
 	if messageID == "" {
 		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
 		return
@@ -153,7 +153,7 @@ func (a *App) populateSlackBulkPanel() {
 func (a *App) createSlackPanel(messageID string, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
-	
+
 	// Apply component background color to main container
 	bgColor := a.GetComponentColors("slack").Background.Color()
 	a.slackView.SetBackgroundColor(bgColor)
@@ -220,7 +220,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 	// Pre-message input in same row as label
 	userMessageInput := tview.NewInputField()
 	userMessageInput.SetLabel("📝 Pre-message: ")
-	userMessageInput.SetLabelColor(a.GetComponentColors("slack").Title.Color())                                          // Match search label color
+	userMessageInput.SetLabelColor(a.GetComponentColors("slack").Title.Color())                // Match search label color
 	userMessageInput.SetFieldBackgroundColor(a.GetComponentColors("slack").Background.Color()) // Component background
 	userMessageInput.SetFieldTextColor(a.GetComponentColors("slack").Text.Color())             // Component text color
 	userMessageInput.SetBorder(false)
@@ -374,7 +374,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackChannel) *tview.InputField {
 	// Clear existing slack view
 	a.slackView.Clear()
-	
+
 	// Apply component background color to main container
 	bgColor := a.GetComponentColors("slack").Background.Color()
 	a.slackView.SetBackgroundColor(bgColor)

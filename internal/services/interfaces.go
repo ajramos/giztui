@@ -639,13 +639,13 @@ type CompositionService interface {
 	SaveDraft(ctx context.Context, composition *Composition) (string, error)
 	DeleteComposition(ctx context.Context, compositionID string) error
 	SendComposition(ctx context.Context, composition *Composition) error
-	
+
 	// Validation & processing
 	ValidateComposition(composition *Composition) []ValidationError
 	ProcessReply(ctx context.Context, originalMessageID string) (*ReplyContext, error)
 	ProcessReplyAll(ctx context.Context, originalMessageID string) (*ReplyAllContext, error)
 	ProcessForward(ctx context.Context, originalMessageID string) (*ForwardContext, error)
-	
+
 	// Templates & suggestions
 	GetTemplates(ctx context.Context, category string) ([]*EmailTemplate, error)
 	ApplyTemplate(ctx context.Context, composition *Composition, templateID string) error
@@ -658,28 +658,28 @@ type CompositionService interface {
 type CompositionType string
 
 const (
-	CompositionTypeNew     CompositionType = "new"
-	CompositionTypeReply   CompositionType = "reply"
+	CompositionTypeNew      CompositionType = "new"
+	CompositionTypeReply    CompositionType = "reply"
 	CompositionTypeReplyAll CompositionType = "reply_all"
-	CompositionTypeForward CompositionType = "forward"
-	CompositionTypeDraft   CompositionType = "draft"
+	CompositionTypeForward  CompositionType = "forward"
+	CompositionTypeDraft    CompositionType = "draft"
 )
 
 // Composition represents an email being composed
 type Composition struct {
-	ID           string          `json:"id"`
-	Type         CompositionType `json:"type"`
-	To           []Recipient     `json:"to"`
-	CC           []Recipient     `json:"cc"`
-	BCC          []Recipient     `json:"bcc"`
-	Subject      string          `json:"subject"`
-	Body         string          `json:"body"`
-	Attachments  []Attachment    `json:"attachments"`
-	OriginalID   string          `json:"original_id,omitempty"`
-	DraftID      string          `json:"draft_id,omitempty"`
-	IsDraft      bool            `json:"is_draft"`
-	CreatedAt    time.Time       `json:"created_at"`
-	ModifiedAt   time.Time       `json:"modified_at"`
+	ID          string          `json:"id"`
+	Type        CompositionType `json:"type"`
+	To          []Recipient     `json:"to"`
+	CC          []Recipient     `json:"cc"`
+	BCC         []Recipient     `json:"bcc"`
+	Subject     string          `json:"subject"`
+	Body        string          `json:"body"`
+	Attachments []Attachment    `json:"attachments"`
+	OriginalID  string          `json:"original_id,omitempty"`
+	DraftID     string          `json:"draft_id,omitempty"`
+	IsDraft     bool            `json:"is_draft"`
+	CreatedAt   time.Time       `json:"created_at"`
+	ModifiedAt  time.Time       `json:"modified_at"`
 }
 
 // Recipient represents an email recipient
@@ -707,9 +707,9 @@ type ReplyContext struct {
 
 // ReplyAllContext contains context information for replying to all recipients
 type ReplyAllContext struct {
-	OriginalMessage *gmail.Message `json:"-"` // Don't serialize the full message
-	Recipients      []Recipient    `json:"recipients"`      // To recipients (including original sender)
-	CC              []Recipient    `json:"cc"`              // CC recipients from original
+	OriginalMessage *gmail.Message `json:"-"`          // Don't serialize the full message
+	Recipients      []Recipient    `json:"recipients"` // To recipients (including original sender)
+	CC              []Recipient    `json:"cc"`         // CC recipients from original
 	Subject         string         `json:"subject"`
 	QuotedBody      string         `json:"quoted_body"`
 	ThreadID        string         `json:"thread_id,omitempty"`
@@ -728,15 +728,15 @@ type ForwardContext struct {
 
 // EmailTemplate represents a reusable email template
 type EmailTemplate struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Category    string            `json:"category"`
-	Subject     string            `json:"subject"`
-	Body        string            `json:"body"`
-	Variables   []string          `json:"variables"`
-	Metadata    map[string]string `json:"metadata"`
-	CreatedAt   time.Time         `json:"created_at"`
-	ModifiedAt  time.Time         `json:"modified_at"`
+	ID         string            `json:"id"`
+	Name       string            `json:"name"`
+	Category   string            `json:"category"`
+	Subject    string            `json:"subject"`
+	Body       string            `json:"body"`
+	Variables  []string          `json:"variables"`
+	Metadata   map[string]string `json:"metadata"`
+	CreatedAt  time.Time         `json:"created_at"`
+	ModifiedAt time.Time         `json:"modified_at"`
 }
 
 // Attachment represents a file attachment (reusing existing pattern if available)

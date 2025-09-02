@@ -719,7 +719,7 @@ func (a *App) executeSlackCommand(args []string) {
 	} else {
 		// Use cached message ID (for undo functionality) with sync fallback
 		messageID = a.GetCurrentMessageID()
-		
+
 		// Ensure cache is synchronized with cursor position
 		if a.logger != nil {
 			cursorID := a.getCurrentSelectedMessageID()
@@ -729,7 +729,7 @@ func (a *App) executeSlackCommand(args []string) {
 				a.SetCurrentMessageID(messageID)
 			}
 		}
-		
+
 		if messageID == "" {
 			a.showError("No message selected")
 			return
@@ -2012,7 +2012,7 @@ func (a *App) executeReplyAllCommand(args []string) {
 	go a.replyAllSelected()
 }
 
-// executeForwardCommand handles :forward/:f commands  
+// executeForwardCommand handles :forward/:f commands
 func (a *App) executeForwardCommand(args []string) {
 	go a.forwardSelected()
 }

@@ -1130,7 +1130,7 @@ func (a *App) removeTableRow(table *tview.Table, index int) {
 func (a *App) ExpandThread() error {
 	// Use cached thread ID (for undo functionality) with sync fallback
 	threadID := a.GetCurrentMessageID() // In thread mode, this is actually a thread ID
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -1140,7 +1140,7 @@ func (a *App) ExpandThread() error {
 			a.SetCurrentMessageID(threadID)
 		}
 	}
-	
+
 	if threadID == "" {
 		return fmt.Errorf("no thread selected")
 	}
@@ -1295,7 +1295,7 @@ func (a *App) CollapseAllThreads() error {
 func (a *App) GenerateThreadSummary() error {
 	// Use cached thread ID (for undo functionality) with sync fallback
 	threadID := a.GetCurrentMessageID() // In thread mode, this is actually a thread ID
-	
+
 	// Ensure cache is synchronized with cursor position
 	if a.logger != nil {
 		cursorID := a.getCurrentSelectedMessageID()
@@ -1305,7 +1305,7 @@ func (a *App) GenerateThreadSummary() error {
 			a.SetCurrentMessageID(threadID)
 		}
 	}
-	
+
 	if threadID == "" {
 		return fmt.Errorf("no thread selected")
 	}

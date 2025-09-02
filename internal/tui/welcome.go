@@ -147,17 +147,17 @@ func (a *App) getWelcomeShortcuts(loggedIn bool) string {
 		// Logged in state - show main functionality shortcuts
 		addShortcut(a.Keys.Help, "?", "Help")
 		addShortcut(a.Keys.Search, "s", "Search")
-		addShortcut(a.Keys.Unread, "u", "Unread") 
+		addShortcut(a.Keys.Unread, "u", "Unread")
 		addShortcut(a.Keys.CommandMode, ":", "Commands")
-		
+
 	} else {
 		// Credentials missing state - show basic shortcuts only
 		addShortcut(a.Keys.Help, "?", "Help")
 		addShortcut(a.Keys.Quit, "q", "Quit")
-		
+
 	}
 
 	result := strings.Join(shortcuts, "  ")
-	
+
 	return result
 }

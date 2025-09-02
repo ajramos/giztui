@@ -115,7 +115,7 @@ func (a *App) configureTableForMode(table *tview.Table, mode render.DisplayMode)
 		cell := tview.NewTableCell(columnConfig.Header).
 			SetSelectable(false).
 			SetAlign(columnConfig.Alignment).
-			SetTextColor(generalColors.Title.Color()).         // Header text in title color
+			SetTextColor(generalColors.Title.Color()).           // Header text in title color
 			SetBackgroundColor(generalColors.Background.Color()) // Header background
 
 		if columnConfig.Expansion > 0 {
@@ -942,7 +942,7 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		return render.EmailColumnData{
 			RowType: render.RowTypeThreadHeader,
 			Columns: []render.ColumnCell{
-				{"■ ", tview.AlignLeft, 2, 0},            // Type: Single message indicator
+				{"■ ", tview.AlignLeft, 2, 0},           // Type: Single message indicator
 				{"      ", tview.AlignRight, 6, 0},      // Thread Count: 6 spaces for alignment
 				{"○", tview.AlignCenter, 3, 0},          // Status: Read
 				{"(No thread)", tview.AlignLeft, 0, 1},  // From

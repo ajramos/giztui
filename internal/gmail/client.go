@@ -227,7 +227,7 @@ func (c *Client) GetDraft(draftID string) (*gmail.Draft, error) {
 func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, error) {
 	// Properly encode the subject for email headers
 	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
-	
+
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{"me"},
@@ -271,7 +271,7 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) error {
 	// Properly encode the subject for email headers
 	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
-	
+
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{"me"},
@@ -325,7 +325,7 @@ func (c *Client) DeleteDraft(draftID string) error {
 func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (string, error) {
 	// Properly encode the subject for email headers
 	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
-	
+
 	msg := &mail.Message{
 		Header: mail.Header{
 			"From":    []string{from},
