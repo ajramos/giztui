@@ -2,6 +2,14 @@
 
 This file provides essential architectural patterns and requirements for Claude Code when working on GizTUI.
 
+## 📚 **Quick Documentation Access**
+
+**New to GizTUI development?** Start here:
+- 📖 [Documentation Hub](docs/README.md) - Complete documentation navigation
+- 🏗️ [Architecture Guide](docs/ARCHITECTURE.md) - Development patterns and conventions  
+- 🧪 [Testing Guide](docs/TESTING.md) - Quality assurance framework
+- 🎨 [Theming Guide](docs/THEMING.md) - UI component theming system
+
 ## 📝 **Git Commit Guidelines**
 
 When committing changes, **DO NOT** include Claude signatures or co-authored by lines in commit messages. Keep commit messages clean and focused on the actual changes.
@@ -38,6 +46,21 @@ When committing changes, **DO NOT** include Claude signatures or co-authored by 
 - **NEVER** use shared boolean flags like `labelsVisible`
 - **ALWAYS** use `setActivePicker()` and `isLabelsPickerActive()` methods
 
+**Available picker constants:**
+- `PickerNone` - No picker active
+- `PickerLabels` - Labels picker  
+- `PickerDrafts` - Drafts picker
+- `PickerObsidian` - Obsidian integration
+- `PickerAttachments` - Attachments picker
+- `PickerLinks` - Links picker
+- `PickerPrompts` - Prompts picker
+- `PickerBulkPrompts` - Bulk prompts picker
+- `PickerSavedQueries` - Saved queries picker
+- `PickerThemes` - Theme picker
+- `PickerAI` - AI labels picker
+- `PickerContentSearch` - Content search picker
+- `PickerRSVP` - RSVP picker
+
 ```go
 // ✅ CORRECT - Use specific picker enum
 a.setActivePicker(PickerLabels)
@@ -60,6 +83,8 @@ if a.labelsVisible {    // Wrong picker may trigger
   - **System components**: `general`, `search`
   - **Picker components**: `attachments`, `saved_queries`, `labels`
 
+**All supported components**: `general`, `search`, `attachments`, `obsidian`, `saved_queries`, `slack`, `prompts`, `ai`, `labels`, `stats`, `links`
+
 ```go
 // ✅ CORRECT - Use hierarchical theme system
 componentColors := app.GetComponentColors("search")
@@ -78,6 +103,14 @@ container.SetBorderColor(componentColors.Border.Color())
 - **ALWAYS** use `ErrorHandler` for ALL status operations
 - **NEVER** use direct status methods (`setStatusPersistent`, `showStatusMessage`)
 - **NEVER** wrap ErrorHandler calls in `QueueUpdateDraw()`
+
+**Available ErrorHandler methods**:
+- `ShowError(ctx, message)` - Red error messages
+- `ShowSuccess(ctx, message)` - Green success messages  
+- `ShowWarning(ctx, message)` - Yellow warning messages
+- `ShowInfo(ctx, message)` - Blue info messages
+- `ShowProgress(ctx, message)` - Progress indicators
+- `SetPersistentStatus(ctx, message)` - Long-term status
 
 ```go
 // ✅ CORRECT - From key handlers, use goroutine
@@ -199,10 +232,51 @@ func (a *App) handleNewFeature() error {
 - Add to `executeCommand()` in `internal/tui/commands.go`
 - Add to command suggestions in `generateCommandSuggestion()`
 
+**Examples of keyboard → command parity**:
+- `a` (archive) → `:archive` or `:arch`
+- `t` (trash) → `:trash` or `:tr`
+- `l` (labels) → `:labels` or `:lab`
+- `Ctrl+A` (select all) → `:select all` or `:sel all`
+- `/` (search) → `:search <query>` or `:s <query>`
+
+**Gmail search integration** - Commands should support Gmail search operators (see [GMAIL_SEARCH_REFERENCE.md](docs/GMAIL_SEARCH_REFERENCE.md)):
+```
+:search from:example@gmail.com has:attachment
+:s subject:invoice after:2024/01/01
+```
+
 ## 🛠️ **Build & Test Commands**
-- `make build` - Build the application
+
+### Essential Commands
+- `make build` - Build the application with version injection
 - `make test` - Run tests
 - `make fmt` - Format code
+- `make lint` - Run linting (requires golangci-lint)
+- `make vet` - Verify code
+
+### Testing Commands  
+- `make test-all` - Run all tests
+- `make test-unit` - Run unit tests
+- `make test-tui` - Run TUI component tests
+- `make test-integration` - Run integration tests
+- `make test-mocks` - Generate mocks using mockery
+- `make test-coverage` - Run tests with coverage
+- `make test-race` - Run tests with race detector
+
+### Development Commands
+- `make dev` - Development mode (build and run)
+- `make run` - Run the application
+- `make debug` - Build with debug information
+- `make clean` - Clean generated files
+- `make deps` - Install dependencies
+- `make install` - Install the application
+
+### Release Commands
+- `make release` - Prepare release (build binaries and generate archives)
+- `make release-build` - Build release binaries for all platforms
+- `make version` - Show version information
+
+For complete list: `make help`
 
 ## 🎯 **Development Workflow**
 
@@ -215,8 +289,9 @@ When implementing a new feature:
 6. **Integrate with UI** - Presentation logic only
 7. **Add Error Handling** - Use ErrorHandler consistently
 8. **Ensure Thread Safety** - Use accessor methods
-9. **Command Parity** - Add equivalent command
-10. **Test Integration** - Verify build and functionality
+9. **Command Parity** - Add equivalent command (see [KEYBOARD_SHORTCUTS.md](docs/KEYBOARD_SHORTCUTS.md))
+10. **Test Integration** - Verify build and functionality (see [TESTING.md](docs/TESTING.md))
+11. **Documentation** - Update relevant docs in [docs/](docs/) if needed
 
 ## 📚 **Reference Documentation**
 
@@ -224,10 +299,47 @@ For detailed information, see:
 - `docs/ARCHITECTURE.md` - Complete architectural patterns
 - `docs/THEMING.md` - Theme system usage and component guidelines  
 - `docs/FOCUS_MANAGEMENT.md` - UI focus patterns and side panel behavior
+- `docs/TESTING.md` - Testing framework and quality assurance
+- `docs/KEYBOARD_SHORTCUTS.md` - Command system and shortcut examples
+- `docs/GMAIL_SEARCH_REFERENCE.md` - Gmail search operators and patterns
 - `internal/services/interfaces.go` - All service contracts
 - `internal/tui/error_handler.go` - Error handling patterns
 - `internal/tui/keys.go` - ESC key handling examples
 
 ---
+
+## 🎯 **Quick Reference Checklist**
+
+Before submitting any code, ensure:
+
+### ✅ **Architecture**
+- [ ] Business logic is in services (`internal/services/`)
+- [ ] UI components only handle presentation
+- [ ] All services implement interfaces
+- [ ] Services are dependency-injected, not instantiated
+
+### ✅ **Threading & Safety**
+- [ ] Used thread-safe accessor methods (`GetCurrentView()`, etc.)
+- [ ] Never accessed app struct fields directly
+- [ ] Used `ActivePicker` enum for side panel state
+- [ ] Never used `QueueUpdateDraw()` in ESC handlers
+
+### ✅ **Error Handling**
+- [ ] All user feedback uses `ErrorHandler` methods
+- [ ] No direct `fmt.Printf`, `log.Printf` for user messages
+- [ ] Proper error levels (`ShowError`, `ShowSuccess`, etc.)
+- [ ] ErrorHandler calls in goroutines from key handlers
+
+### ✅ **Theming**
+- [ ] Used `GetComponentColors("component")` for all theming
+- [ ] Applied colors to ALL UI elements consistently
+- [ ] Chose appropriate component type (see THEMING.md)
+- [ ] Never used hardcoded colors or deprecated methods
+
+### ✅ **Testing & Quality**
+- [ ] Added/updated tests (see TESTING.md)
+- [ ] Ran `make lint` and `make vet` without errors
+- [ ] Command parity implemented (keyboard shortcut + `:command`)
+- [ ] Updated documentation if needed
 
 **Remember**: This architecture ensures maintainable, testable, and robust code. Follow these patterns consistently for high-quality development.
