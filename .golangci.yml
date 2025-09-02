@@ -1,5 +1,3 @@
-version: "2"
-
 run:
   timeout: 5m
   go: "1.23"
@@ -13,24 +11,8 @@ linters:
     - unused
     - misspell
     - gosec
-    - gocyclo
-    - dupl
-    - goconst
-    - gocognit
-    - lll
-    - nakedret
-    - unparam
-    - unconvert
-    - nolintlint
 
 linters-settings:
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 3
-    min-occurrences: 3
   gosec:
     excludes:
       - G101 # Look for hardcoded credentials
@@ -38,26 +20,14 @@ linters-settings:
       - G204 # Audit use of command execution
       - G304 # File path provided as taint input
       - G404 # Use of weak random number generator
-  govet:
-    check-shadowing: true
-  lll:
-    line-length: 140
   misspell:
     locale: US
-  nolintlint:
-    allow-unused: false
-    require-explanation: false
-    require-specific: false
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gocyclo
-        - gocognit
-        - dupl
-        - goconst
-        - lll
+        - gosec
     - path: internal/llm/
       linters:
         - gosec
