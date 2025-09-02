@@ -163,6 +163,7 @@ type ComponentColors struct {
 	Attachments  ComponentColorSet `yaml:"attachments"`   // Attachment picker colors
 	SavedQueries ComponentColorSet `yaml:"saved_queries"` // Saved queries picker colors
 	Compose      ComponentColorSet `yaml:"compose"`       // Email composition UI colors
+	RSVP         ComponentColorSet `yaml:"rsvp"`          // Calendar RSVP panel colors
 }
 
 // ComponentColorSet defines a complete color set for a UI component
@@ -301,6 +302,7 @@ const (
 	ComponentTypeThemes       ComponentType = "themes"
 	ComponentTypeCompose      ComponentType = "compose"
 	ComponentTypeDrafts       ComponentType = "drafts"
+	ComponentTypeRSVP         ComponentType = "rsvp"
 )
 
 // GetComponentColor resolves a color for a specific component and color type
@@ -781,6 +783,13 @@ func DefaultColors() *ColorsConfig {
 				Background: NewColor("#282a36"), // Dark background
 				Text:       NewColor("#f8f8f2"), // Light text
 				Accent:     NewColor("#50fa7b"), // Green accent for send/success actions
+			},
+			RSVP: ComponentColorSet{
+				Border:     NewColor("#f1fa8c"), // Yellow border for calendar invites
+				Title:      NewColor("#f1fa8c"), // Yellow title for calendar invites
+				Background: NewColor("#282a36"), // Dark background
+				Text:       NewColor("#f8f8f2"), // Light text
+				Accent:     NewColor("#50fa7b"), // Green accent for accept/success actions
 			},
 		},
 	}

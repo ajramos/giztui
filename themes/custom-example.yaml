@@ -78,3 +78,7 @@ gmailTUI:
     compose:
       primary: "#3498db"           # Blue for email composition titles
       accent: "#27ae60"            # Green for send/success actions
+      
+    rsvp:
+      primary: "#f39c12"           # Orange for calendar invite titles
+      accent: "#27ae60"            # Green for accept/success actions
