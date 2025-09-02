@@ -5,23 +5,38 @@ alwaysApply: false
 
 # Testing Patterns - Gmail TUI
 
+## Comprehensive Testing Framework
+
+GizTUI uses a sophisticated testing framework located in `test/helpers/` with multiple testing layers:
+
+1. **Component Testing** - TUI components using `tcell.SimulationScreen`
+2. **Service Testing** - Business logic with mocked dependencies  
+3. **Integration Testing** - Real services using VCR recording
+4. **Visual Regression Testing** - UI consistency using snapshots
+5. **Performance Testing** - Benchmarks and load testing
+
+See `docs/TESTING.md` for complete framework documentation.
+
 ## Service Layer Testing
 
-### **Unit Testing Services**
+### **Unit Testing Services with Mock Dependencies**
 ```go
-// Test structure for services
+// Test structure for services using mockery-generated mocks
 func TestEmailService_ArchiveMessage(t *testing.T) {
     // Arrange
-    mockClient := &MockGmailClient{}
-    mockRenderer := &MockRenderer{}
-    service := NewEmailService(mockRepository, mockClient, mockRenderer)
+    mockClient := mocks.NewMockGmailClient(t)
+    mockRepo := mocks.NewMockRepository(t)
+    service := NewEmailService(mockRepo, mockClient, config)
+    
+    // Setup mock expectations
+    mockClient.On("ArchiveMessage", mock.Anything, "test-message-id").Return(nil)
     
     // Act
     err := service.ArchiveMessage(context.Background(), "test-message-id")
     
     // Assert
     assert.NoError(t, err)
-    assert.True(t, mockClient.WasCalled("ArchiveMessage"))
+    mockClient.AssertExpectations(t)
 }
 ```
 
@@ -58,25 +73,32 @@ func (m *MockGmailClient) WasCalled(method string) bool {
 }
 ```
 
-## UI Testing Patterns
+## TUI Component Testing with Test Harness
 
-### **Component Testing**
+### **Component Testing with SimulationScreen**
 ```go
-func TestApp_HandleArchiveAction(t *testing.T) {
-    // Arrange
-    app := NewTestApp()
-    mockEmailService := &MockEmailService{}
-    app.emailService = mockEmailService
+func TestMessageList_KeyboardNavigation(t *testing.T) {
+    // Use test harness for TUI component testing
+    harness := helpers.NewTestHarness(t)
+    defer harness.Cleanup()
     
-    // Simulate message selection
-    app.SetCurrentMessageID("test-id")
+    // Setup mock expectations
+    harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
+        Return(&services.MessagePage{
+            Messages: harness.GenerateTestMessages(10),
+        }, nil)
     
-    // Act
-    err := app.handleArchiveAction()
+    // Test component
+    component := harness.App.GetMessageListComponent()
+    harness.DrawComponent(component)
     
-    // Assert  
-    assert.NoError(t, err)
-    assert.True(t, mockEmailService.WasCalled("ArchiveMessage"))
+    // Simulate keyboard input
+    harness.SimulateKeyEvent(tcell.KeyDown, 0, tcell.ModNone)
+    harness.SimulateKeyEvent(tcell.KeyEnter, 0, tcell.ModNone)
+    
+    // Validate screen content and state
+    harness.AssertScreenContains(t, "Expected Content")
+    assert.Equal(t, "expected-message-id", harness.App.GetCurrentMessageID())
 }
 ```
 
@@ -193,19 +215,60 @@ internal/
     └── api_test.go
 ```
 
-## Running Tests
+## Testing Framework Integration
+
+### **Test Harness for Comprehensive Testing**
+```go
+func TestBulkOperations(t *testing.T) {
+    harness := helpers.NewTestHarness(t)
+    defer harness.Cleanup()
+    
+    // Test bulk operations with helper
+    helpers.TestBulkOperations(t, harness)
+    helpers.TestBulkOperationEdgeCases(t, harness)
+}
+
+func TestVisualRegression(t *testing.T) {
+    harness := helpers.NewTestHarness(t)
+    defer harness.Cleanup()
+    
+    // Test UI consistency with snapshots
+    component := harness.App.GetMessageListComponent()
+    harness.DrawComponent(component)
+    
+    snapshot := harness.GetScreenContent()
+    snaps.MatchSnapshot(t, snapshot, "message_list_rendering")
+}
+
+func TestAsyncOperations(t *testing.T) {
+    harness := helpers.NewTestHarness(t)
+    defer harness.Cleanup()
+    
+    // Test async operations and cancellation
+    helpers.TestAsyncOperations(t, harness)
+    helpers.TestAsyncOperationCancellation(t, harness)
+}
+```
+
+## Running Tests with Make Commands
 
 ```bash
-# Unit tests only
-go test -short ./...
+# Generate mocks first
+make test-mocks
 
-# All tests including integration
-go test ./...
+# Run all tests
+make test-all
 
-# Coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Run specific test types
+make test-unit      # Service layer tests
+make test-tui       # TUI component tests  
+make test-integration # Integration tests
+make test-coverage  # Tests with coverage report
 
-# Benchmark tests
-go test -bench=. ./...
+# Update snapshots (use with caution)
+make test-snapshots-update
+
+# Performance testing
+make test-performance
+make test-load
 ```

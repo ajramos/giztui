@@ -283,33 +283,38 @@ func (a *App) updateFocusIndicators() {
 
 ## Color and Styling Patterns
 
-### **Theme Application Pattern**
+### **Modern Hierarchical Theme System**
 ```go
-func (a *App) applyTheme(theme *config.ColorsConfig) {
-    // Update global tview styles
-    tview.Styles.PrimitiveBackgroundColor = theme.Body.BgColor.Color()
-    tview.Styles.PrimaryTextColor = theme.Body.FgColor.Color()
-    tview.Styles.BorderColor = theme.Frame.Border.FgColor.Color()
-    tview.Styles.FocusColor = theme.Frame.Border.FocusColor.Color()
+func (a *App) createThemedComponent(componentType string) *tview.Flex {
+    // Use hierarchical theme system with component-specific colors
+    colors := a.GetComponentColors(componentType)
     
-    // Update renderer colors
-    if a.emailRenderer != nil {
-        a.emailRenderer.UpdateFromConfig(theme)
-    }
+    container := tview.NewFlex().SetDirection(tview.FlexRow)
+    container.SetBorder(true).
+        SetTitle("Component Title").
+        SetTitleColor(colors.Title.Color()).
+        SetBackgroundColor(colors.Background.Color()).
+        SetBorderColor(colors.Border.Color())
     
-    // Force redraw all components
-    a.QueueUpdateDraw(func() {
-        for _, view := range a.views {
-            if themeable, ok := view.(ThemeableComponent); ok {
-                themeable.ApplyTheme(theme)
-            }
-        }
-    })
+    // Apply consistent theming to all elements
+    input := tview.NewInputField().
+        SetLabel("Input: ").
+        SetFieldBackgroundColor(colors.Background.Color()).
+        SetFieldTextColor(colors.Text.Color()).
+        SetLabelColor(colors.Title.Color())
+    
+    list := tview.NewList()
+    list.SetBackgroundColor(colors.Background.Color()).
+        SetMainTextColor(colors.Text.Color()).
+        SetSelectedBackgroundColor(colors.Accent.Color()).
+        SetSelectedTextColor(colors.Background.Color())
+    
+    return container
 }
 
-type ThemeableComponent interface {
-    ApplyTheme(*config.ColorsConfig)
-}
+// Supported component types (see docs/THEMING.md):
+// "general", "search", "attachments", "obsidian", "saved_queries", 
+// "slack", "prompts", "ai", "labels", "stats", "links"
 ```
 
 ## Error and Loading States

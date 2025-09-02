@@ -29,8 +29,20 @@ alwaysApply: true
     - `render/` - Email formatting and display
   - `pkg/` - Public packages
     - `auth/` - OAuth2 authentication
-  - `docs/` - Documentation
+  - `docs/` - Professional documentation structure
+    - `README.md` - Documentation hub and navigation
+    - `FEATURES.md` - Complete feature documentation
+    - `GETTING_STARTED.md` - New user onboarding guide
+    - `CONFIGURATION.md` - Complete configuration reference
+    - `KEYBOARD_SHORTCUTS.md` - Comprehensive shortcut reference
+    - `TESTING.md` - Testing framework and quality assurance
+    - `THEMING.md` - Theme system and component guidelines
+    - `GMAIL_SEARCH_REFERENCE.md` - Gmail search operators and patterns
+    - `ARCHITECTURE.md` - Development patterns and conventions
+    - `FOCUS_MANAGEMENT.md` - UI focus patterns and side panel behavior
   - `examples/` - Usage examples
+  - `test/` - Comprehensive testing framework
+    - `helpers/` - Testing utilities and framework components
 
 ## Code Style
 - Use Go 1.21+ features

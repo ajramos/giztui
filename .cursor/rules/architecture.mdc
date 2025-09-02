@@ -74,15 +74,38 @@ Feature Placement Guide
 - Message list/content → messages.go
 - Labels (UI + apply/remove) → labels.go
 - AI (summary, suggest labels) → ai.go
+- Slack integration → slack.go
+- Obsidian integration → obsidian.go
+- Attachments picker → attachments.go
+- Links picker → links.go
+- Prompts picker → prompts.go
+- Bulk prompts → bulk_prompts.go
+- Saved queries → saved_queries.go
+- Themes picker → themes.go
+- Statistics → stats.go
 - Markdown toggle/render → markdown.go
 - Command bar & execution → commands.go
 - Status/flash → status.go
 - Layout & focus → layout.go
 
+## Picker State Management (CRITICAL)
+- **ALWAYS use ActivePicker enum** for side panel pickers
+- **Available picker types**: PickerNone, PickerLabels, PickerDrafts, PickerObsidian, PickerAttachments, PickerLinks, PickerPrompts, PickerBulkPrompts, PickerSavedQueries, PickerThemes, PickerAI, PickerContentSearch, PickerRSVP
+- **NEVER use shared boolean flags** like `labelsVisible` (causes race conditions)
+- Use `setActivePicker()` and specific picker check methods
+
+## Documentation References
+- `docs/README.md` - Documentation hub and navigation
+- `docs/ARCHITECTURE.md` - Complete architectural patterns
+- `docs/TESTING.md` - Testing framework and quality assurance
+- `docs/THEMING.md` - Theme system and component guidelines
+- `CLAUDE.md` - Essential development patterns and anti-patterns
+
 Testing & Safety
 - After edits in tui/, ensure go build succeeds.
 - Prefer small, incremental edits with local run verification.
 - Add logs behind a.debug when diagnosing issues; trim once stable.
+- Use testing framework in `test/helpers/` for comprehensive validation
 
 Change Discipline
 - Do not add new responsibilities into app.go; extend the appropriate file/module.

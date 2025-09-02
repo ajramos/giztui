@@ -125,8 +125,8 @@ Implement the following feature for Gmail TUI with complete architectural compli
 
 ### 17. Testing & Validation
 - **Create comprehensive test plan**: `testplan_[feature_name].md`  
-- **Use the testing framework in `test/helpers/`** for automated testing
-- **Unit tests**: Test service logic using mock dependencies
+- **Use the testing framework in `test/helpers/`** for automated testing (see `docs/TESTING.md`)
+- **Unit tests**: Test service logic using mock dependencies with mockery
 - **Component tests**: Test TUI components with test harness and SimulationScreen
 - **Integration tests**: Test complete workflows using the integration test framework
 - **Visual regression tests**: Test UI consistency with snapshot testing
@@ -135,12 +135,13 @@ Implement the following feature for Gmail TUI with complete architectural compli
 - **Keyboard shortcut tests**: Test user interaction simulation
 - **Performance tests**: Test critical operation benchmarks
 - Test all functionality: happy path, edge cases, error conditions
-- Test keyboard shortcuts and command equivalents
+- Test keyboard shortcuts and command equivalents (see `docs/KEYBOARD_SHORTCUTS.md`)
 - Test bulk mode support
 - Test ESC key behavior and cleanup
 - Test picker/modal integration
-- Test theming integration
+- Test theming integration (see `docs/THEMING.md`)
 - Test external service integration
+- **Test search functionality** with Gmail operators (see `docs/GMAIL_SEARCH_REFERENCE.md`)
 - **Run build verification**: `make build`
 - **Run test framework**: `make test-all` or `make test-unit` for service tests
 - Run linting: `make lint`, `make fmt` if available
@@ -236,7 +237,14 @@ Before considering complete, verify ALL of these:
 - `test/helpers/bulk_operations_test.go` - Multi-message operation testing
 - `test/helpers/async_operations_test.go` - Goroutine and cancellation testing
 - `test/helpers/keyboard_shortcuts_test.go` - User interaction testing
-- `docs/testing-framework.md` - Comprehensive testing framework documentation
+- `docs/TESTING.md` - Comprehensive testing framework documentation
+
+**Documentation Hub:**
+- `docs/README.md` - Documentation navigation and user journey guides
+- `docs/FEATURES.md` - Complete feature documentation
+- `docs/GETTING_STARTED.md` - New user onboarding guide
+- `docs/CONFIGURATION.md` - Configuration reference
+- `docs/THEMING.md` - Theme system and component guidelines
 
 **CRITICAL:** Read `CLAUDE.md` thoroughly - it contains the essential architectural patterns, debugging lessons, and "tricks" that prevent bugs and ensure features integrate seamlessly.
 

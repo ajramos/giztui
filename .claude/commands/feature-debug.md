@@ -246,6 +246,7 @@ assert.Contains(t, content, "expected behavior")
 - `test/helpers/visual_regression_test.go` - UI consistency testing
 - `test/helpers/bulk_operations_test.go` - Bulk operation debugging patterns
 - `test/helpers/async_operations_test.go` - Goroutine and cancellation testing
+- `docs/TESTING.md` - Complete testing framework documentation and patterns
 
 **Log Analysis Tools:**
 - `a.logger.Printf()` - Current logging approach
