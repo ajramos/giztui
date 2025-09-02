@@ -414,7 +414,23 @@ func (a *App) onWindowResize() {
 			// Use a short delay to avoid excessive refreshes during window dragging
 			time.Sleep(50 * time.Millisecond)
 			if a.getCurrentSelectedMessageID() == currentMessageID {
-				a.showMessage(currentMessageID)
+				// Preserve current focus state during resize refresh
+				currentFocusState := a.GetCurrentFocus()
+				currentPickerState := a.currentActivePicker
+				
+				// Use showMessageWithoutFocus to avoid changing focus
+				a.showMessageWithoutFocus(currentMessageID)
+				
+				// Restore previous focus and picker state
+				if currentPickerState != PickerNone {
+					// If a picker was active, restore its focus
+					a.currentFocus = currentFocusState
+					a.updateFocusIndicators(currentFocusState)
+					// Restore picker focus by setting focus to the picker view
+					if a.labelsView != nil {
+						a.SetFocus(a.labelsView)
+					}
+				}
 			}
 		}()
 	}
@@ -856,6 +872,13 @@ func (a *App) GetCurrentView() string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.currentView
+}
+
+// GetCurrentFocus returns the current focus state thread-safely
+func (a *App) GetCurrentFocus() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.currentFocus
 }
 
 // SetCurrentView sets the current view name thread-safely

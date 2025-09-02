@@ -33,6 +33,25 @@ When committing changes, **DO NOT** include Claude signatures or co-authored by 
 - **NEVER** access app struct fields directly
 - **ALWAYS** use proper mutex protection for new state fields
 
+### **Picker State Management (MANDATORY)**
+- **ALWAYS** use `ActivePicker` enum system for side panel pickers
+- **NEVER** use shared boolean flags like `labelsVisible`
+- **ALWAYS** use `setActivePicker()` and `isLabelsPickerActive()` methods
+
+```go
+// ✅ CORRECT - Use specific picker enum
+a.setActivePicker(PickerLabels)
+if a.isLabelsPickerActive() {
+    a.populateLabelsQuickView(messageID)
+}
+
+// ❌ WRONG - Shared boolean causes race conditions
+a.labelsVisible = true  // Multiple pickers conflict
+if a.labelsVisible {    // Wrong picker may trigger
+    a.populateLabelsQuickView(messageID)
+}
+```
+
 ### **Theming (MANDATORY)**
 - **ALWAYS** use `app.GetComponentColors("component")` for all UI theming
 - **NEVER** use deprecated theme methods or hardcoded colors
@@ -118,6 +137,12 @@ a.QueueUpdateDraw(func() {
 // ❌ Hardcoded colors/deprecated theme methods
 container.SetBackgroundColor(tcell.ColorBlue)
 container.SetTitleColor(a.getTitleColor()) // REMOVED
+
+// ❌ Shared picker boolean flags
+a.labelsVisible = true  // Race conditions with multiple pickers
+if a.labelsVisible {    // Wrong picker may be active
+    // Business logic
+}
 ```
 
 ## 📋 **Essential Code Templates**

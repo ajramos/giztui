@@ -127,6 +127,48 @@ Key concepts:
 - **Command parity** - Ensure `:command` behaves identically to keyboard shortcuts
 - **Consistent UI patterns** - All pickers use same container and focus restoration
 
+### 🔧 **ActivePicker State Management**
+
+Use the **ActivePicker enum system** for side panel picker state management:
+
+```go
+// ✅ Correct - Use specific picker enum values
+a.setActivePicker(PickerLabels)     // Labels picker
+a.setActivePicker(PickerDrafts)     // Drafts picker  
+a.setActivePicker(PickerAttachments) // Attachments picker
+a.setActivePicker(PickerNone)       // Close picker
+
+// ✅ Check picker state
+if a.isLabelsPickerActive() {
+    // Only populate labels when Labels picker is active
+    a.populateLabelsQuickView(messageID)
+}
+
+// ❌ Wrong - Never use shared boolean flags
+a.labelsVisible = true  // Causes race conditions
+```
+
+**Available picker constants:**
+- `PickerNone` - No picker active
+- `PickerLabels` - Labels picker  
+- `PickerDrafts` - Drafts picker
+- `PickerAttachments` - Attachments picker
+- `PickerObsidian` - Obsidian integration
+- `PickerLinks` - Links picker
+- `PickerPrompts` - Prompts picker
+- `PickerBulkPrompts` - Bulk prompts picker
+- `PickerSavedQueries` - Saved queries picker
+- `PickerThemes` - Theme picker
+- `PickerAI` - AI labels picker
+- `PickerContentSearch` - Content search picker
+- `PickerRSVP` - RSVP picker
+
+**Benefits:**
+- Prevents race conditions during screen resize/maximize
+- Avoids wrong picker display after async operations
+- Enables proper focus restoration after window events
+- Provides clear debugging through specific state tracking
+
 ## 🚨 **Error Handling Patterns**
 
 ### ✅ **Use ErrorHandler for All User Feedback**
