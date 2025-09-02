@@ -2891,6 +2891,7 @@ func (a *App) openRSVPModal() {
 		titleView.SetText("📅 Meeting Invitation")
 	}
 	titleView.SetTextColor(a.GetComponentColors("rsvp").Title.Color())
+	titleView.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 	meetingContainer.AddItem(titleView, 1, 0, false)
 
 	// Organizer
@@ -2917,7 +2918,8 @@ func (a *App) openRSVPModal() {
 		if timeRange != "" {
 			timeView := tview.NewTextView().SetWordWrap(true)
 			timeView.SetText(fmt.Sprintf("🕐 %s", timeRange))
-			timeView.SetTextColor(a.GetStatusColor("success"))
+			timeView.SetTextColor(a.GetComponentColors("rsvp").Text.Color())
+			timeView.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 			meetingContainer.AddItem(timeView, 1, 0, false)
 		}
 	}
@@ -2939,8 +2941,9 @@ func (a *App) openRSVPModal() {
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	footer.SetText(" Enter to respond | Esc to close ")
 	footer.SetTextColor(a.GetComponentColors("rsvp").Text.Color())
+	footer.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 
-	// Create container with meeting info at top
+	// Create container with meeting info at top (standard picker pattern - no fixed width)
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBorder(true).SetTitle(" 📅 RSVP ").SetTitleColor(a.GetComponentColors("rsvp").Title.Color())
 	container.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
@@ -2950,6 +2953,7 @@ func (a *App) openRSVPModal() {
 
 	// Add blank line between meeting details and RSVP options
 	spacer := tview.NewTextView()
+	spacer.SetBackgroundColor(a.GetComponentColors("rsvp").Background.Color())
 	container.AddItem(spacer, 1, 0, false)
 
 	// Add RSVP options list (flexible height)
@@ -2976,7 +2980,7 @@ func (a *App) openRSVPModal() {
 		go a.sendRSVP(choice, "")
 		// Close panel
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			split.ResizeItem(a.labelsView, 0, 0)
+			split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
 		}
 		a.setActivePicker(PickerNone)
 		a.restoreFocusAfterModal()
@@ -2988,7 +2992,7 @@ func (a *App) openRSVPModal() {
 			return nil
 		case tcell.KeyEscape:
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0)
+				split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
 			}
 			a.setActivePicker(PickerNone)
 			a.restoreFocusAfterModal()
@@ -2999,11 +3003,11 @@ func (a *App) openRSVPModal() {
 
 	a.QueueUpdateDraw(func() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			// Mount into labels slot
+			// Keep main content visible and show RSVP panel on the right (like other pickers)
 			split.RemoveItem(a.labelsView)
 			a.labelsView = container
 			split.AddItem(a.labelsView, 0, 1, true)
-			split.ResizeItem(a.labelsView, 0, 1)
+			split.ResizeItem(a.labelsView, 0, 1)  // Show RSVP panel
 		}
 		a.setActivePicker(PickerRSVP)
 		a.currentFocus = "labels"
@@ -3203,8 +3207,7 @@ func formatMeetingTimeRange(dtStart, dtEnd string) string {
 	startStr := formatICalDateTime(dtStart)
 	endStr := formatICalDateTime(dtEnd)
 
-	// Debug logging
-	fmt.Printf("RSVP Debug: dtStart='%s' -> '%s', dtEnd='%s' -> '%s'\n", dtStart, startStr, dtEnd, endStr)
+	// Debug logging removed - was leaking to main content
 
 	// If start parsing failed, try to show something meaningful
 	// Check if startStr is empty or still contains unparsed format (like "DTSTART:" prefix)

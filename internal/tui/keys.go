@@ -267,7 +267,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		if a.currentActivePicker == PickerRSVP {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0)
+				split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
 			}
 			a.setActivePicker(PickerNone)
 			a.restoreFocusAfterModal()
@@ -974,7 +974,7 @@ func (a *App) bindKeys() {
 				// Toggle RSVP side panel
 				if a.currentActivePicker == PickerRSVP {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-						split.ResizeItem(a.labelsView, 0, 0)
+						split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
 					}
 					a.setActivePicker(PickerNone)
 					a.restoreFocusAfterModal()
