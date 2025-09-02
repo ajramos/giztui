@@ -290,7 +290,7 @@ func TestErrorHandler_refreshStatusDisplay_Priority(t *testing.T) {
 	eh.refreshStatusDisplay()
 
 	// Should show current status (highest priority)
-	text := statusView.GetText(false)
+	text := strings.TrimSpace(statusView.GetText(false))
 	assert.Equal(t, "Current message", text)
 
 	// Clear current, should show persistent
@@ -299,7 +299,7 @@ func TestErrorHandler_refreshStatusDisplay_Priority(t *testing.T) {
 	eh.mu.Unlock()
 
 	eh.refreshStatusDisplay()
-	text = statusView.GetText(false)
+	text = strings.TrimSpace(statusView.GetText(false))
 	assert.Equal(t, "Persistent message", text)
 
 	// Clear persistent, should show baseline
@@ -308,7 +308,7 @@ func TestErrorHandler_refreshStatusDisplay_Priority(t *testing.T) {
 	eh.mu.Unlock()
 
 	eh.refreshStatusDisplay()
-	text = statusView.GetText(false)
+	text = strings.TrimSpace(statusView.GetText(false))
 	assert.Equal(t, "Gmail TUI • Press ? for help • : for commands", text)
 }
 
@@ -405,9 +405,7 @@ func TestErrorHandler_StatusAutoClearing(t *testing.T) {
 	}
 
 	// Test that error messages should auto-clear
-	eh.mu.Lock()
 	eh.updateStatusMessage("Test error", LogLevelError)
-	eh.mu.Unlock()
 
 	// Should have a timer set for auto-clearing
 	eh.mu.RLock()
@@ -417,9 +415,7 @@ func TestErrorHandler_StatusAutoClearing(t *testing.T) {
 	assert.True(t, hasTimer, "Error messages should have auto-clear timer")
 
 	// Test that info messages with no persistent status should auto-clear
-	eh.mu.Lock()
 	eh.updateStatusMessage("Test info", LogLevelInfo)
-	eh.mu.Unlock()
 
 	eh.mu.RLock()
 	hasTimer = eh.statusTimer != nil
