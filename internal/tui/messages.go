@@ -587,24 +587,8 @@ func (a *App) loadMoreMessages() {
 			return
 		}
 		
-		// Phase 2.4: Check preloaded cache first
-		if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
-			if cachedMessages, found := preloader.GetCachedMessages(a.ctx, a.nextPageToken); found {
-				if a.logger != nil {
-					a.logger.Printf("PRELOAD CACHE HIT: Using cached messages for search results")
-				}
-				a.appendMessages(cachedMessages)
-				// Move to next page token (would need to be stored with cache)
-				a.nextPageToken = "" // Simplified - in full implementation, cache should store next token
-				// FOCUS FIX: Restore focus to message list after loading more search results
-				a.QueueUpdateDraw(func() {
-					a.SetFocus(a.views["list"])
-					a.currentFocus = "list"
-					a.updateFocusIndicators("list")
-				})
-				return
-			}
-		}
+		// Note: Preloader cache disabled for pagination to avoid nextPageToken conflicts
+		// The preloader is designed for individual message caching, not page-level caching
 		
 		a.setStatusPersistent("Loading more results…")
 		messages, next, err := a.Client.SearchMessagesPage(a.currentQuery, 50, a.nextPageToken)
@@ -629,18 +613,8 @@ func (a *App) loadMoreMessages() {
 		return
 	}
 	
-	// Phase 2.4: Check preloaded cache first
-	if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
-		if cachedMessages, found := preloader.GetCachedMessages(a.ctx, a.nextPageToken); found {
-			if a.logger != nil {
-				a.logger.Printf("PRELOAD CACHE HIT: Using cached messages for inbox")
-			}
-			a.appendMessages(cachedMessages)
-			// Move to next page token (would need to be stored with cache)
-			a.nextPageToken = "" // Simplified - in full implementation, cache should store next token
-			return
-		}
-	}
+	// Note: Preloader cache disabled for pagination to avoid nextPageToken conflicts
+	// The preloader is designed for individual message caching, not page-level caching
 	
 	a.setStatusPersistent("Loading next 50 messages…")
 	messages, next, err := a.Client.ListMessagesPage(50, a.nextPageToken)
