@@ -1221,7 +1221,7 @@ func (a *App) openAdvancedSearchForm() {
 
 	// Date within single token, e.g. "2d", "3w", "1m", "4h", "6y"
 	dateWithinField := tview.NewInputField().
-		SetLabel("⏱️  Date within").
+		SetLabel("📅 Date within").
 		SetPlaceholder("e.g., 2d, 3w, 1m, 4h, 6y").
 		SetFieldWidth(50)
 	a.ConfigureInputFieldTheme(dateWithinField, "advanced")
