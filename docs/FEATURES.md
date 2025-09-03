@@ -83,8 +83,9 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **Smart caching** - Cache prompt results to avoid re-processing
 - ✅ **Split-view interface** - Prompt picker appears as side panel
 - ✅ **Category organization** - Organize prompts by purpose (Summary, Analysis, Action Items)
-- ✅ **Usage tracking** - Monitor prompt usage patterns and effectiveness
-- ✅ **CRUD management** - Create, update, export, and delete templates via commands
+- ✅ **Usage tracking** - Monitor prompt usage patterns and effectiveness with `:prompt stats`
+- ✅ **Statistics display** - Full-screen prompt usage analytics with top prompts and favorites
+- ✅ **CRUD management** - Create, update, export, and delete templates via `:prompt` commands
 - ✅ **YAML front matter** - Standard Markdown format with metadata headers
 - ✅ **Management interface** - Browse all prompts including bulk analysis templates
 

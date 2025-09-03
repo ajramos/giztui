@@ -286,6 +286,16 @@ When you customize shortcuts, the priority order is:
 | `:preload next on/off` | Control next page preloading |
 | `:preload adjacent on/off` | Control adjacent message preloading |
 
+### Prompt Management Commands
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `:prompt stats` or `:prompt s` | `p` (opens prompt picker) | Show prompt usage statistics |
+| `:prompt list` or `:prompt l` | - | Manage prompts |
+| `:prompt create` or `:prompt c` | - | Create new prompt |
+| `:prompt update` or `:prompt u` | - | Update existing prompt |
+| `:prompt delete` or `:prompt d` | - | Delete prompt |
+| `:prompt export` or `:prompt e` | - | Export prompts |
+
 ## 🎨 Theme & UI
 
 ### Theme Operations

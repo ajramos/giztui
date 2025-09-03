@@ -2040,6 +2040,14 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    :preload on      🚀  Enable background preloading\n")
 	help.WriteString("    :preload off     ⏸️   Disable background preloading\n")
 	help.WriteString("    :preload clear   🧹  Clear all preloaded caches\n")
+	
+	// Prompt management commands
+	help.WriteString("    :prompt stats    📊  Show prompt usage statistics\n")
+	help.WriteString("    :prompt list     📋  Manage prompts\n")
+	help.WriteString("    :prompt create   ➕  Create new prompt\n")
+	help.WriteString("    :prompt update   ✏️   Update existing prompt\n")
+	help.WriteString("    :prompt delete   🗑️   Delete prompt\n")
+	help.WriteString("    :prompt export   📤  Export prompts\n")
 	help.WriteString("    :help         ❓  Show this help\n\n")
 
 	// Footer with tips
