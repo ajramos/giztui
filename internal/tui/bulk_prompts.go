@@ -435,7 +435,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 				// Format the streaming result
 				formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
 				formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", messageCount)
-				formattedResult += "⏱️  Processing... 🔄\n"
+				formattedResult += "⏰ Processing... 🔄\n"
 				formattedResult += "📝 Analysis (streaming):\n"
 				formattedResult += currentText
 
@@ -459,7 +459,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 			if a.aiSummaryView != nil {
 				formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
 				formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", result.MessageCount)
-				formattedResult += fmt.Sprintf("⏱️  Processing Time: %v\n", result.Duration)
+				formattedResult += fmt.Sprintf("⏰ Processing Time: %v\n", result.Duration)
 				formattedResult += fmt.Sprintf("💾 From Cache: %v\n\n", result.FromCache)
 				formattedResult += "📝 Analysis:\n"
 				formattedResult += result.Summary

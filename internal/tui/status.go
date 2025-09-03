@@ -37,7 +37,7 @@ func (a *App) showError(msg string) {
 
 // showInfo shows an info message via status helpers
 func (a *App) showInfo(msg string) {
-	a.showStatusMessage(fmt.Sprintf("ℹ️ %s", msg))
+	a.showStatusMessage(fmt.Sprintf("💡 %s", msg))
 }
 
 // showSuccess shows a success message via status helpers
@@ -55,7 +55,7 @@ func (a *App) showLLMError(operation string, err error) {
 		a.logger.Printf("LLM error during %s: %v", operation, err)
 	}
 	// Show concise error to the user
-	a.showStatusMessage(fmt.Sprintf("⚠️ LLM error (%s): %s", operation, a.shortError(err, 180)))
+	a.showStatusMessage(fmt.Sprintf("❗ LLM error (%s): %s", operation, a.shortError(err, 180)))
 }
 
 // shortError returns a single-line, length-limited error string

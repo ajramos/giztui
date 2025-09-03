@@ -307,4 +307,57 @@ Consider revisiting when:
 
 ---
 
+## ✅ Status Bar Emoji Rendering Issues (RESOLVED)
+
+### Issue Description
+**Type**: Terminal Compatibility Issue  
+**Severity**: Medium (Visual)  
+**Status**: ✅ RESOLVED  
+**Date Identified**: September 3, 2025  
+**Date Resolved**: September 3, 2025  
+
+Status bar messages occasionally displayed "broken" or garbled text when using certain emojis, particularly in tview TextView components.
+
+### Root Cause Analysis
+**Technical Cause**: Multi-codepoint emoji sequences containing **Variation Selector-16 (U+FE0F)** causing tview width calculation errors.
+
+**Problematic Emojis Identified**:
+- `⏱️` = STOPWATCH + VARIATION SELECTOR-16 (2 codepoints)
+- `⚠️` = WARNING SIGN + VARIATION SELECTOR-16 (2 codepoints)
+- `ℹ️` = INFORMATION SOURCE + VARIATION SELECTOR-16 (2 codepoints)
+
+**Why This Breaks**:
+- tview has known issues rendering multi-codepoint emoji sequences (GitHub issues #161, #236)
+- Width calculations become incorrect, causing text layout problems
+- Status bar `SetDynamicColors(true)` compounds the rendering issues
+- Terminal width miscalculation leads to "broken" or shifted text display
+
+### ✅ Resolution Implemented
+**Solution**: Replace multi-codepoint emojis with visually similar single-codepoint alternatives.
+
+**Replacements Made**:
+```
+⏱️ (Stopwatch + VS-16) → ⏰ (Alarm Clock)    - Time/timing indicators
+⚠️ (Warning + VS-16)   → ❗ (Exclamation)    - Warning messages  
+ℹ️ (Info + VS-16)      → 💡 (Light Bulb)     - Info messages
+```
+
+**Files Updated**:
+- `internal/tui/status.go` - showInfo() and showLLMError() functions
+- `internal/tui/messages.go` - Date validation message
+- `internal/tui/bulk_prompts.go` - Processing indicators
+
+### Impact Assessment
+- **Functional Impact**: ✅ **RESOLVED** - Status messages display correctly
+- **Visual Impact**: ✅ **IMPROVED** - Consistent emoji rendering across terminals  
+- **Compatibility**: ✅ **UNIVERSAL** - All remaining emojis verified as single-codepoint safe
+- **Code Changes**: ✅ **MINIMAL** - Only 5 character replacements across 3 files
+
+### Emoji Safety Verification
+**Analysis performed on all remaining emojis**: ✅ All 15 remaining emojis (✅🧠🧾🤖📊📝🔄💾📄🚀💬📦👥💰📅) are confirmed single-codepoint and tview-compatible.
+
+**Resolution Status**: **COMPLETE** - All problematic multi-codepoint emoji sequences eliminated from status messages.
+
+---
+
 *For additional context and research approaches, see the LLM research prompt in this directory.*

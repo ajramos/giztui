@@ -1699,7 +1699,7 @@ func (a *App) openAdvancedSearchForm() {
 				}
 			}
 			if !valid {
-				a.showStatusMessage("⏱️ Date must be like 3d, 1w, 2m or 1y")
+				a.showStatusMessage("⏰ Date must be like 3d, 1w, 2m or 1y")
 				return
 			}
 		}
