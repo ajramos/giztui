@@ -1182,12 +1182,14 @@ func (a *App) executePreloadDisable(args []string) {
 		// Disable all preloading
 		config := preloader.GetStatus().Config
 		config.Enabled = false
+		config.NextPageEnabled = false
+		config.AdjacentEnabled = false
 		
 		if err := preloader.UpdateConfig(config); err != nil {
 			a.showError(fmt.Sprintf("Failed to disable preloading: %v", err))
 			return
 		}
-		a.showSuccess("Preloading disabled")
+		a.showSuccess("Preloading disabled (all features)")
 		return
 	}
 
