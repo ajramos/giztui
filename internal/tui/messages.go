@@ -686,6 +686,12 @@ func (a *App) loadMoreMessages() {
 		loaded++
 	}
 	a.nextPageToken = next
+	
+	// Clear the persistent loading status before updating UI
+	go func() {
+		a.GetErrorHandler().ClearPersistentMessage()
+	}()
+	
 	a.QueueUpdateDraw(func() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
@@ -2071,6 +2077,11 @@ func (a *App) showMessage(id string) {
 		}
 
 		// Update UI in main thread
+		// Clear persistent status after content loads (outside QueueUpdateDraw to avoid deadlock)
+		go func() {
+			a.GetErrorHandler().ClearPersistentMessage()
+		}()
+		
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)

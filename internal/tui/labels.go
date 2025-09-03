@@ -2272,8 +2272,14 @@ func (a *App) showMoveLabelsView(labels []*gmailapi.Label, message *gmailapi.Mes
 						if next >= 0 && next < len(a.ids) {
 							go a.showMessageWithoutFocus(a.ids[next])
 						} else {
-							a.enhancedTextView.SetContent("No messages")
-							text.ScrollToBeginning()
+							// Only show "No messages" if we actually have no messages AND no currentMessageID is set
+							// This prevents welcome screen reappearing during race conditions
+							currentMsgID := a.GetCurrentMessageID()
+							if len(a.ids) == 0 && currentMsgID == "" {
+								a.enhancedTextView.SetContent("No messages")
+								text.ScrollToBeginning()
+							}
+							// Otherwise, keep existing content (don't overwrite during loading)
 						}
 					}
 					// Return to main

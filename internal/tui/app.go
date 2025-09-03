@@ -2025,11 +2025,16 @@ func (a *App) Run() error {
 				if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
 					a.welcomeEmail = email
 					a.QueueUpdateDraw(func() {
-						// Re-render welcome with account email if still loading
+						// Only re-render welcome with account email if still loading (no messages loaded yet)
+						// This prevents overwriting message content with welcome screen after parallel loading completes
 						if text, ok := a.views["text"].(*tview.TextView); ok {
-							text.SetText(a.buildWelcomeText(true, a.welcomeEmail, 0))
+							currentMsgID := a.GetCurrentMessageID()
+							if len(a.ids) == 0 && currentMsgID == "" {
+								text.SetText(a.buildWelcomeText(true, a.welcomeEmail, 0))
+							}
+							// Otherwise, don't overwrite existing message content
 						}
-						// Also refresh status bar baseline to include the email
+						// Always refresh status bar baseline to include the email
 						if status, ok := a.views["status"].(*tview.TextView); ok {
 							status.SetText(a.statusBaseline())
 						}

@@ -126,11 +126,17 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 				go a.generateOrShowSummary(a.ids[messageIndex])
 			}
 		} else {
-			a.enhancedTextView.SetContent("No messages")
-			text.ScrollToBeginning()
-			if a.aiSummaryVisible && a.aiSummaryView != nil {
-				a.aiSummaryView.SetText("")
+			// Only show "No messages" if we actually have no messages AND no currentMessageID is set
+			// This prevents welcome screen reappearing during race conditions in parallel loading
+			currentMsgID := a.GetCurrentMessageID()
+			if len(a.ids) == 0 && currentMsgID == "" {
+				a.enhancedTextView.SetContent("No messages")
+				text.ScrollToBeginning()
+				if a.aiSummaryVisible && a.aiSummaryView != nil {
+					a.aiSummaryView.SetText("")
+				}
 			}
+			// Otherwise, keep existing content (don't overwrite during loading)
 		}
 	}
 

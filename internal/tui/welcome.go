@@ -37,10 +37,18 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 			effEmail = a.welcomeEmail
 		}
 		if text, ok := a.views["text"].(*tview.TextView); ok {
-			text.SetDynamicColors(true)
-			text.Clear()
-			text.SetText(a.buildWelcomeText(loading, effEmail, dots))
-			text.ScrollToBeginning()
+			// Only show welcome screen if we actually have no messages AND no currentMessageID is set
+			// This prevents welcome animation from overwriting message content after parallel loading completes
+			currentMsgID := a.GetCurrentMessageID()
+			if len(a.ids) == 0 && currentMsgID == "" {
+				text.SetDynamicColors(true)
+				text.Clear()
+				text.SetText(a.buildWelcomeText(loading, effEmail, dots))
+				text.ScrollToBeginning()
+			} else {
+				// Stop the animation if messages are loaded - set flag to exit the goroutine
+				a.welcomeAnimating = false
+			}
 		}
 		// Do not change focus on startup; keep it in the list for better UX
 	}
@@ -68,6 +76,10 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 			for {
 				select {
 				case <-ticker.C:
+					// Exit animation if messages are loaded
+					if !a.welcomeAnimating {
+						return
+					}
 					dots = (dots + 1) % 4
 					if a.uiReady {
 						a.QueueUpdateDraw(func() { apply(dots) })
