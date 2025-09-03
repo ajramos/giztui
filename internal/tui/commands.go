@@ -952,19 +952,19 @@ func (a *App) executeGoToCommand(args []string) {
 	}
 
 	// Default to last message (:G behavior)
-	// Last message is at table row = len(a.ids) - 1
-	targetRow := len(a.ids) - 1
+	// Last message is at table row = len(a.ids) (accounting for header at row 0)
+	targetRow := len(a.ids)
 
 	// If argument provided (called from :5 style commands), calculate target row
 	if len(args) > 0 {
 		if num, err := strconv.Atoi(args[0]); err == nil && num >= 1 {
-			// Convert 1-based user input to 0-based table row
-			// User message 1 = table row 0, message 2 = table row 1, etc.
+			// Convert 1-based user input to table row (accounting for header row)
+			// User message 1 = table row 1, message 2 = table row 2, etc.
 			maxMessage := len(a.ids) // Total number of messages
 			if num > maxMessage {
-				targetRow = len(a.ids) - 1 // Go to last message if number too high
+				targetRow = len(a.ids) // Go to last message if number too high
 			} else {
-				targetRow = num - 1 // User message N = table row N-1
+				targetRow = num // User message N = table row N (header is row 0)
 			}
 		}
 	}
@@ -1004,8 +1004,9 @@ func (a *App) executeGoToFirst() {
 		return // No messages to navigate to
 	}
 
-	// First message is at table row 0 (maps to a.ids[0])
-	list.Select(0, 0)
+	// First message is at table row 1 (row 0 is header, maps to a.ids[0])
+	// This matches the SetSelectionChangedFunc logic: messageIndex = row - 1
+	list.Select(1, 0)
 }
 
 // executeCacheCommand handles cache-related commands
