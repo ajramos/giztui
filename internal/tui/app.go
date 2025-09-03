@@ -2281,8 +2281,8 @@ func (a *App) performSearch(query string) {
 		a.AppendMessageID(msg.Id)
 	}
 
-	// Fetch messages in parallel
-	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	// Fetch message metadata in parallel (optimized for search results display)
+	detailedMessages, err := a.Client.GetMessagesMetadataParallel(messageIDs, 10)
 	if err != nil {
 		a.QueueUpdateDraw(func() {
 			a.showError(fmt.Sprintf("❌ Error loading search results: %v", err))

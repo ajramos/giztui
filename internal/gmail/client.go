@@ -95,6 +95,21 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 	return msg, nil
 }
 
+// GetMessageMetadata retrieves only message metadata (headers, labels) for efficient list display
+// This is significantly faster and uses less bandwidth than GetMessage() for list operations
+func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {
+	user := "me"
+	msg, err := c.Service.Users.Messages.Get(user, id).
+		Format("metadata").
+		MetadataHeaders("From", "To", "Cc", "Subject", "Date").
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not get message metadata: %w", err)
+	}
+
+	return msg, nil
+}
+
 // MessageResult represents the result of fetching a message
 type MessageResult struct {
 	Message *gmail.Message
@@ -123,6 +138,56 @@ func (c *Client) GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gm
 		go func() {
 			for job := range jobs {
 				msg, err := c.GetMessage(job.id)
+				results <- MessageResult{
+					Message: msg,
+					Index:   job.index,
+					Error:   err,
+				}
+			}
+		}()
+	}
+
+	// Send jobs
+	for i, id := range messageIDs {
+		jobs <- struct{ id string; index int }{id: id, index: i}
+	}
+	close(jobs)
+
+	// Collect results and maintain order
+	messages := make([]*gmail.Message, len(messageIDs))
+	for range len(messageIDs) {
+		result := <-results
+		if result.Error == nil {
+			messages[result.Index] = result.Message
+		}
+		// On error, leave nil in the slice (caller can handle missing messages)
+	}
+
+	return messages, nil
+}
+
+// GetMessagesMetadataParallel fetches multiple message metadata concurrently for efficient list display
+// Uses format=metadata to reduce bandwidth and improve performance compared to GetMessagesParallel
+// Returns results in the same order as input IDs, with nil for failed fetches
+func (c *Client) GetMessagesMetadataParallel(messageIDs []string, maxWorkers int) ([]*gmail.Message, error) {
+	if len(messageIDs) == 0 {
+		return []*gmail.Message{}, nil
+	}
+
+	// Limit workers to avoid overwhelming the API
+	if maxWorkers <= 0 || maxWorkers > 15 {
+		maxWorkers = 10 // Conservative default
+	}
+
+	// Create channels
+	jobs := make(chan struct{ id string; index int }, len(messageIDs))
+	results := make(chan MessageResult, len(messageIDs))
+
+	// Start workers
+	for i := 0; i < maxWorkers; i++ {
+		go func() {
+			for job := range jobs {
+				msg, err := c.GetMessageMetadata(job.id)
 				results <- MessageResult{
 					Message: msg,
 					Index:   job.index,

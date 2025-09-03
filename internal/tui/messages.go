@@ -428,8 +428,8 @@ func (a *App) reloadMessagesFlat() {
 		a.AppendMessageID(msg.Id)
 	}
 
-	// Fetch messages in parallel (10 workers for balanced performance/API limits)
-	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	// Fetch message metadata in parallel (optimized for list display - uses format=metadata)
+	detailedMessages, err := a.Client.GetMessagesMetadataParallel(messageIDs, 10)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error loading messages: %v", err))
 		return
@@ -658,8 +658,8 @@ func (a *App) loadMoreMessages() {
 		a.AppendMessageID(msg.Id)
 	}
 
-	// Fetch messages in parallel
-	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	// Fetch message metadata in parallel (optimized for list display)
+	detailedMessages, err := a.Client.GetMessagesMetadataParallel(messageIDs, 10)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error loading more messages: %v", err))
 		return
@@ -717,8 +717,8 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 		a.AppendMessageID(msg.Id)
 	}
 
-	// Fetch messages in parallel
-	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	// Fetch message metadata in parallel (optimized for list display)
+	detailedMessages, err := a.Client.GetMessagesMetadataParallel(messageIDs, 10)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error loading message details: %v", err))
 		return
