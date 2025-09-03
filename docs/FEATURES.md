@@ -232,6 +232,9 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **Per-account separation** - Isolated databases by email account
 - ✅ **Smart caching** - Cache AI results, prompt responses, and Obsidian history
 - ✅ **Performance optimization** - Proper indexing and query optimization
+- ✅ **Background preloading** - Intelligent message preloading for instant navigation
+- ✅ **LRU cache management** - Efficient memory usage with Least Recently Used eviction
+- ✅ **Worker pool architecture** - Concurrent background processing with resource limits
 
 ### Architecture
 - ✅ **Service-oriented architecture** - Clean separation of UI and business logic
@@ -244,6 +247,14 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **Template file support** - External Markdown files for AI/Slack/Obsidian templates
 - ✅ **Environment variable support** - Override paths via environment variables
 - ✅ **Smart path resolution** - Relative paths resolved relative to config directory
+
+### Performance Features
+- ✅ **Next page preloading** - Preloads next page at 70% scroll threshold for instant "Load More"
+- ✅ **Adjacent message preloading** - Preloads 3 messages around selection for smooth navigation
+- ✅ **Configurable thresholds** - Customize scroll triggers, cache sizes, and worker limits
+- ✅ **Resource management** - API quota reserves and memory limits prevent overuse
+- ✅ **Runtime control** - `:preload` commands for live configuration changes
+- ✅ **Smart eviction** - LRU-based cache eviction maintains optimal memory usage
 
 ## 🚀 Development & Quality
 

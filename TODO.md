@@ -3,6 +3,8 @@
 ## 📋 Detected ISSUES - Short term to fix.
 - [ ] When an UNDO is performed, focus is lost (it should return to the message list)
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
+- [ ] When I press "gg" the cursor go to the top but doesn't select the message.
+- [ ] there's an issue when numbering :69 goes to :68, etc...
 
 
 ## 📋 PENDING - What's Left to Do

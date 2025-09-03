@@ -1259,6 +1259,53 @@ func (a *App) bindKeys() {
 				// CRITICAL: Update focus indicators to show list has focus during arrow navigation
 				// This was missing - causing visual focus loss even though actual focus stayed on list
 				a.updateFocusIndicators("list")
+
+				// Phase 2.4: Background preloading for performance optimization
+				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							// Log panic but don't crash the app
+							if a.logger != nil {
+								a.logger.Printf("Preloader panic recovered: %v", r)
+							}
+						}
+					}()
+
+					preloader := a.GetPreloaderService()
+					if preloader == nil || !preloader.IsEnabled() {
+						return
+					}
+
+					// 1. Next page preloading: Check if user is near end of current page
+					totalMessages := len(a.ids)
+					if totalMessages > 0 && preloader.IsNextPageEnabled() {
+						threshold := preloader.GetStatus().Config.NextPageThreshold
+						if float64(messageIndex+1)/float64(totalMessages) >= threshold {
+							// User is at threshold, trigger next page preload
+							query := a.currentQuery
+							if query == "" && a.searchMode == "remote" {
+								query = a.currentQuery
+							}
+							maxResults := int64(50) // Default page size
+							
+							if err := preloader.PreloadNextPage(a.ctx, a.nextPageToken, query, maxResults); err != nil {
+								if a.logger != nil {
+									a.logger.Printf("Next page preload failed: %v", err)
+								}
+							}
+						}
+					}
+
+					// 2. Adjacent message preloading: Preload messages around current selection
+					if totalMessages > 0 && preloader.IsAdjacentEnabled() {
+						currentMessageID := a.ids[messageIndex]
+						if err := preloader.PreloadAdjacentMessages(a.ctx, currentMessageID, a.ids); err != nil {
+							if a.logger != nil {
+								a.logger.Printf("Adjacent message preload failed: %v", err)
+							}
+						}
+					}
+				}()
 			}
 		})
 	}

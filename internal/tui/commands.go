@@ -616,6 +616,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeQuitCommand(args)
 	case "cache":
 		a.executeCacheCommand(args)
+	case "preload", "pl":
+		a.executePreloadCommand(args)
 	case "stats", "usage":
 		a.executeStatsCommand(args)
 	case "g", "G":
@@ -1021,6 +1023,245 @@ func (a *App) executeCacheCommand(args []string) {
 		a.executeCacheInfo(args[1:])
 	default:
 		a.showError(fmt.Sprintf("Unknown cache subcommand: %s. Usage: cache <clear|info>", subcommand))
+	}
+}
+
+// executePreloadCommand handles preloading-related commands
+func (a *App) executePreloadCommand(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if len(args) == 0 {
+		// Show current status when no args
+		a.executePreloadStatus(args)
+		return
+	}
+
+	subcommand := strings.ToLower(args[0])
+	switch subcommand {
+	case "on", "enable":
+		a.executePreloadEnable(args[1:])
+	case "off", "disable":
+		a.executePreloadDisable(args[1:])
+	case "status", "info":
+		a.executePreloadStatus(args[1:])
+	case "clear", "clean":
+		a.executePreloadClear(args[1:])
+	case "next", "nextpage":
+		a.executePreloadNext(args[1:])
+	case "adjacent", "adj":
+		a.executePreloadAdjacent(args[1:])
+	default:
+		a.showError(fmt.Sprintf("Unknown preload subcommand: %s. Usage: preload <on|off|status|clear|next|adjacent>", subcommand))
+	}
+}
+
+// executePreloadStatus shows preloader status
+func (a *App) executePreloadStatus(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	status := preloader.GetStatus()
+	if status == nil {
+		a.showError("Could not get preloader status")
+		return
+	}
+
+	// Build status message
+	var statusMsg strings.Builder
+	statusMsg.WriteString("📦 Preloader Status:\n\n")
+	statusMsg.WriteString(fmt.Sprintf("Enabled: %v\n", status.Enabled))
+	statusMsg.WriteString(fmt.Sprintf("Next Page: %v\n", status.NextPageEnabled))
+	statusMsg.WriteString(fmt.Sprintf("Adjacent Messages: %v\n", status.AdjacentEnabled))
+	statusMsg.WriteString(fmt.Sprintf("Cache Size: %d messages (%.1f MB)\n", status.CacheSize, status.CacheMemoryUsageMB))
+	statusMsg.WriteString(fmt.Sprintf("Active Tasks: %d\n", status.ActivePreloadTasks))
+	statusMsg.WriteString(fmt.Sprintf("Background Workers: %d\n", status.BackgroundWorkers))
+	
+	if status.Statistics != nil {
+		hitRate := status.Statistics.CacheHitRate * 100
+		statusMsg.WriteString(fmt.Sprintf("\nStatistics:\n"))
+		statusMsg.WriteString(fmt.Sprintf("  Cache Hit Rate: %.1f%%\n", hitRate))
+		statusMsg.WriteString(fmt.Sprintf("  Next Page Requests: %d\n", status.Statistics.NextPageRequests))
+		statusMsg.WriteString(fmt.Sprintf("  Adjacent Requests: %d\n", status.Statistics.AdjacentRequests))
+		statusMsg.WriteString(fmt.Sprintf("  Data Preloaded: %.1f MB\n", status.Statistics.TotalDataPreloadedMB))
+	}
+
+	a.showInfo(statusMsg.String())
+}
+
+// executePreloadEnable enables preloading features
+func (a *App) executePreloadEnable(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if len(args) == 0 {
+		// Enable all preloading
+		config := preloader.GetStatus().Config
+		config.Enabled = true
+		config.NextPageEnabled = true
+		config.AdjacentEnabled = true
+		
+		if err := preloader.UpdateConfig(config); err != nil {
+			a.showError(fmt.Sprintf("Failed to enable preloading: %v", err))
+			return
+		}
+		a.showSuccess("Preloading enabled (all features)")
+		return
+	}
+
+	feature := strings.ToLower(args[0])
+	config := preloader.GetStatus().Config
+	
+	switch feature {
+	case "next", "nextpage":
+		config.NextPageEnabled = true
+		a.showSuccess("Next page preloading enabled")
+	case "adjacent", "adj":
+		config.AdjacentEnabled = true
+		a.showSuccess("Adjacent message preloading enabled")
+	default:
+		a.showError(fmt.Sprintf("Unknown preload feature: %s. Use: next, adjacent", feature))
+		return
+	}
+	
+	if err := preloader.UpdateConfig(config); err != nil {
+		a.showError(fmt.Sprintf("Failed to update preloader config: %v", err))
+	}
+}
+
+// executePreloadDisable disables preloading features
+func (a *App) executePreloadDisable(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if len(args) == 0 {
+		// Disable all preloading
+		config := preloader.GetStatus().Config
+		config.Enabled = false
+		
+		if err := preloader.UpdateConfig(config); err != nil {
+			a.showError(fmt.Sprintf("Failed to disable preloading: %v", err))
+			return
+		}
+		a.showSuccess("Preloading disabled")
+		return
+	}
+
+	feature := strings.ToLower(args[0])
+	config := preloader.GetStatus().Config
+	
+	switch feature {
+	case "next", "nextpage":
+		config.NextPageEnabled = false
+		a.showSuccess("Next page preloading disabled")
+	case "adjacent", "adj":
+		config.AdjacentEnabled = false
+		a.showSuccess("Adjacent message preloading disabled")
+	default:
+		a.showError(fmt.Sprintf("Unknown preload feature: %s. Use: next, adjacent", feature))
+		return
+	}
+	
+	if err := preloader.UpdateConfig(config); err != nil {
+		a.showError(fmt.Sprintf("Failed to update preloader config: %v", err))
+	}
+}
+
+// executePreloadClear clears the preload cache
+func (a *App) executePreloadClear(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if err := preloader.ClearCache(a.ctx); err != nil {
+		a.showError(fmt.Sprintf("Failed to clear preload cache: %v", err))
+		return
+	}
+	
+	a.showSuccess("Preload cache cleared")
+}
+
+// executePreloadNext controls next page preloading
+func (a *App) executePreloadNext(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if len(args) == 0 {
+		// Show current status
+		enabled := preloader.IsNextPageEnabled()
+		a.showInfo(fmt.Sprintf("Next page preloading: %v", enabled))
+		return
+	}
+
+	action := strings.ToLower(args[0])
+	config := preloader.GetStatus().Config
+	
+	switch action {
+	case "on", "enable":
+		config.NextPageEnabled = true
+		a.showSuccess("Next page preloading enabled")
+	case "off", "disable":
+		config.NextPageEnabled = false
+		a.showSuccess("Next page preloading disabled")
+	default:
+		a.showError(fmt.Sprintf("Unknown action: %s. Use: on, off", action))
+		return
+	}
+	
+	if err := preloader.UpdateConfig(config); err != nil {
+		a.showError(fmt.Sprintf("Failed to update config: %v", err))
+	}
+}
+
+// executePreloadAdjacent controls adjacent message preloading
+func (a *App) executePreloadAdjacent(args []string) {
+	preloader := a.GetPreloaderService()
+	if preloader == nil {
+		a.showError("Preloader service not available")
+		return
+	}
+
+	if len(args) == 0 {
+		// Show current status
+		enabled := preloader.IsAdjacentEnabled()
+		a.showInfo(fmt.Sprintf("Adjacent message preloading: %v", enabled))
+		return
+	}
+
+	action := strings.ToLower(args[0])
+	config := preloader.GetStatus().Config
+	
+	switch action {
+	case "on", "enable":
+		config.AdjacentEnabled = true
+		a.showSuccess("Adjacent message preloading enabled")
+	case "off", "disable":
+		config.AdjacentEnabled = false
+		a.showSuccess("Adjacent message preloading disabled")
+	default:
+		a.showError(fmt.Sprintf("Unknown action: %s. Use: on, off", action))
+		return
+	}
+	
+	if err := preloader.UpdateConfig(config); err != nil {
+		a.showError(fmt.Sprintf("Failed to update config: %v", err))
 	}
 }
 

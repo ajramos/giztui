@@ -58,26 +58,38 @@ The 7-second load time is caused by **sequential Gmail API calls** in **multiple
   - ✅ Reduce bandwidth by ~70-80% for list operations (headers only vs full content)
   - **Files modified**: `internal/gmail/client.go`, `internal/tui/messages.go`, `internal/tui/app.go`
 
-### **Phase 2: Advanced Optimizations** ✅❌
-**Target**: 1-2 seconds (80% improvement)
+### **Phase 2: Advanced Optimizations** ✅🚧
+**Target**: <1 second for pagination, instant navigation
 
-- [ ] **Smart Caching Layer**
-  - Cache message metadata in SQLite database  
-  - Only fetch new/changed messages on reload
-  - Implement LRU cache for frequently accessed messages
-  - **Files to create**: `internal/cache/message_cache.go`
+- [x] **Phase 2.1: Gmail API Metadata Optimization** ✅ **COMPLETED**
+  - ✅ Use `format=metadata` parameter to reduce bandwidth by 70-80%
+  - ✅ Implement `GetMessageMetadata()` and `GetMessagesMetadataParallel()` methods
+  - ✅ Replace list loading calls with metadata-optimized versions
+  - **Files modified**: `internal/gmail/client.go`, `internal/tui/messages.go`, `internal/tui/app.go`
+  - **Result**: Reduced bandwidth usage and improved list loading performance
 
-- [ ] **Lazy Loading Strategy**
+- [ ] **Phase 2.4: Background Preloading** 🚧 **HIGH PRIORITY**
+  - **Next Page Preloading**: Prefetch next page when user reaches 70% scroll
+  - **Adjacent Message Preloading**: Preload 2-3 messages around current selection
+  - **Smart Resource Management**: Configurable limits (memory, API quota, workers)
+  - **User Configuration**: Master toggle + granular controls (default: ON)
+  - **Files to modify**: `internal/services/preloader.go`, `internal/tui/messages.go`, `internal/tui/app.go`
+  - **Configuration**: Add preloading section to config.yaml with examples
+  - **Expected Result**: Eliminate "Load More" wait times, instant message navigation
+
+- [ ] **Phase 2.2: Lazy Loading Strategy** ⏳ **OPTIONAL** (Lower Priority)
   - Load minimal data for initial display (sender, subject, date)
   - Fetch additional data (labels, attachments) on-demand
   - Virtual scrolling for large message lists
+  - **Rationale**: Modern FTTH bandwidth may make this optimization less impactful
   - **Files to modify**: `internal/render/email.go`, `internal/tui/messages.go`
 
-- [ ] **Background Preloading**
-  - Prefetch next page of messages in background
-  - Preload message content for selected/focused items
-  - Smart prediction based on user navigation patterns
-  - **Files to modify**: `internal/tui/messages.go`, `internal/tui/app.go`
+- [ ] **Phase 2.3: Smart Caching Layer** ⏳ **OPTIONAL** (Lower Priority)
+  - Cache message metadata in SQLite database  
+  - Only fetch new/changed messages on reload
+  - Implement LRU cache for frequently accessed messages
+  - **Rationale**: Background preloading may provide better UX than persistent caching
+  - **Files to create**: `internal/cache/message_cache.go`
 
 ### **Phase 3: Infrastructure** ✅❌
 **Target**: <1 second (90% improvement)
@@ -100,7 +112,9 @@ The 7-second load time is caused by **sequential Gmail API calls** in **multiple
 |-------|-------------|-------------|---------|
 | Current | 7 seconds | Baseline | ✅ |
 | Phase 1 | 3-4 seconds | 60% faster | ✅ **COMPLETED** |
-| Phase 2 | 1-2 seconds | 80% faster | 🚧 **IN PROGRESS** |
+| Phase 2.1 | Same + 70% bandwidth | API optimization | ✅ **COMPLETED** |
+| Phase 2.4 | Instant pagination/navigation | Eliminate wait times | 🚧 **IN PROGRESS** |
+| Phase 2.2/2.3 | 1-2 seconds | 80% faster | ⏳ **OPTIONAL** |
 | Phase 3 | <1 second | 90+ faster | ⏳ **PLANNED** |
 
 ## 🛠️ **Implementation Details**
@@ -158,13 +172,103 @@ func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {
 }
 ```
 
+### Phase 2.4 Implementation Plan
+
+#### 1. Background Preloading Service
+```go
+// internal/services/preloader.go - New service for background preloading
+type MessagePreloader struct {
+    client        *gmail.Client
+    cache         map[string][]*gmail.Message // pageToken -> messages
+    prefetchQueue chan PreloadRequest
+    workers       int
+    config        *PreloadConfig
+    mu            sync.RWMutex
+}
+
+type PreloadConfig struct {
+    Enabled                bool   `yaml:"enabled"`
+    NextPageEnabled        bool   `yaml:"next_page_enabled"`
+    NextPageThreshold      float64 `yaml:"next_page_threshold"`
+    AdjacentMessagesCount  int    `yaml:"adjacent_messages_count"`
+    BackgroundWorkers      int    `yaml:"background_workers"`
+    CacheSizeMB           int    `yaml:"cache_size_mb"`
+    APIQuotaReserve       int    `yaml:"api_quota_reserve"`
+}
+```
+
+#### 2. Configuration System (Default: ON)
+```yaml
+# ~/.config/giztui/config.yaml
+performance:
+  preloading:
+    enabled: true                    # Master toggle for all preloading
+    next_page:
+      enabled: true                  # Background next page loading  
+      threshold: 0.7                 # Start preloading at 70% scroll
+      max_pages: 2                   # Maximum pages to preload ahead
+    adjacent_messages:
+      enabled: true                  # Preload messages around current selection
+      count: 3                       # Number of adjacent messages to preload
+    limits:
+      background_workers: 3          # Background worker threads
+      cache_size_mb: 50             # Maximum memory cache size
+      api_quota_reserve: 20         # % API quota reserved for user actions
+```
+
+#### 3. Smart Resource Management
+```go
+// LRU cache with memory limits
+type MessageCache struct {
+    maxSize    int           // Max messages to cache
+    maxMemory  int64         // Max memory usage in bytes  
+    items      map[string]*CacheItem
+    evictList  *list.List    // LRU eviction
+}
+
+// API quota management
+type RateLimiter struct {
+    requestsPerSecond int
+    backgroundQuota   int  // Reserve quota for user actions
+    ticker           *time.Ticker
+}
+```
+
+#### 4. User Experience Improvements
+- **Next Page Loading**: When user scrolls to 70% of current page, automatically start loading next page
+- **Adjacent Messages**: When user selects message #5, preload messages #4, #6, #7 in background  
+- **Instant Navigation**: Message content appears immediately when navigating between messages
+- **Status Indication**: Show "Background: preloading..." in status bar when active
+
+#### 5. Command Interface
+```
+:preload on/off              # Toggle all preloading
+:preload next on/off         # Toggle next page preloading
+:preload adjacent on/off     # Toggle adjacent message preloading  
+:preload status              # Show current configuration
+```
+
 ## 🎯 **Success Criteria**
 
-### Phase 1 Success Metrics
-- [ ] Initial message display appears within 1 second
-- [ ] Complete 50-message load takes 3-4 seconds maximum
-- [ ] UI remains responsive during loading
-- [ ] No regression in existing functionality
+### Phase 1 Success Metrics ✅ **ACHIEVED**
+- [x] Initial message display appears within 1 second
+- [x] Complete 50-message load takes 3-4 seconds maximum (User: "blazingly fast")
+- [x] UI remains responsive during loading
+- [x] No regression in existing functionality
+
+### Phase 2.1 Success Metrics ✅ **ACHIEVED**
+- [x] Reduced bandwidth usage by 70-80% for list operations
+- [x] Maintained fast loading performance with optimized API calls
+- [x] Successfully replaced full message fetching with metadata-only for lists
+
+### Phase 2.4 Success Metrics 🎯 **TARGET**
+- [ ] "Load More" button becomes instant (no 2-3 second wait)
+- [ ] Message navigation between adjacent messages is instant
+- [ ] Background preloading activates at 70% scroll without user intervention
+- [ ] Configurable preloading system with master toggle (default: ON)
+- [ ] Memory usage controlled by LRU cache with configurable limits
+- [ ] API quota management prevents background tasks from affecting user actions
+- [ ] Command interface allows runtime preloading control
 
 ### Quality Gates
 - [ ] All existing tests pass
@@ -174,26 +278,50 @@ func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {
 
 ## 📝 **Progress Tracking**
 
-### Completed Tasks
+### Completed Tasks ✅
 - [x] Performance bottleneck analysis completed
-- [x] Root cause identified (sequential API calls)
+- [x] Root cause identified (sequential API calls)  
 - [x] Implementation plan created
+- [x] **Phase 1: Parallel Message Fetching** (5-10x performance improvement)
+- [x] **Phase 2.1: Gmail API Metadata Optimization** (70-80% bandwidth reduction)
+- [x] UX regression fixes (status persistence, welcome screen, race conditions)
+- [x] Comprehensive test suite for parallel operations
 
-### In Progress Tasks
-- [ ] Phase 1 implementation
+### In Progress Tasks 🚧
+- [ ] **Phase 2.4: Background Preloading Implementation**
+  - [ ] Create MessagePreloader service
+  - [ ] Add configuration system with defaults
+  - [ ] Implement next page preloading
+  - [ ] Implement adjacent message preloading
+  - [ ] Add command interface for runtime control
+  - [ ] Documentation and configuration examples
+
+### Decision Log 📋
+- **User Decision**: Prioritize Phase 2.4 (background preloading) over Phases 2.2/2.3
+- **Rationale**: Modern FTTH bandwidth makes lazy loading/caching less impactful than eliminating wait times
+- **Configuration**: Preloading should be configurable with master toggle, default ON
+- **User Feedback**: Current performance is "blazingly fast" after Phase 1+2.1 completion
 
 ### Blocked/Issues
 - None currently
 
-## 🚀 **Getting Started**
+## 🚀 **Next Steps: Phase 2.4 Implementation**
 
-1. **Create feature branch**: `git checkout -b performance/message-loading-optimization`
-2. **Start with Phase 1, Task 1**: Implement parallel message fetching
-3. **Test thoroughly**: Ensure no regressions in existing functionality
-4. **Measure improvements**: Use logging to track actual performance gains
-5. **Iterate**: Adjust worker pool size and batch sizes based on testing
+1. **Create feature branch**: `git checkout -b feature/background-preloading`
+2. **Start with MessagePreloader service**: Create `internal/services/preloader.go`
+3. **Add configuration system**: Update config structs with preloading options
+4. **Implement next page preloading**: Add scroll detection and background loading
+5. **Add adjacent message preloading**: Preload messages around current selection
+6. **Create command interface**: Add `:preload` commands for runtime control
+7. **Update documentation**: Add configuration examples and user guide
+8. **Test thoroughly**: Ensure no performance regressions or memory leaks
+
+### **Implementation Priority**
+1. **High**: Next page preloading (eliminates "Load More" waits)
+2. **Medium**: Adjacent message preloading (smooth navigation)
+3. **Low**: Smart prediction patterns (future optimization)
 
 ---
 
-**Last Updated**: `date +%Y-%m-%d`
-**Status**: Planning Complete, Ready for Implementation
+**Last Updated**: 2025-09-03  
+**Status**: Phase 1 & 2.1 Complete ✅ | Phase 2.4 Ready for Implementation 🚧

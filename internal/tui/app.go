@@ -189,6 +189,7 @@ type App struct {
 	queryService       services.QueryService
 	threadService      services.ThreadService
 	undoService        services.UndoService
+	preloaderService   services.MessagePreloader
 	currentTheme       *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler       *ErrorHandler
 }
@@ -834,6 +835,33 @@ func (a *App) initServices() {
 		}
 	}
 
+	// Initialize preloader service (performance optimization)
+	if a.Client != nil && a.Config != nil {
+		// Convert config format to services format
+		preloadConfig := &services.PreloadConfig{
+			Enabled:                a.Config.Performance.Preloading.Enabled,
+			NextPageEnabled:        a.Config.Performance.Preloading.NextPage.Enabled,
+			NextPageThreshold:      a.Config.Performance.Preloading.NextPage.Threshold,
+			NextPageMaxPages:       a.Config.Performance.Preloading.NextPage.MaxPages,
+			AdjacentEnabled:        a.Config.Performance.Preloading.AdjacentMessages.Enabled,
+			AdjacentCount:          a.Config.Performance.Preloading.AdjacentMessages.Count,
+			BackgroundWorkers:      a.Config.Performance.Preloading.Limits.BackgroundWorkers,
+			CacheSizeMB:           a.Config.Performance.Preloading.Limits.CacheSizeMB,
+			APIQuotaReservePercent: a.Config.Performance.Preloading.Limits.APIQuotaReservePercent,
+		}
+		
+		a.preloaderService = services.NewMessagePreloader(a.Client, preloadConfig)
+		if a.logger != nil {
+			a.logger.Printf("initServices: preloader service initialized: %v (enabled: %v)", 
+				a.preloaderService != nil, preloadConfig.Enabled)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("initServices: preloader service NOT initialized - Client=%v Config=%v",
+				a.Client != nil, a.Config != nil)
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
@@ -1042,6 +1070,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 // GetUndoService returns the undo service instance
 func (a *App) GetUndoService() services.UndoService {
 	return a.undoService
+}
+
+// GetPreloaderService returns the message preloader service instance
+func (a *App) GetPreloaderService() services.MessagePreloader {
+	return a.preloaderService
 }
 
 // performUndo performs the undo operation and provides user feedback
@@ -1994,6 +2027,11 @@ func (a *App) generateHelpText() string {
 		}
 	}
 
+	// Performance commands
+	help.WriteString("    :preload status  ⚡  Show preloading status and statistics\n")
+	help.WriteString("    :preload on      🚀  Enable background preloading\n")
+	help.WriteString("    :preload off     ⏸️   Disable background preloading\n")
+	help.WriteString("    :preload clear   🧹  Clear all preloaded caches\n")
 	help.WriteString("    :help         ❓  Show this help\n\n")
 
 	// Footer with tips

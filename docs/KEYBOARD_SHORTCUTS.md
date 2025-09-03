@@ -250,6 +250,16 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | `:version` | Show version information |
 | `:config` | Show configuration |
 
+### Performance Commands
+| Command | Description |
+|---------|-------------|
+| `:preload status` | Show preloading status and statistics |
+| `:preload on` | Enable background preloading |
+| `:preload off` | Disable background preloading |
+| `:preload clear` | Clear all preloaded caches |
+| `:preload next on/off` | Control next page preloading |
+| `:preload adjacent on/off` | Control adjacent message preloading |
+
 ## 🎨 Theme & UI
 
 ### Theme Operations

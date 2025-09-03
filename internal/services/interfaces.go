@@ -748,3 +748,65 @@ type Attachment struct {
 	FilePath string `json:"file_path,omitempty"`
 	Data     []byte `json:"-"` // Don't serialize attachment data
 }
+
+// MessagePreloader handles background message preloading and caching
+type MessagePreloader interface {
+	// Background preloading operations
+	PreloadNextPage(ctx context.Context, currentPageToken string, query string, maxResults int64) error
+	PreloadAdjacentMessages(ctx context.Context, currentMessageID string, messageIDs []string) error
+	
+	// Cache operations
+	GetCachedMessages(ctx context.Context, pageToken string) ([]*gmail_v1.Message, bool)
+	GetCachedMessage(ctx context.Context, messageID string) (*gmail_v1.Message, bool)
+	ClearCache(ctx context.Context) error
+	
+	// Configuration management
+	IsEnabled() bool
+	IsNextPageEnabled() bool
+	IsAdjacentEnabled() bool
+	UpdateConfig(config *PreloadConfig) error
+	GetStatus() *PreloadStatus
+}
+
+// Preloading-related data structures
+
+// PreloadConfig represents configuration for background message preloading
+type PreloadConfig struct {
+	Enabled                bool    `json:"enabled" yaml:"enabled"`
+	NextPageEnabled        bool    `json:"next_page_enabled" yaml:"next_page_enabled"`
+	NextPageThreshold      float64 `json:"next_page_threshold" yaml:"next_page_threshold"`
+	NextPageMaxPages       int     `json:"next_page_max_pages" yaml:"next_page_max_pages"`
+	AdjacentEnabled        bool    `json:"adjacent_enabled" yaml:"adjacent_enabled"`
+	AdjacentCount          int     `json:"adjacent_count" yaml:"adjacent_count"`
+	BackgroundWorkers      int     `json:"background_workers" yaml:"background_workers"`
+	CacheSizeMB           int     `json:"cache_size_mb" yaml:"cache_size_mb"`
+	APIQuotaReservePercent int     `json:"api_quota_reserve_percent" yaml:"api_quota_reserve_percent"`
+}
+
+// PreloadStatus represents current status of the preloader service
+type PreloadStatus struct {
+	Enabled              bool                   `json:"enabled"`
+	NextPageEnabled      bool                   `json:"next_page_enabled"`
+	AdjacentEnabled      bool                   `json:"adjacent_enabled"`
+	CacheSize            int                    `json:"cache_size"`           // Current number of cached items
+	CacheMemoryUsageMB   float64                `json:"cache_memory_usage"`   // Current memory usage in MB
+	ActivePreloadTasks   int                    `json:"active_preload_tasks"` // Number of background tasks running
+	LastPreloadActivity  time.Time              `json:"last_preload_activity"`
+	TotalPreloadRequests int64                  `json:"total_preload_requests"`
+	PreloadHits          int64                  `json:"preload_hits"`
+	PreloadMisses        int64                  `json:"preload_misses"`
+	BackgroundWorkers    int                    `json:"background_workers"`
+	Config               *PreloadConfig         `json:"config"`
+	Statistics           *PreloadStatistics     `json:"statistics"`
+}
+
+// PreloadStatistics contains detailed performance statistics
+type PreloadStatistics struct {
+	NextPageRequests     int64         `json:"next_page_requests"`
+	AdjacentRequests     int64         `json:"adjacent_requests"`
+	PreloadHits          int64         `json:"preload_hits"`
+	PreloadMisses        int64         `json:"preload_misses"`
+	CacheHitRate         float64       `json:"cache_hit_rate"`
+	AveragePreloadTime   time.Duration `json:"average_preload_time"`
+	TotalDataPreloadedMB float64       `json:"total_data_preloaded_mb"`
+}

@@ -80,6 +80,9 @@ type Config struct {
 
 	// Threading configuration
 	Threading ThreadingConfig `json:"threading"`
+
+	// Performance configuration
+	Performance PerformanceConfig `json:"performance"`
 }
 
 // SlackConfig contains all Slack integration settings
@@ -266,16 +269,71 @@ type KeyBindings struct {
 	Undo string `json:"undo"` // Undo last action
 }
 
+// PerformanceConfig defines performance optimization settings
+type PerformanceConfig struct {
+	// Preloading controls background message preloading
+	Preloading PreloadingConfig `json:"preloading"`
+}
+
+// PreloadingConfig defines background message preloading settings
+type PreloadingConfig struct {
+	// Enabled controls whether preloading functionality is active
+	Enabled bool `json:"enabled"`
+
+	// NextPage settings for preloading next page of messages
+	NextPage NextPageConfig `json:"next_page"`
+
+	// AdjacentMessages settings for preloading messages around current selection
+	AdjacentMessages AdjacentMessagesConfig `json:"adjacent_messages"`
+
+	// Limits define resource constraints for preloading
+	Limits PreloadingLimitsConfig `json:"limits"`
+}
+
+// NextPageConfig defines next page preloading behavior
+type NextPageConfig struct {
+	// Enabled controls next page preloading
+	Enabled bool `json:"enabled"`
+
+	// Threshold defines when to start preloading (0.7 = start at 70% scroll)
+	Threshold float64 `json:"threshold"`
+
+	// MaxPages limits how many pages ahead to preload
+	MaxPages int `json:"max_pages"`
+}
+
+// AdjacentMessagesConfig defines adjacent message preloading behavior
+type AdjacentMessagesConfig struct {
+	// Enabled controls adjacent message preloading
+	Enabled bool `json:"enabled"`
+
+	// Count defines how many messages around current selection to preload
+	Count int `json:"count"`
+}
+
+// PreloadingLimitsConfig defines resource limits for preloading
+type PreloadingLimitsConfig struct {
+	// BackgroundWorkers limits concurrent background preloading tasks
+	BackgroundWorkers int `json:"background_workers"`
+
+	// CacheSizeMB limits memory usage for preloaded messages cache
+	CacheSizeMB int `json:"cache_size_mb"`
+
+	// APIQuotaReservePercent reserves % of API quota for user actions
+	APIQuotaReservePercent int `json:"api_quota_reserve_percent"`
+}
+
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		LLM:       DefaultLLMConfig(),
-		Slack:     DefaultSlackConfig(),
-		Layout:    DefaultLayoutConfig(),
-		Keys:      DefaultKeyBindings(),
-		Theme:     DefaultThemeConfig(),
-		Threading: DefaultThreadingConfig(),
-		LogFile:   "",
+		LLM:         DefaultLLMConfig(),
+		Slack:       DefaultSlackConfig(),
+		Layout:      DefaultLayoutConfig(),
+		Keys:        DefaultKeyBindings(),
+		Theme:       DefaultThemeConfig(),
+		Threading:   DefaultThreadingConfig(),
+		Performance: DefaultPerformanceConfig(),
+		LogFile:     "",
 	}
 }
 
@@ -441,6 +499,29 @@ func DefaultThreadingConfig() ThreadingConfig {
 		MaxThreadDepth:       10,
 		ThreadSummaryEnabled: true,
 		PreserveThreadState:  true,
+	}
+}
+
+// DefaultPerformanceConfig returns default performance configuration
+func DefaultPerformanceConfig() PerformanceConfig {
+	return PerformanceConfig{
+		Preloading: PreloadingConfig{
+			Enabled: true, // Preloading ON by default as requested
+			NextPage: NextPageConfig{
+				Enabled:   true,
+				Threshold: 0.7, // Start preloading at 70% scroll
+				MaxPages:  2,    // Preload up to 2 pages ahead
+			},
+			AdjacentMessages: AdjacentMessagesConfig{
+				Enabled: true,
+				Count:   3, // Preload 3 messages around current selection
+			},
+			Limits: PreloadingLimitsConfig{
+				BackgroundWorkers:      3,  // 3 background workers for preloading
+				CacheSizeMB:           50, // 50MB cache limit
+				APIQuotaReservePercent: 20, // Reserve 20% of API quota for user actions
+			},
+		},
 	}
 }
 

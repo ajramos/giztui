@@ -563,9 +563,33 @@ tags: [email, {{labels}}]
 
 ### Performance Settings
 
+Configure performance optimizations including background preloading for instant navigation:
+
 ```json
 {
   "performance": {
+    "_comment": "Performance optimization settings - background preloading improves navigation speed",
+    "preloading": {
+      "_comment": "Background message preloading for instant navigation (Phase 2.4 performance optimization)",
+      "enabled": true,
+      "next_page": {
+        "_comment": "Preload next page when scrolling reaches threshold",
+        "enabled": true,
+        "threshold": 0.7,
+        "max_pages": 2
+      },
+      "adjacent_messages": {
+        "_comment": "Preload messages around current selection for smooth navigation",
+        "enabled": true,
+        "count": 3
+      },
+      "limits": {
+        "_comment": "Resource limits to prevent excessive memory/API usage",
+        "background_workers": 3,
+        "cache_size_mb": 50,
+        "api_quota_reserve_percent": 20
+      }
+    },
     "cache_size": 1000,
     "background_sync": true,
     "lazy_loading": true,
@@ -573,6 +597,60 @@ tags: [email, {{labels}}]
     "max_memory_usage": "500MB"
   }
 }
+```
+
+### Preloading Configuration Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `preloading.enabled` | boolean | Master toggle for background preloading | `true` |
+| `next_page.enabled` | boolean | Enable next page preloading | `true` |
+| `next_page.threshold` | number | Scroll threshold (0.0-1.0) to trigger preloading | `0.7` |
+| `next_page.max_pages` | integer | Maximum pages to preload ahead | `2` |
+| `adjacent_messages.enabled` | boolean | Enable adjacent message preloading | `true` |
+| `adjacent_messages.count` | integer | Number of messages to preload around selection | `3` |
+| `limits.background_workers` | integer | Maximum concurrent background workers | `3` |
+| `limits.cache_size_mb` | integer | Maximum cache size in MB | `50` |
+| `limits.api_quota_reserve_percent` | integer | Reserve percentage of API quota | `20` |
+
+### Preloading Behavior
+
+**Next Page Preloading:**
+- Triggers when scrolling reaches the threshold (70% by default)
+- Preloads the next page of messages in the background
+- Eliminates waiting time when clicking "Load More"
+- Respects `max_pages` limit to prevent excessive API usage
+
+**Adjacent Message Preloading:**
+- Preloads messages around the current selection
+- Provides instant navigation between messages
+- Configurable count (3 messages by default: 1 before, current, 2 after)
+- Uses intelligent caching with LRU eviction
+
+**Resource Management:**
+- Worker pool limits concurrent background operations
+- Cache size prevents excessive memory usage
+- API quota reserve ensures interactive operations remain responsive
+- Smart eviction based on Least Recently Used (LRU) algorithm
+
+### Runtime Preloading Control
+
+Use the `:preload` command for runtime control:
+
+```bash
+# Enable/disable preloading
+:preload on
+:preload off
+
+# Check status
+:preload status
+
+# Clear caches
+:preload clear
+
+# Control specific features
+:preload next on/off        # Next page preloading
+:preload adjacent on/off    # Adjacent message preloading
 ```
 
 ### Logging Configuration
@@ -717,6 +795,25 @@ Here's a complete example configuration with common customizations:
     "enabled": true,
     "default_view": "thread",
     "auto_expand_unread": true
+  },
+  "performance": {
+    "preloading": {
+      "enabled": true,
+      "next_page": {
+        "enabled": true,
+        "threshold": 0.8,
+        "max_pages": 1
+      },
+      "adjacent_messages": {
+        "enabled": true,
+        "count": 2
+      },
+      "limits": {
+        "background_workers": 2,
+        "cache_size_mb": 30,
+        "api_quota_reserve_percent": 25
+      }
+    }
   }
 }
 ```

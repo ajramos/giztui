@@ -170,5 +170,29 @@
     "download_path": "~/Downloads/gmail-attachments",
     "auto_open": true,
     "max_download_size": 52428800
+  },
+  "performance": {
+    "_comment": "Performance optimization settings - background preloading improves navigation speed",
+    "preloading": {
+      "_comment": "Background message preloading for instant navigation (Phase 2.4 performance optimization)",
+      "enabled": true,
+      "next_page": {
+        "_comment": "Preload next page when scrolling reaches threshold",
+        "enabled": true,
+        "threshold": 0.7,
+        "max_pages": 2
+      },
+      "adjacent_messages": {
+        "_comment": "Preload messages around current selection for smooth navigation",
+        "enabled": true,
+        "count": 3
+      },
+      "limits": {
+        "_comment": "Resource limits to prevent excessive memory/API usage",
+        "background_workers": 3,
+        "cache_size_mb": 50,
+        "api_quota_reserve_percent": 20
+      }
+    }
   }
 }
