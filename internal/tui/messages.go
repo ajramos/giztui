@@ -587,11 +587,73 @@ func (a *App) loadMoreMessages() {
 			return
 		}
 		
-		// Note: Preloader cache disabled for pagination to avoid nextPageToken conflicts
-		// The preloader is designed for individual message caching, not page-level caching
-		
 		a.setStatusPersistent("Loading more results…")
+		
+		// Try to use cached results first (with token preservation)
+		if preloader := a.GetPreloaderService(); preloader != nil {
+			// Use cache key with query to match how preloader stores search results
+			cacheKey := a.currentQuery + ":" + a.nextPageToken
+			if a.logger != nil {
+				a.logger.Printf("CACHE SEARCH: Checking for cached search results with key='%s'", cacheKey)
+			}
+			startTime := time.Now()
+			if cachedMessages, nextToken, found := preloader.GetCachedMessagesWithToken(a.ctx, cacheKey); found {
+				loadTime := time.Since(startTime)
+				if a.logger != nil {
+					a.logger.Printf("🎯 CACHE HIT (SEARCH): Found %d preloaded messages in %v, nextToken='%s'", len(cachedMessages), loadTime, nextToken)
+				}
+				// Process cached messages directly (already have metadata)
+				screenWidth := a.getFormatWidth()
+				for _, meta := range cachedMessages {
+					if meta == nil {
+						continue // Skip failed cached messages
+					}
+					a.AppendMessageID(meta.Id) // Add to IDs list
+					a.mu.Lock()
+					a.messagesMeta = append(a.messagesMeta, meta)
+					a.mu.Unlock()
+					
+					// Add to table
+					if table, ok := a.views["list"].(*tview.Table); ok {
+						row := table.GetRowCount()
+						text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+						cell := tview.NewTableCell(text).
+							SetExpansion(1).
+							SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+						table.SetCell(row, 0, cell)
+					}
+				}
+				a.nextPageToken = nextToken
+				
+				// Clear loading status and refresh UI
+				go func() {
+					a.GetErrorHandler().ClearPersistentMessage()
+				}()
+				
+				a.QueueUpdateDraw(func() {
+					if table, ok := a.views["list"].(*tview.Table); ok {
+						table.SetTitle(fmt.Sprintf(" 📧 Search: %s (%d) ", a.currentQuery, len(a.ids)))
+					}
+					a.refreshTableDisplay()
+					// FOCUS FIX: Restore focus to message list after loading cached search results
+					a.SetFocus(a.views["list"])
+					a.currentFocus = "list"
+					a.updateFocusIndicators("list")
+				})
+				return
+			}
+		}
+		
+		// Cache miss - fetch from API
+		if a.logger != nil {
+			a.logger.Printf("❌ CACHE MISS (SEARCH): No cached results for key='%s', fetching from API", a.currentQuery+":"+a.nextPageToken)
+		}
+		apiStartTime := time.Now()
 		messages, next, err := a.Client.SearchMessagesPage(a.currentQuery, 50, a.nextPageToken)
+		apiLoadTime := time.Since(apiStartTime)
+		if a.logger != nil && err == nil {
+			a.logger.Printf("🌐 API FETCH (SEARCH): Loaded %d messages from API in %v", len(messages), apiLoadTime)
+		}
 		if err != nil {
 			a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
 			return
@@ -613,11 +675,82 @@ func (a *App) loadMoreMessages() {
 		return
 	}
 	
-	// Note: Preloader cache disabled for pagination to avoid nextPageToken conflicts
-	// The preloader is designed for individual message caching, not page-level caching
-	
 	a.setStatusPersistent("Loading next 50 messages…")
+	
+	// Try to use cached results first (with token preservation)
+	if preloader := a.GetPreloaderService(); preloader != nil {
+		if a.logger != nil {
+			a.logger.Printf("CACHE INBOX: Checking for cached inbox results with token='%s'", a.nextPageToken)
+		}
+		startTime := time.Now()
+		if cachedMessages, nextToken, found := preloader.GetCachedMessagesWithToken(a.ctx, a.nextPageToken); found {
+			loadTime := time.Since(startTime)
+			if a.logger != nil {
+				a.logger.Printf("🎯 CACHE HIT (INBOX): Found %d preloaded messages in %v, nextToken='%s'", len(cachedMessages), loadTime, nextToken)
+			}
+			// Process cached messages directly (already have metadata)
+			screenWidth := a.getFormatWidth()
+			
+			// Preload labels once for this page
+			if labels, err := a.Client.ListLabels(); err == nil {
+				m := make(map[string]string, len(labels))
+				for _, l := range labels {
+					m[l.Id] = l.Name
+				}
+				a.emailRenderer.SetLabelMap(m)
+				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+			}
+			
+			for _, meta := range cachedMessages {
+				if meta == nil {
+					continue // Skip failed cached messages
+				}
+				a.AppendMessageID(meta.Id) // Add to IDs list
+				a.mu.Lock()
+				a.messagesMeta = append(a.messagesMeta, meta)
+				a.mu.Unlock()
+				
+				// Add to table
+				if table, ok := a.views["list"].(*tview.Table); ok {
+					row := table.GetRowCount()
+					text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+					cell := tview.NewTableCell(text).
+						SetExpansion(1).
+						SetBackgroundColor(a.GetComponentColors("general").Background.Color())
+					table.SetCell(row, 0, cell)
+				}
+			}
+			a.nextPageToken = nextToken
+			
+			// Clear loading status and refresh UI
+			go func() {
+				a.GetErrorHandler().ClearPersistentMessage()
+			}()
+			
+			a.QueueUpdateDraw(func() {
+				if table, ok := a.views["list"].(*tview.Table); ok {
+					table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
+				}
+				a.refreshTableDisplay()
+				// FOCUS FIX: Restore focus to message list after loading cached messages
+				a.SetFocus(a.views["list"])
+				a.currentFocus = "list"
+				a.updateFocusIndicators("list")
+			})
+			return
+		}
+	}
+	
+	// Cache miss - fetch from API
+	if a.logger != nil {
+		a.logger.Printf("❌ CACHE MISS (INBOX): No cached results for token='%s', fetching from API", a.nextPageToken)
+	}
+	apiStartTime := time.Now()
 	messages, next, err := a.Client.ListMessagesPage(50, a.nextPageToken)
+	apiLoadTime := time.Since(apiStartTime)
+	if a.logger != nil && err == nil {
+		a.logger.Printf("🌐 API FETCH (INBOX): Loaded %d messages from API in %v", len(messages), apiLoadTime)
+	}
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
 		return

@@ -850,7 +850,7 @@ func (a *App) initServices() {
 			APIQuotaReservePercent: a.Config.Performance.Preloading.Limits.APIQuotaReservePercent,
 		}
 		
-		a.preloaderService = services.NewMessagePreloader(a.Client, preloadConfig)
+		a.preloaderService = services.NewMessagePreloader(a.Client, preloadConfig, a.logger)
 		if a.logger != nil {
 			a.logger.Printf("initServices: preloader service initialized: %v (enabled: %v)", 
 				a.preloaderService != nil, preloadConfig.Enabled)

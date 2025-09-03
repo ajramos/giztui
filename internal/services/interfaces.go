@@ -757,6 +757,7 @@ type MessagePreloader interface {
 	
 	// Cache operations
 	GetCachedMessages(ctx context.Context, pageToken string) ([]*gmail_v1.Message, bool)
+	GetCachedMessagesWithToken(ctx context.Context, pageToken string) ([]*gmail_v1.Message, string, bool) // messages, nextToken, found
 	GetCachedMessage(ctx context.Context, messageID string) (*gmail_v1.Message, bool)
 	ClearCache(ctx context.Context) error
 	

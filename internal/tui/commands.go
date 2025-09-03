@@ -1094,9 +1094,14 @@ func (a *App) executePreloadStatus(args []string) {
 		hitRate := status.Statistics.CacheHitRate * 100
 		statusMsg.WriteString(fmt.Sprintf("\nStatistics:\n"))
 		statusMsg.WriteString(fmt.Sprintf("  Cache Hit Rate: %.1f%%\n", hitRate))
+		statusMsg.WriteString(fmt.Sprintf("  Cache Hits: %d\n", status.PreloadHits))
+		statusMsg.WriteString(fmt.Sprintf("  Cache Misses: %d\n", status.PreloadMisses))
 		statusMsg.WriteString(fmt.Sprintf("  Next Page Requests: %d\n", status.Statistics.NextPageRequests))
 		statusMsg.WriteString(fmt.Sprintf("  Adjacent Requests: %d\n", status.Statistics.AdjacentRequests))
 		statusMsg.WriteString(fmt.Sprintf("  Data Preloaded: %.1f MB\n", status.Statistics.TotalDataPreloadedMB))
+		if status.Statistics.AveragePreloadTime > 0 {
+			statusMsg.WriteString(fmt.Sprintf("  Avg Preload Time: %v\n", status.Statistics.AveragePreloadTime))
+		}
 	}
 
 	a.showInfo(statusMsg.String())

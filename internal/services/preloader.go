@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,11 +17,12 @@ import (
 type MessagePreloaderImpl struct {
 	client   *gmail.Client
 	config   *PreloadConfig
+	logger   *log.Logger
 	configMu sync.RWMutex
 
 	// Cache management
 	messageCache    map[string]*CacheItem
-	pageCache      map[string][]*gmail_v1.Message
+	pageCache      map[string]*PageCacheItem
 	cacheMu        sync.RWMutex
 	evictionList   *list.List
 	maxMemoryBytes int64
@@ -48,6 +50,14 @@ type CacheItem struct {
 	element    *list.Element // for LRU eviction
 }
 
+// PageCacheItem represents a cached page of messages with next token
+type PageCacheItem struct {
+	Messages      []*gmail_v1.Message
+	NextPageToken string
+	Timestamp     time.Time
+	Size          int64
+}
+
 // preloadTask represents a background preloading task
 type preloadTask struct {
 	Type         string   // "next_page" or "adjacent"
@@ -61,7 +71,7 @@ type preloadTask struct {
 }
 
 // NewMessagePreloader creates a new MessagePreloader instance
-func NewMessagePreloader(client *gmail.Client, config *PreloadConfig) *MessagePreloaderImpl {
+func NewMessagePreloader(client *gmail.Client, config *PreloadConfig, logger *log.Logger) *MessagePreloaderImpl {
 	if config == nil {
 		config = DefaultPreloadConfig()
 	}
@@ -83,8 +93,9 @@ func NewMessagePreloader(client *gmail.Client, config *PreloadConfig) *MessagePr
 	p := &MessagePreloaderImpl{
 		client:         client,
 		config:         config,
+		logger:         logger,
 		messageCache:   make(map[string]*CacheItem),
-		pageCache:     make(map[string][]*gmail_v1.Message),
+		pageCache:     make(map[string]*PageCacheItem),
 		evictionList:  list.New(),
 		maxMemoryBytes: int64(config.CacheSizeMB) * 1024 * 1024, // Convert MB to bytes
 		workerPool:    make(chan struct{}, config.BackgroundWorkers),
@@ -240,18 +251,37 @@ func (p *MessagePreloaderImpl) GetCachedMessages(ctx context.Context, pageToken 
 	p.cacheMu.RLock()
 	defer p.cacheMu.RUnlock()
 
-	messages, exists := p.pageCache[pageToken]
+	pageItem, exists := p.pageCache[pageToken]
 	if exists {
 		p.statsMu.Lock()
 		p.stats.PreloadHits++
 		p.statsMu.Unlock()
-		return messages, true
+		return pageItem.Messages, true
 	}
 
 	p.statsMu.Lock()
 	p.stats.PreloadMisses++
 	p.statsMu.Unlock()
 	return nil, false
+}
+
+// GetCachedMessagesWithToken retrieves cached messages and next page token for a page token
+func (p *MessagePreloaderImpl) GetCachedMessagesWithToken(ctx context.Context, pageToken string) ([]*gmail_v1.Message, string, bool) {
+	p.cacheMu.RLock()
+	defer p.cacheMu.RUnlock()
+
+	pageItem, exists := p.pageCache[pageToken]
+	if exists {
+		p.statsMu.Lock()
+		p.stats.PreloadHits++
+		p.statsMu.Unlock()
+		return pageItem.Messages, pageItem.NextPageToken, true
+	}
+
+	p.statsMu.Lock()
+	p.stats.PreloadMisses++
+	p.statsMu.Unlock()
+	return nil, "", false
 }
 
 // GetCachedMessage retrieves a cached individual message
@@ -285,7 +315,7 @@ func (p *MessagePreloaderImpl) ClearCache(ctx context.Context) error {
 
 	// Clear all caches
 	p.messageCache = make(map[string]*CacheItem)
-	p.pageCache = make(map[string][]*gmail_v1.Message)
+	p.pageCache = make(map[string]*PageCacheItem)
 	p.evictionList = list.New()
 	p.currentMemory = 0
 
@@ -440,19 +470,23 @@ func (p *MessagePreloaderImpl) processNextPageTask(task *preloadTask) {
 	defer cancel()
 
 	var messages []*gmail_v1.Message
+	var nextPageToken string
 	var err error
 
 	// Use appropriate API method based on whether we have a query
 	if task.Query != "" {
 		// For search queries, use search API
-		messages, _, err = p.client.SearchMessagesPage(task.Query, task.MaxResults, task.PageToken)
+		messages, nextPageToken, err = p.client.SearchMessagesPage(task.Query, task.MaxResults, task.PageToken)
 	} else {
 		// For inbox listing, use list API  
-		messages, _, err = p.client.ListMessagesPage(task.MaxResults, task.PageToken)
+		messages, nextPageToken, err = p.client.ListMessagesPage(task.MaxResults, task.PageToken)
 	}
 
 	if err != nil {
 		// Log error but don't fail the preload operation
+		if p.logger != nil {
+			p.logger.Printf("[PRELOAD ERROR] Failed to fetch next page for token='%s': %v", task.PageToken, err)
+		}
 		return
 	}
 
@@ -470,17 +504,44 @@ func (p *MessagePreloaderImpl) processNextPageTask(task *preloadTask) {
 			return
 		}
 
-		// Store in page cache
+		// Store in page cache with next token
 		p.cacheMu.Lock()
 		defer p.cacheMu.Unlock()
 		
-		// Cache the detailed messages for this page
+		// Cache the detailed messages for this page along with next token
 		// Use a cache key that includes the query for differentiation
 		cacheKey := task.PageToken
 		if task.Query != "" {
 			cacheKey = task.Query + ":" + task.PageToken
 		}
-		p.pageCache[cacheKey] = detailedMessages
+		
+		// Calculate cache size for this page
+		var pageSize int64
+		for _, msg := range detailedMessages {
+			pageSize += p.estimateMessageSize(msg)
+		}
+		
+		p.pageCache[cacheKey] = &PageCacheItem{
+			Messages:      detailedMessages,
+			NextPageToken: nextPageToken,
+			Timestamp:     time.Now(),
+			Size:          pageSize,
+		}
+		
+		// Update statistics
+		p.statsMu.Lock()
+		p.stats.TotalDataPreloadedMB += float64(pageSize) / (1024 * 1024)
+		p.statsMu.Unlock()
+		
+		// Log successful completion
+		if p.logger != nil {
+			queryStr := ""
+			if task.Query != "" {
+				queryStr = fmt.Sprintf(" (query: '%s')", task.Query)
+			}
+			p.logger.Printf("✅ PRELOAD COMPLETE: Cached %d messages%s for token='%s', nextToken='%s', size=%.2fMB", 
+				len(detailedMessages), queryStr, task.PageToken, nextPageToken, float64(pageSize)/(1024*1024))
+		}
 	}
 }
 
@@ -513,14 +574,24 @@ func (p *MessagePreloaderImpl) processAdjacentTask(task *preloadTask) {
 	messages, err := p.client.GetMessagesMetadataParallel(uncachedIDs, minInt(p.config.BackgroundWorkers, len(uncachedIDs)))
 	if err != nil {
 		// Log error but don't fail
+		if p.logger != nil {
+			p.logger.Printf("[PRELOAD ERROR] Failed to fetch adjacent messages: %v", err)
+		}
 		return
 	}
 
 	// Cache the fetched messages
+	cachedCount := 0
 	for _, message := range messages {
 		if message != nil {
 			p.cacheMessage(message.Id, message)
+			cachedCount++
 		}
+	}
+	
+	// Log successful completion
+	if cachedCount > 0 && p.logger != nil {
+		p.logger.Printf("✅ PRELOAD ADJACENT: Cached %d adjacent messages", cachedCount)
 	}
 }
 
