@@ -75,6 +75,10 @@ type App struct {
 	preloadBackupText   string // Backup of text content before showing preload status
 	preloadBackupHeader string // Backup of header content before showing preload status
 	preloadBackupTitle  string // Backup of text container title before showing preload status
+	promptStatsVisible bool
+	promptStatsBackupText   string // Backup of text content before showing prompt stats
+	promptStatsBackupHeader string // Backup of header content before showing prompt stats
+	promptStatsBackupTitle  string // Backup of text container title before showing prompt stats
 	currentView      string
 	currentFocus     string // Track current focus: "list" or "text"
 	previousFocus    string // Track previous focus before modal
@@ -2344,6 +2348,212 @@ func (a *App) hidePreloadStatus() {
 		a.SetFocus(a.views["text"])
 		a.updateFocusIndicators("text")
 	}
+}
+
+// showPromptStats displays prompt usage statistics in full screen using help screen pattern
+func (a *App) showPromptStats(stats *services.UsageStats) {
+	// Save current content before showing prompt stats
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		a.promptStatsBackupText = text.GetText(false)
+	}
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		a.promptStatsBackupHeader = header.GetText(false)
+	}
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		a.promptStatsBackupTitle = textContainer.GetTitle()
+	}
+
+	// Show prompt stats
+	a.promptStatsVisible = true
+
+	// Store current header height and hide header section
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// Calculate current header height before hiding it
+			headerContent := header.GetText(false)
+			a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+
+			// Clear header content and hide it completely
+			header.SetDynamicColors(true)
+			header.SetText("")
+			textContainer.ResizeItem(header, 0, 0)
+		}
+	}
+
+	// Display prompt stats title in text container border
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📊 Prompt Usage Statistics ")
+		textContainer.SetTitleColor(a.GetComponentColors("stats").Title.Color())
+	}
+
+	// Generate statistics content
+	statsContent := a.generatePromptStatsContent(stats)
+
+	// Display prompt stats content in enhanced text view with proper content setting
+	if a.enhancedTextView != nil {
+		a.enhancedTextView.SetContent(statsContent)
+		a.enhancedTextView.TextView.SetDynamicColors(true)
+		a.enhancedTextView.TextView.ScrollToBeginning()
+	} else {
+		// Fallback to regular text view if enhanced view not available
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			text.SetDynamicColors(true)
+			text.Clear()
+			text.SetText(statsContent)
+			text.ScrollToBeginning()
+		}
+	}
+
+	// Update focus state and set focus to text view (unless composer is active)
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		// Use QueueUpdateDraw only for focus indicators since we're now in goroutine context
+		a.QueueUpdateDraw(func() {
+			a.updateFocusIndicators("text")
+		})
+	}
+}
+
+// hidePromptStats hides the prompt stats screen and restores previous content
+func (a *App) hidePromptStats() {
+	if !a.promptStatsVisible {
+		return
+	}
+
+	// Restore previous content
+	a.promptStatsVisible = false
+
+	// Restore text content through enhanced text view
+	if a.enhancedTextView != nil && a.promptStatsBackupText != "" {
+		a.enhancedTextView.SetContent(a.promptStatsBackupText)
+		a.enhancedTextView.TextView.SetDynamicColors(true)
+		a.enhancedTextView.TextView.ScrollToBeginning()
+	} else {
+		// Fallback to regular text view
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			text.SetDynamicColors(true)
+			text.Clear()
+			text.SetText(a.promptStatsBackupText)
+			text.ScrollToBeginning()
+		}
+	}
+
+	// Restore header content and visibility
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		header.SetDynamicColors(true)
+		header.SetText(a.promptStatsBackupHeader)
+	}
+
+	// Restore header height (make it visible again)
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			textContainer.ResizeItem(header, a.originalHeaderHeight, 0)
+		}
+	}
+
+	// Restore text container title
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(a.promptStatsBackupTitle)
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
+	}
+
+	// Clear backup content
+	a.promptStatsBackupText = ""
+	a.promptStatsBackupHeader = ""
+	a.promptStatsBackupTitle = ""
+
+	// Update focus state and set focus to text view (unless composer is active)
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		a.updateFocusIndicators("text")
+	}
+}
+
+// generatePromptStatsContent generates the content for prompt statistics display
+func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
+	var content strings.Builder
+
+	// Summary section
+	content.WriteString("📊 USAGE SUMMARY\n\n")
+	content.WriteString(fmt.Sprintf("Total Prompt Uses: %d\n", stats.TotalUsage))
+	content.WriteString(fmt.Sprintf("Active Prompts: %d\n", stats.UniquePrompts))
+	content.WriteString(fmt.Sprintf("Favorite Prompts: %d\n", len(stats.FavoritePrompts)))
+	if !stats.LastUsed.IsZero() {
+		content.WriteString(fmt.Sprintf("Last Used: %s\n", stats.LastUsed.Format("2006-01-02 15:04")))
+	}
+	content.WriteString("\n")
+
+	// Top prompts section
+	if len(stats.TopPrompts) > 0 {
+		content.WriteString("🏆 TOP PROMPTS\n\n")
+		for i, prompt := range stats.TopPrompts {
+			icon := "📝"
+			switch prompt.Category {
+			case "bulk_analysis":
+				icon = "🚀"
+			case "summary":
+				icon = "📄"
+			case "analysis":
+				icon = "📊"
+			case "reply":
+				icon = "💬"
+			}
+
+			favoriteIcon := ""
+			if prompt.IsFavorite {
+				favoriteIcon = " ⭐"
+			}
+
+			content.WriteString(fmt.Sprintf("%d. %s %s%s\n", i+1, icon, prompt.Name, favoriteIcon))
+			content.WriteString(fmt.Sprintf("    Uses: %d | Category: %s | Last: %s\n",
+				prompt.UsageCount, prompt.Category, prompt.LastUsed))
+			content.WriteString("\n")
+		}
+	} else {
+		content.WriteString("🏆 TOP PROMPTS\n\n")
+		content.WriteString("No prompt usage recorded yet.\n")
+		content.WriteString("Start using prompts to see statistics here!\n\n")
+	}
+
+	// Favorites section (if different from top)
+	if len(stats.FavoritePrompts) > 0 && len(stats.FavoritePrompts) != len(stats.TopPrompts) {
+		content.WriteString("⭐ FAVORITE PROMPTS\n\n")
+		for _, prompt := range stats.FavoritePrompts {
+			icon := "📝"
+			switch prompt.Category {
+			case "bulk_analysis":
+				icon = "🚀"
+			case "summary":
+				icon = "📄"
+			case "analysis":
+				icon = "📊"
+			case "reply":
+				icon = "💬"
+			}
+
+			content.WriteString(fmt.Sprintf("• %s %s\n", icon, prompt.Name))
+			content.WriteString(fmt.Sprintf("  Uses: %d | Category: %s\n",
+				prompt.UsageCount, prompt.Category))
+		}
+		content.WriteString("\n")
+	}
+
+	// Usage information
+	content.WriteString("📚 COMMAND USAGE\n\n")
+	content.WriteString("  :prompt stats or :prompt s     - Show this statistics screen\n")
+	content.WriteString("  :prompt list or :prompt l      - Manage prompts\n")
+	content.WriteString("  :prompt create or :prompt c    - Create new prompt\n")
+	content.WriteString("  :prompt update or :prompt u    - Update existing prompt\n")
+	content.WriteString("  :prompt delete or :prompt d    - Delete prompt\n")
+	content.WriteString("  :prompt export or :prompt e    - Export prompts\n")
+	content.WriteString("\n")
+
+	// Help text
+	content.WriteString("Press ESC to return to previous view")
+
+	return content.String()
 }
 
 // (moved to messages.go)

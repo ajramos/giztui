@@ -536,6 +536,40 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		return "G <message_number>"
 	}
 
+	// Contextual suggestions for 'prompt' commands
+	if strings.HasPrefix(buffer, "prompt ") {
+		tail := strings.TrimSpace(strings.TrimPrefix(buffer, "prompt"))
+		lower := strings.ToLower(tail)
+		switch {
+		case strings.HasPrefix("stats", lower):
+			return "prompt stats"
+		case strings.HasPrefix("statistics", lower):
+			return "prompt statistics"  
+		case strings.HasPrefix("list", lower):
+			return "prompt list"
+		case strings.HasPrefix("create", lower):
+			return "prompt create"
+		case strings.HasPrefix("update", lower):
+			return "prompt update"
+		case strings.HasPrefix("delete", lower):
+			return "prompt delete"
+		case strings.HasPrefix("export", lower):
+			return "prompt export"
+		case lower == "s":
+			return "prompt stats"
+		case lower == "l":
+			return "prompt list"
+		case lower == "c":
+			return "prompt create"
+		case lower == "u":
+			return "prompt update"
+		case lower == "d":
+			return "prompt delete"
+		case lower == "e":
+			return "prompt export"
+		}
+	}
+
 	return ""
 }
 
@@ -1299,23 +1333,15 @@ func (a *App) executePreloadAdjacent(args []string) {
 	}
 }
 
-// executeStatsCommand handles the stats/usage command
+// executeStatsCommand handles the stats/usage command (redirects to new :prompt stats)
 func (a *App) executeStatsCommand(args []string) {
-	if len(args) == 0 {
-		// Show general usage stats
-		go a.showUsageStats()
-		return
-	}
-
-	subcommand := args[0]
-	switch subcommand {
-	case "prompts", "prompt":
-		go a.showUsageStats()
-	case "clear", "reset":
-		a.showError("Usage stats reset not yet implemented")
-	default:
-		a.showError(fmt.Sprintf("Unknown stats subcommand: %s. Usage: stats [prompts]", subcommand))
-	}
+	// Redirect to new command structure
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "Command moved! Use ':prompt stats' instead of ':stats'")
+	}()
+	
+	// Execute the new prompt stats command directly
+	a.executePromptStats([]string{})
 }
 
 // executeCacheClear clears prompt caches
@@ -1625,9 +1651,11 @@ func (a *App) executePromptCommand(args []string) {
 		a.executePromptExport(subArgs)
 	case "delete", "d":
 		a.executePromptDelete(subArgs)
+	case "stats", "statistics", "s":
+		a.executePromptStats(subArgs)
 	default:
 		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown prompt command: %s. Use 'list', 'create', 'update', 'export', or 'delete'", subCommand))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown prompt command: %s. Use 'list', 'create', 'update', 'export', 'delete', or 'stats'", subCommand))
 		}()
 	}
 }
@@ -1937,6 +1965,30 @@ func (a *App) executePromptDelete(args []string) {
 		go func() {
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
 		}()
+	}()
+}
+
+// executePromptStats handles :prompt stats command to show usage statistics
+func (a *App) executePromptStats(args []string) {
+	// Get prompt service
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	if promptService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		}()
+		return
+	}
+
+	// Get usage statistics
+	go func() {
+		stats, err := promptService.GetUsageStats(a.ctx)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to get usage stats: %v", err))
+			return
+		}
+
+		// Show stats in full-screen display (following preload status pattern)
+		a.showPromptStats(stats)
 	}()
 }
 

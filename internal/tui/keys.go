@@ -1070,6 +1070,14 @@ func (a *App) bindKeys() {
 				a.hidePreloadStatus()
 				return nil
 			}
+			// If prompt stats screen is showing, close it first
+			if a.promptStatsVisible {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing prompt stats screen")
+				}
+				a.hidePromptStats()
+				return nil
+			}
 
 			// FIRST: Cancel any active streaming operations (this fixes the hanging issue)
 			if a.streamingCancel != nil {
