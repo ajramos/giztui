@@ -1062,6 +1062,14 @@ func (a *App) bindKeys() {
 				a.toggleHelp()
 				return nil
 			}
+			// If preload status screen is showing, close it first
+			if a.preloadStatusVisible {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing preload status screen")
+				}
+				a.hidePreloadStatus()
+				return nil
+			}
 
 			// FIRST: Cancel any active streaming operations (this fixes the hanging issue)
 			if a.streamingCancel != nil {

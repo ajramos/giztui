@@ -71,6 +71,10 @@ type App struct {
 	helpBackupText   string // Backup of text content before showing help
 	helpBackupHeader string // Backup of header content before showing help
 	helpBackupTitle  string // Backup of text container title before showing help
+	preloadStatusVisible bool
+	preloadBackupText   string // Backup of text content before showing preload status
+	preloadBackupHeader string // Backup of header content before showing preload status
+	preloadBackupTitle  string // Backup of text container title before showing preload status
 	currentView      string
 	currentFocus     string // Track current focus: "list" or "text"
 	previousFocus    string // Track previous focus before modal
@@ -2221,6 +2225,124 @@ func (a *App) toggleHelp() {
 			a.SetFocus(a.views["text"])
 			a.updateFocusIndicators("text")
 		}
+	}
+}
+
+// showPreloadStatus displays preload status in full screen using help screen pattern
+func (a *App) showPreloadStatus(statusContent string) {
+	// Save current content before showing preload status
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		a.preloadBackupText = text.GetText(false)
+	}
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		a.preloadBackupHeader = header.GetText(false)
+	}
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		a.preloadBackupTitle = textContainer.GetTitle()
+	}
+
+	// Show preload status
+	a.preloadStatusVisible = true
+
+	// Store current header height and hide header section
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			// Calculate current header height before hiding it
+			headerContent := header.GetText(false)
+			a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+
+			// Clear header content and hide it completely
+			header.SetDynamicColors(true)
+			header.SetText("")
+			textContainer.ResizeItem(header, 0, 0)
+		}
+	}
+
+	// Display preload status title in text container border
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📦 Preloader Status ")
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
+	}
+
+	// Display preload status content in enhanced text view with proper content setting
+	if a.enhancedTextView != nil {
+		a.enhancedTextView.SetContent(statusContent)
+		a.enhancedTextView.TextView.SetDynamicColors(true)
+		a.enhancedTextView.TextView.ScrollToBeginning()
+	} else {
+		// Fallback to regular text view if enhanced view not available
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			text.SetDynamicColors(true)
+			text.Clear()
+			text.SetText(statusContent)
+			text.ScrollToBeginning()
+		}
+	}
+
+	// Update focus state and set focus to text view (unless composer is active)
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		// Use QueueUpdateDraw only for focus indicators since we're now in goroutine context
+		a.QueueUpdateDraw(func() {
+			a.updateFocusIndicators("text")
+		})
+	}
+}
+
+// hidePreloadStatus hides the preload status screen and restores previous content
+func (a *App) hidePreloadStatus() {
+	if !a.preloadStatusVisible {
+		return
+	}
+
+	// Restore previous content
+	a.preloadStatusVisible = false
+
+	// Restore text content through enhanced text view
+	if a.enhancedTextView != nil && a.preloadBackupText != "" {
+		a.enhancedTextView.SetContent(a.preloadBackupText)
+		a.enhancedTextView.TextView.SetDynamicColors(true)
+		a.enhancedTextView.TextView.ScrollToBeginning()
+	} else {
+		// Fallback to regular text view
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			text.SetDynamicColors(true)
+			text.Clear()
+			text.SetText(a.preloadBackupText)
+			text.ScrollToBeginning()
+		}
+	}
+
+	// Restore header content and visibility
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		header.SetDynamicColors(true)
+		header.SetText(a.preloadBackupHeader)
+	}
+
+	// Restore header height (make it visible again)
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			textContainer.ResizeItem(header, a.originalHeaderHeight, 0)
+		}
+	}
+
+	// Restore text container title
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(a.preloadBackupTitle)
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
+	}
+
+	// Clear backup content
+	a.preloadBackupText = ""
+	a.preloadBackupHeader = ""
+	a.preloadBackupTitle = ""
+
+	// Update focus state and set focus to text view (unless composer is active)
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.currentFocus = "text"
+		a.SetFocus(a.views["text"])
+		a.updateFocusIndicators("text")
 	}
 }
 

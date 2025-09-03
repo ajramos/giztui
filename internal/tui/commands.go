@@ -333,6 +333,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"numbe":          {"numbers"},
 		"number":         {"numbers"},
 		"numbers":        {"numbers"},
+		"pre":            {"preload"},
+		"prel":           {"preload"},
+		"prelo":          {"preload"},
+		"preloa":         {"preload"},
+		"preload":        {"preload"},
+		"pl":             {"preload"},
 		"q":              {"quit"},
 		"qu":             {"quit"},
 		"qui":            {"quit"},
@@ -1062,7 +1068,7 @@ func (a *App) executePreloadCommand(args []string) {
 	case "adjacent", "adj":
 		a.executePreloadAdjacent(args[1:])
 	default:
-		a.showError(fmt.Sprintf("Unknown preload subcommand: %s. Usage: preload <on|off|status|clear|next|adjacent>", subcommand))
+		a.showError(fmt.Sprintf("Unknown preload subcommand: %s. Usage: preload|pl <on|off|status|clear|next|adjacent>", subcommand))
 	}
 }
 
@@ -1104,7 +1110,21 @@ func (a *App) executePreloadStatus(args []string) {
 		}
 	}
 
-	a.showInfo(statusMsg.String())
+	// Add usage information
+	statusMsg.WriteString(fmt.Sprintf("\nUsage:\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload or :pl       - Show this status\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload status       - Show this status\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload on|off       - Enable/disable all preloading\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload next on|off  - Enable/disable next page preloading\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload adj on|off   - Enable/disable adjacent message preloading\n"))
+	statusMsg.WriteString(fmt.Sprintf("  :preload clear        - Clear preload cache\n"))
+	statusMsg.WriteString(fmt.Sprintf("\nPress ESC to return to previous view\n"))
+
+	// Call showPreloadStatus in goroutine to avoid command context issues
+	statusContent := statusMsg.String()
+	go func() {
+		a.showPreloadStatus(statusContent)
+	}()
 }
 
 // executePreloadEnable enables preloading features
