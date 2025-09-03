@@ -2269,19 +2269,36 @@ func (a *App) performSearch(query string) {
 	}
 	a.emailRenderer.SetShowSystemLabelsInList(true)
 
-	screenWidth := a.getFormatWidth()
-	for _, msg := range messages {
+	// Collect message IDs for parallel fetching
+	messageIDs := make([]string, len(messages))
+	for i, msg := range messages {
+		messageIDs[i] = msg.Id
 		a.AppendMessageID(msg.Id)
-		meta, err := a.Client.GetMessage(msg.Id)
-		if err != nil {
-			continue
+	}
+
+	// Fetch messages in parallel
+	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	if err != nil {
+		a.QueueUpdateDraw(func() {
+			a.showError(fmt.Sprintf("❌ Error loading search results: %v", err))
+		})
+		return
+	}
+
+	screenWidth := a.getFormatWidth()
+	for i, meta := range detailedMessages {
+		if meta == nil {
+			continue // Skip failed fetches
 		}
+		
 		a.messagesMeta = append(a.messagesMeta, meta)
 		text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
+		
+		// Capture index for closure
+		rowIndex := i
 		a.QueueUpdateDraw(func() {
 			if table, ok := a.views["list"].(*tview.Table); ok {
-				row := table.GetRowCount()
-				table.SetCell(row, 0, tview.NewTableCell(text).SetExpansion(1))
+				table.SetCell(rowIndex, 0, tview.NewTableCell(text).SetExpansion(1))
 			}
 			a.refreshTableDisplay()
 		})

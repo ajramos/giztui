@@ -95,6 +95,62 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 	return msg, nil
 }
 
+// MessageResult represents the result of fetching a message
+type MessageResult struct {
+	Message *gmail.Message
+	Index   int // Original index in the input slice
+	Error   error
+}
+
+// GetMessagesParallel fetches multiple messages concurrently using a worker pool
+// Returns results in the same order as input IDs, with nil for failed fetches
+func (c *Client) GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gmail.Message, error) {
+	if len(messageIDs) == 0 {
+		return []*gmail.Message{}, nil
+	}
+
+	// Limit workers to avoid overwhelming the API
+	if maxWorkers <= 0 || maxWorkers > 15 {
+		maxWorkers = 10 // Conservative default
+	}
+
+	// Create channels
+	jobs := make(chan struct{ id string; index int }, len(messageIDs))
+	results := make(chan MessageResult, len(messageIDs))
+
+	// Start workers
+	for i := 0; i < maxWorkers; i++ {
+		go func() {
+			for job := range jobs {
+				msg, err := c.GetMessage(job.id)
+				results <- MessageResult{
+					Message: msg,
+					Index:   job.index,
+					Error:   err,
+				}
+			}
+		}()
+	}
+
+	// Send jobs
+	for i, id := range messageIDs {
+		jobs <- struct{ id string; index int }{id: id, index: i}
+	}
+	close(jobs)
+
+	// Collect results and maintain order
+	messages := make([]*gmail.Message, len(messageIDs))
+	for range len(messageIDs) {
+		result := <-results
+		if result.Error == nil {
+			messages[result.Index] = result.Message
+		}
+		// On error, leave nil in the slice (caller can handle missing messages)
+	}
+
+	return messages, nil
+}
+
 // GetMessageWithContent retrieves a message and extracts its content
 func (c *Client) GetMessageWithContent(id string) (*Message, error) {
 	msg, err := c.GetMessage(id)

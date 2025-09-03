@@ -421,17 +421,29 @@ func (a *App) reloadMessagesFlat() {
 		}()
 	}
 
-	// Process messages using the email renderer (progressive paint + color)
+	// Collect message IDs for parallel fetching
+	messageIDs := make([]string, len(messages))
 	for i, msg := range messages {
-		// Append ID thread-safely (no long-held lock here)
+		messageIDs[i] = msg.Id
 		a.AppendMessageID(msg.Id)
+	}
 
-		// Get only metadata, not full content
-		message, err := a.Client.GetMessage(msg.Id)
-		if err != nil {
-			if table, ok := a.views["list"].(*tview.Table); ok {
-				table.SetCell(i, 0, tview.NewTableCell(fmt.Sprintf("⚠️  Error loading message %d", i+1)))
-			}
+	// Fetch messages in parallel (10 workers for balanced performance/API limits)
+	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error loading messages: %v", err))
+		return
+	}
+
+	// Process fetched messages and update UI
+	for i, message := range detailedMessages {
+		if message == nil {
+			// Handle failed fetch
+			a.QueueUpdateDraw(func() {
+				if table, ok := a.views["list"].(*tview.Table); ok {
+					table.SetCell(i, 0, tview.NewTableCell(fmt.Sprintf("⚠️  Error loading message %d", i+1)))
+				}
+			})
 			continue
 		}
 
@@ -639,15 +651,29 @@ func (a *App) loadMoreMessages() {
 		a.emailRenderer.SetLabelMap(m)
 		a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
 	}
-	for _, msg := range messages {
+	// Collect message IDs for parallel fetching
+	messageIDs := make([]string, len(messages))
+	for i, msg := range messages {
+		messageIDs[i] = msg.Id
 		a.AppendMessageID(msg.Id)
-		meta, err := a.Client.GetMessage(msg.Id)
-		if err != nil {
-			continue
+	}
+
+	// Fetch messages in parallel
+	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error loading more messages: %v", err))
+		return
+	}
+
+	for _, meta := range detailedMessages {
+		if meta == nil {
+			continue // Skip failed fetches
 		}
+
 		a.mu.Lock()
 		a.messagesMeta = append(a.messagesMeta, meta)
 		a.mu.Unlock()
+
 		// Set placeholder cell; colors will be applied by reformatListItems below
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
@@ -678,13 +704,26 @@ func (a *App) loadMoreMessages() {
 
 // appendMessages adds messages to current table from a slice of gmail.Message (IDs)
 func (a *App) appendMessages(messages []*gmailapi.Message) {
-	screenWidth := a.getFormatWidth()
-	for _, msg := range messages {
+	// Collect message IDs for parallel fetching
+	messageIDs := make([]string, len(messages))
+	for i, msg := range messages {
+		messageIDs[i] = msg.Id
 		a.AppendMessageID(msg.Id)
-		meta, err := a.Client.GetMessage(msg.Id)
-		if err != nil {
-			continue
+	}
+
+	// Fetch messages in parallel
+	detailedMessages, err := a.Client.GetMessagesParallel(messageIDs, 10)
+	if err != nil {
+		a.showError(fmt.Sprintf("❌ Error loading message details: %v", err))
+		return
+	}
+
+	screenWidth := a.getFormatWidth()
+	for _, meta := range detailedMessages {
+		if meta == nil {
+			continue // Skip failed fetches
 		}
+
 		a.messagesMeta = append(a.messagesMeta, meta)
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
