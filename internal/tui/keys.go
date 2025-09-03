@@ -31,18 +31,31 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	}
 
 	// Check for uppercase version of summarize key (force regenerate)
+	// Only create uppercase mapping if the uppercase key is NOT explicitly configured for something else
 	if a.Keys.Summarize != "" && len(a.Keys.Summarize) == 1 {
 		upperKey := strings.ToUpper(a.Keys.Summarize)
-		if key == upperKey {
+		
+		// Check if this key is explicitly configured for any other function
+		// If so, the configured function takes precedence over the automatic uppercase mapping
+		if len(upperKey) == 1 && !a.isKeyConfigured(rune(upperKey[0])) && key == upperKey {
+			// Only handle uppercase force regenerate if the key is not configured for anything else
 			if a.logger != nil {
-				a.logger.Printf("Configurable shortcut: '%s' -> force_regenerate_summary", key)
+				a.logger.Printf("Auto-generated shortcut: '%s' -> force_regenerate_summary (uppercase of '%s')", key, a.Keys.Summarize)
 			}
 			go a.forceRegenerateSummary()
 			return true
 		}
+		// If the uppercase key IS configured, let the configurable shortcuts system handle it
+		// (it will be handled in the switch statement below)
 	}
 
 	switch key {
+	case a.Keys.ForceRegenerateSummary:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> force_regenerate_summary", key)
+		}
+		go a.forceRegenerateSummary()
+		return true
 	case a.Keys.GenerateReply:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> generate_reply", key)
@@ -2466,4 +2479,75 @@ func (a *App) promptRange(startIndex, count int) {
 
 	// Open bulk prompt picker
 	go a.openBulkPromptPicker()
+}
+
+// triggerPreloadingForMessage triggers background preloading for a specific message index
+func (a *App) triggerPreloadingForMessage(messageIndex int) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Log panic but don't crash the app
+				if a.logger != nil {
+					a.logger.Printf("Preloader panic recovered: %v", r)
+				}
+			}
+		}()
+
+		preloader := a.GetPreloaderService()
+		if preloader == nil || !preloader.IsEnabled() {
+			return
+		}
+
+		// Validate message index
+		if messageIndex < 0 || messageIndex >= len(a.ids) {
+			return
+		}
+
+		// 1. Next page preloading: Check if user is near end of current page
+		totalMessages := len(a.ids)
+		if totalMessages > 0 && preloader.IsNextPageEnabled() {
+			threshold := preloader.GetStatus().Config.NextPageThreshold
+			currentPosition := float64(messageIndex+1) / float64(totalMessages)
+			if a.logger != nil {
+				a.logger.Printf("PRELOAD MANUAL: message %d/%d (%.2f%%) vs threshold %.2f%%, nextPageToken='%s'", 
+					messageIndex+1, totalMessages, currentPosition*100, threshold*100, a.nextPageToken)
+			}
+			if currentPosition >= threshold {
+				// User is at threshold, trigger next page preload
+				query := a.currentQuery
+				if query == "" && a.searchMode == "remote" {
+					query = a.currentQuery
+				}
+				maxResults := int64(50) // Default page size
+				
+				if err := preloader.PreloadNextPage(a.ctx, a.nextPageToken, query, maxResults); err != nil {
+					if a.logger != nil {
+						a.logger.Printf("PRELOAD MANUAL: Next page preload failed: %v", err)
+					}
+				} else {
+					if a.logger != nil {
+						a.logger.Printf("PRELOAD MANUAL: Next page preload initiated successfully")
+					}
+				}
+			}
+		}
+
+		// 2. Adjacent message preloading: Preload messages around current selection
+		if totalMessages > 0 && preloader.IsAdjacentEnabled() {
+			currentMessageID := a.ids[messageIndex]
+			if a.logger != nil {
+				a.logger.Printf("PRELOAD ADJACENT: triggering for message %d (ID: %s), total messages: %d", 
+					messageIndex+1, currentMessageID, totalMessages)
+			}
+			if err := preloader.PreloadAdjacentMessages(a.ctx, currentMessageID, a.ids); err != nil {
+				if a.logger != nil {
+					a.logger.Printf("PRELOAD ADJACENT: failed: %v", err)
+				}
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("PRELOAD ADJACENT: initiated successfully for message %d", messageIndex+1)
+				}
+			}
+		}
+	}()
 }

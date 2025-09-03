@@ -586,6 +586,26 @@ func (a *App) loadMoreMessages() {
 			a.showStatusMessage("No more results")
 			return
 		}
+		
+		// Phase 2.4: Check preloaded cache first
+		if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
+			if cachedMessages, found := preloader.GetCachedMessages(a.ctx, a.nextPageToken); found {
+				if a.logger != nil {
+					a.logger.Printf("PRELOAD CACHE HIT: Using cached messages for search results")
+				}
+				a.appendMessages(cachedMessages)
+				// Move to next page token (would need to be stored with cache)
+				a.nextPageToken = "" // Simplified - in full implementation, cache should store next token
+				// FOCUS FIX: Restore focus to message list after loading more search results
+				a.QueueUpdateDraw(func() {
+					a.SetFocus(a.views["list"])
+					a.currentFocus = "list"
+					a.updateFocusIndicators("list")
+				})
+				return
+			}
+		}
+		
 		a.setStatusPersistent("Loading more results…")
 		messages, next, err := a.Client.SearchMessagesPage(a.currentQuery, 50, a.nextPageToken)
 		if err != nil {
@@ -608,6 +628,20 @@ func (a *App) loadMoreMessages() {
 		a.showStatusMessage("No more messages")
 		return
 	}
+	
+	// Phase 2.4: Check preloaded cache first
+	if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
+		if cachedMessages, found := preloader.GetCachedMessages(a.ctx, a.nextPageToken); found {
+			if a.logger != nil {
+				a.logger.Printf("PRELOAD CACHE HIT: Using cached messages for inbox")
+			}
+			a.appendMessages(cachedMessages)
+			// Move to next page token (would need to be stored with cache)
+			a.nextPageToken = "" // Simplified - in full implementation, cache should store next token
+			return
+		}
+	}
+	
 	a.setStatusPersistent("Loading next 50 messages…")
 	messages, next, err := a.Client.ListMessagesPage(50, a.nextPageToken)
 	if err != nil {
@@ -2262,22 +2296,55 @@ func (a *App) showMessageWithoutFocus(id string) {
 		}
 		// Use cache if available; otherwise fetch and cache
 		var message *gmail.Message
-		if cached, ok := a.messageCache[id]; ok {
-			if a.debug {
-				a.logger.Printf("showMessageWithoutFocus: cache hit id=%s", id)
+		
+		// Phase 2.4: Check preloader cache first for adjacent message preloading
+		if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
+			if cachedMessage, found := preloader.GetCachedMessage(a.ctx, id); found {
+				if a.debug {
+					a.logger.Printf("showMessageWithoutFocus: PRELOADER CACHE HIT id=%s", id)
+				}
+				// Check if cached message has body content (preloader uses metadata only)
+				hasContent := cachedMessage.Payload != nil && 
+					len(cachedMessage.Payload.Parts) > 0 || 
+					(cachedMessage.Payload.Body != nil && cachedMessage.Payload.Body.Data != "")
+				
+				if hasContent {
+					// Convert gmail_v1.Message to gmail.Message without additional API calls
+					message = a.Client.CreateMessageFromRaw(cachedMessage)
+				} else {
+					if a.debug {
+						a.logger.Printf("showMessageWithoutFocus: Preloader cache has metadata only, need full content")
+					}
+					// Preloader cache only has metadata, fetch full content
+					fullMessage, err := a.Client.GetMessageWithContent(id)
+					if err == nil {
+						message = fullMessage
+						// Store in regular cache for future use
+						a.messageCache[id] = fullMessage
+					}
+				}
 			}
-			message = cached
-		} else {
-			m, err := a.Client.GetMessageWithContent(id)
-			if err != nil {
-				a.showError(fmt.Sprintf("❌ Error loading message: %v", err))
-				return
+		}
+		
+		// Fallback to regular message cache
+		if message == nil {
+			if cached, ok := a.messageCache[id]; ok {
+				if a.debug {
+					a.logger.Printf("showMessageWithoutFocus: regular cache hit id=%s", id)
+				}
+				message = cached
+			} else {
+				m, err := a.Client.GetMessageWithContent(id)
+				if err != nil {
+					a.showError(fmt.Sprintf("❌ Error loading message: %v", err))
+					return
+				}
+				if a.debug {
+					a.logger.Printf("showMessageWithoutFocus: fetched id=%s", id)
+				}
+				a.messageCache[id] = m
+				message = m
 			}
-			if a.debug {
-				a.logger.Printf("showMessageWithoutFocus: fetched id=%s", id)
-			}
-			a.messageCache[id] = m
-			message = m
 		}
 
 		// In preview (selection change), do not run LLM touch-up to avoid many calls

@@ -971,6 +971,9 @@ func (a *App) executeGoToCommand(args []string) {
 
 	// Use the same simple approach as the working direct G key
 	list.Select(targetRow, 0)
+	
+	// Manually trigger preloading since SetSelectionChangedFunc may not fire for programmatic selection
+	a.triggerPreloadingForMessage(targetRow - 1) // Convert table row to message index
 }
 
 // executeNumericShortcut handles :1, :$, and pure numbers for navigation
@@ -1007,6 +1010,9 @@ func (a *App) executeGoToFirst() {
 	// First message is at table row 1 (row 0 is header, maps to a.ids[0])
 	// This matches the SetSelectionChangedFunc logic: messageIndex = row - 1
 	list.Select(1, 0)
+	
+	// Manually trigger preloading since SetSelectionChangedFunc may not fire for programmatic selection
+	a.triggerPreloadingForMessage(0) // First message is at index 0
 }
 
 // executeCacheCommand handles cache-related commands

@@ -885,3 +885,23 @@ func (c *Client) ExtractDate(msg *gmail.Message) time.Time {
 func (c *Client) ExtractLabels(msg *gmail.Message) []string {
 	return extractLabels(msg)
 }
+
+// CreateMessageFromRaw creates a gmail.Message wrapper from a raw gmail API message
+// This is used to convert preloader cached messages to the expected format without additional API calls
+func (c *Client) CreateMessageFromRaw(rawMsg *gmail.Message) *Message {
+	if rawMsg == nil {
+		return nil
+	}
+	
+	message := &Message{Message: rawMsg}
+	message.PlainText = ExtractPlainText(rawMsg)
+	message.HTML = ExtractHTML(rawMsg)
+	message.Subject = extractHeader(rawMsg, "Subject")
+	message.From = extractHeader(rawMsg, "From")
+	message.To = extractHeader(rawMsg, "To")
+	message.Cc = extractHeader(rawMsg, "Cc")
+	message.Date = extractDate(rawMsg)
+	message.Labels = c.humanReadableLabels(extractLabels(rawMsg))
+	
+	return message
+}

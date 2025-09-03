@@ -151,10 +151,36 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | Key | Action | Description |
 |-----|--------|-------------|
 | `y` | AI summary | Generate/show AI summary of current message |
-| `Y` | Regenerate summary | Force regenerate AI summary (ignore cache) |
+| `j` | Regenerate summary | Force regenerate AI summary (ignore cache) |
 | `p` | Prompt picker | Open AI prompt library (single or bulk mode) |
 | `g` | Generate reply | Experimental AI reply generation |
 | `Esc` | Cancel AI | Cancel any active streaming AI operation |
+
+## ⚙️ Customizing Shortcuts
+
+**All shortcuts listed above can be customized** in your `config.json` file. See [CONFIGURATION.md](CONFIGURATION.md) for detailed customization guidance.
+
+### Shortcut Precedence
+When you customize shortcuts, the priority order is:
+1. **Your configured shortcuts** (highest priority - always used)
+2. **Hardcoded shortcuts** (only used if not configured) 
+3. **Auto-generated shortcuts** (lowest priority - can be overridden)
+
+### Auto-Generated Shortcuts
+- If you configure `"summarize": "x"`, the system automatically creates `"X"` (uppercase) for force regenerate
+- **Your explicit configuration always wins**: If you configure `"load_more": "Y"`, it will override any auto-generated "Y" mapping
+- **Recommended**: Use explicit `"force_regenerate_summary"` parameter to avoid conflicts
+
+### Examples
+```json
+{
+  "keys": {
+    "summarize": "y",                     // 'y' for summary
+    "force_regenerate_summary": "j",      // 'j' for force regenerate (explicit, no conflicts)
+    "load_more": "Y"                      // 'Y' for load more
+  }
+}
+```
 
 ## 🔌 Integrations
 

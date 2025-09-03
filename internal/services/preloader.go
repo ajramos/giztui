@@ -134,6 +134,11 @@ func (p *MessagePreloaderImpl) PreloadNextPage(ctx context.Context, currentPageT
 		return nil // Preloading disabled
 	}
 
+	// Check if we have a valid page token to preload from
+	if currentPageToken == "" {
+		return fmt.Errorf("no next page token available")
+	}
+
 	// Check if already cached
 	if _, exists := p.GetCachedMessages(ctx, currentPageToken); exists {
 		return nil // Already cached

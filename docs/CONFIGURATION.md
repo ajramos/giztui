@@ -280,6 +280,165 @@ Configure Gmail API settings and behavior:
 - Use `:help` command to see current key bindings  
 - Test shortcuts after configuration changes
 
+### ⌨️ Complete Keyboard Configuration
+
+#### Configuration Structure
+```json
+{
+  "keys": {
+    "_comment": "All keyboard shortcuts are customizable",
+    "summarize": "y",
+    "load_more": "Y",
+    "search": "s",
+    "quit": "q"
+  }
+}
+```
+
+#### Shortcut Precedence System
+GizTUI uses a three-tier precedence system for keyboard shortcuts:
+
+1. **🎯 User Configured Shortcuts** (Highest Priority)
+   - Your explicit configuration always wins
+   - Defined in the `"keys"` section of config.json
+   - Overrides any hardcoded or auto-generated shortcuts
+
+2. **🔧 Hardcoded Shortcuts** (Medium Priority)  
+   - Built-in shortcuts that only apply when not configured
+   - Uses pattern: `if !isKeyConfigured(key) { /* hardcoded behavior */ }`
+   - Examples: 'F' for search_from, 'K' for Slack (if not configured)
+
+3. **🤖 Auto-Generated Shortcuts** (Lowest Priority)
+   - Automatically created based on other configuration
+   - Example: If `"summarize": "y"`, then "Y" auto-maps to force_regenerate_summary
+   - Can be overridden by explicit configuration
+   - **Recommended**: Use explicit `"force_regenerate_summary"` parameter to avoid conflicts
+
+#### ✅ How Override Works
+```json
+{
+  "keys": {
+    "summarize": "y",        // Creates auto-mapping: Y → force_regenerate_summary  
+    "load_more": "Y"         // ✅ OVERRIDES auto-mapping: Y → load_more
+  }
+}
+```
+
+#### 🎯 Recommended Approach (No Conflicts)
+```json
+{
+  "keys": {
+    "summarize": "y",                     // 'y' for summary
+    "force_regenerate_summary": "j",      // 'j' for force regenerate (explicit)
+    "load_more": "Y"                      // 'Y' for load more
+  }
+}
+```
+
+In the override example:
+- ✅ **"Y" does load_more** (your configuration wins)
+- ✅ **"y" does summarize** (your configuration)
+- ❌ **"Y" does NOT do force_regenerate_summary** (overridden)
+
+In the recommended approach:
+- ✅ **"Y" does load_more** (explicit configuration)
+- ✅ **"y" does summarize** (explicit configuration)  
+- ✅ **"j" does force_regenerate_summary** (explicit configuration)
+- 🚫 **No conflicts** - each function has its own key
+
+#### 🚨 Important Notes
+- **You can use ANY uppercase letter** (A-Z) for any function
+- **Configured shortcuts always take precedence** over automatic mappings
+- **No need to avoid uppercase letters** - the system respects your configuration
+
+## 🔍 **Validation Settings**
+
+GizTUI includes an intelligent validation system that warns when you might accidentally lose functionality. This is especially helpful when customizing shortcuts.
+
+### **Validation Control**
+```json
+{
+  "keys": {
+    "validate_shortcuts": true  // Enable/disable validation warnings (default: true)
+  }
+}
+```
+
+### **When to Enable Validation (Default)**
+- **New users** - helps avoid accidentally losing functionality
+- **Keyboard-focused users** - ensures all features remain accessible via shortcuts
+- **Safety-first approach** - get warnings before functionality is lost
+
+### **When to Disable Validation**
+- **Command-line preference** - you prefer `:search`, `:archive`, `:obsidian` over shortcuts
+- **Minimal warnings** - you know what you're doing and want cleaner output
+- **Custom workflow** - you have your own way to access overridden functionality
+
+### **Example Scenarios**
+
+#### ✅ **Validation Enabled (Default)**
+```json
+{
+  "keys": {
+    "validate_shortcuts": true,
+    "bulk_select": "s"        // Overrides hardcoded 's' (search)
+                              // ⚠️ Warning: search functionality will be lost, consider adding "search" alternative
+  }
+}
+```
+
+#### 🔕 **Validation Disabled**
+```json
+{
+  "keys": {
+    "validate_shortcuts": false,
+    "bulk_select": "s"        // Overrides hardcoded 's' (search)
+                              // No warning - assumes you use :search command instead
+  }
+}
+```
+
+#### ✅ **Smart Alternative (No Warning Either Way)**
+```json
+{
+  "keys": {
+    "validate_shortcuts": true,  // or false - doesn't matter
+    "bulk_select": "s",         // Overrides hardcoded 's' (search)
+    "search": "f"               // Provides alternative for search functionality
+                                // ✅ No warning - alternative provided
+  }
+}
+```
+
+#### Available Configuration Keys
+All shortcuts from [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md) can be configured. Common examples:
+
+```json
+{
+  "keys": {
+    // Core operations
+    "summarize": "y",
+    "generate_reply": "g", 
+    "reply": "r",
+    "compose": "c",
+    "load_more": "Y",
+    "search": "s",
+    "quit": "q",
+    
+    // Advanced features
+    "obsidian": "O",
+    "slack": "K", 
+    "bulk_mode": "v",
+    "command_mode": ":",
+    
+    // Content navigation  
+    "search_next": "n",
+    "search_prev": "N",
+    "content_search": "/"
+  }
+}
+```
+
 ## 🧠 AI Configuration
 
 ### Ollama (Local AI)

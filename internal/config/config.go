@@ -2,8 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -196,9 +198,10 @@ type ThreadingConfig struct {
 // KeyBindings defines keyboard shortcuts for the TUI
 type KeyBindings struct {
 	// Core email operations
-	Summarize     string `json:"summarize"`
-	GenerateReply string `json:"generate_reply"`
-	SuggestLabel  string `json:"suggest_label"`
+	Summarize              string `json:"summarize"`
+	ForceRegenerateSummary string `json:"force_regenerate_summary"` // Force regenerate AI summary (ignore cache)
+	GenerateReply          string `json:"generate_reply"`
+	SuggestLabel           string `json:"suggest_label"`
 	Reply         string `json:"reply"`
 	ReplyAll      string `json:"reply_all"` // Reply to all recipients
 	Forward       string `json:"forward"`   // Forward message
@@ -267,6 +270,9 @@ type KeyBindings struct {
 
 	// Undo functionality
 	Undo string `json:"undo"` // Undo last action
+	
+	// Validation settings
+	ValidateShortcuts bool `json:"validate_shortcuts"` // Enable shortcut conflict validation (default: true)
 }
 
 // PerformanceConfig defines performance optimization settings
@@ -454,6 +460,9 @@ func DefaultKeyBindings() KeyBindings {
 
 		// Undo functionality
 		Undo: "U", // Undo last action
+		
+		// Validation settings (default: enabled for safety)
+		ValidateShortcuts: true, // Enable shortcut conflict validation by default
 	}
 }
 
@@ -538,7 +547,226 @@ func LoadConfig(configPath string) (*Config, error) {
 		}
 	}
 
+	// Validate configuration and show warnings for potential conflicts
+	if warnings := ValidateKeyboardConfig(cfg.Keys); len(warnings) > 0 {
+		fmt.Fprintf(os.Stderr, "⚠️  Configuration warnings:\n")
+		for _, warning := range warnings {
+			fmt.Fprintf(os.Stderr, "   • %s\n", warning)
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+	}
+
 	return cfg, nil
+}
+
+// ValidateKeyboardConfig checks for potential configuration conflicts and returns warnings
+func ValidateKeyboardConfig(keys KeyBindings) []string {
+	// Check if validation is disabled
+	if !keys.ValidateShortcuts {
+		return []string{} // Return empty warnings if validation is disabled
+	}
+	
+	var warnings []string
+	
+	// Define hardcoded shortcuts and their corresponding config alternatives
+	// This maps hardcoded keys to the config parameter that can override them
+	hardcodedShortcuts := map[string]string{
+		// Hardcoded shortcuts WITH isKeyConfigured checks (can be overridden)
+		" ":  "bulk_select",             // Space key → bulk_select config
+		"v":  "bulk_mode",               // v key → bulk_mode config
+		":":  "command_mode",            // : key → command_mode config
+		"?":  "help",                    // ? key → help config
+		"r":  "refresh",                 // r key → refresh config (reload messages)
+		"n":  "load_more",               // n key → load_more config (or compose in some contexts)
+		"s":  "search",                  // s key → search config
+		"u":  "unread",                  // u key → unread config
+		"t":  "toggle_read",             // t key → toggle_read config
+		"d":  "trash",                   // d key → trash config
+		"a":  "archive",                 // a key → archive config
+		"B":  "archived",                // B key → archived config
+		"F":  "search_from",             // F key → search_from config
+		"T":  "search_to",               // T key → search_to config
+		"S":  "search_subject",          // S key → search_subject config
+		"K":  "slack",                   // K key → slack config
+		"l":  "manage_labels",           // l key → manage_labels config
+		"m":  "move",                    // m key → move config
+		"M":  "markdown",                // M key → markdown config
+		"V":  "rsvp",                    // V key → rsvp config
+		"O":  "obsidian",                // O key → obsidian config
+		"L":  "link_picker",             // L key → link_picker config
+		"w":  "save_message",            // w key → save_message config
+		"W":  "save_raw",                // W key → save_raw config
+		
+		// Hardcoded shortcuts WITHOUT isKeyConfigured checks (always active, but user can override)
+		"b":  "bulk_mode",               // b key → bulk_mode config (alternative to 'v')
+		"q":  "quit",                    // q key → quit config (always hardcoded)
+		"R":  "reply",                   // R key → reply config
+		"D":  "drafts",                  // D key → drafts config
+		"A":  "attachments",             // A key → attachments config
+		"U":  "undo",                    // U key → undo config
+		"o":  "suggest_label",           // o key → suggest_label config
+		"p":  "prompt",                  // p key → prompt config (bulk or single mode)
+		"g":  "generate_reply",          // g key → generate_reply config
+		"y":  "summarize",               // y key → summarize config
+		"E":  "reply_all",               // E key → reply_all config
+		"c":  "compose",                 // c key → compose config
+		"f":  "forward",                 // f key → forward config
+		
+		// Default configurable shortcuts that could conflict with user overrides
+		// These have defaults but can be reconfigured, so we should warn about conflicts
+		"Z":  "save_query",              // Z key → save_query config (default)
+		"Q":  "query_bookmarks",         // Q key → query_bookmarks config (default)
+		"H":  "theme_picker",            // H key → theme_picker config (default)
+		"N":  "load_more",               // N key → load_more config (default)
+		"h":  "toggle_headers",          // h key → toggle_headers config (default)
+	}
+	
+	// Create a map of all configured keys to detect duplicates
+	keyMap := make(map[string][]string)
+	
+	// Use reflection to check all keyboard config fields
+	v := reflect.ValueOf(keys)
+	t := reflect.TypeOf(keys)
+	
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+		
+		// Skip non-string fields and private fields
+		if field.Kind() != reflect.String || !field.CanInterface() {
+			continue
+		}
+		
+		keyValue := field.String()
+		if keyValue != "" {
+			fieldName := strings.ToLower(fieldType.Tag.Get("json"))
+			if fieldName == "" || fieldName == "-" {
+				fieldName = fieldType.Name
+			}
+			keyMap[keyValue] = append(keyMap[keyValue], fieldName)
+		}
+	}
+	
+	// Check for duplicate key assignments
+	for key, fields := range keyMap {
+		if len(fields) > 1 {
+			warnings = append(warnings, fmt.Sprintf("Key '%s' is assigned to multiple functions: %s", key, strings.Join(fields, ", ")))
+		}
+	}
+	
+	// Check for specific known conflict patterns
+	if keys.Summarize != "" && len(keys.Summarize) == 1 {
+		upperKey := strings.ToUpper(keys.Summarize)
+		// Check if the uppercase version conflicts with any configured key
+		conflictingFields := keyMap[upperKey]
+		if len(conflictingFields) > 0 {
+			// Only warn if force_regenerate_summary is NOT explicitly configured
+			// If the user has explicitly configured force_regenerate_summary, there's no loss of functionality
+			if keys.ForceRegenerateSummary == "" {
+				warnings = append(warnings, fmt.Sprintf("Auto-generated force_regenerate_summary key '%s' (uppercase of summarize '%s') conflicts with configured: %s. Your configured shortcut will take precedence. Consider adding explicit 'force_regenerate_summary' configuration.", upperKey, keys.Summarize, strings.Join(conflictingFields, ", ")))
+			}
+			// If force_regenerate_summary IS configured, no warning needed - user has explicit control
+		}
+	}
+	
+	// Check for hardcoded shortcut conflicts - warn when user overrides hardcoded functionality without alternative
+	for hardcodedKey, configParam := range hardcodedShortcuts {
+		// Check if this hardcoded key is configured for a different function
+		conflictingFields := keyMap[hardcodedKey]
+		if len(conflictingFields) > 0 {
+			// Check if the user has provided an explicit alternative for this functionality
+			hasAlternative := false
+			
+			// Use reflection to check if the corresponding config parameter is set
+			v := reflect.ValueOf(keys)
+			t := reflect.TypeOf(keys)
+			for i := 0; i < v.NumField(); i++ {
+				field := v.Field(i)
+				fieldType := t.Field(i)
+				
+				// Skip non-string fields
+				if field.Kind() != reflect.String || !field.CanInterface() {
+					continue
+				}
+				
+				// Get the JSON tag name
+				jsonTag := fieldType.Tag.Get("json")
+				if jsonTag == "" {
+					continue
+				}
+				
+				// Remove options from tag (like omitempty)
+				jsonName := strings.Split(jsonTag, ",")[0]
+				
+				// Check if this field matches the config parameter we're looking for
+				if jsonName == configParam {
+					keyValue := field.String()
+					if keyValue != "" {
+						hasAlternative = true
+						break
+					}
+				}
+			}
+			
+			// Only warn if no alternative is provided
+			if !hasAlternative {
+				warnings = append(warnings, fmt.Sprintf("Key '%s' is configured for '%s' but no '%s' alternative provided - %s functionality will be lost. Consider adding '%s' configuration.", hardcodedKey, strings.Join(conflictingFields, ", "), configParam, getFunctionName(configParam), configParam))
+			}
+		}
+	}
+	
+	return warnings
+}
+
+// getFunctionName returns a user-friendly name for a config parameter
+func getFunctionName(configParam string) string {
+	functionNames := map[string]string{
+		"bulk_select":             "bulk selection",
+		"bulk_mode":               "bulk mode",
+		"command_mode":            "command mode",
+		"help":                    "help",
+		"refresh":                 "refresh/reload messages",
+		"load_more":               "load more messages",
+		"search":                  "search",
+		"unread":                  "unread messages",
+		"toggle_read":             "toggle read/unread",
+		"trash":                   "delete/trash",
+		"archive":                 "archive",
+		"archived":                "archived messages",
+		"search_from":             "search from sender",
+		"search_to":               "search to recipient",
+		"search_subject":          "search by subject",
+		"slack":                   "Slack integration",
+		"manage_labels":           "label management",
+		"move":                    "move messages",
+		"markdown":                "markdown toggle",
+		"rsvp":                    "RSVP",
+		"obsidian":                "Obsidian integration",
+		"link_picker":             "link picker",
+		"save_message":            "save message",
+		"save_raw":                "save raw message",
+		"quit":                    "quit application",
+		"reply":                   "reply to message",
+		"drafts":                  "drafts",
+		"attachments":             "attachments",
+		"undo":                    "undo last action",
+		"suggest_label":           "AI label suggestions",
+		"prompt":                  "AI prompts",
+		"generate_reply":          "AI reply generation",
+		"summarize":               "AI summary",
+		"reply_all":               "reply to all",
+		"compose":                 "compose message",
+		"forward":                 "forward message",
+		"save_query":              "save search query",
+		"query_bookmarks":         "saved query bookmarks",
+		"theme_picker":            "theme picker",
+		"toggle_headers":          "toggle headers",
+	}
+	
+	if name, exists := functionNames[configParam]; exists {
+		return name
+	}
+	return configParam // fallback to parameter name
 }
 
 // DefaultConfigPath returns the default configuration file path
