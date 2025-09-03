@@ -127,7 +127,9 @@ func (s *ObsidianServiceImpl) IngestEmailToObsidian(ctx context.Context, message
 
 	if err := s.store.RecordForward(ctx, record); err != nil {
 		// Log error but don't fail the operation
-		fmt.Printf("Warning: failed to record forward: %v\n", err)
+		if s.logger != nil {
+			s.logger.Printf("Warning: failed to record forward: %v", err)
+		}
 	}
 
 	return &obsidian.ObsidianIngestResult{

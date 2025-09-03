@@ -81,8 +81,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	for _, messageID := range messageIDs {
 		message, err := s.repository.GetMessage(ctx, messageID)
 		if err != nil {
-			// Log error but continue with other messages
-			fmt.Printf("bulk prompt service: failed to get message %s: %v\n", messageID, err)
+			// Skip message on error and continue with other messages
 			continue
 		}
 

@@ -729,7 +729,7 @@ Configure performance optimizations including background preloading for instant 
   "performance": {
     "_comment": "Performance optimization settings - background preloading improves navigation speed",
     "preloading": {
-      "_comment": "Background message preloading for instant navigation (Phase 2.4 performance optimization)",
+      "_comment": "Background message preloading for instant navigation",
       "enabled": true,
       "next_page": {
         "_comment": "Preload next page when scrolling reaches threshold",

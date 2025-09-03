@@ -86,18 +86,17 @@ func (s *ThreadServiceImpl) GetThreads(ctx context.Context, opts ThreadQueryOpti
 	// Convert Gmail threads to ThreadInfo structures
 	// Note: Threads.List only returns minimal thread data, we need to fetch full thread details
 	var threadInfos []*ThreadInfo
-	for i, thread := range threadsResult.Threads {
+	for _, thread := range threadsResult.Threads {
 		// Get thread data with minimal format for faster loading
 		fullThread, err := s.gmailClient.Service.Users.Threads.Get("me", thread.Id).Format("metadata").Do()
 		if err != nil {
-			fmt.Printf("Warning: failed to get full thread data for thread %d (%s): %v\n", i, thread.Id, err)
+			// Skip thread on error and continue processing
 			continue
 		}
 
 		threadInfo, err := s.buildThreadInfo(ctx, fullThread)
 		if err != nil {
-			// Log error but continue processing other threads
-			fmt.Printf("Warning: failed to build thread info for thread %d (%s): %v\n", i, thread.Id, err)
+			// Skip thread on error and continue processing
 			continue
 		}
 		threadInfos = append(threadInfos, threadInfo)
@@ -644,8 +643,8 @@ func (s *ThreadServiceImpl) cacheThreadSummary(ctx context.Context, accountEmail
 	_, err := s.dbStore.DB().Exec(query, accountEmail, result.ThreadID, result.Summary,
 		result.SummaryType, result.Language, result.MessageCount, result.CreatedAt)
 	if err != nil {
-		// Log error but don't fail the operation
-		fmt.Printf("Warning: failed to cache thread summary: %v\n", err)
+		// Ignore cache errors and continue operation
+		return
 	}
 }
 
