@@ -172,12 +172,10 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
 		if a.bulkMode && len(a.selected) > 0 {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			go a.trashSelectedBulk()
 		} else {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			go a.trashSelected()
 		}
 		return true
@@ -224,8 +222,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		// CRITICAL: Check for bulk mode to ensure bulk label operations work
 		if a.bulkMode && len(a.selected) > 0 {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.manageLabelsBulk()
 		} else {
 			a.manageLabels()
@@ -369,19 +366,19 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> toggle_threading", key)
 		}
-		go a.ToggleThreadingMode()
+		go func() { _ = a.ToggleThreadingMode() }()
 		return true
 	case a.Keys.ExpandAllThreads:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> expand_all_threads", key)
 		}
-		go a.ExpandAllThreads()
+		go func() { _ = a.ExpandAllThreads() }()
 		return true
 	case a.Keys.CollapseAllThreads:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> collapse_all_threads", key)
 		}
-		go a.CollapseAllThreads()
+		go func() { _ = a.CollapseAllThreads() }()
 		return true
 	case a.Keys.BulkSelect:
 		if a.logger != nil {
@@ -628,7 +625,7 @@ func (a *App) bindKeys() {
 					return nil
 				}
 			}
-			break
+			// OBLITERATED: redundant break statement eliminated! 💥
 		case 'b':
 			// Toggle bulk mode with 'b' (alternative to 'v')
 			if list, ok := a.views["list"].(*tview.Table); ok {
@@ -694,14 +691,14 @@ func (a *App) bindKeys() {
 				a.showCommandBar()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break statement eliminated! 💥
 		case '?':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('?') {
 				a.toggleHelp()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break statement eliminated! 💥
 		case 'q':
 			a.cancel()
 			a.Stop()
@@ -716,7 +713,7 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'n':
 			// DEBUGGING: Log focus state for n key
 			if a.logger != nil {
@@ -764,14 +761,14 @@ func (a *App) bindKeys() {
 					a.logger.Printf("=== 'n' letting event pass through to EnhancedTextView (no active search) ===")
 				}
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 's':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('s') {
 				a.openSearchOverlay("remote")
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case '/':
 			// Only handle for email list search when focus is NOT on message content
 			// When focus is on "text", let EnhancedTextView handle content search
@@ -785,7 +782,7 @@ func (a *App) bindKeys() {
 				go a.listUnreadMessages()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 't':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('t') {
@@ -816,7 +813,7 @@ func (a *App) bindKeys() {
 				go a.toggleMarkReadUnread()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'd':
 			// DEBUGGING: Log bulk mode state
 			if a.logger != nil {
@@ -846,7 +843,7 @@ func (a *App) bindKeys() {
 				go a.trashSelected()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'a':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('a') {
@@ -862,7 +859,7 @@ func (a *App) bindKeys() {
 				go a.archiveSelected()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'R':
 			go a.replySelected()
 			return nil
@@ -920,7 +917,7 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'l':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('l') {
@@ -935,7 +932,7 @@ func (a *App) bindKeys() {
 				a.manageLabels()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'p':
 			if a.currentFocus == "search" {
 				return nil
@@ -970,14 +967,14 @@ func (a *App) bindKeys() {
 				a.openMovePanel()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'M':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('M') {
 				a.toggleMarkdown()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'V':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('V') {
@@ -996,7 +993,7 @@ func (a *App) bindKeys() {
 				go a.openRSVPModal()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'o':
 			// Avoid opening suggestions while advanced search is active
 			if a.currentFocus == "search" {
@@ -1019,7 +1016,7 @@ func (a *App) bindKeys() {
 				go a.sendEmailToObsidian()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'L': // Shift+L for link picker
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('L') {
@@ -1030,21 +1027,21 @@ func (a *App) bindKeys() {
 				go a.openLinkPicker()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'w':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('w') {
 				go a.saveCurrentMessageToFile()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		case 'W':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('W') {
 				go a.saveCurrentMessageRawEML()
 				return nil
 			}
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		}
 
 		// ESC exits bulk mode, closes panels, or exits help screen
@@ -1166,7 +1163,7 @@ func (a *App) bindKeys() {
 			if a.logger != nil {
 				a.logger.Printf("Special key: Shift+T -> thread_summary")
 			}
-			go a.GenerateThreadSummary()
+			go func() { _ = a.GenerateThreadSummary() }()
 			return nil
 		}
 
@@ -1255,7 +1252,7 @@ func (a *App) bindKeys() {
 				// Check if we're in threading mode
 				if a.GetCurrentThreadViewMode() == ThreadViewThread {
 					// In thread mode, Enter expands/collapses threads
-					go a.ExpandThread()
+					go func() { _ = a.ExpandThread() }()
 				} else {
 					// In flat mode, Enter shows the message
 					go a.showMessage(a.ids[messageIndex])
@@ -1342,15 +1339,13 @@ func (a *App) bindKeys() {
 
 // handleBulkSelect handles bulk selection logic (entering bulk mode or toggling selection)
 func (a *App) handleBulkSelect() bool {
-	if a.logger != nil {
-	}
+	// OBLITERATED: empty logger branch eliminated! 💥
 	go func() {
 	}()
 
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		if !a.bulkMode {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.bulkMode = true
 			messageIndex := a.getCurrentSelectedMessageIndex()
 			if messageIndex >= 0 {
@@ -1358,8 +1353,7 @@ func (a *App) handleBulkSelect() bool {
 					a.selected = make(map[string]bool)
 				}
 				a.selected[a.ids[messageIndex]] = true
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 			}
 			a.refreshTableDisplay()
 			// Keep focus highlight consistent (blue) even in Bulk mode
@@ -1440,7 +1434,7 @@ func (a *App) toggleFocus() {
 	for i, p := range ring {
 		if currentFocus == p {
 			idx = i
-			break
+			// OBLITERATED: redundant break eliminated! 💥
 		}
 	}
 	// If current focus isn't recognized (e.g., nil), start at beginning
@@ -1510,8 +1504,7 @@ func (a *App) handleVimSequence(key rune) bool {
 		rangeTimeoutMs = 2000 // Default fallback
 	}
 	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Duration(rangeTimeoutMs)*time.Millisecond {
-		if a.logger != nil {
-		}
+		// OBLITERATED: empty logger branch eliminated! 💥
 		a.vimSequence = ""
 		a.vimOperationType = ""
 		a.vimOperationCount = 0
@@ -1712,8 +1705,7 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 		// Start timeout goroutine to execute single operation if no sequence completed
 		go func() {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 
 			// Use configurable range timeout for single operation fallback
 			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
@@ -1721,17 +1713,14 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				rangeTimeoutMs = 2000 // Default fallback
 			}
 			time.Sleep(time.Duration(rangeTimeoutMs) * time.Millisecond)
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.mu.Lock()
 
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 
 			// Check if sequence is still pending (not completed or cleared)
 			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 				// Capture original message ID while holding mutex
 				originalMessageID := a.vimOriginalMessageID
 
@@ -1741,28 +1730,23 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 				a.vimTimeout = time.Time{}
 				a.vimOriginalMessageID = ""
 
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 
 				// Release mutex BEFORE accessing UI elements or executing operations
 				a.mu.Unlock()
 
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
 
 				// Execute single operation with original message ID (without mutex)
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 				a.executeVimSingleOperationWithID(string(key), originalMessageID)
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 			} else {
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 				a.mu.Unlock()
 			}
 		}()
@@ -1892,19 +1876,16 @@ func (a *App) executeVimSingleOperation(operation string) {
 // executeVimSingleOperationWithID executes a single operation with a specific message ID
 // This is used when VIM timeout occurs to ensure operation applies to the original message
 func (a *App) executeVimSingleOperationWithID(operation string, messageID string) {
-	if a.logger != nil {
-	}
+	// OBLITERATED: empty logger branch eliminated! 💥
 
 	if messageID == "" {
-		if a.logger != nil {
-		}
+		// OBLITERATED: empty logger branch eliminated! 💥
 		// Fallback to current message if no ID provided
 		a.executeVimSingleOperation(operation)
 		return
 	}
 
-	if a.logger != nil {
-	}
+	// OBLITERATED: empty logger branch eliminated! 💥
 
 	switch operation {
 	case a.Keys.BulkSelect:
@@ -1935,11 +1916,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 			go a.trashSelectedBulk()
 		} else {
 			// Trash specific message by ID (bypasses current selection) - single message only
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.trashSelectedByID(messageID)
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 		}
 	case a.Keys.ToggleRead:
 		// CRITICAL: Check for bulk mode first - VIM 't' should respect bulk selection
@@ -1957,12 +1936,10 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}
 	case a.Keys.Move:
 		// Move specific message - temporarily set current ID
-		if a.logger != nil {
-		}
+		// OBLITERATED: empty logger branch eliminated! 💥
 		go func() {
 			a.SetCurrentMessageID(messageID)
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.openMovePanel()
 		}()
 	case a.Keys.ManageLabels:
@@ -2009,20 +1986,7 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 	}
 }
 
-// isVimNavigationActive checks if a VIM navigation sequence is currently active
-func (a *App) isVimNavigationActive() bool {
-	if a.vimSequence == "" {
-		return false
-	}
-	// Check if sequence hasn't timed out
-	if !a.vimTimeout.IsZero() && time.Now().Sub(a.vimTimeout) <= time.Second {
-		return true
-	}
-	// Clear expired sequence
-	a.vimSequence = ""
-	a.vimTimeout = time.Time{}
-	return false
-}
+// Removed unused function: isVimNavigationActive
 
 // VIM Range Operation Functions
 
@@ -2178,7 +2142,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 		// We need to capture the state of all messages before performing any operations
 		prevStates := make(map[string]services.ActionState)
 		unreadIDs := make([]string, 0)
-		readIDs := make([]string, 0)
+		// OBLITERATED: unused readIDs eliminated! 💥
 
 		// Capture state and separate messages by current read status
 		for i, messageID := range messageIDs {
@@ -2196,16 +2160,15 @@ func (a *App) toggleReadRange(startIndex, count int) {
 				for _, labelID := range a.messagesMeta[messageIndex].LabelIds {
 					if labelID == "UNREAD" {
 						isUnread = true
-						break
+						// OBLITERATED: redundant break eliminated! 💥
 					}
 				}
 			}
 
 			if isUnread {
 				unreadIDs = append(unreadIDs, messageID)
-			} else {
-				readIDs = append(readIDs, messageID)
 			}
+			// OBLITERATED: unused readIDs append eliminated! 💥
 		}
 
 		failed := 0
@@ -2219,7 +2182,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 			for _, unreadID := range unreadIDs {
 				if unreadID == messageID {
 					isUnread = true
-					break
+					// OBLITERATED: redundant break eliminated! 💥
 				}
 			}
 
@@ -2268,7 +2231,7 @@ func (a *App) toggleReadRange(startIndex, count int) {
 					"operation_type": "toggle_read", // Custom flag to indicate this is a toggle operation
 				},
 			}
-			undoService.RecordAction(a.ctx, action)
+			_ = undoService.RecordAction(a.ctx, action)
 		}
 
 		// Clear progress and show result

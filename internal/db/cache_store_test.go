@@ -22,7 +22,11 @@ func TestNewCacheStore(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache = NewCacheStore(store)
 	assert.NotNil(t, cache)
@@ -36,7 +40,11 @@ func TestCacheStore_SaveAISummary_ValidationErrors(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -90,7 +98,11 @@ func TestCacheStore_SaveAISummary_Success(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 	updatedAt := time.Now().Unix()
@@ -116,7 +128,11 @@ func TestCacheStore_SaveAISummary_Upsert(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -177,7 +193,11 @@ func TestCacheStore_LoadAISummary_NotFound(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -194,7 +214,11 @@ func TestCacheStore_LoadAISummary_Found(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -236,7 +260,11 @@ func TestCacheStore_DeleteAISummary_Success(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -268,7 +296,11 @@ func TestCacheStore_DeleteAISummary_NonExistent(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -285,7 +317,11 @@ func TestCacheStore_AccountIsolation(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -331,7 +367,11 @@ func TestCacheStore_LargeData(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -357,7 +397,11 @@ func TestCacheStore_SpecialCharacters(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -397,7 +441,11 @@ func BenchmarkCacheStore_SaveAISummary(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			b.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 	updatedAt := time.Now().Unix()
@@ -420,7 +468,11 @@ func BenchmarkCacheStore_LoadAISummary(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			b.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -448,7 +500,11 @@ func BenchmarkCacheStore_DeleteAISummary(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			b.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -477,7 +533,11 @@ func TestCacheStore_ConcurrentOperations(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -511,7 +571,11 @@ func TestCacheStore_ErrorRecovery(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 
@@ -542,7 +606,11 @@ func TestCacheStore_ValidationEdgeCases(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	cache := NewCacheStore(store)
 

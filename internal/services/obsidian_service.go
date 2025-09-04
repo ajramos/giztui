@@ -165,8 +165,8 @@ message_id: {{message_id}}
 
 # {{subject}}
 
-**From:** {{from}}  
-**Date:** {{date}}  
+**From:** {{from}}
+**Date:** {{date}}
 **Labels:** {{labels}}
 
 {{comment}}
@@ -238,7 +238,7 @@ func (s *ObsidianServiceImpl) generateFilePath(message *gmail.Message) (string, 
 
 	// Ensure directory exists
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -316,12 +316,12 @@ func (s *ObsidianServiceImpl) createObsidianFile(filePath, content string) error
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Write file
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -376,7 +376,7 @@ func (s *ObsidianServiceImpl) ValidateObsidianConnection(ctx context.Context) er
 
 	// Check if 00-Inbox directory exists or can be created
 	inboxPath := filepath.Join(s.config.VaultPath, s.config.IngestFolder)
-	if err := os.MkdirAll(inboxPath, 0755); err != nil {
+	if err := os.MkdirAll(inboxPath, 0750); err != nil {
 		return fmt.Errorf("failed to create inbox directory: %w", err)
 	}
 

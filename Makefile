@@ -115,28 +115,28 @@ version: ## Show version information
 release-build: clean deps test ## Build release binaries for all platforms
 	@echo "$(GREEN)Building release binaries for v$(VERSION)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	
+
 	@echo "$(YELLOW)Building Linux AMD64...$(NC)"
 	GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
-	
+
 	@echo "$(YELLOW)Building Linux ARM64...$(NC)"
 	GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
-	
+
 	@echo "$(YELLOW)Building macOS AMD64...$(NC)"
 	GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
-	
+
 	@echo "$(YELLOW)Building macOS ARM64...$(NC)"
 	GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	
+
 	@echo "$(YELLOW)Building Windows AMD64...$(NC)"
 	GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
-	
+
 	@echo "$(YELLOW)Building Windows ARM64...$(NC)"
 	GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-arm64.exe $(MAIN_PATH)
-	
+
 	@echo "$(GREEN)Generating checksums...$(NC)"
 	cd $(BUILD_DIR) && sha256sum * > checksums.txt
-	
+
 	@echo "$(GREEN)Release binaries built in $(BUILD_DIR)/$(NC)"
 	@echo "$(YELLOW)Files:$(NC)"
 	@ls -la $(BUILD_DIR)/
@@ -153,10 +153,10 @@ release: release-build ## Prepare release (build binaries and generate archives)
 		tar -czf $(BINARY_NAME)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64 && \
 		zip $(BINARY_NAME)-windows-amd64.zip $(BINARY_NAME)-windows-amd64.exe && \
 		zip $(BINARY_NAME)-windows-arm64.zip $(BINARY_NAME)-windows-arm64.exe
-	
+
 	@echo "$(GREEN)Generating archive checksums...$(NC)"
 	cd $(BUILD_DIR) && sha256sum *.tar.gz *.zip > archive-checksums.txt
-	
+
 	@echo "$(GREEN)Release v$(VERSION) prepared successfully!$(NC)"
 	@echo "$(YELLOW)Archives created:$(NC)"
 	@ls -la $(BUILD_DIR)/*.tar.gz $(BUILD_DIR)/*.zip
@@ -200,6 +200,60 @@ update-deps: ## Update dependencies
 	@echo "$(GREEN)Updating dependencies...$(NC)"
 	go get -u ./...
 	go mod tidy
+
+# Developer setup commands
+.PHONY: setup-hooks check-hooks remove-hooks pre-commit-check
+
+setup-hooks: ## Install and configure pre-commit hooks
+	@echo "$(GREEN)Setting up pre-commit hooks...$(NC)"
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit install; \
+		echo "$(GREEN)Pre-commit hooks installed successfully$(NC)"; \
+		echo "$(YELLOW)Run 'make check-hooks' to test the hooks$(NC)"; \
+	else \
+		echo "$(YELLOW)pre-commit is not installed. Install it with:$(NC)"; \
+		echo "pip install pre-commit"; \
+		echo "$(YELLOW)Then run 'make setup-hooks' again$(NC)"; \
+	fi
+
+check-hooks: ## Run pre-commit hooks on all files
+	@echo "$(GREEN)Running pre-commit hooks on all files...$(NC)"
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit run --all-files; \
+	else \
+		echo "$(RED)pre-commit is not installed. Run 'make setup-hooks' first$(NC)"; \
+		exit 1; \
+	fi
+
+remove-hooks: ## Remove pre-commit hooks
+	@echo "$(GREEN)Removing pre-commit hooks...$(NC)"
+	@if [ -f .git/hooks/pre-commit ]; then \
+		rm .git/hooks/pre-commit; \
+		echo "$(GREEN)Pre-commit hooks removed$(NC)"; \
+	else \
+		echo "$(YELLOW)No pre-commit hooks found$(NC)"; \
+	fi
+
+pre-commit-check: ## Run the same checks as CI locally (comprehensive check)
+	@echo "$(GREEN)Running comprehensive pre-commit checks...$(NC)"
+	@echo "$(YELLOW)1. Format check...$(NC)"
+	@if [ "$$(gofmt -s -l . | wc -l)" -gt 0 ]; then \
+		echo "$(RED)Code formatting issues found:$(NC)"; \
+		gofmt -s -l .; \
+		echo "$(YELLOW)Run 'make fmt' to fix$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)2. Go vet...$(NC)"
+	@go vet -composites=false ./...
+	@echo "$(YELLOW)3. Golangci-lint...$(NC)"
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run --config=.golangci.yml; \
+	else \
+		echo "$(YELLOW)golangci-lint not found, skipping$(NC)"; \
+	fi
+	@echo "$(YELLOW)4. Essential tests...$(NC)"
+	@go test -timeout 30s ./internal/config ./pkg/auth || exit 1
+	@echo "$(GREEN)All pre-commit checks passed!$(NC)"
 
 # Testing commands
 .PHONY: test test-unit test-integration test-tui test-coverage test-mocks test-snapshots test-all

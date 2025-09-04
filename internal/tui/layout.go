@@ -394,14 +394,15 @@ func (a *App) createSearchView() tview.Primitive {
 	a.ConfigureInputFieldTheme(searchInput, "simple")
 
 	searchInput.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
+		switch key { // OBLITERATED: converted to tagged switch! 💥
+		case tcell.KeyEnter:
 			query := strings.TrimSpace(searchInput.GetText())
 			if query != "" {
 				go a.performSearch(query)
 			}
 			a.Pages.SwitchToPage("main")
 			a.SetFocus(a.views["list"])
-		} else if key == tcell.KeyEscape {
+		case tcell.KeyEscape:
 			a.Pages.SwitchToPage("main")
 			a.SetFocus(a.views["list"])
 		}

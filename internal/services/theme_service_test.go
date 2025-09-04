@@ -53,9 +53,9 @@ func TestThemeServiceImpl_ListAvailableThemes_WithDirectories(t *testing.T) {
 	themesDir := filepath.Join(tmpDir, "themes")
 	customDir := filepath.Join(tmpDir, "custom")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(t, err)
-	err = os.MkdirAll(customDir, 0755)
+	err = os.MkdirAll(customDir, 0750)
 	assert.NoError(t, err)
 
 	// Create sample theme files
@@ -67,7 +67,7 @@ func TestThemeServiceImpl_ListAvailableThemes_WithDirectories(t *testing.T) {
 	}
 
 	for _, file := range themeFiles {
-		err := os.WriteFile(file, []byte("theme: test"), 0644)
+		err := os.WriteFile(file, []byte("theme: test"), 0600)
 		assert.NoError(t, err)
 	}
 
@@ -103,7 +103,7 @@ func TestThemeServiceImpl_ListAvailableThemes_EmptyDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 	themesDir := filepath.Join(tmpDir, "empty_themes")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(t, err)
 
 	service := NewThemeService(themesDir, "", nil)
@@ -125,15 +125,15 @@ func TestThemeServiceImpl_ListAvailableThemes_DuplicateThemes(t *testing.T) {
 	themesDir := filepath.Join(tmpDir, "themes")
 	customDir := filepath.Join(tmpDir, "custom")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(t, err)
-	err = os.MkdirAll(customDir, 0755)
+	err = os.MkdirAll(customDir, 0750)
 	assert.NoError(t, err)
 
 	// Create same theme name in both directories
-	err = os.WriteFile(filepath.Join(themesDir, "duplicate.yaml"), []byte("theme: builtin"), 0644)
+	err = os.WriteFile(filepath.Join(themesDir, "duplicate.yaml"), []byte("theme: builtin"), 0600)
 	assert.NoError(t, err)
-	err = os.WriteFile(filepath.Join(customDir, "duplicate.yaml"), []byte("theme: custom"), 0644)
+	err = os.WriteFile(filepath.Join(customDir, "duplicate.yaml"), []byte("theme: custom"), 0600)
 	assert.NoError(t, err)
 
 	service := NewThemeService(themesDir, customDir, nil)
@@ -158,7 +158,7 @@ func TestThemeServiceImpl_EdgeCases(t *testing.T) {
 		tmpDir := t.TempDir()
 		themesDir := filepath.Join(tmpDir, "themes")
 
-		err := os.MkdirAll(themesDir, 0755)
+		err := os.MkdirAll(themesDir, 0750)
 		assert.NoError(t, err)
 
 		// Create files with invalid extensions
@@ -169,7 +169,7 @@ func TestThemeServiceImpl_EdgeCases(t *testing.T) {
 		}
 
 		for _, file := range invalidFiles {
-			err := os.WriteFile(file, []byte("content"), 0644)
+			err := os.WriteFile(file, []byte("content"), 0600)
 			assert.NoError(t, err)
 		}
 
@@ -188,7 +188,7 @@ func TestThemeServiceImpl_EdgeCases(t *testing.T) {
 		tmpDir := t.TempDir()
 		themesDir := filepath.Join(tmpDir, "themes")
 
-		err := os.MkdirAll(themesDir, 0755)
+		err := os.MkdirAll(themesDir, 0750)
 		assert.NoError(t, err)
 
 		// Create hidden files (should be ignored)
@@ -198,7 +198,7 @@ func TestThemeServiceImpl_EdgeCases(t *testing.T) {
 		}
 
 		for _, file := range hiddenFiles {
-			err := os.WriteFile(file, []byte("theme: test"), 0644)
+			err := os.WriteFile(file, []byte("theme: test"), 0600)
 			assert.NoError(t, err)
 		}
 
@@ -225,7 +225,11 @@ func TestThemeServiceImpl_EdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Restore permissions after test
-		defer os.Chmod(restrictedDir, 0755)
+		defer func() {
+			if err := os.Chmod(restrictedDir, 0600); err != nil { // #nosec G302 - test cleanup
+				t.Logf("Failed to restore permissions: %v", err)
+			}
+		}()
 
 		service := NewThemeService(restrictedDir, "", nil)
 
@@ -247,13 +251,13 @@ func TestThemeServiceImpl_ConcurrentAccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	themesDir := filepath.Join(tmpDir, "themes")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(t, err)
 
 	// Create some theme files
 	for i := 0; i < 5; i++ {
 		filename := filepath.Join(themesDir, fmt.Sprintf("theme%d.yaml", i))
-		err := os.WriteFile(filename, []byte("theme: test"), 0644)
+		err := os.WriteFile(filename, []byte("theme: test"), 0600)
 		assert.NoError(t, err)
 	}
 
@@ -303,13 +307,13 @@ func BenchmarkThemeService_ListAvailableThemes(b *testing.B) {
 	tmpDir := b.TempDir()
 	themesDir := filepath.Join(tmpDir, "themes")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(b, err)
 
 	// Create many theme files for realistic benchmark
 	for i := 0; i < 50; i++ {
 		filename := filepath.Join(themesDir, fmt.Sprintf("theme%d.yaml", i))
-		err := os.WriteFile(filename, []byte("theme: benchmark"), 0644)
+		err := os.WriteFile(filename, []byte("theme: benchmark"), 0600)
 		assert.NoError(b, err)
 	}
 
@@ -317,7 +321,7 @@ func BenchmarkThemeService_ListAvailableThemes(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.ListAvailableThemes(context.Background())
+		_, _ = service.ListAvailableThemes(context.Background())
 	}
 }
 
@@ -326,7 +330,7 @@ func TestThemeServiceImpl_ThemeNameValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	themesDir := filepath.Join(tmpDir, "themes")
 
-	err := os.MkdirAll(themesDir, 0755)
+	err := os.MkdirAll(themesDir, 0750)
 	assert.NoError(t, err)
 
 	// Create files with various names to test name extraction
@@ -340,7 +344,7 @@ func TestThemeServiceImpl_ThemeNameValidation(t *testing.T) {
 	}
 
 	for filename := range testFiles {
-		err := os.WriteFile(filepath.Join(themesDir, filename), []byte("theme: test"), 0644)
+		err := os.WriteFile(filepath.Join(themesDir, filename), []byte("theme: test"), 0600)
 		assert.NoError(t, err)
 	}
 

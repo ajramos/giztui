@@ -696,8 +696,8 @@ func extractLabelsFromLLMResponse(resp string) []string {
 		// fallback: if sentence contains label is/are, take last word(s)
 		low := strings.ToLower(l)
 		if strings.Contains(low, "label is") || strings.Contains(low, "labels are") {
-			l = strings.TrimPrefix(low, "label is:")
 			l = strings.TrimPrefix(low, "labels are:")
+			l = strings.TrimPrefix(l, "label is:")
 			add(l)
 		}
 	}

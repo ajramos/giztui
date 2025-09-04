@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
@@ -83,7 +82,7 @@ func (a *App) openBulkPromptPicker() {
 			visible = append(visible, item)
 
 			// Category icon and priority indicator
-			icon := "📄"
+			var icon string
 			switch item.category {
 			case "bulk_analysis":
 				icon = "🚀"
@@ -484,129 +483,9 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 	}()
 }
 
-// cleanEmailContentForLLM processes email content to make it more digestible for LLM
-// Similar to the bulk service's cleanEmailContent function
-func (a *App) cleanEmailContentForLLM(content string) string {
-	if content == "" {
-		return "[Empty email]"
-	}
+// Removed unused function: cleanEmailContentForLLM
 
-	// Remove excessive URLs and tracking links
-	lines := strings.Split(content, "\n")
-	var cleanLines []string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Skip empty lines
-		if line == "" {
-			continue
-		}
-
-		// Skip pure URL lines (tracking/unsubscribe links)
-		if strings.HasPrefix(line, "https://") && len(line) > 50 {
-			continue
-		}
-
-		// Skip common email footers
-		if strings.Contains(strings.ToLower(line), "unsubscribe") ||
-			strings.Contains(strings.ToLower(line), "privacy policy") ||
-			strings.Contains(strings.ToLower(line), "powered by") ||
-			strings.Contains(strings.ToLower(line), "support@") {
-			continue
-		}
-
-		// Clean up encoded characters (basic cleanup)
-		line = strings.ReplaceAll(line, "-2F", "/")
-		line = strings.ReplaceAll(line, "-2B", "+")
-		line = strings.ReplaceAll(line, "-3D", "=")
-
-		// Limit line length for readability
-		if len(line) > 200 {
-			line = line[:200] + "..."
-		}
-
-		cleanLines = append(cleanLines, line)
-
-		// Limit total lines to prevent overwhelming the LLM
-		if len(cleanLines) >= 20 {
-			cleanLines = append(cleanLines, "[Content truncated for brevity...]")
-			break
-		}
-	}
-
-	if len(cleanLines) == 0 {
-		return "[No meaningful content found]"
-	}
-
-	return strings.Join(cleanLines, "\n")
-}
-
-// showBulkPromptResult displays the result of a bulk prompt operation
-func (a *App) showBulkPromptResult(result *services.BulkPromptResult, promptName string) {
-	if result == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "No result to display")
-		return
-	}
-
-	// Create result view
-	resultView := a.createBulkPromptResultView(result, promptName)
-
-	// Show in modal using Flex layout (following existing pattern)
-	modal := tview.NewFlex().SetDirection(tview.FlexRow)
-
-	title := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	title.SetText(fmt.Sprintf("📊 Bulk Prompt Result: %s", promptName))
-	title.SetTextColor(a.GetComponentColors("prompts").Title.Color())
-	title.SetBorder(true)
-
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
-	instructions.SetText(" Enter to save  |  Esc to close ")
-	instructions.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color
-
-	modal.AddItem(title, 3, 0, false)
-	modal.AddItem(resultView, 0, 1, false)
-	modal.AddItem(instructions, 2, 0, false)
-
-	// Add modal to pages
-	a.Pages.AddPage("bulkPromptResult", modal, true, true)
-	a.Pages.SwitchToPage("bulkPromptResult")
-	a.SetFocus(resultView)
-}
-
-// createBulkPromptResultView creates a view to display bulk prompt results
-func (a *App) createBulkPromptResultView(result *services.BulkPromptResult, promptName string) *tview.TextView {
-	textView := tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(true).
-		SetWordWrap(true)
-
-	// Format the result display
-	var content strings.Builder
-	content.WriteString(fmt.Sprintf("%sBulk Prompt Result: %s%s\n", a.GetColorTag("title"), promptName, a.GetEndTag()))
-	content.WriteString(fmt.Sprintf("%sMessages Analyzed: %d%s\n", a.GetColorTag("link"), result.MessageCount, a.GetEndTag()))
-	content.WriteString(fmt.Sprintf("%sProcessing Time: %v%s\n", a.GetColorTag("link"), result.Duration, a.GetEndTag()))
-	if result.FromCache {
-		content.WriteString(a.FormatHeader("Result from cache") + "\n")
-	}
-	content.WriteString("\n" + a.FormatEmphasis("Analysis:") + "\n")
-	content.WriteString(result.Summary)
-
-	textView.SetText(content.String())
-	return textView
-}
-
-// saveBulkPromptResult saves the bulk prompt result
-func (a *App) saveBulkPromptResult(result *services.BulkPromptResult) {
-	if result == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "No result to save")
-		return
-	}
-
-	// For now, we'll just show a success message
-	// In the future, this could save to a file or database
-	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Bulk prompt result saved for %d messages", result.MessageCount))
-
-	// Close the modal by switching back to main view
-	a.Pages.SwitchToPage("main")
-}
+// OBLITERATED: All 3 unused bulk prompt result functions eliminated! 💥
+// - showBulkPromptResult
+// - createBulkPromptResultView
+// - saveBulkPromptResult

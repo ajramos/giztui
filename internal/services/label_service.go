@@ -85,13 +85,16 @@ func (s *LabelServiceImpl) ApplyLabel(ctx context.Context, messageID, labelID st
 		action := &UndoableAction{
 			Type:        UndoActionLabelAdd,
 			MessageIDs:  []string{messageID},
-			Description: fmt.Sprintf("Apply label"),
+			Description: "Apply label",
 			IsBulk:      false,
 			ExtraData: map[string]interface{}{
 				"added_labels": []string{labelID},
 			},
 		}
-		s.undoService.RecordAction(ctx, action)
+		if err := s.undoService.RecordAction(ctx, action); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
 	}
 
 	if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
@@ -111,13 +114,16 @@ func (s *LabelServiceImpl) RemoveLabel(ctx context.Context, messageID, labelID s
 		action := &UndoableAction{
 			Type:        UndoActionLabelRemove,
 			MessageIDs:  []string{messageID},
-			Description: fmt.Sprintf("Remove label"),
+			Description: "Remove label",
 			IsBulk:      false,
 			ExtraData: map[string]interface{}{
 				"removed_labels": []string{labelID},
 			},
 		}
-		s.undoService.RecordAction(ctx, action)
+		if err := s.undoService.RecordAction(ctx, action); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
 	}
 
 	if err := s.gmailClient.RemoveLabel(messageID, labelID); err != nil {
@@ -160,7 +166,10 @@ func (s *LabelServiceImpl) BulkApplyLabel(ctx context.Context, messageIDs []stri
 				"added_labels": []string{labelID},
 			},
 		}
-		s.undoService.RecordAction(ctx, action)
+		if err := s.undoService.RecordAction(ctx, action); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
 	}
 
 	// Apply label to all messages using Gmail client directly (to avoid double undo recording)
@@ -198,7 +207,10 @@ func (s *LabelServiceImpl) BulkRemoveLabel(ctx context.Context, messageIDs []str
 				"removed_labels": []string{labelID},
 			},
 		}
-		s.undoService.RecordAction(ctx, action)
+		if err := s.undoService.RecordAction(ctx, action); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
 	}
 
 	// Remove label from all messages using Gmail client directly (to avoid double undo recording)

@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ajramos/giztui/internal/gmail"
@@ -192,64 +191,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 // previewObsidianContent removed - no longer needed
 
-// formatEmailPreview formats email content for preview
-func (a *App) formatEmailPreview(message *gmail.Message) string {
-	// Simple template for preview
-	template := `---
-title: "{{subject}}"
-date: {{date}}
-from: {{from}}
-type: email
-status: inbox
----
-
-# {{subject}}
-
-**From:** {{from}}  
-**Date:** {{date}}  
-**Labels:** {{labels}}
-
----
-
-{{body}}
-
----
-
-*Ingested from Gmail on {{ingest_date}}*`
-
-	// Extract message content
-	body := message.PlainText
-	if body == "" && message.Snippet != "" {
-		body = message.Snippet
-	}
-
-	// Truncate if too long
-	if len([]rune(body)) > 8000 {
-		body = string([]rune(body)[:8000])
-	}
-
-	// Prepare variables for substitution
-	variables := map[string]string{
-		"subject":     message.Subject,
-		"from":        a.extractHeader(message, "From"),
-		"to":          a.extractHeader(message, "To"),
-		"cc":          a.extractHeader(message, "Cc"),
-		"date":        a.extractHeader(message, "Date"),
-		"body":        body,
-		"labels":      strings.Join(message.LabelIds, ", "),
-		"message_id":  message.Id,
-		"ingest_date": "2024-01-15 15:04:05", // Placeholder for preview
-	}
-
-	// Replace variables in template
-	content := template
-	for key, value := range variables {
-		placeholder := fmt.Sprintf("{{%s}}", key)
-		content = strings.ReplaceAll(content, placeholder, value)
-	}
-
-	return content
-}
+// OBLITERATED: unused formatEmailPreview function eliminated! 💥
 
 // performObsidianIngest performs the actual ingestion to Obsidian
 func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string, templateName string, comment string) {
@@ -298,47 +240,19 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Show user-friendly success message
 	successMsg := "📝 Email saved to your notes!"
 	if comment != "" {
-		successMsg += fmt.Sprintf(" (with your comment)")
+		successMsg += " (with your comment)" // OBLITERATED: unnecessary fmt.Sprintf eliminated! 💥
 	}
 
 	a.GetErrorHandler().ShowSuccess(a.ctx, successMsg)
 }
 
-// getObsidianVaultPath returns the configured Obsidian vault path
-func (a *App) getObsidianVaultPath() string {
-	// For now, return a default path
-	// TODO: [CONFIG] Get Obsidian vault path from user configuration
-	return "/Users/ajramos/Documents/ObsidianVault"
-}
+// Removed unused function: getObsidianVaultPath
 
 // extractHeader is already defined in prompts.go
 
-// showObsidianHistory shows the history of Obsidian forwards
-func (a *App) showObsidianHistory() {
-	// Get Obsidian service
-	_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
-	if obsidianService == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
-		return
-	}
+// OBLITERATED: unused showObsidianHistory function eliminated! 💥
 
-	// Get account email
-	accountEmail := a.getActiveAccountEmail()
-	if accountEmail == "" {
-		a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
-		return
-	}
-
-	// TODO: [FUTURE] Implement Obsidian export history display
-	// This would show a list of recent forwards with options to re-ingest or view details
-	a.GetErrorHandler().ShowInfo(a.ctx, "Obsidian history feature coming soon")
-}
-
-// closeModal closes the current modal
-func (a *App) closeModal() {
-	// TODO: [FUTURE] Implement modal closing functionality
-	// Will restore previous view state and focus management when needed
-}
+// Removed unused function: closeModal
 
 // getObsidianTemplate returns the configurable template from config
 func (a *App) getObsidianTemplate() string {
@@ -449,10 +363,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 	}()
 }
 
-// sendSelectedBulkToObsidian sends all selected messages to Obsidian (backward compatibility)
-func (a *App) sendSelectedBulkToObsidian() {
-	a.sendSelectedBulkToObsidianWithComment("")
-}
+// OBLITERATED: unused sendSelectedBulkToObsidian function eliminated! 💥
 
 // openBulkObsidianPanel shows the panel for bulk Obsidian ingestion
 func (a *App) openBulkObsidianPanel() {
@@ -569,7 +480,7 @@ Each email will be processed using the template configured in your config file.
 
 Template includes:
 • Subject, From, To, CC, Date
-• Labels and Message ID  
+• Labels and Message ID
 • Email body content
 • Your bulk comment (if provided)
 • Batch metadata (index, total)

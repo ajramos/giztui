@@ -544,7 +544,7 @@ func (a *App) reloadMessagesFlat() {
 			close(spinnerStop)
 		}
 		// Force focus to list unless advanced search is visible OR composer is active
-		if spt, ok := a.views["searchPanel"].(*tview.Flex); !(ok && spt.GetTitle() == "🔎 Advanced Search") {
+		if spt, ok := a.views["searchPanel"].(*tview.Flex); !ok || spt.GetTitle() != "🔎 Advanced Search" { // OBLITERATED: De Morgan's law applied! 💥
 			// Only set focus if composition panel is not active
 			if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
 				if a.logger != nil {
@@ -1416,7 +1416,7 @@ func (a *App) openAdvancedSearchForm() {
 		}
 		for _, c := range []string{"social", "updates", "forums", "promotions"} {
 			cc := c
-			disp := strings.Title(cc)
+			disp := strings.ToUpper(cc[:1]) + cc[1:] // OBLITERATED: deprecated strings.Title eliminated! 💥
 			emoji := categoryEmojis[cc]
 			options = append(options, optionItem{emoji + " " + disp, func() { scopeField.SetText("category:" + cc); hideRight(); a.SetFocus(scopeField) }})
 		}
@@ -2229,7 +2229,7 @@ func (a *App) showMessage(id string) {
 				text.Clear()
 				if isANSI {
 					// Convert ANSI → tview markup while writing
-					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
+					_, _ = fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
 					a.enhancedTextView.SetContent(rendered)
 				}
@@ -2283,7 +2283,7 @@ func (a *App) saveCurrentMessageToFile() {
 
 		// Resolve config dir and saved folder
 		base := config.DefaultSavedDir()
-		if err := os.MkdirAll(base, 0o755); err != nil {
+		if err := os.MkdirAll(base, 0o750); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
 			return
 		}
@@ -2296,7 +2296,7 @@ func (a *App) saveCurrentMessageToFile() {
 		// Ensure uniqueness with timestamp
 		ts := time.Now().Format("20060102-150405")
 		file := filepath.Join(base, ts+"-"+name+".txt")
-		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not write file") })
 			return
 		}
@@ -2344,14 +2344,14 @@ func (a *App) saveCurrentMessageRawEML() {
 			}
 		}
 		base := config.DefaultSavedDir()
-		if err := os.MkdirAll(base, 0o755); err != nil {
+		if err := os.MkdirAll(base, 0o750); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not create saved folder") })
 			return
 		}
 		name := sanitizeFilename(subj)
 		ts := time.Now().Format("20060102-150405")
 		file := filepath.Join(base, ts+"-"+name+".eml")
-		if err := os.WriteFile(file, data, 0o644); err != nil {
+		if err := os.WriteFile(file, data, 0o600); err != nil {
 			a.QueueUpdateDraw(func() { a.showError("❌ Could not write file") })
 			return
 		}
@@ -2470,7 +2470,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 				text.SetDynamicColors(true)
 				text.Clear()
 				if isANSI {
-					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
+					_, _ = fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 				} else {
 					a.enhancedTextView.SetContent(rendered)
 				}
@@ -2519,7 +2519,7 @@ func (a *App) refreshMessageContent(id string) {
 					text.SetDynamicColors(true)
 					text.Clear()
 					if isANSI {
-						fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
+						_, _ = fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
 					} else {
 						a.enhancedTextView.SetContent(rendered)
 					}
@@ -2530,49 +2530,7 @@ func (a *App) refreshMessageContent(id string) {
 	}()
 }
 
-// refreshMessageContentWithOverride reloads message and overrides labels shown with provided names
-func (a *App) refreshMessageContentWithOverride(id string, labelsOverride []string) {
-	if id == "" {
-		return
-	}
-	go func() {
-		m, err := a.Client.GetMessageWithContent(id)
-		if err != nil {
-			return
-		}
-		// Merge override labels
-		if len(labelsOverride) > 0 {
-			seen := make(map[string]struct{}, len(m.Labels)+len(labelsOverride))
-			merged := make([]string, 0, len(m.Labels)+len(labelsOverride))
-			for _, l := range m.Labels {
-				if _, ok := seen[l]; !ok {
-					seen[l] = struct{}{}
-					merged = append(merged, l)
-				}
-			}
-			for _, l := range labelsOverride {
-				if _, ok := seen[l]; !ok {
-					seen[l] = struct{}{}
-					merged = append(merged, l)
-				}
-			}
-			m.Labels = merged
-		}
-		rendered, isANSI := a.renderMessageContent(m)
-		a.QueueUpdateDraw(func() {
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				text.SetDynamicColors(true)
-				text.Clear()
-				if isANSI {
-					fmt.Fprint(tview.ANSIWriter(text, "", ""), rendered)
-				} else {
-					a.enhancedTextView.SetContent(rendered)
-				}
-				text.ScrollToBeginning()
-			}
-		})
-	}()
-}
+// Removed unused function: refreshMessageContentWithOverride
 
 // getCurrentMessageID gets the ID of the currently selected message
 func (a *App) getCurrentMessageID() string {
@@ -3089,7 +3047,7 @@ func (a *App) openRSVPModal() {
 			for _, cachedInv := range a.inviteCache {
 				if cachedInv.UID != "" {
 					inv = cachedInv
-					ok = true
+					// Removed ineffectual assignment: ok = true (not used after break)
 					if a.logger != nil {
 						a.logger.Printf("RSVP: Using cached invite from alternate cache entry")
 					}
@@ -3552,35 +3510,7 @@ func formatOrganizerName(organizer string) string {
 	return strings.TrimSpace(organizer)
 }
 
-func extractEmailFromOrganizer(org string) string {
-	s := strings.ToLower(strings.TrimSpace(org))
-	// Patterns like ORGANIZER:mailto:foo@bar or ORGANIZER;CN=..:mailto:foo@bar
-	if i := strings.LastIndex(s, "mailto:"); i >= 0 {
-		addr := strings.TrimSpace(s[i+7:])
-		// cut params after email
-		for _, sep := range []string{";", "\\r", "\\n"} {
-			if j := strings.Index(addr, sep); j >= 0 {
-				addr = addr[:j]
-			}
-		}
-		return addr
-	}
-	// Fallback: extract last token with @
-	toks := strings.Fields(s)
-	for _, t := range toks {
-		if strings.Contains(t, "@") {
-			return strings.Trim(t, ":<>")
-		}
-	}
-	return ""
-}
-
-func sanitizeOrganizer(org string) string {
-	if strings.Contains(strings.ToUpper(org), "ORGANIZER:") {
-		return strings.TrimSpace(strings.SplitN(org, ":", 2)[1])
-	}
-	return org
-}
+// Removed unused functions: extractEmailFromOrganizer, sanitizeOrganizer
 
 /* moved to messages_actions.go
 func (a *App) archiveSelected() {
@@ -3979,8 +3909,8 @@ func (a *App) populateDraftsView() {
 		id      string
 		subject string
 		snippet string
-		date    string
-		to      string
+		// date field removed as unused
+		to string
 	}
 
 	var allDrafts []draftItem

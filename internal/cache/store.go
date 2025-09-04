@@ -22,6 +22,11 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	if strings.TrimSpace(dbPath) == "" {
 		return nil, fmt.Errorf("empty cache path")
 	}
+	// Validate path to prevent directory traversal
+	cleanPath := filepath.Clean(dbPath)
+	if strings.Contains(cleanPath, "..") {
+		return nil, fmt.Errorf("invalid cache path: contains directory traversal")
+	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
 		return nil, fmt.Errorf("create cache dir: %w", err)
 	}
@@ -31,7 +36,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create cache db: %w", err)
 		}
-		f.Close()
+		_ = f.Close() // Error not actionable here - just creating empty file
 	}
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -229,7 +234,7 @@ func (s *Store) ListPromptTemplates(ctx context.Context, category string) ([]*Pr
 		return nil, fmt.Errorf("cache store not initialized")
 	}
 
-	query := `SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+	query := `SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count
 	          FROM prompt_templates`
 	args := []interface{}{}
 
@@ -244,7 +249,7 @@ func (s *Store) ListPromptTemplates(ctx context.Context, category string) ([]*Pr
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Error not actionable in defer
 
 	var templates []*PromptTemplate
 	for rows.Next() {
@@ -268,7 +273,7 @@ func (s *Store) GetPromptTemplate(ctx context.Context, id int) (*PromptTemplate,
 
 	t := &PromptTemplate{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count
 		 FROM prompt_templates WHERE id = ?`, id).
 		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
 			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)

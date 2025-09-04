@@ -29,7 +29,7 @@ func newEmojiBox(text string, color tcell.Color, backgroundColor tcell.Color) *e
 }
 
 func (e *emojiBox) Draw(screen tcell.Screen) {
-	e.Box.DrawForSubclass(screen, e)
+	e.DrawForSubclass(screen, e) // OBLITERATED: embedded field selector eliminated! 💥
 	x, y, w, _ := e.GetInnerRect()
 	if w <= 0 {
 		return
@@ -38,23 +38,7 @@ func (e *emojiBox) Draw(screen tcell.Screen) {
 	tview.Print(screen, e.text, x, y, w, tview.AlignLeft, e.color)
 }
 
-// createCommandBar creates the command bar component (k9s style)
-func (a *App) createCommandBar() tview.Primitive {
-	cmdBar := tview.NewTextView()
-	cmdBar.SetDynamicColors(true)
-	cmdBar.SetTextAlign(tview.AlignLeft)
-	// Inner widget without its own border; the panel provides the border and title
-	cmdBar.SetBorder(false)
-	cmdBar.SetText("")
-	generalColors := a.GetComponentColors("general")
-	cmdBar.SetBackgroundColor(generalColors.Background.Color())
-	cmdBar.SetTextColor(generalColors.Text.Color())
-
-	// Store reference to command bar
-	a.views["cmdBar"] = cmdBar
-
-	return cmdBar
-}
+// Removed unused function: createCommandBar
 
 // showCommandBar displays the command bar and enters command mode
 func (a *App) showCommandBar() {
@@ -746,9 +730,9 @@ func (a *App) executeSlackCommand(args []string) {
 				return
 			}
 
-			// Get message ID from the specified position
+			// Get message index from the specified position
 			messageIndex := num - 1 // Convert to 0-based index
-			messageID = a.ids[messageIndex]
+			// messageID = a.ids[messageIndex] // Removed ineffectual assignment - showSlackForwardDialog gets current message internally
 
 			// Also select the message in the UI for consistency
 			if list, ok := a.views["list"].(*tview.Table); ok {
@@ -1132,7 +1116,7 @@ func (a *App) executePreloadStatus(args []string) {
 
 	if status.Statistics != nil {
 		hitRate := status.Statistics.CacheHitRate * 100
-		statusMsg.WriteString(fmt.Sprintf("\nStatistics:\n"))
+		statusMsg.WriteString("\nStatistics:\n")
 		statusMsg.WriteString(fmt.Sprintf("  Cache Hit Rate: %.1f%%\n", hitRate))
 		statusMsg.WriteString(fmt.Sprintf("  Cache Hits: %d\n", status.PreloadHits))
 		statusMsg.WriteString(fmt.Sprintf("  Cache Misses: %d\n", status.PreloadMisses))
@@ -1145,14 +1129,14 @@ func (a *App) executePreloadStatus(args []string) {
 	}
 
 	// Add usage information
-	statusMsg.WriteString(fmt.Sprintf("\nUsage:\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload or :pl       - Show this status\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload status       - Show this status\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload on|off       - Enable/disable all preloading\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload next on|off  - Enable/disable next page preloading\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload adj on|off   - Enable/disable adjacent message preloading\n"))
-	statusMsg.WriteString(fmt.Sprintf("  :preload clear        - Clear preload cache\n"))
-	statusMsg.WriteString(fmt.Sprintf("\nPress ESC to return to previous view\n"))
+	statusMsg.WriteString("\nUsage:\n")
+	statusMsg.WriteString("  :preload or :pl       - Show this status\n")
+	statusMsg.WriteString("  :preload status       - Show this status\n")
+	statusMsg.WriteString("  :preload on|off       - Enable/disable all preloading\n")
+	statusMsg.WriteString("  :preload next on|off  - Enable/disable next page preloading\n")
+	statusMsg.WriteString("  :preload adj on|off   - Enable/disable adjacent message preloading\n")
+	statusMsg.WriteString("  :preload clear        - Clear preload cache\n")
+	statusMsg.WriteString("\nPress ESC to return to previous view\n")
 
 	// Call showPreloadStatus in goroutine to avoid command context issues
 	statusContent := statusMsg.String()
@@ -1766,8 +1750,15 @@ func (a *App) executePromptUpdate(args []string) {
 			}
 		}
 
+		// Validate path to prevent directory traversal
+		cleanPath := filepath.Clean(filePath)
+		if strings.Contains(cleanPath, "..") {
+			a.GetErrorHandler().ShowError(a.ctx, "Invalid file path: contains directory traversal")
+			return
+		}
+
 		// Read file content
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(cleanPath)
 		if err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to read file %s: %v", filePath, err))
 			return
@@ -2293,7 +2284,7 @@ func (a *App) executeThreadSummaryCommand(args []string) {
 		return
 	}
 
-	go a.GenerateThreadSummary()
+	go func() { _ = a.GenerateThreadSummary() }()
 }
 
 // executeExpandAllCommand handles :expand-all command
@@ -2312,7 +2303,7 @@ func (a *App) executeExpandAllCommand(args []string) {
 		return
 	}
 
-	go a.ExpandAllThreads()
+	go func() { _ = a.ExpandAllThreads() }()
 }
 
 // executeCollapseAllCommand handles :collapse-all command
@@ -2331,7 +2322,7 @@ func (a *App) executeCollapseAllCommand(args []string) {
 		return
 	}
 
-	go a.CollapseAllThreads()
+	go func() { _ = a.CollapseAllThreads() }()
 }
 
 // executeReplyAllCommand handles :reply-all/:ra commands

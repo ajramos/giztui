@@ -50,7 +50,7 @@ func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
 				go func() {
 					// Simulate async message loading
 					opts := services.QueryOptions{MaxResults: 50}
-					h.MockRepo.GetMessages(ctx, opts)
+					_, _ = h.MockRepo.GetMessages(ctx, opts)
 				}()
 				return cancel
 			},

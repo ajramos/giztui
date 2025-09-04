@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ajramos/giztui/internal/config"
 )
@@ -15,7 +16,7 @@ func (a *App) initLogger() {
 	}
 	// Prefer config.LogFile if provided
 	if a.Config != nil && a.Config.LogFile != "" {
-		if f, err := os.OpenFile(a.Config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
+		if f, err := os.OpenFile(a.Config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 			a.logFile = f
 			a.logger = log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
 			return
@@ -24,9 +25,14 @@ func (a *App) initLogger() {
 	}
 	logDir := config.DefaultLogDir()
 	if logDir != "" {
-		if err := os.MkdirAll(logDir, 0o755); err == nil {
+		if err := os.MkdirAll(logDir, 0o750); err == nil {
 			lf := filepath.Join(logDir, "giztui.log")
-			if f, err := os.OpenFile(lf, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
+			// Validate path to prevent directory traversal
+			cleanPath := filepath.Clean(lf)
+			if strings.Contains(cleanPath, "..") {
+				return // Skip logging if invalid path
+			}
+			if f, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 				a.logFile = f
 				a.logger = log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
 			}

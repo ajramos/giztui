@@ -95,7 +95,7 @@
     "unread": "u",
     "archived": "B",
     "search_from": "F",
-    "search_to": "T", 
+    "search_to": "T",
     "search_subject": "S",
     "toggle_read": "t",
     "undo": "U",
@@ -107,7 +107,7 @@
     "attachments": "A",
     "manage_labels": "l",
     "quit": "q",
-    
+
     "_additional_shortcuts": "Additional configurable shortcuts",
     "obsidian": "Shift+O",
     "open_gmail": "O",
@@ -123,26 +123,26 @@
     "command_mode": ":",
     "help": "?",
     "toggle_headers": "h",
-    
+
     "_content_navigation": "Enhanced content navigation shortcuts",
     "content_search": "/",
     "search_next": "n",
-    "search_prev": "N", 
+    "search_prev": "N",
     "fast_up": "ctrl+k",
     "fast_down": "ctrl+j",
     "word_left": "ctrl+h",
     "word_right": "ctrl+l",
     "goto_top": "gg",
     "goto_bottom": "G",
-    
+
     "_threading_navigation": "Message threading shortcuts",
     "toggle_threading": "T",
-    "expand_all_threads": "E", 
+    "expand_all_threads": "E",
     "collapse_all_threads": "C",
     "thread_summary": "shift+t",
     "next_thread": "ctrl+n",
     "prev_thread": "ctrl+p",
-    
+
     "_examples": "Example customizations (uncomment and modify as needed):",
     "_vim_style": "Vim-style shortcuts:",
     "_example1": "\"reply\": \"r\", \"compose\": \"i\", \"search\": \"/\", \"quit\": \":q\"",

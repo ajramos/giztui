@@ -131,7 +131,11 @@ func TestDB_Getter(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	db := store.DB()
 	assert.NotNil(t, db)
@@ -145,7 +149,11 @@ func TestMigration_V1_AISummariesTable(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify ai_summaries table exists
 	var tableName string
@@ -168,7 +176,11 @@ func TestMigration_V3_PromptTables(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify prompt_templates table exists
 	var tableName string
@@ -198,7 +210,11 @@ func TestMigration_V5_BulkPromptResultsTable(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify bulk_prompt_results table exists
 	var tableName string
@@ -221,7 +237,11 @@ func TestMigration_V6_SavedQueriesTable(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify saved_queries table exists
 	var tableName string
@@ -244,7 +264,11 @@ func TestPragmas_Configuration(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify WAL mode is set
 	var journalMode string
@@ -273,7 +297,11 @@ func TestDatabaseIntegrity_BasicOperations(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Test basic insert into ai_summaries
 	_, err = store.db.ExecContext(ctx,
@@ -310,7 +338,11 @@ func TestDatabaseConstraints_PrimaryKey(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Insert first record
 	_, err = store.db.ExecContext(ctx,
@@ -326,9 +358,9 @@ func TestDatabaseConstraints_PrimaryKey(t *testing.T) {
 
 	// But upsert should work
 	_, err = store.db.ExecContext(ctx, `
-		INSERT INTO ai_summaries (account_email, message_id, summary, updated_at) 
+		INSERT INTO ai_summaries (account_email, message_id, summary, updated_at)
 		VALUES (?, ?, ?, ?)
-		ON CONFLICT(account_email, message_id) 
+		ON CONFLICT(account_email, message_id)
 		DO UPDATE SET summary = excluded.summary, updated_at = excluded.updated_at`,
 		"test@example.com", "msg123", "Upserted summary", 1234567892)
 	assert.NoError(t, err)
@@ -349,12 +381,20 @@ func TestDatabase_ConcurrentAccess(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Test that multiple connections can be opened (WAL mode supports this)
 	store2, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store2.Close()
+	defer func() {
+		if err := store2.Close(); err != nil {
+			t.Logf("Error closing store2: %v", err)
+		}
+	}()
 
 	// Both should be able to read
 	var version1, version2 int
@@ -393,7 +433,11 @@ func BenchmarkInsert(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			b.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -415,7 +459,11 @@ func BenchmarkQuery(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			b.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Insert test data
 	_, err = store.db.ExecContext(ctx,
@@ -460,7 +508,11 @@ func TestSchema_Validation(t *testing.T) {
 
 	store, err := Open(ctx, dbPath)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
 
 	// Verify all expected tables exist
 	expectedTables := []string{

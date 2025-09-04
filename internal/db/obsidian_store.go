@@ -34,7 +34,7 @@ func (os *ObsidianStore) RecordForward(ctx context.Context, record *obsidian.Obs
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	query := `INSERT INTO obsidian_forward_history 
+	query := `INSERT INTO obsidian_forward_history
 	          (message_id, account_email, obsidian_path, template_used, forward_date, status, error_message, file_size, metadata)
 	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
@@ -64,7 +64,7 @@ func (os *ObsidianStore) GetForwardHistory(ctx context.Context, messageID string
 	}
 
 	query := `SELECT id, message_id, account_email, obsidian_path, template_used, forward_date, status, error_message, file_size, metadata
-	          FROM obsidian_forward_history 
+	          FROM obsidian_forward_history
 	          WHERE message_id = ?
 	          ORDER BY forward_date DESC
 	          LIMIT 1`
@@ -124,7 +124,7 @@ func (os *ObsidianStore) CheckIfAlreadyForwarded(ctx context.Context, messageID,
 		return false, fmt.Errorf("obsidian store not initialized")
 	}
 
-	query := `SELECT COUNT(*) FROM obsidian_forward_history 
+	query := `SELECT COUNT(*) FROM obsidian_forward_history
 	          WHERE message_id = ? AND account_email = ? AND status = 'success'`
 
 	var count int
@@ -147,15 +147,20 @@ func (os *ObsidianStore) ListRecentForwards(ctx context.Context, limit int) ([]*
 	}
 
 	query := `SELECT id, message_id, account_email, obsidian_path, template_used, forward_date, status, error_message, file_size, metadata
-	          FROM obsidian_forward_history 
-	          ORDER BY forward_date DESC 
+	          FROM obsidian_forward_history
+	          ORDER BY forward_date DESC
 	          LIMIT ?`
 
 	rows, err := os.db.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent forwards: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	var records []*obsidian.ObsidianForwardRecord
 	for rows.Next() {
@@ -210,8 +215,8 @@ func (os *ObsidianStore) UpdateForwardStatus(ctx context.Context, id int, status
 		return fmt.Errorf("obsidian store not initialized")
 	}
 
-	query := `UPDATE obsidian_forward_history 
-	          SET status = ?, error_message = ? 
+	query := `UPDATE obsidian_forward_history
+	          SET status = ?, error_message = ?
 	          WHERE id = ?`
 
 	_, err := os.db.ExecContext(ctx, query, status, errorMessage, id)
@@ -242,7 +247,7 @@ func (os *ObsidianStore) GetForwardStats(ctx context.Context, accountEmail strin
 	// Recent forwards (last N days)
 	if days > 0 {
 		var recentForwards int
-		query = `SELECT COUNT(*) FROM obsidian_forward_history 
+		query = `SELECT COUNT(*) FROM obsidian_forward_history
 		         WHERE account_email = ? AND forward_date >= datetime('now', '-? days')`
 		err = os.db.QueryRowContext(ctx, query, accountEmail, days).Scan(&recentForwards)
 		if err != nil {
@@ -253,7 +258,7 @@ func (os *ObsidianStore) GetForwardStats(ctx context.Context, accountEmail strin
 
 	// Success rate
 	var successCount int
-	query = `SELECT COUNT(*) FROM obsidian_forward_history 
+	query = `SELECT COUNT(*) FROM obsidian_forward_history
 	         WHERE account_email = ? AND status = 'success'`
 	err = os.db.QueryRowContext(ctx, query, accountEmail).Scan(&successCount)
 	if err != nil {
@@ -268,17 +273,22 @@ func (os *ObsidianStore) GetForwardStats(ctx context.Context, accountEmail strin
 	stats["success_count"] = successCount
 
 	// Template usage
-	query = `SELECT template_used, COUNT(*) as count 
-	         FROM obsidian_forward_history 
+	query = `SELECT template_used, COUNT(*) as count
+	         FROM obsidian_forward_history
 	         WHERE account_email = ? AND template_used IS NOT NULL
-	         GROUP BY template_used 
+	         GROUP BY template_used
 	         ORDER BY count DESC`
 
 	rows, err := os.db.QueryContext(ctx, query, accountEmail)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get template usage: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	templateUsage := make(map[string]int)
 	for rows.Next() {

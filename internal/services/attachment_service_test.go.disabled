@@ -35,9 +35,9 @@ func (m *MockGmailClient) GetAttachment(messageID, attachmentID string) ([]byte,
 func TestNewAttachmentService(t *testing.T) {
 	client := &gmail.Client{}
 	config := &config.Config{}
-	
+
 	service := NewAttachmentService(client, config)
-	
+
 	assert.NotNil(t, service)
 	assert.Equal(t, client, service.gmailClient)
 	assert.Equal(t, config, service.config)
@@ -45,7 +45,7 @@ func TestNewAttachmentService(t *testing.T) {
 
 func TestNewAttachmentService_NilInputs(t *testing.T) {
 	service := NewAttachmentService(nil, nil)
-	
+
 	assert.NotNil(t, service)
 	assert.Nil(t, service.gmailClient)
 	assert.Nil(t, service.config)
@@ -58,7 +58,7 @@ func TestAttachmentService_GetMessageAttachments_Success(t *testing.T) {
 		gmailClient: mockClient,
 		config:      &config.Config{},
 	}
-	
+
 	// Mock message with attachment
 	message := &googleGmail.Message{
 		Payload: &googleGmail.MessagePart{
@@ -74,11 +74,11 @@ func TestAttachmentService_GetMessageAttachments_Success(t *testing.T) {
 			},
 		},
 	}
-	
+
 	mockClient.On("GetMessage", "msg_123").Return(message, nil)
-	
+
 	attachments, err := service.GetMessageAttachments(context.Background(), "msg_123")
-	
+
 	assert.NoError(t, err)
 	assert.Len(t, attachments, 1)
 	assert.Equal(t, "test.pdf", attachments[0].Filename)
@@ -86,15 +86,15 @@ func TestAttachmentService_GetMessageAttachments_Success(t *testing.T) {
 	assert.Equal(t, "att_123", attachments[0].AttachmentID)
 	assert.Equal(t, int64(1024), attachments[0].Size)
 	assert.Equal(t, "document", attachments[0].Type)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
 func TestAttachmentService_GetMessageAttachments_EmptyMessageID(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	attachments, err := service.GetMessageAttachments(context.Background(), "")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "messageID cannot be empty")
 	assert.Nil(t, attachments)
@@ -105,15 +105,15 @@ func TestAttachmentService_GetMessageAttachments_GmailClientError(t *testing.T) 
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 	}
-	
+
 	mockClient.On("GetMessage", "msg_123").Return((*googleGmail.Message)(nil), fmt.Errorf("API error"))
-	
+
 	attachments, err := service.GetMessageAttachments(context.Background(), "msg_123")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get message")
 	assert.Nil(t, attachments)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -122,7 +122,7 @@ func TestAttachmentService_GetMessageAttachments_NoAttachments(t *testing.T) {
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 	}
-	
+
 	message := &googleGmail.Message{
 		Payload: &googleGmail.MessagePart{
 			Parts: []*googleGmail.MessagePart{
@@ -135,14 +135,14 @@ func TestAttachmentService_GetMessageAttachments_NoAttachments(t *testing.T) {
 			},
 		},
 	}
-	
+
 	mockClient.On("GetMessage", "msg_123").Return(message, nil)
-	
+
 	attachments, err := service.GetMessageAttachments(context.Background(), "msg_123")
-	
+
 	assert.NoError(t, err)
 	assert.Empty(t, attachments)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -150,7 +150,7 @@ func TestAttachmentService_GetMessageAttachments_NoAttachments(t *testing.T) {
 func TestAttachmentService_DownloadAttachment_Success(t *testing.T) {
 	mockClient := &MockGmailClient{}
 	tempDir := t.TempDir()
-	
+
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 		config: &config.Config{
@@ -159,27 +159,27 @@ func TestAttachmentService_DownloadAttachment_Success(t *testing.T) {
 			},
 		},
 	}
-	
+
 	testData := []byte("test file content")
 	mockClient.On("GetAttachment", "msg_123", "att_123").Return(testData, "test.txt", nil)
-	
+
 	filePath, err := service.DownloadAttachment(context.Background(), "msg_123", "att_123", "")
-	
+
 	assert.NoError(t, err)
 	assert.True(t, strings.HasSuffix(filePath, "test.txt"))
 	assert.FileExists(t, filePath)
-	
+
 	// Verify file content
 	content, err := os.ReadFile(filePath)
 	assert.NoError(t, err)
 	assert.Equal(t, testData, content)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
 func TestAttachmentService_DownloadAttachment_EmptyParameters(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	testCases := []struct {
 		name         string
 		messageID    string
@@ -189,11 +189,11 @@ func TestAttachmentService_DownloadAttachment_EmptyParameters(t *testing.T) {
 		{"empty_attachment_id", "msg_123", ""},
 		{"both_empty", "", ""},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			filePath, err := service.DownloadAttachment(context.Background(), tc.messageID, tc.attachmentID, "")
-			
+
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "cannot be empty")
 			assert.Empty(t, filePath)
@@ -206,15 +206,15 @@ func TestAttachmentService_DownloadAttachment_ClientError(t *testing.T) {
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 	}
-	
+
 	mockClient.On("GetAttachment", "msg_123", "att_123").Return([]byte{}, "", fmt.Errorf("download failed"))
-	
+
 	filePath, err := service.DownloadAttachment(context.Background(), "msg_123", "att_123", "")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to download attachment")
 	assert.Empty(t, filePath)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -222,7 +222,7 @@ func TestAttachmentService_DownloadAttachment_ClientError(t *testing.T) {
 func TestAttachmentService_DownloadAttachmentWithFilename_WithSuggestedName(t *testing.T) {
 	mockClient := &MockGmailClient{}
 	tempDir := t.TempDir()
-	
+
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 		config: &config.Config{
@@ -231,24 +231,24 @@ func TestAttachmentService_DownloadAttachmentWithFilename_WithSuggestedName(t *t
 			},
 		},
 	}
-	
+
 	testData := []byte("test content")
 	mockClient.On("GetAttachment", "msg_123", "att_123").Return(testData, "original.txt", nil)
-	
+
 	customPath := filepath.Join(tempDir, "custom.txt")
 	filePath, err := service.DownloadAttachmentWithFilename(context.Background(), "msg_123", "att_123", customPath, "suggested.txt")
-	
+
 	assert.NoError(t, err)
 	assert.Equal(t, customPath, filePath)
 	assert.FileExists(t, filePath)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
 func TestAttachmentService_DownloadAttachmentWithFilename_FilenameConflict(t *testing.T) {
 	mockClient := &MockGmailClient{}
 	tempDir := t.TempDir()
-	
+
 	service := &AttachmentServiceImpl{
 		gmailClient: mockClient,
 		config: &config.Config{
@@ -257,60 +257,60 @@ func TestAttachmentService_DownloadAttachmentWithFilename_FilenameConflict(t *te
 			},
 		},
 	}
-	
+
 	// Create existing file
 	existingFile := filepath.Join(tempDir, "test.txt")
 	err := os.WriteFile(existingFile, []byte("existing"), 0644)
 	assert.NoError(t, err)
-	
+
 	testData := []byte("new content")
 	mockClient.On("GetAttachment", "msg_123", "att_123").Return(testData, "test.txt", nil)
-	
+
 	filePath, err := service.DownloadAttachmentWithFilename(context.Background(), "msg_123", "att_123", "", "")
-	
+
 	assert.NoError(t, err)
 	assert.NotEqual(t, existingFile, filePath) // Should be a different path
 	assert.Contains(t, filePath, "test_") // Should have conflict resolution suffix
 	assert.FileExists(t, filePath)
-	
+
 	mockClient.AssertExpectations(t)
 }
 
 // Test OpenAttachment
 func TestAttachmentService_OpenAttachment_EmptyPath(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	err := service.OpenAttachment(context.Background(), "")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "filePath cannot be empty")
 }
 
 func TestAttachmentService_OpenAttachment_NonExistentFile(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	err := service.OpenAttachment(context.Background(), "/nonexistent/file.txt")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "file does not exist")
 }
 
 func TestAttachmentService_OpenAttachment_ValidFile(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	// Create a temporary file
 	tempFile, err := os.CreateTemp("", "test_attachment_*.txt")
 	assert.NoError(t, err)
 	defer os.Remove(tempFile.Name())
-	
+
 	tempFile.WriteString("test content")
 	tempFile.Close()
-	
+
 	// This test will only verify that the command setup is correct without actually opening
 	// We can't easily test the actual opening without system integration
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately to prevent actual opening
-	
+
 	err = service.OpenAttachment(ctx, tempFile.Name())
 	// The error might be context canceled or the actual open might succeed before cancellation
 	// Both are acceptable for this test
@@ -327,7 +327,7 @@ func TestAttachmentService_GetDefaultDownloadPath_ConfigPath(t *testing.T) {
 			},
 		},
 	}
-	
+
 	path := service.GetDefaultDownloadPath()
 	assert.Equal(t, customPath, path)
 }
@@ -340,7 +340,7 @@ func TestAttachmentService_GetDefaultDownloadPath_HomeExpansion(t *testing.T) {
 			},
 		},
 	}
-	
+
 	path := service.GetDefaultDownloadPath()
 	assert.False(t, strings.HasPrefix(path, "~/"))
 	assert.Contains(t, path, "Downloads/attachments")
@@ -350,7 +350,7 @@ func TestAttachmentService_GetDefaultDownloadPath_DefaultPath(t *testing.T) {
 	service := &AttachmentServiceImpl{
 		config: &config.Config{},
 	}
-	
+
 	path := service.GetDefaultDownloadPath()
 	assert.True(t, strings.Contains(path, "gmail-attachments"))
 }
@@ -359,7 +359,7 @@ func TestAttachmentService_GetDefaultDownloadPath_NilConfig(t *testing.T) {
 	service := &AttachmentServiceImpl{
 		config: nil,
 	}
-	
+
 	path := service.GetDefaultDownloadPath()
 	assert.True(t, strings.Contains(path, "gmail-attachments"))
 }
@@ -367,7 +367,7 @@ func TestAttachmentService_GetDefaultDownloadPath_NilConfig(t *testing.T) {
 // Test categorizeAttachment
 func TestAttachmentService_CategorizeAttachment(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	testCases := []struct {
 		mimeType string
 		filename string
@@ -387,7 +387,7 @@ func TestAttachmentService_CategorizeAttachment(t *testing.T) {
 		{"text/calendar", "event.ics", "calendar"},
 		{"application/octet-stream", "unknown", "file"},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s_%s", tc.mimeType, tc.filename), func(t *testing.T) {
 			result := service.categorizeAttachment(tc.mimeType, tc.filename)
@@ -399,7 +399,7 @@ func TestAttachmentService_CategorizeAttachment(t *testing.T) {
 // Test getExtensionFromMimeType
 func TestAttachmentService_GetExtensionFromMimeType(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	testCases := []struct {
 		mimeType string
 		expected string
@@ -422,7 +422,7 @@ func TestAttachmentService_GetExtensionFromMimeType(t *testing.T) {
 		{"text/calendar", ".ics"},
 		{"unknown/type", ""},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.mimeType, func(t *testing.T) {
 			result := service.getExtensionFromMimeType(tc.mimeType)
@@ -434,7 +434,7 @@ func TestAttachmentService_GetExtensionFromMimeType(t *testing.T) {
 // Test extractAttachmentsFromMessage
 func TestAttachmentService_ExtractAttachmentsFromMessage_ComplexStructure(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	message := &googleGmail.Message{
 		Payload: &googleGmail.MessagePart{
 			Parts: []*googleGmail.MessagePart{
@@ -483,18 +483,18 @@ func TestAttachmentService_ExtractAttachmentsFromMessage_ComplexStructure(t *tes
 			},
 		},
 	}
-	
+
 	attachments := service.extractAttachmentsFromMessage(message)
-	
+
 	assert.Len(t, attachments, 3)
-	
+
 	// First attachment - PDF document
 	assert.Equal(t, "document.pdf", attachments[0].Filename)
 	assert.Equal(t, "application/pdf", attachments[0].MimeType)
 	assert.Equal(t, "att_123", attachments[0].AttachmentID)
 	assert.Equal(t, "document", attachments[0].Type)
 	assert.False(t, attachments[0].Inline)
-	
+
 	// Second attachment - Inline image
 	assert.Equal(t, "image.png", attachments[1].Filename)
 	assert.Equal(t, "image/png", attachments[1].MimeType)
@@ -502,7 +502,7 @@ func TestAttachmentService_ExtractAttachmentsFromMessage_ComplexStructure(t *tes
 	assert.Equal(t, "image", attachments[1].Type)
 	assert.True(t, attachments[1].Inline)
 	assert.Equal(t, "image123@example.com", attachments[1].ContentID)
-	
+
 	// Third attachment - Nested text file
 	assert.Equal(t, "nested.txt", attachments[2].Filename)
 	assert.Equal(t, "text/plain", attachments[2].MimeType)
@@ -512,18 +512,18 @@ func TestAttachmentService_ExtractAttachmentsFromMessage_ComplexStructure(t *tes
 
 func TestAttachmentService_ExtractAttachmentsFromMessage_NilMessage(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	attachments := service.extractAttachmentsFromMessage(nil)
 	assert.Empty(t, attachments)
 }
 
 func TestAttachmentService_ExtractAttachmentsFromMessage_NilPayload(t *testing.T) {
 	service := &AttachmentServiceImpl{}
-	
+
 	message := &googleGmail.Message{
 		Payload: nil,
 	}
-	
+
 	attachments := service.extractAttachmentsFromMessage(message)
 	assert.Empty(t, attachments)
 }
@@ -532,24 +532,24 @@ func TestAttachmentService_ExtractAttachmentsFromMessage_NilPayload(t *testing.T
 func TestAttachmentService_ResolveFilenameConflict_NoConflict(t *testing.T) {
 	service := &AttachmentServiceImpl{}
 	tempDir := t.TempDir()
-	
+
 	path := filepath.Join(tempDir, "test.txt")
 	result := service.resolveFilenameConflict(path)
-	
+
 	assert.Equal(t, path, result)
 }
 
 func TestAttachmentService_ResolveFilenameConflict_WithConflict(t *testing.T) {
 	service := &AttachmentServiceImpl{}
 	tempDir := t.TempDir()
-	
+
 	// Create existing file
 	existingPath := filepath.Join(tempDir, "test.txt")
 	err := os.WriteFile(existingPath, []byte("existing"), 0644)
 	assert.NoError(t, err)
-	
+
 	result := service.resolveFilenameConflict(existingPath)
-	
+
 	assert.NotEqual(t, existingPath, result)
 	assert.Contains(t, result, "test_1.txt")
 }
@@ -557,7 +557,7 @@ func TestAttachmentService_ResolveFilenameConflict_WithConflict(t *testing.T) {
 func TestAttachmentService_ResolveFilenameConflict_MultipleConflicts(t *testing.T) {
 	service := &AttachmentServiceImpl{}
 	tempDir := t.TempDir()
-	
+
 	// Create multiple existing files
 	basePath := filepath.Join(tempDir, "test.txt")
 	for i := 0; i < 3; i++ {
@@ -570,9 +570,9 @@ func TestAttachmentService_ResolveFilenameConflict_MultipleConflicts(t *testing.
 		err := os.WriteFile(path, []byte("existing"), 0644)
 		assert.NoError(t, err)
 	}
-	
+
 	result := service.resolveFilenameConflict(basePath)
-	
+
 	assert.NotEqual(t, basePath, result)
 	assert.Contains(t, result, "test_3.txt")
 }
@@ -585,20 +585,20 @@ func TestAttachmentService_EdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 		defer os.Remove(tempFile.Name())
 		tempFile.Close()
-		
+
 		// Test that the right command is generated for the current platform
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
-		
+
 		err = service.OpenAttachment(ctx, tempFile.Name())
-		
+
 		// Should either succeed or be canceled - the important thing is no unsupported platform error
 		assert.False(t, strings.Contains(err.Error(), "unsupported platform"))
 	})
-	
+
 	t.Run("attachment_without_filename_generates_default", func(t *testing.T) {
 		service := &AttachmentServiceImpl{}
-		
+
 		message := &googleGmail.Message{
 			Payload: &googleGmail.MessagePart{
 				Parts: []*googleGmail.MessagePart{
@@ -613,9 +613,9 @@ func TestAttachmentService_EdgeCases(t *testing.T) {
 				},
 			},
 		}
-		
+
 		attachments := service.extractAttachmentsFromMessage(message)
-		
+
 		assert.Len(t, attachments, 1)
 		assert.Contains(t, attachments[0].Filename, "attachment_")
 		assert.Contains(t, attachments[0].Filename, ".pdf")
@@ -625,7 +625,7 @@ func TestAttachmentService_EdgeCases(t *testing.T) {
 // Benchmark tests for performance-critical operations
 func BenchmarkAttachmentService_CategorizeAttachment(b *testing.B) {
 	service := &AttachmentServiceImpl{}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		service.categorizeAttachment("application/pdf", "document.pdf")
@@ -634,14 +634,14 @@ func BenchmarkAttachmentService_CategorizeAttachment(b *testing.B) {
 
 func BenchmarkAttachmentService_ExtractAttachments(b *testing.B) {
 	service := &AttachmentServiceImpl{}
-	
+
 	// Create a complex message structure
 	message := &googleGmail.Message{
 		Payload: &googleGmail.MessagePart{
 			Parts: make([]*googleGmail.MessagePart, 10),
 		},
 	}
-	
+
 	for i := 0; i < 10; i++ {
 		message.Payload.Parts[i] = &googleGmail.MessagePart{
 			Filename: fmt.Sprintf("attachment_%d.pdf", i),
@@ -652,7 +652,7 @@ func BenchmarkAttachmentService_ExtractAttachments(b *testing.B) {
 			},
 		}
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		service.extractAttachmentsFromMessage(message)

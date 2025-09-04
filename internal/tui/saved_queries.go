@@ -67,7 +67,7 @@ func (a *App) showSavedQueriesPicker() {
 			visible = append(visible, item)
 
 			// Category icon
-			icon := "📚"
+			var icon string
 			switch item.category {
 			case "search":
 				icon = "🔍"
@@ -560,35 +560,9 @@ func (a *App) getCurrentSearchQuery() string {
 	return ""
 }
 
-// editSavedQuery shows edit dialog for a saved query (placeholder for future implementation)
-func (a *App) editSavedQuery(query *services.SavedQueryInfo) {
-	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Edit feature coming soon. Query: %s", query.Name))
-	}()
-}
+// OBLITERATED: unused editSavedQuery function eliminated! 💥
 
-// deleteSavedQuery shows delete confirmation and deletes query (placeholder for future implementation)
-func (a *App) deleteSavedQuery(query *services.SavedQueryInfo) {
-	queryService := a.GetQueryService()
-	if queryService == nil {
-		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, "Query service not available")
-		}()
-		return
-	}
-
-	// Hide picker first
-	a.closeSavedQueriesPicker()
-
-	// Show confirmation and delete
-	go func() {
-		if err := queryService.DeleteQuery(a.ctx, query.ID); err != nil {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete query: %v", err))
-		} else {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted query: %s", query.Name))
-		}
-	}()
-}
+// OBLITERATED: unused deleteSavedQuery function eliminated! 💥
 
 // deleteSavedQueryItem deletes a query item from the picker
 func (a *App) deleteSavedQueryItem(item queryItem, queryService services.QueryService) {
@@ -630,7 +604,7 @@ func (a *App) executeQueryByName(name string) {
 		}
 
 		// Record usage
-		queryService.RecordQueryUsage(a.ctx, query.ID)
+		_ = queryService.RecordQueryUsage(a.ctx, query.ID)
 
 		// Execute query
 		a.performSearch(query.Query)

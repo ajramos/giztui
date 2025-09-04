@@ -1,32 +1,83 @@
-# Pre-commit hooks for Gmail TUI
+# Pre-commit hooks for Gmail TUI - Enhanced to match CI/CD pipeline exactly
 repos:
+  # Go formatting and linting
   - repo: local
     hooks:
+      # Format check (matches CI fmt check exactly)
+      - id: go-fmt-check
+        name: Go Format Check (matches CI)
+        entry: bash
+        language: system
+        args:
+          - -c
+          - |
+            if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+              echo "Code is not formatted. Please run 'go fmt ./...'"
+              echo "Files that need formatting:"
+              gofmt -s -l .
+              exit 1
+            fi
+        files: '\.go$'
+        pass_filenames: false
+
+      # Auto-format (only runs if format check would fail)
+      - id: go-fmt-fix
+        name: Auto-format Go code
+        entry: gofmt
+        language: system
+        args: [-s, -w]
+        files: '\.go$'
+
+      # Go vet check
+      - id: go-vet
+        name: Go Vet (matches CI)
+        entry: go
+        language: system
+        args: [vet, -composites=false, ./...]
+        files: '\.go$'
+        pass_filenames: false
+
+      # Golangci-lint (matches CI configuration exactly)
+      - id: golangci-lint
+        name: Golangci-lint (matches CI)
+        entry: golangci-lint
+        language: system
+        args: [run, --config=.golangci.yml]
+        files: '\.go$'
+        pass_filenames: false
+
+      # Architecture pattern check
       - id: architecture-check
         name: Architecture Pattern Check
         entry: scripts/check-architecture.sh
         language: script
         files: '\.go$'
-        
-      - id: go-fmt
-        name: Go Format
-        entry: gofmt
+
+      # Quick smoke test (essential tests only)
+      - id: go-test-essential
+        name: Essential Go Tests
+        entry: bash
         language: system
-        args: [-w]
-        files: '\.go$'
-        
-      - id: go-vet
-        name: Go Vet
-        entry: go
-        language: system
-        args: [vet, ./...]
-        files: '\.go$'
-        pass_filenames: false
-        
-      - id: go-test
-        name: Go Test
-        entry: go
-        language: system
-        args: [test, ./...]
+        args:
+          - -c
+          - |
+            echo "Running essential tests..."
+            go test -timeout 30s ./internal/config ./pkg/auth || exit 1
+            echo "Essential tests passed!"
         files: '\.go$'
         pass_filenames: false
+
+  # Generic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: end-of-file-fixer
+        exclude: '\.md$|testdata/.*'
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-case-conflict
+      - id: check-merge-conflict

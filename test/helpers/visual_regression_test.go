@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -46,7 +46,7 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	// Ensure snapshot directory exists
-	err := os.MkdirAll(SnapshotDir, 0755)
+	err := os.MkdirAll(SnapshotDir, 0750)
 	assert.NoError(t, err)
 
 	tests := []VisualTest{
@@ -245,13 +245,13 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 	var snapshotMD5 string
 	var matches bool
 
-	if snapshotData, err := os.ReadFile(snapshotPath); err == nil {
+	if snapshotData, err := os.ReadFile(filepath.Clean(snapshotPath)); err == nil {
 		snapshotMD5 = calculateMD5(string(snapshotData))
 		matches = snapshotMD5 == currentMD5
 	} else {
 		// No existing snapshot, create one
 		t.Logf("No existing snapshot for %s, creating baseline", testName)
-		err := os.WriteFile(snapshotPath, []byte(content), 0644)
+		err := os.WriteFile(snapshotPath, []byte(content), 0600)
 		assert.NoError(t, err, "Failed to create baseline snapshot")
 		snapshotMD5 = currentMD5
 		matches = true
@@ -269,7 +269,7 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 // UpdateSnapshot updates the stored snapshot with new content
 func UpdateSnapshot(testName, content string) error {
 	snapshotPath := filepath.Join(SnapshotDir, testName+".snapshot")
-	return os.WriteFile(snapshotPath, []byte(content), 0644)
+	return os.WriteFile(snapshotPath, []byte(content), 0600)
 }
 
 // RunVisualStateChanges tests visual changes based on state transitions
@@ -439,7 +439,7 @@ type StateTransition struct {
 // Helper functions
 
 func calculateMD5(content string) string {
-	hash := md5.Sum([]byte(content))
+	hash := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(hash[:])
 }
 

@@ -15,8 +15,8 @@ import (
 
 // Test OAuth2Config constructor
 func TestNewOAuth2Config(t *testing.T) {
-	credPath := "/path/to/credentials.json"
-	tokenPath := "/path/to/token.json"
+	credPath := "/path/to/credentials.json" // #nosec G101 - test path
+	tokenPath := "/path/to/token.json"      // #nosec G101 - test path
 	scopes := []string{"https://www.googleapis.com/auth/gmail.readonly"}
 
 	config := NewOAuth2Config(credPath, tokenPath, scopes...)
@@ -161,6 +161,7 @@ func TestOAuth2Config_LoadToken_ValidToken(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := filepath.Join(tmpDir, "valid_token.json")
 
+	// #nosec G101 - test token
 	validTokenJSON := `{
 		"access_token": "test-access-token",
 		"token_type": "Bearer",

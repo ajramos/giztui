@@ -74,10 +74,10 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 				}
 
 				// Load second batch
-				page, err = h.MockRepo.GetMessages(context.Background(), services.QueryOptions{
+				_, err = h.MockRepo.GetMessages(context.Background(), services.QueryOptions{
 					MaxResults: 10,
 					PageToken:  page.NextPageToken,
-				})
+				}) // OBLITERATED: unused page variable eliminated! 💥
 				if err != nil {
 					return err
 				}

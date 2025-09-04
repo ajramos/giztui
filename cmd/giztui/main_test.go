@@ -13,19 +13,19 @@ import (
 func TestGetConfigPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_CONFIG")
-	defer os.Setenv("GMAIL_TUI_CONFIG", originalEnv)
+	defer func() { _ = os.Setenv("GMAIL_TUI_CONFIG", originalEnv) }()
 
 	// Test CLI flag takes precedence
 	result := getConfigPath("/custom/config.json")
 	assert.Equal(t, "/custom/config.json", result)
 
 	// Test environment variable when no flag
-	os.Setenv("GMAIL_TUI_CONFIG", "/env/config.json")
+	_ = os.Setenv("GMAIL_TUI_CONFIG", "/env/config.json")
 	result = getConfigPath("")
 	assert.Equal(t, "/env/config.json", result)
 
 	// Test default when neither flag nor env
-	os.Unsetenv("GMAIL_TUI_CONFIG")
+	_ = os.Unsetenv("GMAIL_TUI_CONFIG")
 	result = getConfigPath("")
 	assert.Contains(t, result, "config.json") // Should contain default path
 }
@@ -33,19 +33,19 @@ func TestGetConfigPath_Priority(t *testing.T) {
 func TestGetCredentialsPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_CREDENTIALS")
-	defer os.Setenv("GMAIL_TUI_CREDENTIALS", originalEnv)
+	defer func() { _ = os.Setenv("GMAIL_TUI_CREDENTIALS", originalEnv) }()
 
 	// Test CLI flag takes precedence
 	result := getCredentialsPath("/custom/creds.json", "/config/creds.json")
 	assert.Equal(t, "/custom/creds.json", result)
 
 	// Test environment variable when no flag
-	os.Setenv("GMAIL_TUI_CREDENTIALS", "/env/creds.json")
+	_ = os.Setenv("GMAIL_TUI_CREDENTIALS", "/env/creds.json")
 	result = getCredentialsPath("", "/config/creds.json")
 	assert.Equal(t, "/env/creds.json", result)
 
 	// Test config value when no flag or env
-	os.Unsetenv("GMAIL_TUI_CREDENTIALS")
+	_ = os.Unsetenv("GMAIL_TUI_CREDENTIALS")
 	result = getCredentialsPath("", "/config/creds.json")
 	assert.Equal(t, "/config/creds.json", result)
 
@@ -57,19 +57,19 @@ func TestGetCredentialsPath_Priority(t *testing.T) {
 func TestGetTokenPath_Priority(t *testing.T) {
 	// Save original environment
 	originalEnv := os.Getenv("GMAIL_TUI_TOKEN")
-	defer os.Setenv("GMAIL_TUI_TOKEN", originalEnv)
+	defer func() { _ = os.Setenv("GMAIL_TUI_TOKEN", originalEnv) }()
 
 	// Test CLI flag takes precedence
 	result := getTokenPath("/custom/token.json", "/config/token.json")
 	assert.Equal(t, "/custom/token.json", result)
 
 	// Test environment variable when no flag
-	os.Setenv("GMAIL_TUI_TOKEN", "/env/token.json")
+	_ = os.Setenv("GMAIL_TUI_TOKEN", "/env/token.json")
 	result = getTokenPath("", "/config/token.json")
 	assert.Equal(t, "/env/token.json", result)
 
 	// Test config value when no flag or env
-	os.Unsetenv("GMAIL_TUI_TOKEN")
+	_ = os.Unsetenv("GMAIL_TUI_TOKEN")
 	result = getTokenPath("", "/config/token.json")
 	assert.Equal(t, "/config/token.json", result)
 
@@ -170,17 +170,17 @@ func TestEnvironmentVariables(t *testing.T) {
 		t.Run(envVar, func(t *testing.T) {
 			// Save original value
 			original := os.Getenv(envVar)
-			defer os.Setenv(envVar, original)
+			defer func() { _ = os.Setenv(envVar, original) }()
 
 			// Test setting and getting
 			testValue := "/test/path"
-			os.Setenv(envVar, testValue)
+			_ = os.Setenv(envVar, testValue)
 
 			result := os.Getenv(envVar)
 			assert.Equal(t, testValue, result)
 
 			// Test unsetting
-			os.Unsetenv(envVar)
+			_ = os.Unsetenv(envVar)
 			result = os.Getenv(envVar)
 			assert.Empty(t, result)
 		})
@@ -191,15 +191,15 @@ func TestEnvironmentVariables(t *testing.T) {
 func TestAWSRegionHandling(t *testing.T) {
 	// Save original environment
 	originalRegion := os.Getenv("AWS_REGION")
-	defer os.Setenv("AWS_REGION", originalRegion)
+	defer func() { _ = os.Setenv("AWS_REGION", originalRegion) }()
 
 	// Test setting AWS region
-	os.Setenv("AWS_REGION", "us-east-1")
+	_ = os.Setenv("AWS_REGION", "us-east-1")
 	result := os.Getenv("AWS_REGION")
 	assert.Equal(t, "us-east-1", result)
 
 	// Test clearing AWS region
-	os.Unsetenv("AWS_REGION")
+	_ = os.Unsetenv("AWS_REGION")
 	result = os.Getenv("AWS_REGION")
 	assert.Empty(t, result)
 }
@@ -335,7 +335,7 @@ func TestPathValidation_Concepts(t *testing.T) {
 		assert.True(t, os.IsNotExist(err), "File should not exist initially")
 
 		// Create the file
-		err = os.WriteFile(testFile, []byte("{}"), 0644)
+		err = os.WriteFile(testFile, []byte("{}"), 0600)
 		assert.NoError(t, err)
 
 		// File should exist now
@@ -352,7 +352,7 @@ func TestPathValidation_Concepts(t *testing.T) {
 		assert.True(t, os.IsNotExist(err), "Directory should not exist initially")
 
 		// Create directory
-		err = os.MkdirAll(subDir, 0755)
+		err = os.MkdirAll(subDir, 0750)
 		assert.NoError(t, err)
 
 		// Directory should exist now

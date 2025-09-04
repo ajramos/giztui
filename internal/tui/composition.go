@@ -198,12 +198,12 @@ func (c *CompositionPanel) setupLayout() {
 	componentColors := c.app.GetComponentColors("compose")
 
 	// Configure main container
-	c.Flex.SetDirection(tview.FlexRow)
-	c.Flex.SetBorder(true)
-	c.Flex.SetTitle(" Compose Email ")
-	c.Flex.SetBackgroundColor(componentColors.Background.Color())
-	c.Flex.SetTitleColor(componentColors.Title.Color())
-	c.Flex.SetBorderColor(componentColors.Border.Color())
+	c.SetDirection(tview.FlexRow)
+	c.SetBorder(true)
+	c.SetTitle(" Compose Email ")
+	c.SetBackgroundColor(componentColors.Background.Color())
+	c.SetTitleColor(componentColors.Title.Color())
+	c.SetBorderColor(componentColors.Border.Color())
 
 	// Setup header container (form + toggle button)
 	c.setupHeaderContainer()
@@ -216,9 +216,9 @@ func (c *CompositionPanel) setupLayout() {
 
 	// Layout: Header (expanded) → Body (expand) → Buttons (fixed)
 	// Initial sizing - will be updated by updateLayoutSizing() when CC/BCC is toggled
-	c.Flex.AddItem(c.headerContainer, 0, 1, false) // Header container - compact without border
-	c.Flex.AddItem(c.bodyContainer, 0, 4, false)   // Body container - most space
-	c.Flex.AddItem(c.buttonSection, 3, 0, false)   // Button section - compact height
+	c.AddItem(c.headerContainer, 0, 1, false) // Header container - compact without border
+	c.AddItem(c.bodyContainer, 0, 4, false)   // Body container - most space
+	c.AddItem(c.buttonSection, 3, 0, false)   // Button section - compact height
 }
 
 // setupHeaderContainer configures the composite header layout
@@ -337,7 +337,7 @@ func (c *CompositionPanel) setupButtonSection() {
 // setupInputHandling implements comprehensive input capture to prevent global shortcuts
 func (c *CompositionPanel) setupInputHandling() {
 	// Main panel input capture - blocks ALL global shortcuts
-	c.Flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	c.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Handle special navigation keys first
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -600,7 +600,7 @@ func (c *CompositionPanel) updateCCBCCVisibility() {
 // updateLayoutSizing adjusts header section size based on CC/BCC visibility
 func (c *CompositionPanel) updateLayoutSizing() {
 	// Clear the main layout
-	c.Flex.Clear()
+	c.Clear()
 
 	// Determine header size based on CC/BCC visibility (more compact without border)
 	headerWeight := 1 // Very compact for To + Subject when CC/BCC is hidden
@@ -609,9 +609,9 @@ func (c *CompositionPanel) updateLayoutSizing() {
 	}
 
 	// Re-add items with appropriate sizing
-	c.Flex.AddItem(c.headerContainer, 0, headerWeight, false) // Dynamic header size
-	c.Flex.AddItem(c.bodyContainer, 0, 4, false)              // Body container - most space
-	c.Flex.AddItem(c.buttonSection, 3, 0, false)              // Button section - compact height
+	c.AddItem(c.headerContainer, 0, headerWeight, false) // Dynamic header size
+	c.AddItem(c.bodyContainer, 0, 4, false)              // Body container - most space
+	c.AddItem(c.buttonSection, 3, 0, false)              // Button section - compact height
 }
 
 // updateFocusOrder rebuilds the focus cycle based on current field visibility
@@ -943,9 +943,9 @@ func (c *CompositionPanel) UpdateTheme() {
 	}
 
 	// Update main container
-	c.Flex.SetBackgroundColor(componentColors.Background.Color())
-	c.Flex.SetTitleColor(componentColors.Title.Color())
-	c.Flex.SetBorderColor(componentColors.Border.Color())
+	c.SetBackgroundColor(componentColors.Background.Color())
+	c.SetTitleColor(componentColors.Title.Color())
+	c.SetBorderColor(componentColors.Border.Color())
 
 	// Update header container (no border)
 	c.headerContainer.SetBackgroundColor(componentColors.Background.Color())

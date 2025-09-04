@@ -91,7 +91,7 @@ func (a *App) openLinkPicker() {
 			visible = append(visible, item)
 
 			// Category icon based on link type
-			icon := "🔗"
+			var icon string
 			switch item.type_ {
 			case "email":
 				icon = "📧"

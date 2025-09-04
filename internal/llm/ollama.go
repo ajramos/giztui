@@ -78,7 +78,7 @@ func (c *Client) Generate(prompt string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ollama request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Error not actionable in defer
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("ollama returned status %s", resp.Status)
@@ -105,7 +105,7 @@ func (c *Client) GenerateWithParams(prompt string, params map[string]interface{}
 	if err != nil {
 		return "", fmt.Errorf("ollama request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Error not actionable in defer
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("ollama returned status %s", resp.Status)
 	}
@@ -134,7 +134,7 @@ func (c *Client) GenerateStream(ctx context.Context, prompt string, onToken func
 	if err != nil {
 		return fmt.Errorf("ollama request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Error not actionable in defer
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("ollama returned status %s", resp.Status)
 	}
@@ -204,6 +204,6 @@ func (c *Client) IsAvailable() bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Error not actionable in defer
 	return resp.StatusCode == http.StatusOK
 }

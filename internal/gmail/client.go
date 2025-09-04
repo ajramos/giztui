@@ -86,6 +86,10 @@ func (c *Client) ListMessagesPage(maxResults int64, pageToken string) ([]*gmail.
 
 // GetMessage retrieves a specific message by ID
 func (c *Client) GetMessage(id string) (*gmail.Message, error) {
+	if c.Service == nil {
+		return nil, fmt.Errorf("gmail client not initialized")
+	}
+
 	user := "me"
 	msg, err := c.Service.Users.Messages.Get(user, id).Do()
 	if err != nil {
@@ -98,6 +102,10 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 // GetMessageMetadata retrieves only message metadata (headers, labels) for efficient list display
 // This is significantly faster and uses less bandwidth than GetMessage() for list operations
 func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {
+	if c.Service == nil {
+		return nil, fmt.Errorf("gmail client not initialized")
+	}
+
 	user := "me"
 	msg, err := c.Service.Users.Messages.Get(user, id).
 		Format("metadata").
@@ -798,7 +806,7 @@ func extractTextFromPart(part *gmail.MessagePart) string {
 				}
 			}
 		}
-		var raw []byte = data
+		raw := data
 		if isQP {
 			decoded, err := io.ReadAll(quotedprintable.NewReader(bytes.NewReader(data)))
 			if err == nil {
@@ -857,7 +865,7 @@ func extractHTMLFromPart(part *gmail.MessagePart) string {
 				}
 			}
 		}
-		var raw []byte = data
+		raw := data
 		if isQP {
 			if decoded, err := io.ReadAll(quotedprintable.NewReader(bytes.NewReader(data))); err == nil {
 				raw = decoded

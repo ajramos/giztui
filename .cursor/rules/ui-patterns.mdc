@@ -14,12 +14,12 @@ func (a *App) updateEmailList() {
     if !ok {
         return
     }
-    
+
     // Clear existing rows
     for i := list.GetRowCount() - 1; i > 0; i-- {
         list.RemoveRow(i)
     }
-    
+
     // Get data from service
     emailService, _, _, _, _ := a.GetServices()
     emails, err := emailService.GetEmails(a.ctx)
@@ -27,13 +27,13 @@ func (a *App) updateEmailList() {
         a.GetErrorHandler().ShowError(a.ctx, "Failed to load emails")
         return
     }
-    
+
     // Populate rows with proper colors
     colorer := a.emailColorer.ColorerFunc()
     for i, email := range emails {
         row := i + 1
         statusColor := colorer(email, "STATUS")
-        
+
         list.SetCell(row, 0, tview.NewTableCell(getStatusIcon(email)).
             SetTextColor(statusColor).
             SetAlign(tview.AlignCenter))
@@ -53,14 +53,14 @@ func (a *App) showConfirmDialog(title, message string, onConfirm func()) {
                 onConfirm()
             }
         })
-    
+
     a.pages.AddPage("confirm", modal, true, true)
     a.SetFocus(modal)
 }
 
 // Usage
-a.showConfirmDialog("Delete Email", 
-    "Are you sure you want to delete this email?", 
+a.showConfirmDialog("Delete Email",
+    "Are you sure you want to delete this email?",
     func() {
         emailService, _, _, _, _ := a.GetServices()
         err := emailService.DeleteMessage(a.ctx, messageID)
@@ -89,16 +89,16 @@ func (a *App) showInputPrompt(title, label string, onSubmit func(string)) {
                 a.pages.RemovePage("input")
             }
         })
-    
+
     flex := tview.NewFlex().
         AddItem(tview.NewBox(), 0, 1, false).
         AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
             AddItem(tview.NewBox(), 0, 1, false).
             AddItem(inputField, 3, 1, true).
-            AddItem(tview.NewBox(), 0, 1, false), 
+            AddItem(tview.NewBox(), 0, 1, false),
             50, 1, true).
         AddItem(tview.NewBox(), 0, 1, false)
-    
+
     a.pages.AddPage("input", flex, true, true)
     a.SetFocus(inputField)
 }
@@ -110,9 +110,9 @@ func (a *App) showProgress(operation string) func() {
     progressText := tview.NewTextView().
         SetText(fmt.Sprintf("⏳ %s...", operation)).
         SetTextAlign(tview.AlignCenter)
-    
+
     a.pages.AddPage("progress", progressText, true, true)
-    
+
     // Return cleanup function
     return func() {
         a.QueueUpdateDraw(func() {
@@ -125,11 +125,11 @@ func (a *App) showProgress(operation string) func() {
 done := a.showProgress("Loading messages")
 go func() {
     defer done()
-    
+
     // Long-running operation
     emailService, _, _, _, _ := a.GetServices()
     emails, err := emailService.LoadMessages(a.ctx)
-    
+
     a.QueueUpdateDraw(func() {
         if err != nil {
             a.GetErrorHandler().ShowError(a.ctx, "Failed to load messages")
@@ -148,15 +148,15 @@ func (a *App) updateStatusBar() {
     if !ok {
         return
     }
-    
+
     // Get current context
     currentView := a.GetCurrentView()
     messageCount := len(a.GetMessageIDs())
-    
+
     // Build status text
-    status := fmt.Sprintf("Gmail TUI | View: %s | Messages: %d | Press ? for help", 
+    status := fmt.Sprintf("Gmail TUI | View: %s | Messages: %d | Press ? for help",
         currentView, messageCount)
-    
+
     statusView.SetText(status)
 }
 ```
@@ -169,37 +169,37 @@ func (a *App) setupKeyBindings() {
         case tcell.KeyF1:
             a.showHelpDialog()
             return nil
-            
+
         case tcell.KeyTab:
             a.cycleFocus()
             return nil
-            
+
         case tcell.KeyEsc:
             a.handleEscape()
             return nil
         }
-        
+
         // Handle character keys
         switch event.Rune() {
         case '?':
             a.showHelpDialog()
             return nil
-            
+
         case ':':
             a.showCommandPrompt()
             return nil
-            
+
         case '/':
             a.showSearchPrompt()
             return nil
-            
+
         case 'a':
             if a.GetCurrentView() == "messages" {
                 a.handleArchiveAction()
                 return nil
             }
         }
-        
+
         return event
     })
 }
@@ -212,19 +212,19 @@ func (a *App) setupKeyBindings() {
 func (a *App) createLayout() *tview.Flex {
     // Main container
     mainFlex := tview.NewFlex()
-    
+
     // Left pane (messages list)
     messagesList := a.createMessagesList()
-    
+
     // Right pane (message content)
     messageContent := a.createMessageContent()
-    
+
     // Bottom status bar
     statusBar := a.createStatusBar()
-    
+
     // Responsive layout based on terminal size
     width, height := a.GetScreenSize()
-    
+
     if width < 80 { // Narrow: single column
         mainFlex.SetDirection(tview.FlexRow).
             AddItem(messagesList, height-3, 1, true).
@@ -233,12 +233,12 @@ func (a *App) createLayout() *tview.Flex {
         contentFlex := tview.NewFlex().
             AddItem(messagesList, 0, 1, true).
             AddItem(messageContent, 0, 2, false)
-            
+
         mainFlex.SetDirection(tview.FlexRow).
             AddItem(contentFlex, height-3, 1, true).
             AddItem(statusBar, 1, 1, false)
     }
-    
+
     return mainFlex
 }
 ```
@@ -247,9 +247,9 @@ func (a *App) createLayout() *tview.Flex {
 ```go
 func (a *App) cycleFocus() {
     currentFocus := a.GetCurrentFocus()
-    
+
     focusOrder := []string{"list", "content", "status"}
-    
+
     for i, focus := range focusOrder {
         if focus == currentFocus {
             nextIndex := (i + 1) % len(focusOrder)
@@ -288,32 +288,32 @@ func (a *App) updateFocusIndicators() {
 func (a *App) createThemedComponent(componentType string) *tview.Flex {
     // Use hierarchical theme system with component-specific colors
     colors := a.GetComponentColors(componentType)
-    
+
     container := tview.NewFlex().SetDirection(tview.FlexRow)
     container.SetBorder(true).
         SetTitle("Component Title").
         SetTitleColor(colors.Title.Color()).
         SetBackgroundColor(colors.Background.Color()).
         SetBorderColor(colors.Border.Color())
-    
+
     // Apply consistent theming to all elements
     input := tview.NewInputField().
         SetLabel("Input: ").
         SetFieldBackgroundColor(colors.Background.Color()).
         SetFieldTextColor(colors.Text.Color()).
         SetLabelColor(colors.Title.Color())
-    
+
     list := tview.NewList()
     list.SetBackgroundColor(colors.Background.Color()).
         SetMainTextColor(colors.Text.Color()).
         SetSelectedBackgroundColor(colors.Accent.Color()).
         SetSelectedTextColor(colors.Background.Color())
-    
+
     return container
 }
 
 // Supported component types (see docs/THEMING.md):
-// "general", "search", "attachments", "obsidian", "saved_queries", 
+// "general", "search", "attachments", "obsidian", "saved_queries",
 // "slack", "prompts", "ai", "labels", "stats", "links"
 ```
 
@@ -324,18 +324,18 @@ func (a *App) createThemedComponent(componentType string) *tview.Flex {
 func (a *App) withLoadingState(operation string, fn func() error) {
     // Show loading
     a.GetErrorHandler().ShowProgress(a.ctx, operation)
-    
+
     go func() {
         err := fn()
-        
+
         a.QueueUpdateDraw(func() {
             a.GetErrorHandler().ClearProgress()
-            
+
             if err != nil {
-                a.GetErrorHandler().ShowError(a.ctx, 
+                a.GetErrorHandler().ShowError(a.ctx,
                     fmt.Sprintf("%s failed", operation))
             } else {
-                a.GetErrorHandler().ShowSuccess(a.ctx, 
+                a.GetErrorHandler().ShowSuccess(a.ctx,
                     fmt.Sprintf("%s completed", operation))
             }
         })
@@ -356,7 +356,7 @@ func (a *App) showEmptyState(view string, message string) {
         SetText(fmt.Sprintf("📭 %s\n\nPress 'r' to refresh", message)).
         SetTextAlign(tview.AlignCenter).
         SetTextColor(tcell.ColorGray)
-    
+
     if container, ok := a.views[view].(*tview.Flex); ok {
         container.Clear()
         container.AddItem(emptyText, 0, 1, true)
@@ -372,7 +372,7 @@ func (a *App) createTable(name string, headers []string) *tview.Table {
     table := tview.NewTable().
         SetBorders(true).
         SetSelectable(true, false)
-    
+
     // Set headers
     for i, header := range headers {
         cell := tview.NewTableCell(header).
@@ -380,10 +380,10 @@ func (a *App) createTable(name string, headers []string) *tview.Table {
             SetSelectable(false)
         table.SetCell(0, i, cell)
     }
-    
+
     // Store in views map
     a.views[name] = table
-    
+
     return table
 }
 ```

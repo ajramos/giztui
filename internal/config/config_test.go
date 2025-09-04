@@ -127,7 +127,7 @@ func TestLoadTemplate_FilePriority(t *testing.T) {
 	templateFile := filepath.Join(tmpDir, "test_template.md")
 	templateContent := "Template from file"
 
-	err := os.WriteFile(templateFile, []byte(templateContent), 0644)
+	err := os.WriteFile(templateFile, []byte(templateContent), 0600)
 	assert.NoError(t, err)
 
 	// Test file priority (should use file content)
@@ -315,7 +315,7 @@ func TestLoadConfig_ValidFile(t *testing.T) {
 	data, err := json.MarshalIndent(testConfig, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(configFile, data, 0644)
+	err = os.WriteFile(configFile, data, 0600)
 	assert.NoError(t, err)
 
 	// Load config
@@ -335,7 +335,7 @@ func TestLoadConfig_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "invalid.json")
 
-	err := os.WriteFile(configFile, []byte("invalid json content"), 0644)
+	err := os.WriteFile(configFile, []byte("invalid json content"), 0600)
 	assert.NoError(t, err)
 
 	cfg, err := LoadConfig(configFile)
@@ -461,7 +461,7 @@ func TestLoadTemplate_AbsoluteVsRelativePaths(t *testing.T) {
 	// Create test file
 	templateFile := filepath.Join(tmpDir, "template.md")
 	content := "Template content"
-	err := os.WriteFile(templateFile, []byte(content), 0644)
+	err := os.WriteFile(templateFile, []byte(content), 0600)
 	assert.NoError(t, err)
 
 	// Test absolute path

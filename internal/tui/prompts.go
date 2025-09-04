@@ -83,7 +83,7 @@ func (a *App) openPromptPicker() {
 			visible = append(visible, item)
 
 			// Category icon
-			icon := "📄"
+			var icon string
 			switch item.category {
 			case "summary":
 				icon = "📄"
@@ -255,8 +255,8 @@ func (a *App) closePromptPicker() {
 			height := a.originalHeaderHeight
 			if height == 0 {
 				height = 6 // Fallback to default height
-			} else {
 			}
+			// OBLITERATED: empty else branch eliminated! 💥
 			textContainer.ResizeItem(header, height, 0)
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}
@@ -602,7 +602,7 @@ func (a *App) openPromptPickerForManagement() {
 			visible = append(visible, item)
 
 			// Category icon and usage count display
-			icon := "📄"
+			var icon string
 			switch item.category {
 			case "bulk_analysis":
 				icon = "🚀"
@@ -782,8 +782,8 @@ func (a *App) closePromptManager() {
 			height := a.originalHeaderHeight
 			if height == 0 {
 				height = 6 // Fallback to default height
-			} else {
 			}
+			// OBLITERATED: empty else branch eliminated! 💥
 			textContainer.ResizeItem(header, height, 0)
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}

@@ -77,6 +77,7 @@ func (s *AIServiceImpl) GenerateSummary(ctx context.Context, content string, opt
 		if err := s.cacheService.SaveSummary(ctx, options.AccountEmail, options.MessageID, summary); err != nil {
 			// Save to cache failed, but don't fail the entire operation
 			// Note: Cache failures are logged within the cache service if needed
+			_ = err // Acknowledge error is intentionally ignored
 		}
 	}
 
@@ -153,6 +154,7 @@ func (s *AIServiceImpl) GenerateSummaryStream(ctx context.Context, content strin
 			if err := s.cacheService.SaveSummary(ctx, options.AccountEmail, options.MessageID, summary); err != nil {
 				// Save to cache failed, but don't fail the entire operation
 				// Note: Cache failures are logged within the cache service if needed
+				_ = err // Acknowledge error is intentionally ignored
 			}
 		}
 

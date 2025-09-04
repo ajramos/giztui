@@ -152,10 +152,10 @@ func annotateBedrockError(err error, modelID string) error {
 	}
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "validationexception") && strings.Contains(msg, "throughput isn't supported") {
-		return fmt.Errorf("%v\nHint: This model may require an inference profile. Try setting llm_model to the profile ID/ARN for %q, or ensure the ID includes region/vendor and revision (e.g., us.anthropic...:0).", err, modelID)
+		return fmt.Errorf("%v\nHint: This model may require an inference profile. Try setting llm_model to the profile ID/ARN for %q, or ensure the ID includes region/vendor and revision (e.g., us.anthropic...:0)", err, modelID)
 	}
 	if strings.Contains(msg, "provided model identifier is invalid") {
-		return fmt.Errorf("%v\nHint: Verify the exact Bedrock ModelId or use the inference profile ID. Regional prefixes (e.g., us.) and revision suffix (:0) may be required.", err)
+		return fmt.Errorf("%v\nHint: Verify the exact Bedrock ModelId or use the inference profile ID. Regional prefixes (e.g., us.) and revision suffix (:0) may be required", err)
 	}
 	return err
 }

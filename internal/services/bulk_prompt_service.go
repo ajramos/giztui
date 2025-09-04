@@ -11,14 +11,6 @@ import (
 	"github.com/ajramos/giztui/internal/gmail"
 )
 
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // BulkPromptServiceImpl implements bulk prompt operations
 type BulkPromptServiceImpl struct {
 	emailService  EmailService
@@ -89,7 +81,8 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 			messageContents = append(messageContents, content)
 			successfulIDs = append(successfulIDs, messageID)
 		} else {
-			// Content extraction failed for this message
+			// Content extraction failed for this message - skip silently
+			continue
 		}
 	}
 
@@ -201,6 +194,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 	// Use streaming AI service
 	if s.promptService != nil {
 		// Access logger through app context if possible - for now use simple logging
+		_ = s.promptService // Acknowledge service is available but not used here
 	}
 	result, err := s.aiService.ApplyCustomPromptStream(ctx, combinedContent, finalPrompt, variables, func(token string) {
 		// Call the original callback

@@ -15,7 +15,7 @@ gmailTUI:
     border: "#44475a"              # Normal border color (Dracula comment)
     focus: "#6272a4"               # Focused border color (Dracula current line)
 
-  # SEMANTIC COLORS  
+  # SEMANTIC COLORS
   # Meaning-based colors that convey specific states
   semantic:
     primary: "#50fa7b"             # Green - titles, main actions (Dracula green)
@@ -50,35 +50,35 @@ gmailTUI:
     ai:
       primary: "#bd93f9"           # Purple for AI titles (Dracula purple)
       accent: "#ff79c6"            # Pink for AI highlights (Dracula pink)
-      
+
     prompts:
       primary: "#ff79c6"           # Pink for prompt titles
       accent: "#ffb86c"            # Orange for prompt highlights (Dracula orange)
-      
+
     obsidian:
       primary: "#ffb86c"           # Orange for Obsidian titles
       accent: "#f1fa8c"            # Yellow for Obsidian highlights
-      
+
     links:
       primary: "#8be9fd"           # Cyan for link titles
       accent: "#50fa7b"            # Green for link highlights
-      
+
     stats:
       primary: "#f1fa8c"           # Yellow for stats titles
       accent: "#bd93f9"            # Purple for stats highlights
-      
+
     saved_queries:
       primary: "#bd93f9"           # Purple for saved query titles
       accent: "#ff79c6"            # Pink for saved query highlights
-      
+
     attachments:
       primary: "#ffb86c"           # Orange for attachment titles
       accent: "#f1fa8c"            # Yellow for attachment highlights
-      
+
     compose:
       primary: "#6272a4"           # Blue for email composition titles
       accent: "#50fa7b"            # Green for send/success actions
-      
+
     drafts:
       primary: "#ff79c6"           # Pink for draft picker titles
       accent: "#ffb86c"            # Orange for draft highlights

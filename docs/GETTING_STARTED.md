@@ -41,6 +41,8 @@ giztui --version
 go install github.com/ajramos/giztui/cmd/giztui@latest
 ```
 
+**Note:** `go install` builds include Git commit information automatically (when built from a Git repository), but lack some custom build metadata like build user and branch information. Both installation methods are fully functional.
+
 ### Option 3: Build from Source
 
 ```bash
@@ -49,6 +51,8 @@ cd giztui
 make build
 ./build/giztui --version
 ```
+
+**Note:** Building from source with `make build` includes complete build metadata (branch, build user, custom build date) in addition to Git commit information.
 
 ## 🔑 Gmail API Setup
 
@@ -258,6 +262,11 @@ Create or edit `~/.config/giztui/config.json` for basic customization:
 - Ensure Ollama is running: `ollama list`
 - Check the model name in your config matches exactly
 - For Bedrock, verify your AWS credentials: `aws sts get-caller-identity`
+
+### Version information shows "unknown"
+- **If installed with `go install`**: This is normal for some build metadata (build user, branch). Git commit should still be shown.
+- **If all information is unknown**: You may have installed from a downloaded ZIP file rather than a Git repository. Try downloading pre-built binaries or cloning the repository.
+- **To get full build metadata**: Use `make build` after cloning the repository.
 
 ## 📚 What's Next?
 

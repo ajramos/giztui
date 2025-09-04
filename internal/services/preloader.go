@@ -730,7 +730,7 @@ func (p *MessagePreloaderImpl) Shutdown() {
 	p.shutdownOnce.Do(func() {
 		close(p.shutdown)
 		// Clear all caches to free memory
-		p.ClearCache(context.Background())
+		_ = p.ClearCache(context.Background()) // Error not actionable during shutdown
 	})
 }
 

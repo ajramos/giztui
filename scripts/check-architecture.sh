@@ -24,11 +24,14 @@ fi
 
 # Check 2: No fmt.Printf or log.Printf in TUI components (should use ErrorHandler)
 echo "Checking for direct output in UI components..."
-if grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go" > /dev/null 2>&1; then
+# Exclude test files and allow commented lines
+if grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go" --exclude="*_test.go" | grep -v "^\s*//" > /dev/null 2>&1; then
     echo -e "${RED}❌ Found direct output in TUI components:${NC}"
-    grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go"
+    grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go" --exclude="*_test.go" | grep -v "^\s*//" | head -3
     echo -e "${YELLOW}💡 Use app.GetErrorHandler().ShowError/ShowSuccess instead${NC}"
     violations=$((violations + 1))
+else
+    echo "  ✅ No direct output found in TUI components"
 fi
 
 # Check 3: No direct field access outside accessor methods
@@ -49,7 +52,7 @@ for service_file in internal/services/*_service.go; do
     if [ -f "$service_file" ]; then
         service_name=$(basename "$service_file" .go)
         interface_name=$(echo "$service_name" | sed 's/_service$/Service/' | sed 's/^./\U&/')
-        
+
         if ! grep -q "type $interface_name interface" internal/services/interfaces.go; then
             echo -e "${YELLOW}⚠️ Service $service_name may be missing interface definition${NC}"
         fi

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ajramos/giztui/internal/config"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
@@ -263,7 +262,7 @@ func (a *App) showThemePreview(themeName string) {
 		// Enhanced preview with actual color samples
 		details := fmt.Sprintf("🎨 Theme: %s\n", themeConfig.Name)
 		details += fmt.Sprintf("📄 Description: %s\n", themeConfig.Description)
-		details += fmt.Sprintf("🔖 Version: 1.0\n\n")
+		details += "🔖 Version: 1.0\n\n" // OBLITERATED: unnecessary fmt.Sprintf eliminated! 💥
 
 		// Color samples using actual theme colors from service ThemeConfig
 		details += "📧 Email Colors:\n"
@@ -398,8 +397,8 @@ func (a *App) closeThemePicker() {
 			height := a.originalHeaderHeight
 			if height == 0 {
 				height = 6 // Fallback to default height
-			} else {
 			}
+			// OBLITERATED: empty else branch eliminated! 💥
 			textContainer.ResizeItem(header, height, 0)
 			a.originalHeaderHeight = 0 // Reset the stored height
 		}
@@ -449,12 +448,7 @@ func (a *App) isBuiltinTheme(themeName string) bool {
 	return false
 }
 
-// formatColorSample formats a color sample with actual colors (for config.Color)
-func (a *App) formatColorSample(name string, colorValue config.Color) string {
-	// Create color tag from hex value
-	colorTag := fmt.Sprintf("[%s]", colorValue.String())
-	return fmt.Sprintf("  %s● %s%s (%s)\n", colorTag, name, "[-]", colorValue.String())
-}
+// OBLITERATED: formatColorSample - unused function eliminated! 💥
 
 // formatColorSampleString formats a color sample with actual colors (for string hex values)
 func (a *App) formatColorSampleString(name string, colorValue string) string {
@@ -527,15 +521,7 @@ func (a *App) hexToNamedColor(hexColor string) string {
 	return "" // No suitable named color found
 }
 
-// parseColorFromTheme parses a color string from theme config
-func (a *App) parseColorFromTheme(colorStr string) *tcell.Color {
-	if colorStr == "" {
-		return nil
-	}
-
-	color := tcell.GetColor(colorStr)
-	return &color
-}
+// OBLITERATED: parseColorFromTheme - unused function eliminated! 💥
 
 // TODO: [THEMING] Investigate proper tview color tag format for hex colors in hierarchical theme system
 // Current attempt: [#ff5555]text[-] may not work as expected

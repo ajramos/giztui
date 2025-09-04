@@ -15,7 +15,7 @@ gmailTUI:
     border: "#bdc3c7"              # Light borders
     focus: "#3498db"               # Blue focus
 
-  # SEMANTIC COLORS  
+  # SEMANTIC COLORS
   # Meaning-based colors that convey specific states
   semantic:
     primary: "#f39c12"             # Orange - titles, main actions
@@ -50,35 +50,35 @@ gmailTUI:
     ai:
       primary: "#9b59b6"           # Purple for AI titles
       accent: "#e74c3c"            # Red for AI highlights
-      
+
     prompts:
       primary: "#e74c3c"           # Red for prompt titles
       accent: "#e67e22"            # Orange for prompt highlights
-      
+
     obsidian:
       primary: "#e67e22"           # Orange for Obsidian titles
       accent: "#27ae60"            # Green for Obsidian highlights
-      
+
     links:
       primary: "#3498db"           # Blue for link titles
       accent: "#e67e22"            # Orange for link highlights
-      
+
     stats:
       primary: "#f39c12"           # Yellow for stats titles
       accent: "#9b59b6"            # Purple for stats highlights
-      
+
     saved_queries:
       primary: "#9b59b6"           # Purple for saved query titles
       accent: "#e74c3c"            # Red for saved query highlights
-      
+
     attachments:
       primary: "#e67e22"           # Orange for attachment titles
       accent: "#f39c12"            # Yellow for attachment highlights
-      
+
     compose:
       primary: "#3498db"           # Blue for email composition titles
       accent: "#27ae60"            # Green for send/success actions
-      
+
     rsvp:
       primary: "#f39c12"           # Orange for calendar invite titles
       accent: "#27ae60"            # Green for accept/success actions

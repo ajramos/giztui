@@ -22,10 +22,10 @@ Directory & Files Structure:
 ## UI Layer (internal/tui/)
 - app.go: Application wiring, service integration, thread-safe accessors, ErrorHandler setup
 - error_handler.go: Centralized error handling and user feedback
-- layout.go: UI layout creation and focus indicators 
+- layout.go: UI layout creation and focus indicators
 - keys.go: Global key bindings and input routing (calls services, not business logic)
 - messages.go: Message list & content UI (uses EmailService for operations)
-- labels.go: Label management UI (uses LabelService for operations)  
+- labels.go: Label management UI (uses LabelService for operations)
 - ai.go: LLM features UI (uses AIService for operations)
 - markdown.go: Markdown rendering & toggle UI
 - logging.go: Logger setup/teardown
@@ -40,12 +40,12 @@ Rules & Constraints
 - Use context.Context for cancellation and timeouts
 - Return meaningful errors that can be handled by ErrorHandler
 
-## UI Layer Rules  
+## UI Layer Rules
 - UI components handle ONLY presentation and user input
 - Use ErrorHandler for ALL user feedback: app.GetErrorHandler().ShowError/ShowSuccess()
 - Use thread-safe accessors: app.GetCurrentView(), app.SetCurrentMessageID(), etc.
 - NO direct field access: never use app.currentView = "x", use app.SetCurrentView("x")
-- UI thread safety: All UI mutations via a.QueueUpdateDraw(...) 
+- UI thread safety: All UI mutations via a.QueueUpdateDraw(...)
 - Key handling: keys.go routes to UI methods, which call services for business logic
 
 ## Thread Safety Rules

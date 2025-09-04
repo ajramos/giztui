@@ -493,56 +493,7 @@ func (er *EmailRenderer) ExtractCalendarIcon(message *googleGmail.Message) strin
 	return "  " // 2 spaces
 }
 
-// buildLabelChips returns just the label chips like "  [Aws] [Finance] [+2]"
-func (er *EmailRenderer) buildLabelChips(message *googleGmail.Message) string {
-	if message == nil {
-		return ""
-	}
-
-	// Use the same label processing logic as the existing buildIconsAndChips function
-	names := make([]string, 0, len(message.LabelIds))
-	for _, id := range message.LabelIds {
-		name := id
-		if n, ok := er.labelIdToName[id]; ok && strings.TrimSpace(n) != "" {
-			name = n
-		}
-		upperID := strings.ToUpper(id)
-		upperName := strings.ToUpper(name)
-		// Always skip state/importance labels (represented via colors)
-		isStarVariant := strings.HasSuffix(upperID, "_STAR") || strings.HasSuffix(upperID, "_STARRED") || strings.HasSuffix(upperName, "_STAR") || strings.HasSuffix(upperName, "_STARRED")
-		if upperID == "UNREAD" || upperID == "STARRED" || upperID == "IMPORTANT" || upperName == "UNREAD" || upperName == "STARRED" || upperName == "IMPORTANT" || isStarVariant {
-			continue
-		}
-		// General system labels (Inbox/Sent/Trash/Spam/Draft/Category_*)
-		isSystemGeneral := strings.HasPrefix(upperID, "CATEGORY_") || upperID == "INBOX" || upperID == "CHAT" || upperID == "SENT" || upperID == "TRASH" || upperID == "SPAM" || upperID == "DRAFT"
-		if isSystemGeneral && !er.showSystemLabelsInList {
-			continue
-		}
-		// Normalize display name (Category_* → friendly name; Title Case otherwise)
-		names = append(names, normalizeLabelDisplay(name, id))
-	}
-
-	var b strings.Builder
-	// Render labels as chips with overflow indicator
-	if len(names) > 0 {
-		if len(names) > 3 {
-			for i := 0; i < 3; i++ {
-				b.WriteString(" [")
-				b.WriteString(names[i])
-				b.WriteString("]")
-			}
-			b.WriteString(fmt.Sprintf(" [+%d]", len(names)-3))
-		} else {
-			for _, n := range names {
-				b.WriteString(" [")
-				b.WriteString(n)
-				b.WriteString("]")
-			}
-		}
-	}
-
-	return b.String()
-}
+// OBLITERATED: buildLabelChips function eliminated! 💥
 
 // FormatLabelsForColumn formats labels specifically for dedicated column display
 // Returns labels formatted for the given available width with intelligent truncation
@@ -955,11 +906,9 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 					newResult := strings.Join(truncatedRecipients[:len(truncatedRecipients)-1], ", ") + suffix
 					if len(newResult) <= availableWidth {
 						result = newResult
-						remaining++
-					} else {
-						// Even replacing doesn't fit, just keep original result without suffix
-						// At least show what we can
+						// remaining++ // Commented out as not used
 					}
+					// OBLITERATED: empty else branch eliminated! 💥
 				} else {
 					// Only one recipient and suffix doesn't fit - show truncation on new line anyway
 					// This is better than no indication at all
@@ -1100,18 +1049,7 @@ func (er *EmailRenderer) extractSenderName(from string) string {
 	return from
 }
 
-func (er *EmailRenderer) truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-
-	return string(runes[:maxLen-3]) + "..."
-}
+// OBLITERATED: truncateString function eliminated! 💥
 
 // fitWidth truncates and pads on the right to fit a fixed width
 func (er *EmailRenderer) fitWidth(s string, width int) string {
@@ -1128,20 +1066,7 @@ func (er *EmailRenderer) fitWidth(s string, width int) string {
 	return s
 }
 
-// rightFit truncates and right-aligns/pads to width
-func (er *EmailRenderer) rightFit(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	// Truncate from the left by display width
-	s = runewidth.TruncateLeft(s, width, "")
-	// Pad on the left
-	pad := width - runewidth.StringWidth(s)
-	if pad > 0 {
-		s = strings.Repeat(" ", pad) + s
-	}
-	return s
-}
+// OBLITERATED: rightFit function eliminated! 💥
 
 func (er *EmailRenderer) formatRelativeTime(date time.Time) string {
 	now := time.Now()

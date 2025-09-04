@@ -22,6 +22,11 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	if strings.TrimSpace(dbPath) == "" {
 		return nil, fmt.Errorf("empty database path")
 	}
+	// Validate dbPath to prevent directory traversal and ensure it's absolute
+	cleanPath := filepath.Clean(dbPath)
+	if strings.Contains(cleanPath, "..") || !filepath.IsAbs(cleanPath) {
+		return nil, fmt.Errorf("invalid database path: must be absolute and not contain directory traversal")
+	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
 		return nil, fmt.Errorf("create database dir: %w", err)
 	}
@@ -31,7 +36,9 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create database file: %w", err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return nil, fmt.Errorf("close database file: %w", err)
+		}
 	}
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -198,7 +205,7 @@ INSERT INTO prompt_templates (name, description, prompt_text, category, created_
 
 		for _, prompt := range bulkPrompts {
 			_, err = tx.ExecContext(ctx, `
-INSERT OR IGNORE INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) 
+INSERT OR IGNORE INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite)
 VALUES (?, ?, ?, 'bulk_analysis', ?, TRUE)`,
 				prompt.name, prompt.description, prompt.promptText, time.Now().Unix())
 			if err != nil {

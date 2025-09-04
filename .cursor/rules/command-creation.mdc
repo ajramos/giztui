@@ -4,7 +4,7 @@ alwaysApply: false
 ---
 # 🎯 Guía Maestra del Sistema de Comandos TUI tipo k9s
 
-**Fecha de análisis:** 7 de agosto de 2025  
+**Fecha de análisis:** 7 de agosto de 2025
 **Basado en:** Análisis exhaustivo del sistema de comandos de k9s
 
 ---
@@ -23,7 +23,7 @@ Usuario presiona ':'
 bindKeys() mapea KeyColon → activateCmd()
      ↓
 App.activateCmd() activa prompt
-     ↓  
+     ↓
 Prompt.SetModel(cmdBuff) configura buffer
      ↓
 Interfaz muestra línea de comandos
@@ -44,7 +44,7 @@ Sistema de Comandos k9s
 │   └── Mapeo en bindKeys()
 ├── 📝 Buffer de Comandos (internal/model/)
 │   ├── CmdBuff - Buffer básico de texto
-│   ├── FishBuff - Buffer con auto-sugerencias  
+│   ├── FishBuff - Buffer con auto-sugerencias
 │   └── SuggestionFunc - Función de autocompletado
 ├── 🎯 Prompt UI (internal/ui/prompt.go)
 │   ├── TextView con input capture
@@ -122,7 +122,7 @@ type CmdBuff struct {
 
 // Métodos principales
 func (c *CmdBuff) Add(r rune)           // Añadir carácter
-func (c *CmdBuff) Delete()              // Borrar último carácter  
+func (c *CmdBuff) Delete()              // Borrar último carácter
 func (c *CmdBuff) SetActive(b bool)     // Activar/desactivar
 func (c *CmdBuff) GetText() string      // Obtener texto actual
 func (c *CmdBuff) ClearText(fire bool)  // Limpiar buffer
@@ -134,7 +134,7 @@ func (c *CmdBuff) ClearText(fire bool)  // Limpiar buffer
 // internal/model/fish_buff.go
 type FishBuff struct {
     *CmdBuff                      // Hereda funcionalidad básica
-    
+
     suggestionFn    SuggestionFunc // Función de sugerencias
     suggestions     []string       // Lista de sugerencias
     suggestionIndex int           // Índice actual de sugerencia
@@ -142,7 +142,7 @@ type FishBuff struct {
 
 // Navegación de sugerencias
 func (f *FishBuff) NextSuggestion() (string, bool)     // ↓ siguiente
-func (f *FishBuff) PrevSuggestion() (string, bool)     // ↑ anterior  
+func (f *FishBuff) PrevSuggestion() (string, bool)     // ↑ anterior
 func (f *FishBuff) CurrentSuggestion() (string, bool)  // actual
 func (f *FishBuff) ClearSuggestions()                  // limpiar
 
@@ -157,28 +157,28 @@ type SuggestionFunc func(text string) sort.StringSlice
 func (c *Command) setupSuggestions() {
     c.app.CmdBuff().SetSuggestionFn(func(text string) sort.StringSlice {
         var suggests []string
-        
+
         // Analizar comando actual
         p := cmd.NewInterpreter(text)
-        
+
         switch {
         case p.IsNamespaceCmd():
             // Sugerir namespaces disponibles
             suggests = c.getNamespaceSuggestions(text)
-            
+
         case p.IsContextCmd():
-            // Sugerir contextos disponibles  
+            // Sugerir contextos disponibles
             suggests = c.getContextSuggestions(text)
-            
+
         case p.IsResourceCmd():
             // Sugerir tipos de recursos
             suggests = c.getResourceSuggestions(text)
-            
+
         default:
             // Sugerencias de comandos básicos
             suggests = c.getBasicCommandSuggestions(text)
         }
-        
+
         return sort.StringSlice(suggests)
     })
 }
@@ -192,7 +192,7 @@ func (c *Command) setupSuggestions() {
 // internal/ui/prompt.go
 type Prompt struct {
     *tview.TextView               // Componente base de tview
-    
+
     app      *App                // Referencia a la aplicación
     model    PromptModel         // Modelo de datos del prompt
     styles   *config.Styles      // Estilos de la aplicación
@@ -213,7 +213,7 @@ type PromptModel interface {
 
 type Suggester interface {
     NextSuggestion() (string, bool)
-    PrevSuggestion() (string, bool)  
+    PrevSuggestion() (string, bool)
     CurrentSuggestion() (string, bool)
     ClearSuggestions()
 }
@@ -231,35 +231,35 @@ func (p *Prompt) keyboard(evt *tcell.EventKey) *tcell.EventKey {
     switch evt.Key() {
     case tcell.KeyBackspace, tcell.KeyDelete:
         p.model.Delete()                    // Borrar carácter
-        
+
     case tcell.KeyRune:
         p.model.Add(evt.Rune())            // Añadir carácter
-        
+
     case tcell.KeyEscape:
         p.model.ClearText(true)            // Cancelar comando
         p.model.SetActive(false)
-        
+
     case tcell.KeyEnter:
         p.model.SetText(p.model.GetText(), "") // Ejecutar comando
         p.model.SetActive(false)
-        
+
     case tcell.KeyUp:
         if s, ok := m.NextSuggestion(); ok {   // ↑ siguiente sugerencia
             p.model.SetText(p.model.GetText(), s)
         }
-        
+
     case tcell.KeyDown:
-        if s, ok := m.PrevSuggestion(); ok {   // ↓ anterior sugerencia  
+        if s, ok := m.PrevSuggestion(); ok {   // ↓ anterior sugerencia
             p.model.SetText(p.model.GetText(), s)
         }
-        
+
     case tcell.KeyTab, tcell.KeyRight:
         if s, ok := m.CurrentSuggestion(); ok { // → autocompletar
             p.model.SetText(p.model.GetText()+s, "")
             m.ClearSuggestions()
         }
     }
-    
+
     return nil
 }
 ```
@@ -272,7 +272,7 @@ func (p *Prompt) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 // internal/view/cmd/interpreter.go
 type Interpreter struct {
     line string    // Línea completa de comando
-    cmd  string    // Comando principal  
+    cmd  string    // Comando principal
     args args      // Argumentos parseados
 }
 
@@ -301,28 +301,28 @@ const (
 
 func newArgs(p *Interpreter, aa []string) args {
     arguments := make(args, len(aa))
-    
+
     for i := 0; i < len(aa); i++ {
         a := strings.TrimSpace(aa[i])
-        
+
         switch {
         case strings.Index(a, "-f") == 0:      // Fuzzy search
             arguments[fuzzyKey] = a[2:]
-            
+
         case strings.Index(a, "/") == 0:       // Filter
             arguments[filterKey] = a[1:]
-            
-        case strings.Contains(a, "="):         // Labels  
+
+        case strings.Contains(a, "="):         // Labels
             arguments[labelKey] = a
-            
+
         case strings.Index(a, "@") == 0:       // Context
             arguments[contextKey] = a[1:]
-            
+
         default:                               // Namespace o recurso
             arguments[nsKey] = strings.ToLower(a)
         }
     }
-    
+
     return arguments
 }
 ```
@@ -336,22 +336,22 @@ func newArgs(p *Interpreter, aa []string) args {
 var (
     // Comandos de contexto
     contextCmd = sets.New("ctx", "context", "contexts")
-    
-    // Comandos de namespace  
+
+    // Comandos de namespace
     namespaceCmd = sets.New("ns", "namespace", "namespaces")
-    
+
     // Comandos de directorio
     dirCmd = sets.New("dir", "dirs", "d", "ls")
-    
+
     // Comandos de salida
     bailCmd = sets.New("q", "q!", "qa", "Q", "quit", "exit")
-    
+
     // Comandos de ayuda
     helpCmd = sets.New("?", "h", "help")
-    
+
     // Comandos de alias
     aliasCmd = sets.New("a", "alias", "aliases")
-    
+
     // Comandos de X-Ray
     xrayCmd = sets.New("x", "xr", "xray")
 )
@@ -383,23 +383,23 @@ func (c *Interpreter) IsCowCmd() bool        { return c.cmd == cowCmd }
 ### **Router Principal**
 
 ```go
-// internal/view/command.go  
+// internal/view/command.go
 func (c *Command) run(p *cmd.Interpreter, target string, pushCmd, clearStack bool) error {
     // 1. Verificar comandos especiales
     if c.specialCmd(p, pushCmd) {
         return nil
     }
-    
+
     // 2. Buscar vistas por comando
     if v := c.app.Command().Lookup(p.Cmd()); v != nil {
         return c.app.inject(v, pushCmd)
     }
-    
+
     // 3. Buscar aliases
     if v := c.app.Config.Aliases().Lookup(p.Cmd()); v != nil {
-        return c.aliasCmd(v, pushCmd) 
+        return c.aliasCmd(v, pushCmd)
     }
-    
+
     // 4. Comando no encontrado
     return fmt.Errorf("Command `%s` not found", p.Cmd())
 }
@@ -414,32 +414,32 @@ func (c *Command) specialCmd(p *cmd.Interpreter, pushCmd bool) bool {
         if msg, ok := p.CowArg(); ok {
             c.app.cowCmd(msg)          // Easter egg
         }
-        
+
     case p.IsBailCmd():
         c.app.BailOut(0)               // Salir de la app
-        
+
     case p.IsHelpCmd():
         _ = c.app.helpCmd(nil)         // Mostrar ayuda
-        
+
     case p.IsContextCmd():
         return c.contextCmd(p, pushCmd) // Cambiar contexto
-        
+
     case p.IsNamespaceCmd():
         return c.namespaceCmd(p)       // Cambiar namespace
-        
+
     case p.IsRBACCmd():
         if cat, sub, ok := p.RBACArgs(); ok {
             // Verificar permisos RBAC
             c.app.inject(NewPolicy(c.app, cat, sub), true)
         }
-        
+
     case p.IsXrayCmd():
         return c.xrayCmd(p, pushCmd)   // Vista X-Ray
-        
+
     default:
         return false                   // No es comando especial
     }
-    
+
     return true
 }
 ```
@@ -451,7 +451,7 @@ func (c *Command) specialCmd(p *cmd.Interpreter, pushCmd bool) bool {
 ```bash
 # Navegación de recursos
 :pods                    # Ver pods
-:services                # Ver servicios  
+:services                # Ver servicios
 :deployments            # Ver deployments
 :nodes                  # Ver nodos
 
@@ -568,18 +568,18 @@ func (gsp *GmailSuggestionProvider) GetSuggestions(text string) []string {
     if len(parts) == 0 {
         return []string{"inbox", "sent", "drafts", "compose", "search"}
     }
-    
+
     cmd := parts[0]
     switch cmd {
     case "search":
         return []string{"from:", "to:", "subject:", "has:attachment", "is:unread"}
-        
+
     case "labels":
         return gsp.client.GetAvailableLabels()
-        
+
     case "inbox", "sent":
         return []string{"/unread", "/important", "/starred"}
-        
+
     default:
         return []string{}
     }
@@ -602,26 +602,26 @@ func parseEmailCommand(line string) (*EmailCommandArgs, error) {
     args := &EmailCommandArgs{
         Labels: make(map[string]string),
     }
-    
+
     parts := strings.Fields(line)[1:] // Saltar comando
-    
+
     for _, part := range parts {
         switch {
         case strings.HasPrefix(part, "/"):
             args.Filter = part[1:]
-            
+
         case strings.HasPrefix(part, "from:"):
             args.Sender = strings.TrimPrefix(part, "from:")
-            
+
         case strings.HasPrefix(part, "to:"):
             args.Recipient = strings.TrimPrefix(part, "to:")
-            
+
         case strings.HasPrefix(part, "subject:"):
             args.Subject = strings.TrimPrefix(part, "subject:")
-            
+
         case strings.HasPrefix(part, "is:") || strings.HasPrefix(part, "has:"):
             args.Flags = append(args.Flags, part)
-            
+
         case strings.Contains(part, "="):
             kv := strings.SplitN(part, "=", 2)
             if len(kv) == 2 {
@@ -629,7 +629,7 @@ func parseEmailCommand(line string) (*EmailCommandArgs, error) {
             }
         }
     }
-    
+
     return args, nil
 }
 ```
@@ -677,15 +677,15 @@ func (cs *CommandSystem) validateCommand(text string) error {
     if text == "" {
         return nil
     }
-    
+
     parts := strings.Fields(text)
     cmd := parts[0]
-    
+
     // Verificar si el comando existe
     if _, exists := cs.commands[cmd]; !exists {
         return fmt.Errorf("Unknown command: %s", cmd)
     }
-    
+
     // Validar argumentos específicos del comando
     return cs.commands[cmd].Validate(parts[1:])
 }
@@ -709,7 +709,7 @@ func (am *AliasManager) Resolve(cmd string) string {
 func (am *AliasManager) loadDefaults() {
     am.aliases = map[string]string{
         "i":    "inbox",
-        "s":    "sent", 
+        "s":    "sent",
         "d":    "drafts",
         "c":    "compose",
         "q":    "quit",
@@ -741,7 +741,7 @@ func (am *AliasManager) loadDefaults() {
 ### **✅ Principios de Diseño**
 
 1. **Activación Intuitiva**: Tecla `:` universalmente reconocida
-2. **Parser Robusto**: Manejo de espacios, quotes, argumentos complejos  
+2. **Parser Robusto**: Manejo de espacios, quotes, argumentos complejos
 3. **Sugerencias Inteligentes**: Contextuales y útiles
 4. **Feedback Inmediato**: Validación en tiempo real
 5. **Extensibilidad**: Fácil añadir nuevos comandos
@@ -758,7 +758,7 @@ func (am *AliasManager) loadDefaults() {
 
 - **Auto-completado**: Tab para completar sugerencias
 - **Historial**: ↑/↓ para navegar comandos anteriores
-- **Shortcuts**: Aliases para comandos frecuentes  
+- **Shortcuts**: Aliases para comandos frecuentes
 - **Help contextual**: `?` para ayuda específica
 - **Escape fácil**: ESC para cancelar comando
 
@@ -769,4 +769,3 @@ func (am *AliasManager) loadDefaults() {
 El sistema de comandos de k9s es un ejemplo perfecto de cómo crear una interfaz de línea de comandos sofisticada pero intuitiva. Con parsing robusto, sugerencias inteligentes y feedback inmediato, proporciona una experiencia de usuario excepcional.
 
 **¡Implementa este sistema en tu TUI para ofrecer el mismo nivel de profesionalismo!** 🚀⌨️
-

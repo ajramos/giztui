@@ -65,18 +65,26 @@ func (s *EmailServiceImpl) ArchiveMessageAsMove(ctx context.Context, messageID, 
 					},
 				}
 				if s.logger != nil {
+					s.logger.Printf("Recording action for message %s", messageID)
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			} else {
 				if s.logger != nil {
+					s.logger.Printf("Undo service not available for message %s", messageID)
 				}
 			}
 		} else {
 			if s.logger != nil {
+				s.logger.Printf("Label %s already applied to message %s", labelID, messageID)
 			}
 		}
 	} else {
 		if s.logger != nil {
+			s.logger.Printf("Message %s does not have label %s", messageID, labelID)
 		}
 	}
 
@@ -106,7 +114,11 @@ func (s *EmailServiceImpl) MarkAsRead(ctx context.Context, messageID string) err
 					Description: "Mark as read",
 					IsBulk:      false,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -136,7 +148,11 @@ func (s *EmailServiceImpl) MarkAsUnread(ctx context.Context, messageID string) e
 					Description: "Mark as unread",
 					IsBulk:      false,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -174,7 +190,11 @@ func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []stri
 					Description: "Mark messages as read",
 					IsBulk:      true,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -223,7 +243,11 @@ func (s *EmailServiceImpl) BulkMarkAsUnread(ctx context.Context, messageIDs []st
 					Description: "Mark messages as unread",
 					IsBulk:      true,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -264,7 +288,11 @@ func (s *EmailServiceImpl) ArchiveMessage(ctx context.Context, messageID string)
 					Description: "Archive message",
 					IsBulk:      false,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -294,7 +322,11 @@ func (s *EmailServiceImpl) TrashMessage(ctx context.Context, messageID string) e
 					Description: "Trash message",
 					IsBulk:      false,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -345,7 +377,11 @@ func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string)
 					Description: "Archive messages",
 					IsBulk:      true,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -393,7 +429,11 @@ func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string) e
 					Description: "Trash messages",
 					IsBulk:      true,
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -426,7 +466,7 @@ func (s *EmailServiceImpl) SaveMessageToFile(ctx context.Context, messageID, fil
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -437,7 +477,7 @@ func (s *EmailServiceImpl) SaveMessageToFile(ctx context.Context, messageID, fil
 	content := header + msg.PlainText
 
 	// Write to file
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -474,7 +514,11 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 				if s.logger != nil {
 					s.logger.Printf("Recording undo action for system folder move: %s -> %s", messageID, folderName)
 				}
-				s.undoService.RecordAction(ctx, action)
+				if err := s.undoService.RecordAction(ctx, action); err != nil {
+					if s.logger != nil {
+						s.logger.Printf("Failed to record undo action: %v", err)
+					}
+				}
 			} else {
 				if s.logger != nil {
 					s.logger.Printf("Failed to capture message state for undo: %v", err)

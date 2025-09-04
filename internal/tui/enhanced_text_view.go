@@ -69,7 +69,7 @@ func (e *EnhancedTextView) SetContent(content string) *EnhancedTextView {
 	e.currentPosition = 0
 	e.currentMatchIndex = -1
 	e.currentSearchResult = nil
-	e.TextView.SetText(content)
+	e.SetText(content)
 	return e
 }
 
@@ -85,7 +85,7 @@ func (e *EnhancedTextView) HasActiveSearch() bool {
 
 // setupInputCapture configures keyboard shortcuts for content navigation and search
 func (e *EnhancedTextView) setupInputCapture() {
-	e.TextView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	e.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Only handle navigation if we're focused on text content
 		if e.app.currentFocus != "text" {
 			return event
@@ -165,82 +165,7 @@ func (e *EnhancedTextView) startContentSearchCommand() {
 	e.app.showCommandBarWithPrefix("/")
 }
 
-// openContentSearchOverlay creates a search overlay for content search
-func (e *EnhancedTextView) openContentSearchOverlay() {
-	title := "🔍 Search Content"
-
-	// Create input field for search query
-	input := tview.NewInputField().
-		SetLabel("🔍 ").
-		SetLabelColor(e.app.getLabelColor()).
-		SetFieldWidth(0).
-		SetPlaceholder("Enter search term...")
-
-	// Store input reference for cleanup
-	e.app.views["contentSearchInput"] = input
-
-	// Create help text
-	help := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-	help.SetTextColor(e.app.GetComponentColors("general").Text.Color())
-	help.SetText("Enter=search, ESC=cancel | After search: n=next, N=previous")
-
-	// Create the overlay container
-	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(title).SetTitleColor(e.app.GetComponentColors("search").Title.Color())
-
-	// Layout: spacer, input, help, spacer
-	topSpacer := tview.NewBox()
-	bottomSpacer := tview.NewBox()
-	box.AddItem(topSpacer, 0, 1, false)
-	box.AddItem(input, 1, 0, true)
-	box.AddItem(help, 1, 0, false)
-	box.AddItem(bottomSpacer, 0, 1, false)
-
-	// Set up input handling
-	input.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			query := strings.TrimSpace(input.GetText())
-			if query != "" {
-				e.performContentSearch(query)
-			}
-			e.closeContentSearchOverlay()
-		case tcell.KeyEscape:
-			e.closeContentSearchOverlay()
-		}
-	})
-
-	// Handle input capture for additional controls
-	input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape {
-			e.closeContentSearchOverlay()
-			return nil
-		}
-		return event
-	})
-
-	// Show the overlay by adding it to the content split area temporarily
-	if split, ok := e.app.views["contentSplit"].(*tview.Flex); ok {
-		// Store the current labels view if any
-		e.app.previousFocus = e.app.currentFocus
-
-		// Hide any existing side panels
-		if e.app.currentActivePicker != PickerNone && e.app.labelsView != nil {
-			split.RemoveItem(e.app.labelsView)
-		}
-
-		// Add the search overlay
-		e.app.labelsView = box
-		split.AddItem(e.app.labelsView, 0, 1, true)
-		split.ResizeItem(e.app.labelsView, 0, 1)
-
-		// Set focus and update state
-		e.app.currentFocus = "contentSearch"
-		e.app.setActivePicker(PickerContentSearch)
-		e.app.updateFocusIndicators("contentSearch")
-		e.app.SetFocus(input)
-	}
-}
+// OBLITERATED: unused openContentSearchOverlay function eliminated! 💥
 
 // searchNext navigates to the next search match
 func (e *EnhancedTextView) searchNext() {
@@ -439,12 +364,7 @@ func (e *EnhancedTextView) wordNavigateRight() {
 	}
 }
 
-// handleGotoTopSequence handles vim-style gg sequence
-func (e *EnhancedTextView) handleGotoTopSequence() {
-	// Simple implementation for now - go to top immediately
-	// TODO: [ENHANCEMENT] Implement proper vim-style sequence handling with timeout for complex key sequences
-	e.gotoTop()
-}
+// Removed unused function: handleGotoTopSequence
 
 // GotoTop navigates to the beginning of content (public method)
 func (e *EnhancedTextView) GotoTop() {
@@ -490,7 +410,7 @@ func (e *EnhancedTextView) gotoBottom() {
 	// Also scroll to the actual last line of the TextView for better UX
 	lines := len(strings.Split(e.content, "\n"))
 	if lines > 0 {
-		e.TextView.ScrollToEnd()
+		e.ScrollToEnd()
 		if e.app.logger != nil {
 			e.app.logger.Printf("GOTO BOTTOM: Scrolled TextView to end, total lines=%d", lines)
 		}
@@ -507,7 +427,7 @@ func (e *EnhancedTextView) clearSearch() {
 		e.currentSearchResult = nil
 		e.currentMatchIndex = -1
 		// Refresh content without highlights
-		e.TextView.SetText(e.content)
+		e.SetText(e.content)
 		go func() {
 			e.app.GetErrorHandler().ShowInfo(context.Background(), "Search cleared")
 		}()
@@ -531,7 +451,7 @@ func (e *EnhancedTextView) scrollToPosition(position int) {
 	}
 
 	// Scroll to the line (tview uses 0-based indexing)
-	e.TextView.ScrollTo(line-1, 0)
+	e.ScrollTo(line-1, 0)
 }
 
 // updateMatchIndex updates the current match index based on current position
@@ -564,32 +484,7 @@ func (e *EnhancedTextView) showMatchStatus() {
 	}()
 }
 
-// closeContentSearchOverlay closes the search overlay and restores focus to text view
-func (e *EnhancedTextView) closeContentSearchOverlay() {
-	if split, ok := e.app.views["contentSplit"].(*tview.Flex); ok {
-		// Remove the search overlay
-		if e.app.labelsView != nil {
-			split.RemoveItem(e.app.labelsView)
-		}
-
-		// Clear the search overlay state
-		e.app.labelsView = nil
-		e.app.setActivePicker(PickerNone)
-
-		// Restore focus to the text view
-		e.app.currentFocus = e.app.previousFocus
-		if e.app.currentFocus == "" {
-			e.app.currentFocus = "text"
-		}
-
-		// Update focus indicators and set focus
-		e.app.updateFocusIndicators(e.app.currentFocus)
-		e.app.SetFocus(e.TextView)
-
-		// Clean up the input reference
-		delete(e.app.views, "contentSearchInput")
-	}
-}
+// OBLITERATED: unused closeContentSearchOverlay function eliminated! 💥
 
 // performContentSearch executes the search and highlights results in the content
 func (e *EnhancedTextView) performContentSearch(query string) {
@@ -688,5 +583,5 @@ func (e *EnhancedTextView) highlightSearchResults(query string, matches []int) {
 	}
 
 	// Update the text view with highlighted content
-	e.TextView.SetText(highlightedContent)
+	e.SetText(highlightedContent)
 }

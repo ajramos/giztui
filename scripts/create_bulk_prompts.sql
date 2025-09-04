@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
 
 -- 1. Cloud Product Analysis (for AWS/cloud newsletters)
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Cloud Product Analysis',
@@ -44,10 +44,10 @@ Format your response clearly with bullet points and sections.',
 
 -- 2. Newsletter Digest
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Newsletter Digest',
@@ -71,10 +71,10 @@ Keep the digest concise and actionable.',
 
 -- 3. Technical Updates Summary
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Technical Updates Summary',
@@ -100,10 +100,10 @@ Format with clear technical details and impact assessment.',
 
 -- 4. Business Intelligence Report
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Business Intelligence Report',
@@ -130,10 +130,10 @@ Format as a business report with clear insights and actionable recommendations.'
 
 -- 5. Event & Conference Summary
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Event & Conference Summary',
@@ -160,10 +160,10 @@ Format with clear event details and next steps.',
 
 -- 6. Amazon AI Analysis
 INSERT OR REPLACE INTO prompt_templates (
-    name, 
-    description, 
-    prompt_text, 
-    category, 
+    name,
+    description,
+    prompt_text,
+    category,
     is_favorite
 ) VALUES (
     'Amazon AI Analysis',
@@ -223,4 +223,3 @@ Format your response clearly with bullet points, sections, and actionable insigh
 
 -- Verify the prompts were created
 SELECT id, name, description, category FROM prompt_templates WHERE category = 'bulk_analysis';
-

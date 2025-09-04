@@ -155,7 +155,7 @@ func FormatEmailForTerminal(ctx context.Context, msg *gmailwrap.Message, opts Fo
 			out.WriteString("None\n")
 		} else {
 			for i, u := range ordered {
-				out.WriteString(fmt.Sprintf("(%d) %s\n", i+1, u))
+				fmt.Fprintf(out, "(%d) %s\n", i+1, u)
 			}
 		}
 	}

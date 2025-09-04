@@ -154,11 +154,12 @@ func (s *ThreadServiceImpl) GetThreadMessages(ctx context.Context, threadID stri
 
 // sortMessages applies the requested sort order to messages
 func (s *ThreadServiceImpl) sortMessages(messages []*gmailapi.Message, sortOrder string) {
-	if sortOrder == "asc" {
+	switch sortOrder {
+	case "asc":
 		sort.Slice(messages, func(i, j int) bool {
 			return extractInternalDate(messages[i]) < extractInternalDate(messages[j])
 		})
-	} else if sortOrder == "desc" {
+	case "desc":
 		sort.Slice(messages, func(i, j int) bool {
 			return extractInternalDate(messages[i]) > extractInternalDate(messages[j])
 		})
@@ -188,7 +189,7 @@ func (s *ThreadServiceImpl) SetThreadExpanded(ctx context.Context, accountEmail,
 		return nil
 	}
 
-	query := `INSERT OR REPLACE INTO thread_state (account_email, thread_id, is_expanded, last_updated) 
+	query := `INSERT OR REPLACE INTO thread_state (account_email, thread_id, is_expanded, last_updated)
 			  VALUES (?, ?, ?, ?)`
 
 	_, err := s.dbStore.DB().Exec(query, accountEmail, threadID, expanded, time.Now())
@@ -416,8 +417,8 @@ func (s *ThreadServiceImpl) GetCachedThreadSummary(ctx context.Context, accountE
 		return nil, fmt.Errorf("cache not available")
 	}
 
-	query := `SELECT summary, summary_type, language, message_count, cached_at 
-			  FROM thread_summary_cache 
+	query := `SELECT summary, summary_type, language, message_count, cached_at
+			  FROM thread_summary_cache
 			  WHERE account_email = ? AND thread_id = ?`
 
 	var summary, summaryType, language string
@@ -636,7 +637,7 @@ func (s *ThreadServiceImpl) cacheThreadSummary(ctx context.Context, accountEmail
 		return
 	}
 
-	query := `INSERT OR REPLACE INTO thread_summary_cache 
+	query := `INSERT OR REPLACE INTO thread_summary_cache
 			  (account_email, thread_id, summary, summary_type, language, message_count, cached_at)
 			  VALUES (?, ?, ?, ?, ?, ?, ?)`
 

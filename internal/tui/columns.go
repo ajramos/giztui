@@ -20,62 +20,7 @@ func min(a, b int) int {
 	return b
 }
 
-// hasAttachment checks if a message has attachments
-func (a *App) hasAttachment(message *gmailapi.Message) bool {
-	if message == nil || message.Payload == nil {
-		return false
-	}
-
-	var walk func(p *gmailapi.MessagePart) bool
-	walk = func(p *gmailapi.MessagePart) bool {
-		if p == nil {
-			return false
-		}
-		if p.Body != nil && p.Body.AttachmentId != "" {
-			return true
-		}
-		if p.Filename != "" {
-			return true
-		}
-		for _, c := range p.Parts {
-			if walk(c) {
-				return true
-			}
-		}
-		return false
-	}
-	return walk(message.Payload)
-}
-
-// hasCalendar checks if a message has calendar invitations/events
-func (a *App) hasCalendar(message *gmailapi.Message) bool {
-	if message == nil || message.Payload == nil {
-		return false
-	}
-
-	var walk func(p *gmailapi.MessagePart) bool
-	walk = func(p *gmailapi.MessagePart) bool {
-		if p == nil {
-			return false
-		}
-		mt := strings.ToLower(p.MimeType)
-		if p.Filename != "" {
-			if strings.HasSuffix(strings.ToLower(p.Filename), ".ics") {
-				return true
-			}
-		}
-		if strings.Contains(mt, "text/calendar") || strings.Contains(mt, "application/ics") {
-			return true
-		}
-		for _, c := range p.Parts {
-			if walk(c) {
-				return true
-			}
-		}
-		return false
-	}
-	return walk(message.Payload)
-}
+// Removed unused functions: hasAttachment, hasCalendar
 
 // getCurrentDisplayMode determines the current display mode
 func (a *App) getCurrentDisplayMode() render.DisplayMode {
@@ -859,13 +804,13 @@ func (a *App) populateFlatRows(table *tview.Table) {
 			loadingData := render.EmailColumnData{
 				RowType: render.RowTypeFlatMessage,
 				Columns: []render.ColumnCell{
-					{"○", tview.AlignCenter, 3, 0},                        // Flags
-					{"Loading...", tview.AlignLeft, 0, 1},                 // From
-					{"Loading message content...", tview.AlignLeft, 0, 3}, // Subject
-					{"", tview.AlignLeft, 16, 1},                          // Labels (empty during loading)
-					{"  ", tview.AlignCenter, 2, 0},                       // Attachment (empty, 2 spaces)
-					{"  ", tview.AlignCenter, 2, 0},                       // Calendar (empty, 2 spaces)
-					{"--", tview.AlignRight, 16, 0},                       // Date
+					{Content: "○", Alignment: tview.AlignCenter, MaxWidth: 3, Expansion: 0},                        // Flags
+					{Content: "Loading...", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1},                 // From
+					{Content: "Loading message content...", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3}, // Subject
+					{Content: "", Alignment: tview.AlignLeft, MaxWidth: 16, Expansion: 1},                          // Labels (empty during loading)
+					{Content: "  ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},                       // Attachment (empty, 2 spaces)
+					{Content: "  ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},                       // Calendar (empty, 2 spaces)
+					{Content: "--", Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},                       // Date
 				},
 				Color: a.GetComponentColors("general").Text.Color(),
 			}
@@ -942,15 +887,15 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 		return render.EmailColumnData{
 			RowType: render.RowTypeThreadHeader,
 			Columns: []render.ColumnCell{
-				{"■ ", tview.AlignLeft, 2, 0},           // Type: Single message indicator
-				{"      ", tview.AlignRight, 6, 0},      // Thread Count: 6 spaces for alignment
-				{"○", tview.AlignCenter, 3, 0},          // Status: Read
-				{"(No thread)", tview.AlignLeft, 0, 1},  // From
-				{"(No subject)", tview.AlignLeft, 0, 3}, // Subject
-				{"", tview.AlignLeft, 16, 1},            // Labels: Empty
-				{" ", tview.AlignCenter, 2, 0},          // Attachment: Space for alignment
-				{" ", tview.AlignCenter, 2, 0},          // Calendar: Space for alignment
-				{"--", tview.AlignRight, 16, 0},         // Date
+				{Content: "■ ", Alignment: tview.AlignLeft, MaxWidth: 2, Expansion: 0},           // Type: Single message indicator
+				{Content: "      ", Alignment: tview.AlignRight, MaxWidth: 6, Expansion: 0},      // Thread Count: 6 spaces for alignment
+				{Content: "○", Alignment: tview.AlignCenter, MaxWidth: 3, Expansion: 0},          // Status: Read
+				{Content: "(No thread)", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1},  // From
+				{Content: "(No subject)", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3}, // Subject
+				{Content: "", Alignment: tview.AlignLeft, MaxWidth: 16, Expansion: 1},            // Labels: Empty
+				{Content: " ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},          // Attachment: Space for alignment
+				{Content: " ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},          // Calendar: Space for alignment
+				{Content: "--", Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},         // Date
 			},
 			Color: a.GetComponentColors("general").Text.Color(),
 		}
@@ -1025,15 +970,15 @@ func (a *App) FormatThreadHeaderColumns(thread *services.ThreadInfo, index int, 
 	return render.EmailColumnData{
 		RowType: render.RowTypeThreadHeader,
 		Columns: []render.ColumnCell{
-			{typeIcon, tview.AlignLeft, 2, 0},         // Type: Thread/message icon
-			{countText, tview.AlignRight, 6, 0},       // Thread Count: [4] or padded empty
-			{statusIcon, tview.AlignCenter, 3, 0},     // Status: ●/○ only
-			{senderName, tview.AlignLeft, 0, 1},       // From
-			{subject, tview.AlignLeft, 0, 3},          // Subject (clean, no attachment)
-			{"", tview.AlignLeft, 16, 1},              // Labels: Empty for thread headers (could show thread labels in future)
-			{attachmentIcon, tview.AlignCenter, 2, 0}, // Attachment: 📎 or empty
-			{calendarIcon, tview.AlignCenter, 2, 0},   // Calendar: 📅 or empty
-			{dateStr, tview.AlignRight, 16, 0},        // Date
+			{Content: typeIcon, Alignment: tview.AlignLeft, MaxWidth: 2, Expansion: 0},         // Type: Thread/message icon
+			{Content: countText, Alignment: tview.AlignRight, MaxWidth: 6, Expansion: 0},       // Thread Count: [4] or padded empty
+			{Content: statusIcon, Alignment: tview.AlignCenter, MaxWidth: 3, Expansion: 0},     // Status: ●/○ only
+			{Content: senderName, Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1},       // From
+			{Content: subject, Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3},          // Subject (clean, no attachment)
+			{Content: "", Alignment: tview.AlignLeft, MaxWidth: 16, Expansion: 1},              // Labels: Empty for thread headers (could show thread labels in future)
+			{Content: attachmentIcon, Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0}, // Attachment: 📎 or empty
+			{Content: calendarIcon, Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},   // Calendar: 📅 or empty
+			{Content: dateStr, Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},        // Date
 		},
 		Color: color,
 	}
@@ -1045,15 +990,15 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 		return render.EmailColumnData{
 			RowType: render.RowTypeThreadMessage,
 			Columns: []render.ColumnCell{
-				{"  ", tview.AlignLeft, 2, 0},                        // Type: 2 spaces for alignment
-				{"      ", tview.AlignRight, 6, 0},                   // Thread Count: 6 spaces for alignment
-				{"○", tview.AlignCenter, 3, 0},                       // Status: Default read
-				{treePrefix + "(No message)", tview.AlignLeft, 0, 1}, // From: Tree prefix + placeholder
-				{"(No subject)", tview.AlignLeft, 0, 3},              // Subject
-				{"", tview.AlignLeft, 16, 1},                         // Labels: Empty
-				{" ", tview.AlignCenter, 2, 0},                       // Attachment: Space for alignment
-				{" ", tview.AlignCenter, 2, 0},                       // Calendar: Space for alignment
-				{"--", tview.AlignRight, 16, 0},                      // Date
+				{Content: "  ", Alignment: tview.AlignLeft, MaxWidth: 2, Expansion: 0},                        // Type: 2 spaces for alignment
+				{Content: "      ", Alignment: tview.AlignRight, MaxWidth: 6, Expansion: 0},                   // Thread Count: 6 spaces for alignment
+				{Content: "○", Alignment: tview.AlignCenter, MaxWidth: 3, Expansion: 0},                       // Status: Default read
+				{Content: treePrefix + "(No message)", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1}, // From: Tree prefix + placeholder
+				{Content: "(No subject)", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3},              // Subject
+				{Content: "", Alignment: tview.AlignLeft, MaxWidth: 16, Expansion: 1},                         // Labels: Empty
+				{Content: " ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},                       // Attachment: Space for alignment
+				{Content: " ", Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},                       // Calendar: Space for alignment
+				{Content: "--", Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},                      // Date
 			},
 			Color: a.GetComponentColors("general").Text.Color(),
 		}
@@ -1100,15 +1045,15 @@ func (a *App) FormatThreadMessageColumns(message *gmailapi.Message, treePrefix s
 	return render.EmailColumnData{
 		RowType: render.RowTypeThreadMessage,
 		Columns: []render.ColumnCell{
-			{typeIcon, tview.AlignLeft, 2, 0},         // Type: Message icon
-			{"      ", tview.AlignRight, 6, 0},        // Thread Count: 6 spaces for alignment
-			{statusIcon, tview.AlignCenter, 3, 0},     // Status: ●/○ only
-			{senderName, tview.AlignLeft, 0, 1},       // From: Tree prefix + sender (for alignment)
-			{subject, tview.AlignLeft, 0, 3},          // Subject (clean)
-			{labels, tview.AlignLeft, 16, 1},          // Labels: Dedicated column
-			{attachmentIcon, tview.AlignCenter, 2, 0}, // Attachment: 📎 or empty
-			{calendarIcon, tview.AlignCenter, 2, 0},   // Calendar: 📅 or empty
-			{dateStr, tview.AlignRight, 16, 0},        // Date
+			{Content: typeIcon, Alignment: tview.AlignLeft, MaxWidth: 2, Expansion: 0},         // Type: Message icon
+			{Content: "      ", Alignment: tview.AlignRight, MaxWidth: 6, Expansion: 0},        // Thread Count: 6 spaces for alignment
+			{Content: statusIcon, Alignment: tview.AlignCenter, MaxWidth: 3, Expansion: 0},     // Status: ●/○ only
+			{Content: senderName, Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1},       // From: Tree prefix + sender (for alignment)
+			{Content: subject, Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3},          // Subject (clean)
+			{Content: labels, Alignment: tview.AlignLeft, MaxWidth: 16, Expansion: 1},          // Labels: Dedicated column
+			{Content: attachmentIcon, Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0}, // Attachment: 📎 or empty
+			{Content: calendarIcon, Alignment: tview.AlignCenter, MaxWidth: 2, Expansion: 0},   // Calendar: 📅 or empty
+			{Content: dateStr, Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},        // Date
 		},
 		Color: color,
 	}
@@ -1169,11 +1114,11 @@ func (a *App) populateThreadedRows(table *tview.Table) {
 				errorData := render.EmailColumnData{
 					RowType: render.RowTypeThreadMessage,
 					Columns: []render.ColumnCell{
-						{"    ⚠️ ", tview.AlignLeft, 8, 0},
-						{"      ", tview.AlignRight, 6, 0},
-						{"Failed to load messages", tview.AlignLeft, 0, 1},
-						{"", tview.AlignLeft, 0, 3},
-						{"--", tview.AlignRight, 16, 0},
+						{Content: "    ⚠️ ", Alignment: tview.AlignLeft, MaxWidth: 8, Expansion: 0},
+						{Content: "      ", Alignment: tview.AlignRight, MaxWidth: 6, Expansion: 0},
+						{Content: "Failed to load messages", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 1},
+						{Content: "", Alignment: tview.AlignLeft, MaxWidth: 0, Expansion: 3},
+						{Content: "--", Alignment: tview.AlignRight, MaxWidth: 16, Expansion: 0},
 					},
 					Color: a.GetStatusColor("warning"), // Use hierarchical theme system for warning color
 				}

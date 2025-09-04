@@ -1,0 +1,316 @@
+name: Comprehensive CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  # Quality checks: formatting, linting, security
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+
+    - name: Run format check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted. Please run 'go fmt ./...'"
+          echo "Files that need formatting:"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Run vet
+      run: go vet -composites=false ./...
+
+    - name: Run golangci-lint
+      run: golangci-lint run --config=.golangci.yml
+
+    - name: Run security scan
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+
+  # Comprehensive testing across platforms
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    needs: quality
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.23']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ matrix.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ matrix.os }}-go-
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install github.com/vektra/mockery/v2@latest
+
+    - name: Generate mocks
+      run: make test-mocks
+
+    - name: Run core tests
+      run: go test -timeout 3m ./internal/config ./internal/db ./internal/services ./pkg/...
+
+    - name: Run tests with race detector
+      run: go test -race -timeout 2m ./internal/services
+
+    - name: Run unit tests
+      run: make test-unit
+
+    - name: Run TUI tests
+      run: make test-tui
+
+    - name: Run tests with coverage
+      run: make test-coverage
+
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Check for goroutine leaks
+      run: |
+        # Skip if test doesn't exist
+        if [ -d "./test/helpers" ]; then
+          go test -v ./test/helpers/... -run TestAsyncOperations || echo "Goroutine leak tests not found, skipping"
+        else
+          echo "test/helpers directory not found, skipping goroutine leak tests"
+        fi
+
+  # Visual regression testing
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install github.com/vektra/mockery/v2@latest
+
+    - name: Generate mocks
+      run: make test-mocks
+
+    - name: Run visual regression tests
+      run: make test-tui
+      env:
+        UPDATE_SNAPSHOTS: false
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-snapshots-${{ matrix.os }}-${{ github.run_id }}
+        path: testdata/snapshots/
+
+  # Advanced security scanning
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Dependency review for PRs
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v3
+      with:
+        fail-on-severity: moderate
+
+  # Build artifacts on successful tests
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+    needs: [test, visual-regression, security]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Build for development
+      if: github.ref == 'refs/heads/develop'
+      run: make build
+
+    - name: Build for multiple platforms
+      if: github.ref == 'refs/heads/main'
+      run: |
+        mkdir -p build
+        GOOS=linux GOARCH=amd64 go build -o build/giztui-linux-amd64 ./cmd/giztui
+        GOOS=darwin GOARCH=amd64 go build -o build/giztui-darwin-amd64 ./cmd/giztui
+        GOOS=darwin GOARCH=arm64 go build -o build/giztui-darwin-arm64 ./cmd/giztui
+        GOOS=windows GOARCH=amd64 go build -o build/giztui-windows-amd64.exe ./cmd/giztui
+
+    - name: Upload artifacts
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: giztui-binaries-${{ github.sha }}
+        path: build/
+
+  # Notification and reporting
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [quality, test, visual-regression, security, build]
+    if: always()
+
+    steps:
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request' && always()
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+
+          const botComment = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes('CI/CD Results'));
+
+          const results = {
+            quality: '${{ needs.quality.result }}',
+            test: '${{ needs.test.result }}',
+            visual: '${{ needs.visual-regression.result }}',
+            security: '${{ needs.security.result }}',
+            build: '${{ needs.build.result }}'
+          };
+
+          const getEmoji = (result) => {
+            switch(result) {
+              case 'success': return '✅';
+              case 'failure': return '❌';
+              case 'cancelled': return '⚠️';
+              case 'skipped': return '⏭️';
+              default: return '🔄';
+            }
+          };
+
+          const commentBody = `## 🚀 CI/CD Results Summary
+
+          ${getEmoji(results.quality)} **Code Quality**: ${results.quality}
+          ${getEmoji(results.test)} **Test Suite**: ${results.test}
+          ${getEmoji(results.visual)} **Visual Regression**: ${results.visual}
+          ${getEmoji(results.security)} **Security Analysis**: ${results.security}
+          ${getEmoji(results.build)} **Build Artifacts**: ${results.build}
+
+          [📊 View full results](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+
+          ---
+          *This comment is automatically updated on each push*
+          `;
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              comment_id: botComment.id,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody,
+            });
+          }

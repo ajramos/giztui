@@ -312,7 +312,8 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 
 	// Handle input field enter key for sending
 	userMessageInput.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
+		switch key { // OBLITERATED: converted to tagged switch! 💥
+		case tcell.KeyEnter:
 			// Trigger the same send logic
 			index := channelList.GetCurrentItem()
 			if index >= 0 && index < len(visibleChannels) {
@@ -332,10 +333,10 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 				// Hide the Slack panel
 				a.hideSlackPanel()
 			}
-		} else if key == tcell.KeyEscape {
+		case tcell.KeyEscape:
 			// ESC closes the Slack panel
 			a.hideSlackPanel()
-		} else if key == tcell.KeyTab {
+		case tcell.KeyTab:
 			// Tab moves back to channel list
 			a.SetFocus(channelList)
 		}
@@ -533,7 +534,8 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 
 	// Handle input field enter key for sending
 	userMessageInput.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
+		switch key { // OBLITERATED: converted to tagged switch! 💥
+		case tcell.KeyEnter:
 			// Trigger the same send logic
 			index := channelList.GetCurrentItem()
 			if index >= 0 && index < len(visibleChannels) {
@@ -553,10 +555,10 @@ func (a *App) createSlackBulkPanel(messageCount int, channels []services.SlackCh
 				// Hide the Slack panel
 				a.hideSlackPanel()
 			}
-		} else if key == tcell.KeyEscape {
+		case tcell.KeyEscape:
 			// ESC closes the Slack panel
 			a.hideSlackPanel()
-		} else if key == tcell.KeyTab {
+		case tcell.KeyTab:
 			// Tab moves back to channel list
 			a.SetFocus(channelList)
 		}

@@ -375,8 +375,14 @@ func (s *PromptServiceImpl) CreateFromFile(ctx context.Context, filePath string)
 		}
 	}
 
+	// Validate path to prevent directory traversal
+	cleanPath := filepath.Clean(filePath)
+	if strings.Contains(cleanPath, "..") {
+		return 0, fmt.Errorf("invalid file path: contains directory traversal")
+	}
+
 	// Read file content
-	content, err := os.ReadFile(filePath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
@@ -449,12 +455,12 @@ func (s *PromptServiceImpl) ExportToFile(ctx context.Context, id int, filePath s
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
 	// Write file
-	if err := os.WriteFile(filePath, content, 0644); err != nil {
+	if err := os.WriteFile(filePath, content, 0600); err != nil {
 		return fmt.Errorf("failed to write file %s: %w", filePath, err)
 	}
 

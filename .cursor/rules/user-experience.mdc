@@ -33,7 +33,7 @@ Esc             - Go back/cancel current action
 ### **Feedback Messages**
 - **Success**: `✅ Operation completed successfully`
 - **Error**: `❌ Operation failed: reason`
-- **Warning**: `⚠️ Caution: potential issue`  
+- **Warning**: `⚠️ Caution: potential issue`
 - **Info**: `ℹ️ Information or status update`
 - **Progress**: `⏳ Loading data...` (with persistent display)
 
@@ -61,7 +61,7 @@ app.GetErrorHandler().ShowProgress(ctx, "Archiving messages...")
 
 ### **Visual States**
 - **Loading states**: Show spinners or progress indicators
-- **Empty states**: Helpful messages when no data available  
+- **Empty states**: Helpful messages when no data available
 - **Error states**: Clear error messages with recovery options
 - **Success states**: Confirmation of completed actions
 
@@ -95,7 +95,7 @@ app.GetErrorHandler().ShowProgress(ctx, "Archiving messages...")
 - Consistent key bindings across views
 
 ### **Visual Clarity**
-- High contrast text and backgrounds  
+- High contrast text and backgrounds
 - Clear focus indicators
 - Consistent spacing and alignment
 - Readable fonts and icon alternatives
@@ -120,7 +120,7 @@ app.GetErrorHandler().ShowProgress(ctx, "Archiving messages...")
 ### ✅ **Do This Instead**
 - Always show operation results to user
 - Use async operations with progress feedback
-- Consistent, memorable keyboard shortcuts  
+- Consistent, memorable keyboard shortcuts
 - User-friendly error messages
 - Clear visual hierarchy and focus
 - Loading indicators for all async operations

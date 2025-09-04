@@ -390,9 +390,9 @@ func TestErrorHandler_EdgeCases(t *testing.T) {
 		eh := &ErrorHandler{}
 
 		assert.NotPanics(t, func() {
-			eh.ShowMessage(nil, "Test with nil context", LogLevelInfo)
-			eh.ShowPersistentMessage(nil, "Persistent with nil context", LogLevelInfo)
-			eh.HandleError(nil, errors.New("test"), "Error with nil context")
+			eh.ShowMessage(context.TODO(), "Test with nil context", LogLevelInfo)
+			eh.ShowPersistentMessage(context.TODO(), "Persistent with nil context", LogLevelInfo)
+			eh.HandleError(context.TODO(), errors.New("test"), "Error with nil context")
 		})
 	})
 }

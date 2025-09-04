@@ -185,7 +185,7 @@ func TestPromptServiceImpl_CreateFromFile_InvalidFrontMatter(t *testing.T) {
 
 	content := `This file has no front matter`
 
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0600)
 	assert.NoError(t, err)
 
 	promptID, err := service.CreateFromFile(context.Background(), filePath)
@@ -210,7 +210,7 @@ name: "Test Prompt"
 
 Some content`
 
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0600)
 	assert.NoError(t, err)
 
 	promptID, err := service.CreateFromFile(context.Background(), filePath)

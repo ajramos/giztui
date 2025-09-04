@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,16 +24,21 @@ func NewThemeLoader(themesDir string) *ThemeLoader {
 // LoadThemeFromFile loads a theme from a YAML file
 func (tl *ThemeLoader) LoadThemeFromFile(filename string) (*ColorsConfig, error) {
 	// Try to load from themes directory first
-	filepath := filepath.Join(tl.themesDir, filename)
-	if !fileExists(filepath) {
+	filePath := filepath.Join(tl.themesDir, filename)
+	if !fileExists(filePath) {
 		// Try absolute path
-		filepath = filename
-		if !fileExists(filepath) {
+		filePath = filename
+		if !fileExists(filePath) {
 			return nil, fmt.Errorf("theme file not found: %s", filename)
 		}
 	}
 
-	data, err := os.ReadFile(filepath)
+	// Validate path to prevent directory traversal
+	cleanPath := filepath.Clean(filePath)
+	if strings.Contains(cleanPath, "..") {
+		return nil, fmt.Errorf("invalid theme path: contains directory traversal")
+	}
+	data, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read theme file: %w", err)
 	}
@@ -73,11 +79,11 @@ func (tl *ThemeLoader) ListAvailableThemes() ([]string, error) {
 // SaveThemeToFile saves a theme configuration to a YAML file
 func (tl *ThemeLoader) SaveThemeToFile(theme *ColorsConfig, filename string) error {
 	// Ensure themes directory exists
-	if err := os.MkdirAll(tl.themesDir, 0755); err != nil {
+	if err := os.MkdirAll(tl.themesDir, 0750); err != nil {
 		return fmt.Errorf("failed to create themes directory: %w", err)
 	}
 
-	filepath := filepath.Join(tl.themesDir, filename)
+	filePath := filepath.Join(tl.themesDir, filename)
 
 	// Create theme structure
 	themeData := struct {
@@ -91,7 +97,7 @@ func (tl *ThemeLoader) SaveThemeToFile(theme *ColorsConfig, filename string) err
 		return fmt.Errorf("failed to marshal theme: %w", err)
 	}
 
-	if err := os.WriteFile(filepath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write theme file: %w", err)
 	}
 
@@ -207,14 +213,14 @@ func ApplyThemeToApp(theme *ColorsConfig, app interface{}) error {
 func GetThemePreview(theme *ColorsConfig) string {
 	preview := "🎨 Theme Preview:\n\n"
 
-	preview += fmt.Sprintf("📧 Email Colors:\n")
+	preview += "📧 Email Colors:\n"
 	preview += fmt.Sprintf("  • Unread: %s\n", theme.Email.UnreadColor)
 	preview += fmt.Sprintf("  • Read: %s\n", theme.Email.ReadColor)
 	preview += fmt.Sprintf("  • Important: %s\n", theme.Email.ImportantColor)
 	preview += fmt.Sprintf("  • Sent: %s\n", theme.Email.SentColor)
 	preview += fmt.Sprintf("  • Draft: %s\n", theme.Email.DraftColor)
 
-	preview += fmt.Sprintf("\n🎨 UI Colors:\n")
+	preview += "\n🎨 UI Colors:\n"
 	preview += fmt.Sprintf("  • Text: %s\n", theme.Body.FgColor)
 	preview += fmt.Sprintf("  • Background: %s\n", theme.Body.BgColor)
 	preview += fmt.Sprintf("  • Border: %s\n", theme.Frame.Border.FgColor)

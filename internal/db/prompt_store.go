@@ -29,7 +29,7 @@ func (ps *PromptStore) ListPromptTemplates(ctx context.Context, category string)
 		return nil, fmt.Errorf("prompt store not initialized")
 	}
 
-	query := `SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+	query := `SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count
 	          FROM prompt_templates`
 	args := []interface{}{}
 
@@ -44,7 +44,12 @@ func (ps *PromptStore) ListPromptTemplates(ctx context.Context, category string)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	var templates []*prompts.PromptTemplate
 	for rows.Next() {
@@ -68,7 +73,7 @@ func (ps *PromptStore) GetPromptTemplate(ctx context.Context, id int) (*prompts.
 
 	t := &prompts.PromptTemplate{}
 	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count
 		 FROM prompt_templates WHERE id = ?`, id).
 		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
 			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)
@@ -120,8 +125,8 @@ func (ps *PromptStore) GetPromptResult(ctx context.Context, accountEmail, messag
 
 	result := &prompts.PromptResult{}
 	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, account_email, message_id, prompt_id, result_text, created_at 
-		 FROM prompt_results WHERE account_email = ? AND message_id = ? AND prompt_id = ? 
+		`SELECT id, account_email, message_id, prompt_id, result_text, created_at
+		 FROM prompt_results WHERE account_email = ? AND message_id = ? AND prompt_id = ?
 		 ORDER BY created_at DESC LIMIT 1`,
 		accountEmail, messageID, promptID).
 		Scan(&result.ID, &result.AccountEmail, &result.MessageID, &result.PromptID,
@@ -165,8 +170,8 @@ func (ps *PromptStore) GetBulkPromptResult(ctx context.Context, accountEmail, ca
 
 	result := &prompts.BulkPromptResultDB{}
 	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, account_email, cache_key, prompt_id, message_count, message_ids, result_text, created_at 
-		 FROM bulk_prompt_results WHERE account_email = ? AND cache_key = ? 
+		`SELECT id, account_email, cache_key, prompt_id, message_count, message_ids, result_text, created_at
+		 FROM bulk_prompt_results WHERE account_email = ? AND cache_key = ?
 		 ORDER BY created_at DESC LIMIT 1`,
 		accountEmail, cacheKey).
 		Scan(&result.ID, &result.AccountEmail, &result.CacheKey, &result.PromptID,
@@ -197,7 +202,12 @@ func (ps *PromptStore) ClearPromptCache(ctx context.Context, accountEmail string
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	// Clear single prompt results
 	_, err = tx.ExecContext(ctx, "DELETE FROM prompt_results WHERE account_email = ?", accountEmail)
@@ -229,7 +239,12 @@ func (ps *PromptStore) ClearAllPromptCaches(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	// Clear all single prompt results
 	_, err = tx.ExecContext(ctx, "DELETE FROM prompt_results")
@@ -288,7 +303,7 @@ func (ps *PromptStore) UpdatePromptTemplate(ctx context.Context, id int, name, d
 	}
 
 	result, err := ps.db.ExecContext(ctx,
-		`UPDATE prompt_templates 
+		`UPDATE prompt_templates
 		 SET name = ?, description = ?, prompt_text = ?, category = ?
 		 WHERE id = ?`,
 		name, description, promptText, category, id)
@@ -344,7 +359,7 @@ func (ps *PromptStore) FindPromptByName(ctx context.Context, name string) (*prom
 
 	t := &prompts.PromptTemplate{}
 	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count 
+		`SELECT id, name, description, prompt_text, category, created_at, is_favorite, usage_count
 		 FROM prompt_templates WHERE name = ?`, name).
 		Scan(&t.ID, &t.Name, &t.Description, &t.PromptText, &t.Category,
 			&t.CreatedAt, &t.IsFavorite, &t.UsageCount)

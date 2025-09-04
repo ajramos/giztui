@@ -19,16 +19,16 @@ Gmail TUI now follows a service-oriented architecture with clear separation of c
 func (a *App) handleUserAction() error {
     // 1. Get services
     emailService, aiService, labelService, cacheService, repository := a.GetServices()
-    
+
     // 2. Get state thread-safely
     messageID := a.GetCurrentMessageID()
-    
+
     // 3. Call service for business logic
     if err := emailService.DoOperation(a.ctx, messageID); err != nil {
         a.GetErrorHandler().ShowError(a.ctx, "Operation failed")
         return err
     }
-    
+
     // 4. Show success feedback
     a.GetErrorHandler().ShowSuccess(a.ctx, "Operation completed")
     return nil
@@ -53,7 +53,7 @@ func (a *App) handleUserAction() error {
 ```go
 // ✅ Correct
 app.GetErrorHandler().ShowError(ctx, "Operation failed")
-app.GetErrorHandler().ShowSuccess(ctx, "Operation completed") 
+app.GetErrorHandler().ShowSuccess(ctx, "Operation completed")
 app.GetErrorHandler().ShowProgress(ctx, "Loading...")
 
 // ❌ Wrong
@@ -127,12 +127,12 @@ func (a *App) badExample() {
 func (a *App) goodExample() {
     emailService, _, _, _, _ := a.GetServices()
     messageID := a.GetCurrentMessageID()
-    
+
     if err := emailService.LoadMessages(a.ctx); err != nil {
         a.GetErrorHandler().ShowError(a.ctx, "Failed to load messages")
         return
     }
-    
+
     a.SetCurrentMessageID("new-id")
     a.GetErrorHandler().ShowSuccess(a.ctx, "Messages loaded")
 }
@@ -146,7 +146,7 @@ func (a *App) goodExample() {
 - Test error conditions
 - Integration tests for complex workflows
 
-### **UI Testing**  
+### **UI Testing**
 - Mock services for UI tests
 - Focus on presentation logic
 - Test user interactions
@@ -176,7 +176,7 @@ Look for these patterns in UI code:
 When implementing new features:
 - [ ] Business logic is in services, not UI
 - [ ] Uses `GetServices()` to access functionality
-- [ ] Uses `GetErrorHandler()` for all user feedback  
+- [ ] Uses `GetErrorHandler()` for all user feedback
 - [ ] Uses thread-safe accessor methods for state
 - [ ] Follows established service interfaces
 - [ ] Includes proper error handling

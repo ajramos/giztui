@@ -68,8 +68,8 @@ message_id: {{message_id}}
 
 # {{subject}}
 
-**From:** {{from}}  
-**Date:** {{date}}  
+**From:** {{from}}
+**Date:** {{date}}
 **Labels:** {{labels}}
 
 {{comment}}

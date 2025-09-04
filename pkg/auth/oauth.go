@@ -54,7 +54,12 @@ func (c *OAuth2Config) LoadToken(config *oauth2.Config) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	token := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(token)
@@ -65,7 +70,7 @@ func (c *OAuth2Config) LoadToken(config *oauth2.Config) (*oauth2.Token, error) {
 func (c *OAuth2Config) SaveToken(token *oauth2.Token) error {
 	// Ensure directory exists
 	dir := filepath.Dir(c.TokenPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return err
 	}
 
@@ -73,7 +78,12 @@ func (c *OAuth2Config) SaveToken(token *oauth2.Token) error {
 	if err != nil {
 		return fmt.Errorf("could not save OAuth token: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	return json.NewEncoder(f).Encode(token)
 }
@@ -132,7 +142,8 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 
 	// Start local server
 	server := &http.Server{
-		Addr: ":8080",
+		Addr:              ":8080",
+		ReadHeaderTimeout: 10 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			code := r.URL.Query().Get("code")
 			if code != "" {

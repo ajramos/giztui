@@ -544,7 +544,12 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	// Try to load from config file
 	if configPath != "" {
-		if data, err := os.ReadFile(configPath); err == nil {
+		// Validate path to prevent directory traversal
+		cleanPath := filepath.Clean(configPath)
+		if strings.Contains(cleanPath, "..") {
+			return nil, fmt.Errorf("invalid config path: contains directory traversal")
+		}
+		if data, err := os.ReadFile(cleanPath); err == nil {
 			if err := json.Unmarshal(data, cfg); err != nil {
 				return nil, err
 			}
@@ -827,7 +832,7 @@ func DefaultLogDir() string {
 func (c *Config) SaveConfig(path string) error {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return err
 	}
 
@@ -836,7 +841,7 @@ func (c *Config) SaveConfig(path string) error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0600)
 }
 
 // GetLLMTimeout returns parsed timeout for LLM
@@ -862,7 +867,12 @@ func LoadTemplate(templatePath, inlinePrompt, fallbackPrompt string) string {
 			fullPath = filepath.Join(configDir, templatePath)
 		}
 
-		if content, err := os.ReadFile(fullPath); err == nil {
+		// Validate path to prevent directory traversal
+		cleanPath := filepath.Clean(fullPath)
+		if strings.Contains(cleanPath, "..") {
+			return fallbackPrompt
+		}
+		if content, err := os.ReadFile(cleanPath); err == nil {
 			return strings.TrimSpace(string(content))
 		}
 	}

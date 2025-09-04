@@ -9,21 +9,7 @@ import (
 	"github.com/derailed/tview"
 )
 
-// createWelcomeView builds a composite welcome view for initial app state.
-// It returns a tview primitive that can be mounted inside the text container.
-// Note: For simplicity and to keep message rendering logic unchanged, we
-// currently render the welcome content into the existing `text` view via
-// showWelcomeScreen. This constructor remains available if we later decide
-// to swap widgets in the `textContainer` instead of writing text.
-func (a *App) createWelcomeView(loading bool, accountEmail string) tview.Primitive {
-	tv := tview.NewTextView().
-		SetDynamicColors(true).
-		SetWrap(true).
-		SetScrollable(true)
-	tv.SetBorder(false)
-	tv.SetText(a.buildWelcomeText(loading, accountEmail, 0))
-	return tv
-}
+// OBLITERATED: createWelcomeView - unused function eliminated! 💥
 
 // showWelcomeScreen renders the welcome content into the existing message
 // content area. When loading is true, it shows a lightweight animated dots

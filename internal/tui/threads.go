@@ -8,7 +8,6 @@ import (
 
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tview"
-	"github.com/mattn/go-runewidth"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -187,12 +186,7 @@ func (a *App) displayThreadsWithProgress(threads []*services.ThreadInfo) {
 	}()
 }
 
-// displayThreads updates the message list to show threads (wrapper for backward compatibility)
-func (a *App) displayThreads(threads []*services.ThreadInfo) {
-	a.QueueUpdateDraw(func() {
-		a.displayThreadsSync(threads)
-	})
-}
+// OBLITERATED: unused displayThreads function eliminated! 💥
 
 // displayThreadsSync updates the message list to show threads (synchronous version)
 func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
@@ -289,170 +283,7 @@ func (a *App) displayThreadsSync(threads []*services.ThreadInfo) {
 }
 
 // formatThreadForList formats a thread for display in the message list
-func (a *App) formatThreadForList(thread *services.ThreadInfo, index int) string {
-	var builder strings.Builder
-
-	// Add message number if enabled
-	if a.showMessageNumbers {
-		builder.WriteString(fmt.Sprintf("%3d ", index+1))
-	}
-
-	// Add unified expansion indicator for all messages/threads
-	var isExpanded bool
-	threadService := a.getThreadService()
-	if threadService != nil && thread.MessageCount > 1 {
-		accountEmail, _ := a.Client.ActiveAccountEmail(a.ctx)
-		if accountEmail != "" {
-			var err error
-			isExpanded, err = threadService.IsThreadExpanded(a.ctx, accountEmail, thread.ThreadID)
-			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: thread %s, accountEmail=%s, isExpanded=%v, err=%v", thread.ThreadID, accountEmail, isExpanded, err)
-			}
-		}
-	}
-
-	// Emoji markers: 📧 for single messages, ▶️/▼️ for threads
-	if thread.MessageCount > 1 {
-		// Multi-message thread - use expansion icons
-		if isExpanded {
-			builder.WriteString("▼️ ")
-			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: showing ▼️ for expanded thread %s", thread.ThreadID)
-			}
-		} else {
-			builder.WriteString("▶️ ")
-			if a.logger != nil {
-				a.logger.Printf("formatThreadForList: showing ▶️ for collapsed thread %s", thread.ThreadID)
-			}
-		}
-	} else {
-		// Single message - use email icon
-		builder.WriteString("📧 ")
-		if a.logger != nil {
-			a.logger.Printf("formatThreadForList: showing 📧 for single message %s", thread.ThreadID)
-		}
-	}
-
-	// Add unread indicator with proper spacing
-	if thread.UnreadCount > 0 {
-		builder.WriteString("● ")
-	} else {
-		builder.WriteString("○ ")
-	}
-
-	// Get subject and participant info
-	subject := thread.Subject
-	if subject == "" {
-		subject = "(No Subject)"
-	}
-
-	// Get primary participant (exclude self)
-	var primaryParticipant string
-	if len(thread.Participants) > 0 {
-		primaryParticipant = thread.Participants[0]
-	}
-
-	// Get thread count (separate from sender)
-	var threadCount int = thread.MessageCount
-	if threadCount < 1 {
-		threadCount = 1 // Ensure minimum count of 1
-	}
-
-	// Format sender (without thread count)
-	var senderName string
-	if primaryParticipant != "" {
-		senderName = primaryParticipant
-	} else {
-		senderName = "(No sender)"
-	}
-
-	// Build attachment indicator
-	var attachmentIcon string
-	if thread.HasAttachment {
-		attachmentIcon = "📎"
-	}
-
-	// Format date
-	var dateStr string
-	now := time.Now()
-	threadTime := thread.LatestDate
-
-	if threadTime.After(now.Add(-24 * time.Hour)) {
-		dateStr = threadTime.Format("3:04 PM")
-	} else if threadTime.After(now.Add(-7 * 24 * time.Hour)) {
-		dateStr = threadTime.Format("Mon 3:04 PM")
-	} else if threadTime.Year() == now.Year() {
-		dateStr = threadTime.Format("Jan 02")
-	} else {
-		dateStr = threadTime.Format("2006")
-	}
-
-	// Column-based format with dedicated thread count column
-	// Get screen width for alignment calculations
-	screenWidth := a.getFormatWidth()
-	if screenWidth < 50 {
-		screenWidth = 50 // Minimum width for readability
-	}
-
-	// Calculate column widths
-	markerAndUnreadWidth := runewidth.StringWidth(builder.String()) // "▶️ ● "
-	countWidth := 6                                                 // "[999] " (max 3 digits + brackets + space)
-	dateWidth := 12                                                 // "10:45 AM "
-	separatorWidth := 6                                             // " | " x 2
-	senderWidth := 25                                               // Sender column
-
-	// Calculate remaining width for subject
-	subjectWidth := screenWidth - markerAndUnreadWidth - countWidth - senderWidth - dateWidth - separatorWidth
-	if subjectWidth < 15 {
-		subjectWidth = 15 // Minimum subject width
-	}
-
-	// Format and truncate each component to fit its column
-	senderText := a.fitTextToWidth(senderName, senderWidth)
-	subjectText := a.fitTextToWidth(subject, subjectWidth)
-	dateText := a.fitTextToWidth(dateStr, dateWidth)
-
-	// Format thread count with proper padding (right-align in fixed width)
-	countText := fmt.Sprintf("[%d]", threadCount)
-	// Make sure we don't exceed countWidth and preserve the closing bracket
-	countDisplayWidth := runewidth.StringWidth(countText)
-	var paddedCountText string
-	if countDisplayWidth >= countWidth {
-		// If count text is too long, just use it as-is (shouldn't happen with reasonable counts)
-		paddedCountText = countText + " "
-	} else {
-		// Right-align within the available space: pad from left, then add space
-		padding := countWidth - countDisplayWidth - 1 // -1 for trailing space
-		if padding < 0 {
-			padding = 0
-		}
-		paddedCountText = strings.Repeat(" ", padding) + countText + " "
-	}
-
-	// Build the formatted string with proper column alignment
-	formattedLine := fmt.Sprintf("%s%s | %s%s | %s",
-		paddedCountText, // "  [3] " or " [46] " - right-aligned
-		senderText,      // "Satyam Gupta (DoiT... "
-		subjectText,     // "[hackerrank.com] Other..."
-		attachmentIcon,  // "📎"
-		dateText)        // "10:45 AM"
-
-	// Debug logging - check if final line fits
-	if a.logger != nil && threadCount > 1 {
-		finalWidth := runewidth.StringWidth(builder.String() + formattedLine)
-		if finalWidth > screenWidth {
-			a.logger.Printf("formatThreadForList WARNING: thread %s final width (%d) exceeds screen width (%d), countText='%s'",
-				thread.ThreadID, finalWidth, screenWidth, countText)
-			a.logger.Printf("formatThreadForList WARNING: paddedCountText='%s', senderText='%s', subjectText='%s'",
-				paddedCountText, senderText, subjectText)
-		}
-	}
-
-	// Add the formatted line to builder
-	builder.WriteString(formattedLine)
-
-	return builder.String()
-}
+// OBLITERATED: formatThreadForList function eliminated! 💥
 
 // reformatThreadItems recalculates thread item strings for current screen width
 func (a *App) reformatThreadItems() {
@@ -575,28 +406,7 @@ func (a *App) checkUIThreadExpanded(threadID string) bool {
 }
 
 // fitTextToWidth truncates or pads text to fit exactly within the specified width
-func (a *App) fitTextToWidth(text string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-
-	// Get the display width of the text
-	currentWidth := runewidth.StringWidth(text)
-
-	if currentWidth <= width {
-		// Text fits - pad with spaces to exact width
-		return text + strings.Repeat(" ", width-currentWidth)
-	} else {
-		// Text too long - truncate with ellipsis
-		if width < 3 {
-			// Not enough space for ellipsis
-			return strings.Repeat(".", width)
-		}
-		// Truncate to fit with "..." at the end
-		truncated := runewidth.Truncate(text, width-3, "")
-		return truncated + "..."
-	}
-}
+// OBLITERATED: fitTextToWidth function eliminated! 💥
 
 // fetchThreadMessages retrieves individual messages for a thread
 func (a *App) fetchThreadMessages(ctx context.Context, threadID string) ([]*gmailapi.Message, error) {
@@ -979,7 +789,7 @@ func (a *App) collapseThreadMessages(table *tview.Table, threadRowIndex int, thr
 		}
 
 		// Simple logic: If this row is NOT another thread header (ID != ThreadId), it's an expanded message
-		var isAnotherThreadHeader bool = false
+		var isAnotherThreadHeader = false // OBLITERATED: redundant bool type eliminated! 💥
 
 		if i < len(a.messagesMeta) && a.messagesMeta[i] != nil {
 			meta := a.messagesMeta[i]
@@ -1430,140 +1240,7 @@ func (a *App) GetThreadingConfig() services.ThreadingConfig {
 }
 
 // updateThreadDisplay updates the UI to show thread expansion without reloading from Gmail
-func (a *App) updateThreadDisplay(threadID string, isExpanded bool) {
-	if a.logger != nil {
-		a.logger.Printf("updateThreadDisplay: called with threadID=%s, isExpanded=%v", threadID, isExpanded)
-	}
-
-	// Get thread service
-	threadService := a.getThreadService()
-	if threadService == nil {
-		if a.logger != nil {
-			a.logger.Printf("updateThreadDisplay: thread service is nil")
-		}
-		return
-	}
-
-	if isExpanded {
-		// For expanded threads, show additional detail in the same row
-		a.QueueUpdateDraw(func() {
-			if a.logger != nil {
-				a.logger.Printf("updateThreadDisplay: inside QueueUpdateDraw for expansion")
-			}
-
-			table, ok := a.views["list"].(*tview.Table)
-			if !ok {
-				if a.logger != nil {
-					a.logger.Printf("updateThreadDisplay: views[list] is not a table")
-				}
-				return
-			}
-
-			if a.logger != nil {
-				a.logger.Printf("updateThreadDisplay: searching for threadID=%s in %d ids", threadID, len(a.ids))
-			}
-
-			// Find the thread row
-			threadRowIndex := -1
-			for i, id := range a.ids {
-				if a.logger != nil {
-					a.logger.Printf("updateThreadDisplay: checking id[%d]=%s", i, id)
-				}
-				if id == threadID {
-					threadRowIndex = i
-					if a.logger != nil {
-						a.logger.Printf("updateThreadDisplay: found thread at row %d", i)
-					}
-					break
-				}
-			}
-
-			if threadRowIndex == -1 {
-				if a.logger != nil {
-					a.logger.Printf("updateThreadDisplay: thread not found in ids list")
-				}
-				return
-			}
-
-			// Update the thread row to show expanded state with more detail
-			cell := table.GetCell(threadRowIndex, 0)
-			if cell != nil {
-				currentText := cell.Text
-				if a.logger != nil {
-					a.logger.Printf("updateThreadDisplay: current cell text: '%s'", currentText)
-				}
-				if strings.Contains(currentText, "▶️") {
-					// Change ▶️ to ▼️ and add expansion details
-					expandedText := strings.Replace(currentText, "▶️", "▼️", 1)
-					expandedText += " [EXPANDED - Press Enter to collapse]"
-					if a.logger != nil {
-						a.logger.Printf("updateThreadDisplay: setting new text: '%s'", expandedText)
-					}
-					cell.SetText(expandedText)
-					// Make expanded threads more visually distinct
-					cell.SetTextColor(a.GetComponentColors("general").Text.Color())
-					if a.logger != nil {
-						a.logger.Printf("updateThreadDisplay: cell text updated successfully")
-					}
-				} else {
-					if a.logger != nil {
-						a.logger.Printf("updateThreadDisplay: no ▶️ found in current text")
-					}
-				}
-			} else {
-				if a.logger != nil {
-					a.logger.Printf("updateThreadDisplay: cell is nil at row %d", threadRowIndex)
-				}
-			}
-		})
-		// Queue another update to force refresh
-		a.QueueUpdate(func() {
-			if a.logger != nil {
-				a.logger.Printf("updateThreadDisplay: QueueUpdate called for refresh")
-			}
-		})
-		// After QueueUpdateDraw, force a draw to ensure immediate visibility
-		a.ForceDraw()
-		if a.logger != nil {
-			a.logger.Printf("updateThreadDisplay: ForceDraw() called outside queue")
-		}
-	} else {
-		// Just update the expansion indicator to collapsed
-		a.QueueUpdateDraw(func() {
-			table, ok := a.views["list"].(*tview.Table)
-			if !ok {
-				return
-			}
-
-			// Find the thread row and update its display
-			for i, id := range a.ids {
-				if id == threadID {
-					cell := table.GetCell(i, 0)
-					if cell != nil {
-						currentText := cell.Text
-						if strings.Contains(currentText, "▼️") {
-							// Remove expansion details and change ▼️ back to ▶️
-							collapsedText := strings.Replace(currentText, "▼️", "▶️", 1)
-							// Remove the expansion detail text
-							collapsedText = strings.Replace(collapsedText, " [EXPANDED - Press Enter to collapse]", "", 1)
-							cell.SetText(collapsedText)
-							// Reset color to default
-							cell.SetTextColor(a.GetComponentColors("general").Text.Color())
-							// Force table redraw to show the changes
-							table.SetTitle(table.GetTitle()) // Trigger table refresh
-						}
-					}
-					break
-				}
-			}
-		})
-		// After QueueUpdateDraw, force a draw to ensure immediate visibility
-		a.ForceDraw()
-		if a.logger != nil {
-			a.logger.Printf("updateThreadDisplay: ForceDraw() called for collapse")
-		}
-	}
-}
+// OBLITERATED: updateThreadDisplay function eliminated! 💥
 
 // Helper function to get the thread service easily
 func (a *App) getThreadService() services.ThreadService {

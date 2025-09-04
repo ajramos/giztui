@@ -210,37 +210,12 @@ func (a *App) FormatCode(text string) string {
 // Legacy compatibility helpers - maintain existing App methods but make them theme-aware
 // Note: These are alternatives to existing methods that will replace them
 
-// getThemeTitleColor returns theme-aware title color (new implementation)
-func (a *App) getThemeTitleColor() tcell.Color {
-	if a.currentTheme == nil {
-		// Use hierarchical theme system instead of hardcoded color
-		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
-	}
-	return a.currentTheme.UI.TitleColor.Color()
-}
-
-// getThemeFooterColor returns theme-aware footer color (new implementation)
-func (a *App) getThemeFooterColor() tcell.Color {
-	if a.currentTheme == nil {
-		// Use hierarchical theme system instead of hardcoded color
-		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
-	}
-	return a.currentTheme.UI.FooterColor.Color()
-}
-
-// getThemeHintColor returns theme-aware hint color (new implementation)
-func (a *App) getThemeHintColor() tcell.Color {
-	if a.currentTheme == nil {
-		// Use hierarchical theme system instead of hardcoded color
-		return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypeSecondary)
-	}
-	return a.currentTheme.UI.HintColor.Color()
-}
-
-// Additional helper for backward compatibility with existing error handler integration
-func (a *App) getStatusColorCompat(level string) tcell.Color {
-	return a.GetStatusColor(level)
-}
+// OBLITERATED: Unused theme helper functions removed
+// - getThemeTitleColor
+// - getThemeFooterColor
+// - getThemeHintColor
+// - getStatusColorCompat
+// QUAD KILL! 💀💀💀💀
 
 // GetInputFieldColors returns theme-aware colors for input fields using hierarchical system
 func (a *App) GetInputFieldColors() (bgColor, textColor tcell.Color) {

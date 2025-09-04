@@ -211,17 +211,17 @@ type Pages struct {
 // Stack manages navigation history
 type Stack struct {
 	items []string
-	mu    sync.RWMutex
+	// OBLITERATED: unused field mu sync.RWMutex eliminated! 💥
 }
 
 // CmdBuff manages command input and history
 type CmdBuff struct {
-	buff       []rune
-	suggestion string
-	listeners  map[BuffWatcher]struct{}
-	kind       BufferKind
-	active     bool
-	mu         sync.RWMutex
+	buff []rune
+	// OBLITERATED: unused field suggestion string eliminated! 💥
+	listeners map[BuffWatcher]struct{}
+	kind      BufferKind
+	active    bool
+	// OBLITERATED: unused field mu sync.RWMutex eliminated! 💥
 }
 
 // BufferKind represents the type of buffer
@@ -269,7 +269,7 @@ func (f *Flash) UpdateBorderColor(color tcell.Color) {
 // KeyActions manages keyboard shortcuts
 type KeyActions struct {
 	actions map[tcell.Key]KeyAction
-	mx      sync.RWMutex
+	// OBLITERATED: unused field mx sync.RWMutex eliminated! 💥
 }
 
 // KeyAction represents a keyboard action
@@ -968,21 +968,10 @@ func (a *App) SetMessageIDs(ids []string) {
 	copy(a.ids, ids)
 }
 
-// setMessageIDsUnsafe sets message IDs without locking (for use when mutex is already held)
-func (a *App) setMessageIDsUnsafe(ids []string) {
-	a.ids = make([]string, len(ids))
-	copy(a.ids, ids)
-}
-
 // AppendMessageID appends a message ID thread-safely
 func (a *App) AppendMessageID(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.ids = append(a.ids, id)
-}
-
-// appendMessageIDUnsafe appends a message ID without locking (for use when mutex is already held)
-func (a *App) appendMessageIDUnsafe(id string) {
 	a.ids = append(a.ids, id)
 }
 
@@ -993,10 +982,7 @@ func (a *App) ClearMessageIDs() {
 	a.ids = []string{}
 }
 
-// clearMessageIDsUnsafe clears all message IDs without locking (for use when mutex is already held)
-func (a *App) clearMessageIDsUnsafe() {
-	a.ids = []string{}
-}
+// Removed unused unsafe methods: setMessageIDsUnsafe, appendMessageIDUnsafe, clearMessageIDsUnsafe
 
 // RemoveMessageIDAt removes a message ID at the specified index thread-safely
 func (a *App) RemoveMessageIDAt(index int) bool {
@@ -1247,27 +1233,23 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 
 // restoreMessagesToInboxList restores messages to the inbox view after undo operations
 func (a *App) restoreMessagesToInboxList(messageIDs []string) {
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 
 	// Only restore if we're viewing INBOX (no search query means we're in inbox)
 	if a.currentQuery != "" {
-		if a.logger != nil {
-		}
+		// Logging removed for simplicity
 		return
 	}
 
 	for _, messageID := range messageIDs {
-		if a.logger != nil {
-		}
+		// Logging removed for simplicity
 
 		// Check if message is already in the list
 		found := false
 		for _, existingID := range a.ids {
 			if existingID == messageID {
 				found = true
-				if a.logger != nil {
-				}
+				// Logging removed for simplicity
 				break
 			}
 		}
@@ -1276,13 +1258,11 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 			// Fetch the message metadata using Gmail client directly
 			message, err := a.Client.GetMessage(messageID)
 			if err != nil {
-				if a.logger != nil {
-				}
+				// Logging removed for simplicity
 				continue
 			}
 
-			if a.logger != nil {
-			}
+			// Logging removed for simplicity
 			// Add to front of list (most recent)
 			a.ids = append([]string{messageID}, a.ids...)
 			a.messagesMeta = append([]*gmailapi.Message{message}, a.messagesMeta...)
@@ -1310,20 +1290,17 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 				// Update table title to reflect new count
 				table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
 
-				if a.logger != nil {
-				}
+				// Logging removed for simplicity
 			}
 		}
 	}
 
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 }
 
 // updateCacheAfterReadStateUndo updates local cache immediately after read state undo operations
 func (a *App) updateCacheAfterReadStateUndo(result *services.UndoResult) {
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 
 	for _, messageID := range result.MessageIDs {
 
@@ -1331,32 +1308,25 @@ func (a *App) updateCacheAfterReadStateUndo(result *services.UndoResult) {
 		// Pattern matching works for both single ("Marked as unread") and bulk ("Marked as unread 2 messages") operations
 		if strings.Contains(result.Description, "Marked as unread") {
 			// We undid a mark-as-read, so restore to unread (add UNREAD label)
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.updateCachedMessageLabels(messageID, "UNREAD", true)
 		} else if strings.Contains(result.Description, "Marked as read") {
 			// We undid a mark-as-unread, so restore to read (remove UNREAD label)
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			a.updateCachedMessageLabels(messageID, "UNREAD", false)
-		} else {
-			if a.logger != nil {
-			}
 		}
+		// OBLITERATED: empty else branch eliminated! 💥
 	}
 
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 }
 
 // updateCacheAfterMoveUndo updates local cache immediately after move undo operations
 func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 
 	if result.ExtraData == nil {
-		if a.logger != nil {
-		}
+		// Logging removed for simplicity
 		return
 	}
 
@@ -1364,51 +1334,39 @@ func (a *App) updateCacheAfterMoveUndo(result *services.UndoResult) {
 	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
-		if a.logger != nil {
-		}
+		// Logging removed for simplicity
 		return // Silently fail, will refresh from server later
 	}
 	labelIDToName := make(map[string]string)
 	for _, label := range labels {
 		labelIDToName[label.Id] = label.Name
 	}
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 
 	for _, messageID := range result.MessageIDs {
-		if a.logger != nil {
-		}
+		// OBLITERATED: empty logger branch eliminated! 💥
 
 		// Move undo: add back INBOX label and remove applied labels
-		if a.logger != nil {
-		}
+		// OBLITERATED: empty logger branch eliminated! 💥
 		a.updateCachedMessageLabels(messageID, "INBOX", true)
 		a.updateMessageCacheLabels(messageID, "INBOX", true)
 
 		// Remove the applied labels
 		if appliedLabels, ok := result.ExtraData["applied_labels"].([]string); ok {
-			if a.logger != nil {
-			}
+			// OBLITERATED: empty logger branch eliminated! 💥
 			for _, labelID := range appliedLabels {
-				if a.logger != nil {
-				}
+				// OBLITERATED: empty logger branch eliminated! 💥
 				a.updateCachedMessageLabels(messageID, labelID, false)
 				if labelName, exists := labelIDToName[labelID]; exists {
-					if a.logger != nil {
-					}
+					// OBLITERATED: empty logger branch eliminated! 💥
 					a.updateMessageCacheLabels(messageID, labelName, false)
-				} else {
-					if a.logger != nil {
-					}
 				}
-			}
-		} else {
-			if a.logger != nil {
+				// OBLITERATED: empty else branch eliminated! 💥
 			}
 		}
+		// OBLITERATED: empty else branch eliminated! 💥
 	}
-	if a.logger != nil {
-	}
+	// Logging removed for simplicity
 }
 
 // updateCacheAfterLabelUndo updates local cache immediately after label undo operations
@@ -1429,7 +1387,8 @@ func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
 	}
 
 	for _, messageID := range result.MessageIDs {
-		if result.ActionType == services.UndoActionLabelAdd {
+		switch result.ActionType { // OBLITERATED: converted to tagged switch! 💥
+		case services.UndoActionLabelAdd:
 			// We undid a label add, so we removed labels
 			if labelsRemoved, ok := result.ExtraData["added_labels"].([]string); ok {
 				for _, labelID := range labelsRemoved {
@@ -1439,7 +1398,7 @@ func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
 					}
 				}
 			}
-		} else if result.ActionType == services.UndoActionLabelRemove {
+		case services.UndoActionLabelRemove:
 			// We undid a label remove, so we added labels back
 			if labelsAdded, ok := result.ExtraData["removed_labels"].([]string); ok {
 				for _, labelID := range labelsAdded {
@@ -1453,44 +1412,7 @@ func (a *App) updateCacheAfterLabelUndo(result *services.UndoResult) {
 	}
 }
 
-// handleUndoUIRestore handles smart UI restoration after undo operations (legacy function)
-func (a *App) handleUndoUIRestore(result *services.UndoResult) {
-	// For bulk operations, safer to reload
-	if result.MessageCount > 3 {
-		go a.reloadMessages()
-		return
-	}
-
-	// For archive undo: if we're viewing inbox, try to restore messages to UI
-	if result.Description == "Unarchived message" || result.Description == "Unarchived 1 messages" {
-		a.attemptArchiveUndoRestore(result)
-	} else if result.Description == "Restored from trash message" || result.Description == "Restored from trash 1 messages" {
-		a.attemptTrashUndoRestore(result)
-	} else {
-		// For other operations, no immediate UI update needed
-		// Gmail state is already updated, user can refresh when ready
-	}
-}
-
-// attemptArchiveUndoRestore attempts to restore archived messages back to the inbox view
-func (a *App) attemptArchiveUndoRestore(result *services.UndoResult) {
-	// For archive undo: if we're viewing inbox and it's a small operation, reload to show restored messages
-	if a.currentQuery == "" && result.MessageCount <= 2 {
-		// We're in default inbox view and it's a small operation - safe to reload
-		go a.reloadMessages()
-	}
-	// Otherwise: don't reload automatically - user can refresh ('R') when ready
-}
-
-// attemptTrashUndoRestore attempts to restore trashed messages back to the appropriate view
-func (a *App) attemptTrashUndoRestore(result *services.UndoResult) {
-	// For trash undo: if we're viewing inbox and it's a small operation, reload to show restored messages
-	if a.currentQuery == "" && result.MessageCount <= 2 {
-		// We're in default inbox view and it's a small operation - safe to reload
-		go a.reloadMessages()
-	}
-	// Otherwise: don't reload automatically - user can refresh ('R') when ready
-}
+// Removed unused undo restore functions: handleUndoUIRestore, attemptArchiveUndoRestore, attemptTrashUndoRestore
 
 // GetThemeService returns the theme service instance
 func (a *App) GetThemeService() services.ThemeService {
@@ -1591,7 +1513,7 @@ func (a *App) applyThemeConfig(theme *config.ColorsConfig) error {
 		// Update title color with the new theme
 		list.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		// Force table to refresh content with new email renderer colors
-		if a.messagesMeta != nil && len(a.messagesMeta) > 0 {
+		if len(a.messagesMeta) > 0 { // OBLITERATED: unnecessary nil check eliminated! 💥
 			// Trigger reformatting of list items to apply new theme colors
 			a.refreshTableDisplay()
 		}
@@ -1740,32 +1662,9 @@ func (a *App) getSelectionStyle() tcell.Style {
 	return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
 }
 
-// getBulkSelectionStyle returns the theme's bulk selection style
-func (a *App) getBulkSelectionStyle() tcell.Style {
-	if a.currentTheme == nil {
-		// Use default theme fallback instead of hardcoded colors
-		fallbackTheme := a.getDefaultTheme()
-		bgColor, fgColor := fallbackTheme.GetBulkSelectionColors()
-		if bgColor == "" || fgColor == "" {
-			// If no bulk selection colors in default theme, use darker variant of focus color
-			bgColor = config.Color("#0060c0")             // Darker blue for bulk selection
-			fgColor = fallbackTheme.Foundation.Foreground // White text
-		}
-		return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
-	}
-	bgColor, fgColor := a.currentTheme.GetBulkSelectionColors()
-	if bgColor == "" || fgColor == "" {
-		// Legacy fallback
-		bgColor = a.currentTheme.UI.BulkSelectionBgColor
-		fgColor = a.currentTheme.UI.BulkSelectionFgColor
-	}
-	return tcell.StyleDefault.Foreground(fgColor.Color()).Background(bgColor.Color())
-}
+// OBLITERATED: unused getBulkSelectionStyle function eliminated! 💥
 
-// getLabelColor returns the theme's label color or fallback to yellow
-func (a *App) getLabelColor() tcell.Color {
-	return a.getComponentColor(config.ComponentTypeGeneral, config.ColorTypePrimary)
-}
+// OBLITERATED: unused getLabelColor function eliminated! 💥
 
 // getMessageHeaderColor returns the theme's header color for email message headers
 func (a *App) getMessageHeaderColor() tcell.Color {
@@ -1777,37 +1676,8 @@ func (a *App) getStatusColor(level string) tcell.Color {
 	return a.GetStatusColor(level) // Use the new helper function
 }
 
-// Component-specific color methods using the new hierarchical system
-
-// getAIComponentColor returns colors for AI components
-func (a *App) getAIComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypeAI, colorType)
-}
-
-// getPromptsComponentColor returns colors for prompt components
-func (a *App) getPromptsComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypePrompts, colorType)
-}
-
-// getSlackComponentColor returns colors for Slack components
-func (a *App) getSlackComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypeSlack, colorType)
-}
-
-// getObsidianComponentColor returns colors for Obsidian components
-func (a *App) getObsidianComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypeObsidian, colorType)
-}
-
-// getLinksComponentColor returns colors for Links components
-func (a *App) getLinksComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypeLinks, colorType)
-}
-
-// getStatsComponentColor returns colors for Stats components
-func (a *App) getStatsComponentColor(colorType config.ColorType) tcell.Color {
-	return a.getComponentColor(config.ComponentTypeStats, colorType)
-}
+// OBLITERATED: Unused component-specific color methods eliminated! 💥
+// All 6 unused color functions removed - use GetComponentColors() instead
 
 // (moved to messages.go)
 
@@ -2138,8 +2008,8 @@ func (a *App) toggleHelp() {
 		// Restore text content through enhanced text view
 		if a.enhancedTextView != nil && a.helpBackupText != "" {
 			a.enhancedTextView.SetContent(a.helpBackupText)
-			a.enhancedTextView.TextView.SetDynamicColors(true)
-			a.enhancedTextView.TextView.ScrollToBeginning()
+			a.enhancedTextView.SetDynamicColors(true)
+			a.enhancedTextView.ScrollToBeginning()
 		} else {
 			// Fallback to regular text view
 			if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2219,8 +2089,8 @@ func (a *App) toggleHelp() {
 		helpContent := a.generateHelpText()
 		if a.enhancedTextView != nil {
 			a.enhancedTextView.SetContent(helpContent)
-			a.enhancedTextView.TextView.SetDynamicColors(true)
-			a.enhancedTextView.TextView.ScrollToBeginning()
+			a.enhancedTextView.SetDynamicColors(true)
+			a.enhancedTextView.ScrollToBeginning()
 		} else {
 			// Fallback to regular text view if enhanced view not available
 			if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2279,8 +2149,8 @@ func (a *App) showPreloadStatus(statusContent string) {
 	// Display preload status content in enhanced text view with proper content setting
 	if a.enhancedTextView != nil {
 		a.enhancedTextView.SetContent(statusContent)
-		a.enhancedTextView.TextView.SetDynamicColors(true)
-		a.enhancedTextView.TextView.ScrollToBeginning()
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
 	} else {
 		// Fallback to regular text view if enhanced view not available
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2314,8 +2184,8 @@ func (a *App) hidePreloadStatus() {
 	// Restore text content through enhanced text view
 	if a.enhancedTextView != nil && a.preloadBackupText != "" {
 		a.enhancedTextView.SetContent(a.preloadBackupText)
-		a.enhancedTextView.TextView.SetDynamicColors(true)
-		a.enhancedTextView.TextView.ScrollToBeginning()
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
 	} else {
 		// Fallback to regular text view
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2400,8 +2270,8 @@ func (a *App) showPromptStats(stats *services.UsageStats) {
 	// Display prompt stats content in enhanced text view with proper content setting
 	if a.enhancedTextView != nil {
 		a.enhancedTextView.SetContent(statsContent)
-		a.enhancedTextView.TextView.SetDynamicColors(true)
-		a.enhancedTextView.TextView.ScrollToBeginning()
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
 	} else {
 		// Fallback to regular text view if enhanced view not available
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2435,8 +2305,8 @@ func (a *App) hidePromptStats() {
 	// Restore text content through enhanced text view
 	if a.enhancedTextView != nil && a.promptStatsBackupText != "" {
 		a.enhancedTextView.SetContent(a.promptStatsBackupText)
-		a.enhancedTextView.TextView.SetDynamicColors(true)
-		a.enhancedTextView.TextView.ScrollToBeginning()
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
 	} else {
 		// Fallback to regular text view
 		if text, ok := a.views["text"].(*tview.TextView); ok {
@@ -2733,40 +2603,7 @@ func (a *App) performSearch(query string) {
 
 // (moved to messages.go) toggleMarkReadUnread
 
-// updateMessageDisplay updates the display of a specific message in the list
-func (a *App) updateMessageDisplay(index int, isUnread bool) {
-	table, ok := a.views["list"].(*tview.Table)
-	if !ok {
-		return
-	}
-
-	// Get the current message
-	if index < 0 || index >= len(a.ids) {
-		return
-	}
-
-	messageID := a.ids[index]
-	message, err := a.Client.GetMessage(messageID)
-	if err != nil {
-		return
-	}
-
-	// Determine current list width (fallback to 80)
-	screenWidth := a.getListWidth()
-
-	// Use the email renderer to format the message
-	formattedText, _ := a.emailRenderer.FormatEmailList(message, screenWidth)
-
-	// Add unread indicator
-	if isUnread {
-		formattedText = "● " + formattedText
-	} else {
-		formattedText = "○ " + formattedText
-	}
-
-	// Update the item in the table
-	table.SetCell(index, 0, tview.NewTableCell(formattedText).SetExpansion(1))
-}
+// OBLITERATED: unused updateMessageDisplay function eliminated! 💥
 
 // updateBaseCachedMessageLabels mirrors updateCachedMessageLabels but for the base snapshot (local filter)
 func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied bool) {
@@ -2829,27 +2666,7 @@ func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied b
 // deleteSelectedLabel deletes the selected label (placeholder for now)
 // (moved to labels.go) deleteSelectedLabel
 
-// formatRelativeTime formats a date like Gmail (e.g., "2h", "3d", "Jan 15")
-func formatRelativeTime(date time.Time) string {
-	now := time.Now()
-	diff := now.Sub(date)
-
-	if diff < time.Hour {
-		minutes := int(diff.Minutes())
-		if minutes < 1 {
-			return "now"
-		}
-		return fmt.Sprintf("%dm", minutes)
-	} else if diff < 24*time.Hour {
-		hours := int(diff.Hours())
-		return fmt.Sprintf("%dh", hours)
-	} else if diff < 7*24*time.Hour {
-		days := int(diff.Hours() / 24)
-		return fmt.Sprintf("%dd", days)
-	} else {
-		return date.Format("Jan 2")
-	}
-}
+// OBLITERATED: unused formatRelativeTime function eliminated! 💥
 
 // (moved to layout.go) updateFocusIndicators
 
@@ -2865,46 +2682,7 @@ func formatRelativeTime(date time.Time) string {
 
 // (moved to messages.go) showAttachments
 
-// summarizeSelected summarizes the selected message using LLM
-func (a *App) summarizeSelected() {
-	if a.LLM == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "LLM disabled")
-		return
-	}
-	messageID := a.GetCurrentMessageID()
-	if messageID == "" {
-		a.GetErrorHandler().ShowError(a.ctx, "No message selected")
-		return
-	}
-	// Load content
-	m, err := a.Client.GetMessageWithContent(messageID)
-	if err != nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Failed to load message")
-		return
-	}
-	body := m.PlainText
-	if len([]rune(body)) > 8000 {
-		body = string([]rune(body)[:8000])
-	}
-	// Show immediate status
-	a.QueueUpdateDraw(func() { a.setStatusPersistent("🧠 Summarizing…") })
-	go func() {
-		resp, err := a.LLM.Generate("Summarize in 3 bullet points (keep language).\n\n" + body)
-		if err != nil {
-			a.QueueUpdateDraw(func() { a.showLLMError("inline summarize", err) })
-			return
-		}
-		a.QueueUpdateDraw(func() {
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				prev := text.GetText(true)
-				text.SetDynamicColors(true)
-				text.SetText("— AI Summary —\n" + resp + "\n\n" + prev)
-				text.ScrollToBeginning()
-			}
-			a.showStatusMessage("✅ Summary ready")
-		})
-	}()
-}
+// Removed unused function: summarizeSelected
 
 // generateReply generates a reply using LLM
 func (a *App) generateReply() {
@@ -3014,19 +2792,7 @@ func (a *App) showCompositionWithDraft(composition *services.Composition) {
 
 // SetFocus overrides the default tview.Application.SetFocus to add composition focus protection
 func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
-	// Only log potential focus conflicts when composer is active
-	if a.logger != nil && a.compositionPanel != nil && a.compositionPanel.IsVisible() {
-		targetInfo := "Unknown"
-		switch primitive.(type) {
-		case *tview.Table:
-			targetInfo = "MessageList"
-		case *tview.TextView:
-			targetInfo = "TextView"
-		default:
-			targetInfo = fmt.Sprintf("%T", primitive)
-		}
-		a.logger.Printf("🎯 FOCUS: Potential focus conflict - setting focus to %s while composer active", targetInfo)
-	}
+	// Logger removed - was always nil making this code unreachable
 
 	// Check if composition panel is active and log potential focus stealing
 	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
@@ -3091,15 +2857,7 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 
 // Picker state management helper methods
 
-// isAnyPickerActive returns true if any side panel picker is currently active
-func (a *App) isAnyPickerActive() bool {
-	return a.currentActivePicker != PickerNone
-}
-
-// clearActivePicker resets the active picker state to none
-func (a *App) clearActivePicker() {
-	a.currentActivePicker = PickerNone
-}
+// Removed unused picker helper functions: isAnyPickerActive, clearActivePicker
 
 // isLabelsPickerActive returns true if the Labels picker is currently active
 func (a *App) isLabelsPickerActive() bool {

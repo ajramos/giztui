@@ -81,7 +81,7 @@
     "attachments": "A",
     "manage_labels": "l",
     "quit": ":q",
-    
+
     "_additional_shortcuts": "Additional Vim-style shortcuts",
     "obsidian": "Shift+O",
     "open_gmail": "O",
@@ -97,7 +97,7 @@
     "command_mode": ":",
     "help": ":h",
     "toggle_headers": "zh",
-    
+
     "_content_navigation": "Vim-style content navigation shortcuts",
     "content_search": "/",
     "search_next": "n",
@@ -108,7 +108,7 @@
     "word_right": "w",
     "goto_top": "gg",
     "goto_bottom": "G",
-    
+
     "_threading_navigation": "Vim-style threading shortcuts",
     "toggle_threading": "zt",
     "expand_all_threads": "zR",

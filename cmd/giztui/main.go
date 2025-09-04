@@ -301,7 +301,7 @@ func runSetupWizard() {
 		fmt.Print("📄 Create default configuration file? [Y/n]: ")
 
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response) // User input - error not actionable
 
 		if response == "" || strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
 			cfg := config.DefaultConfig()

@@ -157,7 +157,12 @@ func (s *QueryStore) ListQueries(ctx context.Context, accountEmail, category str
 	if err != nil {
 		return nil, fmt.Errorf("failed to list queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	var queries []*SavedQuery
 	for rows.Next() {
@@ -277,7 +282,12 @@ func (s *QueryStore) SearchQueries(ctx context.Context, accountEmail, searchTerm
 	if err != nil {
 		return nil, fmt.Errorf("failed to search queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	var queries []*SavedQuery
 	for rows.Next() {
@@ -313,7 +323,12 @@ func (s *QueryStore) GetCategories(ctx context.Context, accountEmail string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to get categories: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the operation
+			_ = err
+		}
+	}()
 
 	var categories []string
 	for rows.Next() {

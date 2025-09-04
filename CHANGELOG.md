@@ -5,6 +5,70 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-09-04
+
+### ✨ New Features
+
+#### Enhanced Version Detection System
+- **Smart Version Detection**: No more "unknown" Git commit for `go install` builds
+- **Automatic VCS Integration**: Leverage Go 1.18+ runtime/debug.BuildInfo for automatic Git information
+- **Build Method Indication**: Clear differentiation between `make`, `go-install`, and `unknown` builds
+- **VCS Status Detection**: Show modification status for development builds with uncommitted changes
+- **Improved Version Display**: Better formatted version strings with meaningful build information
+
+#### Comprehensive Pre-commit System
+- **Enhanced Pre-commit Hooks**: Comprehensive hooks matching CI pipeline requirements exactly
+- **Format & Lint Checking**: Automatic code formatting and linting before commits
+- **Essential Test Runner**: Quick smoke tests to catch breaking changes early
+- **Developer Setup Script**: One-script onboarding for new contributors (`scripts/setup-dev.sh`)
+
+#### Streamlined CI/CD Pipeline
+- **Consolidated Workflow**: Single comprehensive CI/CD pipeline replacing separate workflows
+- **Multi-platform Testing**: Cross-platform validation (Ubuntu + macOS)
+- **Enhanced Security**: Trivy vulnerability scanning and dependency review
+- **Better Reporting**: Improved PR comments with detailed CI/CD results
+
+### 🛠️ Developer Experience Improvements
+
+#### New Make Commands
+- `make setup-hooks` - Install and configure pre-commit hooks
+- `make check-hooks` - Run pre-commit hooks on all files
+- `make pre-commit-check` - Run same checks as CI locally
+- `make remove-hooks` - Remove pre-commit hooks
+
+#### Enhanced Documentation
+- **Development Setup Guide**: Complete contributor onboarding documentation
+- **Installation Guide Updates**: Clear explanations of version differences between build methods
+- **Build Method Documentation**: Comprehensive explanation of `make build` vs `go install`
+
+### 🔧 Technical Improvements
+
+#### Configuration Enhancements
+- **Updated golangci-lint Config**: Modern configuration with version 2 support
+- **Improved Linting Rules**: Comprehensive linter setup with proper exclusions
+- **Pre-commit Configuration**: Hooks that mirror CI pipeline exactly
+
+#### Build System
+- **Version Injection Compatibility**: Maintains full backward compatibility with custom build metadata
+- **VCS Detection**: Automatic Git commit, time, and modification status detection
+- **Release Process**: Streamlined and validated release workflow
+
+### 📚 Documentation Updates
+
+- Enhanced installation instructions with version information explanations
+- New troubleshooting section for version-related issues
+- Complete developer setup and contribution guidelines
+- Updated architecture documentation for new version detection system
+
+### 🎯 Benefits for Users
+
+- **Better Debugging**: Meaningful version information regardless of installation method
+- **Improved Traceability**: Clear build method and Git commit information
+- **Enhanced Developer Experience**: Easier setup and contribution process
+- **Quality Assurance**: Automated checks prevent common issues from reaching CI/CD
+
+---
+
 ## [1.0.1] - 2025-09-04
 
 ### 🚀 Performance Improvements

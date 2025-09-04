@@ -315,7 +315,7 @@ func TestClient_EdgeCases(t *testing.T) {
 		// Only test operations that don't cause panics with nil client
 		var client *Client
 		assert.NotPanics(t, func() {
-			client.ActiveAccountEmail(context.Background()) // Returns error without panic
+			_, _ = client.ActiveAccountEmail(context.Background()) // Returns error without panic
 			// Note: humanReadableLabels causes panic with nil client - skip
 		})
 	})
