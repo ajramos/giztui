@@ -13,12 +13,12 @@
 - [ ] Add a prompt to make an analysis of the inbox itself
 - [ ] Chat with an email
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
-- [ ] **Status bar experience** - Improve status bar functionality and UX
+- [x] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Configure headers view** - config file picks which columns are hidden.
-- [ ] **Brush-up stats** - Revamp this feature
+- [x] **Brush-up stats** - Revamp this feature
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [ ] **Review makefile to reflect giztui**
+- [x] **Review makefile to reflect giztui**
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Search & Filter Enhancements
@@ -75,7 +75,7 @@
 - [ ] **Error handling** - Better error messages and recovery
 - [ ] **Confirmation dialogs** - Confirm destructive actions
 - [ ] **Configuration for labels adding icons** Icons for each Label.
-- [ ] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
+- [x] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
 - [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
 - [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
 - [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access

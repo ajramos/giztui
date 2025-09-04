@@ -317,7 +317,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		cmdBuff:           NewCmdBuff(),
 		flash:             NewFlash(),
 		actions:           NewKeyActions(),
-		emailRenderer:     render.NewEmailRenderer(),
+		emailRenderer:     render.NewEmailRenderer(cfg),
 		ids:               []string{},
 		messagesMeta:      []*gmailapi.Message{},
 		draftMode:         false,

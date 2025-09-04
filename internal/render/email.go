@@ -184,15 +184,17 @@ type EmailRenderer struct {
 	// Optional label mapping and flags for list rendering enhancements
 	labelIdToName          map[string]string
 	showSystemLabelsInList bool
+	config                 *config.Config
 }
 
 // NewEmailRenderer creates a new email renderer
-func NewEmailRenderer() *EmailRenderer {
+func NewEmailRenderer(cfg *config.Config) *EmailRenderer {
 	return &EmailRenderer{
 		colorer:                NewEmailColorerDefault(),
 		headerKeyTag:           "[yellow]",
 		labelIdToName:          make(map[string]string),
 		showSystemLabelsInList: false,
+		config:                 cfg,
 	}
 }
 
@@ -937,23 +939,32 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 			suffix += "s"
 		}
 		
+		// Calculate lines currently used by checking for newlines in result
+		linesUsed := strings.Count(result, "\n") + 1
+		
 		// Ensure suffix fits on last line or new line
 		if len(result)+len(suffix) <= availableWidth {
 			result += suffix
 		} else {
-			// Put suffix on new line if we haven't hit maxLines
-			if currentLine < maxLines {
+			// Put suffix on new line if we have space for another line
+			if linesUsed < maxLines {
 				result += "\n" + strings.Repeat(" ", len(prefix)) + suffix
 			} else {
-				// Replace last recipient with suffix if needed, but only if we have more than one recipient
+				// Try to replace last recipient with suffix if we have multiple recipients
 				if len(truncatedRecipients) > 1 {
-					lastRecipient := truncatedRecipients[len(truncatedRecipients)-1]
-					if len(result)-len(lastRecipient)+len(suffix) <= availableWidth {
-						result = strings.Join(truncatedRecipients[:len(truncatedRecipients)-1], ", ") + suffix
+					newResult := strings.Join(truncatedRecipients[:len(truncatedRecipients)-1], ", ") + suffix
+					if len(newResult) <= availableWidth {
+						result = newResult
 						remaining++
+					} else {
+						// Even replacing doesn't fit, just keep original result without suffix
+						// At least show what we can
 					}
+				} else {
+					// Only one recipient and suffix doesn't fit - show truncation on new line anyway
+					// This is better than no indication at all
+					result += "\n" + strings.Repeat(" ", len(prefix)) + suffix
 				}
-				// If we only have one recipient, keep it even if suffix doesn't fit
 			}
 		}
 	}
@@ -967,10 +978,13 @@ func (er *EmailRenderer) writeWrappedHeaderField(b *strings.Builder, fieldName, 
 		return
 	}
 
-	// Special handling for recipient fields - truncate to max 3 lines
-	// TODO: Make this configurable once config is accessible
+	// Special handling for recipient fields - truncate to configurable max lines
 	if fieldName == "To" || fieldName == "Cc" {
-		truncatedValue := er.TruncateRecipientField(fieldName, value, 3, width)
+		maxLines := 3 // Default fallback
+		if er.config != nil && er.config.Layout.MaxRecipientLines > 0 {
+			maxLines = er.config.Layout.MaxRecipientLines
+		}
+		truncatedValue := er.TruncateRecipientField(fieldName, value, maxLines, width)
 		if truncatedValue == "" {
 			return
 		}
