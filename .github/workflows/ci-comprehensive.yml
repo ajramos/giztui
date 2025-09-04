@@ -54,10 +54,6 @@ jobs:
     - name: Run static analysis
       run: staticcheck ./...
 
-    - name: Check for unused code
-      run: |
-        go install honnef.co/go/tools/cmd/unused@latest
-        unused ./...
 
     - name: Check error handling
       run: |
