@@ -104,7 +104,7 @@ func (b *BedrockClient) generateAnthropic(prompt string) (string, error) {
 	if err != nil {
 		return "", annotateBedrockError(fmt.Errorf("bedrock invoke error: %w", err), modelID)
 	}
-	defer func() { io.Copy(io.Discard, bytes.NewReader(out.Body)) }()
+	defer func() { _, _ = io.Copy(io.Discard, bytes.NewReader(out.Body)) }()
 
 	// Parse Claude 3 messages response
 	var resp struct {

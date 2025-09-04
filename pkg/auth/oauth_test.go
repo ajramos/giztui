@@ -474,7 +474,7 @@ func BenchmarkOAuth2Config_SaveToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		config.SaveToken(token)
+		_ = config.SaveToken(token)
 	}
 }
 
@@ -491,12 +491,12 @@ func BenchmarkOAuth2Config_LoadToken(b *testing.B) {
 	}
 
 	// Save token first
-	config.SaveToken(token)
+	_ = config.SaveToken(token)
 
 	oauthConfig := &oauth2.Config{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		config.LoadToken(oauthConfig)
+		_, _ = config.LoadToken(oauthConfig)
 	}
 }
 

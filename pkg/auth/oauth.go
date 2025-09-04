@@ -138,7 +138,7 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 			if code != "" {
 				// Send success response
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`
+				_, _ = w.Write([]byte(`
 					<html>
 						<body>
                             <h2>Authorization successful</h2>
@@ -150,7 +150,7 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 			} else {
 				// Send error response
 				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(`
+				_, _ = w.Write([]byte(`
 					<html>
 						<body>
                             <h2>Authorization error</h2>
@@ -192,15 +192,15 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 	case authCode = <-codeChan:
 		// Success
 	case err := <-errorChan:
-		server.Shutdown(ctx)
+		_ = server.Shutdown(ctx)
 		return nil, fmt.Errorf("local server error: %w", err)
 	case <-time.After(5 * time.Minute):
-		server.Shutdown(ctx)
+		_ = server.Shutdown(ctx)
 		return nil, fmt.Errorf("authorization timeout exceeded")
 	}
 
 	// Shutdown server
-	server.Shutdown(ctx)
+	_ = server.Shutdown(ctx)
 
 	// Exchange code for token
 	token, err := localConfig.Exchange(ctx, authCode)
