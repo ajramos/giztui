@@ -238,6 +238,7 @@ func (a *App) showSavedQueriesPicker() {
 					split.RemoveItem(a.labelsView)
 				}
 				a.labelsView = container
+				split.SetBackgroundColor(bgColor)
 				split.AddItem(a.labelsView, 0, 1, true)
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
@@ -401,6 +402,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	// Name input label and field (following Obsidian pattern exactly)
 	nameLabel := tview.NewTextView().SetText("💾 Query name:")
 	nameLabel.SetTextColor(a.GetComponentColors("saved_queries").Title.Color())
+	nameLabel.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color())
 
 	nameInput := tview.NewInputField()
 	nameInput.SetLabel("") // No built-in label, using separate TextView like Obsidian
@@ -408,6 +410,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	nameInput.SetPlaceholder("Enter a descriptive name for this search query...")
 	nameInput.SetFieldWidth(50)
 	nameInput.SetBorder(false)                                                                  // No border for cleaner look
+	nameInput.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color())      // InputField container background
 	nameInput.SetFieldBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background (not accent)
 	nameInput.SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())             // Component text color
 	nameInput.SetPlaceholderTextColor(a.getHintColor())                                         // Consistent placeholder color
@@ -422,12 +425,18 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText("Enter to save | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("general").Text.Color())
+	instructions.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color())
 
 	// Create a horizontal flex for label and input alignment with controlled spacing
 	nameRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-	nameRow.AddItem(nameLabel, 17, 0, false)     // Fixed width for label (17 chars for "💾 Query name:")
-	nameRow.AddItem(nameInput, 50, 0, false)     // Fixed width for input (50 chars)
-	nameRow.AddItem(tview.NewBox(), 0, 1, false) // Spacer takes remaining space
+	nameRow.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Ensure container background matches
+	nameRow.AddItem(nameLabel, 17, 0, false)                                             // Fixed width for label (17 chars for "💾 Query name:")
+	nameRow.AddItem(nameInput, 50, 0, false)                                             // Fixed width for input (50 chars)
+
+	// Spacer with proper background theming
+	spacer := tview.NewBox()
+	spacer.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color())
+	nameRow.AddItem(spacer, 0, 1, false) // Spacer takes remaining space
 
 	// Add items to container with proper proportions
 	container.AddItem(queryView, 0, 1, false)    // Query preview takes most space
