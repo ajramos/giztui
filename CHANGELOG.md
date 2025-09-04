@@ -5,6 +5,56 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-09-04
+
+### 🚀 Performance Improvements
+
+#### Background Preloading System
+- **Phase 2.4 Background Preloading**: Implement instant navigation with intelligent message preloading
+- **70% Preloading Functionality**: Restore preloading with proper pagination token preservation
+- **Preload Control**: Add comprehensive preload off command to disable all preloading features consistently
+- **Focus Highlighting**: Implement proper focus highlighting for preload status screen
+
+#### Gmail API Optimization
+- **Metadata Optimization**: Achieve 70-80% bandwidth reduction through selective field requests
+- **Load More Improvements**: Resolve focus and pagination issues in load more functionality
+
+### ✨ New Features
+
+#### UI/UX Enhancements
+- **Smart Recipient Truncation**: Handle long To/Cc fields with intelligent truncation and configuration support
+- **Full-Screen Prompt Statistics**: Transform stats display to comprehensive prompt statistics view
+- **Keyboard Shortcut Validation**: Add optional keyboard shortcut validation with comprehensive coverage
+
+#### Command System
+- **Prompt Stats Command**: New `:prompt stats` command for detailed prompt usage analytics
+
+### 🐛 Bug Fixes
+
+#### Navigation & Controls
+- **Navigation Issues**: Correct gg navigation and number command navigation problems
+- **Focus Management**: Resolve focus issues in various UI components
+
+#### Theme & Display
+- **Emoji Rendering**: Fix status bar emoji rendering issues for better terminal compatibility
+- **Save Search Query Dialog**: Improve theme consistency across all dialog elements
+- **Advanced Search**: Replace problematic emoji in date field validation
+
+#### Development & Build
+- **Clean Build Process**: Remove development artifacts and ensure clean production builds
+- **Configuration Integration**: Complete MaxRecipientLines feature with full config integration
+
+### 🔧 Technical Improvements
+
+- **Documentation Updates**: Comprehensive updates for new features and configuration options
+- **Build System**: Enhanced cross-platform build process and artifact management
+- **Code Quality**: Various code cleanup and optimization improvements
+
+### 📋 Configuration
+
+- **MaxRecipientLines**: New configuration option to control recipient field truncation behavior
+- **Preloading Controls**: Enhanced configuration options for background preloading system
+
 ## [1.0.0] - 2025-09-02
 
 ### 🎉 Initial Stable Release

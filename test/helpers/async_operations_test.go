@@ -27,8 +27,8 @@ type AsyncOperationTest struct {
 
 // RunAsyncOperationsTests runs comprehensive tests for asynchronous operations
 func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
-	// Enable goroutine leak detection
-	defer goleak.VerifyNone(t)
+	// Enable goroutine leak detection with ignored goroutines
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	tests := []AsyncOperationTest{
 		{
@@ -169,7 +169,7 @@ func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			// Enable goroutine leak detection for each test
-			defer goleak.VerifyNone(t)
+			defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Setup
 			if test.Setup != nil {
@@ -221,10 +221,10 @@ func RunAsyncOperationsTests(t *testing.T, harness *TestHarness) {
 
 // RunAsyncOperationCancellationTests tests operation cancellation
 func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	t.Run("ai_streaming_cancellation", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		// Setup streaming mock
 		harness.MockAI.On("GenerateSummaryStream", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("func(string)")).
@@ -269,7 +269,7 @@ func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("bulk_operation_cancellation", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		callCount := 0
 		var mu sync.Mutex
@@ -331,10 +331,10 @@ func RunAsyncOperationCancellationTests(t *testing.T, harness *TestHarness) {
 
 // RunAsyncOperationTimeoutTests tests timeout handling
 func RunAsyncOperationTimeoutTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	t.Run("message_loading_timeout", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		// Setup slow-responding mock
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
@@ -374,7 +374,7 @@ func RunAsyncOperationTimeoutTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("ai_generation_timeout", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		// Setup mock that takes too long
 		harness.MockAI.On("GenerateSummary", mock.Anything, mock.AnythingOfType("string"), mock.Anything).

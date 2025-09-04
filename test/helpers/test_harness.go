@@ -84,6 +84,10 @@ func NewTestHarness(t *testing.T) *TestHarness {
 
 // Cleanup cleans up test resources
 func (h *TestHarness) Cleanup() {
+	// Shutdown app services (including preloader) to prevent goroutine leaks
+	if h.App != nil {
+		h.App.Shutdown()
+	}
 	h.Cancel()
 	h.Screen.Fini()
 }

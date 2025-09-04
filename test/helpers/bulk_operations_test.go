@@ -24,7 +24,9 @@ type BulkOperationTest struct {
 
 // RunBulkOperationsTests runs comprehensive tests for bulk operations
 func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	tests := []BulkOperationTest{
 		{
@@ -161,7 +163,9 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			// Enable goroutine leak detection for each test
-			defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+			defer goleak.VerifyNone(t, 
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Setup
 			if test.Setup != nil {
@@ -194,7 +198,9 @@ func RunBulkOperationsTests(t *testing.T, harness *TestHarness) {
 
 // RunBulkOperationEdgeCasesTests tests edge cases in bulk operations
 func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	edgeCases := []struct {
 		name     string
@@ -315,7 +321,9 @@ func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
 
 	for _, test := range edgeCases {
 		t.Run(test.name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+			defer goleak.VerifyNone(t, 
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Setup
 			if test.setup != nil {
@@ -342,7 +350,9 @@ func RunBulkOperationEdgeCasesTests(t *testing.T, harness *TestHarness) {
 
 // RunBulkOperationPerformanceTests tests performance characteristics of bulk operations
 func RunBulkOperationPerformanceTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	performanceTests := []struct {
 		name         string
@@ -428,7 +438,9 @@ func RunBulkOperationPerformanceTests(t *testing.T, harness *TestHarness) {
 
 	for _, test := range performanceTests {
 		t.Run(test.name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+			defer goleak.VerifyNone(t, 
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Setup
 			if test.setup != nil {

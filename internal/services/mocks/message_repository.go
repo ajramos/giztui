@@ -18,6 +18,36 @@ type MessageRepository struct {
 	mock.Mock
 }
 
+// GetDraft provides a mock function with given fields: ctx, draftID
+func (_m *MessageRepository) GetDraft(ctx context.Context, draftID string) (*gmail.Draft, error) {
+	ret := _m.Called(ctx, draftID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDraft")
+	}
+
+	var r0 *gmail.Draft
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*gmail.Draft, error)); ok {
+		return rf(ctx, draftID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *gmail.Draft); ok {
+		r0 = rf(ctx, draftID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gmail.Draft)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, draftID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDrafts provides a mock function with given fields: ctx, maxResults
 func (_m *MessageRepository) GetDrafts(ctx context.Context, maxResults int64) ([]*gmail.Draft, error) {
 	ret := _m.Called(ctx, maxResults)

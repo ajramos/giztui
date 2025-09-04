@@ -31,12 +31,66 @@ func (_m *EmailService) ArchiveMessage(ctx context.Context, messageID string) er
 	return r0
 }
 
+// ArchiveMessageAsMove provides a mock function with given fields: ctx, messageID, labelID, labelName
+func (_m *EmailService) ArchiveMessageAsMove(ctx context.Context, messageID string, labelID string, labelName string) error {
+	ret := _m.Called(ctx, messageID, labelID, labelName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ArchiveMessageAsMove")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, messageID, labelID, labelName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // BulkArchive provides a mock function with given fields: ctx, messageIDs
 func (_m *EmailService) BulkArchive(ctx context.Context, messageIDs []string) error {
 	ret := _m.Called(ctx, messageIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkArchive")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
+		r0 = rf(ctx, messageIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// BulkMarkAsRead provides a mock function with given fields: ctx, messageIDs
+func (_m *EmailService) BulkMarkAsRead(ctx context.Context, messageIDs []string) error {
+	ret := _m.Called(ctx, messageIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkMarkAsRead")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
+		r0 = rf(ctx, messageIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// BulkMarkAsUnread provides a mock function with given fields: ctx, messageIDs
+func (_m *EmailService) BulkMarkAsUnread(ctx context.Context, messageIDs []string) error {
+	ret := _m.Called(ctx, messageIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkMarkAsUnread")
 	}
 
 	var r0 error
@@ -96,6 +150,24 @@ func (_m *EmailService) MarkAsUnread(ctx context.Context, messageID string) erro
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
 		r0 = rf(ctx, messageID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MoveToSystemFolder provides a mock function with given fields: ctx, messageID, systemFolderID, folderName
+func (_m *EmailService) MoveToSystemFolder(ctx context.Context, messageID string, systemFolderID string, folderName string) error {
+	ret := _m.Called(ctx, messageID, systemFolderID, folderName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveToSystemFolder")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, messageID, systemFolderID, folderName)
 	} else {
 		r0 = ret.Error(0)
 	}

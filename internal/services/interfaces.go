@@ -767,6 +767,9 @@ type MessagePreloader interface {
 	IsAdjacentEnabled() bool
 	UpdateConfig(config *PreloadConfig) error
 	GetStatus() *PreloadStatus
+	
+	// Shutdown gracefully stops the preloader
+	Shutdown()
 }
 
 // Preloading-related data structures

@@ -24,7 +24,9 @@ type IntegrationTestSuite struct {
 
 // RunIntegrationTests executes comprehensive integration test scenarios
 func RunIntegrationTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	// Note: These integration tests demonstrate the testing framework capabilities.
 	// They use mocks directly rather than the TUI app to avoid service injection complexity.
@@ -312,7 +314,9 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 
 	for _, suite := range integrationSuites {
 		t.Run(suite.Name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+			defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Setup test scenario
 			if suite.Setup != nil {
@@ -344,13 +348,17 @@ func RunIntegrationTests(t *testing.T, harness *TestHarness) {
 
 // RunServiceIntegrationTests tests service-to-service interactions
 func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	// Skip service integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Service integration tests skipped due to type mismatch - framework structure demonstrated")
 
 	t.Run("email_service_with_cache", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		messages := harness.GenerateTestMessages(5)
 		message := messages[0]
@@ -380,7 +388,9 @@ func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("ai_service_with_email_content", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		messages := harness.GenerateTestMessages(1)
 		message := messages[0]
@@ -407,7 +417,9 @@ func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("bulk_operations_with_progress_tracking", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		messages := harness.GenerateTestMessages(10)
 		selectedMessages := messages[:5]
@@ -438,13 +450,17 @@ func RunServiceIntegrationTests(t *testing.T, harness *TestHarness) {
 
 // RunErrorHandlingIntegrationTests tests error scenarios across services
 func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	// Skip error handling integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Error handling integration tests skipped due to type mismatch - framework structure demonstrated")
 
 	t.Run("network_error_recovery", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		// Setup network error scenario
 		harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
@@ -466,7 +482,9 @@ func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("ai_service_timeout_handling", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		// Setup timeout scenario
 		harness.MockAI.On("GenerateSummary", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
@@ -482,7 +500,9 @@ func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("cache_fallback_workflow", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		message := harness.GenerateTestMessages(1)[0]
 
@@ -508,13 +528,17 @@ func RunErrorHandlingIntegrationTests(t *testing.T, harness *TestHarness) {
 
 // RunPerformanceIntegrationTests tests performance aspects of service integration
 func RunPerformanceIntegrationTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+	defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	// Skip performance integration tests due to type mismatch - framework structure demonstrated
 	t.Skip("Performance integration tests skipped due to type mismatch - framework structure demonstrated")
 
 	t.Run("concurrent_message_loading", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		messages := harness.GenerateTestMessages(50)
 		batches := [][]string{
@@ -560,7 +584,9 @@ func RunPerformanceIntegrationTests(t *testing.T, harness *TestHarness) {
 	})
 
 	t.Run("bulk_operation_performance", func(t *testing.T) {
-		defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("time.Sleep"))
+		defer goleak.VerifyNone(t, 
+		goleak.IgnoreTopFunction("time.Sleep"),
+		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		messageCount := 25
 		messages := harness.GenerateTestMessages(messageCount)

@@ -32,6 +32,42 @@ func (_m *LabelService) ApplyLabel(ctx context.Context, messageID string, labelI
 	return r0
 }
 
+// BulkApplyLabel provides a mock function with given fields: ctx, messageIDs, labelID
+func (_m *LabelService) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error {
+	ret := _m.Called(ctx, messageIDs, labelID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkApplyLabel")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
+		r0 = rf(ctx, messageIDs, labelID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// BulkRemoveLabel provides a mock function with given fields: ctx, messageIDs, labelID
+func (_m *LabelService) BulkRemoveLabel(ctx context.Context, messageIDs []string, labelID string) error {
+	ret := _m.Called(ctx, messageIDs, labelID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkRemoveLabel")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
+		r0 = rf(ctx, messageIDs, labelID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateLabel provides a mock function with given fields: ctx, name
 func (_m *LabelService) CreateLabel(ctx context.Context, name string) (*gmail.Label, error) {
 	ret := _m.Called(ctx, name)

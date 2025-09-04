@@ -3113,3 +3113,11 @@ func (a *App) setActivePicker(picker ActivePicker) {
 	}
 	a.currentActivePicker = picker
 }
+
+// Shutdown gracefully shuts down the application services
+func (a *App) Shutdown() {
+	// Shutdown preloader service to stop background goroutines
+	if a.preloaderService != nil {
+		a.preloaderService.Shutdown()
+	}
+}
