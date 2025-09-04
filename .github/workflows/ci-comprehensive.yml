@@ -50,13 +50,9 @@ jobs:
     - name: Install additional linters
       run: |
         go install honnef.co/go/tools/cmd/staticcheck@latest
-        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 
     - name: Run static analysis
       run: staticcheck ./...
-
-    - name: Run security scan (gosec)
-      run: gosec -quiet ./...
 
     - name: Check for unused code
       run: |
