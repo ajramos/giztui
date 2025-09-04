@@ -17,8 +17,10 @@ linters:
 
 linters-settings:
   govet:
+    check-shadowing: false
     settings:
-      composites: false
+      composites:
+        enabled: false
 
 issues:
   # Focus on new issues - this is professional software development practice
