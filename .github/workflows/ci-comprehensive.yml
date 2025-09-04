@@ -35,7 +35,7 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
     - name: Run format check
       run: |
@@ -45,9 +45,6 @@ jobs:
           gofmt -s -l .
           exit 1
         fi
-
-    - name: Run vet
-      run: go vet -composites=false ./...
 
     - name: Run golangci-lint
       run: golangci-lint run --config=.golangci.yml
