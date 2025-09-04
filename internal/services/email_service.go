@@ -487,10 +487,6 @@ func (s *EmailServiceImpl) MoveToSystemFolder(ctx context.Context, messageID, sy
 	switch systemFolderID {
 	case "INBOX":
 		// Move to Inbox: Add INBOX, conditionally remove TRASH/SPAM only if they exist
-		if s.logger != nil {
-			s.logger.Printf("=== INBOX MOVE DEBUG ===")
-			s.logger.Printf("Moving message %s to INBOX", messageID)
-		}
 
 		// First, add the INBOX label
 		updates := MessageUpdates{

@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/gmail"
 )
 
@@ -112,9 +109,6 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	// Build the final prompt with the actual template and content
 	finalPrompt := s.buildBulkPrompt(promptTemplate.PromptText, combinedContent, variables)
 
-	// Save the final prompt to a file for debugging
-	s.savePromptToFile(promptID, promptTemplate.Name, successfulIDs, promptTemplate.PromptText, finalPrompt, combinedContent)
-
 	result, err := s.aiService.ApplyCustomPrompt(ctx, combinedContent, finalPrompt, variables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply bulk prompt: %w", err)
@@ -203,9 +197,6 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 
 	// Build the final prompt using the actual template text
 	finalPrompt := s.buildBulkPrompt(promptTemplate.PromptText, combinedContent, variables)
-
-	// Save the final prompt to a file for debugging
-	s.savePromptToFile(promptID, promptTemplate.Name, successfulIDs, promptTemplate.PromptText, finalPrompt, combinedContent)
 
 	// Use streaming AI service
 	if s.promptService != nil {
@@ -374,66 +365,6 @@ func (s *BulkPromptServiceImpl) buildBulkPrompt(promptText string, combinedConte
 	return prompt
 }
 
-// savePromptToFile saves the prompt and content to a file for debugging
-func (s *BulkPromptServiceImpl) savePromptToFile(promptID int, promptName string, messageIDs []string, originalPrompt string, finalPrompt string, combinedContent string) {
-	// Use the configuration directory for saved files
-	savedDir := config.DefaultSavedDir()
-	if savedDir == "" {
-		return // Silently fail if we can't get saved directory
-	}
-	if err := os.MkdirAll(savedDir, 0755); err != nil {
-		return // Silently fail if we can't create directory
-	}
-
-	// Create filename with timestamp, prompt name, and message IDs
-	timestamp := time.Now().Format("20060102_150405")
-	messageIDsStr := strings.Join(messageIDs, "_")
-	filename := fmt.Sprintf("%s_%s_%s.txt", timestamp, strings.ReplaceAll(promptName, " ", "_"), messageIDsStr)
-
-	// Ensure filename is safe for filesystem
-	filename = strings.ReplaceAll(filename, "/", "_")
-	filename = strings.ReplaceAll(filename, "\\", "_")
-
-	filepath := filepath.Join(savedDir, filename)
-
-	// Create file content
-	content := fmt.Sprintf("=== BULK PROMPT DEBUG INFO ===\n\n")
-	content += fmt.Sprintf("Timestamp: %s\n", time.Now().Format(time.RFC3339))
-	content += fmt.Sprintf("Prompt ID: %d\n", promptID)
-	content += fmt.Sprintf("Prompt Name: %s\n", promptName)
-	content += fmt.Sprintf("Message IDs: %s\n", strings.Join(messageIDs, ", "))
-	content += fmt.Sprintf("Message Count: %d\n\n", len(messageIDs))
-
-	content += "=== ORIGINAL PROMPT FROM DATABASE ===\n\n"
-	content += originalPrompt
-	content += "\n\n"
-
-	content += "=== FINAL PROMPT SENT TO LLM (AFTER VARIABLE SUBSTITUTION) ===\n\n"
-	content += finalPrompt
-	content += "\n\n"
-
-	content += "=== RAW EMAIL CONTENT (FOR COMPARISON) ===\n\n"
-	content += "Note: This shows the raw content before heuristic cleaning.\n"
-	content += "The cleaned version is what gets inserted into {{messages}} in the prompt above.\n\n"
-
-	// Show a sample of the raw content for comparison
-	if len(messageIDs) > 0 {
-		content += fmt.Sprintf("Sample raw content from emails:\n")
-		if len(combinedContent) > 1000 {
-			content += combinedContent[:1000] + "\n[... truncated for brevity - see cleaned version in final prompt above ...]\n"
-		} else {
-			content += combinedContent + "\n"
-		}
-	}
-
-	content += "\n=== END DEBUG INFO ===\n"
-
-	// Write to file
-	if err := os.WriteFile(filepath, []byte(content), 0644); err != nil {
-		// Silently fail if we can't write file
-		return
-	}
-}
 
 // GetCachedBulkResult retrieves a cached bulk prompt result
 func (s *BulkPromptServiceImpl) GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error) {

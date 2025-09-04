@@ -634,22 +634,6 @@ func (c *CompositionPanel) updateFocusOrder() {
 	c.focusableItems = append(c.focusableItems, c.sendButton)
 	c.focusableItems = append(c.focusableItems, c.draftButton)
 
-	// Debug logging
-	if c.app.logger != nil {
-		c.app.logger.Printf("FOCUS DEBUG: updateFocusOrder - %d focusable items", len(c.focusableItems))
-		for i, item := range c.focusableItems {
-			switch item.(type) {
-			case *tview.InputField:
-				c.app.logger.Printf("  [%d] InputField", i)
-			case *EditableTextView:
-				c.app.logger.Printf("  [%d] EditableTextView (body section)", i)
-			case *tview.Button:
-				c.app.logger.Printf("  [%d] Button", i)
-			default:
-				c.app.logger.Printf("  [%d] %T", i, item)
-			}
-		}
-	}
 
 	// Ensure current focus index is still valid
 	if c.currentFocusIndex >= len(c.focusableItems) {
@@ -663,13 +647,8 @@ func (c *CompositionPanel) focusNext() {
 		return
 	}
 
-	oldIndex := c.currentFocusIndex
 	c.currentFocusIndex = (c.currentFocusIndex + 1) % len(c.focusableItems)
 
-	// Debug logging
-	if c.app.logger != nil {
-		c.app.logger.Printf("FOCUS DEBUG: focusNext - from index %d to %d", oldIndex, c.currentFocusIndex)
-	}
 
 	c.focusCurrent()
 }
@@ -692,19 +671,6 @@ func (c *CompositionPanel) focusCurrent() {
 
 	focusTarget := c.focusableItems[c.currentFocusIndex]
 
-	// Debug logging
-	if c.app.logger != nil {
-		switch focusTarget.(type) {
-		case *tview.InputField:
-			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to InputField at index %d", c.currentFocusIndex)
-		case *EditableTextView:
-			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to EditableTextView (body section) at index %d", c.currentFocusIndex)
-		case *tview.Button:
-			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to Button at index %d", c.currentFocusIndex)
-		default:
-			c.app.logger.Printf("FOCUS DEBUG: focusCurrent - setting focus to %T at index %d", focusTarget, c.currentFocusIndex)
-		}
-	}
 
 	c.app.SetFocus(focusTarget)
 }
