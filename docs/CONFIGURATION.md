@@ -143,6 +143,40 @@ Configure Gmail API settings and behavior:
 - `narrow` (≥60x20) - Minimal layout
 - `mobile` (<60x20) - Single-panel layout
 
+#### Recipient Field Truncation
+
+Control how long recipient lists (To/Cc fields) are displayed in email headers:
+
+```json
+{
+  "layout": {
+    "max_recipient_lines": 3
+  }
+}
+```
+
+**Configuration Options:**
+- `max_recipient_lines` (number): Maximum lines for To/Cc recipient fields before truncation
+  - **Default:** `3`
+  - **Valid range:** `1-10`
+  - **Purpose:** Prevents very long recipient lists from hiding important header fields (Labels, Date, Subject)
+
+**How it works:**
+- When recipient lists exceed the line limit, they're intelligently truncated
+- Shows "... and X more recipients" indicator with accurate count
+- Adapts to terminal width - wider terminals show more recipients per line
+- Only affects To/Cc fields; other header fields (Subject, From, Date, Labels) remain fully visible
+
+**Example behaviors:**
+```
+# With max_recipient_lines: 2
+To: user1@example.com, user2@company.com, 
+    user3@domain.org ... and 5 more recipients
+
+# With max_recipient_lines: 1  
+To: user1@example.com ... and 7 more recipients
+```
+
 ### Display Options
 
 ```json

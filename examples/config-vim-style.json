@@ -42,7 +42,9 @@
     "default_layout": "auto",
     "show_borders": true,
     "show_titles": true,
-    "compact_mode": false
+    "compact_mode": false,
+    "max_recipient_lines": 3,
+    "_max_recipient_lines_info": "Controls truncation of To/Cc fields when recipient lists are very long. Prevents important fields (Labels, Date) from being cut off. Valid range: 1-10, default: 3"
   },
   "theme": {
     "current": "gmail-dark",
@@ -54,66 +56,66 @@
     "vim_navigation_timeout_ms": 800,
     "vim_range_timeout_ms": 1500,
     "_core_operations": "Core email operations with Vim-style keys",
-    "summarize": "ys",      // yank summary
-    "generate_reply": "gr", // generate reply
-    "suggest_label": "gl",  // suggest label
-    "reply": "r",           // reply (same as default)
-    "reply_all": "ra",      // reply all (vim-style sequence)
-    "forward": "f",         // forward message
-    "compose": "i",         // insert mode for new message
-    "load_more": "G",       // go to bottom (load more)
-    "refresh": "R",         // refresh (same as default)
-    "search": "/",          // search (like Vim)
-    "unread": "u",          // unread (same as default)
-    "archived": "B",        // browse archived messages
-    "search_from": "F",     // find by sender (same as default)
-    "search_to": "T",       // find messages to sender (same as default)
-    "search_subject": "S",  // find by subject (same as default)
-    "toggle_read": "t",     // toggle (same as default)
-    "undo": "U",            // undo (like Vim U for undo line)
-    "trash": "dd",          // delete (like Vim dd)
-    "archive": "a",         // archive (same as default)
-    "move": "m",            // move (same as default)
-    "prompt": "p",          // prompt (same as default)
-    "drafts": "D",          // drafts (same as default)
-    "attachments": "A",     // attachments (same as default)
-    "manage_labels": "l",   // labels (same as default)
-    "quit": ":q",           // quit (like Vim :q)
+    "summarize": "ys",
+    "generate_reply": "gr",
+    "suggest_label": "gl",
+    "reply": "r",
+    "reply_all": "ra",
+    "forward": "f",
+    "compose": "i",
+    "load_more": "G",
+    "refresh": "R",
+    "search": "/",
+    "unread": "u",
+    "archived": "B",
+    "search_from": "F",
+    "search_to": "T",
+    "search_subject": "S",
+    "toggle_read": "t",
+    "undo": "U",
+    "trash": "dd",
+    "archive": "a",
+    "move": "m",
+    "prompt": "p",
+    "drafts": "D",
+    "attachments": "A",
+    "manage_labels": "l",
+    "quit": ":q",
     
     "_additional_shortcuts": "Additional Vim-style shortcuts",
-    "obsidian": "Shift+O",  // Obsidian (changed from O)
-    "open_gmail": "O",      // Open in Gmail web UI (new feature)
-    "slack": "K",           // Slack (same as default)
-    "markdown": "M",        // Markdown (same as default)
-    "save_message": "w",    // write (like Vim :w)
-    "save_raw": "W",        // write raw (same as default)
-    "rsvp": "V",            // RSVP (same as default)
-    "link_picker": "L",     // Link picker (same as default)
-    "theme_picker": "H",    // Theme picker
-    "bulk_mode": "v",       // visual mode (like Vim v)
-    "bulk_select": "space", // select/toggle selection (space is standard)
-    "command_mode": ":",    // command mode (like Vim :)
-    "help": ":h",           // help (like Vim :h)
-    "toggle_headers": "zh", // toggle headers (like Vim folding zh)
+    "obsidian": "Shift+O",
+    "open_gmail": "O",
+    "slack": "K",
+    "markdown": "M",
+    "save_message": "w",
+    "save_raw": "W",
+    "rsvp": "V",
+    "link_picker": "L",
+    "theme_picker": "H",
+    "bulk_mode": "v",
+    "bulk_select": "space",
+    "command_mode": ":",
+    "help": ":h",
+    "toggle_headers": "zh",
     
     "_content_navigation": "Vim-style content navigation shortcuts",
-    "content_search": "/",  // search within content (like Vim /)
-    "search_next": "n",     // next match (like Vim n)
-    "search_prev": "N",     // previous match (like Vim N)
-    "fast_up": "ctrl+k",    // fast up navigation
-    "fast_down": "ctrl+j",  // fast down navigation  
-    "word_left": "b",       // word left (like Vim b)
-    "word_right": "w",      // word right (like Vim w)
-    "goto_top": "gg",       // go to top (like Vim gg)
-    "goto_bottom": "G",     // go to bottom (like Vim G)
+    "content_search": "/",
+    "search_next": "n",
+    "search_prev": "N",
+    "fast_up": "ctrl+k",
+    "fast_down": "ctrl+j",
+    "word_left": "b",
+    "word_right": "w",
+    "goto_top": "gg",
+    "goto_bottom": "G",
     
     "_threading_navigation": "Vim-style threading shortcuts",
-    "toggle_threading": "zt",       // toggle threading (like Vim zt)
-    "expand_all_threads": "zR",     // expand all threads (like Vim zR to open all folds)
-    "collapse_all_threads": "zM",   // collapse all threads (like Vim zM to close all folds)
-    "thread_summary": "zs",         // thread summary (custom Vim-style)
-    "next_thread": "]]",            // next thread (like Vim next section)
-    "prev_thread": "[["             // previous thread (like Vim previous section)
+    "toggle_threading": "zt",
+    "expand_all_threads": "zR",
+    "collapse_all_threads": "zM",
+    "thread_summary": "zs",
+    "next_thread": "]]",
+    "prev_thread": "[["
   },
   "threading": {
     "_comment": "Threading configuration for Vim-style workflow",

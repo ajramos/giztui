@@ -14,6 +14,7 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **Search and navigation** - VIM-style commands (`:5`, `G`, `gg`)
 - ✅ **Enhanced content navigation** - Fast browsing within message content with search, paragraph jumping, and word navigation
 - ✅ **Dynamic header visibility** - Toggle email headers to maximize content space
+- ✅ **Smart recipient field truncation** - Intelligent truncation of long To/Cc recipient lists with "... and X more recipients" indicators to prevent important header fields (Labels, Date) from being cut off
 - ✅ **Email Composition** - Compose, Reply, Reply-All, and Forward with CC/BCC support
 - ✅ **Draft Management** - Create, edit, auto-save, and load drafts with side panel picker
 

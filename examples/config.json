@@ -63,7 +63,9 @@
     "default_layout": "auto",
     "show_borders": true,
     "show_titles": true,
-    "compact_mode": false
+    "compact_mode": false,
+    "max_recipient_lines": 3,
+    "_max_recipient_lines_info": "Controls truncation of To/Cc fields when recipient lists are very long. Prevents important fields (Labels, Date) from being cut off. Valid range: 1-10, default: 3"
   },
   "theme": {
     "current": "gmail-dark",
