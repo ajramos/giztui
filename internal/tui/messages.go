@@ -586,9 +586,9 @@ func (a *App) loadMoreMessages() {
 			a.showStatusMessage("No more results")
 			return
 		}
-		
+
 		a.setStatusPersistent("Loading more results…")
-		
+
 		// Try to use cached results first (with token preservation)
 		if preloader := a.GetPreloaderService(); preloader != nil {
 			// Use cache key with query to match how preloader stores search results
@@ -612,7 +612,7 @@ func (a *App) loadMoreMessages() {
 					a.mu.Lock()
 					a.messagesMeta = append(a.messagesMeta, meta)
 					a.mu.Unlock()
-					
+
 					// Add to table
 					if table, ok := a.views["list"].(*tview.Table); ok {
 						row := table.GetRowCount()
@@ -624,12 +624,12 @@ func (a *App) loadMoreMessages() {
 					}
 				}
 				a.nextPageToken = nextToken
-				
+
 				// Clear loading status and refresh UI
 				go func() {
 					a.GetErrorHandler().ClearPersistentMessage()
 				}()
-				
+
 				a.QueueUpdateDraw(func() {
 					if table, ok := a.views["list"].(*tview.Table); ok {
 						table.SetTitle(fmt.Sprintf(" 📧 Search: %s (%d) ", a.currentQuery, len(a.ids)))
@@ -643,7 +643,7 @@ func (a *App) loadMoreMessages() {
 				return
 			}
 		}
-		
+
 		// Cache miss - fetch from API
 		if a.logger != nil {
 			a.logger.Printf("❌ CACHE MISS (SEARCH): No cached results for key='%s', fetching from API", a.currentQuery+":"+a.nextPageToken)
@@ -674,9 +674,9 @@ func (a *App) loadMoreMessages() {
 		a.showStatusMessage("No more messages")
 		return
 	}
-	
+
 	a.setStatusPersistent("Loading next 50 messages…")
-	
+
 	// Try to use cached results first (with token preservation)
 	if preloader := a.GetPreloaderService(); preloader != nil {
 		if a.logger != nil {
@@ -690,7 +690,7 @@ func (a *App) loadMoreMessages() {
 			}
 			// Process cached messages directly (already have metadata)
 			screenWidth := a.getFormatWidth()
-			
+
 			// Preload labels once for this page
 			if labels, err := a.Client.ListLabels(); err == nil {
 				m := make(map[string]string, len(labels))
@@ -700,7 +700,7 @@ func (a *App) loadMoreMessages() {
 				a.emailRenderer.SetLabelMap(m)
 				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
 			}
-			
+
 			for _, meta := range cachedMessages {
 				if meta == nil {
 					continue // Skip failed cached messages
@@ -709,7 +709,7 @@ func (a *App) loadMoreMessages() {
 				a.mu.Lock()
 				a.messagesMeta = append(a.messagesMeta, meta)
 				a.mu.Unlock()
-				
+
 				// Add to table
 				if table, ok := a.views["list"].(*tview.Table); ok {
 					row := table.GetRowCount()
@@ -721,12 +721,12 @@ func (a *App) loadMoreMessages() {
 				}
 			}
 			a.nextPageToken = nextToken
-			
+
 			// Clear loading status and refresh UI
 			go func() {
 				a.GetErrorHandler().ClearPersistentMessage()
 			}()
-			
+
 			a.QueueUpdateDraw(func() {
 				if table, ok := a.views["list"].(*tview.Table); ok {
 					table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
@@ -740,7 +740,7 @@ func (a *App) loadMoreMessages() {
 			return
 		}
 	}
-	
+
 	// Cache miss - fetch from API
 	if a.logger != nil {
 		a.logger.Printf("❌ CACHE MISS (INBOX): No cached results for token='%s', fetching from API", a.nextPageToken)
@@ -827,12 +827,12 @@ func (a *App) loadMoreMessages() {
 		loaded++
 	}
 	a.nextPageToken = next
-	
+
 	// Clear the persistent loading status before updating UI
 	go func() {
 		a.GetErrorHandler().ClearPersistentMessage()
 	}()
-	
+
 	a.QueueUpdateDraw(func() {
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
@@ -2222,7 +2222,7 @@ func (a *App) showMessage(id string) {
 		go func() {
 			a.GetErrorHandler().ClearPersistentMessage()
 		}()
-		
+
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)
@@ -2403,7 +2403,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 		}
 		// Use cache if available; otherwise fetch and cache
 		var message *gmail.Message
-		
+
 		// Phase 2.4: Check preloader cache first for adjacent message preloading
 		if preloader := a.GetPreloaderService(); preloader != nil && preloader.IsEnabled() {
 			if cachedMessage, found := preloader.GetCachedMessage(a.ctx, id); found {
@@ -2411,10 +2411,10 @@ func (a *App) showMessageWithoutFocus(id string) {
 					a.logger.Printf("showMessageWithoutFocus: PRELOADER CACHE HIT id=%s", id)
 				}
 				// Check if cached message has body content (preloader uses metadata only)
-				hasContent := cachedMessage.Payload != nil && 
-					len(cachedMessage.Payload.Parts) > 0 || 
+				hasContent := cachedMessage.Payload != nil &&
+					len(cachedMessage.Payload.Parts) > 0 ||
 					(cachedMessage.Payload.Body != nil && cachedMessage.Payload.Body.Data != "")
-				
+
 				if hasContent {
 					// Convert gmail_v1.Message to gmail.Message without additional API calls
 					message = a.Client.CreateMessageFromRaw(cachedMessage)
@@ -2432,7 +2432,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 				}
 			}
 		}
-		
+
 		// Fallback to regular message cache
 		if message == nil {
 			if cached, ok := a.messageCache[id]; ok {
@@ -3204,7 +3204,7 @@ func (a *App) openRSVPModal() {
 		go a.sendRSVP(choice, "")
 		// Close panel
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
+			split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
 		}
 		a.setActivePicker(PickerNone)
 		a.restoreFocusAfterModal()
@@ -3216,7 +3216,7 @@ func (a *App) openRSVPModal() {
 			return nil
 		case tcell.KeyEscape:
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
+				split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
 			}
 			a.setActivePicker(PickerNone)
 			a.restoreFocusAfterModal()
@@ -3231,7 +3231,7 @@ func (a *App) openRSVPModal() {
 			split.RemoveItem(a.labelsView)
 			a.labelsView = container
 			split.AddItem(a.labelsView, 0, 1, true)
-			split.ResizeItem(a.labelsView, 0, 1)  // Show RSVP panel
+			split.ResizeItem(a.labelsView, 0, 1) // Show RSVP panel
 		}
 		a.setActivePicker(PickerRSVP)
 		a.currentFocus = "labels"

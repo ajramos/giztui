@@ -21,7 +21,7 @@ type MessagePreloaderImpl struct {
 	configMu sync.RWMutex
 
 	// Cache management
-	messageCache    map[string]*CacheItem
+	messageCache   map[string]*CacheItem
 	pageCache      map[string]*PageCacheItem
 	cacheMu        sync.RWMutex
 	evictionList   *list.List
@@ -29,15 +29,15 @@ type MessagePreloaderImpl struct {
 	currentMemory  int64
 
 	// Background workers
-	workerPool    chan struct{}
-	taskQueue     chan *preloadTask
-	activeQueue   chan *preloadTask
-	activeTasks   int32
-	shutdown      chan struct{}
-	shutdownOnce  sync.Once
+	workerPool   chan struct{}
+	taskQueue    chan *preloadTask
+	activeQueue  chan *preloadTask
+	activeTasks  int32
+	shutdown     chan struct{}
+	shutdownOnce sync.Once
 
-	// Statistics  
-	stats PreloadStatistics
+	// Statistics
+	stats   PreloadStatistics
 	statsMu sync.RWMutex
 }
 
@@ -60,14 +60,14 @@ type PageCacheItem struct {
 
 // preloadTask represents a background preloading task
 type preloadTask struct {
-	Type         string   // "next_page" or "adjacent"
-	MessageIDs   []string
-	PageToken    string
-	Query        string
-	MaxResults   int64
-	Priority     int // 1=high, 2=normal, 3=low
-	CreatedAt    time.Time
-	Context      context.Context
+	Type       string // "next_page" or "adjacent"
+	MessageIDs []string
+	PageToken  string
+	Query      string
+	MaxResults int64
+	Priority   int // 1=high, 2=normal, 3=low
+	CreatedAt  time.Time
+	Context    context.Context
 }
 
 // NewMessagePreloader creates a new MessagePreloader instance
@@ -95,13 +95,13 @@ func NewMessagePreloader(client *gmail.Client, config *PreloadConfig, logger *lo
 		config:         config,
 		logger:         logger,
 		messageCache:   make(map[string]*CacheItem),
-		pageCache:     make(map[string]*PageCacheItem),
-		evictionList:  list.New(),
+		pageCache:      make(map[string]*PageCacheItem),
+		evictionList:   list.New(),
 		maxMemoryBytes: int64(config.CacheSizeMB) * 1024 * 1024, // Convert MB to bytes
-		workerPool:    make(chan struct{}, config.BackgroundWorkers),
-		taskQueue:     make(chan *preloadTask, 100), // Buffer for tasks
-		activeQueue:   make(chan *preloadTask, config.BackgroundWorkers), 
-		shutdown:      make(chan struct{}),
+		workerPool:     make(chan struct{}, config.BackgroundWorkers),
+		taskQueue:      make(chan *preloadTask, 100), // Buffer for tasks
+		activeQueue:    make(chan *preloadTask, config.BackgroundWorkers),
+		shutdown:       make(chan struct{}),
 		stats: PreloadStatistics{
 			NextPageRequests:     0,
 			AdjacentRequests:     0,
@@ -134,7 +134,7 @@ func DefaultPreloadConfig() *PreloadConfig {
 		AdjacentEnabled:        true,
 		AdjacentCount:          3,
 		BackgroundWorkers:      3,
-		CacheSizeMB:           50,
+		CacheSizeMB:            50,
 		APIQuotaReservePercent: 20,
 	}
 }
@@ -206,7 +206,7 @@ func (p *MessagePreloaderImpl) PreloadAdjacentMessages(ctx context.Context, curr
 
 	// Add messages before current
 	start := maxInt(0, currentIndex-adjacentCount/2)
-	// Add messages after current  
+	// Add messages after current
 	end := minInt(len(messageIDs), currentIndex+adjacentCount/2+1)
 
 	for i := start; i < end; i++ {
@@ -242,7 +242,7 @@ func (p *MessagePreloaderImpl) PreloadAdjacentMessages(ctx context.Context, curr
 		return ctx.Err()
 	default:
 		// Queue full, skip this preload request
-		return fmt.Errorf("preload queue full") 
+		return fmt.Errorf("preload queue full")
 	}
 }
 
@@ -478,7 +478,7 @@ func (p *MessagePreloaderImpl) processNextPageTask(task *preloadTask) {
 		// For search queries, use search API
 		messages, nextPageToken, err = p.client.SearchMessagesPage(task.Query, task.MaxResults, task.PageToken)
 	} else {
-		// For inbox listing, use list API  
+		// For inbox listing, use list API
 		messages, nextPageToken, err = p.client.ListMessagesPage(task.MaxResults, task.PageToken)
 	}
 
@@ -507,39 +507,39 @@ func (p *MessagePreloaderImpl) processNextPageTask(task *preloadTask) {
 		// Store in page cache with next token
 		p.cacheMu.Lock()
 		defer p.cacheMu.Unlock()
-		
+
 		// Cache the detailed messages for this page along with next token
 		// Use a cache key that includes the query for differentiation
 		cacheKey := task.PageToken
 		if task.Query != "" {
 			cacheKey = task.Query + ":" + task.PageToken
 		}
-		
+
 		// Calculate cache size for this page
 		var pageSize int64
 		for _, msg := range detailedMessages {
 			pageSize += p.estimateMessageSize(msg)
 		}
-		
+
 		p.pageCache[cacheKey] = &PageCacheItem{
 			Messages:      detailedMessages,
 			NextPageToken: nextPageToken,
 			Timestamp:     time.Now(),
 			Size:          pageSize,
 		}
-		
+
 		// Update statistics
 		p.statsMu.Lock()
 		p.stats.TotalDataPreloadedMB += float64(pageSize) / (1024 * 1024)
 		p.statsMu.Unlock()
-		
+
 		// Log successful completion
 		if p.logger != nil {
 			queryStr := ""
 			if task.Query != "" {
 				queryStr = fmt.Sprintf(" (query: '%s')", task.Query)
 			}
-			p.logger.Printf("✅ PRELOAD COMPLETE: Cached %d messages%s for token='%s', nextToken='%s', size=%.2fMB", 
+			p.logger.Printf("✅ PRELOAD COMPLETE: Cached %d messages%s for token='%s', nextToken='%s', size=%.2fMB",
 				len(detailedMessages), queryStr, task.PageToken, nextPageToken, float64(pageSize)/(1024*1024))
 		}
 	}
@@ -588,7 +588,7 @@ func (p *MessagePreloaderImpl) processAdjacentTask(task *preloadTask) {
 			cachedCount++
 		}
 	}
-	
+
 	// Log successful completion
 	if cachedCount > 0 && p.logger != nil {
 		p.logger.Printf("✅ PRELOAD ADJACENT: Cached %d adjacent messages", cachedCount)
@@ -652,7 +652,7 @@ func (p *MessagePreloaderImpl) estimateMessageSize(message *gmail_v1.Message) in
 		if message.Payload.Body != nil && message.Payload.Body.Data != "" {
 			size += int64(len(message.Payload.Body.Data))
 		}
-		
+
 		// Add size for headers
 		if message.Payload.Headers != nil {
 			for _, header := range message.Payload.Headers {

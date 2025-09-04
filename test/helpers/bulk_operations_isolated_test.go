@@ -13,14 +13,14 @@ import (
 
 // TestBulkOperationsIsolated demonstrates isolated bulk operations tests
 func TestBulkOperationsIsolated(t *testing.T) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 	t.Run("BulkArchive_3Messages", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -45,9 +45,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("BulkLabelApplication_2Messages", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -73,9 +73,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("BulkTrash_5Messages", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -100,9 +100,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("EmptySelection", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -114,9 +114,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("SingleMessage", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -137,9 +137,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("PartialFailure", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -165,9 +165,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("Performance_SmallBatch", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -200,9 +200,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("Performance_MediumBatch", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()
@@ -235,9 +235,9 @@ func TestBulkOperationsIsolated(t *testing.T) {
 	})
 
 	t.Run("Performance_LargeBatch", func(t *testing.T) {
-		defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+		defer goleak.VerifyNone(t,
+			goleak.IgnoreTopFunction("time.Sleep"),
+			goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 		harness := NewTestHarness(t)
 		defer harness.Cleanup()

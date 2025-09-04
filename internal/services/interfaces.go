@@ -754,20 +754,20 @@ type MessagePreloader interface {
 	// Background preloading operations
 	PreloadNextPage(ctx context.Context, currentPageToken string, query string, maxResults int64) error
 	PreloadAdjacentMessages(ctx context.Context, currentMessageID string, messageIDs []string) error
-	
+
 	// Cache operations
 	GetCachedMessages(ctx context.Context, pageToken string) ([]*gmail_v1.Message, bool)
 	GetCachedMessagesWithToken(ctx context.Context, pageToken string) ([]*gmail_v1.Message, string, bool) // messages, nextToken, found
 	GetCachedMessage(ctx context.Context, messageID string) (*gmail_v1.Message, bool)
 	ClearCache(ctx context.Context) error
-	
+
 	// Configuration management
 	IsEnabled() bool
 	IsNextPageEnabled() bool
 	IsAdjacentEnabled() bool
 	UpdateConfig(config *PreloadConfig) error
 	GetStatus() *PreloadStatus
-	
+
 	// Shutdown gracefully stops the preloader
 	Shutdown()
 }
@@ -783,25 +783,25 @@ type PreloadConfig struct {
 	AdjacentEnabled        bool    `json:"adjacent_enabled" yaml:"adjacent_enabled"`
 	AdjacentCount          int     `json:"adjacent_count" yaml:"adjacent_count"`
 	BackgroundWorkers      int     `json:"background_workers" yaml:"background_workers"`
-	CacheSizeMB           int     `json:"cache_size_mb" yaml:"cache_size_mb"`
+	CacheSizeMB            int     `json:"cache_size_mb" yaml:"cache_size_mb"`
 	APIQuotaReservePercent int     `json:"api_quota_reserve_percent" yaml:"api_quota_reserve_percent"`
 }
 
 // PreloadStatus represents current status of the preloader service
 type PreloadStatus struct {
-	Enabled              bool                   `json:"enabled"`
-	NextPageEnabled      bool                   `json:"next_page_enabled"`
-	AdjacentEnabled      bool                   `json:"adjacent_enabled"`
-	CacheSize            int                    `json:"cache_size"`           // Current number of cached items
-	CacheMemoryUsageMB   float64                `json:"cache_memory_usage"`   // Current memory usage in MB
-	ActivePreloadTasks   int                    `json:"active_preload_tasks"` // Number of background tasks running
-	LastPreloadActivity  time.Time              `json:"last_preload_activity"`
-	TotalPreloadRequests int64                  `json:"total_preload_requests"`
-	PreloadHits          int64                  `json:"preload_hits"`
-	PreloadMisses        int64                  `json:"preload_misses"`
-	BackgroundWorkers    int                    `json:"background_workers"`
-	Config               *PreloadConfig         `json:"config"`
-	Statistics           *PreloadStatistics     `json:"statistics"`
+	Enabled              bool               `json:"enabled"`
+	NextPageEnabled      bool               `json:"next_page_enabled"`
+	AdjacentEnabled      bool               `json:"adjacent_enabled"`
+	CacheSize            int                `json:"cache_size"`           // Current number of cached items
+	CacheMemoryUsageMB   float64            `json:"cache_memory_usage"`   // Current memory usage in MB
+	ActivePreloadTasks   int                `json:"active_preload_tasks"` // Number of background tasks running
+	LastPreloadActivity  time.Time          `json:"last_preload_activity"`
+	TotalPreloadRequests int64              `json:"total_preload_requests"`
+	PreloadHits          int64              `json:"preload_hits"`
+	PreloadMisses        int64              `json:"preload_misses"`
+	BackgroundWorkers    int                `json:"background_workers"`
+	Config               *PreloadConfig     `json:"config"`
+	Statistics           *PreloadStatistics `json:"statistics"`
 }
 
 // PreloadStatistics contains detailed performance statistics

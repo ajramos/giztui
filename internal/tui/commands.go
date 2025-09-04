@@ -544,7 +544,7 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		case strings.HasPrefix("stats", lower):
 			return "prompt stats"
 		case strings.HasPrefix("statistics", lower):
-			return "prompt statistics"  
+			return "prompt statistics"
 		case strings.HasPrefix("list", lower):
 			return "prompt list"
 		case strings.HasPrefix("create", lower):
@@ -1011,7 +1011,7 @@ func (a *App) executeGoToCommand(args []string) {
 
 	// Use the same simple approach as the working direct G key
 	list.Select(targetRow, 0)
-	
+
 	// Manually trigger preloading since SetSelectionChangedFunc may not fire for programmatic selection
 	a.triggerPreloadingForMessage(targetRow - 1) // Convert table row to message index
 }
@@ -1050,7 +1050,7 @@ func (a *App) executeGoToFirst() {
 	// First message is at table row 1 (row 0 is header, maps to a.ids[0])
 	// This matches the SetSelectionChangedFunc logic: messageIndex = row - 1
 	list.Select(1, 0)
-	
+
 	// Manually trigger preloading since SetSelectionChangedFunc may not fire for programmatic selection
 	a.triggerPreloadingForMessage(0) // First message is at index 0
 }
@@ -1129,7 +1129,7 @@ func (a *App) executePreloadStatus(args []string) {
 	statusMsg.WriteString(fmt.Sprintf("Cache Size: %d messages (%.1f MB)\n", status.CacheSize, status.CacheMemoryUsageMB))
 	statusMsg.WriteString(fmt.Sprintf("Active Tasks: %d\n", status.ActivePreloadTasks))
 	statusMsg.WriteString(fmt.Sprintf("Background Workers: %d\n", status.BackgroundWorkers))
-	
+
 	if status.Statistics != nil {
 		hitRate := status.Statistics.CacheHitRate * 100
 		statusMsg.WriteString(fmt.Sprintf("\nStatistics:\n"))
@@ -1175,7 +1175,7 @@ func (a *App) executePreloadEnable(args []string) {
 		config.Enabled = true
 		config.NextPageEnabled = true
 		config.AdjacentEnabled = true
-		
+
 		if err := preloader.UpdateConfig(config); err != nil {
 			a.showError(fmt.Sprintf("Failed to enable preloading: %v", err))
 			return
@@ -1186,7 +1186,7 @@ func (a *App) executePreloadEnable(args []string) {
 
 	feature := strings.ToLower(args[0])
 	config := preloader.GetStatus().Config
-	
+
 	switch feature {
 	case "next", "nextpage":
 		config.NextPageEnabled = true
@@ -1198,7 +1198,7 @@ func (a *App) executePreloadEnable(args []string) {
 		a.showError(fmt.Sprintf("Unknown preload feature: %s. Use: next, adjacent", feature))
 		return
 	}
-	
+
 	if err := preloader.UpdateConfig(config); err != nil {
 		a.showError(fmt.Sprintf("Failed to update preloader config: %v", err))
 	}
@@ -1218,7 +1218,7 @@ func (a *App) executePreloadDisable(args []string) {
 		config.Enabled = false
 		config.NextPageEnabled = false
 		config.AdjacentEnabled = false
-		
+
 		if err := preloader.UpdateConfig(config); err != nil {
 			a.showError(fmt.Sprintf("Failed to disable preloading: %v", err))
 			return
@@ -1229,7 +1229,7 @@ func (a *App) executePreloadDisable(args []string) {
 
 	feature := strings.ToLower(args[0])
 	config := preloader.GetStatus().Config
-	
+
 	switch feature {
 	case "next", "nextpage":
 		config.NextPageEnabled = false
@@ -1241,7 +1241,7 @@ func (a *App) executePreloadDisable(args []string) {
 		a.showError(fmt.Sprintf("Unknown preload feature: %s. Use: next, adjacent", feature))
 		return
 	}
-	
+
 	if err := preloader.UpdateConfig(config); err != nil {
 		a.showError(fmt.Sprintf("Failed to update preloader config: %v", err))
 	}
@@ -1259,7 +1259,7 @@ func (a *App) executePreloadClear(args []string) {
 		a.showError(fmt.Sprintf("Failed to clear preload cache: %v", err))
 		return
 	}
-	
+
 	a.showSuccess("Preload cache cleared")
 }
 
@@ -1280,7 +1280,7 @@ func (a *App) executePreloadNext(args []string) {
 
 	action := strings.ToLower(args[0])
 	config := preloader.GetStatus().Config
-	
+
 	switch action {
 	case "on", "enable":
 		config.NextPageEnabled = true
@@ -1292,7 +1292,7 @@ func (a *App) executePreloadNext(args []string) {
 		a.showError(fmt.Sprintf("Unknown action: %s. Use: on, off", action))
 		return
 	}
-	
+
 	if err := preloader.UpdateConfig(config); err != nil {
 		a.showError(fmt.Sprintf("Failed to update config: %v", err))
 	}
@@ -1315,7 +1315,7 @@ func (a *App) executePreloadAdjacent(args []string) {
 
 	action := strings.ToLower(args[0])
 	config := preloader.GetStatus().Config
-	
+
 	switch action {
 	case "on", "enable":
 		config.AdjacentEnabled = true
@@ -1327,7 +1327,7 @@ func (a *App) executePreloadAdjacent(args []string) {
 		a.showError(fmt.Sprintf("Unknown action: %s. Use: on, off", action))
 		return
 	}
-	
+
 	if err := preloader.UpdateConfig(config); err != nil {
 		a.showError(fmt.Sprintf("Failed to update config: %v", err))
 	}
@@ -1339,7 +1339,7 @@ func (a *App) executeStatsCommand(args []string) {
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, "Command moved! Use ':prompt stats' instead of ':stats'")
 	}()
-	
+
 	// Execute the new prompt stats command directly
 	a.executePromptStats([]string{})
 }

@@ -41,7 +41,7 @@ type SnapshotResult struct {
 
 // RunVisualRegressionTests runs visual regression tests using screen snapshots
 func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -175,7 +175,7 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
+			defer goleak.VerifyNone(t,
 				goleak.IgnoreTopFunction("time.Sleep"),
 				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -274,7 +274,7 @@ func UpdateSnapshot(testName, content string) error {
 
 // RunVisualStateChanges tests visual changes based on state transitions
 func RunVisualStateChanges(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -347,7 +347,7 @@ func RunVisualStateChanges(t *testing.T, harness *TestHarness) {
 
 	for _, stateTest := range stateTests {
 		t.Run(stateTest.name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
+			defer goleak.VerifyNone(t,
 				goleak.IgnoreTopFunction("time.Sleep"),
 				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -371,7 +371,7 @@ func RunVisualStateChanges(t *testing.T, harness *TestHarness) {
 
 // RunResponsiveLayoutTests tests responsive layout behavior
 func RunResponsiveLayoutTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -389,7 +389,7 @@ func RunResponsiveLayoutTests(t *testing.T, harness *TestHarness) {
 
 	for _, size := range screenSizes {
 		t.Run(fmt.Sprintf("layout_%s_%dx%d", size.name, size.width, size.height), func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
+			defer goleak.VerifyNone(t,
 				goleak.IgnoreTopFunction("time.Sleep"),
 				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 

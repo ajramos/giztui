@@ -871,14 +871,14 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 	if maxLines <= 0 {
 		maxLines = 3 // Default to 3 lines for recipient fields
 	}
-	
+
 	// Calculate available width for content (excluding field name)
 	prefix := fieldName + ": "
 	availableWidth := lineWidth - len(prefix)
 	if availableWidth < 20 {
 		availableWidth = 20 // Minimum reasonable width
 	}
-	
+
 	// Split recipients by comma and trim whitespace
 	recipients := make([]string, 0)
 	for _, recipient := range strings.Split(value, ",") {
@@ -886,22 +886,22 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 			recipients = append(recipients, trimmed)
 		}
 	}
-	
+
 	if len(recipients) == 0 {
 		return ""
 	}
-	
+
 	// Calculate how many recipients fit within maxLines
 	currentLine := 1
 	currentLineLength := 0
 	fittingRecipients := 0
-	
+
 	for i, recipient := range recipients {
 		recipientLength := len(recipient)
 		if i > 0 {
 			recipientLength += 2 // Add ", " separator
 		}
-		
+
 		// Check if this recipient fits on current line
 		if currentLineLength+recipientLength <= availableWidth {
 			currentLineLength += recipientLength
@@ -916,32 +916,32 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 			fittingRecipients++
 		}
 	}
-	
+
 	// Build result string
 	if fittingRecipients >= len(recipients) {
 		// All recipients fit
 		return strings.Join(recipients, ", ")
 	}
-	
+
 	// Truncation needed - ensure we show at least one recipient if possible
 	if fittingRecipients == 0 && len(recipients) > 0 {
 		// Force include the first recipient even if it's long
 		fittingRecipients = 1
 	}
-	
+
 	truncatedRecipients := recipients[:fittingRecipients]
 	remaining := len(recipients) - fittingRecipients
-	
+
 	result := strings.Join(truncatedRecipients, ", ")
 	if remaining > 0 {
 		suffix := fmt.Sprintf(" ... and %d more recipient", remaining)
 		if remaining > 1 {
 			suffix += "s"
 		}
-		
+
 		// Calculate lines currently used by checking for newlines in result
 		linesUsed := strings.Count(result, "\n") + 1
-		
+
 		// Ensure suffix fits on last line or new line
 		if len(result)+len(suffix) <= availableWidth {
 			result += suffix
@@ -968,7 +968,7 @@ func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLine
 			}
 		}
 	}
-	
+
 	return result
 }
 

@@ -33,7 +33,7 @@ type KeyboardShortcutCategory struct {
 
 // RunKeyboardShortcutsTests runs comprehensive tests for keyboard shortcuts
 func RunKeyboardShortcutsTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -312,9 +312,9 @@ func RunKeyboardShortcutsTests(t *testing.T, harness *TestHarness) {
 
 	for _, category := range categories {
 		t.Run(category.Name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+			defer goleak.VerifyNone(t,
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			if category.Setup != nil {
 				category.Setup(harness)
@@ -322,9 +322,9 @@ func RunKeyboardShortcutsTests(t *testing.T, harness *TestHarness) {
 
 			for _, shortcut := range category.Shortcuts {
 				t.Run(shortcut.Name, func(t *testing.T) {
-					defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+					defer goleak.VerifyNone(t,
+						goleak.IgnoreTopFunction("time.Sleep"),
+						goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 					if shortcut.Setup != nil {
 						shortcut.Setup(harness)
@@ -370,7 +370,7 @@ func RunKeyboardShortcutsTests(t *testing.T, harness *TestHarness) {
 
 // RunKeyboardShortcutRegressionTests runs regression tests for critical keyboard shortcuts
 func RunKeyboardShortcutRegressionTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -393,9 +393,9 @@ func RunKeyboardShortcutRegressionTests(t *testing.T, harness *TestHarness) {
 
 	for _, shortcut := range criticalShortcuts {
 		t.Run(fmt.Sprintf("regression_%s", shortcut.name), func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+			defer goleak.VerifyNone(t,
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			var event *tcell.EventKey
 			if shortcut.key == tcell.KeyRune {
@@ -421,7 +421,7 @@ func RunKeyboardShortcutRegressionTests(t *testing.T, harness *TestHarness) {
 
 // RunKeyboardShortcutCombinationsTests tests complex key combinations
 func RunKeyboardShortcutCombinationsTests(t *testing.T, harness *TestHarness) {
-	defer goleak.VerifyNone(t, 
+	defer goleak.VerifyNone(t,
 		goleak.IgnoreTopFunction("time.Sleep"),
 		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
@@ -484,9 +484,9 @@ func RunKeyboardShortcutCombinationsTests(t *testing.T, harness *TestHarness) {
 
 	for _, combo := range combinations {
 		t.Run(combo.name, func(t *testing.T) {
-			defer goleak.VerifyNone(t, 
-		goleak.IgnoreTopFunction("time.Sleep"),
-		goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
+			defer goleak.VerifyNone(t,
+				goleak.IgnoreTopFunction("time.Sleep"),
+				goleak.IgnoreTopFunction("github.com/ajramos/giztui/internal/services.(*MessagePreloaderImpl).startWorkers"))
 
 			// Execute key combination sequence
 			events := make([]*tcell.EventKey, 0, len(combo.sequence))

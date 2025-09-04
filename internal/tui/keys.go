@@ -34,7 +34,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	// Only create uppercase mapping if the uppercase key is NOT explicitly configured for something else
 	if a.Keys.Summarize != "" && len(a.Keys.Summarize) == 1 {
 		upperKey := strings.ToUpper(a.Keys.Summarize)
-		
+
 		// Check if this key is explicitly configured for any other function
 		// If so, the configured function takes precedence over the automatic uppercase mapping
 		if len(upperKey) == 1 && !a.isKeyConfigured(rune(upperKey[0])) && key == upperKey {
@@ -280,7 +280,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		if a.currentActivePicker == PickerRSVP {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
+				split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
 			}
 			a.setActivePicker(PickerNone)
 			a.restoreFocusAfterModal()
@@ -987,7 +987,7 @@ func (a *App) bindKeys() {
 				// Toggle RSVP side panel
 				if a.currentActivePicker == PickerRSVP {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-						split.ResizeItem(a.labelsView, 0, 0)  // Hide RSVP panel
+						split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
 					}
 					a.setActivePicker(PickerNone)
 					a.restoreFocusAfterModal()
@@ -1316,7 +1316,7 @@ func (a *App) bindKeys() {
 								query = a.currentQuery
 							}
 							maxResults := int64(50) // Default page size
-							
+
 							if err := preloader.PreloadNextPage(a.ctx, a.nextPageToken, query, maxResults); err != nil {
 								if a.logger != nil {
 									a.logger.Printf("Next page preload failed: %v", err)
@@ -2525,7 +2525,7 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 			threshold := preloader.GetStatus().Config.NextPageThreshold
 			currentPosition := float64(messageIndex+1) / float64(totalMessages)
 			if a.logger != nil {
-				a.logger.Printf("PRELOAD MANUAL: message %d/%d (%.2f%%) vs threshold %.2f%%, nextPageToken='%s'", 
+				a.logger.Printf("PRELOAD MANUAL: message %d/%d (%.2f%%) vs threshold %.2f%%, nextPageToken='%s'",
 					messageIndex+1, totalMessages, currentPosition*100, threshold*100, a.nextPageToken)
 			}
 			if currentPosition >= threshold {
@@ -2535,7 +2535,7 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 					query = a.currentQuery
 				}
 				maxResults := int64(50) // Default page size
-				
+
 				if err := preloader.PreloadNextPage(a.ctx, a.nextPageToken, query, maxResults); err != nil {
 					if a.logger != nil {
 						a.logger.Printf("PRELOAD MANUAL: Next page preload failed: %v", err)
@@ -2552,7 +2552,7 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 		if totalMessages > 0 && preloader.IsAdjacentEnabled() {
 			currentMessageID := a.ids[messageIndex]
 			if a.logger != nil {
-				a.logger.Printf("PRELOAD ADJACENT: triggering for message %d (ID: %s), total messages: %d", 
+				a.logger.Printf("PRELOAD ADJACENT: triggering for message %d (ID: %s), total messages: %d",
 					messageIndex+1, currentMessageID, totalMessages)
 			}
 			if err := preloader.PreloadAdjacentMessages(a.ctx, currentMessageID, a.ids); err != nil {

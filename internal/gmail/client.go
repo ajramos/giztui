@@ -130,7 +130,10 @@ func (c *Client) GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gm
 	}
 
 	// Create channels
-	jobs := make(chan struct{ id string; index int }, len(messageIDs))
+	jobs := make(chan struct {
+		id    string
+		index int
+	}, len(messageIDs))
 	results := make(chan MessageResult, len(messageIDs))
 
 	// Start workers
@@ -149,7 +152,10 @@ func (c *Client) GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gm
 
 	// Send jobs
 	for i, id := range messageIDs {
-		jobs <- struct{ id string; index int }{id: id, index: i}
+		jobs <- struct {
+			id    string
+			index int
+		}{id: id, index: i}
 	}
 	close(jobs)
 
@@ -180,7 +186,10 @@ func (c *Client) GetMessagesMetadataParallel(messageIDs []string, maxWorkers int
 	}
 
 	// Create channels
-	jobs := make(chan struct{ id string; index int }, len(messageIDs))
+	jobs := make(chan struct {
+		id    string
+		index int
+	}, len(messageIDs))
 	results := make(chan MessageResult, len(messageIDs))
 
 	// Start workers
@@ -199,7 +208,10 @@ func (c *Client) GetMessagesMetadataParallel(messageIDs []string, maxWorkers int
 
 	// Send jobs
 	for i, id := range messageIDs {
-		jobs <- struct{ id string; index int }{id: id, index: i}
+		jobs <- struct {
+			id    string
+			index int
+		}{id: id, index: i}
 	}
 	close(jobs)
 
@@ -892,7 +904,7 @@ func (c *Client) CreateMessageFromRaw(rawMsg *gmail.Message) *Message {
 	if rawMsg == nil {
 		return nil
 	}
-	
+
 	message := &Message{Message: rawMsg}
 	message.PlainText = ExtractPlainText(rawMsg)
 	message.HTML = ExtractHTML(rawMsg)
@@ -902,6 +914,6 @@ func (c *Client) CreateMessageFromRaw(rawMsg *gmail.Message) *Message {
 	message.Cc = extractHeader(rawMsg, "Cc")
 	message.Date = extractDate(rawMsg)
 	message.Labels = c.humanReadableLabels(extractLabels(rawMsg))
-	
+
 	return message
 }

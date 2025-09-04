@@ -365,7 +365,6 @@ func (s *BulkPromptServiceImpl) buildBulkPrompt(promptText string, combinedConte
 	return prompt
 }
 
-
 // GetCachedBulkResult retrieves a cached bulk prompt result
 func (s *BulkPromptServiceImpl) GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error) {
 	if s.cacheService == nil {

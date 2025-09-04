@@ -634,7 +634,6 @@ func (c *CompositionPanel) updateFocusOrder() {
 	c.focusableItems = append(c.focusableItems, c.sendButton)
 	c.focusableItems = append(c.focusableItems, c.draftButton)
 
-
 	// Ensure current focus index is still valid
 	if c.currentFocusIndex >= len(c.focusableItems) {
 		c.currentFocusIndex = 0
@@ -648,7 +647,6 @@ func (c *CompositionPanel) focusNext() {
 	}
 
 	c.currentFocusIndex = (c.currentFocusIndex + 1) % len(c.focusableItems)
-
 
 	c.focusCurrent()
 }
@@ -670,7 +668,6 @@ func (c *CompositionPanel) focusCurrent() {
 	}
 
 	focusTarget := c.focusableItems[c.currentFocusIndex]
-
 
 	c.app.SetFocus(focusTarget)
 }

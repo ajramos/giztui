@@ -62,26 +62,26 @@ type App struct {
 	// Email renderer
 	emailRenderer *render.EmailRenderer
 	// State management
-	ids              []string
-	messagesMeta     []*gmailapi.Message
-	currentThreads   []*services.ThreadInfo // Current threads for column system
-	draftMode        bool
-	draftIDs         []string
-	showHelp         bool
-	helpBackupText   string // Backup of text content before showing help
-	helpBackupHeader string // Backup of header content before showing help
-	helpBackupTitle  string // Backup of text container title before showing help
-	preloadStatusVisible bool
-	preloadBackupText   string // Backup of text content before showing preload status
-	preloadBackupHeader string // Backup of header content before showing preload status
-	preloadBackupTitle  string // Backup of text container title before showing preload status
-	promptStatsVisible bool
+	ids                     []string
+	messagesMeta            []*gmailapi.Message
+	currentThreads          []*services.ThreadInfo // Current threads for column system
+	draftMode               bool
+	draftIDs                []string
+	showHelp                bool
+	helpBackupText          string // Backup of text content before showing help
+	helpBackupHeader        string // Backup of header content before showing help
+	helpBackupTitle         string // Backup of text container title before showing help
+	preloadStatusVisible    bool
+	preloadBackupText       string // Backup of text content before showing preload status
+	preloadBackupHeader     string // Backup of header content before showing preload status
+	preloadBackupTitle      string // Backup of text container title before showing preload status
+	promptStatsVisible      bool
 	promptStatsBackupText   string // Backup of text content before showing prompt stats
 	promptStatsBackupHeader string // Backup of header content before showing prompt stats
 	promptStatsBackupTitle  string // Backup of text container title before showing prompt stats
-	currentView      string
-	currentFocus     string // Track current focus: "list" or "text"
-	previousFocus    string // Track previous focus before modal
+	currentView             string
+	currentFocus            string // Track current focus: "list" or "text"
+	previousFocus           string // Track previous focus before modal
 	// Command system (k9s style)
 	cmdMode          bool     // Whether we're in command mode
 	cmdBuffer        string   // Current command buffer
@@ -854,13 +854,13 @@ func (a *App) initServices() {
 			AdjacentEnabled:        a.Config.Performance.Preloading.AdjacentMessages.Enabled,
 			AdjacentCount:          a.Config.Performance.Preloading.AdjacentMessages.Count,
 			BackgroundWorkers:      a.Config.Performance.Preloading.Limits.BackgroundWorkers,
-			CacheSizeMB:           a.Config.Performance.Preloading.Limits.CacheSizeMB,
+			CacheSizeMB:            a.Config.Performance.Preloading.Limits.CacheSizeMB,
 			APIQuotaReservePercent: a.Config.Performance.Preloading.Limits.APIQuotaReservePercent,
 		}
-		
+
 		a.preloaderService = services.NewMessagePreloader(a.Client, preloadConfig, a.logger)
 		if a.logger != nil {
-			a.logger.Printf("initServices: preloader service initialized: %v (enabled: %v)", 
+			a.logger.Printf("initServices: preloader service initialized: %v (enabled: %v)",
 				a.preloaderService != nil, preloadConfig.Enabled)
 		}
 	} else {
@@ -2040,7 +2040,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    :preload on      🚀  Enable background preloading\n")
 	help.WriteString("    :preload off     ⏸️   Disable background preloading\n")
 	help.WriteString("    :preload clear   🧹  Clear all preloaded caches\n")
-	
+
 	// Prompt management commands
 	help.WriteString("    :prompt stats    📊  Show prompt usage statistics\n")
 	help.WriteString("    :prompt list     📋  Manage prompts\n")
@@ -2673,10 +2673,10 @@ func (a *App) performSearch(query string) {
 		if meta == nil {
 			continue // Skip failed fetches
 		}
-		
+
 		a.messagesMeta = append(a.messagesMeta, meta)
 		text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
-		
+
 		// Capture index for closure
 		rowIndex := i
 		a.QueueUpdateDraw(func() {
