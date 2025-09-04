@@ -864,10 +864,117 @@ func (er *EmailRenderer) FormatHeaderPlainWithWidth(subject, from, to, cc string
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// TruncateRecipientField truncates recipient fields to fit within specified line limit
+func (er *EmailRenderer) TruncateRecipientField(fieldName, value string, maxLines int, lineWidth int) string {
+	if maxLines <= 0 {
+		maxLines = 3 // Default to 3 lines for recipient fields
+	}
+	
+	// Calculate available width for content (excluding field name)
+	prefix := fieldName + ": "
+	availableWidth := lineWidth - len(prefix)
+	if availableWidth < 20 {
+		availableWidth = 20 // Minimum reasonable width
+	}
+	
+	// Split recipients by comma and trim whitespace
+	recipients := make([]string, 0)
+	for _, recipient := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(recipient); trimmed != "" {
+			recipients = append(recipients, trimmed)
+		}
+	}
+	
+	if len(recipients) == 0 {
+		return ""
+	}
+	
+	// Calculate how many recipients fit within maxLines
+	currentLine := 1
+	currentLineLength := 0
+	fittingRecipients := 0
+	
+	for i, recipient := range recipients {
+		recipientLength := len(recipient)
+		if i > 0 {
+			recipientLength += 2 // Add ", " separator
+		}
+		
+		// Check if this recipient fits on current line
+		if currentLineLength+recipientLength <= availableWidth {
+			currentLineLength += recipientLength
+			fittingRecipients++
+		} else {
+			// Need new line
+			if currentLine >= maxLines {
+				break // Hit line limit
+			}
+			currentLine++
+			currentLineLength = recipientLength
+			fittingRecipients++
+		}
+	}
+	
+	// Build result string
+	if fittingRecipients >= len(recipients) {
+		// All recipients fit
+		return strings.Join(recipients, ", ")
+	}
+	
+	// Truncation needed - ensure we show at least one recipient if possible
+	if fittingRecipients == 0 && len(recipients) > 0 {
+		// Force include the first recipient even if it's long
+		fittingRecipients = 1
+	}
+	
+	truncatedRecipients := recipients[:fittingRecipients]
+	remaining := len(recipients) - fittingRecipients
+	
+	result := strings.Join(truncatedRecipients, ", ")
+	if remaining > 0 {
+		suffix := fmt.Sprintf(" ... and %d more recipient", remaining)
+		if remaining > 1 {
+			suffix += "s"
+		}
+		
+		// Ensure suffix fits on last line or new line
+		if len(result)+len(suffix) <= availableWidth {
+			result += suffix
+		} else {
+			// Put suffix on new line if we haven't hit maxLines
+			if currentLine < maxLines {
+				result += "\n" + strings.Repeat(" ", len(prefix)) + suffix
+			} else {
+				// Replace last recipient with suffix if needed, but only if we have more than one recipient
+				if len(truncatedRecipients) > 1 {
+					lastRecipient := truncatedRecipients[len(truncatedRecipients)-1]
+					if len(result)-len(lastRecipient)+len(suffix) <= availableWidth {
+						result = strings.Join(truncatedRecipients[:len(truncatedRecipients)-1], ", ") + suffix
+						remaining++
+					}
+				}
+				// If we only have one recipient, keep it even if suffix doesn't fit
+			}
+		}
+	}
+	
+	return result
+}
+
 // writeWrappedHeaderField writes a header field with proper line wrapping
 func (er *EmailRenderer) writeWrappedHeaderField(b *strings.Builder, fieldName, value string, width int) {
 	if strings.TrimSpace(value) == "" {
 		return
+	}
+
+	// Special handling for recipient fields - truncate to max 3 lines
+	// TODO: Make this configurable once config is accessible
+	if fieldName == "To" || fieldName == "Cc" {
+		truncatedValue := er.TruncateRecipientField(fieldName, value, 3, width)
+		if truncatedValue == "" {
+			return
+		}
+		value = truncatedValue
 	}
 
 	prefix := fieldName + ": "

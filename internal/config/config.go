@@ -148,6 +148,9 @@ type LayoutConfig struct {
 	ShowBorders bool `json:"show_borders"`
 	ShowTitles  bool `json:"show_titles"`
 	CompactMode bool `json:"compact_mode"`
+	
+	// Header field display
+	MaxRecipientLines int `json:"max_recipient_lines"`
 }
 
 // LayoutBreakpoint defines minimum dimensions for layout types
@@ -482,10 +485,11 @@ func DefaultLayoutConfig() LayoutConfig {
 			Width:  60,
 			Height: 20,
 		},
-		DefaultLayout: "auto",
-		ShowBorders:   true,
-		ShowTitles:    true,
-		CompactMode:   false,
+		DefaultLayout:     "auto",
+		ShowBorders:      true,
+		ShowTitles:       true,
+		CompactMode:      false,
+		MaxRecipientLines: 3,
 	}
 }
 
