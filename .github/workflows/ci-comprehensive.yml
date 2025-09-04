@@ -33,9 +33,7 @@ jobs:
           ${{ runner.os }}-go-
 
     - name: Install dependencies
-      run: |
-        go mod download
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.4.0
+      run: go mod download
 
     - name: Run format check
       run: |
@@ -46,10 +44,36 @@ jobs:
           exit 1
         fi
 
-    - name: Run golangci-lint
-      run: golangci-lint run --config=.golangci.yml
+    - name: Run go vet
+      run: go vet -composites=false ./...
 
-    - name: Run security scan
+    - name: Install additional linters
+      run: |
+        go install honnef.co/go/tools/cmd/staticcheck@latest
+        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
+    - name: Run static analysis
+      run: staticcheck ./...
+
+    - name: Run security scan (gosec)
+      run: gosec -quiet ./...
+
+    - name: Check for unused code
+      run: |
+        go install honnef.co/go/tools/cmd/unused@latest
+        unused ./...
+
+    - name: Check error handling
+      run: |
+        go install github.com/kisielk/errcheck@latest
+        errcheck ./...
+
+    - name: Check inefficient assignments
+      run: |
+        go install github.com/gordonklaus/ineffassign@latest
+        ineffassign ./...
+
+    - name: Run vulnerability scan
       run: |
         go install golang.org/x/vuln/cmd/govulncheck@latest
         govulncheck ./...
