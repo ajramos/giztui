@@ -1,4 +1,4 @@
-# golangci-lint configuration version
+# golangci-lint configuration
 version: 2
 
 run:
@@ -17,10 +17,9 @@ linters:
 
 linters-settings:
   govet:
-    check-shadowing: false
-    settings:
-      composites:
-        enabled: false
+    disable:
+      - composites
+      - shadow
 
 issues:
   # Focus on new issues - this is professional software development practice

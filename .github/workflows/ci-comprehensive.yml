@@ -35,7 +35,7 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.4.0
 
     - name: Run format check
       run: |
