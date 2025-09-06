@@ -602,8 +602,9 @@ func (a *App) openBulkObsidianPanel() {
 				if a.logger != nil {
 					a.logger.Printf("SPACE: not on checkbox (focusIndex=%d), let comment field handle", cur)
 				}
-				// Let comment field handle space normally
 			}
+			// Let form handle space normally for comment field or fallback
+			return ev
 		}
 
 		// Handle ESC at form level (primary handler)

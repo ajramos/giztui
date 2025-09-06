@@ -588,6 +588,11 @@ func (a *App) bindKeys() {
 		case ' ':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured(' ') {
+				// Don't handle bulk select when focus is on a picker/modal
+				if a.currentFocus == "obsidian" || a.currentFocus == "prompts" || a.currentFocus == "search" {
+					// Let the focused component handle the space key
+					return event
+				}
 				a.handleBulkSelect()
 				return nil
 			}
