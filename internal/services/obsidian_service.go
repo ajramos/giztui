@@ -693,10 +693,11 @@ func (s *ObsidianServiceImpl) cleanEmailContentForRepopack(content string) strin
 	return strings.Join(cleanLines, "\n")
 }
 
-// formatRepopackForObsidian formats the combined content using repopack template
+// formatRepopackForObsidian formats the combined content using configurable repopack template
 func (s *ObsidianServiceImpl) formatRepopackForObsidian(messages []*gmail.Message, combinedContent string, options obsidian.ObsidianOptions) (string, error) {
-	// Repopack template with frontmatter
-	repopackTemplate := `---
+	// Load repopack template using same pattern as other templates
+	// Priority: 1) RepopackTemplateFile, 2) No inline fallback, 3) Hardcoded fallback
+	hardcodedFallback := `---
 title: "Email Repopack - {{compilation_date}}"
 date: {{compilation_date}}
 type: email_repopack
@@ -719,6 +720,17 @@ repopack: true
 
 *Compiled from Gmail using GizTUI repopack mode on {{compilation_date}}*`
 
+	// Load template from configuration
+	repopackTemplate := config.LoadTemplate(s.config.RepopackTemplateFile, "", hardcodedFallback)
+
+	// Validate template has required variables
+	if err := s.validateRepopackTemplate(repopackTemplate); err != nil {
+		if s.logger != nil {
+			s.logger.Printf("Warning: repopack template validation failed: %v, using fallback", err)
+		}
+		repopackTemplate = hardcodedFallback
+	}
+
 	// Extract comment from options
 	comment := ""
 	if options.CustomMetadata != nil {
@@ -731,12 +743,23 @@ repopack: true
 
 	// Prepare variables for substitution
 	compilationDate := time.Now().Format("2006-01-02 15:04:05")
+	messageCount := len(messages)
+
+	// Generate enhanced template variables
+	title := fmt.Sprintf("Email Repopack - %d Messages", messageCount)
+	batchInfo := fmt.Sprintf("**Processing Info:** %d messages compiled on %s", messageCount, compilationDate)
+	footer := fmt.Sprintf("*Compiled from Gmail using GizTUI repopack mode on %s*", compilationDate)
+
 	variables := map[string]string{
 		"compilation_date": compilationDate,
-		"message_count":    fmt.Sprintf("%d", len(messages)),
+		"message_count":    fmt.Sprintf("%d", messageCount),
 		"account_email":    options.AccountEmail,
 		"messages":         combinedContent,
 		"comment":          comment,
+		// Enhanced template variables (Phase 5)
+		"title":      title,
+		"batch_info": batchInfo,
+		"footer":     footer,
 	}
 
 	// Replace variables in template
@@ -747,6 +770,19 @@ repopack: true
 	}
 
 	return content, nil
+}
+
+// validateRepopackTemplate validates that a repopack template has required variables
+func (s *ObsidianServiceImpl) validateRepopackTemplate(template string) error {
+	requiredVariables := []string{"{{messages}}", "{{compilation_date}}"}
+
+	for _, required := range requiredVariables {
+		if !strings.Contains(template, required) {
+			return fmt.Errorf("missing required variable: %s", required)
+		}
+	}
+
+	return nil
 }
 
 // generateRepopackFilePath generates a file path for the repopack file

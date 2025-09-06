@@ -621,7 +621,8 @@ Available variables in prompts:
     "prevent_duplicates": true,
     "max_file_size": 1048576,
     "include_attachments": true,
-    "template_file": "templates/obsidian/email.md"
+    "template_file": "templates/obsidian/email.md",
+    "repopack_template_file": "templates/obsidian/repopack.md"
   }
 }
 ```
@@ -639,6 +640,7 @@ Available variables in prompts:
 | `max_file_size` | integer | Maximum file size in bytes | `1048576` |
 | `include_attachments` | boolean | Include email attachments | `true` |
 | `template_file` | string | Path to email template file | `"templates/obsidian/email.md"` |
+| `repopack_template_file` | string | Path to repopack template file for bulk mode | `"templates/obsidian/repopack.md"` |
 ```
 
 #### Obsidian Template Example
@@ -978,7 +980,8 @@ Here's a complete example configuration with common customizations:
   "obsidian": {
     "enabled": true,
     "vault_path": "~/Obsidian/SecondBrain",
-    "template": "templates/obsidian/email.md"
+    "template_file": "templates/obsidian/email.md",
+    "repopack_template_file": "templates/obsidian/repopack.md"
   },
   "search": {
     "highlight_matches": true,

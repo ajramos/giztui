@@ -42,21 +42,23 @@ type ObsidianConfig struct {
 	IncludeAttachments bool   `json:"include_attachments"`
 
 	// Template configuration (file path takes precedence over inline)
-	TemplateFile string `json:"template_file,omitempty"` // Path to template file (relative to config dir or absolute)
-	Template     string `json:"template"`                // Inline template (fallback)
+	TemplateFile         string `json:"template_file,omitempty"`          // Path to template file (relative to config dir or absolute)
+	RepopackTemplateFile string `json:"repopack_template_file,omitempty"` // Path to repopack template file for bulk mode
+	Template             string `json:"template"`                         // Inline template (fallback)
 }
 
 // DefaultObsidianConfig returns the default configuration
 func DefaultObsidianConfig() *ObsidianConfig {
 	return &ObsidianConfig{
-		Enabled:            true,
-		IngestFolder:       "00-Inbox",
-		FilenameFormat:     "{{date}}_{{subject_slug}}_{{from_domain}}",
-		HistoryEnabled:     true,
-		PreventDuplicates:  true,
-		MaxFileSize:        1048576, // 1MB
-		IncludeAttachments: true,    // Always include attachments by default
-		TemplateFile:       "templates/obsidian/email.md",
+		Enabled:              true,
+		IngestFolder:         "00-Inbox",
+		FilenameFormat:       "{{date}}_{{subject_slug}}_{{from_domain}}",
+		HistoryEnabled:       true,
+		PreventDuplicates:    true,
+		MaxFileSize:          1048576, // 1MB
+		IncludeAttachments:   true,    // Always include attachments by default
+		TemplateFile:         "templates/obsidian/email.md",
+		RepopackTemplateFile: "templates/obsidian/repopack.md",
 		Template: `---
 title: "{{subject}}"
 date: {{date}}
