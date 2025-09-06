@@ -562,7 +562,7 @@ func (a *App) bindKeys() {
 					if a.logger != nil {
 						a.logger.Printf("Bulk mode: 'O' key intercepted for bulk Obsidian operation")
 					}
-					a.openBulkObsidianPanel()
+					go a.openBulkObsidianPanel()
 					return nil
 				}
 			}

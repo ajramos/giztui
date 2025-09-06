@@ -554,6 +554,28 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		}
 	}
 
+	// Contextual suggestions for 'obsidian' commands
+	if strings.HasPrefix(buffer, "obsidian ") || strings.HasPrefix(buffer, "obs ") {
+		prefix := "obsidian "
+		if strings.HasPrefix(buffer, "obs ") {
+			prefix = "obs "
+		}
+
+		tail := strings.TrimSpace(strings.TrimPrefix(buffer, strings.TrimSpace(prefix)))
+		lower := strings.ToLower(tail)
+
+		switch {
+		case strings.HasPrefix("repack", lower):
+			return prefix + "repack"
+		case strings.HasPrefix("repopack", lower):
+			return prefix + "repack" // Normalize to repack
+		case lower == "r":
+			return prefix + "repack"
+		case tail == "":
+			return prefix + "repack" // Default suggestion for obsidian subcommands
+		}
+	}
+
 	return ""
 }
 
@@ -1590,16 +1612,41 @@ func (a *App) executeLabelCommand(args []string) {
 	a.labelRange(startIndex, count)
 }
 
-// executeObsidianCommand handles :obsidian commands for range Obsidian operations
+// executeObsidianCommand handles :obsidian commands for Obsidian operations
 func (a *App) executeObsidianCommand(args []string) {
 	if len(args) == 0 {
-		a.showError("Usage: obsidian <count>")
+		a.showError("Usage: obsidian <count> | obsidian repack")
 		return
 	}
 
+	// Check for repack subcommand
+	if strings.ToLower(args[0]) == "repack" || strings.ToLower(args[0]) == "repopack" {
+		// Handle repack mode
+		if a.bulkMode && len(a.selected) > 0 {
+			// Open bulk Obsidian picker with focus on repack mode
+			go a.openBulkObsidianPanelWithRepack()
+		} else {
+			messageID := a.GetCurrentMessageID()
+			if messageID == "" {
+				a.showError("No message selected for Obsidian repack")
+				return
+			}
+			// For single message, just open normal Obsidian panel
+			// (repack mode doesn't make sense for single message)
+			message, err := a.Client.GetMessageWithContent(messageID)
+			if err != nil {
+				a.showError("Failed to load message content")
+				return
+			}
+			go a.openObsidianIngestPanel(message)
+		}
+		return
+	}
+
+	// Handle range operations (existing functionality)
 	count, err := strconv.Atoi(args[0])
 	if err != nil || count <= 0 {
-		a.showError("Usage: obsidian <count> (positive number)")
+		a.showError("Usage: obsidian <count> | obsidian repack")
 		return
 	}
 

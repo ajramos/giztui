@@ -294,6 +294,7 @@ type SlackChannel struct {
 type ObsidianService interface {
 	IngestEmailToObsidian(ctx context.Context, message *gmail.Message, options obsidian.ObsidianOptions) (*obsidian.ObsidianIngestResult, error)
 	IngestBulkEmailsToObsidian(ctx context.Context, messages []*gmail.Message, accountEmail string, onProgress func(int, int, error)) (*obsidian.BulkObsidianResult, error)
+	IngestEmailsToSingleFile(ctx context.Context, messages []*gmail.Message, accountEmail string, options obsidian.ObsidianOptions) (*obsidian.ObsidianIngestResult, error)
 	GetObsidianTemplates(ctx context.Context) ([]*obsidian.ObsidianTemplate, error)
 	ValidateObsidianConnection(ctx context.Context) error
 	GetObsidianVaultPath() string

@@ -13,6 +13,7 @@ type ObsidianTemplate struct {
 type ObsidianOptions struct {
 	AccountEmail   string                 `json:"account_email"`
 	CustomMetadata map[string]interface{} `json:"custom_metadata"`
+	RepopackMode   bool                   `json:"repopack_mode"` // Whether to combine emails into single file
 }
 
 // ObsidianForwardRecord represents a record of an email forwarded to Obsidian
@@ -92,6 +93,8 @@ type ObsidianIngestResult struct {
 	TemplateUsed string                 `json:"template_used"`
 	ErrorMessage string                 `json:"error_message,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata"`
+	RepopackMode bool                   `json:"repopack_mode"` // Whether this was a repopack operation
+	MessageCount int                    `json:"message_count"` // Number of messages in repopack (1 for single)
 }
 
 // BulkObsidianResult represents the result of a bulk email ingestion

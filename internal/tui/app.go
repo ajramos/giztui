@@ -1799,7 +1799,7 @@ func (a *App) generateHelpText() string {
 		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward selected to Slack\n", a.Keys.Slack))
 	}
 	if a.Config.Obsidian.Enabled {
-		help.WriteString(fmt.Sprintf("    %-8s  📝  Send selected to Obsidian\n", a.Keys.Obsidian))
+		help.WriteString(fmt.Sprintf("    %-8s  📝  Send selected to Obsidian (with repopack option)\n", a.Keys.Obsidian))
 	}
 	help.WriteString("    Esc       ❌  Exit bulk mode\n\n")
 
@@ -1863,7 +1863,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker))
 	help.WriteString(fmt.Sprintf("    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker))
 	if a.Config.Obsidian.Enabled {
-		help.WriteString(fmt.Sprintf("    %-8s  📝  Send to Obsidian\n", a.Keys.Obsidian))
+		help.WriteString(fmt.Sprintf("    %-8s  📝  Send to Obsidian (individual files or repopack)\n", a.Keys.Obsidian))
 	}
 	if a.Config.Slack.Enabled {
 		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward to Slack\n", a.Keys.Slack))
@@ -1890,6 +1890,10 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    :save-query   💾  Save current search as bookmark\n")
 	help.WriteString("    :bookmarks    📚  Browse saved query bookmarks\n")
 	help.WriteString("    :bookmark name 🔍  Execute saved query by name\n")
+	if a.Config.Obsidian.Enabled {
+		help.WriteString("    :obsidian repack 📦  Create repopack with selected messages\n")
+		help.WriteString("    :obs repack   📦  Same as :obsidian repack (short alias)\n")
+	}
 	help.WriteString("    :theme        🎨  Open theme picker\n")
 	help.WriteString("    :headers      📄  Toggle header visibility\n")
 	help.WriteString("    :numbers      🔢  Toggle message numbers\n")

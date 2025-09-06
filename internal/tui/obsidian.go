@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/obsidian"
@@ -12,9 +11,17 @@ import (
 
 // sendEmailToObsidian initiates the process of sending an email to Obsidian
 func (a *App) sendEmailToObsidian() {
-	// Check for bulk mode first (following the established pattern)
+	if a.logger != nil {
+		a.logger.Printf("=== sendEmailToObsidian called: bulkMode=%t, selected=%d ===", a.bulkMode, len(a.selected))
+	}
+
+	// Check for bulk mode first - but don't open panel here since keys.go handles it directly
 	if a.bulkMode && len(a.selected) > 0 {
-		go a.openBulkObsidianPanel()
+		if a.logger != nil {
+			a.logger.Printf("Bulk mode detected with %d selected messages, but keys.go should handle this directly", len(a.selected))
+		}
+		// Don't call openBulkObsidianPanel here to avoid double opening
+		// The bulk mode is handled directly in keys.go
 		return
 	}
 
@@ -78,37 +85,42 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 	// Set background on child components as well
 	templateView.SetBackgroundColor(bgColor)
 
-	// Comment input field
-	commentLabel := tview.NewTextView().SetText("💬 Pre-message:")
-	commentLabel.SetTextColor(a.GetComponentColors("obsidian").Title.Color())
-	commentLabel.SetBackgroundColor(bgColor)
+	// Create form for input fields including repopack checkbox
+	form := tview.NewForm()
+	form.SetBackgroundColor(bgColor)
+	form.SetBorder(false)
+	form.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	form.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
+	form.SetLabelColor(a.GetComponentColors("obsidian").Title.Color())
+	form.SetButtonBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	form.SetButtonTextColor(a.GetComponentColors("obsidian").Text.Color())
 
-	commentInput := tview.NewInputField()
-	commentInput.SetLabel("")
-	commentInput.SetText("")
-	commentInput.SetPlaceholder("Add a personal note about this email...")
-	commentInput.SetFieldWidth(50)
-	commentInput.SetBorder(false)                                                             // No border for cleaner look
-	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
-	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())             // Component text color
-	commentInput.SetPlaceholderTextColor(a.getHintColor())                                    // Consistent placeholder color
-	commentInput.SetBackgroundColor(bgColor)
+	// Variables to capture form data
+	var comment string
+	var repopackMode bool
+
+	// Add comment input field
+	form.AddInputField("💬 Pre-message:", "", 50, nil, func(text string) {
+		comment = text
+	})
+
+	// Add repopack checkbox (disabled for single messages)
+	form.AddCheckbox("📦 Repopack Mode (disabled for single message)", false, func(label string, checked bool) {
+		repopackMode = checked
+	})
+
+	// Note: For single message mode, checkbox is present but user can't meaningfully use repopack mode
+	// The logic in performObsidianIngest will handle this appropriately
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	instructions.SetText("Enter to ingest | Esc to cancel")
+	instructions.SetText("Tab to navigate | Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 	instructions.SetBackgroundColor(bgColor)
 
-	// Create a horizontal flex for label and input alignment
-	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-	commentRow.SetBackgroundColor(bgColor)
-	commentRow.AddItem(commentLabel, 0, 1, false)
-	commentRow.AddItem(commentInput, 0, 1, false)
-
 	// Add items to container with proper proportions
 	container.AddItem(templateView, 0, 1, false) // Template takes most space
-	container.AddItem(commentRow, 2, 0, false)   // Label and input in same row
+	container.AddItem(form, 4, 0, false)         // Form with input and checkbox
 	container.AddItem(instructions, 1, 0, false) // Instructions take minimal space
 
 	// Add to content split like prompts
@@ -120,41 +132,39 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 		split.AddItem(a.labelsView, 0, 1, true)
 		split.ResizeItem(a.labelsView, 0, 1)
 
-		// Debug: Show success message
-		a.GetErrorHandler().ShowSuccess(a.ctx, "Obsidian panel opened successfully!")
+		if a.logger != nil {
+			a.logger.Printf("Obsidian panel added to contentSplit successfully")
+		}
 	} else {
-		// Debug: Show error if split not found
+		if a.logger != nil {
+			a.logger.Printf("ERROR: Failed to find contentSplit view for Obsidian panel")
+		}
 		a.GetErrorHandler().ShowError(a.ctx, "Failed to find contentSplit view")
+		return
 	}
 
-	// Set focus and state
-	a.currentFocus = "obsidian"
-	a.updateFocusIndicators("obsidian")
-	a.setActivePicker(PickerObsidian)
-
-	// Configure Tab navigation between template view and comment input
-	templateView.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if e.Key() == tcell.KeyTab {
-			a.SetFocus(commentInput)
+	// Configure form navigation and submission
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			a.closeObsidianPanel()
+			return nil
+		case tcell.KeyEnter:
+			// Perform ingestion with form data (repopackMode will always be false for single message)
+			go a.performObsidianIngest(message, accountEmail, "default", comment, repopackMode)
 			return nil
 		}
-		return e
+		return event
 	})
 
-	commentInput.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+	// Configure Tab navigation between template view and form
+	templateView.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		if e.Key() == tcell.KeyTab {
-			a.SetFocus(templateView)
+			a.SetFocus(form)
 			return nil
 		}
 		if e.Key() == tcell.KeyEscape {
 			a.closeObsidianPanel()
-			return nil
-		}
-		if e.Key() == tcell.KeyEnter {
-			// Get comment text
-			comment := commentInput.GetText()
-			// Perform ingestion with comment
-			go a.performObsidianIngest(message, accountEmail, "default", comment)
 			return nil
 		}
 		return e
@@ -169,24 +179,15 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 		return e
 	})
 
-	// Set focus immediately and force redraw
+	// CRITICAL FIX: Set focus FIRST, then focus state (like working bulk prompt picker)
+	a.SetFocus(form)
 	a.currentFocus = "obsidian"
 	a.updateFocusIndicators("obsidian")
-	a.setActivePicker(PickerObsidian) // Needed for proper visual state
+	a.setActivePicker(PickerObsidian)
 
-	// Force focus with multiple attempts
-	a.SetFocus(commentInput)
-	a.QueueUpdateDraw(func() {
-		a.SetFocus(commentInput)
-	})
-
-	// Additional focus attempt after a short delay
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		a.QueueUpdateDraw(func() {
-			a.SetFocus(commentInput)
-		})
-	}()
+	if a.logger != nil {
+		a.logger.Printf("Obsidian panel setup complete, focus set to form")
+	}
 }
 
 // previewObsidianContent removed - no longer needed
@@ -194,7 +195,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 // OBLITERATED: unused formatEmailPreview function eliminated! 💥
 
 // performObsidianIngest performs the actual ingestion to Obsidian
-func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string, templateName string, comment string) {
+func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string, templateName string, comment string, repopackMode bool) {
 	// Close panel immediately (like prompts do)
 	a.QueueUpdateDraw(func() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -221,13 +222,20 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 	// Create options for ingestion
 	options := obsidian.ObsidianOptions{
 		AccountEmail: accountEmail,
+		RepopackMode: repopackMode,
 		CustomMetadata: map[string]interface{}{
 			"comment": comment,
 		},
 	}
 
-	// Perform actual ingestion
-	_, err := obsidianService.IngestEmailToObsidian(a.ctx, message, options)
+	// Perform actual ingestion (for single messages, repopack mode is always false)
+	var err error
+	if repopackMode {
+		// This shouldn't happen for single messages, but handle gracefully
+		_, err = obsidianService.IngestEmailsToSingleFile(a.ctx, []*gmail.Message{message}, accountEmail, options)
+	} else {
+		_, err = obsidianService.IngestEmailToObsidian(a.ctx, message, options)
+	}
 	if err != nil {
 		a.GetErrorHandler().ClearProgress()
 		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to ingest email: %v", err))
@@ -367,28 +375,54 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 
 // openBulkObsidianPanel shows the panel for bulk Obsidian ingestion
 func (a *App) openBulkObsidianPanel() {
+	if a.logger != nil {
+		a.logger.Printf("=== openBulkObsidianPanel START ===")
+	}
+
 	if !a.bulkMode || len(a.selected) == 0 {
+		if a.logger != nil {
+			a.logger.Printf("ERROR: Invalid bulk mode state - bulkMode=%t, selected=%d", a.bulkMode, len(a.selected))
+		}
 		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk Obsidian ingestion")
 		return
 	}
 
 	messageCount := len(a.selected)
+	if a.logger != nil {
+		a.logger.Printf("Processing bulk obsidian for %d messages", messageCount)
+	}
+	// Re-enabled now that double opening issue is fixed
 	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Preparing to send %d messages to Obsidian", messageCount))
 
 	// Get account email
+	if a.logger != nil {
+		a.logger.Printf("Getting active account email...")
+	}
 	accountEmail := a.getActiveAccountEmail()
 	if accountEmail == "" {
+		if a.logger != nil {
+			a.logger.Printf("ERROR: No account email available")
+		}
 		a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
 		return
 	}
+	if a.logger != nil {
+		a.logger.Printf("Account email: %s", accountEmail)
+	}
 
 	// Create panel similar to single message but for bulk
+	if a.logger != nil {
+		a.logger.Printf("Creating bulk obsidian UI container...")
+	}
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 	container.SetBorder(true)
 	container.SetTitle(fmt.Sprintf(" 📥 Send %d Messages to Obsidian ", messageCount))
 	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
 
+	if a.logger != nil {
+		a.logger.Printf("Getting bulk template content...")
+	}
 	// Show bulk template info
 	templateContent := a.getBulkObsidianTemplate(messageCount)
 	templateView := tview.NewTextView().
@@ -397,77 +431,246 @@ func (a *App) openBulkObsidianPanel() {
 		SetWordWrap(true).
 		SetBorder(false)
 
-	// Comment input field for bulk operation
-	commentLabel := tview.NewTextView().SetText("💬 Bulk comment:")
-	commentLabel.SetTextColor(a.GetComponentColors("obsidian").Title.Color())
+	// Set background color for templateView
+	templateView.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
 
-	commentInput := tview.NewInputField()
-	commentInput.SetLabel("")
-	commentInput.SetText("")
-	commentInput.SetPlaceholder("Add a note for all emails in this batch...")
-	commentInput.SetFieldWidth(50)
-	commentInput.SetBorder(false)
-	commentInput.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color()) // Component background (not accent)
-	commentInput.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
-	commentInput.SetPlaceholderTextColor(a.getHintColor()) // Consistent placeholder color
+	if a.logger != nil {
+		a.logger.Printf("Creating bulk form with input fields...")
+	}
+	// Create form for bulk input fields including repopack checkbox
+	bgColor := a.GetComponentColors("obsidian").Background.Color()
+	form := tview.NewForm()
+	form.SetBackgroundColor(bgColor)
+	form.SetBorder(false)
 
+	// Enhanced form theming to ensure visibility
+	obsidianColors := a.GetComponentColors("obsidian")
+	form.SetFieldBackgroundColor(obsidianColors.Background.Color())
+	form.SetFieldTextColor(obsidianColors.Text.Color())
+	form.SetLabelColor(obsidianColors.Title.Color())
+	form.SetButtonBackgroundColor(obsidianColors.Background.Color())
+	form.SetButtonTextColor(obsidianColors.Text.Color())
+
+	if a.logger != nil {
+		a.logger.Printf("Form colors - bg: %v, text: %v, label: %v", obsidianColors.Background.Color(), obsidianColors.Text.Color(), obsidianColors.Title.Color())
+	}
+
+	// Variables to capture form data
+	var comment string
+	var repopackMode bool
+
+	if a.logger != nil {
+		a.logger.Printf("Adding form fields (input and checkbox)...")
+	}
+	// Add comment input field
+	form.AddInputField("💬 Bulk comment:", "", 50, nil, func(text string) {
+		comment = text
+	})
+	if a.logger != nil {
+		a.logger.Printf("Added input field: 'Bulk comment'")
+	}
+
+	// Add repopack checkbox (enabled for bulk mode)
+	form.AddCheckbox("📦 Combine into one file", false, func(label string, checked bool) {
+		repopackMode = checked
+	})
+	if a.logger != nil {
+		a.logger.Printf("Added checkbox: 'Combine into one file'")
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("Creating instructions view...")
+	}
 	// Instructions
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	instructions.SetText("Enter to ingest all | Esc to cancel")
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	instructions.SetText("Tab to navigate | Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
+	instructions.SetBackgroundColor(bgColor)
 
-	// Create a horizontal flex for label and input alignment
-	commentRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-	commentRow.AddItem(commentLabel, 0, 1, false)
-	commentRow.AddItem(commentInput, 0, 1, false)
-
+	if a.logger != nil {
+		a.logger.Printf("Adding items to container...")
+	}
 	// Add items to container with proper proportions
 	container.AddItem(templateView, 0, 1, false)
-	container.AddItem(commentRow, 2, 0, false)
+	container.AddItem(form, 5, 0, true) // Form with input and checkbox - MAKE FOCUSABLE
 	container.AddItem(instructions, 1, 0, false)
 
+	if a.logger != nil {
+		a.logger.Printf("Adding container to contentSplit...")
+	}
 	// Add to content split
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
+			if a.logger != nil {
+				a.logger.Printf("Removing existing labelsView...")
+			}
 			split.RemoveItem(a.labelsView)
 		}
+		if a.logger != nil {
+			a.logger.Printf("Setting labelsView to new container...")
+		}
 		a.labelsView = container
+		if a.logger != nil {
+			a.logger.Printf("Adding container to split...")
+		}
 		split.AddItem(a.labelsView, 0, 1, true)
+		if a.logger != nil {
+			a.logger.Printf("Resizing container in split...")
+		}
 		split.ResizeItem(a.labelsView, 0, 1)
+
+		if a.logger != nil {
+			a.logger.Printf("Bulk Obsidian panel added to contentSplit successfully")
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("ERROR: Failed to find contentSplit view for bulk Obsidian panel")
+		}
+		a.GetErrorHandler().ShowError(a.ctx, "Failed to find contentSplit view")
+		return
 	}
 
-	// Set focus and state
-	a.currentFocus = "obsidian"
-	a.updateFocusIndicators("obsidian")
-	a.setActivePicker(PickerObsidian)
+	if a.logger != nil {
+		a.logger.Printf("Configuring form-level input capture with complete Tab containment (following advanced search pattern)...")
+	}
+	// Configure form-level navigation control (following advanced search pattern exactly)
+	// This provides complete Tab containment and prevents focus escape
 
-	// Configure input handling
-	commentInput.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if e.Key() == tcell.KeyEscape {
+	// Form-level input capture handles ALL navigation and special keys
+	form.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		if a.logger != nil {
+			cur, _ := form.GetFocusedItemIndex()
+			items := form.GetFormItemCount()
+			a.logger.Printf("FORM key event: key=%v rune=%q focusIndex=%d/%d", ev.Key(), ev.Rune(), cur, items)
+		}
+
+		// Handle Tab/Shift+Tab with containment (following advanced search pattern)
+		if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
+			cur, _ := form.GetFocusedItemIndex()
+			items := form.GetFormItemCount() // Should be 2 (comment + checkbox)
+			if items <= 0 {
+				return ev
+			}
+
+			next := cur
+			switch ev.Key() {
+			case tcell.KeyTab:
+				next = cur + 1
+				if next >= items {
+					next = 0 // Wrap to first element (comment)
+				}
+				if a.logger != nil {
+					a.logger.Printf("TAB navigation: %d -> %d (wrapped=%v)", cur, next, cur+1 >= items)
+				}
+			case tcell.KeyBacktab:
+				next = cur - 1
+				if next < 0 {
+					next = items - 1 // Wrap to last element (checkbox)
+				}
+				if a.logger != nil {
+					a.logger.Printf("SHIFT+TAB navigation: %d -> %d (wrapped=%v)", cur, next, cur-1 < 0)
+				}
+			}
+
+			form.SetFocus(next)
+			return nil // Consume Tab - prevent escape to message list
+		}
+
+		// Handle Space key for checkbox toggle (form level like advanced search)
+		if ev.Key() == tcell.KeyRune && ev.Rune() == ' ' {
+			cur, _ := form.GetFocusedItemIndex()
+			if a.logger != nil {
+				a.logger.Printf("SPACE key pressed at focusIndex=%d", cur)
+			}
+
+			if cur == 1 { // Checkbox is at index 1
+				if form.GetFormItemCount() >= 2 {
+					if checkbox, ok := form.GetFormItem(1).(*tview.Checkbox); ok {
+						repopackMode = !repopackMode
+						checkbox.SetChecked(repopackMode)
+						if a.logger != nil {
+							a.logger.Printf("SPACE toggled checkbox: repopackMode=%v", repopackMode)
+						}
+						return nil // Consume space key
+					} else {
+						if a.logger != nil {
+							a.logger.Printf("SPACE: failed to get checkbox at index 1")
+						}
+					}
+				}
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("SPACE: not on checkbox (focusIndex=%d), let comment field handle", cur)
+				}
+				// Let comment field handle space normally
+			}
+		}
+
+		// Handle ESC at form level (primary handler)
+		if ev.Key() == tcell.KeyEscape {
+			if a.logger != nil {
+				a.logger.Printf("ESC key pressed at form level - closing panel")
+			}
 			a.closeObsidianPanel()
 			return nil
 		}
-		if e.Key() == tcell.KeyEnter {
-			// Get comment text
-			comment := commentInput.GetText()
-			// Perform bulk ingestion
-			go a.performBulkObsidianIngest(accountEmail, comment)
+
+		// Handle Enter submission
+		if ev.Key() == tcell.KeyEnter {
+			if a.logger != nil {
+				a.logger.Printf("ENTER key pressed - submitting form")
+			}
+			go a.performBulkObsidianIngest(accountEmail, comment, repopackMode)
 			return nil
 		}
-		return e
+
+		// Let form handle all other keys normally
+		return ev
 	})
 
-	// Container-level input capture for Escape
-	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if e.Key() == tcell.KeyEscape {
+	if a.logger != nil {
+		a.logger.Printf("Adding container-level ESC fallback handler for comprehensive coverage...")
+	}
+	// Add container-level ESC handling as failsafe (works if focus somehow escapes form)
+	container.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			if a.logger != nil {
+				a.logger.Printf("ESC key pressed in container (fallback) - closing panel")
+			}
 			a.closeObsidianPanel()
 			return nil
 		}
-		return e
+		// Let form handle all other input
+		return event
 	})
 
-	// Set focus to input
-	a.SetFocus(commentInput)
+	// CRITICAL FIX: Add synchronization delay to prevent white highlight and ensure proper theme colors
+	if a.logger != nil {
+		a.logger.Printf("Adding focus synchronization delay to prevent theme color issues...")
+	}
+
+	// Use QueueUpdateDraw to ensure UI is fully rendered before setting focus
+	a.QueueUpdateDraw(func() {
+		if a.logger != nil {
+			a.logger.Printf("Setting focus state and theme colors synchronously...")
+		}
+
+		// Set focus state first to ensure proper theme application
+		a.currentFocus = "obsidian"
+		a.updateFocusIndicators("obsidian")
+		a.setActivePicker(PickerObsidian)
+
+		// Then set the actual focus - this should now have correct theme colors
+		a.SetFocus(form)
+
+		if a.logger != nil {
+			a.logger.Printf("=== openBulkObsidianPanel FOCUS SET WITH PROPER THEME ===")
+		}
+	})
+
+	if a.logger != nil {
+		a.logger.Printf("=== openBulkObsidianPanel COMPLETE ===")
+	}
 }
 
 // getBulkObsidianTemplate returns template info for bulk operations
@@ -490,8 +693,8 @@ Files will be created in your Obsidian vault's 00-Inbox folder.
 Press Enter to process all messages or Esc to cancel.`, messageCount)
 }
 
-// performBulkObsidianIngest performs bulk ingestion (wraps the existing bulk function)
-func (a *App) performBulkObsidianIngest(accountEmail, comment string) {
+// performBulkObsidianIngest performs bulk ingestion with repopack mode support
+func (a *App) performBulkObsidianIngest(accountEmail, comment string, repopackMode bool) {
 	// Close panel immediately
 	a.QueueUpdateDraw(func() {
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -504,15 +707,276 @@ func (a *App) performBulkObsidianIngest(accountEmail, comment string) {
 		a.updateFocusIndicators("list")
 	})
 
-	// Call the bulk function with the comment
-	a.sendSelectedBulkToObsidianWithComment(comment)
+	// Call the appropriate bulk function based on repopack mode
+	if repopackMode {
+		a.sendSelectedBulkToObsidianAsRepopack(accountEmail, comment)
+	} else {
+		a.sendSelectedBulkToObsidianWithComment(comment)
+	}
+}
+
+// sendSelectedBulkToObsidianAsRepopack sends all selected messages to Obsidian as a single repopack file
+func (a *App) sendSelectedBulkToObsidianAsRepopack(accountEmail, comment string) {
+	if len(a.selected) == 0 {
+		a.GetErrorHandler().ShowError(a.ctx, "No messages selected")
+		return
+	}
+
+	// Snapshot selection (following archiveSelectedBulk pattern)
+	ids := make([]string, 0, len(a.selected))
+	for id := range a.selected {
+		ids = append(ids, id)
+	}
+
+	messageCount := len(ids)
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📦 Creating repopack with %d emails…", messageCount))
+
+	go func() {
+		// Load all messages
+		messages := make([]*gmail.Message, 0, len(ids))
+		failedCount := 0
+
+		for _, id := range ids {
+			message, err := a.Client.GetMessageWithContent(id)
+			if err != nil {
+				failedCount++
+				continue
+			}
+			messages = append(messages, message)
+		}
+
+		if len(messages) == 0 {
+			a.GetErrorHandler().ShowError(a.ctx, "Failed to load any messages for repopack")
+			return
+		}
+
+		// Show progress update
+		actualCount := len(messages)
+		if failedCount > 0 {
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📦 Creating repopack with %d emails (%d failed to load)…", actualCount, failedCount))
+		} else {
+			a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📦 Creating repopack with %d emails…", actualCount))
+		}
+
+		// Get Obsidian service
+		_, _, _, _, _, _, _, obsidianService, _, _, _, _ := a.GetServices()
+		if obsidianService == nil {
+			a.GetErrorHandler().ShowError(a.ctx, "Obsidian service not available")
+			return
+		}
+
+		// Create options for repopack ingestion
+		options := obsidian.ObsidianOptions{
+			AccountEmail: accountEmail,
+			RepopackMode: true,
+			CustomMetadata: map[string]interface{}{
+				"comment":        comment,
+				"bulk_operation": true,
+				"repopack":       true,
+				"message_count":  actualCount,
+			},
+		}
+
+		// Perform repopack ingestion
+		result, err := obsidianService.IngestEmailsToSingleFile(a.ctx, messages, accountEmail, options)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to create repopack: %v", err))
+			return
+		}
+
+		if !result.Success {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Repopack creation failed: %s", result.ErrorMessage))
+			return
+		}
+
+		// Final UI update (following archiveSelectedBulk pattern)
+		a.QueueUpdateDraw(func() {
+			// Exit bulk mode and restore normal rendering/styles
+			a.selected = make(map[string]bool)
+			a.bulkMode = false
+			a.refreshTableDisplay()
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetSelectedStyle(a.getSelectionStyle())
+			}
+		})
+
+		// Clear progress and show success
+		a.GetErrorHandler().ClearProgress()
+		successMsg := fmt.Sprintf("📦 Repopack created with %d messages!", actualCount)
+		if comment != "" {
+			successMsg += " (with your comment)"
+		}
+		if failedCount > 0 {
+			successMsg += fmt.Sprintf(" (%d messages failed to load)", failedCount)
+		}
+		a.GetErrorHandler().ShowSuccess(a.ctx, successMsg)
+	}()
 }
 
 // closeObsidianPanel closes the Obsidian ingestion panel
 func (a *App) closeObsidianPanel() {
+	if a.logger != nil {
+		a.logger.Printf("=== closeObsidianPanel: Starting cleanup ===")
+	}
+
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
+		if a.logger != nil {
+			a.logger.Printf("closeObsidianPanel: Resized labelsView to hide panel")
+		}
 	}
+
 	a.setActivePicker(PickerNone)
-	a.restoreFocusAfterModal()
+	if a.logger != nil {
+		a.logger.Printf("closeObsidianPanel: Set active picker to None")
+	}
+
+	// Enhanced focus restoration with proper theme colors
+	if a.logger != nil {
+		a.logger.Printf("closeObsidianPanel: Restoring focus to message list with proper theme")
+	}
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+	a.SetFocus(a.views["list"])
+
+	if a.logger != nil {
+		a.logger.Printf("=== closeObsidianPanel: Cleanup complete ===")
+	}
+}
+
+// openBulkObsidianPanelWithRepack opens the bulk Obsidian panel with repack mode pre-selected
+func (a *App) openBulkObsidianPanelWithRepack() {
+	if !a.bulkMode || len(a.selected) == 0 {
+		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk Obsidian repack")
+		return
+	}
+
+	messageCount := len(a.selected)
+	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Preparing to create repopack with %d messages", messageCount))
+
+	// Get account email
+	accountEmail := a.getActiveAccountEmail()
+	if accountEmail == "" {
+		a.GetErrorHandler().ShowError(a.ctx, "Account email not available")
+		return
+	}
+
+	// Create panel similar to bulk mode
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	container.SetBorder(true)
+	container.SetTitle(fmt.Sprintf(" 📦 Create Repopack with %d Messages ", messageCount))
+	container.SetTitleColor(a.GetComponentColors("obsidian").Title.Color())
+
+	// Show repack template info
+	templateContent := a.getRepackObsidianTemplate(messageCount)
+	templateView := tview.NewTextView().
+		SetText(templateContent).
+		SetScrollable(true).
+		SetWordWrap(true).
+		SetBorder(false)
+
+	// Create form for repack input fields
+	bgColor := a.GetComponentColors("obsidian").Background.Color()
+	form := tview.NewForm()
+	form.SetBackgroundColor(bgColor)
+	form.SetBorder(false)
+	form.SetFieldBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	form.SetFieldTextColor(a.GetComponentColors("obsidian").Text.Color())
+	form.SetLabelColor(a.GetComponentColors("obsidian").Title.Color())
+	form.SetButtonBackgroundColor(a.GetComponentColors("obsidian").Background.Color())
+	form.SetButtonTextColor(a.GetComponentColors("obsidian").Text.Color())
+
+	// Variables to capture form data
+	var comment string
+
+	// Add comment input field
+	form.AddInputField("💬 Repack comment:", "", 50, nil, func(text string) {
+		comment = text
+	})
+
+	// Instructions
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	instructions.SetText("Enter to create repopack | Esc to cancel")
+	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
+	instructions.SetBackgroundColor(bgColor)
+
+	// Add items to container with proper proportions
+	container.AddItem(templateView, 0, 1, false)
+	container.AddItem(form, 3, 0, false) // Form with input
+	container.AddItem(instructions, 1, 0, false)
+
+	// Add to content split
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+
+		if a.logger != nil {
+			a.logger.Printf("Repack Obsidian panel added to contentSplit successfully")
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("ERROR: Failed to find contentSplit view for repack Obsidian panel")
+		}
+		a.GetErrorHandler().ShowError(a.ctx, "Failed to find contentSplit view")
+		return
+	}
+
+	// Configure form navigation and submission
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			a.closeObsidianPanel()
+			return nil
+		case tcell.KeyEnter:
+			// Perform repack ingestion directly
+			go a.performBulkObsidianIngest(accountEmail, comment, true) // true = repopack mode
+			return nil
+		}
+		return event
+	})
+
+	// Container-level input capture for Escape
+	container.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if e.Key() == tcell.KeyEscape {
+			a.closeObsidianPanel()
+			return nil
+		}
+		return e
+	})
+
+	// CRITICAL FIX: Set focus FIRST, then focus state (like working bulk prompt picker)
+	a.SetFocus(form)
+	a.currentFocus = "obsidian"
+	a.updateFocusIndicators("obsidian")
+	a.setActivePicker(PickerObsidian)
+
+	if a.logger != nil {
+		a.logger.Printf("Repack Obsidian panel setup complete, focus set to form")
+	}
+}
+
+// getRepackObsidianTemplate returns template info for repack operations
+func (a *App) getRepackObsidianTemplate(messageCount int) string {
+	return fmt.Sprintf(`📦 OBSIDIAN REPOPACK MODE
+
+Selected: %d messages for repopack creation
+
+All emails will be combined into a single Markdown file using the repopack template.
+
+Repopack includes:
+• Frontmatter with metadata
+• Individual email sections with headers
+• Subject, From, To, CC, Date for each email
+• Complete email body content
+• Your repack comment
+• Compilation timestamp
+
+File will be created in your Obsidian vault's 00-Inbox folder.
+
+Press Enter to create repopack or Esc to cancel.`, messageCount)
 }
