@@ -43,18 +43,25 @@ func (a *App) sendEmailToObsidian() {
 		return
 	}
 
-	// Load message content directly from Gmail client
-	message, err := a.Client.GetMessageWithContent(messageID)
-	if err != nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Failed to load message content")
-		return
-	}
+	// Show loading state immediately (this should be instant)
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, "Opening Obsidian panel...")
+	}()
 
-	// Show success message for debugging
-	a.GetErrorHandler().ShowInfo(a.ctx, "Opening Obsidian panel...")
+	// Load message content in background
+	go func() {
+		message, err := a.Client.GetMessageWithContent(messageID)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, "Failed to load message content")
+			return
+		}
 
-	// Show options panel
-	go a.openObsidianIngestPanel(message)
+		// Clear loading and open panel with explicit UI update
+		a.GetErrorHandler().ClearProgress()
+		a.QueueUpdateDraw(func() {
+			a.openObsidianIngestPanel(message)
+		})
+	}()
 }
 
 // openObsidianIngestPanel shows the panel for Obsidian ingestion
