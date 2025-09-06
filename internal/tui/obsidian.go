@@ -104,23 +104,17 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 		comment = text
 	})
 
-	// Add repopack checkbox (disabled for single messages)
-	form.AddCheckbox("📦 Repopack Mode (disabled for single message)", false, func(label string, checked bool) {
-		repopackMode = checked
-	})
-
-	// Note: For single message mode, checkbox is present but user can't meaningfully use repopack mode
-	// The logic in performObsidianIngest will handle this appropriately
+	// Note: Single message mode doesn't need repopack checkbox - only individual file ingestion makes sense
 
 	// Instructions
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText("Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 	instructions.SetBackgroundColor(bgColor)
 
 	// Add items to container with proper proportions
 	container.AddItem(templateView, 0, 1, false) // Template takes most space
-	container.AddItem(form, 4, 0, false)         // Form with input and checkbox
+	container.AddItem(form, 3, 0, false)         // Form with input only (reduced from 4)
 	container.AddItem(instructions, 1, 0, false) // Instructions take minimal space
 
 	// Add to content split like prompts
