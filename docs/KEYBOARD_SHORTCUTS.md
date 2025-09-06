@@ -192,7 +192,9 @@ When you customize shortcuts, the priority order is:
 ### Obsidian Integration
 | Key | Action | Description |
 |-----|--------|-------------|
-| `Shift+O` | Ingest to Obsidian | Send current/selected messages to Obsidian |
+| `Shift+O` | Ingest to Obsidian | Send current/selected messages to Obsidian with mode option |
+
+**Repopack Mode:** When using `Shift+O` in bulk mode, check the "📦 Combined file:" checkbox to create a single consolidated Markdown file instead of individual files. Use `:obsidian repack` or `:obs repack` commands to open the picker with repopack mode pre-selected.
 
 ### Calendar Integration
 | Key | Action | Description |
@@ -261,7 +263,9 @@ When you customize shortcuts, the priority order is:
 | Command | Shortcut Equivalent | Description |
 |---------|-------------------|-------------|
 | `:slack` | `K` | Forward to Slack |
-| `:obsidian` | `Shift+O` | Ingest to Obsidian |
+| `:obsidian` | `Shift+O` | Ingest to Obsidian (individual files) |
+| `:obsidian repack` | - | Create combined repopack file |
+| `:obs repack` | - | Short alias for obsidian repack |
 | `:links` | `L` | Open link picker |
 | `:attachments` | `A` | Open attachment picker |
 | `:gmail` or `:web` | `O` | Open in Gmail web |
@@ -405,7 +409,7 @@ All shortcuts can be customized in `~/.config/giztui/config.json`. You can overr
 ### Power User Shortcuts
 1. **Thread management** - `T` to toggle view, `E`/`C` to expand/collapse all
 2. **AI workflow** - `y` for summary, then `p` for detailed analysis
-3. **Integration workflow** - `K` to share via Slack, `Shift+O` to save in Obsidian
+3. **Integration workflow** - `K` to share via Slack, `Shift+O` to save in Obsidian (individual/repopack)
 4. **Search mastery** - Combine `/` for local filter with `s` for Gmail search
 
 ### Context Awareness
