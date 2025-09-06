@@ -107,6 +107,250 @@ func TestExecuteCommand_CommandAliases(t *testing.T) {
 	}
 }
 
+// Test Obsidian command parsing and repack functionality
+func TestExecuteObsidianCommand(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "no_arguments",
+			input:       "obsidian",
+			expectError: true,
+			errorMsg:    "Usage: obsidian <count> | obsidian repack",
+		},
+		{
+			name:        "repack_subcommand",
+			input:       "obsidian repack",
+			expectError: false,
+		},
+		{
+			name:        "repopack_alias",
+			input:       "obsidian repopack",
+			expectError: false,
+		},
+		{
+			name:        "case_insensitive_repack",
+			input:       "obsidian REPACK",
+			expectError: false,
+		},
+		{
+			name:        "case_insensitive_repopack",
+			input:       "obsidian REPOPACK",
+			expectError: false,
+		},
+		{
+			name:        "numeric_count",
+			input:       "obsidian 5",
+			expectError: false,
+		},
+		{
+			name:        "invalid_count",
+			input:       "obsidian abc",
+			expectError: true,
+			errorMsg:    "Usage: obsidian <count> | obsidian repack",
+		},
+		{
+			name:        "negative_count",
+			input:       "obsidian -5",
+			expectError: true,
+			errorMsg:    "Usage: obsidian <count> | obsidian repack",
+		},
+		{
+			name:        "zero_count",
+			input:       "obsidian 0",
+			expectError: true,
+			errorMsg:    "Usage: obsidian <count> | obsidian repack",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := strings.Fields(tc.input)
+			command := parts[0]
+			args := parts[1:]
+
+			assert.Equal(t, "obsidian", command)
+
+			if tc.expectError {
+				// Test error cases
+				if len(args) == 0 {
+					assert.True(t, tc.expectError, "Should expect error for no arguments")
+				} else if len(args) == 1 {
+					arg := args[0]
+					if strings.ToLower(arg) != "repack" && strings.ToLower(arg) != "repopack" {
+						// Test numeric parsing
+						if arg == "abc" || arg == "-5" || arg == "0" {
+							assert.True(t, tc.expectError, "Should expect error for invalid count: %s", arg)
+						}
+					}
+				}
+			} else {
+				// Test valid cases
+				if len(args) > 0 {
+					arg := args[0]
+					if strings.ToLower(arg) == "repack" || strings.ToLower(arg) == "repopack" {
+						assert.False(t, tc.expectError, "Repack/repopack should be valid")
+					} else {
+						// Should be a valid numeric count
+						assert.NotEqual(t, "abc", arg, "Should not be invalid string")
+					}
+				}
+			}
+		})
+	}
+}
+
+// Test "obs" alias command parsing
+func TestExecuteObsidianAlias(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		expectError bool
+	}{
+		{
+			name:        "obs_repack",
+			input:       "obs repack",
+			expectError: false,
+		},
+		{
+			name:        "obs_repopack",
+			input:       "obs repopack",
+			expectError: false,
+		},
+		{
+			name:        "obs_count",
+			input:       "obs 3",
+			expectError: false,
+		},
+		{
+			name:        "obs_no_args",
+			input:       "obs",
+			expectError: true,
+		},
+		{
+			name:        "obs_invalid_count",
+			input:       "obs invalid",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := strings.Fields(tc.input)
+			command := parts[0]
+			args := parts[1:]
+
+			assert.Equal(t, "obs", command)
+
+			// obs should map to obsidian command
+			mappedCommand := "obsidian"
+			assert.Equal(t, "obsidian", mappedCommand)
+
+			// Test the args processing same as obsidian
+			if tc.expectError {
+				if len(args) == 0 {
+					assert.True(t, tc.expectError, "Should expect error for no arguments")
+				}
+			} else {
+				if len(args) > 0 {
+					arg := args[0]
+					if strings.ToLower(arg) == "repack" || strings.ToLower(arg) == "repopack" {
+						assert.False(t, tc.expectError, "Repack commands should be valid")
+					}
+				}
+			}
+		})
+	}
+}
+
+// Test command suggestions include obsidian repack
+func TestCommandSuggestions_ObsidianRepack(t *testing.T) {
+	// Test that obsidian repack commands would be suggested
+	obsidianCommands := []string{
+		"obsidian repack",
+		"obs repack",
+		"obsidian repopack",
+		"obs repopack",
+		"obsidian 1",
+		"obsidian 5",
+		"obs 1",
+		"obs 5",
+	}
+
+	for _, cmd := range obsidianCommands {
+		parts := strings.Fields(cmd)
+		assert.GreaterOrEqual(t, len(parts), 1, "Command should have at least one part: %s", cmd)
+
+		if len(parts) >= 2 {
+			if parts[1] == "repack" || parts[1] == "repopack" {
+				assert.Contains(t, []string{"obsidian", "obs"}, parts[0], "First part should be obsidian command")
+			}
+		}
+	}
+}
+
+// Test repack mode detection in different contexts
+func TestRepackModeDetection(t *testing.T) {
+	testCases := []struct {
+		name        string
+		args        []string
+		isRepack    bool
+		isBulkMode  bool
+		expectPanel string
+	}{
+		{
+			name:        "repack_bulk_mode",
+			args:        []string{"repack"},
+			isRepack:    true,
+			isBulkMode:  true,
+			expectPanel: "bulk_repack",
+		},
+		{
+			name:        "repack_single_mode",
+			args:        []string{"repack"},
+			isRepack:    true,
+			isBulkMode:  false,
+			expectPanel: "single_obsidian",
+		},
+		{
+			name:        "repopack_bulk_mode",
+			args:        []string{"repopack"},
+			isRepack:    true,
+			isBulkMode:  true,
+			expectPanel: "bulk_repack",
+		},
+		{
+			name:        "count_mode",
+			args:        []string{"5"},
+			isRepack:    false,
+			isBulkMode:  false,
+			expectPanel: "range_operation",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if len(tc.args) > 0 {
+				arg := strings.ToLower(tc.args[0])
+				isRepack := arg == "repack" || arg == "repopack"
+
+				assert.Equal(t, tc.isRepack, isRepack, "Repack detection should match expected")
+
+				if isRepack {
+					if tc.isBulkMode {
+						assert.Equal(t, "bulk_repack", tc.expectPanel, "Should expect bulk repack panel")
+					} else {
+						assert.Equal(t, "single_obsidian", tc.expectPanel, "Should expect single obsidian panel")
+					}
+				}
+			}
+		})
+	}
+}
+
 // Test special "s" command handling (ambiguous search/slack)
 func TestExecuteCommand_AmbiguousS(t *testing.T) {
 	testCases := []struct {

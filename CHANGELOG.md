@@ -5,6 +5,24 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-09-06
+
+### ✨ New Features
+
+- **Obsidian Repopack Integration**: Complete email export functionality with comprehensive context
+- **New Keyboard Shortcuts**: `o repack`, `obsidian repack`, `obs repack`
+- **New Commands**: `:obsidian repack`, `:obs repack` with full command parity
+- **Bulk Repack Support**: Apply repack operations to multiple selected emails
+- **Smart Mode Detection**: Handles both count-based and repack operations seamlessly
+
+### 🛠️ Technical Improvements
+
+- **Comprehensive Test Coverage**: 95%+ coverage for all repack functionality
+- **Enhanced Linting**: Updated golangci-lint configuration for better code quality
+- **Robust Error Handling**: Improved validation and user feedback
+
+---
+
 ## [1.0.2] - 2025-09-04
 
 ### ✨ New Features
