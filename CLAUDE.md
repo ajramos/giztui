@@ -293,6 +293,15 @@ When implementing a new feature:
 10. **Test Integration** - Verify build and functionality (see [TESTING.md](docs/TESTING.md))
 11. **Documentation** - Update relevant docs in [docs/](docs/) if needed
 
+## 🚀 **Release Management**
+
+When ready to create a release, follow the comprehensive procedure:
+- **[Release Procedure Guide](docs/RELEASE_PROCEDURE.md)** - Complete step-by-step release process
+- **Quality Gates** - Mandatory validation before any release
+- **Semantic Versioning** - Proper MAJOR.MINOR.PATCH version management
+- **Documentation Updates** - CHANGELOG.md and version file maintenance
+- **GitHub Integration** - Automated release creation with assets
+
 ## 📚 **Reference Documentation**
 
 For detailed information, see:
@@ -300,6 +309,7 @@ For detailed information, see:
 - `docs/THEMING.md` - Theme system usage and component guidelines  
 - `docs/FOCUS_MANAGEMENT.md` - UI focus patterns and side panel behavior
 - `docs/TESTING.md` - Testing framework and quality assurance
+- `docs/RELEASE_PROCEDURE.md` - Comprehensive release management guide
 - `docs/KEYBOARD_SHORTCUTS.md` - Command system and shortcut examples
 - `docs/GMAIL_SEARCH_REFERENCE.md` - Gmail search operators and patterns
 - `internal/services/interfaces.go` - All service contracts

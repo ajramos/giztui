@@ -62,6 +62,14 @@ Quality assurance and testing:
 - Mock generation
 - CI/CD pipeline integration
 
+### **[🚀 Release Procedure](RELEASE_PROCEDURE.md)**
+Comprehensive release management:
+- Step-by-step release process
+- Semantic versioning guidelines
+- Quality gates and validation
+- GitHub release creation
+- Rollback and troubleshooting procedures
+
 ## 📖 Reference Documentation
 
 ### **[📝 Changelog](../CHANGELOG.md)**
@@ -107,6 +115,7 @@ UI focus patterns and navigation:
 1. [Architecture Guide](ARCHITECTURE.md) - Development patterns
 2. [Theming Guide](THEMING.md) - UI customization
 3. [Testing Guide](TESTING.md) - Quality assurance
+4. [Release Procedure](RELEASE_PROCEDURE.md) - Creating releases
 
 ### **For Troubleshooting**
 1. [Known Issues](KNOWN_ISSUES.md) - Common problems
