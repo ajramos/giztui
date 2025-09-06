@@ -878,8 +878,11 @@ func (a *App) openBulkObsidianPanelWithRepack() {
 		SetWordWrap(true).
 		SetBorder(false)
 
-	// Create form for repack input fields
+	// Set background color for templateView
 	bgColor := a.GetComponentColors("obsidian").Background.Color()
+	templateView.SetBackgroundColor(bgColor)
+
+	// Create form for repack input fields
 	form := tview.NewForm()
 	form.SetBackgroundColor(bgColor)
 	form.SetBorder(false)
@@ -898,7 +901,7 @@ func (a *App) openBulkObsidianPanelWithRepack() {
 	})
 
 	// Instructions
-	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
 	instructions.SetText("Enter to create repopack | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 	instructions.SetBackgroundColor(bgColor)
