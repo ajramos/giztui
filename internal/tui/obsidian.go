@@ -114,7 +114,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	instructions.SetText("Tab to navigate | Enter to ingest | Esc to cancel")
+	instructions.SetText("Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 	instructions.SetBackgroundColor(bgColor)
 
@@ -463,7 +463,7 @@ func (a *App) openBulkObsidianPanel() {
 		a.logger.Printf("Adding form fields (input and checkbox)...")
 	}
 	// Add comment input field
-	form.AddInputField("💬 Bulk comment:", "", 50, nil, func(text string) {
+	form.AddInputField("💬 Bulk pre-message:", "", 50, nil, func(text string) {
 		comment = text
 	})
 	if a.logger != nil {
@@ -471,7 +471,7 @@ func (a *App) openBulkObsidianPanel() {
 	}
 
 	// Add repopack checkbox (enabled for bulk mode)
-	form.AddCheckbox("📦 Combine into one file", false, func(label string, checked bool) {
+	form.AddCheckbox("📦 Combined file:", false, func(label string, checked bool) {
 		repopackMode = checked
 	})
 	if a.logger != nil {
@@ -483,7 +483,7 @@ func (a *App) openBulkObsidianPanel() {
 	}
 	// Instructions
 	instructions := tview.NewTextView().SetTextAlign(tview.AlignRight)
-	instructions.SetText("Tab to navigate | Enter to ingest | Esc to cancel")
+	instructions.SetText("Enter to ingest | Esc to cancel")
 	instructions.SetTextColor(a.GetComponentColors("obsidian").Text.Color())
 	instructions.SetBackgroundColor(bgColor)
 

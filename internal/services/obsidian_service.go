@@ -754,9 +754,9 @@ func (s *ObsidianServiceImpl) generateRepopackFilePath(messages []*gmail.Message
 	// Always use the configured ingest folder
 	ingestFolder := s.config.IngestFolder
 
-	// Generate repopack filename
-	date := time.Now().Format("2006-01-02")
-	filename := fmt.Sprintf("%s_repopack_%d_messages.md", date, messageCount)
+	// Generate repopack filename with timestamp
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	filename := fmt.Sprintf("%s_repopack_%d_messages.md", timestamp, messageCount)
 
 	// Create full path
 	fullPath := filepath.Join(s.config.VaultPath, ingestFolder, filename)

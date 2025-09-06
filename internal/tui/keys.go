@@ -1363,6 +1363,8 @@ func (a *App) handleBulkSelect() bool {
 			a.refreshTableDisplay()
 			// Keep focus highlight consistent (blue) even in Bulk mode
 			list.SetSelectedStyle(a.getSelectionStyle())
+			// Update focus indicators after bulk select
+			a.updateFocusIndicators("list")
 			// Show status message asynchronously to avoid deadlock
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
@@ -1379,6 +1381,8 @@ func (a *App) handleBulkSelect() bool {
 				a.selected[mid] = true
 			}
 			a.refreshTableDisplay()
+			// Update focus indicators after selection toggle
+			a.updateFocusIndicators("list")
 			// Show status message asynchronously to avoid deadlock
 			go func() {
 				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))

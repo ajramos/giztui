@@ -23,7 +23,7 @@ A powerful **terminal Gmail client** built in **Go** that brings **AI intelligen
 
 ### 🔌 **Seamless Integrations**
 - **Slack forwarding** - Send emails to configured channels with AI summaries
-- **Obsidian ingestion** - Transform emails into structured markdown notes
+- **Obsidian ingestion** - Transform emails into structured markdown notes (individual files or combined repopack)
 - **Calendar integration** - RSVP to meeting invitations directly from emails
 - **Link & attachment management** - Quick access to URLs and file downloads
 

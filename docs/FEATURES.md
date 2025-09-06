@@ -124,14 +124,17 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 ### Obsidian Integration  
 - ✅ **Email ingestion** - Send emails directly to Obsidian as Markdown notes
 - ✅ **Bulk ingestion** - Process multiple selected emails with shared comments
+- ✅ **Repopack mode** - Combine multiple emails into a single consolidated Markdown file
 - ✅ **Second brain system** - Organize emails in `00-Inbox` folder for processing
 - ✅ **Configurable template** - Single, customizable Markdown template
 - ✅ **Variable substitution** - Auto-complete `{{subject}}`, `{{body}}`, `{{from}}`, etc.
 - ✅ **Personal comments** - Add custom notes before ingestion (single & bulk)
+- ✅ **Message compilation** - Structured message headers with metadata preservation
 - ✅ **Duplicate prevention** - SQLite-based history tracking prevents re-ingestion
 - ✅ **Attachment support** - Include email attachments in Obsidian notes
 - ✅ **Keyboard shortcut** - `Shift+O` for quick ingestion
-- ✅ **Panel interface** - Clean side panel (not modal) for template preview
+- ✅ **Panel interface** - Clean side panel (not modal) with repopack mode toggle
+- ✅ **Command parity** - `:obsidian repack` command for bulk repopack operations
 
 ### Calendar Integration
 - ✅ **Smart invitation detection** - Automatically detects calendar invitations in emails
