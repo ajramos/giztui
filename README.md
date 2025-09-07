@@ -221,6 +221,10 @@ All platforms include:
 
 Released under the **MIT License**. See [LICENSE](LICENSE) for details.
 
+## 🤖 Context Priming
+Read README.md, CLAUDE.md, docs/*, and run git ls-files to understand this codebase.
+
+
 ---
 
 **Ready to transform your Gmail workflow?** 🚀

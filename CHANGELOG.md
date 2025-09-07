@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Bug Fixes
 
 - **Version Display Fix**: Fixed version display for `go install` builds showing correct v1.1.1 instead of outdated v1.0.2
+- **Help Screen Layout**: Fixed command equivalent section column alignment for better readability
 - **Build Method Consistency**: Ensured version fallback values stay synchronized with VERSION file
 
 ---
