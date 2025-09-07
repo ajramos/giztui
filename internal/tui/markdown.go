@@ -200,7 +200,7 @@ func (a *App) toggleMarkdown() {
 		a.setStatusPersistent("🧾 Disabling LLM touch-up…")
 	}
 	a.llmTouchUpEnabled = !a.llmTouchUpEnabled
-	if m, ok := a.messageCache[mid]; ok {
+	if m, ok := a.GetMessageFromCache(mid); ok {
 		go func(msg *gmail.Message) {
 			rendered, _ := a.renderMessageContent(msg)
 			a.QueueUpdateDraw(func() {
@@ -226,7 +226,7 @@ func (a *App) toggleMarkdown() {
 			a.showError("❌ Could not load message content")
 			return
 		}
-		a.messageCache[id] = fetched
+		a.SetMessageInCache(id, fetched)
 		rendered, _ := a.renderMessageContent(fetched)
 		a.QueueUpdateDraw(func() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {

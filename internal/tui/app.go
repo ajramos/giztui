@@ -126,7 +126,8 @@ type App struct {
 	markdownTogglePer map[string]bool   // messageID -> prefer markdown
 
 	// Message content cache (to avoid refetch on toggles)
-	messageCache map[string]*gmail.Message
+	messageCache   map[string]*gmail.Message
+	messageCacheMu sync.RWMutex
 
 	// Calendar invite cache (parsed from text/calendar parts)
 	inviteCache map[string]Invite // messageID -> invite metadata
@@ -1034,6 +1035,21 @@ func (a *App) SetRunning(running bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.running = running
+}
+
+// GetMessageFromCache returns a cached message thread-safely
+func (a *App) GetMessageFromCache(messageID string) (*gmail.Message, bool) {
+	a.messageCacheMu.RLock()
+	defer a.messageCacheMu.RUnlock()
+	message, exists := a.messageCache[messageID]
+	return message, exists
+}
+
+// SetMessageInCache stores a message in cache thread-safely
+func (a *App) SetMessageInCache(messageID string, message *gmail.Message) {
+	a.messageCacheMu.Lock()
+	defer a.messageCacheMu.Unlock()
+	a.messageCache[messageID] = message
 }
 
 // GetScreenSize returns the current screen dimensions thread-safely

@@ -1086,6 +1086,10 @@ func (er *EmailRenderer) formatRelativeTime(date time.Time) string {
 }
 
 func (er *EmailRenderer) formatDate(date time.Time) string {
+	// Defensive programming: handle zero time to prevent crash
+	if date.IsZero() {
+		return "Unknown Date"
+	}
 	return date.Format("Mon, 02 Jan 2006 15:04:05 -0700")
 }
 

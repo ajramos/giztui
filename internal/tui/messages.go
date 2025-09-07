@@ -2193,7 +2193,7 @@ func (a *App) showMessage(id string) {
 		}
 		// Use cache if available; otherwise fetch and cache
 		var message *gmail.Message
-		if cached, ok := a.messageCache[id]; ok {
+		if cached, ok := a.GetMessageFromCache(id); ok {
 			if a.debug {
 				a.logger.Printf("showMessage: cache hit id=%s", id)
 			}
@@ -2207,7 +2207,7 @@ func (a *App) showMessage(id string) {
 			if a.debug {
 				a.logger.Printf("showMessage: fetched id=%s", id)
 			}
-			a.messageCache[id] = m
+			a.SetMessageInCache(id, m)
 			message = m
 		}
 
@@ -2427,7 +2427,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 					if err == nil {
 						message = fullMessage
 						// Store in regular cache for future use
-						a.messageCache[id] = fullMessage
+						a.SetMessageInCache(id, fullMessage)
 					}
 				}
 			}
@@ -2435,7 +2435,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 
 		// Fallback to regular message cache
 		if message == nil {
-			if cached, ok := a.messageCache[id]; ok {
+			if cached, ok := a.GetMessageFromCache(id); ok {
 				if a.debug {
 					a.logger.Printf("showMessageWithoutFocus: regular cache hit id=%s", id)
 				}
@@ -2449,7 +2449,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 				if a.debug {
 					a.logger.Printf("showMessageWithoutFocus: fetched id=%s", id)
 				}
-				a.messageCache[id] = m
+				a.SetMessageInCache(id, m)
 				message = m
 			}
 		}
@@ -2495,7 +2495,7 @@ func (a *App) refreshMessageContent(id string) {
 		}
 		// Prefer cached message to avoid re-fetching on toggles
 		var m *gmail.Message
-		if cached, ok := a.messageCache[id]; ok {
+		if cached, ok := a.GetMessageFromCache(id); ok {
 			if a.debug {
 				a.logger.Printf("refreshMessageContent: cache hit id=%s", id)
 			}
@@ -2508,7 +2508,7 @@ func (a *App) refreshMessageContent(id string) {
 			if a.debug {
 				a.logger.Printf("refreshMessageContent: fetched id=%s", id)
 			}
-			a.messageCache[id] = fetched
+			a.SetMessageInCache(id, fetched)
 			m = fetched
 		}
 		rendered, isANSI := a.renderMessageContent(m)
