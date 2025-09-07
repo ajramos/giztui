@@ -5,6 +5,15 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-09-07
+
+### 🐛 Bug Fixes
+
+- **Version Display Fix**: Fixed version display for `go install` builds showing correct v1.1.1 instead of outdated v1.0.2
+- **Build Method Consistency**: Ensured version fallback values stay synchronized with VERSION file
+
+---
+
 ## [1.1.0] - 2025-09-06
 
 ### ✨ New Features
