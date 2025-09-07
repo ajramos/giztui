@@ -1,24 +1,16 @@
 # TODO List - GizTUI Project
 
-## 📋 Detected ISSUES - Short term to fix.
-- [ ] When an UNDO is performed, focus is lost (it should return to the message list)
-- [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
-- [x] When I press "gg" the cursor go to the top but doesn't select the message.
-- [x] there's an issue when numbering :69 goes to :68, etc...
-- [x] change the advance search date within icon for a safer one
-
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
+- [ ] Multi-account support
 - [ ] Add a prompt to make an analysis of the inbox itself
 - [ ] Chat with an email
+- [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
 - [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
-- [x] **Status bar experience** - Improve status bar functionality and UX
 - [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
 - [ ] **Configure headers view** - config file picks which columns are hidden.
-- [x] **Brush-up stats** - Revamp this feature
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [x] **Review makefile to reflect giztui**
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Search & Filter Enhancements
@@ -75,7 +67,6 @@
 - [ ] **Error handling** - Better error messages and recovery
 - [ ] **Confirmation dialogs** - Confirm destructive actions
 - [ ] **Configuration for labels adding icons** Icons for each Label.
-- [x] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
 - [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
 - [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
 - [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
@@ -200,6 +191,7 @@
 - [x] **Get unread emails** - List unread emails with count and preview
 - [x] **List archived emails** - Show archived emails
 - [x] **Undo functionality** - Undo last action ✅ 
+- [x] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
 - [x] **Message threading** - Show message threads and conversations
 - [x] **Move email to Spam** - Move to Spam
 - [x] **Move email to Inbox** - Move to Inbox
@@ -259,6 +251,8 @@
 - [x] **Keyboard shortcuts display** - Show available shortcuts in a legend or a help page or similar
 - [x] **Progress indicators** - Show loading progress for long operations
 - [x] **Search highlighting** - Highlight search terms in results
+- [x] **Status bar experience** - Improve status bar functionality and UX
+- [x] **Brush-up stats** - Revamp this feature
 - [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
 - [x] Welcome screen doesn't pool the shortcuts from the customization.
 - [x] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts. This also happens when the initial 50 messages are loaded and i before they finished loading i open the drafts pickers, when the 50 messages finished loading the labels picker is opened (as if i have pressed the l)
@@ -274,6 +268,7 @@
 - [x] **Search by date** - Search by date with enhanced date filtering
 - [x] **Date range search improvements** - Enhanced date filtering with after:/before: operators
 - [x] **Folder/scope selection UX** - Fix advanced search page updates and orphan letter issues
+- [x] change the advance search date within icon for a safer one
 
 ### Plugin System
 - [x] **Plugin example implementations** - Reference plugins for Obsidian and Slack integration
@@ -305,6 +300,7 @@
 - [x] **Improved Code Organization** - Better separation of UI and business logic concerns
 - [x] **Execution parameters review** - Resolved duplication between llm and ollama configurations
 - [x] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
+- [x] **Review makefile to reflect giztui**
 
 ### Bug Fixes
 - [x] Screen garbage
@@ -313,6 +309,9 @@
 - [x] **Self-emailed messages behavior** - Investigated and resolved behavior issues
 - [x] **Message auto-selection** - After loading messages, auto-select and render the first one
 - [x] **README updates** - Updated outdated README sections
+- [x] When an UNDO is performed, focus is lost (it should return to the message list)
+- [x] When I press "gg" the cursor go to the top but doesn't select the message.
+- [x] there's an issue when numbering :69 goes to :68, etc...
 
 ### Theme System
 - [x] **Review theme loading** - Verify theme files are loaded correctly ✅ 
