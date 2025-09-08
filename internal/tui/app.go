@@ -586,6 +586,30 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: account service initialized: %v", a.accountService != nil)
 	}
 
+	// Update active account status to Connected since Gmail client is working
+	// (The fact that we got this far means authentication was successful)
+	if activeAccount, err := a.accountService.GetActiveAccount(a.ctx); err == nil {
+		// Create a copy and update status
+		updatedAccount := *activeAccount
+		updatedAccount.Status = services.AccountStatusConnected
+
+		// Try to get email from client if not already set
+		if updatedAccount.Email == "" {
+			if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+				updatedAccount.Email = email
+			}
+		}
+
+		// Update the account in the service
+		if err := a.accountService.UpdateAccount(a.ctx, &updatedAccount); err != nil {
+			if a.logger != nil {
+				a.logger.Printf("initServices: failed to update account status: %v", err)
+			}
+		} else if a.logger != nil {
+			a.logger.Printf("initServices: updated active account status to Connected")
+		}
+	}
+
 	// Initialize repository
 	a.repository = services.NewMessageRepository(a.Client)
 	if a.logger != nil {
