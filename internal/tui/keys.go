@@ -1196,6 +1196,17 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
+		// Handle accounts shortcut (configurable, default Ctrl+A)
+		if a.Keys.Accounts != "" {
+			if a.matchesKeyCombo(event, a.Keys.Accounts) {
+				if a.logger != nil {
+					a.logger.Printf("Configurable shortcut: '%s' -> accounts", a.Keys.Accounts)
+				}
+				a.openAccountPicker()
+				return nil
+			}
+		}
+
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
@@ -2538,4 +2549,45 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 			}
 		}
 	}()
+}
+
+// matchesKeyCombo checks if the given event matches a configured key combination
+func (a *App) matchesKeyCombo(event *tcell.EventKey, keyCombo string) bool {
+	if keyCombo == "" {
+		return false
+	}
+
+	keyCombo = strings.ToLower(keyCombo)
+
+	// Handle Control key combinations
+	if strings.HasPrefix(keyCombo, "ctrl+") {
+		// Extract the letter (e.g., "ctrl+a" -> "a")
+		letter := keyCombo[5:]
+		if len(letter) == 1 {
+			letterRune := rune(letter[0])
+			// Check both KeyCtrlX and Modifier+rune patterns
+			switch letterRune {
+			case 'a':
+				return (event.Key() == tcell.KeyCtrlA) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'a')
+			case 'f':
+				return (event.Key() == tcell.KeyCtrlF) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'f')
+			case 'n':
+				return (event.Key() == tcell.KeyCtrlN) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'n')
+			case 'p':
+				return (event.Key() == tcell.KeyCtrlP) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'p')
+			case 't':
+				return (event.Key() == tcell.KeyCtrlT) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 't')
+			default:
+				// For other control combinations, use the modifier+rune pattern
+				return (event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == letterRune
+			}
+		}
+	}
+
+	// Handle simple character keys
+	if len(keyCombo) == 1 {
+		return event.Rune() == rune(keyCombo[0])
+	}
+
+	return false
 }

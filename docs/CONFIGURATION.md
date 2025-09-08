@@ -86,6 +86,85 @@ Configure Gmail API settings and behavior:
 | `batch_size` | integer | Batch operation size | `25` |
 | `auto_refresh_interval` | string | Auto-refresh interval | Disabled |
 
+## 👥 Multi-Account Configuration
+
+GizTUI supports multiple Gmail accounts with seamless switching. Configure multiple accounts for different contexts (personal, work, etc.).
+
+### Basic Multi-Account Setup
+
+```json
+{
+  "accounts": [
+    {
+      "id": "personal",
+      "display_name": "Personal Gmail",
+      "credentials": "~/.config/giztui/credentials-personal.json",
+      "token": "~/.config/giztui/token-personal.json",
+      "active": true
+    },
+    {
+      "id": "work",
+      "display_name": "Work Account",
+      "credentials": "~/.config/giztui/credentials-work.json",
+      "token": "~/.config/giztui/token-work.json",
+      "active": false
+    }
+  ],
+  "keys": {
+    "accounts": "ctrl+a"
+  }
+}
+```
+
+### Account Management
+
+- **Switch Accounts**: Press `Ctrl+A` to open account picker
+- **Commands**: Use `:accounts list`, `:accounts switch <id>`, etc.
+- **Status**: Visual indicators show connection status
+- **Isolation**: Each account has separate database and cache
+
+#### Account Status Icons
+
+The account picker displays status icons to indicate each account's connection state:
+
+| Icon | Status | Description |
+|------|--------|-------------|
+| `✓` | **Connected** | Account successfully authenticated and ready to use |
+| `⚠` | **Warning** | Account connected but with potential issues (expired token, limited access) |
+| `❌` | **Error** | Account cannot connect (invalid credentials, network error, API issues) |
+| `?` | **Unknown** | Account status not yet determined (initial state, validation pending) |
+
+Additional indicators:
+- `●` - **Active Account**: Shows which account is currently selected and in use
+- Search filtering works on both display names and email addresses
+
+### Backward Compatibility
+
+Existing single-account configurations are automatically migrated:
+
+```json
+{
+  "credentials": "~/.config/giztui/credentials.json",
+  "token": "~/.config/giztui/token.json"
+}
+```
+
+Becomes equivalent to:
+
+```json
+{
+  "accounts": [
+    {
+      "id": "default",
+      "display_name": "Default Account", 
+      "credentials": "~/.config/giztui/credentials.json",
+      "token": "~/.config/giztui/token.json",
+      "active": true
+    }
+  ]
+}
+```
+
 ## 🎨 UI Configuration
 
 ### Theme Settings
@@ -464,6 +543,7 @@ All shortcuts from [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md) can be configu
     "slack": "K", 
     "bulk_mode": "v",
     "command_mode": ":",
+    "accounts": "ctrl+a",
     
     // Content navigation  
     "search_next": "n",

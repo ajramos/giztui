@@ -40,6 +40,7 @@ const (
 	PickerAI            ActivePicker = "ai_labels"
 	PickerContentSearch ActivePicker = "content_search"
 	PickerRSVP          ActivePicker = "rsvp"
+	PickerAccounts      ActivePicker = "accounts"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -179,6 +180,7 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
+	accountService     services.AccountService
 	emailService       services.EmailService
 	aiService          services.AIService
 	labelService       services.LabelService
@@ -576,6 +578,12 @@ func (a *App) reinitializeServices() {
 func (a *App) initServices() {
 	if a.logger != nil {
 		a.logger.Printf("initServices: starting service initialization")
+	}
+
+	// Initialize account service
+	a.accountService = services.NewAccountService(a.Config)
+	if a.logger != nil {
+		a.logger.Printf("initServices: account service initialized: %v", a.accountService != nil)
 	}
 
 	// Initialize repository
@@ -1075,6 +1083,11 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 // GetServices returns the service instances for business logic operations
 func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.CompositionService, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.compositionService, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+}
+
+// GetAccountService returns the account service instance
+func (a *App) GetAccountService() services.AccountService {
+	return a.accountService
 }
 
 // GetUndoService returns the undo service instance

@@ -123,6 +123,7 @@
     "command_mode": ":",
     "help": "?",
     "toggle_headers": "h",
+    "accounts": "ctrl+a",
 
     "_content_navigation": "Enhanced content navigation shortcuts",
     "content_search": "/",
@@ -156,11 +157,7 @@
     "enabled": true,
     "default_view": "flat",
     "auto_expand_unread": false,
-    "show_thread_count": true,
-    "cache_summaries": true,
-    "max_summary_length": 300,
-    "summary_language": "en",
-    "persist_thread_state": true
+    "show_thread_count": true
   },
   "obsidian": {
     "enabled": true,

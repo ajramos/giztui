@@ -815,3 +815,66 @@ type PreloadStatistics struct {
 	AveragePreloadTime   time.Duration `json:"average_preload_time"`
 	TotalDataPreloadedMB float64       `json:"total_data_preloaded_mb"`
 }
+
+// AccountService handles multi-account management operations
+type AccountService interface {
+	// Account listing and retrieval
+	ListAccounts(ctx context.Context) ([]*Account, error)
+	GetActiveAccount(ctx context.Context) (*Account, error)
+	GetAccount(ctx context.Context, accountID string) (*Account, error)
+
+	// Account switching and management
+	SwitchAccount(ctx context.Context, accountID string) error
+	AddAccount(ctx context.Context, account *Account) error
+	RemoveAccount(ctx context.Context, accountID string) error
+	UpdateAccount(ctx context.Context, account *Account) error
+
+	// Account configuration and setup
+	ConfigureAccount(ctx context.Context, accountID string) (*AccountSetupResult, error)
+	ValidateAccount(ctx context.Context, accountID string) (*AccountValidationResult, error)
+
+	// Client management
+	GetAccountClient(ctx context.Context, accountID string) (*gmail.Client, error)
+	RefreshAccountClient(ctx context.Context, accountID string) error
+}
+
+// Account represents a configured Gmail account
+type Account struct {
+	ID          string        `json:"id"`           // unique identifier (e.g., "personal", "work")
+	Email       string        `json:"email"`        // user@gmail.com (populated after first auth)
+	DisplayName string        `json:"display_name"` // "Personal Gmail", "Work Account"
+	CredPath    string        `json:"cred_path"`    // path to credentials.json
+	TokenPath   string        `json:"token_path"`   // path to token.json
+	IsActive    bool          `json:"is_active"`    // currently selected account
+	Status      AccountStatus `json:"status"`       // connection status
+	LastUsed    time.Time     `json:"last_used"`    // last time account was active
+	Client      *gmail.Client `json:"-"`            // Gmail API client (not serialized)
+}
+
+// AccountStatus represents the connection state of an account
+type AccountStatus string
+
+const (
+	AccountStatusConnected    AccountStatus = "connected"
+	AccountStatusDisconnected AccountStatus = "disconnected"
+	AccountStatusError        AccountStatus = "error"
+	AccountStatusUnknown      AccountStatus = "unknown"
+)
+
+// AccountSetupResult represents the result of account configuration
+type AccountSetupResult struct {
+	Success       bool     `json:"success"`
+	Account       *Account `json:"account"`
+	ErrorMsg      string   `json:"error_msg,omitempty"`
+	NextStep      string   `json:"next_step,omitempty"`
+	RequiresOAuth bool     `json:"requires_oauth"`
+}
+
+// AccountValidationResult represents account validation results
+type AccountValidationResult struct {
+	IsValid    bool          `json:"is_valid"`
+	Status     AccountStatus `json:"status"`
+	ErrorMsg   string        `json:"error_msg,omitempty"`
+	Email      string        `json:"email,omitempty"`
+	LastTested time.Time     `json:"last_tested"`
+}

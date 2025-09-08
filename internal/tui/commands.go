@@ -367,13 +367,20 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"obsid":          {"obsidian"},
 		"obsidi":         {"obsidian"},
 		"obsidian":       {"obsidian"},
+		"ac":             {"accounts"},
+		"acc":            {"accounts"},
+		"acco":           {"accounts"},
+		"accou":          {"accounts"},
+		"accoun":         {"accounts"},
+		"account":        {"accounts"},
+		"accounts":       {"accounts"},
 		"p":              {"prompt"},
 		"pr":             {"prompt"},
 		"pro":            {"prompt"},
 		"prom":           {"prompt"},
 		"promp":          {"prompt"},
 		"prompt":         {"prompt"},
-		"a":              {"archive"},
+		"a":              {"archive", "accounts"},
 		"ar":             {"archive"},
 		"arc":            {"archive"},
 		"arch":           {"archive"},
@@ -554,6 +561,43 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		}
 	}
 
+	// Contextual suggestions for 'accounts' commands
+	if strings.HasPrefix(buffer, "accounts ") || strings.HasPrefix(buffer, "acc ") {
+		prefix := "accounts "
+		if strings.HasPrefix(buffer, "acc ") {
+			prefix = "acc "
+		}
+
+		tail := strings.TrimSpace(strings.TrimPrefix(buffer, strings.TrimSpace(prefix)))
+		lower := strings.ToLower(tail)
+		switch {
+		case strings.HasPrefix("list", lower):
+			return prefix + "list"
+		case strings.HasPrefix("switch", lower):
+			return prefix + "switch"
+		case strings.HasPrefix("add", lower):
+			return prefix + "add"
+		case strings.HasPrefix("remove", lower):
+			return prefix + "remove"
+		case strings.HasPrefix("validate", lower):
+			return prefix + "validate"
+		case lower == "l":
+			return prefix + "list"
+		case lower == "s":
+			return prefix + "switch"
+		case lower == "sw":
+			return prefix + "switch"
+		case lower == "a":
+			return prefix + "add"
+		case lower == "r":
+			return prefix + "remove"
+		case lower == "rm":
+			return prefix + "remove"
+		case lower == "v":
+			return prefix + "validate"
+		}
+	}
+
 	// Contextual suggestions for 'obsidian' commands
 	if strings.HasPrefix(buffer, "obsidian ") || strings.HasPrefix(buffer, "obs ") {
 		prefix := "obsidian "
@@ -702,6 +746,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeLabelCommand(args)
 	case "obsidian", "obs":
 		a.executeObsidianCommand(args)
+	case "accounts", "acc":
+		a.executeAccountsCommand(args)
 	case "prompt", "pr", "p":
 		a.executePromptCommand(args)
 	case "theme", "th":
@@ -1658,6 +1704,121 @@ func (a *App) executeObsidianCommand(args []string) {
 	}
 
 	a.obsidianRange(startIndex, count)
+}
+
+// executeAccountsCommand handles :accounts commands for account management
+func (a *App) executeAccountsCommand(args []string) {
+	if len(args) == 0 {
+		// Default to opening account picker
+		a.openAccountPicker()
+		return
+	}
+
+	subCommand := strings.ToLower(args[0])
+	subArgs := args[1:]
+
+	switch subCommand {
+	case "list", "l":
+		a.executeAccountsList(subArgs)
+	case "switch", "sw":
+		a.executeAccountsSwitch(subArgs)
+	case "add", "a":
+		a.executeAccountsAdd(subArgs)
+	case "remove", "rm", "r":
+		a.executeAccountsRemove(subArgs)
+	case "validate", "v":
+		a.executeAccountsValidate(subArgs)
+	default:
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown accounts command: %s. Use 'list', 'switch', 'add', 'remove', or 'validate'", subCommand))
+		}()
+	}
+}
+
+// executeAccountsList lists all configured accounts
+func (a *App) executeAccountsList(args []string) {
+	accountService := a.GetAccountService()
+	if accountService == nil {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Account service not available")
+		}()
+		return
+	}
+
+	go func() {
+		accounts, err := accountService.ListAccounts(a.ctx)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to list accounts: %v", err))
+			return
+		}
+
+		if len(accounts) == 0 {
+			a.GetErrorHandler().ShowInfo(a.ctx, "No accounts configured")
+			return
+		}
+
+		message := fmt.Sprintf("📋 %d accounts configured:", len(accounts))
+		for _, account := range accounts {
+			status := "❌"
+			switch account.Status {
+			case "connected":
+				status = "✓"
+			case "disconnected":
+				status = "⚠"
+			}
+			active := ""
+			if account.IsActive {
+				active = " (active)"
+			}
+			message += fmt.Sprintf("\n  %s %s - %s%s", status, account.DisplayName, account.Email, active)
+		}
+
+		a.GetErrorHandler().ShowInfo(a.ctx, message)
+	}()
+}
+
+// executeAccountsSwitch switches to a different account
+func (a *App) executeAccountsSwitch(args []string) {
+	if len(args) == 0 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: accounts switch <account_id>")
+		}()
+		return
+	}
+
+	accountID := args[0]
+	go a.switchToAccount(accountID, accountID) // Use ID as display name for now
+}
+
+// executeAccountsAdd starts the account configuration wizard
+func (a *App) executeAccountsAdd(args []string) {
+	go a.addNewAccount()
+}
+
+// executeAccountsRemove removes an account
+func (a *App) executeAccountsRemove(args []string) {
+	if len(args) == 0 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: accounts remove <account_id>")
+		}()
+		return
+	}
+
+	accountID := args[0]
+	go a.removeAccount(accountID, accountID) // Use ID as display name for now
+}
+
+// executeAccountsValidate validates an account's connectivity
+func (a *App) executeAccountsValidate(args []string) {
+	if len(args) == 0 {
+		go func() {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: accounts validate <account_id>")
+		}()
+		return
+	}
+
+	accountID := args[0]
+	go a.validateAccount(accountID, accountID) // Use ID as display name for now
 }
 
 // executePromptCommand handles :prompt commands for prompt template management

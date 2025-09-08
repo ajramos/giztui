@@ -51,10 +51,23 @@ type ThemeConfig struct {
 	CustomDir string `json:"custom_dir"` // Custom themes directory (empty = default)
 }
 
+// AccountConfig holds configuration for a single Gmail account
+type AccountConfig struct {
+	ID          string `json:"id"`           // unique identifier (e.g., "personal", "work")
+	DisplayName string `json:"display_name"` // human-readable name for the account
+	Credentials string `json:"credentials"`  // path to credentials.json for this account
+	Token       string `json:"token"`        // path to token.json for this account
+	Active      bool   `json:"active"`       // whether this is the currently active account
+}
+
 // Config holds all configuration for the GizTUI application
 type Config struct {
-	Credentials string `json:"credentials"`
-	Token       string `json:"token"`
+	// Multi-account support
+	Accounts []AccountConfig `json:"accounts,omitempty"`
+
+	// Legacy single-account support (for backward compatibility)
+	Credentials string `json:"credentials,omitempty"`
+	Token       string `json:"token,omitempty"`
 
 	// LLM configuration (unified)
 	LLM LLMConfig `json:"llm"`
@@ -271,6 +284,9 @@ type KeyBindings struct {
 	NextThread         string `json:"next_thread"`          // Navigate to next thread
 	PrevThread         string `json:"prev_thread"`          // Navigate to previous thread
 
+	// Account management
+	Accounts string `json:"accounts"` // Open account picker
+
 	// Undo functionality
 	Undo string `json:"undo"` // Undo last action
 
@@ -430,8 +446,9 @@ func DefaultKeyBindings() KeyBindings {
 		BulkSelect:    "space", // Space key for bulk selection
 		CommandMode:   ":",
 		Help:          "?",
-		LoadMore:      "N", // Shift+N for load more (n is used for search next)
-		ToggleHeaders: "h", // Toggle header visibility
+		LoadMore:      "N",      // Shift+N for load more (n is used for search next)
+		ToggleHeaders: "h",      // Toggle header visibility
+		Accounts:      "ctrl+a", // Open account picker
 
 		// Saved queries
 		SaveQuery:      "Z", // Save current search as query
