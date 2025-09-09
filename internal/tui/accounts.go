@@ -75,8 +75,8 @@ func (a *App) openAccountPicker() {
 				activeIndicator = "● "
 			}
 
-			// Primary text: status + name
-			primaryText := fmt.Sprintf("%s%s %s", activeIndicator, statusIcon, item.displayName)
+			// Primary text: status + name + [id]
+			primaryText := fmt.Sprintf("%s%s %s [%s]", activeIndicator, statusIcon, item.displayName, item.id)
 
 			// Secondary text: email address (or empty if no email)
 			secondaryText := item.email
