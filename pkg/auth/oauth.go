@@ -22,6 +22,7 @@ type OAuth2Config struct {
 	CredentialsPath string
 	TokenPath       string
 	Scopes          []string
+	AccountName     string // Optional account name for better user messaging
 }
 
 // NewOAuth2Config creates a new OAuth2 configuration
@@ -31,6 +32,11 @@ func NewOAuth2Config(credentialsPath string, tokenPath string, scopes ...string)
 		TokenPath:       tokenPath,
 		Scopes:          scopes,
 	}
+}
+
+// SetAccountName sets the account name for better user messaging during OAuth
+func (c *OAuth2Config) SetAccountName(accountName string) {
+	c.AccountName = accountName
 }
 
 // LoadCredentials loads OAuth2 credentials from file
@@ -191,11 +197,19 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 	}
 
 	authURL := localConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("\n🔐 Authorization required\n")
+	if c.AccountName != "" {
+		fmt.Printf("\n🔐 Authorization required for account: %s\n", c.AccountName)
+	} else {
+		fmt.Printf("\n🔐 Authorization required\n")
+	}
 	fmt.Printf("1. Open this link: %s\n", authURL)
 	fmt.Printf("2. Grant access to the application\n")
 	fmt.Printf("3. You will be redirected automatically\n")
-	fmt.Printf("\nWaiting for authorization...\n")
+	if c.AccountName != "" {
+		fmt.Printf("\nWaiting for authorization for %s...\n", c.AccountName)
+	} else {
+		fmt.Printf("\nWaiting for authorization...\n")
+	}
 
 	// Wait for authorization code
 	var authCode string
@@ -236,7 +250,15 @@ func (c *OAuth2Config) refreshToken(ctx context.Context, config *oauth2.Config, 
 
 // NewGmailService creates a new Gmail service using OAuth2
 func NewGmailService(ctx context.Context, credentialsPath, tokenPath string, scopes ...string) (*gmail.Service, error) {
+	return NewGmailServiceWithAccount(ctx, credentialsPath, tokenPath, "", scopes...)
+}
+
+// NewGmailServiceWithAccount creates a new Gmail service using OAuth2 with account context for better user messaging
+func NewGmailServiceWithAccount(ctx context.Context, credentialsPath, tokenPath string, accountName string, scopes ...string) (*gmail.Service, error) {
 	oauthConfig := NewOAuth2Config(credentialsPath, tokenPath, scopes...)
+
+	// Set account context for better user messaging during OAuth
+	oauthConfig.SetAccountName(accountName)
 
 	token, err := oauthConfig.GetToken(ctx)
 	if err != nil {

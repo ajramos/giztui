@@ -417,8 +417,9 @@ func (s *AccountServiceImpl) initializeClient(ctx context.Context, accountID str
 		s.logger.Printf("initializeClient: account %s - credPath: %s, tokenPath: %s", accountID, credPath, tokenPath)
 	}
 
-	// Create Gmail service
-	service, err := auth.NewGmailService(ctx, credPath, tokenPath,
+	// Create Gmail service with account context for better OAuth messaging
+	service, err := auth.NewGmailServiceWithAccount(ctx, credPath, tokenPath,
+		fmt.Sprintf("%s (%s)", account.DisplayName, account.ID),
 		"https://www.googleapis.com/auth/gmail.readonly",
 		"https://www.googleapis.com/auth/gmail.send",
 		"https://www.googleapis.com/auth/gmail.modify",
