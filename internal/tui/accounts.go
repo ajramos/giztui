@@ -174,7 +174,7 @@ func (a *App) openAccountPicker() {
 
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter: switch | v: validate | a: add | r: remove | Esc: cancel ")
+			footer.SetText(" Enter to switch | Esc to back ")
 			footer.SetTextColor(a.GetComponentColors("accounts").Text.Color())
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
@@ -190,33 +190,7 @@ func (a *App) openAccountPicker() {
 					return nil
 				}
 
-				// Account management key bindings
-				switch e.Rune() {
-				case 'v':
-					// Validate account
-					if len(visible) > 0 {
-						currentIndex := list.GetCurrentItem()
-						if currentIndex >= 0 && currentIndex < len(visible) {
-							item := visible[currentIndex]
-							go a.validateAccount(item.id, item.displayName)
-						}
-					}
-					return nil
-				case 'a':
-					// Add new account
-					go a.addNewAccount()
-					return nil
-				case 'r':
-					// Remove account
-					if len(visible) > 0 {
-						currentIndex := list.GetCurrentItem()
-						if currentIndex >= 0 && currentIndex < len(visible) {
-							item := visible[currentIndex]
-							go a.removeAccount(item.id, item.displayName)
-						}
-					}
-					return nil
-				}
+				// No additional key bindings needed - focus on core switching functionality
 				return e
 			})
 
@@ -299,19 +273,46 @@ func (a *App) switchToAccount(accountID, accountName string) {
 		return
 	}
 
-	// Get the new active account's email for database switching
-	if newActiveAccount, err := accountService.GetActiveAccount(a.ctx); err == nil && newActiveAccount.Email != "" {
-		// Switch to the new account's database using DatabaseManager
-		if a.databaseManager != nil {
-			if err := a.databaseManager.SwitchToAccountDatabase(a.ctx, newActiveAccount.Email); err != nil {
-				if a.logger != nil {
-					a.logger.Printf("Account switch: Failed to switch database for account %s: %v", newActiveAccount.Email, err)
-				}
-				// Don't fail the account switch if database switching fails - just log it
-			} else {
-				if a.logger != nil {
-					a.logger.Printf("Account switch: Successfully switched database for account %s", newActiveAccount.Email)
-				}
+	// Get the new active account for client and database switching
+	newActiveAccount, err := accountService.GetActiveAccount(a.ctx)
+	if err != nil {
+		a.GetErrorHandler().ClearProgress()
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to get new active account: %v", err))
+		return
+	}
+
+	// Update Gmail client to the new account's client
+	if newClient, err := accountService.GetAccountClient(a.ctx, newActiveAccount.ID); err != nil {
+		if a.logger != nil {
+			a.logger.Printf("Account switch: Failed to get client for account %s: %v", newActiveAccount.ID, err)
+		}
+		a.GetErrorHandler().ClearProgress()
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to get Gmail client for %s", accountName))
+		return
+	} else {
+		// Update the app's Gmail client
+		a.Client = newClient
+		if a.logger != nil {
+			a.logger.Printf("Account switch: Updated Gmail client for account %s", newActiveAccount.ID)
+		}
+
+		// Reinitialize services that depend on the Gmail client
+		a.reinitializeClientDependentServices()
+		if a.logger != nil {
+			a.logger.Printf("Account switch: Reinitialized client-dependent services for account %s", newActiveAccount.ID)
+		}
+	}
+
+	// Switch to the new account's database using DatabaseManager
+	if a.databaseManager != nil && newActiveAccount.Email != "" {
+		if err := a.databaseManager.SwitchToAccountDatabase(a.ctx, newActiveAccount.Email); err != nil {
+			if a.logger != nil {
+				a.logger.Printf("Account switch: Failed to switch database for account %s: %v", newActiveAccount.Email, err)
+			}
+			// Don't fail the account switch if database switching fails - just log it
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("Account switch: Successfully switched database for account %s", newActiveAccount.Email)
 			}
 		}
 	}
@@ -320,102 +321,23 @@ func (a *App) switchToAccount(accountID, accountName string) {
 	a.GetErrorHandler().ClearProgress()
 	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Switched to %s", accountName))
 
+	// Update welcome email for status bar display
+	if newActiveAccount.Email != "" {
+		a.welcomeEmail = newActiveAccount.Email
+		if a.logger != nil {
+			a.logger.Printf("switchToAccount: updated status bar email to %s", newActiveAccount.Email)
+		}
+		// Refresh status bar to show new account email
+		a.GetErrorHandler().ClearPersistentMessage()
+	}
+
+	// Refresh message list with new account's messages
+	if a.logger != nil {
+		a.logger.Printf("switchToAccount: refreshing message list for new account %s", accountName)
+	}
+	go a.reloadMessages()
+
 	if a.logger != nil {
 		a.logger.Printf("switchToAccount: successfully switched to %s", accountName)
-	}
-}
-
-// validateAccount validates the selected account's connectivity
-func (a *App) validateAccount(accountID, accountName string) {
-	if a.logger != nil {
-		a.logger.Printf("validateAccount: validating accountID=%s name=%s", accountID, accountName)
-	}
-
-	// Get account service
-	accountService := a.GetAccountService()
-	if accountService == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Account service not available")
-		return
-	}
-
-	// Show progress
-	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Validating %s...", accountName))
-
-	// Validate account
-	result, err := accountService.ValidateAccount(a.ctx, accountID)
-	if err != nil {
-		a.GetErrorHandler().ClearProgress()
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Validation failed: %v", err))
-		return
-	}
-
-	// Clear progress and show result
-	a.GetErrorHandler().ClearProgress()
-	if result.IsValid {
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("%s is connected (%s)", accountName, result.Email))
-	} else {
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("%s: %s", accountName, result.ErrorMsg))
-	}
-
-	if a.logger != nil {
-		a.logger.Printf("validateAccount: validation completed for %s, valid=%v", accountName, result.IsValid)
-	}
-}
-
-// addNewAccount starts the account configuration wizard
-func (a *App) addNewAccount() {
-	if a.logger != nil {
-		a.logger.Printf("addNewAccount: starting account setup wizard")
-	}
-
-	// Get account service
-	accountService := a.GetAccountService()
-	if accountService == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Account service not available")
-		return
-	}
-
-	// For Phase 2, just show a placeholder message
-	// The actual wizard implementation will be in Phase 3
-	a.GetErrorHandler().ShowWarning(a.ctx, "Account setup wizard not yet implemented - coming in Phase 3")
-
-	if a.logger != nil {
-		a.logger.Printf("addNewAccount: wizard not implemented yet")
-	}
-}
-
-// removeAccount removes the selected account with confirmation
-func (a *App) removeAccount(accountID, accountName string) {
-	if a.logger != nil {
-		a.logger.Printf("removeAccount: removing accountID=%s name=%s", accountID, accountName)
-	}
-
-	// Get account service
-	accountService := a.GetAccountService()
-	if accountService == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Account service not available")
-		return
-	}
-
-	// For now, remove directly - in a real implementation you might want a confirmation dialog
-	// Show progress
-	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Removing %s...", accountName))
-
-	// Remove account
-	if err := accountService.RemoveAccount(a.ctx, accountID); err != nil {
-		a.GetErrorHandler().ClearProgress()
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to remove account: %v", err))
-		return
-	}
-
-	// Clear progress and show success
-	a.GetErrorHandler().ClearProgress()
-	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Removed account: %s", accountName))
-
-	// Refresh the account picker
-	go a.openAccountPicker()
-
-	if a.logger != nil {
-		a.logger.Printf("removeAccount: successfully removed %s", accountName)
 	}
 }

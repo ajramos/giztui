@@ -136,9 +136,8 @@ Accounts string `json:"accounts"` // Default: "Ctrl+A"
 **Command System** (following existing patterns):
 - `:accounts` or `:acc` - Show account picker 
 - `:accounts switch <account_id>` - Direct account switch
-- `:accounts add` - Add new account wizard
-- `:accounts remove <account_id>` - Remove account
 - `:accounts list` - List all accounts with status
+- **Note**: Account management (add/remove) handled via configuration files for simplicity
 
 ### **5. Account Configuration Wizard**
 

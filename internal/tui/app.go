@@ -958,6 +958,76 @@ func (a *App) initServices() {
 	a.initErrorHandler()
 }
 
+// reinitializeClientDependentServices reinitializes services that depend on the Gmail client
+// This is called when switching accounts to ensure services use the new client
+func (a *App) reinitializeClientDependentServices() {
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: starting client-dependent service reinitialization")
+	}
+
+	// Reinitialize repository with new client
+	a.repository = services.NewMessageRepository(a.Client)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: repository reinitialized: %v", a.repository != nil)
+	}
+
+	// Reinitialize label service with new client
+	a.labelService = services.NewLabelService(a.Client)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: label service reinitialized: %v", a.labelService != nil)
+	}
+
+	// Reinitialize email service with new client and repository
+	a.emailService = services.NewEmailService(a.repository, a.Client, a.emailRenderer)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: email service reinitialized: %v", a.emailService != nil)
+	}
+
+	// Reinitialize composition service with new client
+	a.compositionService = services.NewCompositionService(a.emailService, a.Client, a.repository)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: composition service reinitialized: %v", a.compositionService != nil)
+	}
+
+	// Reinitialize link service with new client
+	a.linkService = services.NewLinkService(a.Client, a.emailRenderer)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: link service reinitialized: %v", a.linkService != nil)
+	}
+
+	// Reinitialize attachment service with new client
+	a.attachmentService = services.NewAttachmentService(a.Client, a.Config)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: attachment service reinitialized: %v", a.attachmentService != nil)
+	}
+
+	// Reinitialize Gmail web service (depends on link service)
+	a.gmailWebService = services.NewGmailWebService(a.linkService)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: gmail web service reinitialized: %v", a.gmailWebService != nil)
+	}
+
+	// Reinitialize undo service with new client (if available)
+	if a.repository != nil && a.labelService != nil {
+		a.undoService = services.NewUndoService(a.repository, a.labelService, a.Client)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: undo service reinitialized: %v", a.undoService != nil)
+		}
+	}
+
+	// Reinitialize thread service with new client (if dbStore and aiService available)
+	if a.dbStore != nil && a.aiService != nil {
+		a.threadService = services.NewThreadService(a.Client, a.dbStore, a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: thread service reinitialized: %v", a.threadService != nil)
+		}
+	}
+
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: client-dependent service reinitialization completed")
+	}
+}
+
 // initErrorHandler initializes the centralized error handler
 func (a *App) initErrorHandler() {
 	// Find status view

@@ -575,26 +575,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 			return prefix + "list"
 		case strings.HasPrefix("switch", lower):
 			return prefix + "switch"
-		case strings.HasPrefix("add", lower):
-			return prefix + "add"
-		case strings.HasPrefix("remove", lower):
-			return prefix + "remove"
-		case strings.HasPrefix("validate", lower):
-			return prefix + "validate"
 		case lower == "l":
 			return prefix + "list"
 		case lower == "s":
 			return prefix + "switch"
 		case lower == "sw":
 			return prefix + "switch"
-		case lower == "a":
-			return prefix + "add"
-		case lower == "r":
-			return prefix + "remove"
-		case lower == "rm":
-			return prefix + "remove"
-		case lower == "v":
-			return prefix + "validate"
 		}
 	}
 
@@ -1722,15 +1708,9 @@ func (a *App) executeAccountsCommand(args []string) {
 		a.executeAccountsList(subArgs)
 	case "switch", "sw":
 		a.executeAccountsSwitch(subArgs)
-	case "add", "a":
-		a.executeAccountsAdd(subArgs)
-	case "remove", "rm", "r":
-		a.executeAccountsRemove(subArgs)
-	case "validate", "v":
-		a.executeAccountsValidate(subArgs)
 	default:
 		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown accounts command: %s. Use 'list', 'switch', 'add', 'remove', or 'validate'", subCommand))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown accounts command: %s. Use 'list' or 'switch'", subCommand))
 		}()
 	}
 }
@@ -1788,37 +1768,6 @@ func (a *App) executeAccountsSwitch(args []string) {
 
 	accountID := args[0]
 	go a.switchToAccount(accountID, accountID) // Use ID as display name for now
-}
-
-// executeAccountsAdd starts the account configuration wizard
-func (a *App) executeAccountsAdd(args []string) {
-	go a.addNewAccount()
-}
-
-// executeAccountsRemove removes an account
-func (a *App) executeAccountsRemove(args []string) {
-	if len(args) == 0 {
-		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, "Usage: accounts remove <account_id>")
-		}()
-		return
-	}
-
-	accountID := args[0]
-	go a.removeAccount(accountID, accountID) // Use ID as display name for now
-}
-
-// executeAccountsValidate validates an account's connectivity
-func (a *App) executeAccountsValidate(args []string) {
-	if len(args) == 0 {
-		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, "Usage: accounts validate <account_id>")
-		}()
-		return
-	}
-
-	accountID := args[0]
-	go a.validateAccount(accountID, accountID) // Use ID as display name for now
 }
 
 // executePromptCommand handles :prompt commands for prompt template management

@@ -612,26 +612,7 @@ ERROR: Failed to switch account: failed to initialize client for account work: f
 
 ```
 
-**Test Case C - Validate Command**:
-**Steps**:
-1. Type `:accounts validate <account_id>` and press Enter
-2. Check validation result
-
-**Expected Result**: Account validation runs, result reported
-
-**Result**: [ ]
-**Comments**: 
-```
-
-
-```
-
-**Test Case D - Add Command**:
-**Steps**:
-1. Type `:accounts add` and press Enter
-2. Check response
-
-**Expected Result**: Placeholder message about Phase 3 implementation
+**Note**: Account management commands (validate, add, remove) have been removed for a leaner implementation. Account management should be done through configuration files.
 
 **Result**: [ ]
 **Comments**: 

@@ -49,7 +49,7 @@ Multi-account support has been successfully implemented for GizTUI, enabling use
 ### **Phase 3: Command Integration**
 **Files**: `internal/tui/commands.go`
 - ✅ Command system integration with subcommand support
-- ✅ Account operations: list, switch, validate, add, remove
+- ✅ Account operations: list, switch (management via config file)
 - ✅ Command suggestions and autocomplete
 - ✅ Error handling and user feedback
 
@@ -155,14 +155,12 @@ type DatabaseManager interface {
 Ctrl+A              # Open account picker
 ↑/↓                 # Navigate accounts
 Enter               # Switch to selected account
-V                   # Validate selected account
 ESC                 # Close picker
 
 # Commands
 :accounts           # Open account picker
-:accounts list      # List all accounts
+:accounts list      # List all accounts  
 :accounts switch personal  # Switch to specific account
-:acc validate work  # Validate account (short alias)
 ```
 
 ## **🔍 Architecture Validation**
