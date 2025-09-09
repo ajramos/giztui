@@ -1122,6 +1122,33 @@ func (a *App) reinitializeClientDependentServices() {
 		}
 	}
 
+	// Reinitialize Obsidian service (depends on dbStore but needs fresh database connection after account switch)
+	if a.dbStore != nil {
+		obsidianStore := db.NewObsidianStore(a.dbStore)
+		// Get Obsidian config from app config
+		var obsidianConfig *obsidian.ObsidianConfig
+		if a.Config != nil && a.Config.Obsidian != nil {
+			obsidianConfig = a.Config.Obsidian
+			if a.logger != nil {
+				a.logger.Printf("reinitializeClientDependentServices: using Obsidian config from app config")
+			}
+		} else {
+			// Fallback to default config if not available
+			obsidianConfig = obsidian.DefaultObsidianConfig()
+			if a.logger != nil {
+				a.logger.Printf("reinitializeClientDependentServices: using default Obsidian config")
+			}
+		}
+		a.obsidianService = services.NewObsidianService(obsidianStore, obsidianConfig, a.logger)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: obsidian service reinitialized: %v", a.obsidianService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: obsidian service NOT reinitialized - dbStore=%v", a.dbStore != nil)
+		}
+	}
+
 	if a.logger != nil {
 		a.logger.Printf("reinitializeClientDependentServices: client-dependent service reinitialization completed")
 	}
