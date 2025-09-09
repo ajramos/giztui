@@ -5,6 +5,34 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-09-09
+
+### ✨ New Features
+
+- **Multi-Account Support**: Complete implementation of database-per-account architecture enabling seamless switching between multiple Gmail accounts
+- **Account Picker**: Interactive account selection with number shortcuts (1-9) for quick switching, similar to Links picker UX
+- **Hot Account Switching**: Real-time account switching with proper service re-initialization and database context switching
+- **Account Commands**: New `:accounts` command with full keyboard shortcut parity for account management
+- **Enhanced OAuth Flow**: Account-specific authorization messages with improved user experience
+
+### 🛠️ Technical Improvements
+
+- **Unified Logger Architecture**: Comprehensive account selection logging with centralized logging infrastructure
+- **Graceful Credential Fallback**: Multi-level credential fallback system for robust authentication handling
+- **Service Initialization**: Improved database-dependent service initialization timing and coordination
+- **Cache Management**: Account-aware cache service with proper invalidation during account switching
+- **UI Consistency**: Enhanced multi-account UI patterns with proper error handling and validation
+
+### 🐛 Bug Fixes
+
+- **Gmail Client Updates**: Resolved Gmail client not updating properly during account switching
+- **Database Connections**: Fixed Obsidian export database connection issues in multi-account scenarios  
+- **Service Re-initialization**: Fixed cache and database services not being reinitialized during account switching
+- **UI State Management**: Resolved multi-account UI inconsistencies and enhanced account picker display
+- **Control Key Shortcuts**: Fixed control key shortcut customization not working properly
+
+---
+
 ## [1.1.1] - 2025-09-07
 
 ### 🐛 Bug Fixes
