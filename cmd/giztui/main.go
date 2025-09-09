@@ -153,32 +153,120 @@ func main() {
 		}
 	}
 
-	// Fallback to legacy credential resolution if multi-account validation failed or logger unavailable
+	// Graceful multi-level credential fallback if multi-account validation failed
 	if credPath == "" {
 		if logger != nil {
-			logger.Printf("🔄 Falling back to legacy single-account configuration...")
+			logger.Printf("🔄 Starting graceful credential fallback sequence...")
 		}
-		credPath = getCredentialsPath(*credPathFlag, cfg.Credentials)
-		tokenPath = getTokenPath("", cfg.Token)
 
-		// Validate credentials path
+		var fallbackMethod string
+		var attemptNumber = 1
+
+		// Level 1: Try CLI flag credentials (highest priority)
+		if *credPathFlag != "" {
+			if logger != nil {
+				logger.Printf("🎯 Attempt %d: Trying CLI flag credentials: %s", attemptNumber, *credPathFlag)
+			}
+			attemptNumber++
+
+			testCredPath := *credPathFlag
+			testTokenPath := getTokenPath("", cfg.Token)
+
+			if logger != nil {
+				logger.Printf("📍 Resolved paths - creds: %s, token: %s", testCredPath, testTokenPath)
+			}
+
+			if testCredPath != "" {
+				if _, err := os.Stat(testCredPath); err == nil {
+					credPath = testCredPath
+					tokenPath = testTokenPath
+					fallbackMethod = "CLI flag"
+					if logger != nil {
+						logger.Printf("✅ CLI flag credentials found and validated")
+					}
+				} else {
+					if logger != nil {
+						logger.Printf("❌ CLI flag credentials not found at %s", testCredPath)
+					}
+				}
+			}
+		}
+
+		// Level 2: Try config file credentials (if CLI didn't work and config has credentials)
+		if credPath == "" && cfg.Credentials != "" {
+			if logger != nil {
+				logger.Printf("🎯 Attempt %d: Trying config file credentials: %s", attemptNumber, cfg.Credentials)
+			}
+			attemptNumber++
+
+			testCredPath := expandPath(cfg.Credentials)
+			testTokenPath := getTokenPath("", cfg.Token)
+
+			if logger != nil {
+				logger.Printf("📍 Resolved paths - creds: %s, token: %s", testCredPath, testTokenPath)
+			}
+
+			if _, err := os.Stat(testCredPath); err == nil {
+				credPath = testCredPath
+				tokenPath = testTokenPath
+				fallbackMethod = "config file"
+				if logger != nil {
+					logger.Printf("✅ Config file credentials found and validated")
+				}
+			} else {
+				if logger != nil {
+					logger.Printf("❌ Config file credentials not found at %s", testCredPath)
+				}
+			}
+		}
+
+		// Level 3: Try hardcoded default credentials (final fallback)
 		if credPath == "" {
 			if logger != nil {
-				logger.Printf("❌ No credentials file configured for legacy mode")
+				if cfg.Credentials != "" {
+					logger.Printf("🎯 Attempt %d: Config credentials failed, trying hardcoded defaults as final fallback", attemptNumber)
+				} else {
+					logger.Printf("🎯 Attempt %d: No config credentials (disabled with prefix), trying hardcoded defaults", attemptNumber)
+				}
 			}
-			log.Fatal("Gmail credentials file is required. Provide it via --credentials or config file.")
-		}
 
-		if _, err := os.Stat(credPath); err != nil {
+			defaultCredPath, _ := config.DefaultCredentialPaths()
+			testCredPath := defaultCredPath
+			testTokenPath := getTokenPath("", "")
+
 			if logger != nil {
-				logger.Printf("❌ Credentials file not found at %s", credPath)
+				logger.Printf("📍 Resolved default paths - creds: %s, token: %s", testCredPath, testTokenPath)
 			}
-			log.Fatalf("Credentials file not found at %s. Download client credentials from Google Cloud Console and place it there.", credPath)
+
+			if testCredPath != "" {
+				if _, err := os.Stat(testCredPath); err == nil {
+					credPath = testCredPath
+					tokenPath = testTokenPath
+					fallbackMethod = "hardcoded defaults"
+					if logger != nil {
+						logger.Printf("✅ Hardcoded default credentials found and validated")
+					}
+				} else {
+					if logger != nil {
+						logger.Printf("❌ Hardcoded default credentials not found at %s", testCredPath)
+					}
+				}
+			}
 		}
 
+		// Final validation - if still no valid credentials found, exit fatally
+		if credPath == "" {
+			if logger != nil {
+				logger.Printf("❌ All credential fallback methods exhausted")
+				logger.Printf("💡 Tried CLI flag, config file, and hardcoded defaults")
+				logger.Printf("💡 Please ensure at least one credential file exists and is accessible")
+			}
+			log.Fatal("Gmail credentials file is required. No valid credentials found in CLI flag, config file, or default location.")
+		}
+
+		// Success - log which method worked
 		if logger != nil {
-			logger.Printf("✅ Legacy credentials validated (creds: %s, token: %s)", credPath, tokenPath)
-			logger.Printf("🚀 Initializing Gmail service with legacy credentials")
+			logger.Printf("🚀 Initializing Gmail service with %s credentials (creds: %s, token: %s)", fallbackMethod, credPath, tokenPath)
 		}
 	}
 
