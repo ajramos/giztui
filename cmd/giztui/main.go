@@ -279,14 +279,30 @@ func main() {
 	)
 	if err != nil {
 		if logger != nil {
-			logger.Fatalf("❌ Could not initialize Gmail service: %v", err)
-		} else {
-			log.Fatalf("Could not initialize Gmail service: %v", err)
+			logger.Printf("❌ Could not initialize Gmail service: %v", err)
+			logger.Printf("🔄 Will start in limited mode - account picker will show validation status")
 		}
+
+		// Continue in limited mode - create a nil client
+		// The account service will still work and show validation status
+		fmt.Fprintf(os.Stderr, "⚠️  Gmail service initialization failed - starting in limited mode\n")
+		fmt.Fprintf(os.Stderr, "💡 Use Ctrl+A to open account picker and check account status\n")
+
+		// Create a dummy client that will be replaced when user fixes accounts
+		service = nil
 	}
 
-	// Create Gmail client
-	gmailClient := gmail.NewClient(service)
+	// Create Gmail client (might be nil in limited mode)
+	var gmailClient *gmail.Client
+	if service != nil {
+		gmailClient = gmail.NewClient(service)
+	} else {
+		// Limited mode - no Gmail client available
+		gmailClient = nil
+		if logger != nil {
+			logger.Printf("⚠️  Running in limited mode - Gmail client is not available")
+		}
+	}
 
 	// Initialize Calendar service (Calendar-only RSVP)
 	var calClient *calendar.Client

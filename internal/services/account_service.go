@@ -412,6 +412,11 @@ func (s *AccountServiceImpl) initializeClient(ctx context.Context, accountID str
 	credPath := s.expandPath(account.CredPath)
 	tokenPath := s.expandPath(account.TokenPath)
 
+	// Debug logging for credential paths
+	if s.logger != nil {
+		s.logger.Printf("initializeClient: account %s - credPath: %s, tokenPath: %s", accountID, credPath, tokenPath)
+	}
+
 	// Create Gmail service
 	service, err := auth.NewGmailService(ctx, credPath, tokenPath,
 		"https://www.googleapis.com/auth/gmail.readonly",

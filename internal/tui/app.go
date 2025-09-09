@@ -595,27 +595,43 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: database manager initialized: %v", a.databaseManager != nil)
 	}
 
-	// Update active account status to Connected since Gmail client is working
-	// (The fact that we got this far means authentication was successful)
+	// Only update account status if we have a valid multi-account configuration
+	// Don't assume success in fallback mode - the AccountService might contain failed accounts
 	if activeAccount, err := a.accountService.GetActiveAccount(a.ctx); err == nil {
-		// Create a copy and update status
-		updatedAccount := *activeAccount
-		updatedAccount.Status = services.AccountStatusConnected
-
-		// Try to get email from client if not already set
-		if updatedAccount.Email == "" {
-			if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
-				updatedAccount.Email = email
-			}
+		// Check if this account actually corresponds to the working Gmail client
+		// by comparing credential/token paths or validating the account properly
+		if a.logger != nil {
+			a.logger.Printf("initServices: found active account: %s (%s) with status: %s",
+				activeAccount.ID, activeAccount.DisplayName, activeAccount.Status)
 		}
 
-		// Update the account in the service
-		if err := a.accountService.UpdateAccount(a.ctx, &updatedAccount); err != nil {
-			if a.logger != nil {
-				a.logger.Printf("initServices: failed to update account status: %v", err)
+		// Only mark as connected if the account validation was actually successful
+		// Don't override error/disconnected states from startup validation
+		if activeAccount.Status == services.AccountStatusUnknown {
+			// For unknown status, we can try to update with current client info
+			updatedAccount := *activeAccount
+			updatedAccount.Status = services.AccountStatusConnected
+
+			// Try to get email from client if not already set
+			if updatedAccount.Email == "" {
+				if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil {
+					updatedAccount.Email = email
+					if a.logger != nil {
+						a.logger.Printf("initServices: retrieved email for account %s: %s", activeAccount.ID, email)
+					}
+				}
+			}
+
+			// Update the account in the service
+			if err := a.accountService.UpdateAccount(a.ctx, &updatedAccount); err != nil {
+				if a.logger != nil {
+					a.logger.Printf("initServices: failed to update account status: %v", err)
+				}
+			} else if a.logger != nil {
+				a.logger.Printf("initServices: updated account %s status to Connected", activeAccount.ID)
 			}
 		} else if a.logger != nil {
-			a.logger.Printf("initServices: updated active account status to Connected")
+			a.logger.Printf("initServices: preserving account %s status: %s (not overriding)", activeAccount.ID, activeAccount.Status)
 		}
 	}
 
