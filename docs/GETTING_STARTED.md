@@ -248,6 +248,16 @@ Create or edit `~/.config/giztui/config.json` for basic customization:
 - Check file permissions (should be readable)
 - Verify the JSON format is valid
 
+**💡 How GizTUI finds credentials:**
+GizTUI uses a graceful 3-level fallback system that tries multiple credential sources:
+1. **CLI flags** (`--credentials /path/to/file.json`)
+2. **Config file** (`"credentials": "path"` in config.json)
+3. **Default location** (`~/.config/giztui/credentials.json`)
+
+If one method fails, it automatically tries the next. Check your logs (`~/.config/giztui/giztui.log`) to see which credential sources were attempted and why they failed.
+
+📖 **For detailed credential configuration**: See [CONFIGURATION.md - Credential Resolution & Fallback System](CONFIGURATION.md#-credential-resolution--fallback-system)
+
 ### "Access blocked: This app isn't verified"
 - This is normal for personal use
 - Click "Advanced" → "Go to [your app name] (unsafe)"

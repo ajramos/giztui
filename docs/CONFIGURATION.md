@@ -165,6 +165,185 @@ Becomes equivalent to:
 }
 ```
 
+## 🔄 Credential Resolution & Fallback System
+
+GizTUI implements a graceful 3-level credential fallback system that ensures reliable authentication even when some credential sources are invalid or missing. This design prevents application crashes due to configuration issues while providing clear feedback about the credential resolution process.
+
+### Fallback Priority Order
+
+The system attempts credential resolution in the following priority order:
+
+1. **CLI Flag Credentials** (Highest Priority)
+   - `--credentials /path/to/credentials.json`
+   - Used when explicitly provided via command line
+
+2. **Config File Credentials** (Medium Priority)
+   - Configured in `config.json` via `"credentials"` and `"token"` fields
+   - Non-fatal if files don't exist - continues to next level
+
+3. **Hardcoded Default Credentials** (Final Fallback)
+   - `~/.config/giztui/credentials.json` and `~/.config/giztui/token.json`
+   - Last resort when other methods fail
+
+### Configuration Examples
+
+#### Scenario 1: Valid Config Credentials
+```json
+{
+  "accounts": [...],
+  "credentials": "~/.config/giztui/work-credentials.json",
+  "token": "~/.config/giztui/work-token.json"
+}
+```
+
+**Log Output:**
+```
+🔄 Starting graceful credential fallback sequence...
+🎯 Attempt 1: Trying config file credentials: ~/.config/giztui/work-credentials.json
+✅ Config file credentials found and validated
+🚀 Initializing Gmail service with config file credentials
+```
+
+#### Scenario 2: Invalid Config Credentials (Graceful Fallback)
+```json
+{
+  "accounts": [...],
+  "credentials": "~/.config/giztui/missing-file.json",
+  "token": "~/.config/giztui/missing-token.json"
+}
+```
+
+**Log Output:**
+```
+🔄 Starting graceful credential fallback sequence...
+🎯 Attempt 1: Trying config file credentials: ~/.config/giztui/missing-file.json
+❌ Config file credentials not found at /Users/username/.config/giztui/missing-file.json
+🎯 Attempt 2: Config credentials failed, trying hardcoded defaults as final fallback
+✅ Hardcoded default credentials found and validated
+🚀 Initializing Gmail service with hardcoded defaults credentials
+```
+
+#### Scenario 3: Disabled Config Credentials
+```json
+{
+  "accounts": [...],
+  "_credentials": "~/.config/giztui/disabled-file.json",
+  "_token": "~/.config/giztui/disabled-token.json"
+}
+```
+
+**Log Output:**
+```
+🔄 Starting graceful credential fallback sequence...
+🎯 Attempt 1: No config credentials (disabled with prefix), trying hardcoded defaults
+✅ Hardcoded default credentials found and validated
+🚀 Initializing Gmail service with hardcoded defaults credentials
+```
+
+#### Scenario 4: No Valid Credentials Available
+When all credential sources fail:
+
+**Log Output:**
+```
+🔄 Starting graceful credential fallback sequence...
+🎯 Attempt 1: Trying config file credentials: ~/.config/giztui/bad-file.json
+❌ Config file credentials not found at bad-file.json
+🎯 Attempt 2: Config credentials failed, trying hardcoded defaults as final fallback
+❌ Hardcoded default credentials not found at ~/.config/giztui/credentials.json
+❌ All credential fallback methods exhausted
+💡 Tried CLI flag, config file, and hardcoded defaults
+💡 Please ensure at least one credential file exists and is accessible
+```
+
+**Terminal Output:**
+```
+Gmail credentials file is required. No valid credentials found in CLI flag, config file, or default location.
+```
+
+### Key Benefits
+
+#### 🛡️ **Resilient Authentication**
+- Application doesn't crash due to invalid credential configuration
+- Multiple fallback options ensure reliability
+- Clear error messages when all options are exhausted
+
+#### 📊 **Transparent Logging** 
+- Every credential attempt is logged with specific file paths
+- Success/failure status for each fallback level
+- Clear indication of which credential source was ultimately used
+
+#### 🔧 **Flexible Configuration**
+- Disable config credentials by prefixing with underscore (`_credentials`)
+- Mix and match credential sources as needed
+- Override any level with CLI flags for testing
+
+#### 🔄 **Backward Compatibility**
+- Existing single-account configurations continue working unchanged
+- Legacy credential paths are preserved as final fallback
+- Smooth transition path for existing users
+
+### Best Practices
+
+#### **Recommended Setup**
+1. **Primary**: Use account-specific credentials in multi-account configuration
+2. **Backup**: Keep working default credentials as fallback
+3. **Testing**: Use CLI flags to test different credential files
+
+#### **Troubleshooting Steps**
+1. **Check logs** - Look for credential resolution attempts and their outcomes
+2. **Verify paths** - Ensure credential file paths exist and are accessible  
+3. **Test individually** - Use `--credentials` flag to test specific credential files
+4. **Validate JSON** - Ensure credential files are valid JSON format
+
+#### **Common Configuration Issues**
+
+**Problem**: App uses wrong credentials
+**Solution**: Check fallback priority - CLI flags override config, config overrides defaults
+
+**Problem**: Credentials work manually but fail in config  
+**Solution**: Verify path expansion - use absolute paths or ensure tilde expansion works
+
+**Problem**: App crashes with "credentials not found"
+**Solution**: All fallback levels failed - ensure at least default credentials exist
+
+### Environment Variable Support
+
+The fallback system also respects environment variables:
+
+```bash
+# Override any level with environment variables
+export GMAIL_TUI_CREDENTIALS=/path/to/credentials.json
+export GMAIL_TUI_TOKEN=/path/to/token.json
+
+# Priority: CLI flags > Environment variables > Config file > Defaults
+```
+
+### Advanced Configuration
+
+#### **Disabling Fallback Levels**
+To skip config file credentials entirely:
+```json
+{
+  "_credentials": "disabled",
+  "_token": "disabled"
+}
+```
+
+#### **CLI Override Testing**
+Test different credentials without modifying config:
+```bash
+giztui --credentials /path/to/test-credentials.json
+```
+
+#### **Validation Commands**
+Check credential resolution:
+```bash
+giztui --validate-config    # Shows which credentials would be used
+giztui --show-config       # Display resolved configuration
+```
+
+This fallback system ensures GizTUI remains reliable and user-friendly even in complex multi-account environments with varying credential configurations.
+
 ## 🎨 UI Configuration
 
 ### Theme Settings
