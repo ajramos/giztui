@@ -2,6 +2,29 @@
 
 Complete feature documentation for GizTUI - the AI-powered Gmail terminal client.
 
+## 👤 Multi-Account Management
+
+### Account Support
+- ✅ **Multiple Gmail accounts** - Configure and manage multiple Gmail accounts in one application
+- ✅ **Hot account switching** - Switch between accounts without application restart
+- ✅ **Account status validation** - Visual status indicators for connection health (✓ Connected, ❌ Error, ● Active)
+- ✅ **Number shortcuts (1-9)** - Quick account switching using number keys in account picker
+- ✅ **Separate databases per account** - Complete data isolation with account-specific SQLite databases
+- ✅ **Backward compatibility** - Existing single-account configurations work unchanged
+- ✅ **Account picker interface** - Search and keyboard navigation for account selection
+- ✅ **Configurable shortcuts** - Customizable keyboard shortcut for account picker (default: `Ctrl+A`)
+
+### Account Configuration
+- ✅ **JSON configuration** - Define multiple accounts with display names and credential paths
+- ✅ **Automatic migration** - Legacy single-account configs automatically upgraded
+- ✅ **Active account management** - Designate which account is active at startup
+- ✅ **Status bar integration** - Current account email displayed in status bar
+
+### Account Commands
+- ✅ **Command system integration** - Full `:accounts` command suite with aliases
+- ✅ **Direct account switching** - `:accounts switch <account_id>` for command-line switching
+- ✅ **Command suggestions** - Auto-complete and contextual suggestions for account operations
+
 ## 📬 Core Gmail Functionality
 
 ### Email Management

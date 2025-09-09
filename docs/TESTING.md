@@ -292,6 +292,140 @@ repos:
 4. Update mocks when interfaces change
 5. Maintain test data consistency
 
+## Multi-Account Testing
+
+### Multi-Account Test Coverage
+
+The test suite provides comprehensive coverage for multi-account functionality across multiple test layers:
+
+#### 1. **Unit Tests** - Business Logic Core
+**Location**: `internal/services/account_service_test.go`
+
+- **Service Creation & Initialization**: Tests `NewAccountService` with various configuration scenarios
+- **Account Management Operations**: CRUD operations for accounts
+- **Account Switching Logic**: Proper activation/deactivation state management
+- **Configuration Loading**: Multi-account vs legacy single-account configuration handling
+- **Data Isolation**: Ensures returned account objects are copies, preventing data races
+- **Thread Safety**: Concurrent access to account data with proper mutex protection
+- **Error Scenarios**: Invalid configurations, missing accounts, duplicate IDs
+- **Validation Logic**: Account field validation and constraint enforcement
+
+```bash
+# Run multi-account unit tests
+make test-unit
+go test ./internal/services -v -run "TestAccount"
+```
+
+#### 2. **Component Tests** - UI Behavior
+**Location**: `internal/tui/accounts_test.go`
+
+- **Account Picker UI**: Opening, closing, and navigation behavior
+- **Account Display Logic**: Status icons, active indicators, filtering
+- **User Interactions**: Keyboard navigation, account selection, management operations
+- **State Management**: Picker state transitions and focus handling
+- **Error Handling**: Service failures, UI error display, graceful degradation
+- **Mock Integration**: Proper mocking of services for isolated UI testing
+
+```bash
+# Run multi-account component tests
+go test ./internal/tui -v -run "TestApp.*Account"
+```
+
+#### 3. **Integration Tests** - End-to-End Workflows
+**Location**: `test/integration/accounts_integration_test.go`
+
+- **Keyboard Shortcuts**: Account picker shortcuts and configurable shortcuts
+- **Command System**: `:accounts`, `:accounts switch`, etc.
+- **Command Aliases**: Short forms like `:accounts sw`
+- **Workflow Integration**: Complete user workflows from keyboard to service
+- **UI-Service Integration**: Proper communication between UI components and services
+- **Concurrent Operations**: Multiple simultaneous keyboard and command operations
+- **State Consistency**: System state remains consistent across operations
+
+```bash
+# Run multi-account integration tests
+make test-integration
+go test ./test/integration -v -run "TestAccounts"
+```
+
+#### 4. **Configuration Tests** - Config Loading & Validation
+**Location**: `internal/config/accounts_config_test.go`
+
+- **Multi-Account Configuration**: Loading and parsing of account arrays
+- **Legacy Compatibility**: Single-account configuration backward compatibility
+- **Validation Rules**: Account ID uniqueness, required fields, active account limits
+- **File Operations**: Config file reading, JSON parsing, error handling
+- **Migration Logic**: Legacy to multi-account configuration migration
+- **Default Values**: Proper application of default settings
+- **Serialization**: Round-trip config save/load integrity
+
+```bash
+# Run multi-account config tests
+go test ./internal/config -v -run "TestAccount"
+```
+
+#### 5. **Concurrency Tests** - Thread Safety & Performance
+**Location**: `test/concurrency/accounts_concurrency_test.go`
+
+- **Concurrent Reads**: Multiple simultaneous account listing and retrieval operations
+- **Concurrent Writes**: Account switching, addition, removal under high load
+- **Mixed Operations**: Combined read/write operations with race condition detection
+- **UI Concurrency**: Concurrent UI operations mixed with service calls
+- **Memory Consistency**: Data integrity under concurrent access
+- **Deadlock Prevention**: Timeout handling and proper lock ordering
+- **Performance Testing**: Throughput and latency under concurrent load
+- **Race Detection**: Built-in race detector compatibility
+
+```bash
+# Run multi-account concurrency tests (with race detector)
+go test -race ./test/concurrency -v -run "TestAccount"
+```
+
+### Running Multi-Account Tests
+
+#### Complete Multi-Account Test Suite
+```bash
+# Run all multi-account tests
+make test-all
+go test -v ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
+
+# Run with race detector (recommended)
+go test -race -v ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
+
+# Run with coverage
+make test-coverage
+go test -coverprofile=coverage.out ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
+```
+
+#### Performance & Load Testing
+```bash
+# Run performance tests
+go test -v ./test/concurrency -run "TestAccountService_PerformanceUnderLoad"
+
+# Run with detailed timing
+go test -v -timeout 30s ./test/concurrency -run "Performance"
+```
+
+### Multi-Account Test Quality Gates
+
+#### Coverage Targets
+- **Unit Test Coverage**: >90% for AccountService business logic
+- **Integration Coverage**: >80% for end-to-end workflows  
+- **Error Path Coverage**: >95% for error handling scenarios
+- **Concurrency Coverage**: >85% for thread-safe operations
+
+#### Quality Assertions
+- **Zero Race Conditions**: All tests must pass with `-race` flag
+- **No Memory Leaks**: Verified through long-running concurrency tests
+- **Consistent State**: System state verification after all operations
+- **Error Recovery**: Proper cleanup and recovery from all error scenarios
+
+#### Performance Benchmarks
+- **Response Time**: <100ms for typical account operations
+- **Throughput**: >100 operations/second under concurrent load
+- **Memory Usage**: Stable memory usage under sustained load
+- **Error Rate**: <1% under normal operating conditions
+
 ---
 
 This testing framework provides a robust foundation for ensuring the quality and reliability of GizTUI. The emphasis on component-level testing, comprehensive mocking, and visual regression detection makes it particularly well-suited for TUI applications where traditional testing approaches fall short.
