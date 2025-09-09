@@ -11,7 +11,6 @@ import (
 
 	"github.com/ajramos/giztui/internal/calendar"
 	"github.com/ajramos/giztui/internal/config"
-	"github.com/ajramos/giztui/internal/db"
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/tui"
@@ -143,37 +142,8 @@ func main() {
 		}
 	}
 
-	// Optional: open database store for AI summaries and prompts
-	var store *db.Store
-	if cfg.LLM.CacheEnabled {
-		email, _ := gmailClient.ActiveAccountEmail(ctx)
-		baseDir := config.DefaultCacheDir()
-		if cfg.LLM.CachePath != "" {
-			baseDir = cfg.LLM.CachePath
-		}
-		dbPath := baseDir
-		if ext := filepath.Ext(baseDir); ext == "" || ext == "." {
-			safe := strings.ToLower(strings.TrimSpace(email))
-			safe = strings.NewReplacer("/", "_", "\\", "_", ":", "_", "@", "_", " ", "_").Replace(safe)
-			if safe == "" {
-				safe = "default"
-			}
-			dbPath = filepath.Join(baseDir, safe+".sqlite3")
-		}
-		if st, err := db.Open(ctx, dbPath); err == nil {
-			store = st
-		} else {
-			log.Printf("Warning: could not open cache store: %v", err)
-		}
-	}
-
-	// Create and run TUI
+	// Create and run TUI (database management is now handled internally)
 	app := tui.NewApp(gmailClient, calClient, llmProvider, cfg)
-	// Inject store if available (setter preferred; using unexported field would break encapsulation)
-	if store != nil {
-		// Provide a small helper in TUI to register the store without breaking module boundaries
-		app.RegisterDBStore(store)
-	}
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)

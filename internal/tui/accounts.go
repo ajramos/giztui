@@ -295,8 +295,22 @@ func (a *App) switchToAccount(accountID, accountName string) {
 		return
 	}
 
-	// TODO: Implement proper cleanup and service reinitialization
-	// This will be part of Phase 4 when we update all services
+	// Get the new active account's email for database switching
+	if newActiveAccount, err := accountService.GetActiveAccount(a.ctx); err == nil && newActiveAccount.Email != "" {
+		// Switch to the new account's database using DatabaseManager
+		if a.databaseManager != nil {
+			if err := a.databaseManager.SwitchToAccountDatabase(a.ctx, newActiveAccount.Email); err != nil {
+				if a.logger != nil {
+					a.logger.Printf("Account switch: Failed to switch database for account %s: %v", newActiveAccount.Email, err)
+				}
+				// Don't fail the account switch if database switching fails - just log it
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("Account switch: Successfully switched database for account %s", newActiveAccount.Email)
+				}
+			}
+		}
+	}
 
 	// Clear progress and show success
 	a.GetErrorHandler().ClearProgress()

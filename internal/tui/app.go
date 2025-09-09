@@ -181,6 +181,7 @@ type App struct {
 
 	// Services (new architecture)
 	accountService     services.AccountService
+	databaseManager    services.DatabaseManager
 	emailService       services.EmailService
 	aiService          services.AIService
 	labelService       services.LabelService
@@ -586,6 +587,12 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: account service initialized: %v", a.accountService != nil)
 	}
 
+	// Initialize database manager for hot account switching
+	a.databaseManager = services.NewDatabaseManager(a.Config, a.logger)
+	if a.logger != nil {
+		a.logger.Printf("initServices: database manager initialized: %v", a.databaseManager != nil)
+	}
+
 	// Update active account status to Connected since Gmail client is working
 	// (The fact that we got this far means authentication was successful)
 	if activeAccount, err := a.accountService.GetActiveAccount(a.ctx); err == nil {
@@ -900,6 +907,28 @@ func (a *App) initServices() {
 		if a.logger != nil {
 			a.logger.Printf("initServices: preloader service NOT initialized - Client=%v Config=%v",
 				a.Client != nil, a.Config != nil)
+		}
+	}
+
+	// Initialize database for active account
+	if a.databaseManager != nil {
+		if activeAccount, err := a.accountService.GetActiveAccount(a.ctx); err == nil && activeAccount.Email != "" {
+			if a.logger != nil {
+				a.logger.Printf("initServices: initializing database for active account: %s", activeAccount.Email)
+			}
+			if err := a.databaseManager.SwitchToAccountDatabase(a.ctx, activeAccount.Email); err != nil {
+				if a.logger != nil {
+					a.logger.Printf("initServices: failed to initialize database for account %s: %v", activeAccount.Email, err)
+				}
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("initServices: successfully initialized database for account %s", activeAccount.Email)
+				}
+			}
+		} else {
+			if a.logger != nil {
+				a.logger.Printf("initServices: no active account found for database initialization")
+			}
 		}
 	}
 

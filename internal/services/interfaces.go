@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ajramos/giztui/internal/db"
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/obsidian"
 	"github.com/ajramos/giztui/internal/prompts"
@@ -288,6 +289,34 @@ type SlackChannel struct {
 	WebhookURL  string `json:"webhook_url"` // Slack webhook URL
 	Default     bool   `json:"default"`     // Default selection
 	Description string `json:"description"` // Optional description
+}
+
+// ActiveClientProvider provides dynamic access to the currently active account's Gmail client
+type ActiveClientProvider interface {
+	GetActiveClient(ctx context.Context) (*gmail.Client, error)
+	GetActiveAccountEmail(ctx context.Context) (string, error)
+	GetActiveAccountID(ctx context.Context) (string, error)
+}
+
+// DatabaseManager handles database lifecycle and hot-switching for multi-account support
+type DatabaseManager interface {
+	// SwitchToAccountDatabase switches to the database for the specified account
+	SwitchToAccountDatabase(ctx context.Context, accountEmail string) error
+
+	// GetCurrentStore returns the currently active database store
+	GetCurrentStore() *db.Store
+
+	// Close closes the current database connection
+	Close() error
+
+	// IsInitialized returns true if a database is currently open
+	IsInitialized() bool
+
+	// GetCurrentAccountEmail returns the email of the account whose database is currently open
+	GetCurrentAccountEmail() string
+
+	// SetServiceReinitCallback sets the callback function to reinitialize services when database changes
+	SetServiceReinitCallback(callback func(*db.Store) error)
 }
 
 // ObsidianService handles Obsidian integration operations
