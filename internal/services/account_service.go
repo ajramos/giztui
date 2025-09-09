@@ -67,19 +67,22 @@ func (s *AccountServiceImpl) loadAccountsFromConfig() {
 			account.Email = email
 		}
 
-		s.accounts[account.ID] = account
 		if account.IsActive {
 			if s.activeID != "" {
+				// Multiple active accounts found - deactivate this one
+				account.IsActive = false
 				if s.logger != nil {
 					s.logger.Printf("AccountService: Multiple active accounts found, keeping first active: %s", s.activeID)
 				}
 			} else {
+				// This is the first active account - keep it active
 				s.activeID = account.ID
 				if s.logger != nil {
 					s.logger.Printf("AccountService: Set active account: %s (%s) - Email: %s", account.ID, account.DisplayName, account.Email)
 				}
 			}
 		}
+		s.accounts[account.ID] = account
 
 		if s.logger != nil {
 			s.logger.Printf("AccountService: Loaded account: %s (%s) - Active: %t, Email: %s", account.ID, account.DisplayName, account.IsActive, account.Email)

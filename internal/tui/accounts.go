@@ -31,7 +31,7 @@ func (a *App) openAccountPicker() {
 		SetLabelColor(a.GetComponentColors("accounts").Title.Color()).
 		SetFieldBackgroundColor(a.GetComponentColors("accounts").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("accounts").Text.Color())
-	list := tview.NewList().ShowSecondaryText(false)
+	list := tview.NewList().ShowSecondaryText(true)
 	list.SetBorder(false)
 
 	type accountItem struct {
@@ -70,18 +70,22 @@ func (a *App) openAccountPicker() {
 			}
 
 			// Active indicator
-			activeIndicator := ""
+			activeIndicator := "○ " // Inactive by default
 			if item.isActive {
 				activeIndicator = "● "
 			}
 
-			display := fmt.Sprintf("%s%s %s %s", activeIndicator, statusIcon, item.displayName, item.email)
+			// Primary text: status + name
+			primaryText := fmt.Sprintf("%s%s %s", activeIndicator, statusIcon, item.displayName)
+
+			// Secondary text: email address (or empty if no email)
+			secondaryText := item.email
 
 			// Capture variables for closure
 			accountID := item.id
 			accountName := item.displayName
 
-			list.AddItem(display, "Enter: switch | v: validate", 0, func() {
+			list.AddItem(primaryText, secondaryText, 0, func() {
 				if a.logger != nil {
 					a.logger.Printf("account picker: selected accountID=%s name=%s", accountID, accountName)
 				}

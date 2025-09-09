@@ -113,7 +113,22 @@ func main() {
 				logger.Printf("⚠️  No active accounts found, will fall back to legacy configuration")
 			}
 
-			// Try to find first active and valid account
+			// First, validate ALL accounts for UI status (don't break early)
+			logger.Printf("🔍 Validating all accounts for UI status...")
+			for _, account := range accounts {
+				logger.Printf("🔍 Validating account: %s (%s)", account.ID, account.DisplayName)
+				result, err := accountService.ValidateAccount(ctx, account.ID)
+				if err != nil {
+					logger.Printf("❌ Account validation failed for %s: %v", account.ID, err)
+				} else if result.IsValid {
+					logger.Printf("✅ Account validation successful for %s (%s) - Email: %s", account.ID, account.DisplayName, result.Email)
+				} else {
+					logger.Printf("❌ Account validation failed for %s: %s", account.ID, result.ErrorMsg)
+				}
+			}
+
+			// Then, find first active and valid account for startup
+			logger.Printf("🔍 Finding first valid active account for startup...")
 			var selectedAccount *services.Account
 			for _, account := range accounts {
 				if !account.IsActive {
@@ -121,7 +136,7 @@ func main() {
 					continue
 				}
 
-				logger.Printf("🔍 Validating active account: %s (%s)", account.ID, account.DisplayName)
+				// Get fresh validation result (already validated above)
 				result, err := accountService.ValidateAccount(ctx, account.ID)
 				if err != nil {
 					logger.Printf("❌ Account validation failed for %s: %v", account.ID, err)
@@ -129,7 +144,7 @@ func main() {
 				}
 
 				if result.IsValid {
-					logger.Printf("✅ Account validation successful for %s (%s) - Email: %s", account.ID, account.DisplayName, result.Email)
+					logger.Printf("✅ Using account for startup: %s (%s) - Email: %s", account.ID, account.DisplayName, result.Email)
 					selectedAccount = account
 					selectedAccount.Email = result.Email // Update account with validated email
 					credPath = expandPath(account.CredPath)
