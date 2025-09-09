@@ -466,6 +466,8 @@ func (a *App) RegisterDBStore(store *db.Store) {
 func (a *App) reinitializeServices() {
 	if a.logger != nil {
 		a.logger.Printf("reinitializeServices: starting service re-initialization")
+		a.logger.Printf("reinitializeServices: current state - dbStore=%v LLM=%v aiService=%v promptService=%v",
+			a.dbStore != nil, a.LLM != nil, a.aiService != nil, a.promptService != nil)
 	}
 
 	// Initialize cache service if store is available
@@ -942,6 +944,18 @@ func (a *App) initServices() {
 				if a.logger != nil {
 					a.logger.Printf("initServices: successfully initialized database for account %s", activeAccount.Email)
 				}
+
+				// Get the new database store and register it with the app
+				if newStore := a.databaseManager.GetCurrentStore(); newStore != nil {
+					if a.logger != nil {
+						a.logger.Printf("initServices: registering new database store for services")
+					}
+					a.RegisterDBStore(newStore)
+				} else {
+					if a.logger != nil {
+						a.logger.Printf("initServices: WARNING - database manager returned nil store after successful switch")
+					}
+				}
 			}
 		} else {
 			if a.logger != nil {
@@ -958,12 +972,15 @@ func (a *App) initServices() {
 	a.initErrorHandler()
 }
 
-// reinitializeClientDependentServices reinitializes services that depend on the Gmail client
-// This is called when switching accounts to ensure services use the new client
+// reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database
+// This is called when switching accounts to ensure services use the new client and database context
 func (a *App) reinitializeClientDependentServices() {
 	if a.logger != nil {
-		a.logger.Printf("reinitializeClientDependentServices: starting client-dependent service reinitialization")
+		a.logger.Printf("reinitializeClientDependentServices: starting client and database-dependent service reinitialization")
 	}
+
+	// Note: Cache and AI services are account-agnostic and don't need reinitialization
+	// The database manager handles account switching internally
 
 	// Reinitialize repository with new client
 	a.repository = services.NewMessageRepository(a.Client)
@@ -982,11 +999,19 @@ func (a *App) reinitializeClientDependentServices() {
 	if a.logger != nil {
 		a.logger.Printf("reinitializeClientDependentServices: email service reinitialized: %v", a.emailService != nil)
 	}
+	// Wire logger to email service for debug output
+	if emailServiceImpl, ok := a.emailService.(*services.EmailServiceImpl); ok && a.logger != nil {
+		emailServiceImpl.SetLogger(a.logger)
+	}
 
 	// Reinitialize composition service with new client
 	a.compositionService = services.NewCompositionService(a.emailService, a.Client, a.repository)
 	if a.logger != nil {
 		a.logger.Printf("reinitializeClientDependentServices: composition service reinitialized: %v", a.compositionService != nil)
+	}
+	// Wire logger to composition service for debug output
+	if compositionServiceImpl, ok := a.compositionService.(*services.CompositionServiceImpl); ok && a.logger != nil {
+		compositionServiceImpl.SetLogger(a.logger)
 	}
 
 	// Reinitialize link service with new client
@@ -1013,6 +1038,31 @@ func (a *App) reinitializeClientDependentServices() {
 		if a.logger != nil {
 			a.logger.Printf("reinitializeClientDependentServices: undo service reinitialized: %v", a.undoService != nil)
 		}
+
+		// Wire logger to undo service for debug output
+		if undoServiceImpl, ok := a.undoService.(*services.UndoServiceImpl); ok && a.logger != nil {
+			undoServiceImpl.SetLogger(a.logger)
+		}
+
+		// Wire undo service to email service to enable undo recording
+		if a.emailService != nil {
+			if emailServiceImpl, ok := a.emailService.(*services.EmailServiceImpl); ok {
+				emailServiceImpl.SetUndoService(a.undoService)
+				if a.logger != nil {
+					a.logger.Printf("reinitializeClientDependentServices: undo service wired to email service")
+				}
+			}
+		}
+
+		// Wire undo service to label service to enable undo recording
+		if a.labelService != nil {
+			if labelServiceImpl, ok := a.labelService.(*services.LabelServiceImpl); ok {
+				labelServiceImpl.SetUndoService(a.undoService)
+				if a.logger != nil {
+					a.logger.Printf("reinitializeClientDependentServices: undo service wired to label service")
+				}
+			}
+		}
 	}
 
 	// Reinitialize thread service with new client (if dbStore and aiService available)
@@ -1020,6 +1070,55 @@ func (a *App) reinitializeClientDependentServices() {
 		a.threadService = services.NewThreadService(a.Client, a.dbStore, a.aiService)
 		if a.logger != nil {
 			a.logger.Printf("reinitializeClientDependentServices: thread service reinitialized: %v", a.threadService != nil)
+		}
+	}
+
+	// Reinitialize prompt service (depends on aiService and dbStore, but not directly on client)
+	if a.logger != nil {
+		a.logger.Printf("reinitializeClientDependentServices: checking prompt service dependencies - dbStore=%v, aiService=%v",
+			a.dbStore != nil, a.aiService != nil)
+	}
+
+	if a.dbStore != nil && a.aiService != nil {
+		promptStore := db.NewPromptStore(a.dbStore)
+		a.promptService = services.NewPromptService(promptStore, a.aiService, nil) // Pass nil for bulkService initially
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: prompt service reinitialized: %v", a.promptService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: prompt service NOT reinitialized - dbStore=%v aiService=%v",
+				a.dbStore != nil, a.aiService != nil)
+		}
+	}
+
+	// Reinitialize bulk prompt service (depends on emailService, repository, and other reinitialized services)
+	if a.repository != nil && a.aiService != nil && a.cacheService != nil && a.promptService != nil && a.emailService != nil {
+		a.bulkPromptService = services.NewBulkPromptService(a.emailService, a.aiService, a.cacheService, a.repository, a.promptService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: bulk prompt service reinitialized: %v", a.bulkPromptService != nil)
+		}
+
+		// Update prompt service with bulk service reference (circular dependency handling)
+		if promptService, ok := a.promptService.(*services.PromptServiceImpl); ok {
+			promptService.SetBulkService(a.bulkPromptService)
+			if a.logger != nil {
+				a.logger.Printf("reinitializeClientDependentServices: prompt service updated with bulk service")
+			}
+		}
+
+		// Update bulk prompt service with prompt service reference
+		a.bulkPromptService.SetPromptService(a.promptService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: bulk prompt service updated with prompt service")
+		}
+	}
+
+	// Reinitialize Slack service if enabled (depends on Client, Config, and aiService)
+	if a.Config.Slack.Enabled && a.aiService != nil {
+		a.slackService = services.NewSlackService(a.Client, a.Config, a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: slack service reinitialized: %v", a.slackService != nil)
 		}
 	}
 

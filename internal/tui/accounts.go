@@ -295,15 +295,9 @@ func (a *App) switchToAccount(accountID, accountName string) {
 		if a.logger != nil {
 			a.logger.Printf("Account switch: Updated Gmail client for account %s", newActiveAccount.ID)
 		}
-
-		// Reinitialize services that depend on the Gmail client
-		a.reinitializeClientDependentServices()
-		if a.logger != nil {
-			a.logger.Printf("Account switch: Reinitialized client-dependent services for account %s", newActiveAccount.ID)
-		}
 	}
 
-	// Switch to the new account's database using DatabaseManager
+	// Switch to the new account's database using DatabaseManager BEFORE reinitializing services
 	if a.databaseManager != nil && newActiveAccount.Email != "" {
 		if err := a.databaseManager.SwitchToAccountDatabase(a.ctx, newActiveAccount.Email); err != nil {
 			if a.logger != nil {
@@ -314,7 +308,25 @@ func (a *App) switchToAccount(accountID, accountName string) {
 			if a.logger != nil {
 				a.logger.Printf("Account switch: Successfully switched database for account %s", newActiveAccount.Email)
 			}
+
+			// Get the new database store and register it with the app
+			if newStore := a.databaseManager.GetCurrentStore(); newStore != nil {
+				if a.logger != nil {
+					a.logger.Printf("Account switch: registering new database store for services")
+				}
+				a.RegisterDBStore(newStore)
+			} else {
+				if a.logger != nil {
+					a.logger.Printf("Account switch: WARNING - database manager returned nil store after successful switch")
+				}
+			}
 		}
+	}
+
+	// Reinitialize services that depend on the Gmail client AND database (must be after database switch)
+	a.reinitializeClientDependentServices()
+	if a.logger != nil {
+		a.logger.Printf("Account switch: Reinitialized client-dependent services for account %s", newActiveAccount.ID)
 	}
 
 	// Clear progress and show success
