@@ -979,8 +979,31 @@ func (a *App) reinitializeClientDependentServices() {
 		a.logger.Printf("reinitializeClientDependentServices: starting client and database-dependent service reinitialization")
 	}
 
-	// Note: Cache and AI services are account-agnostic and don't need reinitialization
-	// The database manager handles account switching internally
+	// Reinitialize cache service with new database store (account-specific)
+	if a.dbStore != nil {
+		cacheStore := db.NewCacheStore(a.dbStore)
+		a.cacheService = services.NewCacheService(cacheStore)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: cache service reinitialized: %v", a.cacheService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: cache service NOT reinitialized - dbStore=nil")
+		}
+	}
+
+	// Reinitialize AI service with new cache service (maintains account-specific caching)
+	if a.LLM != nil && a.cacheService != nil {
+		a.aiService = services.NewAIService(a.LLM, a.cacheService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: AI service reinitialized with new cache: %v", a.aiService != nil)
+		}
+	} else {
+		if a.logger != nil {
+			a.logger.Printf("reinitializeClientDependentServices: AI service NOT reinitialized - LLM=%v cacheService=%v",
+				a.LLM != nil, a.cacheService != nil)
+		}
+	}
 
 	// Reinitialize repository with new client
 	a.repository = services.NewMessageRepository(a.Client)
