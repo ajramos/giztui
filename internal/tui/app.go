@@ -305,7 +305,7 @@ func NewKeyActions() *KeyActions {
 }
 
 // NewApp creates a new TUI application following k9s patterns
-func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient llm.Provider, cfg *config.Config) *App {
+func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient llm.Provider, cfg *config.Config, logger *log.Logger, accountService services.AccountService) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	app := &App{
@@ -356,7 +356,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		messageCache:      make(map[string]*gmail.Message),
 		inviteCache:       make(map[string]Invite),
 		debug:             true,
-		logger:            log.New(os.Stdout, "[giztui] ", log.LstdFlags|log.Lmicroseconds),
+		logger:            logger, // Use passed logger instead of creating new one
 		logFile:           nil,
 		selected:          make(map[string]bool),
 		bulkMode:          false,
@@ -364,8 +364,11 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		messagesLoading:   false,
 	}
 
-	// Initialize file logger (logging.go)
-	app.initLogger()
+	// Set services passed from main.go
+	app.accountService = accountService
+
+	// Skip logger initialization since we're using the passed logger
+	// app.initLogger() // Removed - using passed logger
 
 	// Initialize pages
 	app.Pages = NewPages()
@@ -581,8 +584,7 @@ func (a *App) initServices() {
 		a.logger.Printf("initServices: starting service initialization")
 	}
 
-	// Initialize account service
-	a.accountService = services.NewAccountService(a.Config)
+	// Account service is already initialized from main.go, skip creation
 	if a.logger != nil {
 		a.logger.Printf("initServices: account service initialized: %v", a.accountService != nil)
 	}

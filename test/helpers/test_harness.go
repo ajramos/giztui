@@ -3,6 +3,8 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -63,7 +65,9 @@ func NewTestHarness(t *testing.T) *TestHarness {
 
 	// Create test app with minimal dependencies
 	// The app will initialize its own services via initServices()
-	testApp := tui.NewApp(testClient, nil, nil, testConfig)
+	logger := log.New(os.Stdout, "[test] ", log.LstdFlags)
+	accountService := services.NewAccountService(testConfig, logger)
+	testApp := tui.NewApp(testClient, nil, nil, testConfig, logger, accountService)
 
 	// Note: We can't override the app's screen directly, so we'll use the simulation screen
 	// independently for UI component testing

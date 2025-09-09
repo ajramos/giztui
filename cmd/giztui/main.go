@@ -13,6 +13,7 @@ import (
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/llm"
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/ajramos/giztui/internal/tui"
 	"github.com/ajramos/giztui/internal/version"
 	"github.com/ajramos/giztui/pkg/auth"
@@ -70,21 +71,117 @@ func main() {
 		cfg = config.DefaultConfig()
 	}
 
-	// Determine credential and token paths with smart defaults
-	credPath := getCredentialsPath(*credPathFlag, cfg.Credentials)
-	tokenPath := getTokenPath("", cfg.Token)
-
-	// Validate credentials path
-	if credPath == "" {
-		log.Fatal("Gmail credentials file is required. Provide it via --credentials or config file.")
-	}
-
-	if _, err := os.Stat(credPath); err != nil {
-		log.Fatalf("Credentials file not found at %s. Download client credentials from Google Cloud Console and place it there.", credPath)
-	}
-
-	// Initialize Gmail service
+	// Initialize Gmail service using multi-account logic
 	ctx := context.Background()
+
+	var credPath, tokenPath string
+
+	// Try multi-account validation with file logging if available
+	logger := createFileLogger()
+
+	// Create AccountService (will use logger if available, or default logger if not)
+	accountServiceLogger := logger
+	if accountServiceLogger == nil {
+		accountServiceLogger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+	accountService := services.NewAccountService(cfg, accountServiceLogger)
+
+	if logger != nil {
+		logger.Printf("🔍 Starting account validation and selection...")
+		accounts, err := accountService.ListAccounts(ctx)
+		if err != nil {
+			logger.Printf("⚠️  Failed to list accounts: %v", err)
+		} else {
+			logger.Printf("📋 Found %d configured accounts", len(accounts))
+
+			// Check for multiple active accounts (warn if found)
+			activeCount := 0
+			var activeAccounts []string
+			for _, account := range accounts {
+				if account.IsActive {
+					activeCount++
+					activeAccounts = append(activeAccounts, fmt.Sprintf("%s (%s)", account.ID, account.DisplayName))
+				}
+			}
+
+			if activeCount > 1 {
+				logger.Printf("⚠️  Multiple active accounts detected (%d): %v", activeCount, activeAccounts)
+				logger.Printf("⚠️  Will use first valid active account found")
+			} else if activeCount == 1 {
+				logger.Printf("🎯 Single active account found: %s", activeAccounts[0])
+			} else {
+				logger.Printf("⚠️  No active accounts found, will fall back to legacy configuration")
+			}
+
+			// Try to find first active and valid account
+			var selectedAccount *services.Account
+			for _, account := range accounts {
+				if !account.IsActive {
+					logger.Printf("⏭️  Skipping inactive account: %s (%s)", account.ID, account.DisplayName)
+					continue
+				}
+
+				logger.Printf("🔍 Validating active account: %s (%s)", account.ID, account.DisplayName)
+				result, err := accountService.ValidateAccount(ctx, account.ID)
+				if err != nil {
+					logger.Printf("❌ Account validation failed for %s: %v", account.ID, err)
+					continue
+				}
+
+				if result.IsValid {
+					logger.Printf("✅ Account validation successful for %s (%s) - Email: %s", account.ID, account.DisplayName, result.Email)
+					selectedAccount = account
+					selectedAccount.Email = result.Email // Update account with validated email
+					credPath = expandPath(account.CredPath)
+					tokenPath = expandPath(account.TokenPath)
+					break
+				} else {
+					logger.Printf("❌ Account validation failed for %s: %s", account.ID, result.ErrorMsg)
+				}
+			}
+
+			// Log final selection result
+			if selectedAccount != nil {
+				logger.Printf("🎉 Selected account: %s (%s) - Email: %s", selectedAccount.ID, selectedAccount.DisplayName, selectedAccount.Email)
+			} else {
+				logger.Printf("❌ No valid active account found, falling back to legacy configuration")
+			}
+		}
+
+		if credPath != "" {
+			logger.Printf("🚀 Initializing Gmail service with validated account (creds: %s, token: %s)", credPath, tokenPath)
+		}
+	}
+
+	// Fallback to legacy credential resolution if multi-account validation failed or logger unavailable
+	if credPath == "" {
+		if logger != nil {
+			logger.Printf("🔄 Falling back to legacy single-account configuration...")
+		}
+		credPath = getCredentialsPath(*credPathFlag, cfg.Credentials)
+		tokenPath = getTokenPath("", cfg.Token)
+
+		// Validate credentials path
+		if credPath == "" {
+			if logger != nil {
+				logger.Printf("❌ No credentials file configured for legacy mode")
+			}
+			log.Fatal("Gmail credentials file is required. Provide it via --credentials or config file.")
+		}
+
+		if _, err := os.Stat(credPath); err != nil {
+			if logger != nil {
+				logger.Printf("❌ Credentials file not found at %s", credPath)
+			}
+			log.Fatalf("Credentials file not found at %s. Download client credentials from Google Cloud Console and place it there.", credPath)
+		}
+
+		if logger != nil {
+			logger.Printf("✅ Legacy credentials validated (creds: %s, token: %s)", credPath, tokenPath)
+			logger.Printf("🚀 Initializing Gmail service with legacy credentials")
+		}
+	}
+
 	service, err := auth.NewGmailService(ctx, credPath, tokenPath,
 		"https://www.googleapis.com/auth/gmail.readonly",
 		"https://www.googleapis.com/auth/gmail.send",
@@ -93,7 +190,11 @@ func main() {
 		"https://www.googleapis.com/auth/calendar.events",
 	)
 	if err != nil {
-		log.Fatalf("Could not initialize Gmail service: %v", err)
+		if logger != nil {
+			logger.Fatalf("❌ Could not initialize Gmail service: %v", err)
+		} else {
+			log.Fatalf("Could not initialize Gmail service: %v", err)
+		}
 	}
 
 	// Create Gmail client
@@ -143,7 +244,8 @@ func main() {
 	}
 
 	// Create and run TUI (database management is now handled internally)
-	app := tui.NewApp(gmailClient, calClient, llmProvider, cfg)
+	// Pass the logger and accountService to avoid duplicate initialization
+	app := tui.NewApp(gmailClient, calClient, llmProvider, cfg, logger, accountService)
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)
@@ -291,4 +393,31 @@ func runSetupWizard() {
 	fmt.Println("• Edit the config file to customize LLM settings")
 	fmt.Println("• Use environment variables for different profiles")
 	fmt.Println("• Run with -h to see all options")
+}
+
+// createFileLogger creates a logger that writes to the same log file as the TUI
+func createFileLogger() *log.Logger {
+	logDir := config.DefaultLogDir()
+	if logDir == "" {
+		return nil
+	}
+
+	if err := os.MkdirAll(logDir, 0o750); err != nil {
+		return nil
+	}
+
+	logFile := filepath.Join(logDir, "giztui.log")
+	// Validate path to prevent directory traversal
+	cleanPath := filepath.Clean(logFile)
+	if strings.Contains(cleanPath, "..") {
+		return nil
+	}
+
+	f, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return nil
+	}
+
+	// Note: We don't close the file here since main() will exit anyway
+	return log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
 }

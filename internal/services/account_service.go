@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ import (
 // AccountServiceImpl implements the AccountService interface
 type AccountServiceImpl struct {
 	config   *config.Config
+	logger   *log.Logger
 	accounts map[string]*Account      // accountID -> Account
 	clients  map[string]*gmail.Client // accountID -> Client
 	activeID string
@@ -25,9 +27,10 @@ type AccountServiceImpl struct {
 }
 
 // NewAccountService creates a new AccountService instance
-func NewAccountService(cfg *config.Config) *AccountServiceImpl {
+func NewAccountService(cfg *config.Config, logger *log.Logger) *AccountServiceImpl {
 	service := &AccountServiceImpl{
 		config:   cfg,
+		logger:   logger,
 		accounts: make(map[string]*Account),
 		clients:  make(map[string]*gmail.Client),
 	}
@@ -42,6 +45,10 @@ func NewAccountService(cfg *config.Config) *AccountServiceImpl {
 func (s *AccountServiceImpl) loadAccountsFromConfig() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.logger != nil {
+		s.logger.Printf("AccountService: Loading accounts from configuration, found %d accounts", len(s.config.Accounts))
+	}
 
 	// Load multi-account configuration
 	for _, accountCfg := range s.config.Accounts {
@@ -62,12 +69,33 @@ func (s *AccountServiceImpl) loadAccountsFromConfig() {
 
 		s.accounts[account.ID] = account
 		if account.IsActive {
-			s.activeID = account.ID
+			if s.activeID != "" {
+				if s.logger != nil {
+					s.logger.Printf("AccountService: Multiple active accounts found, keeping first active: %s", s.activeID)
+				}
+			} else {
+				s.activeID = account.ID
+				if s.logger != nil {
+					s.logger.Printf("AccountService: Set active account: %s (%s) - Email: %s", account.ID, account.DisplayName, account.Email)
+				}
+			}
 		}
+
+		if s.logger != nil {
+			s.logger.Printf("AccountService: Loaded account: %s (%s) - Active: %t, Email: %s", account.ID, account.DisplayName, account.IsActive, account.Email)
+		}
+	}
+
+	// Log final account summary
+	if s.logger != nil {
+		s.logger.Printf("AccountService: Account loading complete - Total: %d, Active: %s", len(s.accounts), s.activeID)
 	}
 
 	// Backward compatibility: if no accounts configured, create default from legacy config
 	if len(s.accounts) == 0 && (s.config.Credentials != "" || s.config.Token != "") {
+		if s.logger != nil {
+			s.logger.Printf("AccountService: No accounts configured, creating default from legacy config")
+		}
 		defaultAccount := &Account{
 			ID:          "default",
 			DisplayName: "Default Account",
@@ -85,6 +113,10 @@ func (s *AccountServiceImpl) loadAccountsFromConfig() {
 
 		s.accounts["default"] = defaultAccount
 		s.activeID = "default"
+
+		if s.logger != nil {
+			s.logger.Printf("AccountService: Created default account - Email: %s", defaultAccount.Email)
+		}
 	}
 }
 
