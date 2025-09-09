@@ -119,7 +119,7 @@ GizTUI supports multiple Gmail accounts with seamless switching. Configure multi
 ### Account Management
 
 - **Switch Accounts**: Press `Ctrl+A` to open account picker
-- **Commands**: Use `:accounts list`, `:accounts switch <id>`, etc.
+- **Commands**: Use `:accounts` (opens picker), `:accounts switch <id>`, etc.
 - **Status**: Visual indicators show connection status
 - **Isolation**: Each account has separate database and cache
 

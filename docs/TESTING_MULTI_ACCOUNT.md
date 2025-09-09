@@ -45,8 +45,8 @@ go test ./internal/tui -v -run "TestApp.*Account"
 **Location**: `test/integration/accounts_integration_test.go`
 
 - **Keyboard Shortcuts**: `Ctrl+U` and configurable shortcuts for account picker
-- **Command System**: `:accounts`, `:accounts list`, `:accounts switch`, etc.
-- **Command Aliases**: Short forms like `:accounts l`, `:accounts sw`
+- **Command System**: `:accounts`, `:accounts switch`, etc.
+- **Command Aliases**: Short forms like `:accounts sw`
 - **Workflow Integration**: Complete user workflows from keyboard to service
 - **UI-Service Integration**: Proper communication between UI components and services
 - **Concurrent Operations**: Multiple simultaneous keyboard and command operations

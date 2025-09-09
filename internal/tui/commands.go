@@ -571,12 +571,8 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		tail := strings.TrimSpace(strings.TrimPrefix(buffer, strings.TrimSpace(prefix)))
 		lower := strings.ToLower(tail)
 		switch {
-		case strings.HasPrefix("list", lower):
-			return prefix + "list"
 		case strings.HasPrefix("switch", lower):
 			return prefix + "switch"
-		case lower == "l":
-			return prefix + "list"
 		case lower == "s":
 			return prefix + "switch"
 		case lower == "sw":
@@ -1704,57 +1700,13 @@ func (a *App) executeAccountsCommand(args []string) {
 	subArgs := args[1:]
 
 	switch subCommand {
-	case "list", "l":
-		a.executeAccountsList(subArgs)
 	case "switch", "sw":
 		a.executeAccountsSwitch(subArgs)
 	default:
 		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown accounts command: %s. Use 'list' or 'switch'", subCommand))
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown accounts command: %s. Use 'switch'", subCommand))
 		}()
 	}
-}
-
-// executeAccountsList lists all configured accounts
-func (a *App) executeAccountsList(args []string) {
-	accountService := a.GetAccountService()
-	if accountService == nil {
-		go func() {
-			a.GetErrorHandler().ShowError(a.ctx, "Account service not available")
-		}()
-		return
-	}
-
-	go func() {
-		accounts, err := accountService.ListAccounts(a.ctx)
-		if err != nil {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to list accounts: %v", err))
-			return
-		}
-
-		if len(accounts) == 0 {
-			a.GetErrorHandler().ShowInfo(a.ctx, "No accounts configured")
-			return
-		}
-
-		message := fmt.Sprintf("📋 %d accounts configured:", len(accounts))
-		for _, account := range accounts {
-			status := "❌"
-			switch account.Status {
-			case "connected":
-				status = "✓"
-			case "disconnected":
-				status = "⚠"
-			}
-			active := ""
-			if account.IsActive {
-				active = " (active)"
-			}
-			message += fmt.Sprintf("\n  %s %s - %s%s", status, account.DisplayName, account.Email, active)
-		}
-
-		a.GetErrorHandler().ShowInfo(a.ctx, message)
-	}()
 }
 
 // executeAccountsSwitch switches to a different account

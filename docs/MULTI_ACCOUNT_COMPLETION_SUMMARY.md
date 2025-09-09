@@ -159,7 +159,6 @@ ESC                 # Close picker
 
 # Commands
 :accounts           # Open account picker
-:accounts list      # List all accounts  
 :accounts switch personal  # Switch to specific account
 ```
 

@@ -125,17 +125,15 @@ This document provides a comprehensive test plan for validating the multi-accoun
 ### **T1.3 - Account Service Methods**
 **Objective**: Verify core AccountService functionality
 
-**Test Case A - List Accounts**:
+**Test Case A - Account Picker**:
 **Steps**:
-1. **Open command mode**: Press `:` to enter command mode (you should see `:` appear in the status bar)
+1. **Open account picker**: Press `Ctrl+A` or type `:accounts` and press Enter
 
-2. **Type list command**: Type `accounts list` (full command: `:accounts list`)
+2. **Check picker display**: Verify all accounts are shown with status icons and emails
 
-3. **Execute command**: Press `Enter` to execute
+3. **Navigate accounts**: Use ↑/↓ keys to navigate between accounts
 
-4. **Check status message**: Look at the status bar at the bottom of the screen for the account list
-
-5. **Check terminal logs**: Also check the terminal where you started GizTUI for detailed log output
+4. **Check terminal logs**: Also check the terminal where you started GizTUI for detailed log output
 
 **Expected Result**: 
 - Status bar shows brief account summary
@@ -584,12 +582,12 @@ ERROR: Failed to switch account: failed to initialize client for account work: f
 ### **T3.2 - Subcommands**
 **Objective**: Verify all account subcommands work
 
-**Test Case A - List Command**:
+**Test Case A - Account Picker Command**:
 **Steps**:
-1. Type `:accounts list` and press Enter
-2. Check status message output
+1. Type `:accounts` and press Enter
+2. Check that account picker opens
 
-**Expected Result**: List of accounts displayed in status area
+**Expected Result**: Account picker displayed with all configured accounts
 
 **Result**: [ ]
 **Comments**: 
