@@ -451,6 +451,11 @@ func (a *App) isKeyConfigured(key rune) bool {
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
 func (a *App) bindKeys() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Debug: Log ALL control key events
+		if a.logger != nil && (event.Modifiers()&tcell.ModCtrl) != 0 {
+			a.logger.Printf("=== CONTROL KEY: Ctrl+%c (rune=%v, key=%v) ===", event.Rune(), event.Rune(), event.Key())
+		}
+
 		// Debug logging for all key presses
 		if a.logger != nil && event.Rune() >= '0' && event.Rune() <= '9' {
 			focusType := "nil"
@@ -568,9 +573,24 @@ func (a *App) bindKeys() {
 			}
 		}
 
+		// Handle accounts shortcut BEFORE vim sequences (control key combinations)
+		if a.logger != nil && (event.Modifiers()&tcell.ModCtrl) != 0 {
+			a.logger.Printf("DEBUG: Checking accounts shortcut - configured='%s', received Ctrl+%c", a.Keys.Accounts, event.Rune())
+		}
+		if a.Keys.Accounts != "" {
+			if a.matchesKeyCombo(event, a.Keys.Accounts) {
+				if a.logger != nil {
+					a.logger.Printf("Configurable shortcut: '%s' -> accounts", a.Keys.Accounts)
+				}
+				a.openAccountPicker()
+				return nil
+			}
+		}
+
 		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
 		// This allows f3f to work even when f is configured for toggle_read
-		if a.handleVimSequence(event.Rune()) {
+		// BUT skip vim sequence handling for control key combinations
+		if (event.Modifiers()&tcell.ModCtrl) == 0 && a.handleVimSequence(event.Rune()) {
 			return nil
 		}
 
@@ -1196,14 +1216,10 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// Handle accounts shortcut (configurable, default Ctrl+A)
-		if a.Keys.Accounts != "" {
-			if a.matchesKeyCombo(event, a.Keys.Accounts) {
-				if a.logger != nil {
-					a.logger.Printf("Configurable shortcut: '%s' -> accounts", a.Keys.Accounts)
-				}
-				a.openAccountPicker()
-				return nil
+		// Debug: Log key events involving Ctrl+Q
+		if (event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'q' {
+			if a.logger != nil {
+				a.logger.Printf("DEBUG: Received Ctrl+Q, a.Keys.Accounts='%s'", a.Keys.Accounts)
 			}
 		}
 
@@ -2578,8 +2594,18 @@ func (a *App) matchesKeyCombo(event *tcell.EventKey, keyCombo string) bool {
 			case 't':
 				return (event.Key() == tcell.KeyCtrlT) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 't')
 			default:
-				// For other control combinations, use the modifier+rune pattern
-				return (event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == letterRune
+				// For other control combinations, check both patterns:
+				// 1. Modifier+rune pattern (some terminals)
+				// 2. Control character pattern (most terminals)
+				if (event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == letterRune {
+					return true
+				}
+				// Map control characters to letters (Ctrl+A = ASCII 1, Ctrl+Q = ASCII 17, etc.)
+				if event.Rune() >= 1 && event.Rune() <= 26 {
+					controlLetter := rune('a' + (event.Rune() - 1))
+					return controlLetter == letterRune
+				}
+				return false
 			}
 		}
 	}
