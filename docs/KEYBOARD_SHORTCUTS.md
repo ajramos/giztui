@@ -224,6 +224,13 @@ When you customize shortcuts, the priority order is:
 |-----|--------|-------------|
 | `O` | Open in Gmail | Open current message in Gmail web interface |
 
+### Account Management
+| Key | Action | Description |
+|-----|--------|-------------|
+| `:accounts` | Account picker | Open account picker for switching between accounts |
+| `Enter` | Switch account | Switch to selected account |
+| `1-9` | Quick switch | Switch to account by number |
+
 ## 📋 Command System
 
 ### Command Mode
@@ -249,6 +256,7 @@ When you customize shortcuts, the priority order is:
 | `:reply` or `:r` | `R` | Reply to message |
 | `:forward` or `:f` | `w` | Forward message |
 | `:drafts` | `D` | View drafts |
+| `:accounts` | - | Open account picker |
 
 ### Thread Commands
 | Command | Shortcut Equivalent | Description |

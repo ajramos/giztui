@@ -21,6 +21,7 @@ Multi-account support has been successfully implemented for GizTUI, enabling use
 ### **User Interface** 
 - ✅ Account picker with search and keyboard navigation
 - ✅ Visual status indicators (✓ Connected, ❌ Error, ● Active)
+- ✅ Number shortcuts (1-9) for quick account switching
 - ✅ Consistent theming following GizTUI design system
 - ✅ Configurable keyboard shortcuts (default: `Ctrl+A`)
 

@@ -115,9 +115,14 @@ func (a *App) openAccountPicker() {
 		// Convert to accountItem
 		all = make([]accountItem, 0, len(accounts))
 		for _, account := range accounts {
+			// Use "[Unnamed]" as fallback if display name is empty (e.g., for invalid configs)
+			displayName := account.DisplayName
+			if displayName == "" {
+				displayName = "[Unnamed]"
+			}
 			all = append(all, accountItem{
 				id:          account.ID,
-				displayName: account.DisplayName,
+				displayName: displayName,
 				email:       account.Email,
 				status:      string(account.Status),
 				isActive:    account.IsActive,
@@ -133,6 +138,19 @@ func (a *App) openAccountPicker() {
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
 					return e
+				}
+				// Support direct number input for quick account switching
+				if e.Rune() >= '1' && e.Rune() <= '9' {
+					num := int(e.Rune() - '0')
+					if num <= len(visible) && num > 0 {
+						item := visible[num-1]
+						if a.logger != nil {
+							a.logger.Printf("account picker: quick select via number %d accountID=%s name=%s", num, item.id, item.displayName)
+						}
+						// Switch to account
+						go a.switchToAccount(item.id, item.displayName)
+						return nil
+					}
 				}
 				return e
 			})
@@ -174,7 +192,7 @@ func (a *App) openAccountPicker() {
 
 			// Footer
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter to switch | Esc to back ")
+			footer.SetText(" Enter/1-9 to switch | Esc to back ")
 			footer.SetTextColor(a.GetComponentColors("accounts").Text.Color())
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
@@ -188,6 +206,19 @@ func (a *App) openAccountPicker() {
 				if e.Key() == tcell.KeyEscape {
 					a.closeAccountPicker()
 					return nil
+				}
+				// Quick number access
+				if e.Rune() >= '1' && e.Rune() <= '9' {
+					num := int(e.Rune() - '0')
+					if num <= len(visible) && num > 0 {
+						item := visible[num-1]
+						if a.logger != nil {
+							a.logger.Printf("account picker: quick select via number %d accountID=%s name=%s", num, item.id, item.displayName)
+						}
+						// Switch to account
+						go a.switchToAccount(item.id, item.displayName)
+						return nil
+					}
 				}
 
 				// No additional key bindings needed - focus on core switching functionality
