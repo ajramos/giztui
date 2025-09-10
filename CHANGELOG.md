@@ -5,6 +5,19 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-09-10
+
+### 🐛 Bug Fixes
+
+- **Version Display**: Fixed `go install` builds showing incorrect version (1.1.1 instead of 1.2.x)
+- **Version Sync**: Synchronized hardcoded version in version.go with VERSION file
+
+### 📚 Technical Notes
+
+This patch release fixes a version display inconsistency where `go install github.com/ajramos/giztui/cmd/giztui@latest` would show v1.1.1 instead of the correct version. Both `make` builds and `go install` builds now consistently display the correct version.
+
+---
+
 ## [1.2.0] - 2025-09-09
 
 ### ✨ New Features
