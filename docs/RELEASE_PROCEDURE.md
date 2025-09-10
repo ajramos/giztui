@@ -1,15 +1,25 @@
 # 🚀 Release Procedure Guide
 
-This document provides a comprehensive, step-by-step procedure for creating GizTUI releases. Follow these steps exactly to ensure consistent, high-quality releases.
+This document provides the correct procedure for creating GizTUI releases using the **automated GitHub workflow system**.
 
 ## 📋 Table of Contents
 
+- [Overview](#-overview)
 - [Pre-Release Checklist](#-pre-release-checklist)
 - [Semantic Versioning Guidelines](#-semantic-versioning-guidelines)
-- [Step-by-Step Release Process](#-step-by-step-release-process)
+- [Release Process](#-release-process)
 - [Post-Release Tasks](#-post-release-tasks)
-- [Rollback Procedures](#-rollback-procedures)
 - [Troubleshooting](#-troubleshooting)
+
+## 🎯 Overview
+
+GizTUI uses **automated GitHub workflows** for releases. The process is:
+
+1. **Prepare**: Update version files and changelog
+2. **Trigger**: Tag and push to trigger automated workflow  
+3. **Verify**: Confirm workflow success and test installation
+
+**Important**: The workflow handles building, packaging, and publishing. Never bypass it with manual processes.
 
 ## ✅ Pre-Release Checklist
 
@@ -18,13 +28,13 @@ Before starting any release, ensure all these conditions are met:
 ### **Code Quality Gates**
 - [ ] All features are complete and tested
 - [ ] All tests pass: `make test`
-- [ ] Linting passes: `make lint`
+- [ ] Linting passes: `make lint` 
 - [ ] Code formatting is correct: `make fmt`
 - [ ] No critical issues in `make vet`
 - [ ] All pre-commit hooks pass
 
 ### **Architecture Compliance** 
-- [ ] All new features follow service-first architecture (CLAUDE.md)
+- [ ] All new features follow service-first architecture
 - [ ] Command parity implemented (every keyboard shortcut has `:command`)
 - [ ] Proper error handling using `ErrorHandler` pattern
 - [ ] Thread-safe accessor methods used throughout
@@ -69,7 +79,7 @@ Increment for **bug fixes and improvements** (backward compatible):
 - Documentation updates
 - Dependency updates
 
-## 🎯 Step-by-Step Release Process
+## 🎯 Release Process
 
 ### **Phase 1: Version Planning**
 
@@ -92,31 +102,9 @@ Increment for **bug fixes and improvements** (backward compatible):
    # Breaking change: 1.2.0 → 2.0.0
    ```
 
-### **Phase 2: Pre-Release Validation**
+### **Phase 2: Version File Updates**
 
-3. **Run Complete Test Suite**
-   ```bash
-   # Clean build and test
-   make clean
-   make test
-   make lint
-   make vet
-   
-   # Verify no issues
-   echo "Exit code: $?"
-   ```
-
-4. **Version Verification**
-   ```bash
-   # Ensure we're on main with clean state
-   git checkout main
-   git pull origin main
-   git status  # Should be clean
-   ```
-
-### **Phase 3: Version Update**
-
-5. **Update VERSION File**
+3. **Update VERSION File**
    ```bash
    # Replace X.Y.Z with your target version
    echo "X.Y.Z" > VERSION
@@ -125,7 +113,19 @@ Increment for **bug fixes and improvements** (backward compatible):
    make version
    ```
 
-6. **Update CHANGELOG.md**
+4. **Update version.go File (CRITICAL)**
+   ```bash
+   # CRITICAL: Update hardcoded version for go install consistency
+   # Edit internal/version/version.go line 13:
+   # Change: Version = "OLD.VERSION" 
+   # To:     Version = "X.Y.Z"
+   
+   # Verify both files are in sync:
+   echo "VERSION file: $(cat VERSION)"
+   grep 'Version = ' internal/version/version.go
+   ```
+
+5. **Update CHANGELOG.md**
    
    Add a new section at the top of CHANGELOG.md:
    ```markdown
@@ -147,108 +147,102 @@ Increment for **bug fixes and improvements** (backward compatible):
 
    **Keep it concise** - Focus on user-visible changes and major technical improvements.
 
-### **Phase 4: Pre-Release Testing**
+### **Phase 3: Pre-Release Validation**
 
-7. **Build and Test Release**
+6. **Run Local Tests**
    ```bash
-   # Test the release build process
-   make release-build
+   # Comprehensive local validation
+   make test
+   make lint
+   make vet
    
-   # Verify all binaries were created
-   ls -la build/
-   
-   # Test the primary binary
-   ./build/giztui-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) --version
+   # Verify no issues
+   echo "Exit code: $?"
    ```
 
-### **Phase 5: Commit and Tag**
+7. **Build Test**
+   ```bash
+   # Optional: Test local build to ensure everything compiles
+   make build
+   ./build/giztui-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) --version
+   # Should show: GizTUI X.Y.Z
+   ```
+
+### **Phase 4: Release Trigger**
 
 8. **Commit Version Changes**
    ```bash
-   # Stage version changes
-   git add VERSION CHANGELOG.md
+   # Stage version files (all three are required)
+   git add VERSION CHANGELOG.md internal/version/version.go
    
    # Commit with standardized message
-   git commit -m "release: bump version to vX.Y.Z for [feature name]
+   git commit -m "release: prepare vX.Y.Z for [feature name]
 
    - Update VERSION from A.B.C to X.Y.Z
-   - Add CHANGELOG.md entry documenting changes
-   - [Brief description of main changes]
-
-   🤖 Generated with [Claude Code](https://claude.ai/code)
-
-   Co-Authored-By: Claude <noreply@anthropic.com>"
+   - Update version.go hardcoded version for go install consistency  
+   - Add CHANGELOG.md entry documenting changes"
    ```
 
-9. **Push and Verify CI**
+9. **Create and Push Tag**
    ```bash
-   # Push to remote
-   git push origin main
+   # Create release tag
+   git tag vX.Y.Z
    
-   # Wait for CI to pass - check GitHub Actions
-   # Visit: https://github.com/ajramos/giztui/actions
+   # Push everything to trigger the automated workflow
+   git push origin main
+   git push origin vX.Y.Z
+   
+   # The GitHub workflow will now automatically:
+   # - Build binaries for all platforms with injected version info
+   # - Run comprehensive tests and quality checks
+   # - Generate checksums and archives
+   # - Create GitHub release with assets and release notes
    ```
 
-### **Phase 6: Release Creation**
+### **Phase 5: Automated Workflow**
 
-10. **Create Final Release**
+10. **Monitor Workflow Execution**
     ```bash
-    # Build final release artifacts
-    make release
+    # Check workflow status
+    gh run list --limit 1
     
-    # Verify all files are present
-    ls -la build/
-    cat build/checksums.txt
-    cat build/archive-checksums.txt
+    # Watch workflow progress (optional)
+    gh run watch
+    
+    # Workflow URL: https://github.com/ajramos/giztui/actions
     ```
 
-11. **Create GitHub Release**
-    ```bash
-    # Create release with binaries
-    gh release create vX.Y.Z build/*.tar.gz build/*.zip \
-      --title "GizTUI vX.Y.Z - [Feature Name]" \
-      --notes "$(cat <<'EOF'
-    # 🎉 GizTUI vX.Y.Z - [Feature Name]
-
-    Brief description of the main changes in this release.
-
-    ## ✨ **New Features**
-
-    - **Feature 1**: Description
-    - **Feature 2**: Description
-
-    ## 🛠️ **Technical Improvements**
-
-    - **Area**: Description of improvements
-    - **Quality**: Code quality enhancements
-
-    ## 📦 **Installation**
-
-    Download the appropriate binary for your platform from the assets below, or install via Go:
-
-    \`\`\`bash
-    go install github.com/ajramos/giztui/cmd/giztui@vX.Y.Z
-    \`\`\`
-
-    **Full Changelog**: https://github.com/ajramos/giztui/compare/v[PREV]...vX.Y.Z
-
-    🤖 Generated with [Claude Code](https://claude.ai/code)
-    EOF
-    )"
-    ```
+    The automated workflow performs:
+    - ✅ Multi-platform binary builds with version injection
+    - ✅ Comprehensive test suite execution
+    - ✅ Security scanning and quality checks
+    - ✅ Checksum generation for all assets
+    - ✅ Archive creation (.tar.gz, .zip)
+    - ✅ GitHub release creation with release notes
+    - ✅ Asset upload and publishing
 
 ## 🎯 Post-Release Tasks
 
-### **Verification**
+### **Phase 6: Verification**
 
-12. **Verify Release**
+11. **Verify Release Completion**
     ```bash
-    # Check GitHub release page
+    # Check GitHub release was created
     gh release view vX.Y.Z
     
-    # Test installation
+    # Verify workflow succeeded
+    gh run list --limit 1 --json conclusion
+    ```
+
+12. **Test Installation Methods**
+    ```bash
+    # Test go install (most common user method)
     go install github.com/ajramos/giztui/cmd/giztui@vX.Y.Z
     giztui --version
+    # Should show: GizTUI X.Y.Z
+    
+    # Test binary download (optional)
+    gh release download vX.Y.Z
     ```
 
 13. **Update Documentation** (if needed)
@@ -264,120 +258,105 @@ Increment for **bug fixes and improvements** (backward compatible):
     - Announce in relevant channels/communities
     - Update package manager entries if applicable
 
-## 🔄 Rollback Procedures
-
-If you need to rollback a release:
-
-### **For Draft Releases (before publishing)**
-```bash
-# Delete draft release
-gh release delete vX.Y.Z
-
-# Reset VERSION file
-git checkout HEAD~1 -- VERSION CHANGELOG.md
-git commit -m "rollback: revert version bump to vX.Y.Z"
-git push origin main
-```
-
-### **For Published Releases**
-```bash
-# Mark release as pre-release (don't delete published releases)
-gh release edit vX.Y.Z --prerelease
-
-# Create hotfix release with proper version
-echo "X.Y.Z-hotfix.1" > VERSION
-# Follow normal release process
-```
-
 ## 🐛 Troubleshooting
 
-### **Common Issues**
+### **Workflow Failures**
 
-**Problem**: `make release` fails with test errors
+**Problem**: GitHub workflow fails during build
 ```bash
-# Solution: Fix failing tests first
-make test
-# Address any failing tests, then retry release
+# Solution: Check workflow logs and fix issues locally first
+gh run list --limit 1
+gh run view [RUN_ID]
+
+# Common fixes:
+make test        # Fix failing tests
+make lint        # Fix linting issues  
+make vet         # Fix static analysis issues
 ```
 
-**Problem**: Git is not clean
+**Problem**: Version injection not working in workflow
 ```bash
-# Solution: Clean working directory
-git status
-git stash  # if you want to keep changes
-git checkout .  # if you want to discard changes
+# Check that VERSION file format is correct
+cat VERSION      # Should contain just: X.Y.Z (no 'v' prefix)
+
+# Verify tag format is correct
+git tag --list | tail -1   # Should be: vX.Y.Z
 ```
 
-**Problem**: `gh` command not found
+**Problem**: Go install still shows old version
 ```bash
-# Solution: Install GitHub CLI
-# macOS: brew install gh
-# Linux: https://cli.github.com/
-# Windows: winget install GitHub.cli
-gh auth login
+# Solution: Ensure version.go was updated AND committed before tagging
+grep 'Version = ' internal/version/version.go
+# Should show: Version = "X.Y.Z"
+
+# Clear Go module cache and retry
+go clean -modcache
+go install github.com/ajramos/giztui/cmd/giztui@vX.Y.Z
 ```
 
-**Problem**: Version injection not working
+### **Tag Management Issues**
+
+**Problem**: Need to fix release after tagging
 ```bash
-# Solution: Ensure VERSION file exists and has content
-cat VERSION
-make clean
-make build
-./build/giztui --version
+# DON'T move published tags - create patch release instead
+# Example: v1.2.0 has issues → create v1.2.1
+
+echo "X.Y.Z+1" > VERSION
+# Update version.go and CHANGELOG.md
+git add VERSION CHANGELOG.md internal/version/version.go
+git commit -m "release: prepare vX.Y.Z+1 patch release"
+git tag vX.Y.Z+1
+git push origin main && git push origin vX.Y.Z+1
 ```
 
-**Problem**: Pre-commit hooks failing
+**Problem**: Workflow didn't trigger on tag push
 ```bash
-# Solution: Fix formatting and linting issues
-make fmt
-make lint
-# Address any issues, then retry commit
+# Check if tag was pushed correctly
+git ls-remote --tags origin | grep vX.Y.Z
+
+# Manual workflow trigger (if needed)
+gh workflow run release.yml -f version=vX.Y.Z
 ```
 
-### **Emergency Procedures**
+### **Version Consistency Issues**
 
-**Critical Bug in Release**:
-1. Immediately mark release as pre-release: `gh release edit vX.Y.Z --prerelease`
-2. Create hotfix branch: `git checkout -b hotfix/vX.Y.Z+1`
-3. Fix critical issue
-4. Follow normal release process for patch version
-5. Update original release notes with deprecation notice
+**Problem**: Different versions in different build methods
+- **Make builds**: Use VERSION file + git info → Always correct for releases
+- **Go install builds**: Use hardcoded version.go → Must be manually synced
+- **Workflow builds**: Use ldflags injection → Always correct for releases
 
-**Build System Issues**:
-1. Verify Go version: `go version` (should be 1.23+)
-2. Clean and retry: `make clean && make release`
-3. Check disk space: `df -h`
-4. Verify network access for dependency downloads
+**Solution**: Always update both VERSION and version.go files before releasing.
 
 ## 📚 Related Documentation
 
+- [GitHub Release Workflow](../.github/workflows/release.yml) - Automated release process
+- [CI/CD Pipeline](../.github/workflows/ci-comprehensive.yml) - Quality assurance
 - [Architecture Guide](ARCHITECTURE.md) - Service-first development patterns
-- [Testing Guide](TESTING.md) - Quality assurance framework  
-- [Development Setup](DEVELOPMENT_SETUP.md) - Environment setup
+- [Testing Guide](TESTING.md) - Quality assurance framework
 - [CHANGELOG.md](../CHANGELOG.md) - Release history
-- [CLAUDE.md](../CLAUDE.md) - Development guidelines
 
 ## 🎯 Quick Reference Commands
 
 ```bash
-# Pre-release checks
-make test && make lint && make vet
-
-# Version update
+# Complete release process
 echo "X.Y.Z" > VERSION
+# Edit internal/version/version.go to set Version = "X.Y.Z"
+# Edit CHANGELOG.md with release notes
 
-# Release creation
-git add VERSION CHANGELOG.md
-git commit -m "release: bump version to vX.Y.Z for [feature]"
-git push origin main
-make release
-gh release create vX.Y.Z build/*.tar.gz build/*.zip --title "GizTUI vX.Y.Z"
+git add VERSION CHANGELOG.md internal/version/version.go
+git commit -m "release: prepare vX.Y.Z for [feature]"
+git tag vX.Y.Z
+git push origin main && git push origin vX.Y.Z
 
-# Verification
+# Verify workflow success
+gh run watch
 gh release view vX.Y.Z
+
+# Test installation
 go install github.com/ajramos/giztui/cmd/giztui@vX.Y.Z
+giztui --version
 ```
 
 ---
 
-**Remember**: This process ensures consistent, high-quality releases. Don't skip steps - each one serves a specific purpose in maintaining software quality and user experience.
+**Remember**: This process leverages GitHub's automated infrastructure for consistent, high-quality releases. The workflow handles the complex parts - focus on proper version management and testing.
