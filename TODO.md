@@ -3,7 +3,8 @@
 ## 📋 PENDING - What's Left to Do
 
 ### High Priority
-- [ ] Multi-account support
+
+- [ ] Multi-account support for Obsidian
 - [ ] Add a prompt to make an analysis of the inbox itself
 - [ ] Chat with an email
 - [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
@@ -173,6 +174,7 @@
 - [x] **UI for creating new prompt templates** - Built interface for template creation
 - [x] **Bulk select s2s configuration** - Made bulk select operations configurable
 - [x] **Save searches functionality** - Complete saved queries/bookmarks system with UI patterns, keyboard shortcuts, commands, and database persistence
+- [x] **Multi-account** support for Email
 
 ### Email Management
 - [x] **Query emails** - Search and query emails with Gmail search syntax
