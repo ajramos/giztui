@@ -120,10 +120,12 @@ func main() {
 				result, err := accountService.ValidateAccount(ctx, account.ID)
 				if err != nil {
 					logger.Printf("❌ Account validation failed for %s: %v", account.ID, err)
+					printUserFriendlyError(err, account.ID)
 				} else if result.IsValid {
 					logger.Printf("✅ Account validation successful for %s (%s) - Email: %s", account.ID, account.DisplayName, result.Email)
 				} else {
 					logger.Printf("❌ Account validation failed for %s: %s", account.ID, result.ErrorMsg)
+					printUserFriendlyValidationError(result.ErrorMsg, account.ID)
 				}
 			}
 
@@ -140,6 +142,7 @@ func main() {
 				result, err := accountService.ValidateAccount(ctx, account.ID)
 				if err != nil {
 					logger.Printf("❌ Account validation failed for %s: %v", account.ID, err)
+					printUserFriendlyError(err, account.ID)
 					continue
 				}
 
@@ -152,6 +155,7 @@ func main() {
 					break
 				} else {
 					logger.Printf("❌ Account validation failed for %s: %s", account.ID, result.ErrorMsg)
+					printUserFriendlyValidationError(result.ErrorMsg, account.ID)
 				}
 			}
 
@@ -539,4 +543,81 @@ func createFileLogger() *log.Logger {
 
 	// Note: We don't close the file here since main() will exit anyway
 	return log.New(f, "[giztui] ", log.LstdFlags|log.Lmicroseconds)
+}
+
+// printUserFriendlyError provides helpful error messages for common Gmail API issues
+func printUserFriendlyError(err error, accountID string) {
+	errMsg := strings.ToLower(err.Error())
+
+	// Check for common Gmail API issues
+	if strings.Contains(errMsg, "access_not_configured") ||
+		strings.Contains(errMsg, "api not enabled") ||
+		strings.Contains(errMsg, "gmail api has not been used") {
+
+		fmt.Printf("\n🚨 Gmail API Issue for account '%s':\n", accountID)
+		fmt.Println("   The Gmail API is not enabled in your Google Cloud Console.")
+		fmt.Println("")
+		fmt.Println("📋 To fix this:")
+		fmt.Println("   1. Go to: https://console.cloud.google.com/apis/library")
+		fmt.Println("   2. Search for 'Gmail API'")
+		fmt.Println("   3. Click 'ENABLE'")
+		fmt.Println("   4. Restart GizTUI")
+		fmt.Println("")
+
+	} else if strings.Contains(errMsg, "credentials") || strings.Contains(errMsg, "token") {
+
+		fmt.Printf("\n🚨 Credentials Issue for account '%s':\n", accountID)
+		fmt.Println("   There's an issue with your OAuth2 credentials or token.")
+		fmt.Println("")
+		fmt.Println("📋 To fix this:")
+		fmt.Println("   1. Check that credentials.json exists and is valid")
+		fmt.Println("   2. Delete the token file to force re-authentication")
+		fmt.Println("   3. Restart GizTUI and follow the OAuth flow")
+		fmt.Println("")
+
+	} else if strings.Contains(errMsg, "403") || strings.Contains(errMsg, "forbidden") {
+
+		fmt.Printf("\n🚨 Permission Issue for account '%s':\n", accountID)
+		fmt.Println("   Access is forbidden. This usually means:")
+		fmt.Println("   - Gmail API is not enabled, or")
+		fmt.Println("   - Your credentials don't have the right permissions")
+		fmt.Println("")
+		fmt.Println("📋 To fix this:")
+		fmt.Println("   1. Enable Gmail API: https://console.cloud.google.com/apis/library/gmail.googleapis.com")
+		fmt.Println("   2. Ensure your OAuth2 app has the correct scopes")
+		fmt.Println("   3. Try re-creating your credentials")
+		fmt.Println("")
+
+	} else {
+
+		fmt.Printf("\n🚨 Account Issue for '%s': %v\n", accountID, err)
+		fmt.Println("📋 General troubleshooting:")
+		fmt.Println("   1. Check the detailed logs above")
+		fmt.Println("   2. Verify Gmail API is enabled: https://console.cloud.google.com/apis/library/gmail.googleapis.com")
+		fmt.Println("   3. Ensure credentials.json is valid")
+		fmt.Println("")
+	}
+}
+
+// printUserFriendlyValidationError provides helpful messages for validation result errors
+func printUserFriendlyValidationError(errorMsg, accountID string) {
+	errMsg := strings.ToLower(errorMsg)
+
+	if strings.Contains(errMsg, "failed to connect") {
+
+		fmt.Printf("\n🚨 Connection Issue for account '%s':\n", accountID)
+		fmt.Println("   Unable to connect to Gmail API.")
+		fmt.Println("")
+		fmt.Println("📋 Check these items:")
+		fmt.Println("   1. Gmail API is enabled: https://console.cloud.google.com/apis/library/gmail.googleapis.com")
+		fmt.Println("   2. Internet connection is working")
+		fmt.Println("   3. Credentials are valid and not expired")
+		fmt.Println("")
+
+	} else {
+
+		fmt.Printf("\n🚨 Validation Issue for '%s': %s\n", accountID, errorMsg)
+		fmt.Println("📋 See the detailed logs above for more information.")
+		fmt.Println("")
+	}
 }
