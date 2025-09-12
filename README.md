@@ -58,7 +58,7 @@ go install github.com/ajramos/giztui/cmd/giztui@latest
 ### First Run
 
 1. **Setup Gmail API credentials** ([detailed guide](docs/GETTING_STARTED.md#gmail-api-setup)):
-   - Enable Gmail API in Google Cloud Console
+   - **Enable Gmail API in Google Cloud Console** (required first step)
    - Create OAuth2 desktop credentials
    - Save as `~/.config/giztui/credentials.json`
 
