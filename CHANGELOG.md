@@ -5,6 +5,26 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-09-12
+
+### 🐛 Bug Fixes
+
+- **Theme System**: Fixed nil pointer crash when using bulk selection (S then *) by completing theme system migration
+- **Bulk Selection**: Resolved focus loss issues during bulk operations with improved UX and selection logic
+- **Table Synchronization**: Fixed off-by-one errors in row counting and table-to-cache synchronization
+
+### 🛠️ Technical Improvements
+
+- **Error Messaging**: Enhanced Gmail API validation failures with user-friendly error messages and actionable steps
+- **UX Enhancement**: Improved single message selection behavior in bulk mode for better user experience
+- **Focus Management**: Replaced destructive table rebuilds with targeted styling updates to preserve focus
+
+### 📚 Documentation
+
+- **Setup Guide**: Emphasized Gmail API enablement requirement in README setup instructions
+
+---
+
 ## [1.2.1] - 2025-09-10
 
 ### 🐛 Bug Fixes
