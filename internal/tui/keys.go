@@ -10,6 +10,46 @@ import (
 	"github.com/derailed/tview"
 )
 
+// updateBulkSelectionStyling updates only the row styling based on current selections
+// without doing a full table rebuild to preserve focus
+func (a *App) updateBulkSelectionStyling(table *tview.Table) {
+	if !a.bulkMode {
+		return
+	}
+
+	// Get colors for bulk selection
+	bulkBgColor := a.getBulkSelectionColor()
+	bulkTextColor := a.getBulkSelectionTextColor()
+
+	// Get normal colors for non-selected rows
+	generalColors := a.GetComponentColors("general")
+	normalBgColor := generalColors.Background.Color()
+	normalTextColor := generalColors.Text.Color()
+
+	// Apply styling to each row based on selection state
+	for row := 1; row < table.GetRowCount(); row++ { // Skip header row
+		messageID := a.getRowMessageID(row - 1) // Adjust for header
+
+		// Determine colors based on selection state
+		var bgColor, textColor tcell.Color
+		if a.selected[messageID] {
+			bgColor = bulkBgColor
+			textColor = bulkTextColor
+		} else {
+			bgColor = normalBgColor
+			textColor = normalTextColor
+		}
+
+		// Apply colors to entire row
+		for col := 0; col < table.GetColumnCount(); col++ {
+			if cell := table.GetCell(row, col); cell != nil {
+				cell.SetBackgroundColor(bgColor)
+				cell.SetTextColor(textColor)
+			}
+		}
+	}
+}
+
 // handleConfigurableKey checks if a key event matches a configurable shortcut and executes the corresponding action
 func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	// Only handle single character keys for configurable shortcuts
@@ -685,24 +725,31 @@ func (a *App) bindKeys() {
 		case '*':
 			if a.bulkMode {
 				if list, ok := a.views["list"].(*tview.Table); ok {
-					count := list.GetRowCount()
-					if count == 0 {
+					totalRows := list.GetRowCount()
+					if totalRows <= 1 { // Header only or empty
 						return nil
 					}
+					dataRows := totalRows - 1 // Exclude header row
 					sel := 0
-					for i := 0; i < count && i < len(a.ids); i++ {
+					for i := 0; i < dataRows && i < len(a.ids); i++ {
 						if a.selected[a.ids[i]] {
 							sel++
 						}
 					}
-					if sel*2 >= count {
+
+					if sel == dataRows && dataRows > 1 {
+						// All messages selected (and more than 1) -> clear all
 						a.selected = make(map[string]bool)
 					} else {
-						for i := 0; i < count && i < len(a.ids); i++ {
+						// Not all messages selected OR single message case -> select all
+						for i := 0; i < dataRows && i < len(a.ids); i++ {
 							a.selected[a.ids[i]] = true
 						}
 					}
-					a.refreshTableDisplay()
+
+					// Update row styling directly without full table refresh to preserve focus
+					a.updateBulkSelectionStyling(list)
+
 					// Show status message asynchronously to avoid deadlock
 					go func() {
 						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
