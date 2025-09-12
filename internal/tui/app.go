@@ -1762,12 +1762,17 @@ func (a *App) GetContentNavService() services.ContentNavigationService {
 func (a *App) applyTheme() {
 	// Try to load theme from themes directory; fallback to defaults
 	loader := config.NewThemeLoader("themes")
-	if theme, err := loader.LoadThemeFromFile("gmail-dark.yaml"); err == nil {
+	var theme *config.ColorsConfig
+	if loadedTheme, err := loader.LoadThemeFromFile("gmail-dark.yaml"); err == nil {
+		theme = loadedTheme
 		a.emailRenderer.UpdateFromConfig(theme)
 	} else {
-		def := config.DefaultColors()
-		a.emailRenderer.UpdateFromConfig(def)
+		theme = config.DefaultColors()
+		a.emailRenderer.UpdateFromConfig(theme)
 	}
+
+	// FIXED: Cache current theme for helper functions - completes migration
+	a.currentTheme = theme
 
 	// Get component colors for widget updates
 	generalColors := a.GetComponentColors("general")
