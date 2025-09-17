@@ -613,11 +613,53 @@ func (a *App) completeCommand() {
 	}
 }
 
+// parseCommandArgs parses command arguments handling quoted strings properly
+func parseCommandArgs(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	escaped := false
+
+	for _, r := range cmd {
+		if escaped {
+			current.WriteRune(r)
+			escaped = false
+			continue
+		}
+
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+
+		if r == '"' {
+			inQuotes = !inQuotes
+			continue
+		}
+
+		if !inQuotes && (r == ' ' || r == '\t') {
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+			continue
+		}
+
+		current.WriteRune(r)
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}
+
 // executeCommand executes the current command
 func (a *App) executeCommand(cmd string) {
 	a.addToHistory(cmd)
 
-	parts := strings.Fields(cmd)
+	parts := parseCommandArgs(cmd)
 	if len(parts) == 0 {
 		return
 	}
