@@ -116,27 +116,23 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		}
 	}
 
-	// Update title and content
+	// Update title
 	table.SetTitle(fmt.Sprintf(" 📧 Messages (%d) ", len(a.ids)))
-	if text, ok := a.views["text"].(*tview.TextView); ok {
-		messageIndex := a.getCurrentSelectedMessageIndex()
-		if messageIndex >= 0 {
-			go a.showMessageWithoutFocus(a.ids[messageIndex])
-			if a.aiSummaryVisible {
-				go a.generateOrShowSummary(a.ids[messageIndex])
+
+	// Content update is handled automatically by SetSelectionChangedFunc when table.Select() is called above
+	// No need to manually call showMessageWithoutFocus here as it creates race conditions
+	if a.logger != nil {
+		a.logger.Printf("DELETION FIX: Content update delegated to SetSelectionChangedFunc to avoid race condition")
+	}
+
+	// Only handle the edge case where there are no messages left
+	if len(a.ids) == 0 {
+		if text, ok := a.views["text"].(*tview.TextView); ok {
+			a.enhancedTextView.SetContent("No messages")
+			text.ScrollToBeginning()
+			if a.aiSummaryVisible && a.aiSummaryView != nil {
+				a.aiSummaryView.SetText("")
 			}
-		} else {
-			// Only show "No messages" if we actually have no messages AND no currentMessageID is set
-			// This prevents welcome screen reappearing during race conditions in parallel loading
-			currentMsgID := a.GetCurrentMessageID()
-			if len(a.ids) == 0 && currentMsgID == "" {
-				a.enhancedTextView.SetContent("No messages")
-				text.ScrollToBeginning()
-				if a.aiSummaryVisible && a.aiSummaryView != nil {
-					a.aiSummaryView.SetText("")
-				}
-			}
-			// Otherwise, keep existing content (don't overwrite during loading)
 		}
 	}
 
@@ -202,13 +198,10 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
 			table.Select(cur, 0)
 		}
-		// Convert table row index to message index (-1 for header)
-		messageIndex := cur - 1
-		if messageIndex >= 0 && messageIndex < len(a.ids) {
-			go a.showMessageWithoutFocus(a.ids[messageIndex])
-			if a.aiSummaryVisible {
-				go a.generateOrShowSummary(a.ids[messageIndex])
-			}
+		// Content update is handled automatically by SetSelectionChangedFunc when table.Select() is called above
+		// No need to manually call showMessageWithoutFocus here as it creates race conditions
+		if a.logger != nil {
+			a.logger.Printf("BULK DELETION FIX: Content update delegated to SetSelectionChangedFunc to avoid race condition")
 		}
 	}
 	if table.GetRowCount() == 0 {
