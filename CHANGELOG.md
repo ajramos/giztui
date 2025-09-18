@@ -5,6 +5,21 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2025-09-18
+
+### 🐛 Bug Fixes
+
+- **Message Deletion**: Fix stale message content after deleting an item. When pressing `d`, the selection stays in place and the content panel now shows the new selected message. Added selection-change guard in `showMessage`/`showMessageWithoutFocus` and avoided updating `currentMessageID` on preview.
+- **Deletion/Selection Races**: Additional safeguards to reduce race conditions when removing rows and re-selecting the next message in the list.
+- **Command Parsing**: Proper quoted-string handling for `:command` arguments to avoid split errors.
+
+### 🛠️ Technical Improvements
+
+- **Race-condition Guard**: Validate current selection before painting content when background loading completes, preventing outdated renders.
+- **CI Reliability**: Improve GitHub Actions cache configuration to reduce cache-restore failures.
+
+---
+
 ## [1.2.2] - 2025-09-12
 
 ### 🐛 Bug Fixes
