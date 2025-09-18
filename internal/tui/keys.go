@@ -32,7 +32,8 @@ func (a *App) updateBulkSelectionStyling(table *tview.Table) {
 
 		// Determine colors based on selection state
 		var bgColor, textColor tcell.Color
-		if a.selected[messageID] {
+		isSelected := a.selected[messageID]
+		if isSelected {
 			bgColor = bulkBgColor
 			textColor = bulkTextColor
 		} else {
@@ -45,6 +46,37 @@ func (a *App) updateBulkSelectionStyling(table *tview.Table) {
 			if cell := table.GetCell(row, col); cell != nil {
 				cell.SetBackgroundColor(bgColor)
 				cell.SetTextColor(textColor)
+			}
+		}
+
+		// Also update the checkbox indicator in the flags column (column 0)
+		if cell := table.GetCell(row, 0); cell != nil {
+			text := cell.Text
+			// Ensure first rune reflects selection: ☑ when selected, ☐ when not
+			desired := '☐'
+			if isSelected {
+				desired = '☑'
+			}
+			runes := []rune(text)
+			if len(runes) > 0 {
+				if runes[0] == '☑' || runes[0] == '☐' {
+					// Replace existing checkbox
+					if runes[0] != desired {
+						runes[0] = desired
+						cell.SetText(string(runes))
+					}
+				} else {
+					// No checkbox present (defensive) → prepend one
+					prefix := string(desired)
+					if text != "" {
+						cell.SetText(prefix + " " + text)
+					} else {
+						cell.SetText(prefix)
+					}
+				}
+			} else {
+				// Empty cell: set checkbox only
+				cell.SetText(string(desired))
 			}
 		}
 	}
