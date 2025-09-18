@@ -2191,6 +2191,8 @@ func (a *App) showMessage(id string) {
 		if a.debug {
 			a.logger.Printf("showMessage background: id=%s", id)
 		}
+		// Guard: capture requested ID to prevent stale updates if selection changes
+		requestedID := id
 		// Use cache if available; otherwise fetch and cache
 		var message *gmail.Message
 		if cached, ok := a.GetMessageFromCache(id); ok {
@@ -2224,6 +2226,13 @@ func (a *App) showMessage(id string) {
 		}()
 
 		a.QueueUpdateDraw(func() {
+			// Abort if selection changed while loading
+			if a.GetCurrentMessageID() != requestedID {
+				if a.debug {
+					a.logger.Printf("showMessage: abort UI update, currentID changed (requested=%s, current=%s)", requestedID, a.GetCurrentMessageID())
+				}
+				return
+			}
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)
 				text.Clear()
@@ -2395,12 +2404,15 @@ func (a *App) showMessageWithoutFocus(id string) {
 		a.enhancedTextView.SetContent("Loading message...")
 		text.ScrollToBeginning()
 	}
-	a.SetCurrentMessageID(id)
+	// Do NOT set currentMessageID here; selection changes (and Enter) manage it.
+	// Setting it here could race with selection updates after deletions and cause stale content.
 
 	go func() {
 		if a.debug {
 			a.logger.Printf("showMessageWithoutFocus background: id=%s", id)
 		}
+		// Guard: capture requested ID to prevent stale updates if selection changes
+		requestedID := id
 		// Use cache if available; otherwise fetch and cache
 		var message *gmail.Message
 
@@ -2466,6 +2478,13 @@ func (a *App) showMessageWithoutFocus(id string) {
 		}
 
 		a.QueueUpdateDraw(func() {
+			// Abort if selection changed while loading
+			if a.GetCurrentMessageID() != requestedID {
+				if a.debug {
+					a.logger.Printf("showMessageWithoutFocus: abort UI update, currentID changed (requested=%s, current=%s)", requestedID, a.GetCurrentMessageID())
+				}
+				return
+			}
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)
 				text.Clear()
