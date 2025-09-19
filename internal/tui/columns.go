@@ -610,6 +610,8 @@ func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailCol
 	}
 
 	// For flat mode, use the existing mapping logic
+	// IMPORTANT: Avoid responsive race between header config and row mapping.
+	// Use the current table column count as authoritative to cap writes.
 	config := a.getColumnConfigForCurrentMode(data.RowType)
 
 	// Convert table row to message index (row - 1 for header)
@@ -618,16 +620,19 @@ func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailCol
 	// Map email data to responsive column structure
 	mappedColumns := a.mapEmailDataToResponsiveColumns(data, config, messageIndex)
 
-	for col, cellData := range mappedColumns {
-		if col >= len(config) {
-			continue // Skip extra columns
-		}
+	maxCols := table.GetColumnCount()
+	limit := len(mappedColumns)
+	if limit > maxCols {
+		limit = maxCols
+	}
+	for col := 0; col < limit; col++ {
+		cellData := mappedColumns[col]
 
 		cell := tview.NewTableCell(cellData.Content).
 			SetAlign(cellData.Alignment).
 			SetTextColor(data.Color)
 
-		// Apply column-specific settings from config
+			// Apply column-specific settings from config
 		columnConfig := config[col]
 		if columnConfig.Expansion > 0 {
 			cell.SetExpansion(columnConfig.Expansion)
@@ -653,16 +658,19 @@ func (a *App) populateTableRow(table *tview.Table, row int, data render.EmailCol
 func (a *App) populateThreadedTableRow(table *tview.Table, row int, data render.EmailColumnData) {
 	config := a.getColumnConfigForCurrentMode(data.RowType)
 
-	for col, cellData := range data.Columns {
-		if col >= len(config) {
-			continue // Skip extra columns
-		}
+	maxCols := table.GetColumnCount()
+	limit := len(data.Columns)
+	if limit > maxCols {
+		limit = maxCols
+	}
+	for col := 0; col < limit; col++ {
+		cellData := data.Columns[col]
 
 		cell := tview.NewTableCell(cellData.Content).
 			SetAlign(cellData.Alignment).
 			SetTextColor(data.Color)
 
-		// Apply column-specific settings from config
+			// Apply column-specific settings from config
 		columnConfig := config[col]
 		if columnConfig.Expansion > 0 {
 			cell.SetExpansion(columnConfig.Expansion)
