@@ -67,6 +67,7 @@ tmp/
 
 # Local configuration files
 config.local.json
+.claude/hooks/slack.env
 
 # Github inspiration references
 reference/
