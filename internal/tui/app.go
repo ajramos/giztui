@@ -1274,6 +1274,18 @@ func (a *App) AppendMessageID(id string) {
 	a.ids = append(a.ids, id)
 }
 
+// HasMessageID checks if an ID is already present (thread-safe)
+func (a *App) HasMessageID(id string) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	for _, existing := range a.ids {
+		if existing == id {
+			return true
+		}
+	}
+	return false
+}
+
 // ClearMessageIDs clears all message IDs thread-safely
 func (a *App) ClearMessageIDs() {
 	a.mu.Lock()

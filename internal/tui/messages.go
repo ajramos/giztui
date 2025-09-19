@@ -425,7 +425,10 @@ func (a *App) reloadMessagesFlat() {
 	messageIDs := make([]string, len(messages))
 	for i, msg := range messages {
 		messageIDs[i] = msg.Id
-		a.AppendMessageID(msg.Id)
+		// Prevent duplicate IDs if load is triggered rapidly
+		if !a.HasMessageID(msg.Id) {
+			a.AppendMessageID(msg.Id)
+		}
 	}
 
 	// Fetch message metadata in parallel (optimized for list display - uses format=metadata)
@@ -570,6 +573,13 @@ func (a *App) reloadMessagesFlat() {
 
 // loadMoreMessages fetches the next page of inbox and appends to list, respecting current threading mode
 func (a *App) loadMoreMessages() {
+	// Prevent concurrent pagination causing duplicate rows
+	if a.IsMessagesLoading() {
+		go func() { a.showStatusMessage("Already loading…") }()
+		return
+	}
+	a.SetMessagesLoading(true)
+	defer a.SetMessagesLoading(false)
 	// Check if we're in threading mode - threads don't support pagination yet
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
 		if a.logger != nil {
@@ -658,7 +668,14 @@ func (a *App) loadMoreMessages() {
 			a.showError(fmt.Sprintf("❌ Error loading more: %v", err))
 			return
 		}
-		a.appendMessages(messages)
+		// De-duplicate message IDs before appending to avoid duplicates on rapid key presses
+		unique := make([]*gmailapi.Message, 0, len(messages))
+		for _, m := range messages {
+			if !a.HasMessageID(m.Id) {
+				unique = append(unique, m)
+			}
+		}
+		a.appendMessages(unique)
 		a.nextPageToken = next
 
 		// FOCUS FIX: Restore focus to message list after loading more search results
@@ -796,7 +813,9 @@ func (a *App) loadMoreMessages() {
 	messageIDs := make([]string, len(messages))
 	for i, msg := range messages {
 		messageIDs[i] = msg.Id
-		a.AppendMessageID(msg.Id)
+		if !a.HasMessageID(msg.Id) {
+			a.AppendMessageID(msg.Id)
+		}
 	}
 
 	// Fetch message metadata in parallel (optimized for list display)
@@ -811,8 +830,12 @@ func (a *App) loadMoreMessages() {
 			continue // Skip failed fetches
 		}
 
+		// Avoid duplicate metadata entries matching existing id tail
+		// Only append if ID is not already at the end to keep O(1) average cost
 		a.mu.Lock()
-		a.messagesMeta = append(a.messagesMeta, meta)
+		if len(a.messagesMeta) == 0 || a.messagesMeta[len(a.messagesMeta)-1].Id != meta.Id {
+			a.messagesMeta = append(a.messagesMeta, meta)
+		}
 		a.mu.Unlock()
 
 		// Set placeholder cell; colors will be applied by reformatListItems below
@@ -871,7 +894,10 @@ func (a *App) appendMessages(messages []*gmailapi.Message) {
 			continue // Skip failed fetches
 		}
 
-		a.messagesMeta = append(a.messagesMeta, meta)
+		// Avoid duplicate meta entries when rapid pagination happens
+		if len(a.messagesMeta) == 0 || a.messagesMeta[len(a.messagesMeta)-1].Id != meta.Id {
+			a.messagesMeta = append(a.messagesMeta, meta)
+		}
 		if table, ok := a.views["list"].(*tview.Table); ok {
 			row := table.GetRowCount()
 			text, _ := a.emailRenderer.FormatEmailList(meta, screenWidth)
