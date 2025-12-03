@@ -358,10 +358,11 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		debug:             true,
 		logger:            logger, // Use passed logger instead of creating new one
 		logFile:           nil,
-		selected:          make(map[string]bool),
-		bulkMode:          false,
-		llmTouchUpEnabled: false,
-		messagesLoading:   false,
+		selected:           make(map[string]bool),
+		bulkMode:           false,
+		llmTouchUpEnabled:  false,
+		messagesLoading:    false,
+		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}
 
 	// Set services passed from main.go

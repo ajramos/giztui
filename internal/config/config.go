@@ -98,6 +98,9 @@ type Config struct {
 
 	// Performance configuration
 	Performance PerformanceConfig `json:"performance"`
+
+	// Display configuration
+	Display DisplayConfig `json:"display"`
 }
 
 // SlackConfig contains all Slack integration settings
@@ -348,6 +351,12 @@ type PreloadingLimitsConfig struct {
 	APIQuotaReservePercent int `json:"api_quota_reserve_percent"`
 }
 
+// DisplayConfig holds UI display preferences
+type DisplayConfig struct {
+	// ShowMessageNumbers enables message number column in list view
+	ShowMessageNumbers bool `json:"show_message_numbers"`
+}
+
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
@@ -358,6 +367,7 @@ func DefaultConfig() *Config {
 		Theme:       DefaultThemeConfig(),
 		Threading:   DefaultThreadingConfig(),
 		Performance: DefaultPerformanceConfig(),
+		Display:     DefaultDisplayConfig(),
 		LogFile:     "",
 	}
 }
@@ -552,6 +562,13 @@ func DefaultPerformanceConfig() PerformanceConfig {
 				APIQuotaReservePercent: 20, // Reserve 20% of API quota for user actions
 			},
 		},
+	}
+}
+
+// DefaultDisplayConfig returns the default display configuration
+func DefaultDisplayConfig() DisplayConfig {
+	return DisplayConfig{
+		ShowMessageNumbers: false, // Off by default - users enable via config or :numbers command
 	}
 }
 

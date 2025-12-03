@@ -199,5 +199,9 @@
         "api_quota_reserve_percent": 20
       }
     }
+  },
+  "display": {
+    "_comment": "UI display preferences",
+    "show_message_numbers": false
   }
 }
