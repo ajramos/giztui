@@ -34,28 +34,6 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		return
 	}
 
-	// Preselect a different index to avoid glitches when removing the selected row
-	if count > 1 {
-		// Convert removeIndex (message index) to table row index (+1 for header)
-		removeTableRow := removeIndex + 1
-
-		// Calculate pre-selection table row
-		pre := removeTableRow - 1
-		if removeIndex == 0 {
-			pre = 2 // Second message (table row 2) when removing first message
-		}
-		if pre < 1 { // Never select header row (0)
-			pre = 1
-		}
-		if pre >= count {
-			pre = count - 1
-		}
-		// Only auto-select if composition panel is not active
-		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-			table.Select(pre, 0)
-		}
-	}
-
 	// Update caches using removeIndex
 	if removeIndex >= 0 && removeIndex < len(a.ids) {
 		a.RemoveMessageIDAt(removeIndex)
@@ -76,39 +54,51 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 			}
 			table.RemoveRow(removeTableRow)
 
-			// CRITICAL FIX: Ensure table row count matches a.ids length
-			// Sometimes RemoveRow doesn't properly sync, so force a refresh
+			// CRITICAL FIX: Ensure table row count matches a.ids length + 1 (for header)
+			// Sometimes RemoveRow doesn't properly sync, so force removing extra rows
 			actualTableRows := table.GetRowCount()
-			expectedRows := len(a.ids)
+			expectedRows := len(a.ids) + 1 // +1 for header row
 			if actualTableRows != expectedRows {
 				if a.logger != nil {
-					a.logger.Printf("TABLE SYNC BUG: table has %d rows but a.ids has %d entries, forcing table rebuild", actualTableRows, expectedRows)
+					a.logger.Printf("TABLE SYNC BUG: table has %d rows but should have %d (header + %d messages), removing extra rows", actualTableRows, expectedRows, len(a.ids))
 				}
-				// Force rebuild the table to sync with a.ids
-				table.Clear()
-				for i := range a.ids {
-					if i >= len(a.messagesMeta) || a.messagesMeta[i] == nil {
-						table.SetCell(i, 0, tview.NewTableCell(fmt.Sprintf("Loading message %d...", i+1)))
-						continue
-					}
-					msg := a.messagesMeta[i]
-					text, _ := a.emailRenderer.FormatEmailList(msg, a.getFormatWidth())
-					// Create cell with proper styling
-					cell := tview.NewTableCell(text).SetExpansion(1)
-					table.SetCell(i, 0, cell)
+				// Remove extra rows from the end of the table until it matches
+				// Note: We never remove row 0 (header) or go below len(a.ids) + 1
+				for table.GetRowCount() > expectedRows {
+					table.RemoveRow(table.GetRowCount() - 1)
 				}
 			}
 		}
-		// Keep the same visual position when possible
-		// Convert removeIndex (message index) to table row index (+1 for header)
-		desired := removeIndex + 1
+		// After removal, select the message that now occupies the same visual position
+		// In the table, row 0 is the header, so messages start at row 1
+		// The removeIndex was the message array index (0-based)
+		// After removal:
+		// - If we deleted message at index 0, the next message (previously at index 1) is now at table row 1
+		// - If we deleted message at index N-1 (last), we want to select the new last message at table row len(a.ids)
+		// - If we deleted message at index i, the next message (previously at index i+1) is now at table row i+1
+
 		newCount := table.GetRowCount()
+		var desired int
+
+		// If we deleted the last message, select the new last message
+		if removeIndex >= len(a.ids) {
+			desired = len(a.ids) // This is the table row for the last message (accounting for header at row 0)
+		} else {
+			// Otherwise, stay at the same visual position (which now shows the next message)
+			desired = removeIndex + 1 // Convert message index to table row (header offset)
+		}
+
+		// Safety bounds check
 		if desired >= newCount {
 			desired = newCount - 1
 		}
+		if desired < 1 {
+			desired = 1
+		}
+
 		// Only auto-select if composition panel is not active
 		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-			if desired >= 1 && desired < newCount { // Never select header row (0)
+			if desired >= 1 && desired < newCount {
 				table.Select(desired, 0)
 			} else if newCount > 1 {
 				table.Select(1, 0) // Select first message if no other option
