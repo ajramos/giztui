@@ -1,6 +1,6 @@
 module github.com/ajramos/giztui
 
-go 1.24.9
+go 1.25.5
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.37.2
