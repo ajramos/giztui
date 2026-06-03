@@ -14,6 +14,22 @@
 - [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
+### Status Bar Rendering Bugs
+- [ ] **Status bar corrupts text after emoji prefix (`ℹSeuected: 17` instead of `ℹSelected: 17`)**
+
+  **Repro**: Bulk mode (`v`) → `*` to select all → status bar shows e.g. `ℹSeuected: 17`. The `l` of `Selected` gets clobbered/replaced. Reproduced on long-running session 2026-06-03.
+
+  **Suspected root cause**: `internal/tui/error_handler.go:152` uses `icon = "ℹ️"` which is U+2139 INFORMATION SOURCE + U+FE0F VARIATION SELECTOR-16 (forces emoji presentation). tcell computes its column width as 1 (U+2139 base is EAW=Narrow); modern terminals render it as 2 cells (VS16 forces emoji glyph). The 1-cell desync corrupts the first character after the icon during partial status updates.
+
+  **Same pattern in other icons** (lines 152-160): `⚠️` and `❌`/`✅` may also exhibit this, since `⚠` is also U+26A0 + VS16. Worth verifying which are affected once the fix is in place.
+
+  **Candidate fixes**:
+  1. Drop VS16 from all icons (use bare `ℹ`, `⚠`, `❌`, `✅`) — loses the colorful emoji look but eliminates the desync entirely.
+  2. Replace with emoji that tcell already classifies as wide (e.g. `🔵`, `🟡`, `🔴`, `🟢`) — keeps colour, removes ambiguity, and these are unambiguously 2-cell in EAW.
+  3. Always append a space-padding after the icon to force the column offset to match — a hack, fragile across terminals.
+
+  **Recommendation**: option 2 (filled circles) — preserves the visual signal levels (info=blue, warn=yellow, error=red, success=green) and avoids the EAW-Ambiguous trap completely.
+
 ### Code Quality / Lint Debt
 - [x] **gosec G304** (cache/store.go, db/store.go) — justified with `// #nosec G304` (paths validated upstream against traversal).
 - [x] **gosec G204** (services/attachment_service.go, services/link_service.go) — justified with `// #nosec G204` (binary names hardcoded; only path/URL varies and is validated).
