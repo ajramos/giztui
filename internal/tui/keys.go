@@ -49,35 +49,29 @@ func (a *App) updateBulkSelectionStyling(table *tview.Table) {
 			}
 		}
 
-		// Also update the checkbox indicator in the flags column (column 0)
-		if cell := table.GetCell(row, 0); cell != nil {
-			text := cell.Text
-			// Ensure first rune reflects selection: ☑ when selected, ☐ when not
-			desired := '☐'
-			if isSelected {
-				desired = '☑'
+		// Update the checkbox indicator in whichever column currently holds it.
+		// Layout is responsive: e.g. the numbers column (when show_message_numbers
+		// is enabled) shifts flags from column 0 to column 1. Scan for the glyph
+		// instead of hardcoding an index — and skip cells that don't have one so
+		// we don't pollute non-flags columns (like numbers) with a stray ☑/☐.
+		desired := '☐'
+		if isSelected {
+			desired = '☑'
+		}
+		for col := 0; col < table.GetColumnCount(); col++ {
+			cell := table.GetCell(row, col)
+			if cell == nil {
+				continue
 			}
-			runes := []rune(text)
-			if len(runes) > 0 {
-				if runes[0] == '☑' || runes[0] == '☐' {
-					// Replace existing checkbox
-					if runes[0] != desired {
-						runes[0] = desired
-						cell.SetText(string(runes))
-					}
-				} else {
-					// No checkbox present (defensive) → prepend one
-					prefix := string(desired)
-					if text != "" {
-						cell.SetText(prefix + " " + text)
-					} else {
-						cell.SetText(prefix)
-					}
-				}
-			} else {
-				// Empty cell: set checkbox only
-				cell.SetText(string(desired))
+			runes := []rune(cell.Text)
+			if len(runes) == 0 || (runes[0] != '☑' && runes[0] != '☐') {
+				continue
 			}
+			if runes[0] != desired {
+				runes[0] = desired
+				cell.SetText(string(runes))
+			}
+			break
 		}
 	}
 }
