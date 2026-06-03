@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ajramos/giztui/internal/obsidian"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -492,4 +493,22 @@ func TestConfig_JSONSerialization(t *testing.T) {
 	assert.Equal(t, original.Credentials, loaded.Credentials)
 	assert.Equal(t, original.LLM.Provider, loaded.LLM.Provider)
 	assert.Equal(t, original.LLM.Enabled, loaded.LLM.Enabled)
+}
+
+func TestIsObsidianEnabled(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  *Config
+		want bool
+	}{
+		{"nil config", nil, false},
+		{"default config (Obsidian nil)", DefaultConfig(), false},
+		{"obsidian set but disabled", &Config{Obsidian: &obsidian.ObsidianConfig{Enabled: false}}, false},
+		{"obsidian set and enabled", &Config{Obsidian: &obsidian.ObsidianConfig{Enabled: true}}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.cfg.IsObsidianEnabled())
+		})
+	}
 }

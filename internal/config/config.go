@@ -878,6 +878,14 @@ func (c *Config) SaveConfig(path string) error {
 	return os.WriteFile(path, data, 0600)
 }
 
+// IsObsidianEnabled reports whether the Obsidian integration is configured and enabled.
+// Obsidian is an optional pointer field that is nil when the user's config has no
+// "obsidian" section (e.g. fresh installs running on DefaultConfig). Always go through
+// this helper rather than dereferencing c.Obsidian.Enabled directly.
+func (c *Config) IsObsidianEnabled() bool {
+	return c != nil && c.Obsidian != nil && c.Obsidian.Enabled
+}
+
 // GetLLMTimeout returns parsed timeout for LLM
 func (c *Config) GetLLMTimeout() time.Duration {
 	if c.LLM.Timeout != "" {

@@ -2135,7 +2135,7 @@ func (a *App) generateHelpText() string {
 	if a.Config.Slack.Enabled {
 		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward selected to Slack\n", a.Keys.Slack))
 	}
-	if a.Config.Obsidian.Enabled {
+	if a.Config.IsObsidianEnabled() {
 		help.WriteString(fmt.Sprintf("    %-8s  📝  Send selected to Obsidian (with repopack option)\n", a.Keys.Obsidian))
 	}
 	help.WriteString("    Esc       ❌  Exit bulk mode\n\n")
@@ -2180,7 +2180,7 @@ func (a *App) generateHelpText() string {
 	if a.Config.Slack.Enabled {
 		help.WriteString(fmt.Sprintf("    %s3%s       💬  Send next 3 messages to Slack\n", a.Keys.Slack, a.Keys.Slack))
 	}
-	if a.Config.Obsidian.Enabled {
+	if a.Config.IsObsidianEnabled() {
 		help.WriteString(fmt.Sprintf("    %s2%s       📝  Send next 2 messages to Obsidian\n", a.Keys.Obsidian, a.Keys.Obsidian))
 	}
 	if a.LLM != nil {
@@ -2199,7 +2199,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-8s  📅  RSVP to calendar event\n", a.Keys.RSVP))
 	help.WriteString(fmt.Sprintf("    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker))
 	help.WriteString(fmt.Sprintf("    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker))
-	if a.Config.Obsidian.Enabled {
+	if a.Config.IsObsidianEnabled() {
 		help.WriteString(fmt.Sprintf("    %-8s  📝  Send to Obsidian (individual files or repopack)\n", a.Keys.Obsidian))
 	}
 	if a.Config.Slack.Enabled {
@@ -2227,7 +2227,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString(fmt.Sprintf("    %-18s 💾  Save current search as bookmark\n", ":save-query"))
 	help.WriteString(fmt.Sprintf("    %-18s 📚  Browse saved query bookmarks\n", ":bookmarks"))
 	help.WriteString(fmt.Sprintf("    %-18s 🔍  Execute saved query by name\n", ":bookmark name"))
-	if a.Config.Obsidian.Enabled {
+	if a.Config.IsObsidianEnabled() {
 		help.WriteString(fmt.Sprintf("    %-18s 📦  Create repopack with selected messages\n", ":obsidian repack"))
 		help.WriteString(fmt.Sprintf("    %-18s 📦  Same as :obsidian repack (short alias)\n", ":obs repack"))
 	}
