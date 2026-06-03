@@ -89,8 +89,8 @@ func TestErrorHandler_formatMessage(t *testing.T) {
 		level    LogLevel
 		wantIcon string
 	}{
-		{"Test info", LogLevelInfo, "ℹ️"},
-		{"Test warning", LogLevelWarning, "⚠️"},
+		{"Test info", LogLevelInfo, "🔵"},
+		{"Test warning", LogLevelWarning, "🟡"},
 		{"Test error", LogLevelError, "❌"},
 		{"Test success", LogLevelSuccess, "✅"},
 		{"Test unknown", LogLevel(99), "•"},
@@ -107,7 +107,7 @@ func TestErrorHandler_formatMessage_EmptyMessage(t *testing.T) {
 	eh := &ErrorHandler{}
 
 	result := eh.formatMessage("", LogLevelInfo)
-	assert.Contains(t, result, "ℹ️")
+	assert.Contains(t, result, "🔵")
 	// Should still contain the icon even with empty message
 }
 
@@ -363,7 +363,7 @@ func TestErrorHandler_EdgeCases(t *testing.T) {
 		result := eh.formatMessage(unicodeMsg, LogLevelInfo)
 
 		assert.Contains(t, result, unicodeMsg)
-		assert.Contains(t, result, "ℹ️")
+		assert.Contains(t, result, "🔵")
 	})
 
 	t.Run("very_long_message", func(t *testing.T) {
@@ -383,7 +383,7 @@ func TestErrorHandler_EdgeCases(t *testing.T) {
 		result := eh.formatMessage(multilineMsg, LogLevelWarning)
 
 		assert.Contains(t, result, multilineMsg)
-		assert.Contains(t, result, "⚠️")
+		assert.Contains(t, result, "🟡")
 	})
 
 	t.Run("nil_context", func(t *testing.T) {

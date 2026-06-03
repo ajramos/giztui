@@ -15,7 +15,11 @@
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Status Bar Rendering Bugs
-- [ ] **Status bar corrupts text after emoji prefix (`ℹSeuected: 17` instead of `ℹSelected: 17`)**
+- [x] **Status bar corrupts text after emoji prefix (`ℹSeuected: 17` instead of `ℹSelected: 17`)** — resolved by swapping `ℹ️` (U+2139+VS16) for `🔵` and `⚠️` (U+26A0+VS16) for `🟡` in `ErrorHandler.formatMessage`. `❌`/`✅` left untouched since they are natively EAW=Wide.
+
+  Other call-sites of `⚠️`/`ℹ️` outside the status-bar pipeline (logs, multi-line panels, AI summary view, pre-TUI stdout) were left as-is — the 1-column desync is invisible there. If a regression shows up in any of those, fix in place using the same emoji swap.
+
+  Original report (kept for context):
 
   **Repro**: Bulk mode (`v`) → `*` to select all → status bar shows e.g. `ℹSeuected: 17`. The `l` of `Selected` gets clobbered/replaced. Reproduced on long-running session 2026-06-03.
 

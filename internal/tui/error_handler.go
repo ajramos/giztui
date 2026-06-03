@@ -149,9 +149,15 @@ func (eh *ErrorHandler) formatMessage(msg string, level LogLevel) string {
 
 	switch level {
 	case LogLevelInfo:
-		icon = "ℹ️"
+		// Use 🔵 (U+1F535) instead of ℹ️ (U+2139 + VS16). The base codepoint of the
+		// latter is EAW=Ambiguous and many libraries (incl. go-runewidth used by
+		// tcell) ignore the VS16 emoji-presentation selector, so they compute width
+		// as 1 cell while modern terminals render it as 2. The desync corrupts the
+		// status bar (e.g. 'Selected' becomes 'Seuected' after the icon). Filled
+		// circles are unambiguously EAW=Wide and avoid the trap.
+		icon = "🔵"
 	case LogLevelWarning:
-		icon = "⚠️"
+		icon = "🟡"
 	case LogLevelError:
 		icon = "❌"
 	case LogLevelSuccess:
