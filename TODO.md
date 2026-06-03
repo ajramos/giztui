@@ -15,13 +15,13 @@
 - [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
 
 ### Code Quality / Lint Debt
-Pre-existing `make pre-commit-check` failures (12 issues, none blocking runtime). Surfaced on 2026-06-03 during the issue #6 fix session — full output via `make pre-commit-check`.
+- [x] **gosec G304** (cache/store.go, db/store.go) — justified with `// #nosec G304` (paths validated upstream against traversal).
+- [x] **gosec G204** (services/attachment_service.go, services/link_service.go) — justified with `// #nosec G204` (binary names hardcoded; only path/URL varies and is validated).
+- [x] **gosec G101** (welcome_test.go, oauth_test.go) — justified with `// #nosec G101` (test fixture paths, not real credentials).
+- [x] **gosec G117** (pkg/auth/oauth.go) — justified with `// #nosec G117` (intentional token persistence; file is 0600).
+- [x] **staticcheck QF1012** (gmail/client.go, render/email.go, services/{bulk_prompt,composition,thread,obsidian}_service.go, tui/{app,threads,welcome,commands}.go) — refactored to `fmt.Fprintf(&builder, ...)`.
 
-- [ ] **gosec G304** (2 occurrences) — `internal/cache/store.go:35`, `internal/db/store.go:35`: `os.OpenFile(dbPath, ...)` flagged as file inclusion via variable. Paths are constructed internally, not user-supplied — add `// #nosec G304` with justification or sanitize.
-- [ ] **gosec G204** (3 occurrences) — `internal/services/attachment_service.go:114,116,118`: `exec.CommandContext` with `open` / `xdg-open` / `rundll32`. Hardcoded binary names; only the file path is variable. Add `// #nosec G204` with justification or validate the path.
-- [ ] **gosec G101** (3 occurrences) — `internal/tui/welcome_test.go:122`, `pkg/auth/oauth_test.go:189,297`: false positives flagging test fixture paths (`/path/to/creds.json`, `/tmp/test_token.json`). Add `// #nosec G101` or rename fixture variables to dodge the heuristic.
-- [ ] **gosec G117** (1 occurrence) — `pkg/auth/oauth.go:94`: `json.NewEncoder(f).Encode(token)` flagged because `AccessToken` field matches secret pattern. This is *intended* behavior (we're persisting the token); add justified `// #nosec G117`.
-- [ ] **staticcheck QF1012** (3 occurrences) — `internal/gmail/client.go:387,431,489`: replace `sb.WriteString(fmt.Sprintf(...))` with `fmt.Fprintf(&sb, ...)`. Mechanical refactor.
+`make pre-commit-check` now passes with `0 issues`.
 
 ### Search & Filter Enhancements
 - [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
