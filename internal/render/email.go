@@ -562,7 +562,7 @@ func (er *EmailRenderer) FormatLabelsForColumn(message *googleGmail.Message, max
 			if totalUsed+len(labelText)+len(overflowText) > maxWidth {
 				// Add overflow indicator if needed
 				if labelsShown == 0 && totalUsed+5 <= maxWidth { // [+N] = at least 4 chars
-					b.WriteString(fmt.Sprintf("[+%d]", len(names)))
+					fmt.Fprintf(&b, "[+%d]", len(names))
 				}
 				break
 			}
@@ -604,7 +604,7 @@ func (er *EmailRenderer) FormatLabelsForColumn(message *googleGmail.Message, max
 					}
 				}
 			} else if totalUsed+5 <= maxWidth { // At least space for [+N]
-				b.WriteString(fmt.Sprintf("[+%d]", len(names)))
+				fmt.Fprintf(&b, "[+%d]", len(names))
 			}
 			break
 		}
@@ -682,7 +682,7 @@ func (er *EmailRenderer) buildIconsAndChips(message *googleGmail.Message) string
 				b.WriteString(names[i])
 				b.WriteString("]")
 			}
-			b.WriteString(fmt.Sprintf(" [+%d]", len(names)-3))
+			fmt.Fprintf(&b, " [+%d]", len(names)-3)
 		} else {
 			for _, n := range names {
 				b.WriteString(" [")

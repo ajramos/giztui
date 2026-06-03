@@ -1199,24 +1199,24 @@ func (a *App) executePreloadStatus(args []string) {
 	// Build status message
 	var statusMsg strings.Builder
 	statusMsg.WriteString("📦 Preloader Status:\n\n")
-	statusMsg.WriteString(fmt.Sprintf("Enabled: %v\n", status.Enabled))
-	statusMsg.WriteString(fmt.Sprintf("Next Page: %v\n", status.NextPageEnabled))
-	statusMsg.WriteString(fmt.Sprintf("Adjacent Messages: %v\n", status.AdjacentEnabled))
-	statusMsg.WriteString(fmt.Sprintf("Cache Size: %d messages (%.1f MB)\n", status.CacheSize, status.CacheMemoryUsageMB))
-	statusMsg.WriteString(fmt.Sprintf("Active Tasks: %d\n", status.ActivePreloadTasks))
-	statusMsg.WriteString(fmt.Sprintf("Background Workers: %d\n", status.BackgroundWorkers))
+	fmt.Fprintf(&statusMsg, "Enabled: %v\n", status.Enabled)
+	fmt.Fprintf(&statusMsg, "Next Page: %v\n", status.NextPageEnabled)
+	fmt.Fprintf(&statusMsg, "Adjacent Messages: %v\n", status.AdjacentEnabled)
+	fmt.Fprintf(&statusMsg, "Cache Size: %d messages (%.1f MB)\n", status.CacheSize, status.CacheMemoryUsageMB)
+	fmt.Fprintf(&statusMsg, "Active Tasks: %d\n", status.ActivePreloadTasks)
+	fmt.Fprintf(&statusMsg, "Background Workers: %d\n", status.BackgroundWorkers)
 
 	if status.Statistics != nil {
 		hitRate := status.Statistics.CacheHitRate * 100
 		statusMsg.WriteString("\nStatistics:\n")
-		statusMsg.WriteString(fmt.Sprintf("  Cache Hit Rate: %.1f%%\n", hitRate))
-		statusMsg.WriteString(fmt.Sprintf("  Cache Hits: %d\n", status.PreloadHits))
-		statusMsg.WriteString(fmt.Sprintf("  Cache Misses: %d\n", status.PreloadMisses))
-		statusMsg.WriteString(fmt.Sprintf("  Next Page Requests: %d\n", status.Statistics.NextPageRequests))
-		statusMsg.WriteString(fmt.Sprintf("  Adjacent Requests: %d\n", status.Statistics.AdjacentRequests))
-		statusMsg.WriteString(fmt.Sprintf("  Data Preloaded: %.1f MB\n", status.Statistics.TotalDataPreloadedMB))
+		fmt.Fprintf(&statusMsg, "  Cache Hit Rate: %.1f%%\n", hitRate)
+		fmt.Fprintf(&statusMsg, "  Cache Hits: %d\n", status.PreloadHits)
+		fmt.Fprintf(&statusMsg, "  Cache Misses: %d\n", status.PreloadMisses)
+		fmt.Fprintf(&statusMsg, "  Next Page Requests: %d\n", status.Statistics.NextPageRequests)
+		fmt.Fprintf(&statusMsg, "  Adjacent Requests: %d\n", status.Statistics.AdjacentRequests)
+		fmt.Fprintf(&statusMsg, "  Data Preloaded: %.1f MB\n", status.Statistics.TotalDataPreloadedMB)
 		if status.Statistics.AveragePreloadTime > 0 {
-			statusMsg.WriteString(fmt.Sprintf("  Avg Preload Time: %v\n", status.Statistics.AveragePreloadTime))
+			fmt.Fprintf(&statusMsg, "  Avg Preload Time: %v\n", status.Statistics.AveragePreloadTime)
 		}
 	}
 

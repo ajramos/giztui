@@ -384,7 +384,7 @@ func (c *Client) CreateDraft(to, subject, body string, cc []string) (string, err
 
 	var sb strings.Builder
 	for k, v := range msg.Header {
-		sb.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+		fmt.Fprintf(&sb, "%s: %s\r\n", k, strings.Join(v, ", "))
 	}
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
@@ -428,7 +428,7 @@ func (c *Client) UpdateDraft(draftID, to, subject, body string, cc []string) err
 
 	var sb strings.Builder
 	for k, v := range msg.Header {
-		sb.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+		fmt.Fprintf(&sb, "%s: %s\r\n", k, strings.Join(v, ", "))
 	}
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
@@ -486,7 +486,7 @@ func (c *Client) SendMessage(from, to, subject, body string, cc, bcc []string) (
 
 	var sb strings.Builder
 	for k, v := range msg.Header {
-		sb.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+		fmt.Fprintf(&sb, "%s: %s\r\n", k, strings.Join(v, ", "))
 	}
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")

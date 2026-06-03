@@ -2059,7 +2059,7 @@ func (a *App) generateHelpText() string {
 
 	// Show current status
 	if a.Config != nil && a.Config.Theme.Current != "" {
-		help.WriteString(fmt.Sprintf("🎨 Theme: %s\n", a.Config.Theme.Current))
+		fmt.Fprintf(&help, "🎨 Theme: %s\n", a.Config.Theme.Current)
 	}
 	if a.LLM != nil {
 		help.WriteString("🤖 AI: Enabled\n")
@@ -2069,85 +2069,85 @@ func (a *App) generateHelpText() string {
 	help.WriteString("\n")
 	help.WriteString("📖 NAVIGATION: Use /term to search, n/N for next/previous match, g/gg/G for navigation\n")
 	help.WriteString("\n")
-	help.WriteString(fmt.Sprintf("💡 Press '%s' or 'Esc' to return to main view\n\n", a.Keys.Help))
+	fmt.Fprintf(&help, "💡 Press '%s' or 'Esc' to return to main view\n\n", a.Keys.Help)
 
 	// Quick Start Section
 	help.WriteString("🚀 GETTING STARTED\n\n")
-	help.WriteString(fmt.Sprintf("    %-8s  ❓  Toggle this help screen\n", a.Keys.Help))
-	help.WriteString(fmt.Sprintf("    %-8s  👁️   View selected message\n", "Enter"))
-	help.WriteString(fmt.Sprintf("    %-8s  🚪  Quit application\n", a.Keys.Quit))
-	help.WriteString(fmt.Sprintf("    %-8s  💻  Command mode (type commands like :search, :help)\n\n", a.Keys.CommandMode))
+	fmt.Fprintf(&help, "    %-8s  ❓  Toggle this help screen\n", a.Keys.Help)
+	fmt.Fprintf(&help, "    %-8s  👁️   View selected message\n", "Enter")
+	fmt.Fprintf(&help, "    %-8s  🚪  Quit application\n", a.Keys.Quit)
+	fmt.Fprintf(&help, "    %-8s  💻  Command mode (type commands like :search, :help)\n\n", a.Keys.CommandMode)
 
 	// Essential Operations
 	help.WriteString("📧 MESSAGE BASICS\n\n")
-	help.WriteString(fmt.Sprintf("    %-8s  💬  Reply to message\n", a.Keys.Reply))
-	help.WriteString(fmt.Sprintf("    %-8s  👥  Reply to all recipients\n", a.Keys.ReplyAll))
-	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Forward message\n", a.Keys.Forward))
-	help.WriteString(fmt.Sprintf("    %-8s  ✏️   Compose new message\n", a.Keys.Compose))
-	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive message\n", a.Keys.Archive))
-	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Move to trash\n", a.Keys.Trash))
-	help.WriteString(fmt.Sprintf("    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead))
-	help.WriteString(fmt.Sprintf("    %-8s  ↩️   Undo last action\n", a.Keys.Undo))
-	help.WriteString(fmt.Sprintf("    %-8s  📦  Move message to folder\n", a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %-8s  🔖  Manage labels\n", a.Keys.ManageLabels))
-	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n\n", a.Keys.Drafts))
+	fmt.Fprintf(&help, "    %-8s  💬  Reply to message\n", a.Keys.Reply)
+	fmt.Fprintf(&help, "    %-8s  👥  Reply to all recipients\n", a.Keys.ReplyAll)
+	fmt.Fprintf(&help, "    %-8s  ➡️   Forward message\n", a.Keys.Forward)
+	fmt.Fprintf(&help, "    %-8s  ✏️   Compose new message\n", a.Keys.Compose)
+	fmt.Fprintf(&help, "    %-8s  📁  Archive message\n", a.Keys.Archive)
+	fmt.Fprintf(&help, "    %-8s  🗑️   Move to trash\n", a.Keys.Trash)
+	fmt.Fprintf(&help, "    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead)
+	fmt.Fprintf(&help, "    %-8s  ↩️   Undo last action\n", a.Keys.Undo)
+	fmt.Fprintf(&help, "    %-8s  📦  Move message to folder\n", a.Keys.Move)
+	fmt.Fprintf(&help, "    %-8s  🔖  Manage labels\n", a.Keys.ManageLabels)
+	fmt.Fprintf(&help, "    %-8s  📝  View drafts\n\n", a.Keys.Drafts)
 
 	// Navigation & Search
 	help.WriteString("🧭 NAVIGATION & SEARCH\n\n")
-	help.WriteString(fmt.Sprintf("    %-8s  🔄  Refresh messages\n", a.Keys.Refresh))
-	help.WriteString(fmt.Sprintf("    %-8s  🔍  Search messages\n", a.Keys.Search))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Load next 50 messages\n", a.Keys.LoadMore))
-	help.WriteString(fmt.Sprintf("    %-8s  🔴  Show unread messages\n", a.Keys.Unread))
-	help.WriteString(fmt.Sprintf("    %-8s  📝  View drafts\n", a.Keys.Drafts))
-	help.WriteString(fmt.Sprintf("    %-8s  📎  Attachment picker (view/download message attachments)\n", a.Keys.Attachments))
-	help.WriteString(fmt.Sprintf("    %-8s  📫  Quick search: from current sender\n", a.Keys.SearchFrom))
-	help.WriteString(fmt.Sprintf("    %-8s  📤  Quick search: to current sender (includes Sent)\n", a.Keys.SearchTo))
-	help.WriteString(fmt.Sprintf("    %-8s  🧵  Quick search: by current subject\n", a.Keys.SearchSubject))
-	help.WriteString(fmt.Sprintf("    %-8s  📦  Quick search: archived messages\n", a.Keys.Archived))
+	fmt.Fprintf(&help, "    %-8s  🔄  Refresh messages\n", a.Keys.Refresh)
+	fmt.Fprintf(&help, "    %-8s  🔍  Search messages\n", a.Keys.Search)
+	fmt.Fprintf(&help, "    %-8s  ⬇️   Load next 50 messages\n", a.Keys.LoadMore)
+	fmt.Fprintf(&help, "    %-8s  🔴  Show unread messages\n", a.Keys.Unread)
+	fmt.Fprintf(&help, "    %-8s  📝  View drafts\n", a.Keys.Drafts)
+	fmt.Fprintf(&help, "    %-8s  📎  Attachment picker (view/download message attachments)\n", a.Keys.Attachments)
+	fmt.Fprintf(&help, "    %-8s  📫  Quick search: from current sender\n", a.Keys.SearchFrom)
+	fmt.Fprintf(&help, "    %-8s  📤  Quick search: to current sender (includes Sent)\n", a.Keys.SearchTo)
+	fmt.Fprintf(&help, "    %-8s  🧵  Quick search: by current subject\n", a.Keys.SearchSubject)
+	fmt.Fprintf(&help, "    %-8s  📦  Quick search: archived messages\n", a.Keys.Archived)
 	help.WriteString("\n")
 
 	// Content Navigation
 	help.WriteString("📖 CONTENT NAVIGATION (When Viewing Message)\n\n")
-	help.WriteString(fmt.Sprintf("    %-8s  🔍  Search within message content\n", a.Keys.ContentSearch))
-	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Next search match\n", a.Keys.SearchNext))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬅️   Previous search match\n", a.Keys.SearchPrev))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Go to top of message\n", a.Keys.GotoTop))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Go to bottom of message\n", a.Keys.GotoBottom))
-	help.WriteString(fmt.Sprintf("    %-8s  🚀  Fast scroll up\n", a.Keys.FastUp))
-	help.WriteString(fmt.Sprintf("    %-8s  🚀  Fast scroll down\n", a.Keys.FastDown))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬅️   Word left\n", a.Keys.WordLeft))
-	help.WriteString(fmt.Sprintf("    %-8s  ➡️   Word right\n", a.Keys.WordRight))
-	help.WriteString(fmt.Sprintf("    %-8s  📄  Toggle header visibility\n\n", a.Keys.ToggleHeaders))
+	fmt.Fprintf(&help, "    %-8s  🔍  Search within message content\n", a.Keys.ContentSearch)
+	fmt.Fprintf(&help, "    %-8s  ➡️   Next search match\n", a.Keys.SearchNext)
+	fmt.Fprintf(&help, "    %-8s  ⬅️   Previous search match\n", a.Keys.SearchPrev)
+	fmt.Fprintf(&help, "    %-8s  ⬆️   Go to top of message\n", a.Keys.GotoTop)
+	fmt.Fprintf(&help, "    %-8s  ⬇️   Go to bottom of message\n", a.Keys.GotoBottom)
+	fmt.Fprintf(&help, "    %-8s  🚀  Fast scroll up\n", a.Keys.FastUp)
+	fmt.Fprintf(&help, "    %-8s  🚀  Fast scroll down\n", a.Keys.FastDown)
+	fmt.Fprintf(&help, "    %-8s  ⬅️   Word left\n", a.Keys.WordLeft)
+	fmt.Fprintf(&help, "    %-8s  ➡️   Word right\n", a.Keys.WordRight)
+	fmt.Fprintf(&help, "    %-8s  📄  Toggle header visibility\n\n", a.Keys.ToggleHeaders)
 
 	// Bulk Operations
 	bulkStatus := "OFF"
 	if a.bulkMode {
 		bulkStatus = fmt.Sprintf("ON (%d selected)", len(a.selected))
 	}
-	help.WriteString(fmt.Sprintf("📦 BULK OPERATIONS (Currently: %s)\n\n", bulkStatus))
-	help.WriteString(fmt.Sprintf("    %-8s  ✅  Enter bulk mode\n", a.Keys.BulkMode))
-	help.WriteString(fmt.Sprintf("    %-8s  ➕  Toggle message selection (in bulk mode)\n", a.Keys.BulkSelect))
+	fmt.Fprintf(&help, "📦 BULK OPERATIONS (Currently: %s)\n\n", bulkStatus)
+	fmt.Fprintf(&help, "    %-8s  ✅  Enter bulk mode\n", a.Keys.BulkMode)
+	fmt.Fprintf(&help, "    %-8s  ➕  Toggle message selection (in bulk mode)\n", a.Keys.BulkSelect)
 	help.WriteString("    *         🌟  Select all visible messages\n")
-	help.WriteString(fmt.Sprintf("    %-8s  📁  Archive selected messages\n", a.Keys.Archive))
-	help.WriteString(fmt.Sprintf("    %-8s  🗑️   Delete selected messages\n", a.Keys.Trash))
-	help.WriteString(fmt.Sprintf("    %-8s  📦  Move selected messages\n", a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %-8s  🎯  Apply bulk prompt to selected\n", a.Keys.Prompt))
+	fmt.Fprintf(&help, "    %-8s  📁  Archive selected messages\n", a.Keys.Archive)
+	fmt.Fprintf(&help, "    %-8s  🗑️   Delete selected messages\n", a.Keys.Trash)
+	fmt.Fprintf(&help, "    %-8s  📦  Move selected messages\n", a.Keys.Move)
+	fmt.Fprintf(&help, "    %-8s  🎯  Apply bulk prompt to selected\n", a.Keys.Prompt)
 	if a.Config.Slack.Enabled {
-		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward selected to Slack\n", a.Keys.Slack))
+		fmt.Fprintf(&help, "    %-8s  💬  Forward selected to Slack\n", a.Keys.Slack)
 	}
 	if a.Config.IsObsidianEnabled() {
-		help.WriteString(fmt.Sprintf("    %-8s  📝  Send selected to Obsidian (with repopack option)\n", a.Keys.Obsidian))
+		fmt.Fprintf(&help, "    %-8s  📝  Send selected to Obsidian (with repopack option)\n", a.Keys.Obsidian)
 	}
 	help.WriteString("    Esc       ❌  Exit bulk mode\n\n")
 
 	// AI Features (if enabled)
 	if a.LLM != nil {
 		help.WriteString("🤖 AI FEATURES (✅ Available)\n\n")
-		help.WriteString(fmt.Sprintf("    %-8s  📝  Summarize message\n", a.Keys.Summarize))
+		fmt.Fprintf(&help, "    %-8s  📝  Summarize message\n", a.Keys.Summarize)
 		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
-		help.WriteString(fmt.Sprintf("    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt))
-		help.WriteString(fmt.Sprintf("    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply))
-		help.WriteString(fmt.Sprintf("    %-8s  🔖  AI suggest label\n\n", a.Keys.SuggestLabel))
+		fmt.Fprintf(&help, "    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt)
+		fmt.Fprintf(&help, "    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply)
+		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n\n", a.Keys.SuggestLabel)
 	}
 
 	// Threading Features (if enabled)
@@ -2156,110 +2156,110 @@ func (a *App) generateHelpText() string {
 		if a.GetCurrentThreadViewMode() == ThreadViewThread {
 			threadingStatus = "threaded"
 		}
-		help.WriteString(fmt.Sprintf("🧵 MESSAGE THREADING (Current: %s)\n\n", threadingStatus))
-		help.WriteString(fmt.Sprintf("    %-8s  🔄  Toggle between thread and flat view\n", a.Keys.ToggleThreading))
-		help.WriteString(fmt.Sprintf("    %-8s  📂  Expand/collapse thread (when in thread view)\n", a.Keys.ExpandThread))
-		help.WriteString(fmt.Sprintf("    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads))
-		help.WriteString(fmt.Sprintf("    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads))
+		fmt.Fprintf(&help, "🧵 MESSAGE THREADING (Current: %s)\n\n", threadingStatus)
+		fmt.Fprintf(&help, "    %-8s  🔄  Toggle between thread and flat view\n", a.Keys.ToggleThreading)
+		fmt.Fprintf(&help, "    %-8s  📂  Expand/collapse thread (when in thread view)\n", a.Keys.ExpandThread)
+		fmt.Fprintf(&help, "    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads)
+		fmt.Fprintf(&help, "    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads)
 		if a.LLM != nil {
-			help.WriteString(fmt.Sprintf("    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary))
+			fmt.Fprintf(&help, "    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary)
 		}
-		help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Navigate to next thread\n", a.Keys.NextThread))
-		help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Navigate to previous thread\n\n", a.Keys.PrevThread))
+		fmt.Fprintf(&help, "    %-8s  ⬆️   Navigate to next thread\n", a.Keys.NextThread)
+		fmt.Fprintf(&help, "    %-8s  ⬇️   Navigate to previous thread\n\n", a.Keys.PrevThread)
 	}
 
 	// VIM Power Operations
 	help.WriteString("⚡ VIM POWER OPERATIONS\n\n")
 	help.WriteString("    Pattern:  {operation}{count}{operation} (e.g., s5s, a3a, d7d)\n\n")
-	help.WriteString(fmt.Sprintf("    %s5%s       ✅  Select next 5 messages\n", a.Keys.BulkSelect, a.Keys.BulkSelect))
-	help.WriteString(fmt.Sprintf("    %s3%s       📁  Archive next 3 messages\n", a.Keys.Archive, a.Keys.Archive))
-	help.WriteString(fmt.Sprintf("    %s7%s       🗑️   Delete next 7 messages\n", a.Keys.Trash, a.Keys.Trash))
-	help.WriteString(fmt.Sprintf("    %s5%s       👁️   Toggle read status for next 5 messages\n", a.Keys.ToggleRead, a.Keys.ToggleRead))
-	help.WriteString(fmt.Sprintf("    %s4%s       📦  Move next 4 messages\n", a.Keys.Move, a.Keys.Move))
-	help.WriteString(fmt.Sprintf("    %s6%s       🔖  Label next 6 messages\n", a.Keys.ManageLabels, a.Keys.ManageLabels))
+	fmt.Fprintf(&help, "    %s5%s       ✅  Select next 5 messages\n", a.Keys.BulkSelect, a.Keys.BulkSelect)
+	fmt.Fprintf(&help, "    %s3%s       📁  Archive next 3 messages\n", a.Keys.Archive, a.Keys.Archive)
+	fmt.Fprintf(&help, "    %s7%s       🗑️   Delete next 7 messages\n", a.Keys.Trash, a.Keys.Trash)
+	fmt.Fprintf(&help, "    %s5%s       👁️   Toggle read status for next 5 messages\n", a.Keys.ToggleRead, a.Keys.ToggleRead)
+	fmt.Fprintf(&help, "    %s4%s       📦  Move next 4 messages\n", a.Keys.Move, a.Keys.Move)
+	fmt.Fprintf(&help, "    %s6%s       🔖  Label next 6 messages\n", a.Keys.ManageLabels, a.Keys.ManageLabels)
 	if a.Config.Slack.Enabled {
-		help.WriteString(fmt.Sprintf("    %s3%s       💬  Send next 3 messages to Slack\n", a.Keys.Slack, a.Keys.Slack))
+		fmt.Fprintf(&help, "    %s3%s       💬  Send next 3 messages to Slack\n", a.Keys.Slack, a.Keys.Slack)
 	}
 	if a.Config.IsObsidianEnabled() {
-		help.WriteString(fmt.Sprintf("    %s2%s       📝  Send next 2 messages to Obsidian\n", a.Keys.Obsidian, a.Keys.Obsidian))
+		fmt.Fprintf(&help, "    %s2%s       📝  Send next 2 messages to Obsidian\n", a.Keys.Obsidian, a.Keys.Obsidian)
 	}
 	if a.LLM != nil {
-		help.WriteString(fmt.Sprintf("    %s8%s       🤖  Apply AI prompts to next 8 messages\n", a.Keys.Prompt, a.Keys.Prompt))
+		fmt.Fprintf(&help, "    %s8%s       🤖  Apply AI prompts to next 8 messages\n", a.Keys.Prompt, a.Keys.Prompt)
 	}
-	help.WriteString(fmt.Sprintf("    %-8s  ⬆️   Go to first message\n", a.Keys.GotoTop))
-	help.WriteString(fmt.Sprintf("    %-8s  ⬇️   Go to last message\n\n", a.Keys.GotoBottom))
+	fmt.Fprintf(&help, "    %-8s  ⬆️   Go to first message\n", a.Keys.GotoTop)
+	fmt.Fprintf(&help, "    %-8s  ⬇️   Go to last message\n\n", a.Keys.GotoBottom)
 
 	// Additional Features
 	help.WriteString("🔧 ADDITIONAL FEATURES\n\n")
-	help.WriteString(fmt.Sprintf("    %-8s  💾  Save current search as bookmark\n", a.Keys.SaveQuery))
-	help.WriteString(fmt.Sprintf("    %-8s  📚  Browse saved query bookmarks\n", a.Keys.QueryBookmarks))
-	help.WriteString(fmt.Sprintf("    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail))
-	help.WriteString(fmt.Sprintf("    %-8s  💾  Save message content\n", a.Keys.SaveMessage))
-	help.WriteString(fmt.Sprintf("    %-8s  📄  Save raw message\n", a.Keys.SaveRaw))
-	help.WriteString(fmt.Sprintf("    %-8s  📅  RSVP to calendar event\n", a.Keys.RSVP))
-	help.WriteString(fmt.Sprintf("    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker))
-	help.WriteString(fmt.Sprintf("    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker))
+	fmt.Fprintf(&help, "    %-8s  💾  Save current search as bookmark\n", a.Keys.SaveQuery)
+	fmt.Fprintf(&help, "    %-8s  📚  Browse saved query bookmarks\n", a.Keys.QueryBookmarks)
+	fmt.Fprintf(&help, "    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail)
+	fmt.Fprintf(&help, "    %-8s  💾  Save message content\n", a.Keys.SaveMessage)
+	fmt.Fprintf(&help, "    %-8s  📄  Save raw message\n", a.Keys.SaveRaw)
+	fmt.Fprintf(&help, "    %-8s  📅  RSVP to calendar event\n", a.Keys.RSVP)
+	fmt.Fprintf(&help, "    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker)
+	fmt.Fprintf(&help, "    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker)
 	if a.Config.IsObsidianEnabled() {
-		help.WriteString(fmt.Sprintf("    %-8s  📝  Send to Obsidian (individual files or repopack)\n", a.Keys.Obsidian))
+		fmt.Fprintf(&help, "    %-8s  📝  Send to Obsidian (individual files or repopack)\n", a.Keys.Obsidian)
 	}
 	if a.Config.Slack.Enabled {
-		help.WriteString(fmt.Sprintf("    %-8s  💬  Forward to Slack\n", a.Keys.Slack))
+		fmt.Fprintf(&help, "    %-8s  💬  Forward to Slack\n", a.Keys.Slack)
 	}
-	help.WriteString(fmt.Sprintf("    %-8s  📋  Export as Markdown\n\n", a.Keys.Markdown))
+	fmt.Fprintf(&help, "    %-8s  📋  Export as Markdown\n\n", a.Keys.Markdown)
 
 	// Command Equivalents
 	help.WriteString("💻 COMMAND EQUIVALENTS\n\n")
 	help.WriteString("    Every keyboard shortcut has a command equivalent:\n\n")
-	help.WriteString(fmt.Sprintf("    %-18s ✅  Same as %s5%s (select next 5)\n", ":select 5", a.Keys.BulkSelect, a.Keys.BulkSelect))
-	help.WriteString(fmt.Sprintf("    %-18s 📁  Same as %s3%s (archive next 3)\n", ":archive 3", a.Keys.Archive, a.Keys.Archive))
-	help.WriteString(fmt.Sprintf("    %-18s 🗑️   Same as %s7%s (delete next 7)\n", ":trash 7", a.Keys.Trash, a.Keys.Trash))
-	help.WriteString(fmt.Sprintf("    %-18s ↩️   Same as %s (undo last action)\n", ":undo", a.Keys.Undo))
-	help.WriteString(fmt.Sprintf("    %-18s ✏️   Same as %s (compose new message)\n", ":compose", a.Keys.Compose))
-	help.WriteString(fmt.Sprintf("    %-18s 💬  Same as %s (reply to message)\n", ":reply", a.Keys.Reply))
-	help.WriteString(fmt.Sprintf("    %-18s 👥  Same as %s (reply to all recipients)\n", ":reply-all", a.Keys.ReplyAll))
-	help.WriteString(fmt.Sprintf("    %-18s 👥  Same as :reply-all (reply to all)\n", ":ra"))
-	help.WriteString(fmt.Sprintf("    %-18s ➡️   Same as %s (forward message)\n", ":forward", a.Keys.Forward))
-	help.WriteString(fmt.Sprintf("    %-18s ➡️   Same as :forward (forward message)\n", ":f"))
-	help.WriteString(fmt.Sprintf("    %-18s 📝  Same as %s (view drafts)\n", ":drafts", a.Keys.Drafts))
-	help.WriteString(fmt.Sprintf("    %-18s 📝  Same as :drafts (view drafts)\n", ":dr"))
-	help.WriteString(fmt.Sprintf("    %-18s ✏️   Same as :compose (compose new message)\n", ":new"))
-	help.WriteString(fmt.Sprintf("    %-18s 🔍  Search for 'term'\n", ":search term"))
-	help.WriteString(fmt.Sprintf("    %-18s 💾  Save current search as bookmark\n", ":save-query"))
-	help.WriteString(fmt.Sprintf("    %-18s 📚  Browse saved query bookmarks\n", ":bookmarks"))
-	help.WriteString(fmt.Sprintf("    %-18s 🔍  Execute saved query by name\n", ":bookmark name"))
+	fmt.Fprintf(&help, "    %-18s ✅  Same as %s5%s (select next 5)\n", ":select 5", a.Keys.BulkSelect, a.Keys.BulkSelect)
+	fmt.Fprintf(&help, "    %-18s 📁  Same as %s3%s (archive next 3)\n", ":archive 3", a.Keys.Archive, a.Keys.Archive)
+	fmt.Fprintf(&help, "    %-18s 🗑️   Same as %s7%s (delete next 7)\n", ":trash 7", a.Keys.Trash, a.Keys.Trash)
+	fmt.Fprintf(&help, "    %-18s ↩️   Same as %s (undo last action)\n", ":undo", a.Keys.Undo)
+	fmt.Fprintf(&help, "    %-18s ✏️   Same as %s (compose new message)\n", ":compose", a.Keys.Compose)
+	fmt.Fprintf(&help, "    %-18s 💬  Same as %s (reply to message)\n", ":reply", a.Keys.Reply)
+	fmt.Fprintf(&help, "    %-18s 👥  Same as %s (reply to all recipients)\n", ":reply-all", a.Keys.ReplyAll)
+	fmt.Fprintf(&help, "    %-18s 👥  Same as :reply-all (reply to all)\n", ":ra")
+	fmt.Fprintf(&help, "    %-18s ➡️   Same as %s (forward message)\n", ":forward", a.Keys.Forward)
+	fmt.Fprintf(&help, "    %-18s ➡️   Same as :forward (forward message)\n", ":f")
+	fmt.Fprintf(&help, "    %-18s 📝  Same as %s (view drafts)\n", ":drafts", a.Keys.Drafts)
+	fmt.Fprintf(&help, "    %-18s 📝  Same as :drafts (view drafts)\n", ":dr")
+	fmt.Fprintf(&help, "    %-18s ✏️   Same as :compose (compose new message)\n", ":new")
+	fmt.Fprintf(&help, "    %-18s 🔍  Search for 'term'\n", ":search term")
+	fmt.Fprintf(&help, "    %-18s 💾  Save current search as bookmark\n", ":save-query")
+	fmt.Fprintf(&help, "    %-18s 📚  Browse saved query bookmarks\n", ":bookmarks")
+	fmt.Fprintf(&help, "    %-18s 🔍  Execute saved query by name\n", ":bookmark name")
 	if a.Config.IsObsidianEnabled() {
-		help.WriteString(fmt.Sprintf("    %-18s 📦  Create repopack with selected messages\n", ":obsidian repack"))
-		help.WriteString(fmt.Sprintf("    %-18s 📦  Same as :obsidian repack (short alias)\n", ":obs repack"))
+		fmt.Fprintf(&help, "    %-18s 📦  Create repopack with selected messages\n", ":obsidian repack")
+		fmt.Fprintf(&help, "    %-18s 📦  Same as :obsidian repack (short alias)\n", ":obs repack")
 	}
-	help.WriteString(fmt.Sprintf("    %-18s 🎨  Open theme picker\n", ":theme"))
-	help.WriteString(fmt.Sprintf("    %-18s 📄  Toggle header visibility\n", ":headers"))
-	help.WriteString(fmt.Sprintf("    %-18s 🔢  Toggle message numbers\n", ":numbers"))
+	fmt.Fprintf(&help, "    %-18s 🎨  Open theme picker\n", ":theme")
+	fmt.Fprintf(&help, "    %-18s 📄  Toggle header visibility\n", ":headers")
+	fmt.Fprintf(&help, "    %-18s 🔢  Toggle message numbers\n", ":numbers")
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
-		help.WriteString(fmt.Sprintf("    %-18s 🧵  Same as %s (switch to threaded view)\n", ":threads", a.Keys.ToggleThreading))
-		help.WriteString(fmt.Sprintf("    %-18s 📄  Same as %s (switch to flat view)\n", ":flatten", a.Keys.ToggleThreading))
-		help.WriteString(fmt.Sprintf("    %-18s 📤  Same as %s (expand all threads)\n", ":expand-all", a.Keys.ExpandAllThreads))
-		help.WriteString(fmt.Sprintf("    %-18s 📥  Same as %s (collapse all threads)\n", ":collapse-all", a.Keys.CollapseAllThreads))
+		fmt.Fprintf(&help, "    %-18s 🧵  Same as %s (switch to threaded view)\n", ":threads", a.Keys.ToggleThreading)
+		fmt.Fprintf(&help, "    %-18s 📄  Same as %s (switch to flat view)\n", ":flatten", a.Keys.ToggleThreading)
+		fmt.Fprintf(&help, "    %-18s 📤  Same as %s (expand all threads)\n", ":expand-all", a.Keys.ExpandAllThreads)
+		fmt.Fprintf(&help, "    %-18s 📥  Same as %s (collapse all threads)\n", ":collapse-all", a.Keys.CollapseAllThreads)
 		if a.LLM != nil {
-			help.WriteString(fmt.Sprintf("    %-18s 🧵  Same as %s (generate thread summary)\n", ":thread-summary", a.Keys.ThreadSummary))
+			fmt.Fprintf(&help, "    %-18s 🧵  Same as %s (generate thread summary)\n", ":thread-summary", a.Keys.ThreadSummary)
 		}
 	}
 
 	// Performance commands
-	help.WriteString(fmt.Sprintf("    %-18s ⚡  Show preloading status and statistics\n", ":preload status"))
-	help.WriteString(fmt.Sprintf("    %-18s 🚀  Enable background preloading\n", ":preload on"))
-	help.WriteString(fmt.Sprintf("    %-18s ⏸️   Disable background preloading\n", ":preload off"))
-	help.WriteString(fmt.Sprintf("    %-18s 🧹  Clear all preloaded caches\n", ":preload clear"))
+	fmt.Fprintf(&help, "    %-18s ⚡  Show preloading status and statistics\n", ":preload status")
+	fmt.Fprintf(&help, "    %-18s 🚀  Enable background preloading\n", ":preload on")
+	fmt.Fprintf(&help, "    %-18s ⏸️   Disable background preloading\n", ":preload off")
+	fmt.Fprintf(&help, "    %-18s 🧹  Clear all preloaded caches\n", ":preload clear")
 
 	// Prompt management commands
-	help.WriteString(fmt.Sprintf("    %-18s 📊  Show prompt usage statistics\n", ":prompt stats"))
-	help.WriteString(fmt.Sprintf("    %-18s 📋  Manage prompts\n", ":prompt list"))
-	help.WriteString(fmt.Sprintf("    %-18s ➕  Create new prompt\n", ":prompt create"))
-	help.WriteString(fmt.Sprintf("    %-18s ✏️   Update existing prompt\n", ":prompt update"))
-	help.WriteString(fmt.Sprintf("    %-18s 🗑️   Delete prompt\n", ":prompt delete"))
-	help.WriteString(fmt.Sprintf("    %-18s 📤  Export prompts\n", ":prompt export"))
-	help.WriteString(fmt.Sprintf("    %-18s ❓  Show this help\n\n", ":help"))
+	fmt.Fprintf(&help, "    %-18s 📊  Show prompt usage statistics\n", ":prompt stats")
+	fmt.Fprintf(&help, "    %-18s 📋  Manage prompts\n", ":prompt list")
+	fmt.Fprintf(&help, "    %-18s ➕  Create new prompt\n", ":prompt create")
+	fmt.Fprintf(&help, "    %-18s ✏️   Update existing prompt\n", ":prompt update")
+	fmt.Fprintf(&help, "    %-18s 🗑️   Delete prompt\n", ":prompt delete")
+	fmt.Fprintf(&help, "    %-18s 📤  Export prompts\n", ":prompt export")
+	fmt.Fprintf(&help, "    %-18s ❓  Show this help\n\n", ":help")
 
 	// Footer with tips
 	help.WriteString("💡 TIPS\n\n")
@@ -2696,11 +2696,11 @@ func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
 
 	// Summary section
 	content.WriteString("📊 USAGE SUMMARY\n\n")
-	content.WriteString(fmt.Sprintf("Total Prompt Uses: %d\n", stats.TotalUsage))
-	content.WriteString(fmt.Sprintf("Active Prompts: %d\n", stats.UniquePrompts))
-	content.WriteString(fmt.Sprintf("Favorite Prompts: %d\n", len(stats.FavoritePrompts)))
+	fmt.Fprintf(&content, "Total Prompt Uses: %d\n", stats.TotalUsage)
+	fmt.Fprintf(&content, "Active Prompts: %d\n", stats.UniquePrompts)
+	fmt.Fprintf(&content, "Favorite Prompts: %d\n", len(stats.FavoritePrompts))
 	if !stats.LastUsed.IsZero() {
-		content.WriteString(fmt.Sprintf("Last Used: %s\n", stats.LastUsed.Format("2006-01-02 15:04")))
+		fmt.Fprintf(&content, "Last Used: %s\n", stats.LastUsed.Format("2006-01-02 15:04"))
 	}
 	content.WriteString("\n")
 
@@ -2725,9 +2725,9 @@ func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
 				favoriteIcon = " ⭐"
 			}
 
-			content.WriteString(fmt.Sprintf("%d. %s %s%s\n", i+1, icon, prompt.Name, favoriteIcon))
-			content.WriteString(fmt.Sprintf("    Uses: %d | Category: %s | Last: %s\n",
-				prompt.UsageCount, prompt.Category, prompt.LastUsed))
+			fmt.Fprintf(&content, "%d. %s %s%s\n", i+1, icon, prompt.Name, favoriteIcon)
+			fmt.Fprintf(&content, "    Uses: %d | Category: %s | Last: %s\n",
+				prompt.UsageCount, prompt.Category, prompt.LastUsed)
 			content.WriteString("\n")
 		}
 	} else {
@@ -2752,9 +2752,9 @@ func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
 				icon = "💬"
 			}
 
-			content.WriteString(fmt.Sprintf("• %s %s\n", icon, prompt.Name))
-			content.WriteString(fmt.Sprintf("  Uses: %d | Category: %s\n",
-				prompt.UsageCount, prompt.Category))
+			fmt.Fprintf(&content, "• %s %s\n", icon, prompt.Name)
+			fmt.Fprintf(&content, "  Uses: %d | Category: %s\n",
+				prompt.UsageCount, prompt.Category)
 		}
 		content.WriteString("\n")
 	}

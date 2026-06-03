@@ -102,7 +102,7 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	if loading {
 		// Shortcuts while logged in - use configured shortcuts
 		shortcuts := a.getWelcomeShortcuts(true)
-		b.WriteString(fmt.Sprintf("[white::b]Shortcuts:[-:-:-]  %s\n\n", shortcuts))
+		fmt.Fprintf(&b, "[white::b]Shortcuts:[-:-:-]  %s\n\n", shortcuts)
 		// Do not duplicate loading text; progress is visible in the list title/spinner
 		return b.String()
 	}
@@ -115,12 +115,12 @@ func (a *App) buildWelcomeText(loading bool, accountEmail string, dots int) stri
 	b.WriteString("[red::b]Credentials not found.[-:-:-]\n\n")
 	b.WriteString("Setup:\n")
 	b.WriteString("  1. Download OAuth credentials from Google Cloud Console.\n")
-	b.WriteString(fmt.Sprintf("  2. Place the file at `%s`.\n", configuredCredPath))
+	fmt.Fprintf(&b, "  2. Place the file at `%s`.\n", configuredCredPath)
 	b.WriteString("  3. Restart the application.\n\n")
 	b.WriteString("See README.md for details.\n\n")
 	// Use configured shortcuts for credentials missing state
 	shortcuts := a.getWelcomeShortcuts(false)
-	b.WriteString(fmt.Sprintf("[white::b]Shortcuts:[-:-:-]  %s\n", shortcuts))
+	fmt.Fprintf(&b, "[white::b]Shortcuts:[-:-:-]  %s\n", shortcuts)
 	return b.String()
 }
 

@@ -268,13 +268,13 @@ func (s *BulkPromptServiceImpl) combineMessageContents(contents []string, messag
 	combined.WriteString("---START EMAILS---\n")
 
 	for i, content := range contents {
-		combined.WriteString(fmt.Sprintf("---START EMAIL %d---\n", i+1))
+		fmt.Fprintf(&combined, "---START EMAIL %d---\n", i+1)
 
 		// Clean and process the content heuristically for better LLM consumption
 		cleanContent := s.cleanEmailContent(content)
 		combined.WriteString(cleanContent)
 
-		combined.WriteString(fmt.Sprintf("\n---END EMAIL %d---\n", i+1))
+		fmt.Fprintf(&combined, "\n---END EMAIL %d---\n", i+1)
 	}
 
 	combined.WriteString("---END OF EMAILS---\n")

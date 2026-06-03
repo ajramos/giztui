@@ -289,7 +289,7 @@ func (s *ThreadServiceImpl) GenerateThreadSummary(ctx context.Context, threadID 
 	contentBuilder.WriteString("---START THREAD---\n")
 
 	for i, msg := range messages {
-		contentBuilder.WriteString(fmt.Sprintf("---START MESSAGE %d---\n", i+1))
+		fmt.Fprintf(&contentBuilder, "---START MESSAGE %d---\n", i+1)
 
 		// Extract message content
 		plainText := gmail.ExtractPlainText(msg)
@@ -299,7 +299,7 @@ func (s *ThreadServiceImpl) GenerateThreadSummary(ctx context.Context, threadID 
 			contentBuilder.WriteString("[No content available]")
 		}
 
-		contentBuilder.WriteString(fmt.Sprintf("\n---END MESSAGE %d---\n", i+1))
+		fmt.Fprintf(&contentBuilder, "\n---END MESSAGE %d---\n", i+1)
 	}
 	contentBuilder.WriteString("---END THREAD---\n")
 
@@ -367,12 +367,12 @@ func (s *ThreadServiceImpl) GenerateThreadSummaryStream(ctx context.Context, thr
 	contentBuilder.WriteString("---START THREAD---\n")
 
 	for i, msg := range messages {
-		contentBuilder.WriteString(fmt.Sprintf("---START MESSAGE %d---\n", i+1))
+		fmt.Fprintf(&contentBuilder, "---START MESSAGE %d---\n", i+1)
 		plainText := gmail.ExtractPlainText(msg)
 		if plainText != "" {
 			contentBuilder.WriteString(plainText)
 		}
-		contentBuilder.WriteString(fmt.Sprintf("\n---END MESSAGE %d---\n", i+1))
+		fmt.Fprintf(&contentBuilder, "\n---END MESSAGE %d---\n", i+1)
 	}
 	contentBuilder.WriteString("---END THREAD---\n")
 

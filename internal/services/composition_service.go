@@ -722,7 +722,7 @@ func (s *CompositionServiceImpl) createQuotedBody(message *gmail.Message, sender
 	var body strings.Builder
 
 	body.WriteString("\n\n")
-	body.WriteString(fmt.Sprintf("On %s, %s wrote:\n", date.Format("Jan 2, 2006 at 3:04 PM"), sender.Email))
+	fmt.Fprintf(&body, "On %s, %s wrote:\n", date.Format("Jan 2, 2006 at 3:04 PM"), sender.Email)
 
 	// Get full message content
 	content := message.PlainText
@@ -745,14 +745,14 @@ func (s *CompositionServiceImpl) createForwardedBody(message *gmail.Message, sen
 	var body strings.Builder
 
 	body.WriteString("\n\n---------- Forwarded message ---------\n")
-	body.WriteString(fmt.Sprintf("From: %s\n", sender.Email))
-	body.WriteString(fmt.Sprintf("Date: %s\n", date.Format("Mon, Jan 2, 2006 at 3:04 PM")))
+	fmt.Fprintf(&body, "From: %s\n", sender.Email)
+	fmt.Fprintf(&body, "Date: %s\n", date.Format("Mon, Jan 2, 2006 at 3:04 PM"))
 
 	// Add subject
 	if message.Payload != nil && message.Payload.Headers != nil {
 		for _, header := range message.Payload.Headers {
 			if header.Name == "Subject" {
-				body.WriteString(fmt.Sprintf("Subject: %s\n", s.decodeHeaderValue(header.Value)))
+				fmt.Fprintf(&body, "Subject: %s\n", s.decodeHeaderValue(header.Value))
 				break
 			}
 		}

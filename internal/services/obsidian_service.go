@@ -624,19 +624,19 @@ func (s *ObsidianServiceImpl) combineMessageContents(contents []string, messageI
 			date = s.extractHeader(messages[i], "Date")
 		}
 
-		combined.WriteString(fmt.Sprintf("## Email %d/%d\n\n", i+1, len(contents)))
+		fmt.Fprintf(&combined, "## Email %d/%d\n\n", i+1, len(contents))
 
 		if subject != "" {
-			combined.WriteString(fmt.Sprintf("**Subject:** %s\n", subject))
+			fmt.Fprintf(&combined, "**Subject:** %s\n", subject)
 		}
 		if from != "" {
-			combined.WriteString(fmt.Sprintf("**From:** %s\n", from))
+			fmt.Fprintf(&combined, "**From:** %s\n", from)
 		}
 		if date != "" {
-			combined.WriteString(fmt.Sprintf("**Date:** %s\n", date))
+			fmt.Fprintf(&combined, "**Date:** %s\n", date)
 		}
 		if len(messageIDs) > i {
-			combined.WriteString(fmt.Sprintf("**Message ID:** %s\n", messageIDs[i]))
+			fmt.Fprintf(&combined, "**Message ID:** %s\n", messageIDs[i])
 		}
 
 		combined.WriteString("\n---\n\n")

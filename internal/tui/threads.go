@@ -432,7 +432,7 @@ func (a *App) formatThreadMessageForList(message *gmailapi.Message, messageIndex
 
 	// Add message number if enabled
 	if a.showMessageNumbers {
-		builder.WriteString(fmt.Sprintf("%3s ", "")) // Empty space to align with thread numbers
+		fmt.Fprintf(&builder, "%3s ", "") // Empty space to align with thread numbers
 	}
 
 	// Add tree-like indentation structure
@@ -538,7 +538,7 @@ func (a *App) formatThreadMessageForList(message *gmailapi.Message, messageIndex
 	}
 
 	// Add formatted content
-	builder.WriteString(fmt.Sprintf("%-20s %s", fromField, subjectField))
+	fmt.Fprintf(&builder, "%-20s %s", fromField, subjectField)
 
 	// Add improved date formatting for thread messages
 	if message.InternalDate > 0 {
