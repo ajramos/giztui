@@ -68,15 +68,16 @@ func (s *LinkServiceImpl) OpenLink(ctx context.Context, url string) error {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
 
-	// Open URL based on operating system
+	// Open URL based on operating system. For each platform the binary name is
+	// hardcoded; only url varies, and it has just been validated by ValidateURL above.
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.CommandContext(ctx, "open", url)
+		cmd = exec.CommandContext(ctx, "open", url) // #nosec G204
 	case "linux":
-		cmd = exec.CommandContext(ctx, "xdg-open", url)
+		cmd = exec.CommandContext(ctx, "xdg-open", url) // #nosec G204
 	case "windows":
-		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}

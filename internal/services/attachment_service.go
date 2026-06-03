@@ -107,15 +107,17 @@ func (s *AttachmentServiceImpl) OpenAttachment(ctx context.Context, filePath str
 		return fmt.Errorf("file does not exist: %s", filePath)
 	}
 
-	// Open file based on operating system
+	// Open file based on operating system. For each platform the binary name is
+	// hardcoded; only filePath varies, and it is verified to exist via os.Stat above
+	// and originates from attachments downloaded by this app, not arbitrary input.
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.CommandContext(ctx, "open", filePath)
+		cmd = exec.CommandContext(ctx, "open", filePath) // #nosec G204
 	case "linux":
-		cmd = exec.CommandContext(ctx, "xdg-open", filePath)
+		cmd = exec.CommandContext(ctx, "xdg-open", filePath) // #nosec G204
 	case "windows":
-		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", filePath)
+		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", filePath) // #nosec G204
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}

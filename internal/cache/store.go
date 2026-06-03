@@ -32,6 +32,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	}
 	// Ensure file exists with strict perms
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		// #nosec G304 -- dbPath was validated above against directory traversal; this is the canonical cache db location, not user-supplied at call sites.
 		f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("create cache db: %w", err)

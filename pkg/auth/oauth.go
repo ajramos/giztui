@@ -91,6 +91,7 @@ func (c *OAuth2Config) SaveToken(token *oauth2.Token) error {
 		}
 	}()
 
+	// #nosec G117 -- persisting the OAuth token to disk is the intended behaviour; the file is created with 0600 perms above to keep it private to the user.
 	return json.NewEncoder(f).Encode(token)
 }
 

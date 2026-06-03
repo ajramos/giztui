@@ -186,6 +186,7 @@ func TestOAuth2Config_LoadToken_ValidToken(t *testing.T) {
 // Test SaveToken validation and file operations
 func TestOAuth2Config_SaveToken_ValidationErrors(t *testing.T) {
 	t.Run("nil_token", func(t *testing.T) {
+		// #nosec G101 -- test fixture path, not a real token.
 		config := &OAuth2Config{TokenPath: "/tmp/test_token.json"}
 
 		err := config.SaveToken(nil)
@@ -294,6 +295,7 @@ func TestOAuth2Config_GetToken_ValidationErrors(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("invalid_credentials_path", func(t *testing.T) {
+		// #nosec G101 -- test fixture paths, not real credentials.
 		config := &OAuth2Config{
 			CredentialsPath: "/nonexistent/credentials.json",
 			TokenPath:       "/tmp/token.json",

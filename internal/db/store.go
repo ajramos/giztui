@@ -32,6 +32,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	}
 	// Ensure file exists with strict perms
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		// #nosec G304 -- dbPath was validated above (absolute path, no '..' traversal); it is the canonical app database location.
 		f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("create database file: %w", err)

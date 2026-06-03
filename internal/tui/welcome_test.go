@@ -120,6 +120,7 @@ func TestWelcomeShortcuts_Integration(t *testing.T) {
 	app := &App{
 		Application: tview.NewApplication(),
 		Config: &config.Config{
+			// #nosec G101 -- test fixture path, not a real credential.
 			Credentials: "/path/to/creds.json",
 		},
 		Keys: config.KeyBindings{
