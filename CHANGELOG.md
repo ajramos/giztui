@@ -5,6 +5,20 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-06-03
+
+### 🐛 Bug Fixes
+
+- **Help screen panic on `?` (#6)**: Fixed nil pointer dereference in `generateHelpText` when `config.json` had no `obsidian` section (i.e. fresh installs running on `DefaultConfig`). The four call-sites that dereferenced `Config.Obsidian.Enabled` now go through a defensive `IsObsidianEnabled()` helper, and the helper is covered by table-driven tests including the default-config case that reproduced the crash.
+- **Bulk-select checkbox refresh**: Pressing `*` in bulk mode now updates the ☑/☐ glyph on every row immediately, even when the optional message-numbers column is enabled. Replaced the hardcoded "flags is column 0" assumption in `updateBulkSelectionStyling` with a per-row scan that finds the checkbox glyph regardless of layout. Also removed the defensive prepend branch that was contaminating the numbers column with a stray glyph on first use.
+
+### 🛠️ Technical Improvements
+
+- **Lint debt cleanup**: `make pre-commit-check` now passes with 0 issues. Annotated 9 intentional gosec findings with justified `// #nosec` markers (G304 on validated DB paths, G204 on hardcoded per-OS open binaries, G117 on intentional OAuth token persistence, G101 on test fixture paths) and refactored 30+ `strings.Builder.WriteString(fmt.Sprintf(...))` call-sites to the more efficient `fmt.Fprintf(&builder, ...)` form (staticcheck QF1012).
+- **Developer docs**: Refreshed `CLAUDE.md` with the current 12-value `GetServices()` signature, the canonical pre-commit verification command, a project layout overview, and the precise `make test` scope.
+
+---
+
 ## [1.2.3] - 2025-09-18
 
 ### 🐛 Bug Fixes
