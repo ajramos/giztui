@@ -20,12 +20,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25.5'
 
@@ -47,7 +47,7 @@ jobs:
         echo "BUILD_USER=github-actions" >> $GITHUB_OUTPUT
 
     - name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cache/go-build
@@ -187,7 +187,7 @@ jobs:
         } >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ steps.version.outputs.TAG_NAME }}
         name: GizTUI ${{ steps.version.outputs.VERSION }}
@@ -207,7 +207,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: giztui-${{ steps.version.outputs.VERSION }}-binaries
         path: build/
