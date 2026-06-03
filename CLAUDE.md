@@ -10,6 +10,17 @@ This file provides essential architectural patterns and requirements for Claude 
 - 🧪 [Testing Guide](docs/TESTING.md) - Quality assurance framework
 - 🎨 [Theming Guide](docs/THEMING.md) - UI component theming system
 
+## 🗂️ **Project Layout**
+
+- `cmd/giztui/main.go` - Application entry point
+- `internal/services/` - All business logic (12+ services; see `interfaces.go` for canonical contracts)
+- `internal/tui/` - Presentation layer (`app.go` is the central App struct, 3k+ lines)
+- `internal/gmail/`, `internal/llm/`, `internal/cache/`, `internal/db/` - External integrations
+- `pkg/auth/` - OAuth2 token handling
+- `scripts/check-architecture.sh` - Architecture compliance validation script
+- Runtime config: `~/.config/giztui/config.json`; OAuth creds: `~/.config/giztui/credentials.json`
+- Interactive first-run setup: `giztui --setup`
+
 ## 📝 **Git Commit Guidelines**
 
 When committing changes, **DO NOT** include Claude signatures or co-authored by lines in commit messages. Keep commit messages clean and focused on the actual changes.
@@ -206,9 +217,13 @@ func (s *MyServiceImpl) DoOperation(ctx context.Context, param string) error {
 ```go
 // internal/tui/my_component.go
 func (a *App) handleNewFeature() error {
-    // 1. Get services
-    emailService, aiService, labelService, cacheService, repository := a.GetServices()
-    
+    // 1. Get services — GetServices() returns 12 values in this fixed order:
+    //    EmailService, AIService, LabelService, CacheService, MessageRepository,
+    //    CompositionService, PromptService, ObsidianService, LinkService,
+    //    GmailWebService, AttachmentService, DisplayService.
+    //    Use _ to discard the ones you don't need. See internal/services/interfaces.go.
+    emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+
     // 2. Get state thread-safely
     messageID := a.GetCurrentMessageID()
     
@@ -249,13 +264,14 @@ func (a *App) handleNewFeature() error {
 
 ### Essential Commands
 - `make build` - Build the application with version injection
-- `make test` - Run tests
+- `make test` - Run tests (scoped to `./internal/... ./test/helpers ./test ./pkg/...`, not `./...`)
+- `make pre-commit-check` - Run the same checks as CI locally (fmt + vet + golangci-lint + essential tests). **Use this before claiming work complete.**
 - `make fmt` - Format code
 - `make lint` - Run linting (requires golangci-lint)
 - `make vet` - Verify code
 
 ### Testing Commands  
-- `make test-all` - Run all tests
+- `make test-all` - Run all tests (mocks + unit + tui + integration + coverage)
 - `make test-unit` - Run unit tests
 - `make test-tui` - Run TUI component tests
 - `make test-integration` - Run integration tests
@@ -317,39 +333,5 @@ For detailed information, see:
 - `internal/tui/keys.go` - ESC key handling examples
 
 ---
-
-## 🎯 **Quick Reference Checklist**
-
-Before submitting any code, ensure:
-
-### ✅ **Architecture**
-- [ ] Business logic is in services (`internal/services/`)
-- [ ] UI components only handle presentation
-- [ ] All services implement interfaces
-- [ ] Services are dependency-injected, not instantiated
-
-### ✅ **Threading & Safety**
-- [ ] Used thread-safe accessor methods (`GetCurrentView()`, etc.)
-- [ ] Never accessed app struct fields directly
-- [ ] Used `ActivePicker` enum for side panel state
-- [ ] Never used `QueueUpdateDraw()` in ESC handlers
-
-### ✅ **Error Handling**
-- [ ] All user feedback uses `ErrorHandler` methods
-- [ ] No direct `fmt.Printf`, `log.Printf` for user messages
-- [ ] Proper error levels (`ShowError`, `ShowSuccess`, etc.)
-- [ ] ErrorHandler calls in goroutines from key handlers
-
-### ✅ **Theming**
-- [ ] Used `GetComponentColors("component")` for all theming
-- [ ] Applied colors to ALL UI elements consistently
-- [ ] Chose appropriate component type (see THEMING.md)
-- [ ] Never used hardcoded colors or deprecated methods
-
-### ✅ **Testing & Quality**
-- [ ] Added/updated tests (see TESTING.md)
-- [ ] Ran `make lint` and `make vet` without errors
-- [ ] Command parity implemented (keyboard shortcut + `:command`)
-- [ ] Updated documentation if needed
 
 **Remember**: This architecture ensures maintainable, testable, and robust code. Follow these patterns consistently for high-quality development.
