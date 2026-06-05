@@ -1,179 +1,12 @@
 # TODO List - GizTUI Project
 
-## 📋 PENDING - What's Left to Do
+## 📋 Active Backlog
 
-### High Priority
+The active backlog has been migrated to **GitHub Issues**:
+👉 **https://github.com/ajramos/giztui/issues**
 
-- [ ] Multi-account support for Obsidian
-- [ ] Add a prompt to make an analysis of the inbox itself
-- [ ] Chat with an email
-- [ ] Standardize operations across widgets: editing and deleting drafts and saved queries from the picker
-- [ ] **Gmail filters support** - Add native Gmail filters/rules support within the TUI
-- [ ] **Configure label colors** - Allow users to configure custom colors for Gmail labels
-- [ ] **Configure headers view** - config file picks which columns are hidden.
-- [ ] **Review database location**, now it is under $CONFIG/cache but i think it should be into a more generic location maybe on $CONFIG/db
-- [ ] **Contextual menu for message actions** - Create context menu for Labels, Archive, Delete, Apply Prompt, Summary, etc.
-
-### Status Bar Rendering Bugs
-- [x] **Status bar corrupts text after emoji prefix (`ℹSeuected: 17` instead of `ℹSelected: 17`)** — resolved by swapping `ℹ️` (U+2139+VS16) for `🔵` and `⚠️` (U+26A0+VS16) for `🟡` in `ErrorHandler.formatMessage`. `❌`/`✅` left untouched since they are natively EAW=Wide.
-
-  Other call-sites of `⚠️`/`ℹ️` outside the status-bar pipeline (logs, multi-line panels, AI summary view, pre-TUI stdout) were left as-is — the 1-column desync is invisible there. If a regression shows up in any of those, fix in place using the same emoji swap.
-
-  Original report (kept for context):
-
-  **Repro**: Bulk mode (`v`) → `*` to select all → status bar shows e.g. `ℹSeuected: 17`. The `l` of `Selected` gets clobbered/replaced. Reproduced on long-running session 2026-06-03.
-
-  **Suspected root cause**: `internal/tui/error_handler.go:152` uses `icon = "ℹ️"` which is U+2139 INFORMATION SOURCE + U+FE0F VARIATION SELECTOR-16 (forces emoji presentation). tcell computes its column width as 1 (U+2139 base is EAW=Narrow); modern terminals render it as 2 cells (VS16 forces emoji glyph). The 1-cell desync corrupts the first character after the icon during partial status updates.
-
-  **Same pattern in other icons** (lines 152-160): `⚠️` and `❌`/`✅` may also exhibit this, since `⚠` is also U+26A0 + VS16. Worth verifying which are affected once the fix is in place.
-
-  **Candidate fixes**:
-  1. Drop VS16 from all icons (use bare `ℹ`, `⚠`, `❌`, `✅`) — loses the colorful emoji look but eliminates the desync entirely.
-  2. Replace with emoji that tcell already classifies as wide (e.g. `🔵`, `🟡`, `🔴`, `🟢`) — keeps colour, removes ambiguity, and these are unambiguously 2-cell in EAW.
-  3. Always append a space-padding after the icon to force the column offset to match — a hack, fragile across terminals.
-
-  **Recommendation**: option 2 (filled circles) — preserves the visual signal levels (info=blue, warn=yellow, error=red, success=green) and avoids the EAW-Ambiguous trap completely.
-
-### Code Quality / Lint Debt
-- [x] **gosec G304** (cache/store.go, db/store.go) — justified with `// #nosec G304` (paths validated upstream against traversal).
-- [x] **gosec G204** (services/attachment_service.go, services/link_service.go) — justified with `// #nosec G204` (binary names hardcoded; only path/URL varies and is validated).
-- [x] **gosec G101** (welcome_test.go, oauth_test.go) — justified with `// #nosec G101` (test fixture paths, not real credentials).
-- [x] **gosec G117** (pkg/auth/oauth.go) — justified with `// #nosec G117` (intentional token persistence; file is 0600).
-- [x] **staticcheck QF1012** (gmail/client.go, render/email.go, services/{bulk_prompt,composition,thread,obsidian}_service.go, tui/{app,threads,welcome,commands}.go) — refactored to `fmt.Fprintf(&builder, ...)`.
-
-`make pre-commit-check` now passes with `0 issues`.
-
-### Search & Filter Enhancements
-- [ ] **Complex saved filters** - Support for advanced Gmail filter combinations and bookmarks
-- [ ] **Local indexing for fast searches** - Build local search index for performance improvements
-
-### Saved Queries - Future Enhancements
-- [ ] **Query categories and filtering** - Add category-based organization for saved queries
-- [ ] **Edit saved queries functionality** - Allow editing of existing saved query names and content
-- [ ] **Advanced query validation** - Enhanced validation for query names and complex search expressions
-
-### Email Management
-- [ ] **Delete email permanently** - Permanently delete emails from trash
-
-### Email Composition - Advanced Features
-- [ ] **AI-powered reply generation** - Integrate with existing AIService for smart reply suggestions
-- [ ] **Email template system** - Create reusable email templates with picker UI and variable substitution
-- [ ] **Recipient autocomplete** - Smart recipient suggestions from Gmail contacts and email history
-- [ ] **Template variable substitution** - Dynamic template variables ({{name}}, {{date}}, {{subject}})
-- [ ] **Tone/style AI suggestions** - AI assistance for professional, friendly, brief writing styles
-- [ ] **Grammar and spell-check integration** - Basic text improvement and validation suggestions
-- [ ] **Bulk reply operations** - Reply to multiple selected messages simultaneously  
-- [ ] **Bulk forward operations** - Forward multiple messages as combined or separate forwards
-- [ ] **Advanced composition configuration** - Auto-save intervals, default signatures, reply behavior settings
-- [ ] **Attachment handling in composition** - File selection, drag-and-drop, attachment preview
-- [ ] **Comprehensive composition testing** - Unit tests, integration tests, and UI component tests
-
-### Attachments
-- [ ] **Advanced attachment search filters** - `type:image`, `type:pdf`, `size:>1mb` filtering
-- [ ] **Bulk attachment operations** - Multi-select and bulk download attachments
-- [ ] **Attachment preview support** - Image thumbnails, text preview, PDF first-page preview
-- [ ] **Obsidian attachment integration** - Send attachments to Obsidian with note creation
-- [ ] **Slack attachment integration** - Send attachments to Slack with message creation
-- [ ] **Enhanced attachment metadata** - Creation dates, detailed MIME info, compression ratios
-- [ ] **Download queue management** - Progress bars, pause/resume, background downloads
-
-### Calendar Integration
-- [ ] **List calendars** - Show all available calendars
-- [ ] **Get calendar events** - Retrieve events from specific calendars with time range
-- [ ] **Create calendar event** - Create new calendar events with Google Meet
-- [ ] **Update calendar event** - Modify existing calendar events
-- [ ] **Delete calendar event** - Remove calendar events
-
-### AI Capabilities
-- [ ] **Reply draft suggestion** - Given a email provides a draft of the reply
-
-### Command System Enhancements
-- [ ] **Command history search** - Search through command history
-- [ ] **Command aliases** - Support custom command aliases
-- [ ] **Command help** - Show help for specific commands
-- [ ] **Command validation** - Validate commands before execution
-
-### Interface Improvements
-- [ ] **Error handling** - Better error messages and recovery
-- [ ] **Confirmation dialogs** - Confirm destructive actions
-- [ ] **Configuration for labels adding icons** Icons for each Label.
-- [ ] **Internal logs panel** - Add debugging/troubleshooting tools within TUI
-- [ ] **Accessibility improvements** - Keyboard-only navigation enhancements and screen reader support
-- [ ] **Local caching system** - Configurable local caching of emails and attachments for offline access
-- [ ] **Efficient Gmail syncing** - Partial offline mode with smart sync optimization
-
-### Navigation Enhancements
-- [ ] **Sort options** - Sort messages by date, sender, subject, etc.
-- [ ] **Bookmarks** - Bookmark important messages
-- [ ] **Recent messages** - Quick access to recently viewed messages
-- [ ] **Message filtering** - Filter messages by various criteria 
-
-### Help System
-- [ ] **Troubleshooting guide** - Add troubleshooting section
-- [ ] **FAQ section** - Create frequently asked questions
-- [ ] **Help navigation** - Implement help navigation within TUI
-- [ ] **Contextual help** - Show context-specific help
-- [ ] **Mantain a in-app log system** - A list of performed actions
-
-### Testing
-- [ ] **Config package tests** - Test configuration loading and validation
-- [ ] **Gmail client tests** - Test Gmail API client functionality
-- [ ] **TUI component tests** - Test terminal UI components
-- [ ] **Theme system tests** - Test theme loading and application
-- [ ] **OAuth tests** - Test authentication flow
-- [ ] **End-to-end tests** - Test complete user workflows
-- [ ] **API integration tests** - Test Gmail API integration
-- [ ] **Theme integration tests** - Test theme system integration
-- [ ] **Error handling tests** - Test error scenarios and recovery
-- [ ] **Test setup** - Configure testing environment
-- [ ] **Mock Gmail API** - Create mock Gmail API for testing
-- [ ] **Test data** - Prepare test data and fixtures
-- [ ] **CI/CD integration** - Integrate tests with CI/CD pipeline
-
-### Infrastructure & Polish
-- [ ] **Code review** - Review existing code for improvements
-- [ ] **Error handling** - Improve error handling throughout
-- [ ] **Logging** - Implement comprehensive logging
-- [ ] **Documentation** - Update code documentation
-- [ ] **Performance optimization** - Optimize performance bottlenecks
-- [ ] **Loading indicators** - Add loading indicators for long operations
-- [ ] **Error messages** - Improve user-friendly error messages
-- [ ] **Keyboard shortcuts** - Implement intuitive keyboard shortcuts
-- [ ] **Accessibility** - Ensure accessibility compliance
-- [ ] **Responsive design** - Handle terminal resizing gracefully
-- [ ] **Configuration validation** - Validate configuration files
-- [ ] **Default configuration** - Set up sensible defaults
-- [ ] **Configuration documentation** - Document all configuration options
-- [ ] **Hot reload** - Implement configuration hot reloading
-
-### 📊 Analytics & Telemetry
-- [ ] **Privacy-first local telemetry** - Track usage, shortcuts, timings, and errors locally only
-- [ ] **Built-in analytics dashboard** - TUI-based productivity metrics and usage statistics
-- [ ] **Telemetry export/reset** - Easy data export and privacy controls (no remote upload)
-- [ ] **Personal productivity reports** - Simple graphs for weekly/monthly email processing review
-
-### 🔧 Development & Quality
-- [ ] **Enhanced testing coverage** - Tests for complex functionalities (shortcuts, filters, AI)
-- [ ] **CI pipeline implementation** - Continuous integration for quality assurance
-- [ ] **Configurable plugin shortcuts** - Custom actions and keyboard shortcuts for plugins
-- [ ] **Plugin system**: extensible architecture to add custom functionality without touching the core
-
-### Deployment & Distribution
-- [ ] **Cross-platform builds** - Support builds for different platforms
-- [ ] **Release process** - Automate release process
-- [ ] **Version management** - Implement proper versioning
-- [ ] **Dependency management** - Keep dependencies updated
-- [ ] **README updates** - Keep README current and comprehensive
-- [ ] **Installation guide** - Create detailed installation instructions
-- [ ] **User manual** - Create user manual
-- [ ] **Developer guide** - Create developer documentation
-
----
-
-## 🚧 Issues & Bugs
-
-### Known Issues
-*No known issues at the moment*
+This file is preserved as a historical record of completed work.
+For the active roadmap, use the issues view with the `priority:*` and `area:*` labels.
 
 ---
 
@@ -188,6 +21,8 @@
 - [x] **Configurable key bindings** - Implemented customizable keyboard shortcuts in configuration
 - [x] **Theme configuration system** - Implemented customizable themes
 - [x] **Configuration improvements** - Grouped LLM configuration under single object and moved templates to files
+- [x] **Default configuration** - `DefaultConfig()` ships sensible defaults; users can boot without any config file
+- [x] **Configuration documentation** - `docs/CONFIGURATION.md` documents all options
 
 ### Core Functionality
 - [x] **Command parity with shortcuts** - Every keyboard shortcut has an equivalent command (`:` mode)
@@ -221,14 +56,14 @@
 - [x] **Bulk operations configuration** - Made sXs bulk operations configurable
 - [x] **Get unread emails** - List unread emails with count and preview
 - [x] **List archived emails** - Show archived emails
-- [x] **Undo functionality** - Undo last action ✅ 
+- [x] **Undo functionality** - Undo last action
 - [x] **Undo/redo for destructive actions** - Allow users to undo archive, delete, move operations
 - [x] **Message threading** - Show message threads and conversations
 - [x] **Move email to Spam** - Move to Spam
 - [x] **Move email to Inbox** - Move to Inbox
 - [x] **Restore email to inbox** - Move archived emails back to inbox
 
-### Email Composition - Core Features ✅
+### Email Composition - Core Features
 - [x] **Complete composition UI** - Full-screen modal composition panel with proper theming and focus management
 - [x] **Create new emails** - Compose new emails with To/CC/BCC/Subject/Body fields and validation
 - [x] **Reply to emails** - Reply to existing email threads with proper context and quoted text
@@ -242,7 +77,6 @@
 - [x] **Keyboard navigation** - Complete Tab/Shift+Tab focus cycling and ESC handling
 - [x] **Message context processing** - Proper threading headers, recipient extraction, and Gmail compatibility
 - [x] **Multi-line text editing** - Advanced EditableTextView with cursor visibility and scroll management
-
 
 ### Labels and Organization
 - [x] **Create label** - Create new custom labels with visibility options
@@ -260,12 +94,13 @@
 - [x] **Accept Calendar invitations** - Full calendar invitation acceptance functionality
 
 ### AI Capabilities
-- [x] **Email summarization** - Creates a summary of the email 
+- [x] **Email summarization** - Creates a summary of the email
 - [x] **Label assignation suggestion** - Given an email provides label selection suggestions
 - [x] **Bulk prompt processing** - Apply prompts to multiple emails simultaneously for consolidated analysis
 - [x] **Fix AI Summary and Prompt Application** - Resolved Escape key hanging issues
 - [x] **Stream LLM output** - Implemented streaming instead of full response waiting
 - [x] **Prompt streaming fix** - LLM response now streams properly
+- [x] **Reply draft suggestion** - `generateReply()` exposes `AIService.GenerateReply` via configurable shortcut
 
 ### Command System Enhancements
 - [x] **Command autocompletion** - Auto-complete commands as you type (e.g., :la → labels)
@@ -284,6 +119,8 @@
 - [x] **Search highlighting** - Highlight search terms in results
 - [x] **Status bar experience** - Improve status bar functionality and UX
 - [x] **Brush-up stats** - Revamp this feature
+- [x] **Responsive design** - Handle terminal resizing gracefully via responsive breakpoint system
+- [x] **Loading indicators** - `ErrorHandler.ShowProgress` + status-bar feedback cover long operations
 - [x] When I perform a local search with /term and press Enter, focus moves to the message list but its border is not highlighted. Also, I cannot return to the search widget using Tab. We could either 1) include it in the tab order to allow refining the search, or 2) close the widget immediately after launching the search and open a new one if needed.
 - [x] Welcome screen doesn't pool the shortcuts from the customization.
 - [x] When I'm in a panel other than Labels (e.g., "Drafts") and I maximize the screen, after repaint it shows the Labels panel instead of Drafts. This also happens when the initial 50 messages are loaded and i before they finished loading i open the drafts pickers, when the 50 messages finished loading the labels picker is opened (as if i have pressed the l)
@@ -318,10 +155,22 @@
 ### Attachments
 - [x] **Get attachment** - Download email attachments *(Core functionality complete)*
 
+### Testing & Quality
+- [x] **Config package tests** - `internal/config/config_test.go` covers loading, defaults, validation helpers
+- [x] **Gmail client tests** - `internal/gmail/client_test.go` + `client_parallel_test.go`
+- [x] **TUI component tests** - `internal/tui/*_test.go` + `test/helpers/` harness
+- [x] **Theme system tests** - `internal/services/theme_service_test.go`
+- [x] **OAuth tests** - `pkg/auth/oauth_test.go`
+- [x] **Error handling tests** - `internal/tui/error_handler_test.go` + service-level error paths
+- [x] **Test setup** - `make test-mocks` + `TestHarness` framework + GitHub Actions runners
+- [x] **Mock Gmail API** - generated mocks live in `internal/services/mocks/`
+- [x] **Test data / fixtures** - test fixtures embedded in OAuth and config tests
+- [x] **CI/CD integration** - `.github/workflows/ci-comprehensive.yml` runs on every push
+
 ### Infrastructure & Polish
 - [x] **Service Layer Architecture** - Extracted business logic into dedicated services
   - EmailService for email operations
-  - AIService for LLM integration 
+  - AIService for LLM integration
   - LabelService for label management
   - CacheService for SQLite caching
   - MessageRepository for data access abstraction
@@ -332,6 +181,17 @@
 - [x] **Execution parameters review** - Resolved duplication between llm and ollama configurations
 - [x] **Review log file name**, now it is under $CONFIG/gmail-tui.log it should be $CONFIG/giztui.log
 - [x] **Review makefile to reflect giztui**
+- [x] **Logging** - centralised logger (`internal/tui/logging.go`) used across the codebase
+- [x] **Keyboard shortcuts (system)** - configurable keybindings system fully wired
+
+### Deployment & Distribution
+- [x] **Cross-platform builds** - 6-target build (linux/macos/windows × amd64/arm64) in Makefile + release workflow
+- [x] **Release process** - automated GitHub Actions workflow + `docs/RELEASE_PROCEDURE.md` + `/release` slash command
+- [x] **Version management** - `VERSION` + `internal/version/version.go` + `CHANGELOG.md` in sync via release procedure
+- [x] **Installation guide** - `docs/GETTING_STARTED.md`
+- [x] **User manual** - `docs/FEATURES.md` + `docs/KEYBOARD_SHORTCUTS.md`
+- [x] **Developer guide** - `docs/ARCHITECTURE.md` + `CLAUDE.md`
+- [x] **CI pipeline implementation** - `Comprehensive CI/CD Pipeline` workflow active
 
 ### Bug Fixes
 - [x] Screen garbage
@@ -343,18 +203,32 @@
 - [x] When an UNDO is performed, focus is lost (it should return to the message list)
 - [x] When I press "gg" the cursor go to the top but doesn't select the message.
 - [x] there's an issue when numbering :69 goes to :68, etc...
+- [x] **Status bar emoji corruption** - replaced EAW-Ambiguous icons (`ℹ️`, `⚠️` with VS16) with unambiguously-wide circles (`🔵`, `🟡`) to stop status-bar text corruption after the icon prefix (commit `ef37b54`)
+- [x] **Bulk select checkbox refresh** - fixed `*` (select all) so the `☑` glyph updates on every row even when the numbers column shifts flags from column 0 to column 1 (commit `2c17b62`)
+- [x] **Help panic on `?` (#6)** - nil dereference in `generateHelpText` when `Config.Obsidian` was nil on fresh installs; introduced `Config.IsObsidianEnabled()` helper (commit `b9bd285`)
 
 ### Theme System
-- [x] **Review theme loading** - Verify theme files are loaded correctly ✅ 
-- [x] **Test theme switching** - Implement and test theme switching functionality ✅ 
-- [x] **Validate theme format** - Ensure YAML theme files are properly parsed ✅ 
-- [x] **Theme preview** - Add theme preview functionality in demo ✅ 
-- [x] **Custom theme creation** - Allow users to create custom themes ✅ 
-- [x] **Theme validation** - Validate theme structure and required fields ✅ 
-- [x] **Review gmail-dark.yaml** - Check dark theme implementation ✅ 
-- [x] **Review gmail-light.yaml** - Check light theme implementation ✅ 
-- [x] **Review custom-example.yaml** - Verify example theme structure ✅ 
-- [x] **Theme documentation** - Document theme format and options ✅
+- [x] **Review theme loading** - Verify theme files are loaded correctly
+- [x] **Test theme switching** - Implement and test theme switching functionality
+- [x] **Validate theme format** - Ensure YAML theme files are properly parsed
+- [x] **Theme preview** - Add theme preview functionality in demo
+- [x] **Custom theme creation** - Allow users to create custom themes
+- [x] **Theme validation** - Validate theme structure and required fields
+- [x] **Review gmail-dark.yaml** - Check dark theme implementation
+- [x] **Review gmail-light.yaml** - Check light theme implementation
+- [x] **Review custom-example.yaml** - Verify example theme structure
+- [x] **Theme documentation** - Document theme format and options
+
+### Session 2026-06-03 / 2026-06-05 — release v1.2.4 + CI rescue + backlog migration
+- [x] **CLAUDE.md refresh** - fixed stale `GetServices()` example (12 return values, not 5), added `make pre-commit-check` guidance, project layout section, scoped `make test` note (commit `6a97aa1`)
+- [x] **Release v1.2.4 published** - GitHub Actions workflow produced 6 platform binaries + checksums; tagged and live at https://github.com/ajramos/giztui/releases/tag/v1.2.4
+- [x] **Lint debt cleanup** - `make pre-commit-check` now passes with 0 issues. Annotated 9 gosec findings with justified `// #nosec` markers (G304 on validated DB paths, G204 on hardcoded per-OS open binaries, G117 on intentional OAuth token persistence, G101 on test fixture paths) and refactored 13+ `WriteString(fmt.Sprintf(...))` call-sites to `fmt.Fprintf(&builder, ...)` (commits `df8db83`, `873c35a`)
+- [x] **GitHub Actions modernised to Node.js 24** - bumped checkout/setup-go/cache/upload-artifact/dependency-review/github-script/codecov/codeql/gh-release to current major versions; pinned `aquasecurity/trivy-action` from `@master` to `@v0.36.0` (commit `07fde36`)
+- [x] **Go toolchain + deps security update** - bumped Go to 1.25.11 and `golang.org/x/net` to v0.55.0, resolving 9 govulncheck advisories (GO-2026-5025..5039) reported by the re-enabled CI pipeline (commit `ae26bc1`)
+- [x] **codecov-action input rename** - `file` → `files` (singular input was silently ignored since codecov-action v4) (commit `c4bc854`)
+- [x] **Comprehensive CI/CD Pipeline rescued** - workflow had been auto-disabled by GitHub due to inactivity since Feb 2026; re-enabled, all jobs green
+- [x] **`.claude/` infrastructure committed** - added `cve-security-analyzer` agent and `release` slash command from a previously-unsynced work machine, with minor adjustments (`KillShell` → `KillBash` for consistency; `make test/lint/vet` → `make pre-commit-check`)
+- [x] **TODO.md backlog migrated to GitHub Issues** - the active backlog (35 issues, #7-41) now lives in https://github.com/ajramos/giztui/issues with `area:*` and `priority:*` labels; vague/duplicate items dropped during triage; items already covered by code recognised as zombi and moved here
 
 ---
 
