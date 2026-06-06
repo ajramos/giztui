@@ -40,7 +40,25 @@ func (s *PromptGeneratorServiceImpl) GenerateFromIntent(ctx context.Context, int
 
 // RefinePrompt applies a refinement to an existing prompt.
 func (s *PromptGeneratorServiceImpl) RefinePrompt(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions) (*GeneratedPrompt, error) {
-	return nil, fmt.Errorf("not implemented")
+	if strings.TrimSpace(currentPrompt) == "" {
+		return nil, fmt.Errorf("current prompt cannot be empty")
+	}
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+	if strings.TrimSpace(refinement) == "" {
+		return nil, fmt.Errorf("refinement instruction cannot be empty")
+	}
+
+	start := time.Now()
+	metaPrompt := s.buildRefinementPrompt(currentPrompt, refinement, opts)
+
+	raw, err := s.aiService.ApplyCustomPrompt(ctx, "", metaPrompt, nil)
+	if err != nil {
+		return nil, fmt.Errorf("LLM refinement failed: %w", err)
+	}
+
+	return s.parseGeneratedOutput(raw, time.Since(start)), nil
 }
 
 // GenerateFromIntentStream is the streaming version of GenerateFromIntent.

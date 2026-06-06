@@ -172,3 +172,41 @@ func TestPromptGeneratorServiceImpl_GenerateFromIntent_AIServiceFailure(t *testi
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
+
+// TestPromptGeneratorServiceImpl_RefinePrompt_Success verifies refinement happy path.
+func TestPromptGeneratorServiceImpl_RefinePrompt_Success(t *testing.T) {
+	mockAI := &mockAIService{}
+
+	refined := `Analyze the email {{body}} and output ONLY valid JSON with field "urgency_level".
+
+__NAME__: triage-urgency-json
+__DESC__: classify urgency as JSON
+__MODE__: single`
+
+	mockAI.On("ApplyCustomPrompt",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.Anything,
+	).Return(refined, nil)
+
+	service := NewPromptGeneratorService(mockAI)
+
+	current := "Analyze the email {{body}} and identify urgency."
+	result, err := service.RefinePrompt(context.Background(), current, "output as JSON", PromptGenerationOptions{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.PromptText, "JSON")
+	assert.Equal(t, "triage-urgency-json", result.SuggestedName)
+}
+
+// TestPromptGeneratorServiceImpl_RefinePrompt_EmptyCurrent verifies validation.
+func TestPromptGeneratorServiceImpl_RefinePrompt_EmptyCurrent(t *testing.T) {
+	service := NewPromptGeneratorService(nil)
+
+	result, err := service.RefinePrompt(context.Background(), "", "make it stricter", PromptGenerationOptions{})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
