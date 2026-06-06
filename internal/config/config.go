@@ -293,6 +293,12 @@ type KeyBindings struct {
 	// Undo functionality
 	Undo string `json:"undo"` // Undo last action
 
+	// Prompt Configurator (Feature 2)
+	PromptRegenerate string `json:"prompt_regenerate"` // Regenerate prompt via LLM in configurator
+	SavePrompt       string `json:"save_prompt"`       // Save active prompt to library
+	PromptApply      string `json:"prompt_apply"`      // Apply the active prompt to scoped context
+	PromptTest       string `json:"prompt_test"`       // Test the prompt on one message (stretch)
+
 	// Validation settings
 	ValidateShortcuts bool `json:"validate_shortcuts"` // Enable shortcut conflict validation (default: true)
 }
@@ -490,6 +496,12 @@ func DefaultKeyBindings() KeyBindings {
 
 		// Undo functionality
 		Undo: "U", // Undo last action
+
+		// Prompt Configurator
+		PromptRegenerate: "ctrl+r",
+		SavePrompt:       "ctrl+s",
+		PromptApply:      "enter", // applied within the editable prompt box
+		PromptTest:       "ctrl+t",
 
 		// Validation settings (default: enabled for safety)
 		ValidateShortcuts: true, // Enable shortcut conflict validation by default
