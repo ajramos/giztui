@@ -191,8 +191,9 @@ type App struct {
 	compositionService     services.CompositionService
 	bulkPromptService      *services.BulkPromptServiceImpl
 	promptService          services.PromptService
-	promptGeneratorService services.PromptGeneratorService
-	slackService           services.SlackService
+	promptGeneratorService  services.PromptGeneratorService
+	promptConfiguratorState *promptConfiguratorState
+	slackService            services.SlackService
 	obsidianService        services.ObsidianService
 	linkService            services.LinkService
 	attachmentService      services.AttachmentService
