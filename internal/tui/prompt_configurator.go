@@ -64,7 +64,7 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		SetBackgroundColor(bgColor).
 		SetTextColor(colors.Text.Color()).
 		SetBorder(true).
-		SetTitle(" Editable prompt ").
+		SetTitle(" 📝 Editable prompt ").
 		SetTitleColor(colors.Title.Color())
 
 	// Refine input
@@ -140,13 +140,13 @@ func (a *App) closePromptConfigurator() {
 func promptConfiguratorTitle(pctx promptConfiguratorContext) string {
 	switch pctx.mode {
 	case "single":
-		return " Prompt Configurator (1 msg scoped) "
+		return " ✨ Prompt Configurator (1 msg scoped) "
 	case "bulk":
 		if pctx.categoryName != "" {
-			return fmt.Sprintf(" Prompt Configurator (%d msgs from %q) ", len(pctx.messageIDs), pctx.categoryName)
+			return fmt.Sprintf(" ✨ Prompt Configurator (%d msgs from %q) ", len(pctx.messageIDs), pctx.categoryName)
 		}
-		return fmt.Sprintf(" Prompt Configurator (%d msgs scoped) ", len(pctx.messageIDs))
+		return fmt.Sprintf(" ✨ Prompt Configurator (%d msgs scoped) ", len(pctx.messageIDs))
 	default:
-		return " Prompt Configurator (draft only) "
+		return " ✨ Prompt Configurator (draft only) "
 	}
 }
