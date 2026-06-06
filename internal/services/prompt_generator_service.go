@@ -63,12 +63,53 @@ func (s *PromptGeneratorServiceImpl) RefinePrompt(ctx context.Context, currentPr
 
 // GenerateFromIntentStream is the streaming version of GenerateFromIntent.
 func (s *PromptGeneratorServiceImpl) GenerateFromIntentStream(ctx context.Context, intent string, opts PromptGenerationOptions, onToken func(string)) (*GeneratedPrompt, error) {
-	return nil, fmt.Errorf("not implemented")
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+	if strings.TrimSpace(intent) == "" {
+		return nil, fmt.Errorf("intent cannot be empty")
+	}
+
+	start := time.Now()
+	metaPrompt := s.buildGenerationPrompt(intent, opts)
+
+	raw, err := s.aiService.ApplyCustomPromptStream(ctx, "", metaPrompt, nil, func(token string) {
+		if onToken != nil {
+			onToken(token)
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("LLM streaming generation failed: %w", err)
+	}
+
+	return s.parseGeneratedOutput(raw, time.Since(start)), nil
 }
 
 // RefinePromptStream is the streaming version of RefinePrompt.
 func (s *PromptGeneratorServiceImpl) RefinePromptStream(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions, onToken func(string)) (*GeneratedPrompt, error) {
-	return nil, fmt.Errorf("not implemented")
+	if strings.TrimSpace(currentPrompt) == "" {
+		return nil, fmt.Errorf("current prompt cannot be empty")
+	}
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+	if strings.TrimSpace(refinement) == "" {
+		return nil, fmt.Errorf("refinement instruction cannot be empty")
+	}
+
+	start := time.Now()
+	metaPrompt := s.buildRefinementPrompt(currentPrompt, refinement, opts)
+
+	raw, err := s.aiService.ApplyCustomPromptStream(ctx, "", metaPrompt, nil, func(token string) {
+		if onToken != nil {
+			onToken(token)
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("LLM streaming refinement failed: %w", err)
+	}
+
+	return s.parseGeneratedOutput(raw, time.Since(start)), nil
 }
 
 // buildGenerationPrompt constructs the meta-prompt sent to the LLM for intent-based generation.

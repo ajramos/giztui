@@ -210,3 +210,42 @@ func TestPromptGeneratorServiceImpl_RefinePrompt_EmptyCurrent(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
+
+// TestPromptGeneratorServiceImpl_GenerateFromIntentStream_Success verifies tokens are emitted.
+func TestPromptGeneratorServiceImpl_GenerateFromIntentStream_Success(t *testing.T) {
+	mockAI := &mockAIService{}
+
+	full := `Analyze {{body}}.
+
+__NAME__: simple
+__DESC__: simple prompt
+__MODE__: single`
+
+	mockAI.On("ApplyCustomPromptStream",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.Anything,
+		mock.AnythingOfType("func(string)"),
+	).Run(func(args mock.Arguments) {
+		// Invoke the streaming callback with chunks.
+		cb := args.Get(4).(func(string))
+		cb("Analyze ")
+		cb("{{body}}.\n\n")
+		cb("__NAME__: simple\n")
+		cb("__DESC__: simple prompt\n")
+		cb("__MODE__: single")
+	}).Return(full, nil)
+
+	service := NewPromptGeneratorService(mockAI)
+
+	var tokens []string
+	result, err := service.GenerateFromIntentStream(context.Background(), "describe", PromptGenerationOptions{}, func(t string) {
+		tokens = append(tokens, t)
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Greater(t, len(tokens), 0)
+	assert.Equal(t, "simple", result.SuggestedName)
+}
