@@ -500,7 +500,7 @@ func DefaultKeyBindings() KeyBindings {
 		// Prompt Configurator
 		PromptRegenerate: "ctrl+r",
 		SavePrompt:       "ctrl+s",
-		PromptApply:      "enter", // applied within the editable prompt box
+		PromptApply:      "ctrl+g", // Ctrl+G = go/apply, doesn't clash with EditableTextView newline
 		PromptTest:       "ctrl+t",
 
 		// Validation settings (default: enabled for safety)

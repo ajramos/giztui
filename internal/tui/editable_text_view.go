@@ -25,6 +25,7 @@ type EditableTextView struct {
 	// Editing capabilities
 	isEditable bool
 	changeFunc func(string)
+	keyHandler func(event *tcell.EventKey) *tcell.EventKey // called for unhandled keys
 
 	// Placeholder support
 	placeholder       string
@@ -161,7 +162,10 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 			return nil // CONSUME the event - critical for blocking global shortcuts
 		}
 
-		// For unhandled keys, pass them through
+		// For unhandled keys: give the registered key handler first crack, then bubble up.
+		if e.keyHandler != nil {
+			return e.keyHandler(event)
+		}
 		return event
 	})
 }
@@ -298,6 +302,13 @@ func (e *EditableTextView) SetChangedFunc(changed func(string)) {
 // SetEditable enables or disables editing mode
 func (e *EditableTextView) SetEditable(editable bool) {
 	e.isEditable = editable
+}
+
+// SetKeyHandler registers a callback that receives key events not consumed by
+// EditableTextView's own handler (e.g. Ctrl+G, Ctrl+R, Ctrl+S). Return nil
+// to consume the event or the original event to let it bubble further.
+func (e *EditableTextView) SetKeyHandler(handler func(event *tcell.EventKey) *tcell.EventKey) {
+	e.keyHandler = handler
 }
 
 // SetPlaceholder sets the placeholder text to show when empty
