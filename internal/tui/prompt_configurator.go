@@ -395,14 +395,14 @@ func (a *App) applyConfiguratorPrompt() {
 func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string, displayName string) {
 	a.closePromptConfigurator()
 
-	_, aiService, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-	if aiService == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "AI service not available")
+	_, aiService, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
+	if aiService == nil || repository == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "AI or repository service not available")
 		return
 	}
 
-	message, err := a.Client.GetMessageWithContent(messageID)
-	if err != nil {
+	message, err := repository.GetMessage(a.ctx, messageID)
+	if err != nil || message == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Failed to load message content")
 		return
 	}
