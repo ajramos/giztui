@@ -74,6 +74,21 @@ func (a *App) openBulkPromptPicker() {
 	reload := func(filter string) {
 		list.Clear()
 		visible = visible[:0]
+
+		// "Create new with AI" as the first entry in bulk mode.
+		messageIDs := make([]string, 0, len(a.selected))
+		for id := range a.selected {
+			messageIDs = append(messageIDs, id)
+		}
+		list.AddItem("✨ Create new with AI...", "Enter: open configurator", 0, func() {
+			pctx := promptConfiguratorContext{
+				mode:       "bulk",
+				messageIDs: messageIDs,
+			}
+			a.closeBulkPromptPicker()
+			a.openPromptConfigurator(pctx)
+		})
+
 		for _, item := range all {
 			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) &&
 				!strings.Contains(strings.ToLower(item.description), strings.ToLower(filter)) {
@@ -134,30 +149,18 @@ func (a *App) openBulkPromptPicker() {
 				}
 			}
 
-			// Only show bulk_analysis prompts for bulk operations
+			// Show all prompts for bulk operations.
 			for _, p := range prompts {
-				if p.Category == "bulk_analysis" {
-					all = append(all, promptItem{
-						id:          p.ID,
-						name:        p.Name,
-						description: p.Description,
-						category:    p.Category,
-					})
-					if a.logger != nil {
-						a.logger.Printf("bulk prompt picker: ADDED bulk_analysis prompt: '%s'", p.Name)
-					}
-				}
+				all = append(all, promptItem{
+					id:          p.ID,
+					name:        p.Name,
+					description: p.Description,
+					category:    p.Category,
+				})
 			}
 
 			if a.logger != nil {
-				bulkCount := 0
-				for _, p := range prompts {
-					if p.Category == "bulk_analysis" {
-						bulkCount++
-					}
-				}
-				a.logger.Printf("bulk prompt picker: loaded %d bulk_analysis prompts out of %d total", bulkCount, len(prompts))
-				a.logger.Printf("bulk prompt picker: final 'all' array has %d items", len(all))
+				a.logger.Printf("bulk prompt picker: loaded %d total prompts", len(all))
 			}
 
 			reload("")
