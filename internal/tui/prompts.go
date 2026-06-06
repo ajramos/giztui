@@ -76,6 +76,17 @@ func (a *App) openPromptPicker() {
 	reload := func(filter string) {
 		list.Clear()
 		visible = visible[:0]
+
+		// Always include "Create new with AI" as the first option (not subject to filter).
+		list.AddItem("✨ Create new with AI...", "Enter: open configurator", 0, func() {
+			pctx := promptConfiguratorContext{
+				mode:      "single",
+				messageID: messageID,
+			}
+			a.closePromptPicker()
+			a.openPromptConfigurator(pctx)
+		})
+
 		for _, item := range all {
 			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
 				continue
@@ -128,13 +139,9 @@ func (a *App) openPromptPicker() {
 			a.logger.Printf("openPromptPicker: loaded %d prompts", len(prompts))
 		}
 
-		// Convert to promptItem, excluding bulk_analysis prompts
+		// Convert to promptItem (all categories shown)
 		all = make([]promptItem, 0, len(prompts))
 		for _, p := range prompts {
-			// Skip bulk_analysis prompts for single message picker
-			if p.Category == "bulk_analysis" {
-				continue
-			}
 			all = append(all, promptItem{
 				id:          p.ID,
 				name:        p.Name,
