@@ -95,6 +95,21 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		SetFieldBackgroundColor(bgColor).
 		SetFieldTextColor(colors.Text.Color())
 	state.refineInput.SetBackgroundColor(bgColor)
+	state.refineInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.closePromptConfigurator()
+			return
+		}
+		if key == tcell.KeyEnter {
+			refinement := state.refineInput.GetText()
+			if refinement == "" {
+				return
+			}
+			// Use whatever is currently in the editable box as the source.
+			current := state.promptArea.GetText()
+			go a.refineConfiguratorPrompt(current, refinement)
+		}
+	})
 
 	// Status line
 	state.statusLine = tview.NewTextView().
@@ -232,6 +247,94 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 	})
 
 	a.GetErrorHandler().ShowSuccess(a.ctx, "Prompt generated. Edit or refine before applying.")
+}
+
+// refineConfiguratorPrompt invokes the LLM streaming to refine the current prompt.
+func (a *App) refineConfiguratorPrompt(currentPrompt string, refinement string) {
+	state := a.promptConfiguratorState
+	if state == nil {
+		return
+	}
+
+	gen := a.GetPromptGeneratorService()
+	if gen == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt generator service not available")
+		return
+	}
+
+	a.GetErrorHandler().ShowProgress(a.ctx, "Refining prompt...")
+	defer a.GetErrorHandler().ClearProgress() // I5: clear progress in ALL exit paths
+
+	// Show loading while preserving the previous prompt as fallback if cancelled.
+	previous := currentPrompt
+	a.QueueUpdateDraw(func() {
+		if state.promptArea != nil {
+			state.promptArea.SetText("Refining...")
+		}
+	})
+
+	ctx, cancel := context.WithCancel(a.ctx)
+	// C1: register cancel BOTH at state level (used by closePromptConfigurator)
+	// AND at app level (used by the global ESC handler in keys.go).
+	state.streamingCancel = cancel
+	a.streamingCancel = cancel
+	defer func() {
+		cancel()
+		state.streamingCancel = nil
+		a.streamingCancel = nil
+	}()
+
+	var accumulator string
+
+	result, err := gen.RefinePromptStream(ctx, currentPrompt, refinement, services.PromptGenerationOptions{
+		TargetMode: state.ctx.mode,
+	}, func(token string) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		accumulator += token
+		// Direct UI update — CLAUDE.md prohibits QueueUpdateDraw inside streaming callbacks.
+		// I1: use captured `state` (not a.promptConfiguratorState) to avoid writing
+		// into a different panel instance if the user closed/reopened mid-stream.
+		if ctx.Err() == nil && state.promptArea != nil {
+			state.promptArea.SetText(accumulator)
+		}
+	})
+
+	if err != nil {
+		// Restore previous prompt on cancellation or failure.
+		// I1: captured state.
+		a.QueueUpdateDraw(func() {
+			if state.promptArea != nil {
+				state.promptArea.SetText(previous)
+			}
+		})
+		if ctx.Err() == context.Canceled {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Refinement canceled")
+			return
+		}
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to refine prompt: %v", err))
+		return
+	}
+
+	// Final update with the parsed result.
+	// I1: use captured `state`.
+	a.QueueUpdateDraw(func() {
+		state.currentPrompt = result.PromptText
+		state.suggestedName = result.SuggestedName
+		state.suggestedDesc = result.SuggestedDesc
+		state.detectedMode = result.DetectedMode
+		if state.promptArea != nil {
+			state.promptArea.SetText(result.PromptText)
+		}
+		if state.refineInput != nil {
+			state.refineInput.SetText("")
+		}
+	})
+
+	a.GetErrorHandler().ShowSuccess(a.ctx, "Prompt refined.")
 }
 
 // promptConfiguratorTitle returns the panel title appropriate for the context.
