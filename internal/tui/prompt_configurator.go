@@ -171,21 +171,24 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 	}
 
 	a.GetErrorHandler().ShowProgress(a.ctx, "Generating prompt...")
+	defer a.GetErrorHandler().ClearProgress() // I5: clear progress in ALL exit paths
 
 	// Clear and show loading
 	a.QueueUpdateDraw(func() {
-		if a.promptConfiguratorState != nil && a.promptConfiguratorState.promptArea != nil {
-			a.promptConfiguratorState.promptArea.SetText("Generating...")
+		if state.promptArea != nil {
+			state.promptArea.SetText("Generating...")
 		}
 	})
 
 	ctx, cancel := context.WithCancel(a.ctx)
+	// C1: register cancel BOTH at state level (used by closePromptConfigurator)
+	// AND at app level (used by the global ESC handler in keys.go).
 	state.streamingCancel = cancel
+	a.streamingCancel = cancel
 	defer func() {
 		cancel()
-		if a.promptConfiguratorState != nil {
-			a.promptConfiguratorState.streamingCancel = nil
-		}
+		state.streamingCancel = nil
+		a.streamingCancel = nil
 	}()
 
 	var accumulator string
@@ -200,8 +203,10 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 		}
 		accumulator += token
 		// Direct UI update — CLAUDE.md prohibits QueueUpdateDraw inside streaming callbacks.
-		if a.promptConfiguratorState != nil && a.promptConfiguratorState.promptArea != nil && ctx.Err() == nil {
-			a.promptConfiguratorState.promptArea.SetText(accumulator)
+		// I1: use captured `state` (not a.promptConfiguratorState) to avoid writing
+		// into a different panel instance if the user closed/reopened mid-stream.
+		if ctx.Err() == nil && state.promptArea != nil {
+			state.promptArea.SetText(accumulator)
 		}
 	})
 
@@ -214,20 +219,18 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 		return
 	}
 
-	// Final update with the parsed PromptText (cleaner than the raw accumulator).
+	// Final update with the parsed PromptText.
+	// I1: use captured `state` here too.
 	a.QueueUpdateDraw(func() {
-		if a.promptConfiguratorState != nil {
-			a.promptConfiguratorState.currentPrompt = result.PromptText
-			a.promptConfiguratorState.suggestedName = result.SuggestedName
-			a.promptConfiguratorState.suggestedDesc = result.SuggestedDesc
-			a.promptConfiguratorState.detectedMode = result.DetectedMode
-			if a.promptConfiguratorState.promptArea != nil {
-				a.promptConfiguratorState.promptArea.SetText(result.PromptText)
-			}
+		state.currentPrompt = result.PromptText
+		state.suggestedName = result.SuggestedName
+		state.suggestedDesc = result.SuggestedDesc
+		state.detectedMode = result.DetectedMode
+		if state.promptArea != nil {
+			state.promptArea.SetText(result.PromptText)
 		}
 	})
 
-	a.GetErrorHandler().ClearProgress()
 	a.GetErrorHandler().ShowSuccess(a.ctx, "Prompt generated. Edit or refine before applying.")
 }
 
