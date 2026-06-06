@@ -27,20 +27,21 @@ import (
 type ActivePicker string
 
 const (
-	PickerNone          ActivePicker = ""
-	PickerLabels        ActivePicker = "labels"
-	PickerDrafts        ActivePicker = "drafts"
-	PickerObsidian      ActivePicker = "obsidian"
-	PickerAttachments   ActivePicker = "attachments"
-	PickerLinks         ActivePicker = "links"
-	PickerPrompts       ActivePicker = "prompts"
-	PickerBulkPrompts   ActivePicker = "bulk_prompts"
-	PickerSavedQueries  ActivePicker = "saved_queries"
-	PickerThemes        ActivePicker = "themes"
-	PickerAI            ActivePicker = "ai_labels"
-	PickerContentSearch ActivePicker = "content_search"
-	PickerRSVP          ActivePicker = "rsvp"
-	PickerAccounts      ActivePicker = "accounts"
+	PickerNone               ActivePicker = ""
+	PickerLabels             ActivePicker = "labels"
+	PickerDrafts             ActivePicker = "drafts"
+	PickerObsidian           ActivePicker = "obsidian"
+	PickerAttachments        ActivePicker = "attachments"
+	PickerLinks              ActivePicker = "links"
+	PickerPrompts            ActivePicker = "prompts"
+	PickerBulkPrompts        ActivePicker = "bulk_prompts"
+	PickerPromptConfigurator ActivePicker = "prompt_configurator"
+	PickerSavedQueries       ActivePicker = "saved_queries"
+	PickerThemes             ActivePicker = "themes"
+	PickerAI                 ActivePicker = "ai_labels"
+	PickerContentSearch      ActivePicker = "content_search"
+	PickerRSVP               ActivePicker = "rsvp"
+	PickerAccounts           ActivePicker = "accounts"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -3203,6 +3204,11 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 // isLabelsPickerActive returns true if the Labels picker is currently active
 func (a *App) isLabelsPickerActive() bool {
 	return a.currentActivePicker == PickerLabels
+}
+
+// isPromptConfiguratorActive returns true if the Prompt Configurator picker is currently active.
+func (a *App) isPromptConfiguratorActive() bool {
+	return a.currentActivePicker == PickerPromptConfigurator
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging
