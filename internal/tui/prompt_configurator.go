@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ajramos/giztui/internal/services"
+	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
 
@@ -40,6 +42,12 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		a.logger.Printf("openPromptConfigurator: mode=%s msgCount=%d", pctx.mode, len(pctx.messageIDs))
 	}
 
+	// Defensive: if a previous configurator is still mounted, close it first
+	// to avoid leaking its streaming context.
+	if a.promptConfiguratorState != nil {
+		a.closePromptConfigurator()
+	}
+
 	if a.GetPromptGeneratorService() == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt generator service not available - check LLM configuration")
 		return
@@ -57,6 +65,19 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		SetFieldBackgroundColor(bgColor).
 		SetFieldTextColor(colors.Text.Color())
 	state.intentInput.SetBackgroundColor(bgColor)
+	state.intentInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			a.closePromptConfigurator()
+			return
+		}
+		if key == tcell.KeyEnter {
+			intent := state.intentInput.GetText()
+			if intent == "" {
+				return
+			}
+			go a.generateConfiguratorPrompt(intent)
+		}
+	})
 
 	// Editable prompt area — uses the project's EditableTextView (derailed/tview has no TextArea).
 	state.promptArea = NewEditableTextView(a).
@@ -107,8 +128,8 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 	}
 
 	a.SetFocus(state.intentInput)
-	a.currentFocus = "prompts"
-	a.updateFocusIndicators("prompts")
+	a.currentFocus = "prompt_configurator"
+	a.updateFocusIndicators("prompt_configurator")
 	a.setActivePicker(PickerPromptConfigurator)
 }
 
@@ -134,6 +155,80 @@ func (a *App) closePromptConfigurator() {
 	}
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
+}
+
+// generateConfiguratorPrompt invokes the LLM streaming to fill the editable prompt area.
+func (a *App) generateConfiguratorPrompt(intent string) {
+	state := a.promptConfiguratorState
+	if state == nil {
+		return
+	}
+
+	gen := a.GetPromptGeneratorService()
+	if gen == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt generator service not available")
+		return
+	}
+
+	a.GetErrorHandler().ShowProgress(a.ctx, "Generating prompt...")
+
+	// Clear and show loading
+	a.QueueUpdateDraw(func() {
+		if a.promptConfiguratorState != nil && a.promptConfiguratorState.promptArea != nil {
+			a.promptConfiguratorState.promptArea.SetText("Generating...")
+		}
+	})
+
+	ctx, cancel := context.WithCancel(a.ctx)
+	state.streamingCancel = cancel
+	defer func() {
+		cancel()
+		if a.promptConfiguratorState != nil {
+			a.promptConfiguratorState.streamingCancel = nil
+		}
+	}()
+
+	var accumulator string
+
+	result, err := gen.GenerateFromIntentStream(ctx, intent, services.PromptGenerationOptions{
+		TargetMode: state.ctx.mode,
+	}, func(token string) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		accumulator += token
+		// Direct UI update — CLAUDE.md prohibits QueueUpdateDraw inside streaming callbacks.
+		if a.promptConfiguratorState != nil && a.promptConfiguratorState.promptArea != nil && ctx.Err() == nil {
+			a.promptConfiguratorState.promptArea.SetText(accumulator)
+		}
+	})
+
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Prompt generation canceled")
+			return
+		}
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to generate prompt: %v", err))
+		return
+	}
+
+	// Final update with the parsed PromptText (cleaner than the raw accumulator).
+	a.QueueUpdateDraw(func() {
+		if a.promptConfiguratorState != nil {
+			a.promptConfiguratorState.currentPrompt = result.PromptText
+			a.promptConfiguratorState.suggestedName = result.SuggestedName
+			a.promptConfiguratorState.suggestedDesc = result.SuggestedDesc
+			a.promptConfiguratorState.detectedMode = result.DetectedMode
+			if a.promptConfiguratorState.promptArea != nil {
+				a.promptConfiguratorState.promptArea.SetText(result.PromptText)
+			}
+		}
+	})
+
+	a.GetErrorHandler().ClearProgress()
+	a.GetErrorHandler().ShowSuccess(a.ctx, "Prompt generated. Edit or refine before applying.")
 }
 
 // promptConfiguratorTitle returns the panel title appropriate for the context.
