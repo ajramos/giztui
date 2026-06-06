@@ -83,6 +83,7 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 	// Editable prompt area — uses the project's EditableTextView (derailed/tview has no TextArea).
 	state.promptArea = NewEditableTextView(a).
 		SetPlaceholder("Generated prompt will appear here. Edit freely.").
+		SetPlaceholderTextColor(colors.Border.Color()).
 		SetBackgroundColor(bgColor).
 		SetTextColor(colors.Text.Color()).
 		SetBorder(true).
