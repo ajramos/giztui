@@ -29,8 +29,8 @@ func (s *PromptGeneratorServiceImpl) GenerateFromIntent(ctx context.Context, int
 	start := time.Now()
 	metaPrompt := s.buildGenerationPrompt(intent, opts)
 
-	// Pass an empty content because the meta-prompt is self-contained.
-	raw, err := s.aiService.ApplyCustomPrompt(ctx, "", metaPrompt, nil)
+	// AIService validates content non-empty but only uses prompt; pass intent as content.
+	raw, err := s.aiService.ApplyCustomPrompt(ctx, intent, metaPrompt, nil)
 	if err != nil {
 		return nil, fmt.Errorf("LLM generation failed: %w", err)
 	}
@@ -57,7 +57,8 @@ func (s *PromptGeneratorServiceImpl) RefinePrompt(ctx context.Context, currentPr
 	start := time.Now()
 	metaPrompt := s.buildRefinementPrompt(currentPrompt, refinement, opts)
 
-	raw, err := s.aiService.ApplyCustomPrompt(ctx, "", metaPrompt, nil)
+	// AIService validates content non-empty but only uses prompt; pass currentPrompt as content.
+	raw, err := s.aiService.ApplyCustomPrompt(ctx, currentPrompt, metaPrompt, nil)
 	if err != nil {
 		return nil, fmt.Errorf("LLM refinement failed: %w", err)
 	}
@@ -77,7 +78,8 @@ func (s *PromptGeneratorServiceImpl) GenerateFromIntentStream(ctx context.Contex
 	start := time.Now()
 	metaPrompt := s.buildGenerationPrompt(intent, opts)
 
-	raw, err := s.aiService.ApplyCustomPromptStream(ctx, "", metaPrompt, nil, func(token string) {
+	// AIService validates content non-empty but only uses prompt; pass intent as content.
+	raw, err := s.aiService.ApplyCustomPromptStream(ctx, intent, metaPrompt, nil, func(token string) {
 		if onToken != nil {
 			onToken(token)
 		}
@@ -107,7 +109,8 @@ func (s *PromptGeneratorServiceImpl) RefinePromptStream(ctx context.Context, cur
 	start := time.Now()
 	metaPrompt := s.buildRefinementPrompt(currentPrompt, refinement, opts)
 
-	raw, err := s.aiService.ApplyCustomPromptStream(ctx, "", metaPrompt, nil, func(token string) {
+	// AIService validates content non-empty but only uses prompt; pass currentPrompt as content.
+	raw, err := s.aiService.ApplyCustomPromptStream(ctx, currentPrompt, metaPrompt, nil, func(token string) {
 		if onToken != nil {
 			onToken(token)
 		}

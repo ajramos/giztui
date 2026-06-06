@@ -249,6 +249,12 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 	})
 
 	if err != nil {
+		// Reset the editable area so the stale "Generating..." text doesn't linger.
+		a.QueueUpdateDraw(func() {
+			if state.promptArea != nil {
+				state.promptArea.SetText("")
+			}
+		})
 		if ctx.Err() == context.Canceled {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Prompt generation canceled")
 			return
