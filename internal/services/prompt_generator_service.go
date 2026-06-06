@@ -39,6 +39,10 @@ func (s *PromptGeneratorServiceImpl) GenerateFromIntent(ctx context.Context, int
 }
 
 // RefinePrompt applies a refinement to an existing prompt.
+//
+// Validation order is load-bearing: empty currentPrompt is checked first,
+// then nil aiService, then empty refinement. This matches RefinePromptStream
+// and is exercised by the EmptyCurrent and EmptyRefinement tests.
 func (s *PromptGeneratorServiceImpl) RefinePrompt(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions) (*GeneratedPrompt, error) {
 	if strings.TrimSpace(currentPrompt) == "" {
 		return nil, fmt.Errorf("current prompt cannot be empty")
@@ -86,6 +90,9 @@ func (s *PromptGeneratorServiceImpl) GenerateFromIntentStream(ctx context.Contex
 }
 
 // RefinePromptStream is the streaming version of RefinePrompt.
+//
+// Validation order is load-bearing: empty currentPrompt is checked first,
+// then nil aiService, then empty refinement. Mirrors RefinePrompt.
 func (s *PromptGeneratorServiceImpl) RefinePromptStream(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions, onToken func(string)) (*GeneratedPrompt, error) {
 	if strings.TrimSpace(currentPrompt) == "" {
 		return nil, fmt.Errorf("current prompt cannot be empty")

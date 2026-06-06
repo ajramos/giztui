@@ -246,6 +246,81 @@ __MODE__: single`
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Greater(t, len(tokens), 0)
+	assert.Equal(t, []string{
+		"Analyze ",
+		"{{body}}.\n\n",
+		"__NAME__: simple\n",
+		"__DESC__: simple prompt\n",
+		"__MODE__: single",
+	}, tokens)
 	assert.Equal(t, "simple", result.SuggestedName)
+}
+
+// TestPromptGeneratorServiceImpl_RefinePromptStream_Success verifies streaming refinement.
+func TestPromptGeneratorServiceImpl_RefinePromptStream_Success(t *testing.T) {
+	mockAI := &mockAIService{}
+
+	refined := `Analyze {{body}}. Output JSON.
+
+__NAME__: refined-json
+__DESC__: refined to JSON output
+__MODE__: single`
+
+	mockAI.On("ApplyCustomPromptStream",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.Anything,
+		mock.AnythingOfType("func(string)"),
+	).Run(func(args mock.Arguments) {
+		cb := args.Get(4).(func(string))
+		cb("Analyze ")
+		cb("{{body}}. Output JSON.\n\n")
+		cb("__NAME__: refined-json\n")
+		cb("__DESC__: refined to JSON output\n")
+		cb("__MODE__: single")
+	}).Return(refined, nil)
+
+	service := NewPromptGeneratorService(mockAI)
+
+	var tokens []string
+	result, err := service.RefinePromptStream(
+		context.Background(),
+		"Analyze {{body}}.",
+		"output as JSON",
+		PromptGenerationOptions{},
+		func(t string) { tokens = append(tokens, t) },
+	)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, []string{
+		"Analyze ",
+		"{{body}}. Output JSON.\n\n",
+		"__NAME__: refined-json\n",
+		"__DESC__: refined to JSON output\n",
+		"__MODE__: single",
+	}, tokens)
+	assert.Equal(t, "refined-json", result.SuggestedName)
+	assert.Contains(t, result.PromptText, "JSON")
+}
+
+// TestPromptGeneratorServiceImpl_RefinePrompt_EmptyRefinement verifies the third guard fires
+// when current is non-empty, aiService is present, but refinement is empty.
+func TestPromptGeneratorServiceImpl_RefinePrompt_EmptyRefinement(t *testing.T) {
+	mockAI := &mockAIService{}
+	// Note: NO mockAI.On(...) — the call must never reach the AI service.
+
+	service := NewPromptGeneratorService(mockAI)
+
+	result, err := service.RefinePrompt(
+		context.Background(),
+		"Analyze {{body}}.",  // non-empty current
+		"",                    // empty refinement -- this is the guard under test
+		PromptGenerationOptions{},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "refinement")
 }
