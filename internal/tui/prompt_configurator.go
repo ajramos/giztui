@@ -99,7 +99,7 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 			}
 			return nil
 		case tcell.KeyCtrlS:
-			go a.savePromptFromConfigurator()
+			a.savePromptFromConfigurator()
 			return nil
 		case tcell.KeyCtrlG:
 			go a.applyConfiguratorPrompt()
@@ -643,6 +643,19 @@ func (a *App) savePromptFromConfigurator() {
 	helpText.SetBackgroundColor(bgColor)
 	form.AddItem(helpText, 1, 0, false)
 
+	// restoreConfigurator swaps the save-dialog back out and re-mounts the configurator panel.
+	restoreConfigurator := func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = state.container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(state.promptArea)
+	}
+
 	doSave := func() {
 		name := strings.TrimSpace(nameInput.GetText())
 		desc := strings.TrimSpace(descInput.GetText())
@@ -655,16 +668,7 @@ func (a *App) savePromptFromConfigurator() {
 			cat = "custom"
 		}
 
-		// Restore the configurator panel.
-		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			if a.labelsView != nil {
-				split.RemoveItem(a.labelsView)
-			}
-			a.labelsView = state.container
-			split.AddItem(a.labelsView, 0, 1, true)
-			split.ResizeItem(a.labelsView, 0, 1)
-		}
-		a.SetFocus(state.promptArea)
+		restoreConfigurator()
 
 		go func() {
 			id, err := promptService.CreatePrompt(a.ctx, name, desc, current, cat)
@@ -677,16 +681,7 @@ func (a *App) savePromptFromConfigurator() {
 	}
 
 	doCancel := func() {
-		// Restore the configurator panel without saving.
-		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			if a.labelsView != nil {
-				split.RemoveItem(a.labelsView)
-			}
-			a.labelsView = state.container
-			split.AddItem(a.labelsView, 0, 1, true)
-			split.ResizeItem(a.labelsView, 0, 1)
-		}
-		a.SetFocus(state.promptArea)
+		restoreConfigurator()
 	}
 
 	nameInput.SetDoneFunc(func(key tcell.Key) {
