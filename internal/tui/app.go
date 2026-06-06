@@ -181,31 +181,31 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	accountService     services.AccountService
-	databaseManager    services.DatabaseManager
-	emailService       services.EmailService
-	aiService          services.AIService
-	labelService       services.LabelService
-	cacheService       services.CacheService
-	repository         services.MessageRepository
-	compositionService services.CompositionService
+	accountService         services.AccountService
+	databaseManager        services.DatabaseManager
+	emailService           services.EmailService
+	aiService              services.AIService
+	labelService           services.LabelService
+	cacheService           services.CacheService
+	repository             services.MessageRepository
+	compositionService     services.CompositionService
 	bulkPromptService      *services.BulkPromptServiceImpl
 	promptService          services.PromptService
 	promptGeneratorService services.PromptGeneratorService
-	slackService       services.SlackService
-	obsidianService    services.ObsidianService
-	linkService        services.LinkService
-	attachmentService  services.AttachmentService
-	gmailWebService    services.GmailWebService
-	contentNavService  services.ContentNavigationService
-	themeService       services.ThemeService
-	displayService     services.DisplayService
-	queryService       services.QueryService
-	threadService      services.ThreadService
-	undoService        services.UndoService
-	preloaderService   services.MessagePreloader
-	currentTheme       *config.ColorsConfig // Current theme cache for helper functions
-	errorHandler       *ErrorHandler
+	slackService           services.SlackService
+	obsidianService        services.ObsidianService
+	linkService            services.LinkService
+	attachmentService      services.AttachmentService
+	gmailWebService        services.GmailWebService
+	contentNavService      services.ContentNavigationService
+	themeService           services.ThemeService
+	displayService         services.DisplayService
+	queryService           services.QueryService
+	threadService          services.ThreadService
+	undoService            services.UndoService
+	preloaderService       services.MessagePreloader
+	currentTheme           *config.ColorsConfig // Current theme cache for helper functions
+	errorHandler           *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
