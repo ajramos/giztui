@@ -1235,6 +1235,15 @@ func (a *App) bindKeys() {
 				return nil
 			}
 
+			// If prompt configurator is active, close it
+			if a.isPromptConfiguratorActive() {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing prompt configurator")
+				}
+				a.closePromptConfigurator()
+				return nil
+			}
+
 			// If a search is active and overlay is not focused, delegate to exitSearch
 			if a.searchMode != "" {
 				if a.logger != nil {
