@@ -19,7 +19,23 @@ func NewPromptGeneratorService(aiService AIService) *PromptGeneratorServiceImpl 
 
 // GenerateFromIntent produces a prompt template from natural-language intent.
 func (s *PromptGeneratorServiceImpl) GenerateFromIntent(ctx context.Context, intent string, opts PromptGenerationOptions) (*GeneratedPrompt, error) {
-	return nil, fmt.Errorf("not implemented")
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+	if strings.TrimSpace(intent) == "" {
+		return nil, fmt.Errorf("intent cannot be empty")
+	}
+
+	start := time.Now()
+	metaPrompt := s.buildGenerationPrompt(intent, opts)
+
+	// Pass an empty content because the meta-prompt is self-contained.
+	raw, err := s.aiService.ApplyCustomPrompt(ctx, "", metaPrompt, nil)
+	if err != nil {
+		return nil, fmt.Errorf("LLM generation failed: %w", err)
+	}
+
+	return s.parseGeneratedOutput(raw, time.Since(start)), nil
 }
 
 // RefinePrompt applies a refinement to an existing prompt.

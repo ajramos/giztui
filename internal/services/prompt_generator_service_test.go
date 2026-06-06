@@ -5,7 +5,57 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+// mockAIService is a local testify mock for the AIService interface.
+type mockAIService struct {
+	mock.Mock
+}
+
+func (m *mockAIService) GenerateSummary(ctx context.Context, content string, options SummaryOptions) (*SummaryResult, error) {
+	args := m.Called(ctx, content, options)
+	if v := args.Get(0); v != nil {
+		return v.(*SummaryResult), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockAIService) GenerateSummaryStream(ctx context.Context, content string, options SummaryOptions, onToken func(string)) (*SummaryResult, error) {
+	args := m.Called(ctx, content, options, onToken)
+	if v := args.Get(0); v != nil {
+		return v.(*SummaryResult), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockAIService) GenerateReply(ctx context.Context, content string, options ReplyOptions) (string, error) {
+	args := m.Called(ctx, content, options)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockAIService) SuggestLabels(ctx context.Context, content string, availableLabels []string) ([]string, error) {
+	args := m.Called(ctx, content, availableLabels)
+	if v := args.Get(0); v != nil {
+		return v.([]string), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockAIService) FormatContent(ctx context.Context, content string, options FormatOptions) (string, error) {
+	args := m.Called(ctx, content, options)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockAIService) ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error) {
+	args := m.Called(ctx, content, prompt, variables)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockAIService) ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error) {
+	args := m.Called(ctx, content, prompt, variables, onToken)
+	return args.String(0), args.Error(1)
+}
 
 // TestNewPromptGeneratorService verifies the constructor stores the AIService.
 func TestNewPromptGeneratorService(t *testing.T) {
@@ -74,4 +124,51 @@ func TestPromptGeneratorServiceImpl_buildGenerationPrompt_IncludesIntent(t *test
 	assert.Contains(t, prompt, "__NAME__")
 	assert.Contains(t, prompt, "{{body}}")
 	assert.Contains(t, prompt, "{{messages}}")
+}
+
+// TestPromptGeneratorServiceImpl_GenerateFromIntent_Success verifies a happy path with a mocked AI.
+func TestPromptGeneratorServiceImpl_GenerateFromIntent_Success(t *testing.T) {
+	mockAI := &mockAIService{}
+
+	canned := `Analyze the email {{body}} and identify urgency.
+
+__NAME__: triage-urgency
+__DESC__: classify by urgency
+__MODE__: single`
+
+	mockAI.On("ApplyCustomPrompt",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.Anything,
+	).Return(canned, nil)
+
+	service := NewPromptGeneratorService(mockAI)
+
+	result, err := service.GenerateFromIntent(context.Background(), "classify by urgency", PromptGenerationOptions{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "triage-urgency", result.SuggestedName)
+	assert.Equal(t, "single", result.DetectedMode)
+	assert.Contains(t, result.PromptText, "{{body}}")
+}
+
+// TestPromptGeneratorServiceImpl_GenerateFromIntent_AIServiceFailure verifies error surfacing.
+func TestPromptGeneratorServiceImpl_GenerateFromIntent_AIServiceFailure(t *testing.T) {
+	mockAI := &mockAIService{}
+
+	mockAI.On("ApplyCustomPrompt",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.Anything,
+	).Return("", assert.AnError)
+
+	service := NewPromptGeneratorService(mockAI)
+
+	result, err := service.GenerateFromIntent(context.Background(), "anything", PromptGenerationOptions{})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
