@@ -99,8 +99,7 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 			}
 			return nil
 		case tcell.KeyCtrlS:
-			// Task 14 will implement savePromptFromConfigurator
-			a.GetErrorHandler().ShowInfo(a.ctx, "Save: not yet implemented (Task 14)")
+			go a.savePromptFromConfigurator()
 			return nil
 		case tcell.KeyCtrlG:
 			go a.applyConfiguratorPrompt()
@@ -583,4 +582,149 @@ func promptConfiguratorTitle(pctx promptConfiguratorContext) string {
 	default:
 		return " ✨ Prompt Configurator (draft only) "
 	}
+}
+
+// savePromptFromConfigurator opens a modal dialog to save the current prompt to the library.
+func (a *App) savePromptFromConfigurator() {
+	state := a.promptConfiguratorState
+	if state == nil {
+		return
+	}
+
+	current := state.promptArea.GetText()
+	if current == "" {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Cannot save empty prompt")
+		return
+	}
+
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+
+	colors := a.GetComponentColors("prompts")
+	bgColor := colors.Background.Color()
+
+	nameInput := tview.NewInputField().
+		SetLabel("Name: ").
+		SetText(state.suggestedName).
+		SetFieldWidth(40).
+		SetLabelColor(colors.Title.Color()).
+		SetFieldBackgroundColor(bgColor).
+		SetFieldTextColor(colors.Text.Color())
+	descInput := tview.NewInputField().
+		SetLabel("Desc: ").
+		SetText(state.suggestedDesc).
+		SetFieldWidth(60).
+		SetLabelColor(colors.Title.Color()).
+		SetFieldBackgroundColor(bgColor).
+		SetFieldTextColor(colors.Text.Color())
+	catInput := tview.NewInputField().
+		SetLabel("Cat:  ").
+		SetText("custom").
+		SetFieldWidth(20).
+		SetLabelColor(colors.Title.Color()).
+		SetFieldBackgroundColor(bgColor).
+		SetFieldTextColor(colors.Text.Color())
+
+	form := tview.NewFlex().SetDirection(tview.FlexRow)
+	form.SetBackgroundColor(bgColor)
+	form.SetBorder(true)
+	form.SetTitle(" 💾 Save Prompt ")
+	form.SetTitleColor(colors.Title.Color())
+	form.AddItem(nameInput, 1, 0, true)
+	form.AddItem(descInput, 1, 0, false)
+	form.AddItem(catInput, 1, 0, false)
+
+	helpText := tview.NewTextView().
+		SetText(" Enter on Cat: save  Tab: next field  Esc: cancel ").
+		SetTextColor(colors.Text.Color())
+	helpText.SetBackgroundColor(bgColor)
+	form.AddItem(helpText, 1, 0, false)
+
+	doSave := func() {
+		name := strings.TrimSpace(nameInput.GetText())
+		desc := strings.TrimSpace(descInput.GetText())
+		cat := strings.TrimSpace(catInput.GetText())
+		if name == "" {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Name cannot be empty")
+			return
+		}
+		if cat == "" {
+			cat = "custom"
+		}
+
+		// Restore the configurator panel.
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = state.container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(state.promptArea)
+
+		go func() {
+			id, err := promptService.CreatePrompt(a.ctx, name, desc, current, cat)
+			if err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save prompt: %v", err))
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Saved prompt '%s' (id=%d)", name, id))
+		}()
+	}
+
+	doCancel := func() {
+		// Restore the configurator panel without saving.
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = state.container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(state.promptArea)
+	}
+
+	nameInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			doCancel()
+			return
+		}
+		if key == tcell.KeyEnter || key == tcell.KeyTab {
+			a.SetFocus(descInput)
+		}
+	})
+	descInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			doCancel()
+			return
+		}
+		if key == tcell.KeyEnter || key == tcell.KeyTab {
+			a.SetFocus(catInput)
+		}
+	})
+	catInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			doCancel()
+			return
+		}
+		if key == tcell.KeyEnter {
+			doSave()
+		}
+	})
+
+	// Replace the configurator panel with the save dialog temporarily.
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = form
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.SetFocus(nameInput)
 }
