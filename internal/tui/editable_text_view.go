@@ -109,7 +109,11 @@ func (e *EditableTextView) setupTextViewInputHandler() {
 			// Allow ESC to bubble up (composition cancel)
 			return event
 		case tcell.KeyTab, tcell.KeyBacktab:
-			// Allow Tab navigation to bubble up
+			// Route Tab/Backtab through keyHandler so callers can implement focus cycling.
+			// If no keyHandler is registered, bubble up to tview's default handling.
+			if e.keyHandler != nil {
+				return e.keyHandler(event)
+			}
 			return event
 		case tcell.KeyCtrlJ:
 			// Allow Ctrl+J to bubble up (send composition)

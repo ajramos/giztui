@@ -108,6 +108,12 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		case tcell.KeyEscape:
 			a.closePromptConfigurator()
 			return nil
+		case tcell.KeyTab:
+			a.SetFocus(state.refineInput)
+			return nil
+		case tcell.KeyBacktab:
+			a.SetFocus(state.intentInput)
+			return nil
 		}
 		return event
 	})
@@ -133,6 +139,31 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 			current := state.promptArea.GetText()
 			go a.refineConfiguratorPrompt(current, refinement)
 		}
+	})
+
+	// Tab / Shift+Tab cycle focus across the three widgets:
+	// intentInput -> promptArea -> refineInput -> intentInput
+	state.intentInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyTab:
+			a.SetFocus(state.promptArea)
+			return nil
+		case tcell.KeyBacktab:
+			a.SetFocus(state.refineInput)
+			return nil
+		}
+		return event
+	})
+	state.refineInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyTab:
+			a.SetFocus(state.intentInput)
+			return nil
+		case tcell.KeyBacktab:
+			a.SetFocus(state.promptArea)
+			return nil
+		}
+		return event
 	})
 
 	// Status line
@@ -272,6 +303,7 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 		state.detectedMode = result.DetectedMode
 		if state.promptArea != nil {
 			state.promptArea.SetText(result.PromptText)
+			a.SetFocus(state.promptArea)
 		}
 	})
 
@@ -357,6 +389,7 @@ func (a *App) refineConfiguratorPrompt(currentPrompt string, refinement string) 
 		state.detectedMode = result.DetectedMode
 		if state.promptArea != nil {
 			state.promptArea.SetText(result.PromptText)
+			a.SetFocus(state.promptArea)
 		}
 		if state.refineInput != nil {
 			state.refineInput.SetText("")
