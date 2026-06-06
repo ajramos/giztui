@@ -189,8 +189,9 @@ type App struct {
 	cacheService       services.CacheService
 	repository         services.MessageRepository
 	compositionService services.CompositionService
-	bulkPromptService  *services.BulkPromptServiceImpl
-	promptService      services.PromptService
+	bulkPromptService      *services.BulkPromptServiceImpl
+	promptService          services.PromptService
+	promptGeneratorService services.PromptGeneratorService
 	slackService       services.SlackService
 	obsidianService    services.ObsidianService
 	linkService        services.LinkService
@@ -513,6 +514,14 @@ func (a *App) reinitializeServices() {
 		}
 	}
 
+	// Initialize prompt generator if AI is available and generator is nil
+	if a.aiService != nil && a.promptGeneratorService == nil {
+		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+
 	// Now update prompt service with bulk service
 	if a.promptService != nil && a.bulkPromptService != nil {
 		// We need to update the prompt service to include the bulk service
@@ -726,6 +735,14 @@ func (a *App) initServices() {
 		if a.logger != nil {
 			a.logger.Printf("initServices: bulk prompt service NOT initialized - repository=%v aiService=%v cacheService=%v",
 				a.repository != nil, a.aiService != nil, a.cacheService != nil)
+		}
+	}
+
+	// Prompt generator (NL → prompt template via LLM)
+	if a.aiService != nil {
+		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
 		}
 	}
 
@@ -1387,6 +1404,11 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 // GetServices returns the service instances for business logic operations
 func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.CompositionService, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.compositionService, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+}
+
+// GetPromptGeneratorService returns the prompt generator service or nil if not initialized.
+func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
+	return a.promptGeneratorService
 }
 
 // GetAccountService returns the account service instance
