@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ajramos/giztui/internal/services"
+	tcell "github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
@@ -114,9 +115,9 @@ func renderActionPlanText(plan *services.ActionPlan, selected int) string {
 	}
 	var b strings.Builder
 	for i, c := range plan.Categories {
-		marker := " "
+		marker := "  "
 		if i == selected {
-			marker = "[::b]▸[::-]"
+			marker = "▸ "
 		}
 		key := actionKeyHintForAction(c.Action)
 		keyHint := ""
@@ -144,4 +145,175 @@ func renderActionPlanText(plan *services.ActionPlan, selected int) string {
 		}
 	}
 	return b.String()
+}
+
+// openActionPlanPanel opens the Action Plan panel using the built-in default prompt.
+func (a *App) openActionPlanPanel() {
+	a.openActionPlanWithText("")
+}
+
+// openActionPlanWithText opens the panel; customPromptText=="" uses the default prompt.
+func (a *App) openActionPlanWithText(customPromptText string) {
+	if a.GetInboxAnalyzerService() == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Inbox analyzer not available — check LLM configuration")
+		return
+	}
+	if a.actionPlanState != nil {
+		a.closeActionPlanPanel()
+	}
+
+	// Collect unread messages already in memory (fast mode, zero Gmail calls).
+	a.mu.RLock()
+	metas := make([]*gmailapi.Message, len(a.messagesMeta))
+	copy(metas, a.messagesMeta)
+	a.mu.RUnlock()
+	messages := buildAnalyzerMessages(metas)
+	if len(messages) == 0 {
+		a.GetErrorHandler().ShowInfo(a.ctx, "No unread messages in current view. Try :search is:unread or change filter.")
+		return
+	}
+
+	colors := a.GetComponentColors("ai")
+	bg := colors.Background.Color()
+
+	state := &actionPlanState{analyzing: true, selectedCategory: 0, customPromptText: customPromptText}
+
+	state.header = tview.NewTextView().SetDynamicColors(true)
+	state.header.SetBackgroundColor(bg)
+	state.header.SetTextColor(colors.Text.Color())
+
+	state.body = tview.NewTextView().SetDynamicColors(false).SetScrollable(true)
+	state.body.SetBackgroundColor(bg)
+	state.body.SetTextColor(colors.Text.Color())
+	state.body.SetText("Analyzing…")
+
+	state.footer = tview.NewTextView().SetDynamicColors(true)
+	state.footer.SetBackgroundColor(bg)
+	state.footer.SetTextColor(colors.Text.Color())
+	state.footer.SetText("[↑↓] navigate  [Enter] action  [:] palette  [p] configurator  [Esc] close")
+
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.SetBackgroundColor(bg)
+	state.container.SetBorder(true)
+	state.container.SetTitle("📋 Action Plan")
+	state.container.SetTitleColor(colors.Title.Color())
+	state.container.SetBorderColor(colors.Border.Color())
+	state.container.AddItem(state.header, 2, 0, false)
+	state.container.AddItem(state.body, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+
+	a.actionPlanState = state
+
+	// Mount in the shared right-panel slot (same pattern as openPromptConfigurator).
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = state.container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+
+	state.body.SetInputCapture(a.actionPlanInputCapture(state))
+	a.SetFocus(state.body)
+	a.currentFocus = "action_plan"
+	a.updateFocusIndicators("action_plan")
+	a.setActivePicker(PickerActionPlan)
+
+	// Launch analysis in the background. ctx cancel is registered both on the state
+	// (for closeActionPlanPanel) and on the App (for the global ESC handler in keys.go).
+	ctx, cancel := context.WithCancel(a.ctx)
+	state.streamingCancel = cancel
+	a.streamingCancel = cancel
+
+	batchSize := a.Config.InboxAnalyzer.BatchSize
+	maxBatches := a.Config.InboxAnalyzer.MaxBatches
+
+	go func() {
+		defer func() {
+			cancel()
+			state.streamingCancel = nil
+			a.streamingCancel = nil
+		}()
+
+		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText},
+			func(p *services.ActionPlan) {
+				// Progress callback runs in this goroutine. Direct UI update (NEVER
+				// QueueUpdateDraw inside streaming/progress callbacks — CLAUDE.md). Guard
+				// with the captured state to avoid writing into a reopened panel.
+				if ctx.Err() != nil || a.actionPlanState != state {
+					return
+				}
+				state.plan = p
+				a.renderActionPlanPanel(state)
+			})
+
+		if ctx.Err() != nil || a.actionPlanState != state {
+			return // cancelled or panel replaced; nothing to report
+		}
+		state.analyzing = false
+		if err != nil {
+			if state.plan == nil {
+				a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
+				return
+			}
+			a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
+		}
+		a.renderActionPlanPanel(state)
+		if state.plan != nil && state.plan.Degraded {
+			a.GetErrorHandler().ShowInfo(a.ctx, "ℹ Plan rendered with limited actions — some LLM output was malformed.")
+		}
+	}()
+}
+
+// renderActionPlanPanel refreshes header + body from the current state. Safe to call
+// from the analysis goroutine (direct SetText, no QueueUpdateDraw).
+func (a *App) renderActionPlanPanel(state *actionPlanState) {
+	if state == nil || state.plan == nil {
+		return
+	}
+	p := state.plan
+	status := "analyzing"
+	if !state.analyzing {
+		status = "done"
+	}
+	state.header.SetText(fmt.Sprintf("[::b]%d msgs • batch %d/%d • %s[::-]", p.TotalAnalyzed, p.BatchesDone, p.BatchesTotal, status))
+	if state.selectedCategory >= len(p.Categories) {
+		state.selectedCategory = len(p.Categories) - 1
+	}
+	if state.selectedCategory < 0 {
+		state.selectedCategory = 0
+	}
+	state.body.SetText(renderActionPlanText(p, state.selectedCategory))
+}
+
+// closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
+// QueueUpdateDraw (CLAUDE.md ESC rule).
+func (a *App) closeActionPlanPanel() {
+	if a.actionPlanState != nil && a.actionPlanState.streamingCancel != nil {
+		a.actionPlanState.streamingCancel()
+		a.actionPlanState.streamingCancel = nil
+	}
+	a.streamingCancel = nil
+
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.ResizeItem(a.labelsView, 0, 0)
+		}
+	}
+
+	a.setActivePicker(PickerNone)
+	a.actionPlanState = nil
+
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		a.SetFocus(list)
+	}
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+}
+
+// actionPlanInputCapture is implemented in Task 14.
+func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKey) *tcell.EventKey {
+	return nil
 }

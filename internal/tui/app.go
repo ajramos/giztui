@@ -195,6 +195,7 @@ type App struct {
 	promptGeneratorService  services.PromptGeneratorService
 	inboxAnalyzerService    services.InboxAnalyzerService
 	promptConfiguratorState *promptConfiguratorState
+	actionPlanState         *actionPlanState
 	slackService            services.SlackService
 	obsidianService         services.ObsidianService
 	linkService             services.LinkService
