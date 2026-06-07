@@ -150,7 +150,7 @@ func (s *SlackServiceImpl) formatSummaryMessage(ctx context.Context, headers map
 			promptWithVars = strings.ReplaceAll(promptWithVars, placeholder, value)
 		}
 
-		summary, err := s.aiService.ApplyCustomPrompt(ctx, body, promptWithVars, variables)
+		summary, err := s.aiService.ApplyCustomPrompt(ctx, promptWithVars, variables)
 		if err != nil {
 			// Fallback to first few lines if AI fails
 			summary = s.truncateText(body, 200)

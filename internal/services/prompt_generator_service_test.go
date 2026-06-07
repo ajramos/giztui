@@ -47,13 +47,13 @@ func (m *mockAIService) FormatContent(ctx context.Context, content string, optio
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockAIService) ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error) {
-	args := m.Called(ctx, content, prompt, variables)
+func (m *mockAIService) ApplyCustomPrompt(ctx context.Context, prompt string, variables map[string]string) (string, error) {
+	args := m.Called(ctx, prompt, variables)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockAIService) ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error) {
-	args := m.Called(ctx, content, prompt, variables, onToken)
+func (m *mockAIService) ApplyCustomPromptStream(ctx context.Context, prompt string, variables map[string]string, onToken func(string)) (string, error) {
+	args := m.Called(ctx, prompt, variables, onToken)
 	return args.String(0), args.Error(1)
 }
 
@@ -139,7 +139,6 @@ __MODE__: single`
 	mockAI.On("ApplyCustomPrompt",
 		mock.Anything,
 		mock.AnythingOfType("string"),
-		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return(canned, nil)
 
@@ -160,7 +159,6 @@ func TestPromptGeneratorServiceImpl_GenerateFromIntent_AIServiceFailure(t *testi
 
 	mockAI.On("ApplyCustomPrompt",
 		mock.Anything,
-		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return("", assert.AnError)
@@ -185,7 +183,6 @@ __MODE__: single`
 
 	mockAI.On("ApplyCustomPrompt",
 		mock.Anything,
-		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.Anything,
 	).Return(refined, nil)
@@ -224,12 +221,11 @@ __MODE__: single`
 	mockAI.On("ApplyCustomPromptStream",
 		mock.Anything,
 		mock.AnythingOfType("string"),
-		mock.AnythingOfType("string"),
 		mock.Anything,
 		mock.AnythingOfType("func(string)"),
 	).Run(func(args mock.Arguments) {
 		// Invoke the streaming callback with chunks.
-		cb := args.Get(4).(func(string))
+		cb := args.Get(3).(func(string))
 		cb("Analyze ")
 		cb("{{body}}.\n\n")
 		cb("__NAME__: simple\n")
@@ -269,11 +265,10 @@ __MODE__: single`
 	mockAI.On("ApplyCustomPromptStream",
 		mock.Anything,
 		mock.AnythingOfType("string"),
-		mock.AnythingOfType("string"),
 		mock.Anything,
 		mock.AnythingOfType("func(string)"),
 	).Run(func(args mock.Arguments) {
-		cb := args.Get(4).(func(string))
+		cb := args.Get(3).(func(string))
 		cb("Analyze ")
 		cb("{{body}}. Output JSON.\n\n")
 		cb("__NAME__: refined-json\n")

@@ -77,7 +77,7 @@ func (s *PromptServiceImpl) ApplyPrompt(ctx context.Context, messageContent stri
 	}
 
 	// Apply the prompt using the AI service
-	result, err := s.aiService.ApplyCustomPrompt(ctx, messageContent, prompt, variables)
+	result, err := s.aiService.ApplyCustomPrompt(ctx, prompt, variables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply prompt: %w", err)
 	}
@@ -123,7 +123,7 @@ func (s *PromptServiceImpl) ApplyPromptStream(ctx context.Context, messageConten
 	}
 
 	// Apply the prompt using the AI service with streaming
-	result, err := s.aiService.ApplyCustomPromptStream(ctx, messageContent, prompt, variables, onToken)
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, prompt, variables, onToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply prompt: %w", err)
 	}

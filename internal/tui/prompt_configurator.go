@@ -506,7 +506,7 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 	}()
 
 	var b strings.Builder
-	result, err := aiService.ApplyCustomPromptStream(ctx, content, finalPrompt, nil, func(token string) {
+	result, err := aiService.ApplyCustomPromptStream(ctx, finalPrompt, nil, func(token string) {
 		select {
 		case <-ctx.Done():
 			return
@@ -550,9 +550,9 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 // The configurator is already closed by applyConfiguratorPrompt (UI thread) before this
 // runs in a goroutine; this function only touches the AI panel via QueueUpdateDraw/streaming.
 func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string, displayName string) {
-	_, aiService, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
-	if aiService == nil || repository == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "AI or repository service not available")
+	bulkSvc := a.GetBulkPromptService()
+	if bulkSvc == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Bulk prompt service not available")
 		return
 	}
 
@@ -560,33 +560,6 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 	if name == "" {
 		name = "Custom Bulk Prompt"
 	}
-
-	// Build combined content from messages using PlainText (repository.GetMessage calls GetMessageWithContent).
-	var combined strings.Builder
-	combined.WriteString("---START EMAILS---\n")
-	for i, id := range messageIDs {
-		msg, err := repository.GetMessage(a.ctx, id)
-		if err != nil || msg == nil {
-			continue
-		}
-		fmt.Fprintf(&combined, "---START EMAIL %d---\n", i+1)
-		content := msg.PlainText
-		if len([]rune(content)) > 2000 {
-			content = string([]rune(content)[:2000])
-		}
-		if content != "" {
-			combined.WriteString(content)
-		} else if msg.Snippet != "" {
-			combined.WriteString(msg.Snippet)
-		}
-		fmt.Fprintf(&combined, "\n---END EMAIL %d---\n", i+1)
-	}
-	combined.WriteString("---END OF EMAILS---\n")
-
-	// Substitute placeholders.
-	finalPrompt := promptText
-	finalPrompt = strings.ReplaceAll(finalPrompt, "{{messages}}", combined.String())
-	finalPrompt = strings.ReplaceAll(finalPrompt, "{{body}}", combined.String())
 
 	a.QueueUpdateDraw(func() {
 		if !a.aiSummaryVisible {
@@ -613,7 +586,9 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 	}()
 
 	var b strings.Builder
-	result, err := aiService.ApplyCustomPromptStream(ctx, combined.String(), finalPrompt, nil, func(token string) {
+	// Route through BulkPromptService so ephemeral applies use the same content
+	// extraction + cleaning + combination as saved-prompt bulk applies (issue #44).
+	result, err := bulkSvc.ApplyEphemeralBulkPromptStream(ctx, messageIDs, promptText, nil, func(token string) {
 		select {
 		case <-ctx.Done():
 			return

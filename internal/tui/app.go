@@ -1412,6 +1412,11 @@ func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 	return a.promptGeneratorService
 }
 
+// GetBulkPromptService returns the bulk prompt service or nil if not initialized.
+func (a *App) GetBulkPromptService() *services.BulkPromptServiceImpl {
+	return a.bulkPromptService
+}
+
 // GetAccountService returns the account service instance
 func (a *App) GetAccountService() services.AccountService {
 	return a.accountService

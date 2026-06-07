@@ -102,7 +102,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	// Build the final prompt with the actual template and content
 	finalPrompt := s.buildBulkPrompt(promptTemplate.PromptText, combinedContent, variables)
 
-	result, err := s.aiService.ApplyCustomPrompt(ctx, combinedContent, finalPrompt, variables)
+	result, err := s.aiService.ApplyCustomPrompt(ctx, finalPrompt, variables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply bulk prompt: %w", err)
 	}
@@ -196,7 +196,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 		// Access logger through app context if possible - for now use simple logging
 		_ = s.promptService // Acknowledge service is available but not used here
 	}
-	result, err := s.aiService.ApplyCustomPromptStream(ctx, combinedContent, finalPrompt, variables, func(token string) {
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, finalPrompt, variables, func(token string) {
 		// Call the original callback
 		if onToken != nil {
 			onToken(token)
@@ -222,6 +222,49 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 		FromCache:    false,
 		CreatedAt:    time.Now(),
 	}, nil
+}
+
+// ApplyEphemeralBulkPromptStream applies an unsaved prompt (raw text, no DB template) to
+// multiple messages with streaming. It reuses the same content extraction, cleaning, and
+// combination logic as ApplyBulkPromptStream so that ephemeral applies (from the prompt
+// configurator) produce identical LLM input to saved-prompt applies. No caching is done
+// because the prompt has no stable ID. Returns the final result text.
+func (s *BulkPromptServiceImpl) ApplyEphemeralBulkPromptStream(ctx context.Context, messageIDs []string, promptText string, variables map[string]string, onToken func(string)) (string, error) {
+	if s.aiService == nil || s.repository == nil {
+		return "", fmt.Errorf("bulk prompt service not fully initialized")
+	}
+
+	messageContents := make([]string, 0, len(messageIDs))
+	successfulIDs := make([]string, 0, len(messageIDs))
+	for _, messageID := range messageIDs {
+		message, err := s.repository.GetMessage(ctx, messageID)
+		if err != nil {
+			continue // Skip failed messages, don't fail the entire operation
+		}
+		content := s.extractMessageContent(message)
+		if content != "" {
+			messageContents = append(messageContents, content)
+			successfulIDs = append(successfulIDs, messageID)
+		}
+	}
+
+	if len(messageContents) == 0 {
+		return "", fmt.Errorf("no valid messages found")
+	}
+
+	// Same combine (with cleanEmailContent) + placeholder substitution as the saved path.
+	combinedContent := s.combineMessageContents(messageContents, successfulIDs)
+	finalPrompt := s.buildBulkPrompt(promptText, combinedContent, variables)
+
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, finalPrompt, variables, func(token string) {
+		if onToken != nil {
+			onToken(token)
+		}
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to apply bulk prompt with streaming: %w", err)
+	}
+	return result, nil
 }
 
 // extractMessageContent extracts the main content from a Gmail message
@@ -341,14 +384,19 @@ func (s *BulkPromptServiceImpl) cleanEmailContent(content string) string {
 
 // buildBulkPrompt builds a prompt specifically for bulk analysis
 func (s *BulkPromptServiceImpl) buildBulkPrompt(promptText string, combinedContent string, variables map[string]string) string {
-	// Use the actual prompt template from the database
 	prompt := promptText
 
-	// Always replace {{messages}} with the combined content
-	prompt = strings.ReplaceAll(prompt, "{{messages}}", combinedContent)
-
-	// Also replace {{body}} for backward compatibility (in case some prompts still use it)
-	prompt = strings.ReplaceAll(prompt, "{{body}}", combinedContent)
+	// If the prompt declares a content placeholder, substitute the combined emails into it.
+	// {{body}} is accepted as a backward-compatible alias for {{messages}}.
+	hasPlaceholder := strings.Contains(prompt, "{{messages}}") || strings.Contains(prompt, "{{body}}")
+	if hasPlaceholder {
+		prompt = strings.ReplaceAll(prompt, "{{messages}}", combinedContent)
+		prompt = strings.ReplaceAll(prompt, "{{body}}", combinedContent)
+	} else {
+		// No placeholder (e.g. a hand-typed or LLM-generated prompt that forgot it):
+		// append the emails so the model still receives them instead of asking for content.
+		prompt = prompt + "\n\n" + combinedContent
+	}
 
 	// Replace any other variables in the prompt
 	for key, value := range variables {

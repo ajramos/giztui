@@ -66,8 +66,8 @@ type AIService interface {
 	GenerateReply(ctx context.Context, content string, options ReplyOptions) (string, error)
 	SuggestLabels(ctx context.Context, content string, availableLabels []string) ([]string, error)
 	FormatContent(ctx context.Context, content string, options FormatOptions) (string, error)
-	ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error)
-	ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error)
+	ApplyCustomPrompt(ctx context.Context, prompt string, variables map[string]string) (string, error)
+	ApplyCustomPromptStream(ctx context.Context, prompt string, variables map[string]string, onToken func(string)) (string, error)
 }
 
 // CacheService handles caching operations

@@ -289,13 +289,12 @@ func (s *AIServiceImpl) FormatContent(ctx context.Context, content string, optio
 	return formatted, nil
 }
 
-func (s *AIServiceImpl) ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error) {
+// ApplyCustomPrompt runs a fully-formed, self-contained prompt against the provider.
+// The prompt must already have any email content/variables substituted in by the caller
+// (see prompt_service, bulk_prompt_service, prompt_generator_service).
+func (s *AIServiceImpl) ApplyCustomPrompt(ctx context.Context, prompt string, variables map[string]string) (string, error) {
 	if s.provider == nil {
 		return "", fmt.Errorf("AI provider not available")
-	}
-
-	if strings.TrimSpace(content) == "" {
-		return "", fmt.Errorf("content cannot be empty")
 	}
 
 	if strings.TrimSpace(prompt) == "" {
@@ -311,13 +310,10 @@ func (s *AIServiceImpl) ApplyCustomPrompt(ctx context.Context, content string, p
 	return result, nil
 }
 
-// ApplyCustomPromptStream applies a custom prompt with streaming support
-func (s *AIServiceImpl) ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error) {
+// ApplyCustomPromptStream applies a self-contained custom prompt with streaming support.
+func (s *AIServiceImpl) ApplyCustomPromptStream(ctx context.Context, prompt string, variables map[string]string, onToken func(string)) (string, error) {
 	if s.provider == nil {
 		return "", fmt.Errorf("AI provider not available")
-	}
-	if strings.TrimSpace(content) == "" {
-		return "", fmt.Errorf("content cannot be empty")
 	}
 	if strings.TrimSpace(prompt) == "" {
 		return "", fmt.Errorf("prompt cannot be empty")
@@ -344,5 +340,5 @@ func (s *AIServiceImpl) ApplyCustomPromptStream(ctx context.Context, content str
 	}
 
 	// Fallback to non-streaming if not supported
-	return s.ApplyCustomPrompt(ctx, content, prompt, variables)
+	return s.ApplyCustomPrompt(ctx, prompt, variables)
 }
