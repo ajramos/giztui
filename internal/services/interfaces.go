@@ -440,6 +440,11 @@ type DisplayService interface {
 	ToggleHeaderVisibility() bool
 	SetHeaderVisibility(visible bool)
 	IsHeaderVisible() bool
+
+	// Markdown rendering mode
+	ToggleMarkdownRendering() bool
+	SetMarkdownRendering(enabled bool)
+	IsMarkdownRendering() bool
 }
 
 // QueryService handles saved query operations
