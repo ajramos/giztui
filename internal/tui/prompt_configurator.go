@@ -508,6 +508,16 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 		}
 	})
 	if err != nil {
+		// Replace the stale "Applying prompt..." text so the panel doesn't hang.
+		msg := "❌ Apply failed — see status bar."
+		if ctx.Err() == context.Canceled {
+			msg = "Apply canceled."
+		}
+		a.QueueUpdateDraw(func() {
+			if a.aiSummaryView != nil {
+				a.aiSummaryView.SetText(msg)
+			}
+		})
 		if ctx.Err() == context.Canceled {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Apply canceled")
 			return
@@ -605,6 +615,16 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 		}
 	})
 	if err != nil {
+		// Replace the stale "Applying bulk prompt..." text so the panel doesn't hang.
+		msg := "❌ Bulk apply failed — see status bar."
+		if ctx.Err() == context.Canceled {
+			msg = "Bulk apply canceled."
+		}
+		a.QueueUpdateDraw(func() {
+			if a.aiSummaryView != nil {
+				a.aiSummaryView.SetText(msg)
+			}
+		})
 		if ctx.Err() == context.Canceled {
 			a.GetErrorHandler().ShowInfo(a.ctx, "Bulk apply canceled")
 			return
