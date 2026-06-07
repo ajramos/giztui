@@ -954,3 +954,50 @@ type GeneratedPrompt struct {
 	// Duration is the elapsed time of the LLM call.
 	Duration time.Duration
 }
+
+// AnalyzerMessage is the lightweight, already-in-memory representation of an inbox
+// message handed to the InboxAnalyzerService. The analyzer makes NO Gmail calls — all
+// fields come from metadata the UI already loaded via MessagePreloader (fast mode).
+type AnalyzerMessage struct {
+	ID      string
+	Subject string
+	From    string
+	Snippet string
+}
+
+// ActionPlanCategory is one actionable group the LLM produced.
+type ActionPlanCategory struct {
+	Name        string   // e.g. "Newsletters"
+	Priority    string   // "high" | "medium" | "low"
+	Description string   // one-line LLM rationale
+	Action      string   // "archive" | "mark_read" | "trash" | "label" | "none"
+	Label       string   // label name, set only when Action == "label"
+	MessageIDs  []string // concrete, resolved message IDs in this category
+}
+
+// ActionPlan is the merged result across all batches. It is mutated in place as
+// batches complete and handed to the progress callback after each batch.
+type ActionPlan struct {
+	TotalAnalyzed int                  // messages actually sent to the LLM
+	BatchesTotal  int                  // total batches planned
+	BatchesDone   int                  // batches completed so far
+	Categories    []ActionPlanCategory // merged categories
+	ReadManually  []AnalyzerMessage    // messages the LLM declined to categorize
+	Degraded      bool                 // true if any batch fell back to best-effort (no actions)
+}
+
+// InboxAnalyzerOptions controls a single Analyze invocation.
+type InboxAnalyzerOptions struct {
+	BatchSize        int    // messages per batch (default 50)
+	MaxBatches       int    // safety cap on total batches (default 10)
+	CustomPromptText string // empty → use the built-in default analyzer prompt
+}
+
+// InboxAnalyzerService groups unread messages into an actionable plan via the LLM.
+type InboxAnalyzerService interface {
+	// Analyze splits messages into batches, streams each through the AIService, parses
+	// categories, resolves them to concrete message IDs, and merges across batches.
+	// onProgress (may be nil) is called with the in-progress plan after each batch.
+	// Honors context cancellation between and during batches.
+	Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error)
+}
