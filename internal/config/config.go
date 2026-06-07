@@ -299,6 +299,9 @@ type KeyBindings struct {
 	PromptApply      string `json:"prompt_apply"`      // Apply the active prompt to scoped context
 	PromptTest       string `json:"prompt_test"`       // Test the prompt on one message (stretch)
 
+	// Inbox Action Plan
+	ActionPlan string `json:"action_plan"` // Open the AI inbox Action Plan panel
+
 	// Validation settings
 	ValidateShortcuts bool `json:"validate_shortcuts"` // Enable shortcut conflict validation (default: true)
 }
@@ -502,6 +505,9 @@ func DefaultKeyBindings() KeyBindings {
 		SavePrompt:       "ctrl+s",
 		PromptApply:      "ctrl+g", // Ctrl+G = go/apply, doesn't clash with EditableTextView newline
 		PromptTest:       "ctrl+t",
+
+		// Inbox Action Plan
+		ActionPlan: "P", // capital P (A is taken by Attachments)
 
 		// Validation settings (default: enabled for safety)
 		ValidateShortcuts: true, // Enable shortcut conflict validation by default
