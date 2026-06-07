@@ -124,7 +124,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	}
 
 	width := a.getListWidth()
-	useLLM := a.llmTouchUpEnabled
+	useLLM := a.llmTouchUpEnabled.Load()
 
 	// Optional LLM touch-up function
 	var touch render.TouchUpFunc
@@ -262,7 +262,7 @@ func (a *App) toggleLLMTouchUp() {
 		return
 	}
 	a.SetCurrentMessageID(mid)
-	a.llmTouchUpEnabled = !a.llmTouchUpEnabled
+	a.llmTouchUpEnabled.Store(!a.llmTouchUpEnabled.Load())
 	rerender := func(msg *gmail.Message) {
 		rendered, _ := a.renderMessageContent(msg)
 		a.QueueUpdateDraw(func() {
@@ -273,7 +273,7 @@ func (a *App) toggleLLMTouchUp() {
 				text.ScrollToBeginning()
 			}
 		})
-		if a.llmTouchUpEnabled {
+		if a.llmTouchUpEnabled.Load() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "✅ LLM touch-up enabled")
 		} else {
 			a.GetErrorHandler().ShowInfo(a.ctx, "✅ Deterministic formatting only")

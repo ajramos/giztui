@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	calclient "github.com/ajramos/giztui/internal/calendar"
@@ -180,7 +181,7 @@ type App struct {
 	messagesLoading  bool // true when messages are being loaded
 
 	// Formatting toggles
-	llmTouchUpEnabled bool
+	llmTouchUpEnabled atomic.Bool
 
 	// Message display options
 	showMessageNumbers bool
@@ -370,7 +371,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		logFile:            nil,
 		selected:           make(map[string]bool),
 		bulkMode:           false,
-		llmTouchUpEnabled:  false,
 		messagesLoading:    false,
 		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}

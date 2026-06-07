@@ -2195,7 +2195,7 @@ func (a *App) showMessage(id string) {
 		if a.debug {
 			a.logger.Printf("showMessage: id=%s", id)
 		}
-		if a.llmTouchUpEnabled {
+		if a.llmTouchUpEnabled.Load() {
 			a.setStatusPersistent("🧠 Optimizing format with LLM…")
 		} else {
 			a.setStatusPersistent("🧾 Loading message…")
@@ -2493,10 +2493,10 @@ func (a *App) showMessageWithoutFocus(id string) {
 		}
 
 		// In preview (selection change), do not run LLM touch-up to avoid many calls
-		prev := a.llmTouchUpEnabled
-		a.llmTouchUpEnabled = false
+		prev := a.llmTouchUpEnabled.Load()
+		a.llmTouchUpEnabled.Store(false)
 		rendered, isANSI := a.renderMessageContent(message)
-		a.llmTouchUpEnabled = prev
+		a.llmTouchUpEnabled.Store(prev)
 
 		// Detect calendar invite (same as showMessage) and cache result
 		if inv, ok := a.detectCalendarInvite(message.Message); ok {

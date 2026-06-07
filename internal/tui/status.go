@@ -85,7 +85,7 @@ func (a *App) statusBaseline() string {
 	if a != nil && strings.TrimSpace(a.welcomeEmail) != "" {
 		base += " | " + a.welcomeEmail
 	}
-	if a != nil && a.llmTouchUpEnabled {
+	if a != nil && a.llmTouchUpEnabled.Load() {
 		base += " | 🧠"
 	} else {
 		base += " | 🧾"
