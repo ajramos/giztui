@@ -154,6 +154,7 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | `j` | Regenerate summary | Force regenerate AI summary (ignore cache) |
 | `p` | Prompt picker | Open AI prompt library (single or bulk mode) |
 | `g` | Generate reply | Experimental AI reply generation |
+| `P` | Action Plan | AI-triage unread inbox into actionable groups |
 | `Esc` | Cancel AI | Cancel any active streaming AI operation |
 
 ## ✨ Prompt Configurator
@@ -192,6 +193,49 @@ The configurator has three areas cycled via `Tab` / `Shift+Tab`:
 - **Unsaved prompts** are discarded when you close the configurator with `Esc` — use `Ctrl+S` before closing to keep them.
 - **LLM model quality matters**: prompt generation and refinement quality depends on the model configured for your LLM backend. A small model (e.g. 1.5B parameters) may produce poor or incomplete prompts — a 7B+ model is recommended for best results.
 - The in-panel keys (`Ctrl+G`, `Ctrl+R`, `Ctrl+S`) are currently hardcoded. Config keys (`keys.prompt_apply`, `keys.prompt_regenerate`, `keys.save_prompt`) exist in `config.json` but are reserved for future configurable binding support.
+
+## 📋 Inbox Action Plan
+
+The Action Plan scans the **unread** messages already loaded in the current view, asks the LLM to group them into a few actionable categories, and presents a panel where you dispatch each group with one keystroke. It runs in **fast mode** — it uses only the subject, sender and snippet already in memory, so it makes **no extra Gmail API calls**. Open it with `P` (capital P) or `:action-plan`.
+
+Messages are processed in batches (default 50); categories stream into the panel as each batch completes. Press `Esc` at any time to cancel — categories rendered so far stay visible until you close.
+
+### In-Panel Keys
+| Key | Action | Description |
+|-----|--------|-------------|
+| `↑` / `↓` | Navigate | Move the `▸` marker between categories |
+| `Enter` | Suggested action | Run the selected category's recommended action |
+| `a` | Archive | Archive the selected category's messages (when its action is archive) |
+| `t` | Mark read | Mark the selected category's messages as read |
+| `d` | Trash | Trash the selected category's messages |
+| `l` | Label | Apply the category's suggested label (created if needed) |
+| `:` | Command palette | Open the command palette scoped to the category's messages (virtual bulk selection) |
+| `p` | Configurator | Open the bulk prompt picker scoped to the category |
+| `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
+
+The action keys (`a`/`t`/`d`/`l`) reuse your configured archive/read/trash/label bindings. Each category shows its suggested action's key in brackets, e.g. `[a] Archive 18 Newsletters`. A "Read manually" bucket lists messages the LLM declined to categorize.
+
+### Commands
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `:action-plan` | `:plan`, `:ap` | Open the Action Plan with the built-in analyzer prompt |
+| `:action-plan with-prompt <name-or-id>` | — | Open the Action Plan using one of your saved prompts as the analyzer (falls back to the default if not found) |
+
+### Configuration
+Settings live under `inbox_analyzer` in `~/.config/giztui/config.json`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `batch_size` | 50 | Messages sent to the LLM per batch |
+| `max_batches` | 10 | Safety cap on the number of batches per run |
+| `default_prompt_id` | `""` | Reserved for a future default override prompt |
+
+The shortcut is configurable via `keys.action_plan` (default `"P"`).
+
+### Notes
+- **Local / small models:** the default `batch_size` of 50 is tuned for capable cloud models. A small local model (e.g. a 7B Ollama model) can struggle to follow the JSON schema across 50 messages and may return no categories. If you see "no actionable groups", lower `inbox_analyzer.batch_size` to **15–20**.
+- **Model quality matters:** category quality depends entirely on the configured LLM. The code degrades gracefully (malformed output → one repair retry → messages fall back to "Read manually"), but a stronger model yields better groupings.
+- The panel only considers **unread** messages currently loaded in the list. If there are none, you'll get an info message instead of an empty panel.
 
 ## ⚙️ Customizing Shortcuts
 
