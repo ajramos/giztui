@@ -71,3 +71,4 @@ config.local.json
 
 # Github inspiration references
 reference/
+.claude/scheduled_tasks.lock
