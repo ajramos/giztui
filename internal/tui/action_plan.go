@@ -313,7 +313,207 @@ func (a *App) closeActionPlanPanel() {
 	a.updateFocusIndicators("list")
 }
 
-// actionPlanInputCapture is implemented in Task 14.
+// actionPlanInputCapture handles all key input while the Action Plan panel is focused.
 func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKey) *tcell.EventKey {
-	return nil
+	return func(ev *tcell.EventKey) *tcell.EventKey {
+		// ESC: synchronous close (no QueueUpdateDraw).
+		if ev.Key() == tcell.KeyEscape {
+			a.closeActionPlanPanel()
+			return nil
+		}
+
+		// Navigation works during and after analysis.
+		switch ev.Key() {
+		case tcell.KeyUp:
+			a.moveActionPlanSelection(state, -1)
+			return nil
+		case tcell.KeyDown:
+			a.moveActionPlanSelection(state, +1)
+			return nil
+		}
+
+		key := string(ev.Rune())
+
+		// Escape hatches (available any time).
+		if key == a.Keys.CommandMode { // ':'
+			a.actionPlanOpenPalette(state)
+			return nil
+		}
+		if key == a.Keys.Prompt { // 'p'
+			a.actionPlanOpenConfigurator(state)
+			return nil
+		}
+
+		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
+		if state.analyzing {
+			return nil
+		}
+		switch key {
+		case a.Keys.Archive:
+			a.executeActionPlanAction(state, "archive")
+			return nil
+		case a.Keys.ToggleRead:
+			a.executeActionPlanAction(state, "mark_read")
+			return nil
+		case a.Keys.Trash:
+			a.executeActionPlanAction(state, "trash")
+			return nil
+		case a.Keys.ManageLabels:
+			a.executeActionPlanAction(state, "label")
+			return nil
+		}
+		return ev
+	}
+}
+
+// moveActionPlanSelection moves the highlight and re-renders.
+func (a *App) moveActionPlanSelection(state *actionPlanState, delta int) {
+	if state.plan == nil || len(state.plan.Categories) == 0 {
+		return
+	}
+	state.selectedCategory += delta
+	if state.selectedCategory < 0 {
+		state.selectedCategory = 0
+	}
+	if state.selectedCategory >= len(state.plan.Categories) {
+		state.selectedCategory = len(state.plan.Categories) - 1
+	}
+	a.renderActionPlanPanel(state)
+}
+
+// currentActionPlanCategory returns the selected category or nil.
+func (a *App) currentActionPlanCategory(state *actionPlanState) *services.ActionPlanCategory {
+	if state.plan == nil || state.selectedCategory < 0 || state.selectedCategory >= len(state.plan.Categories) {
+		return nil
+	}
+	return &state.plan.Categories[state.selectedCategory]
+}
+
+// executeActionPlanAction runs a bulk action on the selected category's messages.
+func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
+	cat := a.currentActionPlanCategory(state)
+	if cat == nil {
+		return
+	}
+	ids := make([]string, len(cat.MessageIDs))
+	copy(ids, cat.MessageIDs)
+	catName := cat.Name
+	label := cat.Label
+
+	emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
+
+	go func() {
+		var err error
+		switch action {
+		case "archive":
+			err = emailService.BulkArchive(a.ctx, ids)
+		case "mark_read":
+			err = emailService.BulkMarkAsRead(a.ctx, ids)
+		case "trash":
+			err = emailService.BulkTrash(a.ctx, ids)
+		case "label":
+			if label == "" {
+				a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
+				return
+			}
+			err = a.applyActionPlanLabel(labelService, ids, label)
+		default:
+			return
+		}
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Action failed on %q: %v", catName, err))
+			return
+		}
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✓ %s applied to %d messages (%s)", actionVerbLabel(action), len(ids), catName))
+		a.removeActionPlanCategory(state, catName)
+	}()
+}
+
+// applyActionPlanLabel resolves a label name to an ID (creating it if needed) and applies
+// it to the messages in bulk.
+func (a *App) applyActionPlanLabel(labelService services.LabelService, ids []string, labelName string) error {
+	labelID, err := a.resolveOrCreateLabelID(labelService, labelName)
+	if err != nil {
+		return err
+	}
+	return labelService.BulkApplyLabel(a.ctx, ids, labelID)
+}
+
+// resolveOrCreateLabelID finds a label by name (case-insensitive) or creates it.
+func (a *App) resolveOrCreateLabelID(labelService services.LabelService, name string) (string, error) {
+	labels, err := labelService.ListLabels(a.ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, l := range labels {
+		if strings.EqualFold(l.Name, name) {
+			return l.Id, nil
+		}
+	}
+	created, err := labelService.CreateLabel(a.ctx, name)
+	if err != nil {
+		return "", err
+	}
+	return created.Id, nil
+}
+
+// removeActionPlanCategory drops a completed category and re-renders.
+func (a *App) removeActionPlanCategory(state *actionPlanState, name string) {
+	if state.plan == nil {
+		return
+	}
+	kept := state.plan.Categories[:0]
+	for _, c := range state.plan.Categories {
+		if c.Name != name {
+			kept = append(kept, c)
+		}
+	}
+	state.plan.Categories = kept
+	a.renderActionPlanPanel(state)
+}
+
+// actionPlanOpenPalette sets a virtual bulk selection over the category's messages and
+// opens the command palette (the ':' escape hatch).
+func (a *App) actionPlanOpenPalette(state *actionPlanState) {
+	cat := a.currentActionPlanCategory(state)
+	if cat == nil {
+		return
+	}
+	ids := make([]string, len(cat.MessageIDs))
+	copy(ids, cat.MessageIDs)
+	a.setVirtualBulkSelection(ids)
+	a.closeActionPlanPanel()
+	a.showCommandBar()
+}
+
+// actionPlanOpenConfigurator opens the bulk prompt picker scoped to the category (the
+// 'p' escape hatch).
+func (a *App) actionPlanOpenConfigurator(state *actionPlanState) {
+	cat := a.currentActionPlanCategory(state)
+	if cat == nil {
+		return
+	}
+	ids := make([]string, len(cat.MessageIDs))
+	copy(ids, cat.MessageIDs)
+	a.setVirtualBulkSelection(ids)
+	a.closeActionPlanPanel()
+	go a.openBulkPromptPicker()
+}
+
+// setVirtualBulkSelection marks the given IDs as selected and enables bulk mode so the
+// existing command palette / bulk picker operate on exactly these messages.
+func (a *App) setVirtualBulkSelection(ids []string) {
+	a.mu.Lock()
+	if a.selected == nil {
+		a.selected = make(map[string]bool)
+	} else {
+		for k := range a.selected {
+			delete(a.selected, k)
+		}
+	}
+	for _, id := range ids {
+		a.selected[id] = true
+	}
+	a.bulkMode = true
+	a.mu.Unlock()
 }
