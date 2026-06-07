@@ -451,6 +451,19 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 		content = string([]rune(content)[:8000])
 	}
 
+	// Substitute placeholders — the AIService ignores the content arg and only
+	// uses the prompt, so {{body}} must be filled in here. If the prompt has no
+	// placeholder, append the body so the model still sees the email.
+	finalPrompt := promptText
+	if strings.Contains(finalPrompt, "{{body}}") || strings.Contains(finalPrompt, "{{messages}}") {
+		finalPrompt = strings.ReplaceAll(finalPrompt, "{{body}}", content)
+		finalPrompt = strings.ReplaceAll(finalPrompt, "{{messages}}", content)
+	} else {
+		finalPrompt = finalPrompt + "\n\n" + content
+	}
+	finalPrompt = strings.ReplaceAll(finalPrompt, "{{subject}}", message.Subject)
+	finalPrompt = strings.ReplaceAll(finalPrompt, "{{from}}", message.From)
+
 	name := displayName
 	if name == "" {
 		name = "Custom Prompt"
@@ -482,7 +495,7 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 	}()
 
 	var b strings.Builder
-	result, err := aiService.ApplyCustomPromptStream(ctx, content, promptText, nil, func(token string) {
+	result, err := aiService.ApplyCustomPromptStream(ctx, content, finalPrompt, nil, func(token string) {
 		select {
 		case <-ctx.Done():
 			return
