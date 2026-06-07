@@ -11,6 +11,8 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/table"
 	"github.com/charmbracelet/glamour"
 	"github.com/derailed/tview"
+
+	gmailwrap "github.com/ajramos/giztui/internal/gmail"
 )
 
 // mdConverter is html-to-markdown v2 with base+commonmark+table plugins.
@@ -147,6 +149,24 @@ func referenceLongURLs(md string, threshold int) string {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, url)
 	}
 	return b.String()
+}
+
+// RenderEmailMarkdown converts an email's HTML to cleaned, glamour-styled
+// terminal text. Returns an error if the message has no HTML body; callers fall
+// back to FormatEmailForTerminal on error.
+func RenderEmailMarkdown(msg *gmailwrap.Message, opts MarkdownOptions) (string, error) {
+	if msg == nil || strings.TrimSpace(msg.HTML) == "" {
+		return "", fmt.Errorf("no HTML content")
+	}
+	md, err := convertHTMLToMarkdown(msg.HTML)
+	if err != nil {
+		return "", err
+	}
+	md = cleanupMarkdown(md, opts)
+	if strings.TrimSpace(md) == "" {
+		return "", fmt.Errorf("empty after cleanup")
+	}
+	return MarkdownToTerminal(md, opts.GlamourTheme, opts.WrapWidth)
 }
 
 // MarkdownToTerminal renders Markdown to terminal text styled by glamour, then

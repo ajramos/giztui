@@ -1,8 +1,11 @@
 package render
 
 import (
+	"os"
 	"strings"
 	"testing"
+
+	gmailwrap "github.com/ajramos/giztui/internal/gmail"
 )
 
 func TestConvertHTMLToMarkdown(t *testing.T) {
@@ -106,5 +109,30 @@ func TestMarkdownToTerminal(t *testing.T) {
 	// notty style must not leave raw ANSI escape bytes.
 	if strings.Contains(out, "\x1b[") {
 		t.Errorf("raw ANSI escape leaked into tview output:\n%q", out)
+	}
+}
+
+func TestRenderEmailMarkdown_RealNewsletter(t *testing.T) {
+	htmlBytes, err := os.ReadFile("testdata/newsletter_vicio.html")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	msg := &gmailwrap.Message{HTML: string(htmlBytes)}
+	out, err := RenderEmailMarkdown(msg, MarkdownOptions{
+		WrapWidth: 100, GlamourTheme: "notty", DropTrackingImages: true,
+	})
+	if err != nil {
+		t.Fatalf("RenderEmailMarkdown: %v", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		t.Fatal("empty render output")
+	}
+	// Real content survives.
+	if !strings.Contains(out, "VICIO") {
+		t.Errorf("expected newsletter content missing:\n%s", out[:min(len(out), 500)])
+	}
+	// Junk is gone: no zero-width chars, no empty markdown table separators.
+	if strings.Contains(out, "​") || strings.Contains(out, "| --- | --- |") {
+		t.Errorf("junk survived cleanup")
 	}
 }
