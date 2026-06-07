@@ -59,6 +59,9 @@ func TestRenderActionPlanText(t *testing.T) {
 	assert.Contains(t, out, "Read manually (1)")
 	assert.Contains(t, out, "Budget")
 	assert.Contains(t, out, "▸")
+	// The marker must land on the SELECTED category (index 1 = "Follow up"), not index 0.
+	assert.Contains(t, out, "▸ [l] Label 1 Follow up")
+	assert.NotContains(t, out, "▸ [a]")
 }
 
 func TestActionKeyHint(t *testing.T) {

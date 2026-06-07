@@ -1174,6 +1174,15 @@ func (a *App) bindKeys() {
 				return nil
 			}
 
+			// If the Action Plan panel is active, close it (it cancels its own streaming).
+			if a.isActionPlanActive() {
+				if a.logger != nil {
+					a.logger.Printf("keys: ESC - closing action plan panel")
+				}
+				a.closeActionPlanPanel()
+				return nil
+			}
+
 			// FIRST: Cancel any active streaming operations (this fixes the hanging issue)
 			if a.streamingCancel != nil {
 				if a.logger != nil {

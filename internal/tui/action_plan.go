@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/ajramos/giztui/internal/services"
 	tcell "github.com/derailed/tcell/v2"
@@ -48,7 +49,7 @@ func isUnreadMeta(m *gmailapi.Message) bool {
 type actionPlanState struct {
 	plan             *services.ActionPlan
 	selectedCategory int
-	analyzing        bool // true while batches are still streaming; blocks quick-actions
+	analyzing        atomic.Bool // true while batches are still streaming; blocks quick-actions
 
 	customPromptText string // override prompt text, "" = default
 
@@ -108,8 +109,9 @@ func actionKeyHintForAction(action string) string {
 	}
 }
 
-// renderActionPlanText formats a plan into the panel body. selected is the index of the
-// currently-highlighted category (or -1). Uses tview dynamic-color tags.
+// renderActionPlanText formats a plan into the panel body as PLAIN text (the body has
+// dynamic colors disabled, so literal "[a]" key hints render as-is). selected is the
+// index of the currently-highlighted category (or -1).
 func renderActionPlanText(plan *services.ActionPlan, selected int) string {
 	if plan == nil {
 		return "Analyzing…"
@@ -177,7 +179,8 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	colors := a.GetComponentColors("ai")
 	bg := colors.Background.Color()
 
-	state := &actionPlanState{analyzing: true, selectedCategory: 0, customPromptText: customPromptText}
+	state := &actionPlanState{selectedCategory: 0, customPromptText: customPromptText}
+	state.analyzing.Store(true)
 
 	state.header = tview.NewTextView().SetDynamicColors(true)
 	state.header.SetBackgroundColor(bg)
@@ -259,7 +262,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		if ctx.Err() != nil || a.actionPlanState != state {
 			return // cancelled or panel replaced; nothing to report
 		}
-		state.analyzing = false
+		state.analyzing.Store(false)
 		if err != nil {
 			if state.plan == nil {
 				a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
@@ -282,7 +285,7 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	}
 	p := state.plan
 	status := "analyzing"
-	if !state.analyzing {
+	if !state.analyzing.Load() {
 		status = "done"
 	}
 	state.header.SetText(fmt.Sprintf("[::b]%d msgs • batch %d/%d • %s[::-]", p.TotalAnalyzed, p.BatchesDone, p.BatchesTotal, status))
@@ -337,6 +340,20 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		case tcell.KeyDown:
 			a.moveActionPlanSelection(state, +1)
 			return nil
+		case tcell.KeyEnter:
+			if state.analyzing.Load() {
+				return nil
+			}
+			cat := a.currentActionPlanCategory(state)
+			if cat == nil {
+				return nil
+			}
+			if cat.Action == "none" || cat.Action == "" {
+				a.GetErrorHandler().ShowInfo(a.ctx, "No suggested action — use : palette or p configurator")
+			} else {
+				a.executeActionPlanAction(state, cat.Action)
+			}
+			return nil
 		}
 
 		key := string(ev.Rune())
@@ -352,7 +369,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		}
 
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
-		if state.analyzing {
+		if state.analyzing.Load() {
 			return nil
 		}
 		switch key {
@@ -432,7 +449,11 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 			return
 		}
 		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✓ %s applied to %d messages (%s)", actionVerbLabel(action), len(ids), catName))
-		a.removeActionPlanCategory(state, catName)
+		a.QueueUpdateDraw(func() {
+			if a.actionPlanState == state {
+				a.removeActionPlanCategory(state, catName)
+			}
+		})
 	}()
 }
 
