@@ -1,0 +1,4 @@
+.venv/
+out/
+samples/*.eml
+!samples/_synthetic_test.eml
