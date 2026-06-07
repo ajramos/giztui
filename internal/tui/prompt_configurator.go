@@ -506,7 +506,7 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 	}()
 
 	var b strings.Builder
-	result, err := aiService.ApplyCustomPromptStream(ctx, content, finalPrompt, nil, func(token string) {
+	result, err := aiService.ApplyCustomPromptStream(ctx, finalPrompt, nil, func(token string) {
 		select {
 		case <-ctx.Done():
 			return
@@ -613,7 +613,7 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 	}()
 
 	var b strings.Builder
-	result, err := aiService.ApplyCustomPromptStream(ctx, combined.String(), finalPrompt, nil, func(token string) {
+	result, err := aiService.ApplyCustomPromptStream(ctx, finalPrompt, nil, func(token string) {
 		select {
 		case <-ctx.Done():
 			return

@@ -102,7 +102,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPrompt(
 	// Build the final prompt with the actual template and content
 	finalPrompt := s.buildBulkPrompt(promptTemplate.PromptText, combinedContent, variables)
 
-	result, err := s.aiService.ApplyCustomPrompt(ctx, combinedContent, finalPrompt, variables)
+	result, err := s.aiService.ApplyCustomPrompt(ctx, finalPrompt, variables)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply bulk prompt: %w", err)
 	}
@@ -196,7 +196,7 @@ func (s *BulkPromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accou
 		// Access logger through app context if possible - for now use simple logging
 		_ = s.promptService // Acknowledge service is available but not used here
 	}
-	result, err := s.aiService.ApplyCustomPromptStream(ctx, combinedContent, finalPrompt, variables, func(token string) {
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, finalPrompt, variables, func(token string) {
 		// Call the original callback
 		if onToken != nil {
 			onToken(token)

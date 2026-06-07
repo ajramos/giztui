@@ -14,9 +14,9 @@ type AIService struct {
 	mock.Mock
 }
 
-// ApplyCustomPrompt provides a mock function with given fields: ctx, content, prompt, variables
-func (_m *AIService) ApplyCustomPrompt(ctx context.Context, content string, prompt string, variables map[string]string) (string, error) {
-	ret := _m.Called(ctx, content, prompt, variables)
+// ApplyCustomPrompt provides a mock function with given fields: ctx, prompt, variables
+func (_m *AIService) ApplyCustomPrompt(ctx context.Context, prompt string, variables map[string]string) (string, error) {
+	ret := _m.Called(ctx, prompt, variables)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ApplyCustomPrompt")
@@ -24,17 +24,17 @@ func (_m *AIService) ApplyCustomPrompt(ctx context.Context, content string, prom
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, map[string]string) (string, error)); ok {
-		return rf(ctx, content, prompt, variables)
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]string) (string, error)); ok {
+		return rf(ctx, prompt, variables)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, map[string]string) string); ok {
-		r0 = rf(ctx, content, prompt, variables)
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]string) string); ok {
+		r0 = rf(ctx, prompt, variables)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, map[string]string) error); ok {
-		r1 = rf(ctx, content, prompt, variables)
+	if rf, ok := ret.Get(1).(func(context.Context, string, map[string]string) error); ok {
+		r1 = rf(ctx, prompt, variables)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -42,9 +42,9 @@ func (_m *AIService) ApplyCustomPrompt(ctx context.Context, content string, prom
 	return r0, r1
 }
 
-// ApplyCustomPromptStream provides a mock function with given fields: ctx, content, prompt, variables, onToken
-func (_m *AIService) ApplyCustomPromptStream(ctx context.Context, content string, prompt string, variables map[string]string, onToken func(string)) (string, error) {
-	ret := _m.Called(ctx, content, prompt, variables, onToken)
+// ApplyCustomPromptStream provides a mock function with given fields: ctx, prompt, variables, onToken
+func (_m *AIService) ApplyCustomPromptStream(ctx context.Context, prompt string, variables map[string]string, onToken func(string)) (string, error) {
+	ret := _m.Called(ctx, prompt, variables, onToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ApplyCustomPromptStream")
@@ -52,17 +52,17 @@ func (_m *AIService) ApplyCustomPromptStream(ctx context.Context, content string
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, map[string]string, func(string)) (string, error)); ok {
-		return rf(ctx, content, prompt, variables, onToken)
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]string, func(string)) (string, error)); ok {
+		return rf(ctx, prompt, variables, onToken)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, map[string]string, func(string)) string); ok {
-		r0 = rf(ctx, content, prompt, variables, onToken)
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]string, func(string)) string); ok {
+		r0 = rf(ctx, prompt, variables, onToken)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, map[string]string, func(string)) error); ok {
-		r1 = rf(ctx, content, prompt, variables, onToken)
+	if rf, ok := ret.Get(1).(func(context.Context, string, map[string]string, func(string)) error); ok {
+		r1 = rf(ctx, prompt, variables, onToken)
 	} else {
 		r1 = ret.Error(1)
 	}
