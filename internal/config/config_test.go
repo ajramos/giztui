@@ -497,15 +497,9 @@ func TestConfig_JSONSerialization(t *testing.T) {
 
 func TestDefaultRenderingConfig(t *testing.T) {
 	c := DefaultConfig()
-	if !c.Rendering.MarkdownDefault {
-		t.Errorf("MarkdownDefault = false, want true")
-	}
-	if c.Rendering.GlamourTheme != "dark" {
-		t.Errorf("GlamourTheme = %q, want \"dark\"", c.Rendering.GlamourTheme)
-	}
-	if !c.Rendering.DropTrackingImages {
-		t.Errorf("DropTrackingImages = false, want true")
-	}
+	assert.True(t, c.Rendering.MarkdownDefault, "MarkdownDefault should be true by default")
+	assert.Equal(t, "dark", c.Rendering.GlamourTheme)
+	assert.True(t, c.Rendering.DropTrackingImages, "DropTrackingImages should be true by default")
 }
 
 func TestIsObsidianEnabled(t *testing.T) {
