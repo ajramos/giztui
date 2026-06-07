@@ -36,6 +36,7 @@ const (
 	PickerPrompts            ActivePicker = "prompts"
 	PickerBulkPrompts        ActivePicker = "bulk_prompts"
 	PickerPromptConfigurator ActivePicker = "prompt_configurator"
+	PickerActionPlan         ActivePicker = "action_plan"
 	PickerSavedQueries       ActivePicker = "saved_queries"
 	PickerThemes             ActivePicker = "themes"
 	PickerAI                 ActivePicker = "ai_labels"
@@ -3237,6 +3238,11 @@ func (a *App) isLabelsPickerActive() bool {
 // isPromptConfiguratorActive returns true if the Prompt Configurator picker is currently active.
 func (a *App) isPromptConfiguratorActive() bool {
 	return a.currentActivePicker == PickerPromptConfigurator
+}
+
+// isActionPlanActive returns true if the Action Plan panel is currently active.
+func (a *App) isActionPlanActive() bool {
+	return a.currentActivePicker == PickerActionPlan
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging
