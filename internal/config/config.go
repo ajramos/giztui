@@ -84,6 +84,9 @@ type Config struct {
 	// Theme configuration
 	Theme ThemeConfig `json:"theme"`
 
+	// Email body rendering
+	Rendering RenderingConfig `json:"rendering"`
+
 	// Logging
 	LogFile string `json:"log_file"`
 
@@ -376,6 +379,25 @@ type DisplayConfig struct {
 	ShowMessageNumbers bool `json:"show_message_numbers"`
 }
 
+// RenderingConfig controls email body rendering.
+type RenderingConfig struct {
+	// MarkdownDefault renders HTML emails as Markdown by default when true.
+	MarkdownDefault bool `json:"markdown_default"`
+	// GlamourTheme is the glamour style name: dark, light, notty, auto.
+	GlamourTheme string `json:"glamour_theme"`
+	// DropTrackingImages removes tracking-pixel image links during cleanup.
+	DropTrackingImages bool `json:"drop_tracking_images"`
+}
+
+// DefaultRenderingConfig returns the default rendering configuration.
+func DefaultRenderingConfig() RenderingConfig {
+	return RenderingConfig{
+		MarkdownDefault:    true,
+		GlamourTheme:       "dark",
+		DropTrackingImages: true,
+	}
+}
+
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
@@ -384,6 +406,7 @@ func DefaultConfig() *Config {
 		Layout:        DefaultLayoutConfig(),
 		Keys:          DefaultKeyBindings(),
 		Theme:         DefaultThemeConfig(),
+		Rendering:     DefaultRenderingConfig(),
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
 		Performance:   DefaultPerformanceConfig(),
