@@ -865,7 +865,7 @@ func (a *App) initServices() {
 	}
 
 	// Initialize display service (no dependencies)
-	a.displayService = services.NewDisplayService()
+	a.displayService = services.NewDisplayService(a.Config.Rendering.MarkdownDefault)
 	if a.logger != nil {
 		a.logger.Printf("initServices: display service initialized: %v", a.displayService != nil)
 	}
