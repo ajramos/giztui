@@ -380,6 +380,23 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"prom":           {"prompt"},
 		"promp":          {"prompt"},
 		"prompt":         {"prompt"},
+		"pn":             {"prompt-new"},
+		"prompt-":        {"prompt-new"},
+		"prompt-n":       {"prompt-new"},
+		"prompt-ne":      {"prompt-new"},
+		"prompt-new":     {"prompt-new"},
+		"prf":            {"prompt-refine"},
+		"prompt-r":       {"prompt-refine"},
+		"prompt-re":      {"prompt-refine"},
+		"prompt-ref":     {"prompt-refine"},
+		"prompt-refi":    {"prompt-refine"},
+		"prompt-refin":   {"prompt-refine"},
+		"prompt-refine":  {"prompt-refine"},
+		"ps":             {"prompt-save"},
+		"prompt-s":       {"prompt-save"},
+		"prompt-sa":      {"prompt-save"},
+		"prompt-sav":     {"prompt-save"},
+		"prompt-save":    {"prompt-save"},
 		"a":              {"archive", "accounts"},
 		"ar":             {"archive"},
 		"arc":            {"archive"},
@@ -774,6 +791,12 @@ func (a *App) executeCommand(cmd string) {
 		a.executeAccountsCommand(args)
 	case "prompt", "pr", "p":
 		a.executePromptCommand(args)
+	case "prompt-new", "pn":
+		a.executePromptNewCommand(args)
+	case "prompt-refine", "prf":
+		a.executePromptRefineCommand(args)
+	case "prompt-save", "ps":
+		a.executePromptSaveCommand(args)
 	case "theme", "th":
 		if len(args) == 0 {
 			// Open theme picker UI if no subcommands
@@ -2489,4 +2512,56 @@ func (a *App) executeForwardCommand(args []string) {
 // executeDraftsCommand handles :drafts/:dr commands
 func (a *App) executeDraftsCommand(args []string) {
 	go a.loadDrafts()
+}
+
+// executePromptNewCommand opens the prompt configurator with the current context.
+// Bulk mode (with selection) -> bulk context. A focused single message -> single context.
+// Otherwise -> draft mode (generate and save only; apply disabled).
+func (a *App) executePromptNewCommand(args []string) {
+	pctx := promptConfiguratorContext{}
+
+	if a.bulkMode && len(a.selected) > 0 {
+		ids := make([]string, 0, len(a.selected))
+		for id := range a.selected {
+			ids = append(ids, id)
+		}
+		pctx.mode = "bulk"
+		pctx.messageIDs = ids
+	} else if msgID := a.GetCurrentMessageID(); msgID != "" {
+		pctx.mode = "single"
+		pctx.messageID = msgID
+	} else {
+		pctx.mode = "draft"
+	}
+
+	a.openPromptConfigurator(pctx)
+}
+
+// executePromptRefineCommand applies a refinement to the active configurator prompt.
+// Usage: :prompt-refine make the output JSON
+func (a *App) executePromptRefineCommand(args []string) {
+	if a.promptConfiguratorState == nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt-new)")
+		return
+	}
+	if len(args) == 0 {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Usage: :prompt-refine <refinement instruction>")
+		return
+	}
+	refinement := strings.Join(args, " ")
+	current := a.promptConfiguratorState.promptArea.GetText()
+	if current == "" {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Generate a prompt first before refining")
+		return
+	}
+	go a.refineConfiguratorPrompt(current, refinement)
+}
+
+// executePromptSaveCommand triggers the save dialog for the active configurator prompt.
+func (a *App) executePromptSaveCommand(args []string) {
+	if a.promptConfiguratorState == nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt-new)")
+		return
+	}
+	a.savePromptFromConfigurator()
 }

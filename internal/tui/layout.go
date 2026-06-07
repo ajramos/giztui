@@ -349,6 +349,12 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(focusedColor)
 		}
+	case "prompt_configurator":
+		// Configurator panel uses the same labelsView slot as the prompts picker.
+		// Falls through to identical highlighting behavior.
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(focusedColor)
+		}
 	case "search":
 		if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
 			sc.SetBorderColor(focusedColor)

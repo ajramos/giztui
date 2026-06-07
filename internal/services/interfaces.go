@@ -907,3 +907,50 @@ type AccountValidationResult struct {
 	Email      string        `json:"email,omitempty"`
 	LastTested time.Time     `json:"last_tested"`
 }
+
+// PromptGeneratorService converts natural-language intent into prompt templates
+// and refines existing prompts via LLM. Used by the Prompt Configurator UI.
+type PromptGeneratorService interface {
+	// GenerateFromIntent produces a prompt template from a natural-language description.
+	GenerateFromIntent(ctx context.Context, intent string, opts PromptGenerationOptions) (*GeneratedPrompt, error)
+
+	// RefinePrompt applies a refinement instruction to an existing prompt.
+	RefinePrompt(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions) (*GeneratedPrompt, error)
+
+	// Streaming variants — onToken is invoked for each token as it arrives.
+	GenerateFromIntentStream(ctx context.Context, intent string, opts PromptGenerationOptions, onToken func(string)) (*GeneratedPrompt, error)
+	RefinePromptStream(ctx context.Context, currentPrompt string, refinement string, opts PromptGenerationOptions, onToken func(string)) (*GeneratedPrompt, error)
+}
+
+// PromptGenerationOptions controls how a prompt is generated or refined.
+type PromptGenerationOptions struct {
+	// TargetMode hints what context the prompt will run in:
+	// "single" (one email body via {{body}}), "bulk" (many via {{messages}}),
+	// or "analyzer" (categorization output expected). Empty = auto-detect.
+	TargetMode string
+
+	// OutputFormat hints the desired LLM output structure:
+	// "markdown" (default), "json", "plain".
+	OutputFormat string
+
+	// Language for the generated prompt itself (default: "en").
+	Language string
+}
+
+// GeneratedPrompt is the result of generation or refinement.
+type GeneratedPrompt struct {
+	// PromptText is the actual template, ready to use (with {{body}}/{{messages}} placeholders).
+	PromptText string
+
+	// SuggestedName is a short label proposed by the LLM (used as default in the save dialog).
+	SuggestedName string
+
+	// SuggestedDesc is a one-line description proposed by the LLM.
+	SuggestedDesc string
+
+	// DetectedMode is what the LLM thinks this prompt is suited for ("single"/"bulk"/"analyzer").
+	DetectedMode string
+
+	// Duration is the elapsed time of the LLM call.
+	Duration time.Duration
+}

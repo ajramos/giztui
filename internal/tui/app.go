@@ -27,20 +27,21 @@ import (
 type ActivePicker string
 
 const (
-	PickerNone          ActivePicker = ""
-	PickerLabels        ActivePicker = "labels"
-	PickerDrafts        ActivePicker = "drafts"
-	PickerObsidian      ActivePicker = "obsidian"
-	PickerAttachments   ActivePicker = "attachments"
-	PickerLinks         ActivePicker = "links"
-	PickerPrompts       ActivePicker = "prompts"
-	PickerBulkPrompts   ActivePicker = "bulk_prompts"
-	PickerSavedQueries  ActivePicker = "saved_queries"
-	PickerThemes        ActivePicker = "themes"
-	PickerAI            ActivePicker = "ai_labels"
-	PickerContentSearch ActivePicker = "content_search"
-	PickerRSVP          ActivePicker = "rsvp"
-	PickerAccounts      ActivePicker = "accounts"
+	PickerNone               ActivePicker = ""
+	PickerLabels             ActivePicker = "labels"
+	PickerDrafts             ActivePicker = "drafts"
+	PickerObsidian           ActivePicker = "obsidian"
+	PickerAttachments        ActivePicker = "attachments"
+	PickerLinks              ActivePicker = "links"
+	PickerPrompts            ActivePicker = "prompts"
+	PickerBulkPrompts        ActivePicker = "bulk_prompts"
+	PickerPromptConfigurator ActivePicker = "prompt_configurator"
+	PickerSavedQueries       ActivePicker = "saved_queries"
+	PickerThemes             ActivePicker = "themes"
+	PickerAI                 ActivePicker = "ai_labels"
+	PickerContentSearch      ActivePicker = "content_search"
+	PickerRSVP               ActivePicker = "rsvp"
+	PickerAccounts           ActivePicker = "accounts"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -180,30 +181,32 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	accountService     services.AccountService
-	databaseManager    services.DatabaseManager
-	emailService       services.EmailService
-	aiService          services.AIService
-	labelService       services.LabelService
-	cacheService       services.CacheService
-	repository         services.MessageRepository
-	compositionService services.CompositionService
-	bulkPromptService  *services.BulkPromptServiceImpl
-	promptService      services.PromptService
-	slackService       services.SlackService
-	obsidianService    services.ObsidianService
-	linkService        services.LinkService
-	attachmentService  services.AttachmentService
-	gmailWebService    services.GmailWebService
-	contentNavService  services.ContentNavigationService
-	themeService       services.ThemeService
-	displayService     services.DisplayService
-	queryService       services.QueryService
-	threadService      services.ThreadService
-	undoService        services.UndoService
-	preloaderService   services.MessagePreloader
-	currentTheme       *config.ColorsConfig // Current theme cache for helper functions
-	errorHandler       *ErrorHandler
+	accountService          services.AccountService
+	databaseManager         services.DatabaseManager
+	emailService            services.EmailService
+	aiService               services.AIService
+	labelService            services.LabelService
+	cacheService            services.CacheService
+	repository              services.MessageRepository
+	compositionService      services.CompositionService
+	bulkPromptService       *services.BulkPromptServiceImpl
+	promptService           services.PromptService
+	promptGeneratorService  services.PromptGeneratorService
+	promptConfiguratorState *promptConfiguratorState
+	slackService            services.SlackService
+	obsidianService         services.ObsidianService
+	linkService             services.LinkService
+	attachmentService       services.AttachmentService
+	gmailWebService         services.GmailWebService
+	contentNavService       services.ContentNavigationService
+	themeService            services.ThemeService
+	displayService          services.DisplayService
+	queryService            services.QueryService
+	threadService           services.ThreadService
+	undoService             services.UndoService
+	preloaderService        services.MessagePreloader
+	currentTheme            *config.ColorsConfig // Current theme cache for helper functions
+	errorHandler            *ErrorHandler
 }
 
 // Pages manages the application pages and navigation
@@ -512,6 +515,14 @@ func (a *App) reinitializeServices() {
 		}
 	}
 
+	// Initialize prompt generator if AI is available and generator is nil
+	if a.aiService != nil && a.promptGeneratorService == nil {
+		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+
 	// Now update prompt service with bulk service
 	if a.promptService != nil && a.bulkPromptService != nil {
 		// We need to update the prompt service to include the bulk service
@@ -725,6 +736,14 @@ func (a *App) initServices() {
 		if a.logger != nil {
 			a.logger.Printf("initServices: bulk prompt service NOT initialized - repository=%v aiService=%v cacheService=%v",
 				a.repository != nil, a.aiService != nil, a.cacheService != nil)
+		}
+	}
+
+	// Prompt generator (NL → prompt template via LLM)
+	if a.aiService != nil {
+		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
 		}
 	}
 
@@ -1386,6 +1405,11 @@ func (a *App) GetErrorHandler() *ErrorHandler {
 // GetServices returns the service instances for business logic operations
 func (a *App) GetServices() (services.EmailService, services.AIService, services.LabelService, services.CacheService, services.MessageRepository, services.CompositionService, services.PromptService, services.ObsidianService, services.LinkService, services.GmailWebService, services.AttachmentService, services.DisplayService) {
 	return a.emailService, a.aiService, a.labelService, a.cacheService, a.repository, a.compositionService, a.promptService, a.obsidianService, a.linkService, a.gmailWebService, a.attachmentService, a.displayService
+}
+
+// GetPromptGeneratorService returns the prompt generator service or nil if not initialized.
+func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
+	return a.promptGeneratorService
 }
 
 // GetAccountService returns the account service instance
@@ -3203,6 +3227,11 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 // isLabelsPickerActive returns true if the Labels picker is currently active
 func (a *App) isLabelsPickerActive() bool {
 	return a.currentActivePicker == PickerLabels
+}
+
+// isPromptConfiguratorActive returns true if the Prompt Configurator picker is currently active.
+func (a *App) isPromptConfiguratorActive() bool {
+	return a.currentActivePicker == PickerPromptConfigurator
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging
