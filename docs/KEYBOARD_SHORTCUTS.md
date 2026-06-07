@@ -46,7 +46,7 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `h` | Toggle headers | Show/hide email headers |
 | `f` | Fullscreen | Toggle fullscreen message view |
 | `t` | Focus toggle | Switch focus between list and content |
-| `M` | Toggle Markdown | Enable/disable Markdown rendering |
+| `M` | Toggle Markdown | Toggle between Markdown-rendered view and raw/plain view (per message) |
 
 ## 🔍 Search & Navigation
 
@@ -368,6 +368,8 @@ When you customize shortcuts, the priority order is:
 | `:undo` | Undo last action |
 | `:version` | Show version information |
 | `:config` | Show configuration |
+| `:markdown` or `:md` | Toggle Markdown ↔ raw rendering for the current message (same as `M`) |
+| `:touch-up` | Toggle LLM whitespace touch-up for the current message |
 
 ### Performance Commands
 | Command | Description |
@@ -524,4 +526,5 @@ All shortcuts can be customized in `~/.config/giztui/config.json`. You can overr
 **AI Features:** `y` summary, `p` prompts, `Y` regenerate  
 **Bulk Operations:** `v` bulk mode, `space` select, `*` select all  
 **Integrations:** `K` Slack, `Shift+O` Obsidian, `L` links, `A` attachments  
+**Rendering:** `M` toggle Markdown/raw view, `:touch-up` toggle LLM whitespace cleanup  
 **Commands:** `:` command mode, `:help` help, `:q` quit, `:search <term>` search

@@ -1036,6 +1036,26 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 
 The shortcut is configurable via `keys.action_plan` (default `"P"`).
 
+### Rendering Configuration
+
+Controls how HTML email bodies are displayed in the message view.
+
+```json
+"rendering": {
+  "markdown_default": true,
+  "glamour_theme": "dark",
+  "drop_tracking_images": true
+}
+```
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `markdown_default` | boolean | Render HTML emails as Markdown by default. Toggle per-message with `M` or `:markdown` / `:md`. | `true` |
+| `glamour_theme` | string | Glamour style used for Markdown rendering. Options: `dark`, `light`, `notty`, `auto`. | `"dark"` |
+| `drop_tracking_images` | boolean | Remove tracking-pixel images during HTML cleanup before rendering. | `true` |
+
+When `markdown_default` is `true`, HTML emails are converted to clean, glamour-styled Markdown — tracking pixels and empty layout tables are stripped, and long tracking URLs are collected into a Links section at the bottom. Use `M` (or `:md`) to toggle between the Markdown view and the original raw/plain view on a per-message basis.
+
 ### Performance Settings
 
 Configure performance optimizations including background preloading for instant navigation:
