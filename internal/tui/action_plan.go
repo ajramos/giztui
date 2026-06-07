@@ -116,6 +116,9 @@ func renderActionPlanText(plan *services.ActionPlan, selected int) string {
 	if plan == nil {
 		return "Analyzing…"
 	}
+	if len(plan.Categories) == 0 && len(plan.ReadManually) == 0 {
+		return "No actionable groups found.\n\nThe analyzer did not return any categories for these\nmessages. Press Esc to close, or retry with a custom prompt\nvia :action-plan with-prompt <name>."
+	}
 	var b strings.Builder
 	for i, c := range plan.Categories {
 		marker := "  "
@@ -249,14 +252,21 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
 			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText},
 			func(p *services.ActionPlan) {
-				// Progress callback runs in this goroutine. Direct UI update (NEVER
-				// QueueUpdateDraw inside streaming/progress callbacks — CLAUDE.md). Guard
-				// with the captured state to avoid writing into a reopened panel.
-				if ctx.Err() != nil || a.actionPlanState != state {
+				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
+				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
+				// worker goroutine updates the buffer but never repaints the screen until
+				// the next input event (this is exactly the pattern bulk_prompts.go uses
+				// for its final render). The guard skips a closed/reopened panel.
+				if ctx.Err() != nil {
 					return
 				}
-				state.plan = p
-				a.renderActionPlanPanel(state)
+				a.QueueUpdateDraw(func() {
+					if a.actionPlanState != state {
+						return
+					}
+					state.plan = p
+					a.renderActionPlanPanel(state)
+				})
 			})
 
 		if ctx.Err() != nil || a.actionPlanState != state {
@@ -270,15 +280,24 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 			}
 			a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
 		}
-		a.renderActionPlanPanel(state)
-		if state.plan != nil && state.plan.Degraded {
+		// Final render on the UI thread so the completed plan is actually painted.
+		a.QueueUpdateDraw(func() {
+			if a.actionPlanState == state {
+				a.renderActionPlanPanel(state)
+			}
+		})
+		switch {
+		case state.plan != nil && state.plan.Degraded:
 			a.GetErrorHandler().ShowInfo(a.ctx, "ℹ Plan rendered with limited actions — some LLM output was malformed.")
+		case state.plan != nil && len(state.plan.Categories) == 0 && len(state.plan.ReadManually) == 0:
+			a.GetErrorHandler().ShowInfo(a.ctx, "ℹ Analyzer returned no actionable groups. Press Esc and retry, or try a custom prompt.")
 		}
 	}()
 }
 
-// renderActionPlanPanel refreshes header + body from the current state. Safe to call
-// from the analysis goroutine (direct SetText, no QueueUpdateDraw).
+// renderActionPlanPanel refreshes header + body from the current state. It performs raw
+// SetText calls and so must run on the UI thread — callers from the analysis goroutine
+// wrap it in QueueUpdateDraw; UI-thread callers (key handlers) may call it directly.
 func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	if state == nil || state.plan == nil {
 		return

@@ -566,6 +566,19 @@ func (a *App) bindKeys() {
 			return event
 		}
 
+		// If the Action Plan panel is active, route keys to its own input capture. Its body
+		// is a *tview.TextView, which the focus-type switch below does NOT defer to, so
+		// without this the global configurable-shortcut handling (archive/trash/etc.) and
+		// command-mode (':') would shadow the panel's quick-actions and escape hatches.
+		// ESC always closes the panel regardless of where focus has drifted.
+		if a.isActionPlanActive() {
+			if event.Key() == tcell.KeyEscape {
+				a.closeActionPlanPanel()
+				return nil
+			}
+			return event
+		}
+
 		// If focus is on form widgets (advanced/simple search), don't intercept
 		switch focused := a.GetFocus().(type) {
 		case *tview.InputField:
@@ -1179,15 +1192,6 @@ func (a *App) bindKeys() {
 					a.logger.Printf("keys: ESC - closing prompt stats screen")
 				}
 				a.hidePromptStats()
-				return nil
-			}
-
-			// If the Action Plan panel is active, close it (it cancels its own streaming).
-			if a.isActionPlanActive() {
-				if a.logger != nil {
-					a.logger.Printf("keys: ESC - closing action plan panel")
-				}
-				a.closeActionPlanPanel()
 				return nil
 			}
 
