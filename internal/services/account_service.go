@@ -94,33 +94,77 @@ func (s *AccountServiceImpl) loadAccountsFromConfig() {
 		s.logger.Printf("AccountService: Account loading complete - Total: %d, Active: %s", len(s.accounts), s.activeID)
 	}
 
-	// Backward compatibility: if no accounts configured, create default from legacy config
-	if len(s.accounts) == 0 && (s.config.Credentials != "" || s.config.Token != "") {
-		if s.logger != nil {
-			s.logger.Printf("AccountService: No accounts configured, creating default from legacy config")
-		}
-		defaultAccount := &Account{
-			ID:          "default",
-			DisplayName: "Default Account",
-			CredPath:    s.config.Credentials,
-			TokenPath:   s.config.Token,
-			IsActive:    true,
-			Status:      AccountStatusUnknown,
-			LastUsed:    time.Now(),
-		}
+	// Backward compatibility: if no accounts configured, create a default account.
+	// Prefer the legacy config Credentials/Token fields; if those are empty, fall back to
+	// the default ~/.config/giztui/{credentials,token}.json paths when those files exist —
+	// mirroring how cmd/giztui bootstraps the Gmail client. Without this, users who only
+	// have the default credential files (and no `credentials`/`token` in config.json, and
+	// no `accounts` array) get no account, so the database never opens and the prompt,
+	// saved-query, and Obsidian services silently fail to initialize.
+	if len(s.accounts) == 0 {
+		credPath := resolveLegacyCredentialPath(s.config.Credentials, "credentials.json")
+		tokenPath := resolveLegacyCredentialPath(s.config.Token, "token.json")
 
-		// Try to extract email from existing token if possible
-		if email := s.extractEmailFromToken(defaultAccount.TokenPath); email != "" {
-			defaultAccount.Email = email
-		}
+		if fileExists(credPath) || fileExists(tokenPath) {
+			if s.logger != nil {
+				s.logger.Printf("AccountService: No accounts configured, creating default account (creds=%s, token=%s)", credPath, tokenPath)
+			}
+			defaultAccount := &Account{
+				ID:          "default",
+				DisplayName: "Default Account",
+				CredPath:    credPath,
+				TokenPath:   tokenPath,
+				IsActive:    true,
+				Status:      AccountStatusUnknown,
+				LastUsed:    time.Now(),
+			}
 
-		s.accounts["default"] = defaultAccount
-		s.activeID = "default"
+			// Try to extract email from existing token if possible
+			if email := s.extractEmailFromToken(defaultAccount.TokenPath); email != "" {
+				defaultAccount.Email = email
+			}
 
-		if s.logger != nil {
-			s.logger.Printf("AccountService: Created default account - Email: %s", defaultAccount.Email)
+			s.accounts["default"] = defaultAccount
+			s.activeID = "default"
+
+			if s.logger != nil {
+				s.logger.Printf("AccountService: Created default account - Email: %s", defaultAccount.Email)
+			}
+		} else if s.logger != nil {
+			s.logger.Printf("AccountService: No accounts and no credential files found (creds=%s, token=%s)", credPath, tokenPath)
 		}
 	}
+}
+
+// resolveLegacyCredentialPath returns the configured path if set, otherwise the default
+// ~/.config/giztui/<defaultFilename>. A leading ~ is expanded to the user's home directory.
+func resolveLegacyCredentialPath(configured, defaultFilename string) string {
+	p := configured
+	if p == "" {
+		p = filepath.Join("~", ".config", "giztui", defaultFilename)
+	}
+	return expandHomePath(p)
+}
+
+// expandHomePath expands a leading ~ to the user's home directory.
+func expandHomePath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, path[1:])
+}
+
+// fileExists reports whether path exists and is a regular file.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // ListAccounts returns all configured accounts
