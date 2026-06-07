@@ -495,6 +495,13 @@ func TestConfig_JSONSerialization(t *testing.T) {
 	assert.Equal(t, original.LLM.Enabled, loaded.LLM.Enabled)
 }
 
+func TestDefaultRenderingConfig(t *testing.T) {
+	c := DefaultConfig()
+	assert.True(t, c.Rendering.MarkdownDefault, "MarkdownDefault should be true by default")
+	assert.Equal(t, "dark", c.Rendering.GlamourTheme)
+	assert.True(t, c.Rendering.DropTrackingImages, "DropTrackingImages should be true by default")
+}
+
 func TestIsObsidianEnabled(t *testing.T) {
 	cases := []struct {
 		name string

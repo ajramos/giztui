@@ -404,6 +404,17 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"action-pla":     {"action-plan"},
 		"action-plan":    {"action-plan"},
 		"plan":           {"action-plan"},
+		"md":             {"markdown"},
+		"mar":            {"markdown"},
+		"mark":           {"markdown"},
+		"markd":          {"markdown"},
+		"markdo":         {"markdown"},
+		"markdow":        {"markdown"},
+		"markdown":       {"markdown"},
+		"touch-":         {"touch-up"},
+		"touch-u":        {"touch-up"},
+		"touch-up":       {"touch-up"},
+		"touchup":        {"touch-up"},
 		"a":              {"archive", "accounts"},
 		"ar":             {"archive"},
 		"arc":            {"archive"},
@@ -806,6 +817,10 @@ func (a *App) executeCommand(cmd string) {
 		a.executePromptSaveCommand(args)
 	case "action-plan", "plan", "ap":
 		a.executeActionPlanCommand(args)
+	case "markdown", "md":
+		a.toggleMarkdown()
+	case "touch-up", "touchup":
+		a.toggleLLMTouchUp()
 	case "theme", "th":
 		if len(args) == 0 {
 			// Open theme picker UI if no subcommands

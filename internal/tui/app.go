@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	calclient "github.com/ajramos/giztui/internal/calendar"
@@ -132,6 +133,10 @@ type App struct {
 	messageCache   map[string]*gmail.Message
 	messageCacheMu sync.RWMutex
 
+	// Render cache (stores rendered body text keyed by message/mode/width)
+	renderCache   map[string]string
+	renderCacheMu sync.RWMutex
+
 	// Calendar invite cache (parsed from text/calendar parts)
 	inviteCache map[string]Invite // messageID -> invite metadata
 
@@ -176,7 +181,7 @@ type App struct {
 	messagesLoading  bool // true when messages are being loaded
 
 	// Formatting toggles
-	llmTouchUpEnabled bool
+	llmTouchUpEnabled atomic.Bool
 
 	// Message display options
 	showMessageNumbers bool
@@ -366,7 +371,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		logFile:            nil,
 		selected:           make(map[string]bool),
 		bulkMode:           false,
-		llmTouchUpEnabled:  false,
 		messagesLoading:    false,
 		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}
@@ -865,7 +869,7 @@ func (a *App) initServices() {
 	}
 
 	// Initialize display service (no dependencies)
-	a.displayService = services.NewDisplayService()
+	a.displayService = services.NewDisplayService(a.Config.Rendering.MarkdownDefault)
 	if a.logger != nil {
 		a.logger.Printf("initServices: display service initialized: %v", a.displayService != nil)
 	}
@@ -1395,6 +1399,32 @@ func (a *App) SetMessageInCache(messageID string, message *gmail.Message) {
 	a.messageCacheMu.Lock()
 	defer a.messageCacheMu.Unlock()
 	a.messageCache[messageID] = message
+}
+
+// renderCacheKey composes a key for cached rendered body text.
+func renderCacheKey(messageID string, markdown bool, width int) string {
+	return fmt.Sprintf("%s|%t|%d", messageID, markdown, width)
+}
+
+// getRenderCache returns cached rendered body text, if present.
+func (a *App) getRenderCache(messageID string, markdown bool, width int) (string, bool) {
+	a.renderCacheMu.RLock()
+	defer a.renderCacheMu.RUnlock()
+	if a.renderCache == nil {
+		return "", false
+	}
+	v, ok := a.renderCache[renderCacheKey(messageID, markdown, width)]
+	return v, ok
+}
+
+// setRenderCache stores rendered body text.
+func (a *App) setRenderCache(messageID string, markdown bool, width int, text string) {
+	a.renderCacheMu.Lock()
+	defer a.renderCacheMu.Unlock()
+	if a.renderCache == nil {
+		a.renderCache = make(map[string]string)
+	}
+	a.renderCache[renderCacheKey(messageID, markdown, width)] = text
 }
 
 // GetScreenSize returns the current screen dimensions thread-safely
