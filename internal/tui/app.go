@@ -132,6 +132,10 @@ type App struct {
 	messageCache   map[string]*gmail.Message
 	messageCacheMu sync.RWMutex
 
+	// Render cache (stores rendered body text keyed by message/mode/width)
+	renderCache   map[string]string
+	renderCacheMu sync.RWMutex
+
 	// Calendar invite cache (parsed from text/calendar parts)
 	inviteCache map[string]Invite // messageID -> invite metadata
 
@@ -1395,6 +1399,32 @@ func (a *App) SetMessageInCache(messageID string, message *gmail.Message) {
 	a.messageCacheMu.Lock()
 	defer a.messageCacheMu.Unlock()
 	a.messageCache[messageID] = message
+}
+
+// renderCacheKey composes a key for cached rendered body text.
+func renderCacheKey(messageID string, markdown bool, width int) string {
+	return fmt.Sprintf("%s|%t|%d", messageID, markdown, width)
+}
+
+// getRenderCache returns cached rendered body text, if present.
+func (a *App) getRenderCache(messageID string, markdown bool, width int) (string, bool) {
+	a.renderCacheMu.RLock()
+	defer a.renderCacheMu.RUnlock()
+	if a.renderCache == nil {
+		return "", false
+	}
+	v, ok := a.renderCache[renderCacheKey(messageID, markdown, width)]
+	return v, ok
+}
+
+// setRenderCache stores rendered body text.
+func (a *App) setRenderCache(messageID string, markdown bool, width int, text string) {
+	a.renderCacheMu.Lock()
+	defer a.renderCacheMu.Unlock()
+	if a.renderCache == nil {
+		a.renderCache = make(map[string]string)
+	}
+	a.renderCache[renderCacheKey(messageID, markdown, width)] = text
 }
 
 // GetScreenSize returns the current screen dimensions thread-safely
