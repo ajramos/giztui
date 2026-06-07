@@ -452,6 +452,13 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		return a.handleBulkSelect()
 
+	case a.Keys.ActionPlan:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> action_plan", key)
+		}
+		go a.openActionPlanPanel()
+		return true
+
 	// Saved queries
 	case a.Keys.SaveQuery:
 		if a.logger != nil {
@@ -511,7 +518,8 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.LoadMore ||
 		keyStr == a.Keys.ToggleHeaders ||
 		keyStr == a.Keys.SaveQuery ||
-		keyStr == a.Keys.QueryBookmarks
+		keyStr == a.Keys.QueryBookmarks ||
+		keyStr == a.Keys.ActionPlan
 }
 
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
