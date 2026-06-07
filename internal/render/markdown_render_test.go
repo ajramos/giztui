@@ -75,13 +75,13 @@ func TestReferenceLongURLs(t *testing.T) {
 func TestCleanupMarkdown(t *testing.T) {
 	// Zero-width preheader junk + empty table + tracking image + long URL.
 	longURL := "https://track.example.com/" + strings.Repeat("a", 80)
-	in := "​ ‌ ͏ preheader\n\n" +
+	in := "\u200b \u200c \u034f preheader\n\n" +
 		"|  |  |\n| --- | --- |\n\n" +
 		"![](https://t.co/pixel.gif)\n\n" +
 		"# Real Heading\n\nBuy [now](" + longURL + ")\n"
 	got := cleanupMarkdown(in, MarkdownOptions{DropTrackingImages: true})
 
-	if strings.Contains(got, "​") || strings.Contains(got, "͏") {
+	if strings.Contains(got, "\u200b") || strings.Contains(got, "\u034f") {
 		t.Errorf("zero-width chars not stripped:\n%q", got)
 	}
 	if strings.Contains(got, "pixel.gif") {
@@ -132,7 +132,7 @@ func TestRenderEmailMarkdown_RealNewsletter(t *testing.T) {
 		t.Errorf("expected newsletter content missing:\n%s", out[:min(len(out), 500)])
 	}
 	// Junk is gone: no zero-width chars, no empty markdown table separators.
-	if strings.Contains(out, "​") || strings.Contains(out, "| --- | --- |") {
+	if strings.Contains(out, "\u200b") || strings.Contains(out, "| --- | --- |") {
 		t.Errorf("junk survived cleanup")
 	}
 }
