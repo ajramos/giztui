@@ -91,6 +91,28 @@ func collapseEmptyTables(md string) string {
 // mdLinkRe matches a Markdown inline link [text](http(s)://url).
 var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
 
+// MarkdownOptions controls markdown rendering and cleanup.
+type MarkdownOptions struct {
+	WrapWidth          int
+	GlamourTheme       string
+	DropTrackingImages bool
+}
+
+// cleanupMarkdown applies the newsletter cleanup pipeline to Markdown source.
+// Order matters: drop images and empty tables first, then reference URLs, then
+// reuse the existing terminal sanitizer (strips zero-width/spacer glyphs) and
+// near-duplicate paragraph deduper from format.go.
+func cleanupMarkdown(md string, opts MarkdownOptions) string {
+	if opts.DropTrackingImages {
+		md = dropTrackingImages(md)
+	}
+	md = collapseEmptyTables(md)
+	md = referenceLongURLs(md, 60)
+	md = sanitizeForTerminal(md)               // defined in format.go
+	md = dedupeNearDuplicateParagraphs(md, 32) // defined in format.go
+	return strings.TrimSpace(md)
+}
+
 // referenceLongURLs replaces inline links whose URL exceeds threshold characters
 // with "text [n]" numbered references, collected into a trailing "## Links"
 // section. Short links stay inline. Identical URLs share one reference number.

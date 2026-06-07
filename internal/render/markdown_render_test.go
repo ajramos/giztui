@@ -68,3 +68,29 @@ func TestReferenceLongURLs(t *testing.T) {
 		t.Errorf("short link should stay inline:\n%s", got)
 	}
 }
+
+func TestCleanupMarkdown(t *testing.T) {
+	// Zero-width preheader junk + empty table + tracking image + long URL.
+	longURL := "https://track.example.com/" + strings.Repeat("a", 80)
+	in := "​ ‌ ͏ preheader\n\n" +
+		"|  |  |\n| --- | --- |\n\n" +
+		"![](https://t.co/pixel.gif)\n\n" +
+		"# Real Heading\n\nBuy [now](" + longURL + ")\n"
+	got := cleanupMarkdown(in, MarkdownOptions{DropTrackingImages: true})
+
+	if strings.Contains(got, "​") || strings.Contains(got, "͏") {
+		t.Errorf("zero-width chars not stripped:\n%q", got)
+	}
+	if strings.Contains(got, "pixel.gif") {
+		t.Errorf("tracking image not dropped:\n%s", got)
+	}
+	if strings.Contains(got, "| --- |") {
+		t.Errorf("empty table not collapsed:\n%s", got)
+	}
+	if !strings.Contains(got, "# Real Heading") {
+		t.Errorf("real content lost:\n%s", got)
+	}
+	if !strings.Contains(got, "## Links") {
+		t.Errorf("long URL not referenced:\n%s", got)
+	}
+}
