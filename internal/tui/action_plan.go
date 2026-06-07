@@ -234,7 +234,13 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		defer func() {
 			cancel()
 			state.streamingCancel = nil
-			a.streamingCancel = nil
+			// Only clear the app-level cancel if THIS panel is still active. If the
+			// panel was closed and reopened, a.streamingCancel belongs to the new
+			// panel's goroutine and must not be clobbered. (func values are not
+			// comparable, so we gate on the state pointer instead.)
+			if a.actionPlanState == state {
+				a.streamingCancel = nil
+			}
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
