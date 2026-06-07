@@ -5,6 +5,23 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-07
+
+### ✨ Features
+
+- **Inbox Action Plan**: A new AI-assisted triage panel, opened with `P` (capital P) or `:action-plan` (aliases `:plan`, `:ap`). It groups the **unread** messages already loaded in the current view into a few actionable categories (archive, mark-as-read, trash, label) and lets you dispatch each group with a single keystroke. Categories stream in progressively as each batch is analyzed; press `Esc` to cancel at any time (work done so far stays on screen). Per category, two escape hatches: `:` opens the command palette scoped to that category's messages (virtual bulk selection), and `p` opens the bulk prompt picker scoped to the same set. Override the built-in analyzer with any saved prompt via `:action-plan with-prompt <name-or-id>`.
+  - Runs in **fast mode**: it uses only the subject, sender, and snippet already in memory, so it makes **no extra Gmail API calls**.
+  - Degrades gracefully when the LLM returns malformed or empty output — one stricter repair retry, then any uncategorized messages fall back to a "Read manually" bucket so nothing is lost.
+  - New service-first `InboxAnalyzerService` (configurable batching, JSON parsing with out-of-range guarding, cross-category de-duplication, and category merging across batches; calls the AI service directly).
+  - New `inbox_analyzer` configuration block (`batch_size` default 50, `max_batches` default 10) and a configurable `keys.action_plan` shortcut (default `P`). See `docs/KEYBOARD_SHORTCUTS.md`.
+
+### 🛠️ Technical Improvements
+
+- The analyzer's default `batch_size` of 50 is tuned for capable cloud models. Small local models (e.g. a 7B Ollama model) can struggle to follow the JSON schema across 50 messages and may return no categories — lower `inbox_analyzer.batch_size` to 15–20 in that case (documented in `docs/KEYBOARD_SHORTCUTS.md` and `docs/CONFIGURATION.md`).
+- Background analysis renders are marshalled onto the UI thread via `QueueUpdateDraw` for reliable progressive painting, the panel's keys are routed past the global shortcut handler (so quick-actions and escape hatches work from the panel's text view), and the streaming-cancel lifecycle is guarded against close/reopen races.
+
+---
+
 ## [1.2.4] - 2026-06-03
 
 ### 🐛 Bug Fixes
