@@ -97,6 +97,9 @@ func TestMergeCategories(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2", "m3"}, merged[0].MessageIDs)
 	assert.Equal(t, "Follow up", merged[1].Name)
 	assert.Equal(t, []string{"m4"}, merged[1].MessageIDs)
+
+	// Fix 1: merging must not mutate the caller's original inner slice.
+	assert.Equal(t, []string{"m1", "m2"}, existing[0].MessageIDs)
 }
 
 func analyzerMsgs(n int) []AnalyzerMessage {
@@ -210,4 +213,41 @@ func TestAnalyze_Cancellation(t *testing.T) {
 		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10}, nil)
 	assert.ErrorIs(t, err, context.Canceled)
 	ai.AssertNotCalled(t, "ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestParseAnalyzerResponse_CrossCategoryDuplicateFirstWins(t *testing.T) {
+	batchIDs := []string{"m1", "m2", "m3"}
+	// m2 appears in both categories; only the first category should keep it.
+	raw := `{"categories":[
+	  {"name":"A","priority":"low","description":"d","action":"archive","label":"","messages":[1,2]},
+	  {"name":"B","priority":"low","description":"d","action":"trash","label":"","messages":[2,3]}
+	],"read_manually":[]}`
+	cats, _, err := parseAnalyzerResponse(raw, batchIDs)
+	assert.NoError(t, err)
+	assert.Len(t, cats, 2)
+	assert.Equal(t, []string{"m1", "m2"}, cats[0].MessageIDs)
+	assert.Equal(t, []string{"m3"}, cats[1].MessageIDs) // m2 dropped from B
+}
+
+func TestExtractJSONObject_BraceInsideString(t *testing.T) {
+	in := `{"subject":"Re: {project} deadline","n":1}`
+	assert.Equal(t, in, extractJSONObject(in))
+}
+
+func TestAnalyze_IntermediateBatchErrorReturnsPartialPlan(t *testing.T) {
+	ai := &mockAIService{}
+	// Batch 1 (m1,m2) succeeds; batch 2 (m3,m4) hard-fails.
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(`{"categories":[{"name":"A","priority":"low","description":"d","action":"archive","label":"","messages":[1,2]}],"read_manually":[]}`, nil).Once()
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return("", fmt.Errorf("llm down")).Once()
+
+	svc := NewInboxAnalyzerService(ai)
+	plan, err := svc.Analyze(context.Background(), analyzerMsgs(4),
+		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10}, nil)
+
+	assert.Error(t, err)          // error propagates
+	assert.NotNil(t, plan)        // partial plan preserved
+	assert.Len(t, plan.Categories, 1)
+	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
 }

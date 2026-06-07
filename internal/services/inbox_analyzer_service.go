@@ -27,15 +27,32 @@ type analyzerRawResponse struct {
 }
 
 // extractJSONObject returns the first balanced {...} object in s, stripping markdown
-// fences and surrounding prose. Returns "" if no object is found.
+// fences and surrounding prose. Braces inside JSON string literals are ignored. Returns
+// "" if no object is found.
 func extractJSONObject(s string) string {
 	start := strings.IndexByte(s, '{')
 	if start < 0 {
 		return ""
 	}
 	depth := 0
+	inString := false
+	escaped := false
 	for i := start; i < len(s); i++ {
-		switch s[i] {
+		c := s[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
 		case '{':
 			depth++
 		case '}':
@@ -61,12 +78,19 @@ func parseAnalyzerResponse(raw string, batchIDs []string) ([]ActionPlanCategory,
 		return nil, nil, fmt.Errorf("malformed analyzer JSON: %w", err)
 	}
 
+	claimed := make(map[string]bool)
 	resolve := func(nums []int) []string {
 		ids := make([]string, 0, len(nums))
 		for _, n := range nums {
-			if n >= 1 && n <= len(batchIDs) {
-				ids = append(ids, batchIDs[n-1])
+			if n < 1 || n > len(batchIDs) {
+				continue
 			}
+			id := batchIDs[n-1]
+			if claimed[id] {
+				continue // already assigned to an earlier category
+			}
+			claimed[id] = true
+			ids = append(ids, id)
 		}
 		return ids
 	}
@@ -90,18 +114,20 @@ func parseAnalyzerResponse(raw string, batchIDs []string) ([]ActionPlanCategory,
 }
 
 func normalizePriority(p string) string {
-	switch strings.ToLower(strings.TrimSpace(p)) {
+	s := strings.ToLower(strings.TrimSpace(p))
+	switch s {
 	case "high", "medium", "low":
-		return strings.ToLower(strings.TrimSpace(p))
+		return s
 	default:
 		return "medium"
 	}
 }
 
 func normalizeAction(a string) string {
-	switch strings.ToLower(strings.TrimSpace(a)) {
+	s := strings.ToLower(strings.TrimSpace(a))
+	switch s {
 	case "archive", "mark_read", "trash", "label", "none":
-		return strings.ToLower(strings.TrimSpace(a))
+		return s
 	default:
 		return "none"
 	}
@@ -125,6 +151,8 @@ func splitBatches(messages []AnalyzerMessage, size, maxBatches int) [][]Analyzer
 		if end > len(messages) {
 			end = len(messages)
 		}
+		// Sub-slices share the messages backing array; callers must not mutate messages
+		// after this call.
 		batches = append(batches, messages[i:end])
 	}
 	return batches
@@ -132,36 +160,43 @@ func splitBatches(messages []AnalyzerMessage, size, maxBatches int) [][]Analyzer
 
 // mergeCategories merges incoming categories into existing, unioning message IDs of
 // categories that share a name (case-insensitive) and appending new ones.
+// It does not mutate the caller's existing slice or its elements.
 func mergeCategories(existing, incoming []ActionPlanCategory) []ActionPlanCategory {
-	indexByName := make(map[string]int, len(existing))
-	for i, c := range existing {
+	// Work on a shallow copy so the caller's slice elements are not mutated.
+	out := make([]ActionPlanCategory, len(existing))
+	copy(out, existing)
+	indexByName := make(map[string]int, len(out))
+	for i, c := range out {
 		indexByName[strings.ToLower(c.Name)] = i
 	}
 	for _, inc := range incoming {
 		key := strings.ToLower(inc.Name)
 		if idx, ok := indexByName[key]; ok {
-			existing[idx].MessageIDs = unionIDs(existing[idx].MessageIDs, inc.MessageIDs)
+			out[idx].MessageIDs = unionIDs(out[idx].MessageIDs, inc.MessageIDs)
 			continue
 		}
-		indexByName[key] = len(existing)
-		existing = append(existing, inc)
+		indexByName[key] = len(out)
+		out = append(out, inc)
 	}
-	return existing
+	return out
 }
 
-// unionIDs appends b's IDs to a, skipping IDs already present, preserving order.
+// unionIDs returns a new slice containing a's IDs followed by b's IDs not already
+// present, preserving order. It does not mutate either input's backing array.
 func unionIDs(a, b []string) []string {
+	out := make([]string, len(a))
+	copy(out, a)
 	seen := make(map[string]bool, len(a))
 	for _, id := range a {
 		seen[id] = true
 	}
 	for _, id := range b {
 		if !seen[id] {
-			a = append(a, id)
+			out = append(out, id)
 			seen[id] = true
 		}
 	}
-	return a
+	return out
 }
 
 // InboxAnalyzerServiceImpl implements InboxAnalyzerService using the AIService directly.
@@ -179,11 +214,12 @@ func NewInboxAnalyzerService(aiService AIService) *InboxAnalyzerServiceImpl {
 func buildBatchPayload(batch []AnalyzerMessage) string {
 	var b strings.Builder
 	for i, m := range batch {
-		subject := m.Subject
-		if subject == "" {
+		subject := strings.ReplaceAll(m.Subject, "\n", " ")
+		if strings.TrimSpace(subject) == "" {
 			subject = "(no subject)"
 		}
-		fmt.Fprintf(&b, "%d. Subject: %s | From: %s | %s\n", i+1, subject, m.From, m.Snippet)
+		snippet := strings.ReplaceAll(m.Snippet, "\n", " ")
+		fmt.Fprintf(&b, "%d. Subject: %s | From: %s | %s\n", i+1, subject, m.From, snippet)
 	}
 	return b.String()
 }
@@ -257,7 +293,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 // treats this as a degraded batch).
 func (s *InboxAnalyzerServiceImpl) runBatch(ctx context.Context, promptText, payload string, batchIDs []string) ([]ActionPlanCategory, []int, error) {
 	prompt := buildBatchPrompt(promptText, payload)
-	result, err := s.aiService.ApplyCustomPromptStream(ctx, prompt, nil, func(string) {})
+	result, err := s.aiService.ApplyCustomPromptStream(ctx, prompt, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -271,7 +307,7 @@ func (s *InboxAnalyzerServiceImpl) runBatch(ctx context.Context, promptText, pay
 		return nil, nil, err
 	}
 	repair := prompt + "\n\nIMPORTANT: Your previous answer was not valid JSON. Reply with ONLY the JSON object described above, no prose, no markdown."
-	result2, err := s.aiService.ApplyCustomPromptStream(ctx, repair, nil, func(string) {})
+	result2, err := s.aiService.ApplyCustomPromptStream(ctx, repair, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
