@@ -193,6 +193,7 @@ type App struct {
 	bulkPromptService       *services.BulkPromptServiceImpl
 	promptService           services.PromptService
 	promptGeneratorService  services.PromptGeneratorService
+	inboxAnalyzerService    services.InboxAnalyzerService
 	promptConfiguratorState *promptConfiguratorState
 	slackService            services.SlackService
 	obsidianService         services.ObsidianService
@@ -523,6 +524,12 @@ func (a *App) reinitializeServices() {
 			a.logger.Printf("reinitializeServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
 		}
 	}
+	if a.aiService != nil && a.inboxAnalyzerService == nil {
+		a.inboxAnalyzerService = services.NewInboxAnalyzerService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: inbox analyzer service initialized: %v", a.inboxAnalyzerService != nil)
+		}
+	}
 
 	// Now update prompt service with bulk service
 	if a.promptService != nil && a.bulkPromptService != nil {
@@ -745,6 +752,12 @@ func (a *App) initServices() {
 		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
 		if a.logger != nil {
 			a.logger.Printf("initServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+	if a.aiService != nil {
+		a.inboxAnalyzerService = services.NewInboxAnalyzerService(a.aiService)
+		if a.logger != nil {
+			a.logger.Printf("initServices: inbox analyzer service initialized: %v", a.inboxAnalyzerService != nil)
 		}
 	}
 
@@ -1411,6 +1424,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 // GetPromptGeneratorService returns the prompt generator service or nil if not initialized.
 func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 	return a.promptGeneratorService
+}
+
+// GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.
+func (a *App) GetInboxAnalyzerService() services.InboxAnalyzerService {
+	return a.inboxAnalyzerService
 }
 
 // GetBulkPromptService returns the bulk prompt service or nil if not initialized.
