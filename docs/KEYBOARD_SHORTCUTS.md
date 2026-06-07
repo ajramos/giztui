@@ -156,6 +156,43 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | `g` | Generate reply | Experimental AI reply generation |
 | `Esc` | Cancel AI | Cancel any active streaming AI operation |
 
+## ✨ Prompt Configurator
+
+The Prompt Configurator lets you generate AI prompt templates from natural-language intent instead of writing them by hand. Open it from the prompt picker: press `p` on a message (or in bulk mode after selecting messages), then choose **✨ Create new with AI...** as the first item in the picker. The configurator panel opens alongside the current message(s).
+
+### Panel Layout
+
+The configurator has three areas cycled via `Tab` / `Shift+Tab`:
+
+1. **Intent** (top) — describe what you want in plain language, press `Enter` to generate a prompt
+2. **Editable prompt** (middle) — the generated prompt appears here; edit it freely
+3. **Refine** (bottom) — type a refinement instruction (e.g. "output as JSON"), press `Enter` to refine
+
+### In-Panel Keys
+| Key | Action | Description |
+|-----|--------|-------------|
+| `Tab` | Focus next | Cycle focus: Intent → Editable → Refine |
+| `Shift+Tab` | Focus previous | Cycle focus in reverse |
+| `Enter` | Generate / Refine | Generate prompt from Intent, or refine from Refine input |
+| `Ctrl+G` | Apply prompt | Apply current prompt to the scoped message(s); result appears in the AI panel |
+| `Ctrl+R` | Regenerate | Re-generate the prompt from the Intent input |
+| `Ctrl+S` | Save prompt | Open save dialog (name / description / category) to store prompt in your library |
+| `Esc` | Close | Close the configurator; cancels any in-progress LLM call |
+
+### Prompt Configurator Commands
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `:prompt-new` | `:pn` | Open the configurator with current context (single message, bulk selection, or draft) |
+| `:prompt-refine <instruction>` | `:prf` | Refine the active prompt with the given instruction |
+| `:prompt-save` | `:ps` | Open the save dialog for the currently active prompt |
+
+### Notes
+
+- **Saved prompts** appear in both the single-message prompt picker and the bulk prompt picker after saving; they are immediately available for reuse.
+- **Unsaved prompts** are discarded when you close the configurator with `Esc` — use `Ctrl+S` before closing to keep them.
+- **LLM model quality matters**: prompt generation and refinement quality depends on the model configured for your LLM backend. A small model (e.g. 1.5B parameters) may produce poor or incomplete prompts — a 7B+ model is recommended for best results.
+- The in-panel keys (`Ctrl+G`, `Ctrl+R`, `Ctrl+S`) are currently hardcoded. Config keys (`keys.prompt_apply`, `keys.prompt_regenerate`, `keys.save_prompt`) exist in `config.json` but are reserved for future configurable binding support.
+
 ## ⚙️ Customizing Shortcuts
 
 **All shortcuts listed above can be customized** in your `config.json` file. See [CONFIGURATION.md](CONFIGURATION.md) for detailed customization guidance.
