@@ -92,27 +92,12 @@ func (a *App) actionKeyHint(action string) string {
 	}
 }
 
-// actionKeyHintForAction is the package-level default-key mapping used by the renderer
-// (mirrors App.actionKeyHint defaults; the live panel footer uses the configured keys).
-func actionKeyHintForAction(action string) string {
-	switch action {
-	case "archive":
-		return "a"
-	case "mark_read":
-		return "t"
-	case "trash":
-		return "d"
-	case "label":
-		return "l"
-	default:
-		return ""
-	}
-}
-
 // renderActionPlanText formats a plan into the panel body as PLAIN text (the body has
 // dynamic colors disabled, so literal "[a]" key hints render as-is). selected is the
-// index of the currently-highlighted category (or -1).
-func renderActionPlanText(plan *services.ActionPlan, selected int) string {
+// index of the currently-highlighted category (or -1). keyFor resolves an action token to
+// the configured shortcut key (so the body hints honor user keybindings) — pass
+// App.actionKeyHint.
+func renderActionPlanText(plan *services.ActionPlan, selected int, keyFor func(string) string) string {
 	if plan == nil {
 		return "Analyzing…"
 	}
@@ -125,7 +110,7 @@ func renderActionPlanText(plan *services.ActionPlan, selected int) string {
 		if i == selected {
 			marker = "▸ "
 		}
-		key := actionKeyHintForAction(c.Action)
+		key := keyFor(c.Action)
 		keyHint := ""
 		if key != "" {
 			keyHint = fmt.Sprintf("[%s] ", key)
@@ -314,7 +299,7 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	if state.selectedCategory < 0 {
 		state.selectedCategory = 0
 	}
-	state.body.SetText(renderActionPlanText(p, state.selectedCategory))
+	state.body.SetText(renderActionPlanText(p, state.selectedCategory, a.actionKeyHint))
 }
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no

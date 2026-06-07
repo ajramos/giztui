@@ -50,7 +50,11 @@ func TestRenderActionPlanText(t *testing.T) {
 		ReadManually: []services.AnalyzerMessage{{ID: "m4", Subject: "Budget", From: "cfo@x.com"}},
 	}
 
-	out := renderActionPlanText(plan, 1)
+	// Drive the renderer with configured keys via App.actionKeyHint (proves body hints
+	// honor user keybindings, not hardcoded defaults).
+	a := &App{}
+	a.Keys.Archive, a.Keys.ToggleRead, a.Keys.Trash, a.Keys.ManageLabels = "a", "t", "d", "l"
+	out := renderActionPlanText(plan, 1, a.actionKeyHint)
 
 	assert.Contains(t, out, "Newsletters")
 	assert.Contains(t, out, "Archive 2")
