@@ -108,6 +108,29 @@ func normalizeAction(a string) string {
 	}
 }
 
+// splitBatches divides messages into batches of at most size, capped at maxBatches.
+// Messages beyond the cap are dropped (the caller surfaces this to the user).
+func splitBatches(messages []AnalyzerMessage, size, maxBatches int) [][]AnalyzerMessage {
+	if size <= 0 {
+		size = 50
+	}
+	if maxBatches <= 0 {
+		maxBatches = 10
+	}
+	var batches [][]AnalyzerMessage
+	for i := 0; i < len(messages); i += size {
+		if len(batches) >= maxBatches {
+			break
+		}
+		end := i + size
+		if end > len(messages) {
+			end = len(messages)
+		}
+		batches = append(batches, messages[i:end])
+	}
+	return batches
+}
+
 // suppress unused import until Analyze is implemented in Task 6
 var _ = context.Background
 var _ = time.Now

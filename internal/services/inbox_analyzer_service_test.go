@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,4 +53,28 @@ func TestParseAnalyzerResponse_OutOfRangeIndexIgnored(t *testing.T) {
 func TestParseAnalyzerResponse_Malformed(t *testing.T) {
 	_, _, err := parseAnalyzerResponse("not json", []string{"m1"})
 	assert.Error(t, err)
+}
+
+func TestSplitBatches(t *testing.T) {
+	mk := func(n int) []AnalyzerMessage {
+		out := make([]AnalyzerMessage, n)
+		for i := range out {
+			out[i] = AnalyzerMessage{ID: fmt.Sprintf("m%d", i)}
+		}
+		return out
+	}
+
+	// 120 messages, size 50, cap 10 → batches of 50,50,20.
+	batches := splitBatches(mk(120), 50, 10)
+	assert.Len(t, batches, 3)
+	assert.Len(t, batches[0], 50)
+	assert.Len(t, batches[2], 20)
+
+	// MaxBatches caps total work: 500 msgs, size 50, cap 2 → only 2 batches (100 msgs).
+	capped := splitBatches(mk(500), 50, 2)
+	assert.Len(t, capped, 2)
+	assert.Len(t, capped[1], 50)
+
+	// Zero/negative size falls back to a sane default (50).
+	assert.Len(t, splitBatches(mk(10), 0, 10), 1)
 }
