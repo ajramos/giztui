@@ -96,6 +96,9 @@ type Config struct {
 	// Threading configuration
 	Threading ThreadingConfig `json:"threading"`
 
+	// Inbox Action Plan analyzer configuration
+	InboxAnalyzer InboxAnalyzerConfig `json:"inbox_analyzer"`
+
 	// Performance configuration
 	Performance PerformanceConfig `json:"performance"`
 
@@ -212,6 +215,13 @@ type ThreadingConfig struct {
 
 	// PreserveThreadState remembers expanded/collapsed state between sessions
 	PreserveThreadState bool `json:"preserve_thread_state"`
+}
+
+// InboxAnalyzerConfig configures the AI inbox Action Plan analyzer.
+type InboxAnalyzerConfig struct {
+	BatchSize       int    `json:"batch_size"`        // messages per LLM batch (default 50)
+	MaxBatches      int    `json:"max_batches"`       // safety cap on batches (default 10)
+	DefaultPromptID string `json:"default_prompt_id"` // optional saved-prompt override (name or id)
 }
 
 // KeyBindings defines keyboard shortcuts for the TUI
@@ -374,8 +384,9 @@ func DefaultConfig() *Config {
 		Layout:      DefaultLayoutConfig(),
 		Keys:        DefaultKeyBindings(),
 		Theme:       DefaultThemeConfig(),
-		Threading:   DefaultThreadingConfig(),
-		Performance: DefaultPerformanceConfig(),
+		Threading:     DefaultThreadingConfig(),
+		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
+		Performance:   DefaultPerformanceConfig(),
 		Display:     DefaultDisplayConfig(),
 		LogFile:     "",
 	}
@@ -557,6 +568,15 @@ func DefaultThreadingConfig() ThreadingConfig {
 		MaxThreadDepth:       10,
 		ThreadSummaryEnabled: true,
 		PreserveThreadState:  true,
+	}
+}
+
+// DefaultInboxAnalyzerConfig returns default analyzer settings.
+func DefaultInboxAnalyzerConfig() InboxAnalyzerConfig {
+	return InboxAnalyzerConfig{
+		BatchSize:       50,
+		MaxBatches:      10,
+		DefaultPromptID: "",
 	}
 }
 
