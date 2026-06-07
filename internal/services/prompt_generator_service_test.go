@@ -315,8 +315,8 @@ func TestPromptGeneratorServiceImpl_RefinePrompt_EmptyRefinement(t *testing.T) {
 
 	result, err := service.RefinePrompt(
 		context.Background(),
-		"Analyze {{body}}.",  // non-empty current
-		"",                    // empty refinement -- this is the guard under test
+		"Analyze {{body}}.", // non-empty current
+		"",                  // empty refinement -- this is the guard under test
 		PromptGenerationOptions{},
 	)
 
