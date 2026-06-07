@@ -9,6 +9,8 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/table"
+	"github.com/charmbracelet/glamour"
+	"github.com/derailed/tview"
 )
 
 // mdConverter is html-to-markdown v2 with base+commonmark+table plugins.
@@ -145,4 +147,27 @@ func referenceLongURLs(md string, threshold int) string {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, url)
 	}
 	return b.String()
+}
+
+// MarkdownToTerminal renders Markdown to terminal text styled by glamour, then
+// translates ANSI escapes to tview color tags for the message TextView.
+func MarkdownToTerminal(markdown, theme string, width int) (string, error) {
+	if theme == "" {
+		theme = "dark"
+	}
+	if width < 20 {
+		width = 80
+	}
+	r, err := glamour.NewTermRenderer(
+		glamour.WithStylePath(theme),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return "", err
+	}
+	out, err := r.Render(markdown)
+	if err != nil {
+		return "", err
+	}
+	return string(tview.TranslateANSI([]byte(out))), nil
 }

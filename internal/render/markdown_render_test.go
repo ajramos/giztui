@@ -94,3 +94,17 @@ func TestCleanupMarkdown(t *testing.T) {
 		t.Errorf("long URL not referenced:\n%s", got)
 	}
 }
+
+func TestMarkdownToTerminal(t *testing.T) {
+	out, err := MarkdownToTerminal("# Title\n\nHello **world**\n", "notty", 80)
+	if err != nil {
+		t.Fatalf("MarkdownToTerminal: %v", err)
+	}
+	if !strings.Contains(out, "Title") || !strings.Contains(out, "world") {
+		t.Errorf("rendered output missing content:\n%s", out)
+	}
+	// notty style must not leave raw ANSI escape bytes.
+	if strings.Contains(out, "\x1b[") {
+		t.Errorf("raw ANSI escape leaked into tview output:\n%q", out)
+	}
+}
