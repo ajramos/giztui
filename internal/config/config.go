@@ -96,6 +96,9 @@ type Config struct {
 	// Threading configuration
 	Threading ThreadingConfig `json:"threading"`
 
+	// Inbox Action Plan analyzer configuration
+	InboxAnalyzer InboxAnalyzerConfig `json:"inbox_analyzer"`
+
 	// Performance configuration
 	Performance PerformanceConfig `json:"performance"`
 
@@ -214,6 +217,13 @@ type ThreadingConfig struct {
 	PreserveThreadState bool `json:"preserve_thread_state"`
 }
 
+// InboxAnalyzerConfig configures the AI inbox Action Plan analyzer.
+type InboxAnalyzerConfig struct {
+	BatchSize       int    `json:"batch_size"`        // messages per LLM batch (default 50)
+	MaxBatches      int    `json:"max_batches"`       // safety cap on batches (default 10)
+	DefaultPromptID string `json:"default_prompt_id"` // optional saved-prompt override (name or id)
+}
+
 // KeyBindings defines keyboard shortcuts for the TUI
 type KeyBindings struct {
 	// Core email operations
@@ -299,6 +309,9 @@ type KeyBindings struct {
 	PromptApply      string `json:"prompt_apply"`      // Apply the active prompt to scoped context
 	PromptTest       string `json:"prompt_test"`       // Test the prompt on one message (stretch)
 
+	// Inbox Action Plan
+	ActionPlan string `json:"action_plan"` // Open the AI inbox Action Plan panel
+
 	// Validation settings
 	ValidateShortcuts bool `json:"validate_shortcuts"` // Enable shortcut conflict validation (default: true)
 }
@@ -366,15 +379,16 @@ type DisplayConfig struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		LLM:         DefaultLLMConfig(),
-		Slack:       DefaultSlackConfig(),
-		Layout:      DefaultLayoutConfig(),
-		Keys:        DefaultKeyBindings(),
-		Theme:       DefaultThemeConfig(),
-		Threading:   DefaultThreadingConfig(),
-		Performance: DefaultPerformanceConfig(),
-		Display:     DefaultDisplayConfig(),
-		LogFile:     "",
+		LLM:           DefaultLLMConfig(),
+		Slack:         DefaultSlackConfig(),
+		Layout:        DefaultLayoutConfig(),
+		Keys:          DefaultKeyBindings(),
+		Theme:         DefaultThemeConfig(),
+		Threading:     DefaultThreadingConfig(),
+		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
+		Performance:   DefaultPerformanceConfig(),
+		Display:       DefaultDisplayConfig(),
+		LogFile:       "",
 	}
 }
 
@@ -503,6 +517,9 @@ func DefaultKeyBindings() KeyBindings {
 		PromptApply:      "ctrl+g", // Ctrl+G = go/apply, doesn't clash with EditableTextView newline
 		PromptTest:       "ctrl+t",
 
+		// Inbox Action Plan
+		ActionPlan: "P", // capital P (A is taken by Attachments)
+
 		// Validation settings (default: enabled for safety)
 		ValidateShortcuts: true, // Enable shortcut conflict validation by default
 	}
@@ -551,6 +568,15 @@ func DefaultThreadingConfig() ThreadingConfig {
 		MaxThreadDepth:       10,
 		ThreadSummaryEnabled: true,
 		PreserveThreadState:  true,
+	}
+}
+
+// DefaultInboxAnalyzerConfig returns default analyzer settings.
+func DefaultInboxAnalyzerConfig() InboxAnalyzerConfig {
+	return InboxAnalyzerConfig{
+		BatchSize:       50,
+		MaxBatches:      10,
+		DefaultPromptID: "",
 	}
 }
 

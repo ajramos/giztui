@@ -490,6 +490,7 @@ To: user1@example.com ... and 7 more recipients
     "ai_summary": "y",
     "ai_regenerate": "Y",
     "prompts": "p",
+    "action_plan": "P",
     "slack_forward": "K",
     "obsidian_ingest": "O",
     "links": "L",
@@ -1014,6 +1015,26 @@ tags: [email, {{labels}}]
 | `max_thread_depth` | integer | Maximum thread nesting level | `10` |
 | `thread_summary_enabled` | boolean | Enable AI-powered thread summaries | `true` |
 | `preserve_thread_state` | boolean | Remember expanded/collapsed state | `true` |
+
+### Inbox Analyzer Configuration
+
+Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan`), which uses the LLM to triage unread messages into actionable groups.
+
+```json
+"inbox_analyzer": {
+  "batch_size": 50,
+  "max_batches": 10,
+  "default_prompt_id": ""
+}
+```
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `batch_size` | integer | Messages sent to the LLM per batch. Lower to 15–20 for small local models that struggle with large prompts. | `50` |
+| `max_batches` | integer | Safety cap on the number of batches per run. | `10` |
+| `default_prompt_id` | string | Reserved for a future built-in override prompt. | `""` |
+
+The shortcut is configurable via `keys.action_plan` (default `"P"`).
 
 ### Performance Settings
 

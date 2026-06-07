@@ -452,6 +452,13 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		return a.handleBulkSelect()
 
+	case a.Keys.ActionPlan:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> action_plan", key)
+		}
+		go a.openActionPlanPanel()
+		return true
+
 	// Saved queries
 	case a.Keys.SaveQuery:
 		if a.logger != nil {
@@ -511,7 +518,8 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.LoadMore ||
 		keyStr == a.Keys.ToggleHeaders ||
 		keyStr == a.Keys.SaveQuery ||
-		keyStr == a.Keys.QueryBookmarks
+		keyStr == a.Keys.QueryBookmarks ||
+		keyStr == a.Keys.ActionPlan
 }
 
 // bindKeys sets up keyboard shortcuts and routes actions to feature modules
@@ -555,6 +563,19 @@ func (a *App) bindKeys() {
 				a.logger.Printf("=== COMPOSITION PANEL ACTIVE: Allowing event to pass through to composition panel ===")
 			}
 			// Let the composition panel handle ALL input events
+			return event
+		}
+
+		// If the Action Plan panel is active, route keys to its own input capture. Its body
+		// is a *tview.TextView, which the focus-type switch below does NOT defer to, so
+		// without this the global configurable-shortcut handling (archive/trash/etc.) and
+		// command-mode (':') would shadow the panel's quick-actions and escape hatches.
+		// ESC always closes the panel regardless of where focus has drifted.
+		if a.isActionPlanActive() {
+			if event.Key() == tcell.KeyEscape {
+				a.closeActionPlanPanel()
+				return nil
+			}
 			return event
 		}
 
