@@ -379,16 +379,16 @@ type DisplayConfig struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		LLM:         DefaultLLMConfig(),
-		Slack:       DefaultSlackConfig(),
-		Layout:      DefaultLayoutConfig(),
-		Keys:        DefaultKeyBindings(),
-		Theme:       DefaultThemeConfig(),
+		LLM:           DefaultLLMConfig(),
+		Slack:         DefaultSlackConfig(),
+		Layout:        DefaultLayoutConfig(),
+		Keys:          DefaultKeyBindings(),
+		Theme:         DefaultThemeConfig(),
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
 		Performance:   DefaultPerformanceConfig(),
-		Display:     DefaultDisplayConfig(),
-		LogFile:     "",
+		Display:       DefaultDisplayConfig(),
+		LogFile:       "",
 	}
 }
 

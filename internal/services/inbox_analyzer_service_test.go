@@ -246,8 +246,8 @@ func TestAnalyze_IntermediateBatchErrorReturnsPartialPlan(t *testing.T) {
 	plan, err := svc.Analyze(context.Background(), analyzerMsgs(4),
 		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10}, nil)
 
-	assert.Error(t, err)          // error propagates
-	assert.NotNil(t, plan)        // partial plan preserved
+	assert.Error(t, err)   // error propagates
+	assert.NotNil(t, plan) // partial plan preserved
 	assert.Len(t, plan.Categories, 1)
 	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
 }
