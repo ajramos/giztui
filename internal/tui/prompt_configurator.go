@@ -103,7 +103,9 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 			a.savePromptFromConfigurator()
 			return nil
 		case tcell.KeyCtrlG:
-			go a.applyConfiguratorPrompt()
+			// Runs on the UI thread: it closes the panel (a UI mutation) before
+			// spawning the LLM goroutine. Do NOT wrap in `go`.
+			a.applyConfiguratorPrompt()
 			return nil
 		case tcell.KeyEscape:
 			a.closePromptConfigurator()
@@ -412,28 +414,37 @@ func (a *App) applyConfiguratorPrompt() {
 		return
 	}
 
-	switch state.ctx.mode {
+	// Capture everything we need BEFORE closing the panel (close nils out the state).
+	mode := state.ctx.mode
+	messageID := state.ctx.messageID
+	messageIDs := state.ctx.messageIDs
+	name := state.suggestedName
+
+	switch mode {
 	case "single":
-		if state.ctx.messageID == "" {
+		if messageID == "" {
 			a.GetErrorHandler().ShowWarning(a.ctx, "No message context — Apply disabled in draft mode")
 			return
 		}
-		go a.applyEphemeralPromptToMessage(state.ctx.messageID, current, state.suggestedName)
+		// Close on the UI thread (this runs on the UI thread), then stream off-thread.
+		a.closePromptConfigurator()
+		go a.applyEphemeralPromptToMessage(messageID, current, name)
 	case "bulk":
-		if len(state.ctx.messageIDs) == 0 {
+		if len(messageIDs) == 0 {
 			a.GetErrorHandler().ShowWarning(a.ctx, "No messages in bulk context — Apply disabled")
 			return
 		}
-		go a.applyEphemeralPromptToBulk(state.ctx.messageIDs, current, state.suggestedName)
+		a.closePromptConfigurator()
+		go a.applyEphemeralPromptToBulk(messageIDs, current, name)
 	default:
 		a.GetErrorHandler().ShowWarning(a.ctx, "No message context — save the prompt first, then use it from the picker")
 	}
 }
 
 // applyEphemeralPromptToMessage runs an unsaved prompt against a single message.
+// The configurator is already closed by applyConfiguratorPrompt (UI thread) before this
+// runs in a goroutine; this function only touches the AI panel via QueueUpdateDraw/streaming.
 func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string, displayName string) {
-	a.closePromptConfigurator()
-
 	_, aiService, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
 	if aiService == nil || repository == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "AI or repository service not available")
@@ -536,9 +547,9 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 }
 
 // applyEphemeralPromptToBulk runs an unsaved prompt against a bulk selection.
+// The configurator is already closed by applyConfiguratorPrompt (UI thread) before this
+// runs in a goroutine; this function only touches the AI panel via QueueUpdateDraw/streaming.
 func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string, displayName string) {
-	a.closePromptConfigurator()
-
 	_, aiService, _, _, repository, _, _, _, _, _, _, _ := a.GetServices()
 	if aiService == nil || repository == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "AI or repository service not available")
