@@ -78,3 +78,21 @@ func TestSplitBatches(t *testing.T) {
 	// Zero/negative size falls back to a sane default (50).
 	assert.Len(t, splitBatches(mk(10), 0, 10), 1)
 }
+
+func TestMergeCategories(t *testing.T) {
+	existing := []ActionPlanCategory{
+		{Name: "Newsletters", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+	}
+	incoming := []ActionPlanCategory{
+		// Same name (case-insensitive) → union IDs, dedup.
+		{Name: "newsletters", Action: "archive", MessageIDs: []string{"m2", "m3"}},
+		// New name → appended.
+		{Name: "Follow up", Action: "label", Label: "needs-reply", MessageIDs: []string{"m4"}},
+	}
+
+	merged := mergeCategories(existing, incoming)
+	assert.Len(t, merged, 2)
+	assert.Equal(t, []string{"m1", "m2", "m3"}, merged[0].MessageIDs)
+	assert.Equal(t, "Follow up", merged[1].Name)
+	assert.Equal(t, []string{"m4"}, merged[1].MessageIDs)
+}

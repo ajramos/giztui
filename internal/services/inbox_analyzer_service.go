@@ -131,6 +131,40 @@ func splitBatches(messages []AnalyzerMessage, size, maxBatches int) [][]Analyzer
 	return batches
 }
 
+// mergeCategories merges incoming categories into existing, unioning message IDs of
+// categories that share a name (case-insensitive) and appending new ones.
+func mergeCategories(existing, incoming []ActionPlanCategory) []ActionPlanCategory {
+	indexByName := make(map[string]int, len(existing))
+	for i, c := range existing {
+		indexByName[strings.ToLower(c.Name)] = i
+	}
+	for _, inc := range incoming {
+		key := strings.ToLower(inc.Name)
+		if idx, ok := indexByName[key]; ok {
+			existing[idx].MessageIDs = unionIDs(existing[idx].MessageIDs, inc.MessageIDs)
+			continue
+		}
+		indexByName[key] = len(existing)
+		existing = append(existing, inc)
+	}
+	return existing
+}
+
+// unionIDs appends b's IDs to a, skipping IDs already present, preserving order.
+func unionIDs(a, b []string) []string {
+	seen := make(map[string]bool, len(a))
+	for _, id := range a {
+		seen[id] = true
+	}
+	for _, id := range b {
+		if !seen[id] {
+			a = append(a, id)
+			seen[id] = true
+		}
+	}
+	return a
+}
+
 // suppress unused import until Analyze is implemented in Task 6
 var _ = context.Background
 var _ = time.Now
