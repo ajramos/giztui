@@ -47,3 +47,42 @@ func dropTrackingImages(md string) string {
 	})
 	return md
 }
+
+// collapseEmptyTables removes contiguous Markdown table blocks whose every cell
+// is empty (newsletter layout tables) while preserving tables that have any real
+// cell content (genuine data tables).
+func collapseEmptyTables(md string) string {
+	lines := strings.Split(md, "\n")
+	out := make([]string, 0, len(lines))
+
+	isTableLine := func(s string) bool { return strings.HasPrefix(strings.TrimSpace(s), "|") }
+	rowHasContent := func(s string) bool {
+		for _, c := range strings.Split(strings.Trim(strings.TrimSpace(s), "|"), "|") {
+			if strings.Trim(strings.TrimSpace(c), "-: ") != "" {
+				return true
+			}
+		}
+		return false
+	}
+
+	for i := 0; i < len(lines); {
+		if !isTableLine(lines[i]) {
+			out = append(out, lines[i])
+			i++
+			continue
+		}
+		j := i
+		anyContent := false
+		for j < len(lines) && isTableLine(lines[j]) {
+			if rowHasContent(lines[j]) {
+				anyContent = true
+			}
+			j++
+		}
+		if anyContent {
+			out = append(out, lines[i:j]...)
+		}
+		i = j
+	}
+	return strings.Join(out, "\n")
+}

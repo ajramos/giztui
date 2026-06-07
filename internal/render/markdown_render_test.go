@@ -33,3 +33,22 @@ func TestDropTrackingImages(t *testing.T) {
 		t.Errorf("image with alt should be flattened, not kept as image:\n%s", got)
 	}
 }
+
+func TestCollapseEmptyTables(t *testing.T) {
+	// An empty layout table should disappear entirely.
+	empty := "before\n|  |  |\n| --- | --- |\n| |  |\nafter\n"
+	got := collapseEmptyTables(empty)
+	if strings.Contains(got, "|") {
+		t.Errorf("empty layout table not removed:\n%s", got)
+	}
+	if !strings.Contains(got, "before") || !strings.Contains(got, "after") {
+		t.Errorf("non-table content was lost:\n%s", got)
+	}
+
+	// A real data table must be preserved verbatim.
+	real := "| Item | Price |\n| --- | --- |\n| Widget | $9.99 |\n"
+	got2 := collapseEmptyTables(real)
+	if !strings.Contains(got2, "| Item | Price |") || !strings.Contains(got2, "Widget") {
+		t.Errorf("real table was damaged:\n%s", got2)
+	}
+}
