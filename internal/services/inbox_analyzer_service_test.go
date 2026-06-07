@@ -1,10 +1,12 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestExtractJSONObject(t *testing.T) {
@@ -95,4 +97,117 @@ func TestMergeCategories(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2", "m3"}, merged[0].MessageIDs)
 	assert.Equal(t, "Follow up", merged[1].Name)
 	assert.Equal(t, []string{"m4"}, merged[1].MessageIDs)
+}
+
+func analyzerMsgs(n int) []AnalyzerMessage {
+	out := make([]AnalyzerMessage, n)
+	for i := range out {
+		out[i] = AnalyzerMessage{
+			ID:      fmt.Sprintf("m%d", i+1),
+			Subject: fmt.Sprintf("Subject %d", i+1),
+			From:    "sender@example.com",
+			Snippet: "snippet",
+		}
+	}
+	return out
+}
+
+func TestAnalyze_HappyPath_SingleBatch(t *testing.T) {
+	ai := &mockAIService{}
+	resp := `{"categories":[
+	  {"name":"Newsletters","priority":"low","description":"d","action":"archive","label":"","messages":[1,2]},
+	  {"name":"Follow up","priority":"high","description":"d","action":"label","label":"needs-reply","messages":[3]}
+	],"read_manually":[]}`
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(resp, nil).Once()
+
+	svc := NewInboxAnalyzerService(ai)
+	var progressCalls int
+	plan, err := svc.Analyze(context.Background(), analyzerMsgs(3),
+		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10},
+		func(p *ActionPlan) { progressCalls++ })
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, plan.TotalAnalyzed)
+	assert.Equal(t, 1, plan.BatchesTotal)
+	assert.Len(t, plan.Categories, 2)
+	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
+	assert.Equal(t, []string{"m3"}, plan.Categories[1].MessageIDs)
+	assert.Equal(t, 1, progressCalls)
+	ai.AssertExpectations(t)
+}
+
+func TestAnalyze_MergesAcrossBatches(t *testing.T) {
+	ai := &mockAIService{}
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(`{"categories":[{"name":"Newsletters","priority":"low","description":"d","action":"archive","label":"","messages":[1,2]}],"read_manually":[]}`, nil).Once()
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(`{"categories":[{"name":"Newsletters","priority":"low","description":"d","action":"archive","label":"","messages":[1]}],"read_manually":[2]}`, nil).Once()
+
+	svc := NewInboxAnalyzerService(ai)
+	plan, err := svc.Analyze(context.Background(), analyzerMsgs(4),
+		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10}, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, plan.BatchesTotal)
+	assert.Len(t, plan.Categories, 1)
+	assert.Equal(t, []string{"m1", "m2", "m3"}, plan.Categories[0].MessageIDs)
+	assert.Len(t, plan.ReadManually, 1)
+	assert.Equal(t, "m4", plan.ReadManually[0].ID)
+}
+
+func TestAnalyze_RepairRetryThenDegrade(t *testing.T) {
+	ai := &mockAIService{}
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return("garbage", nil).Twice()
+
+	svc := NewInboxAnalyzerService(ai)
+	plan, err := svc.Analyze(context.Background(), analyzerMsgs(2),
+		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10}, nil)
+
+	assert.NoError(t, err)
+	assert.True(t, plan.Degraded)
+	assert.Len(t, plan.ReadManually, 2)
+	ai.AssertExpectations(t)
+}
+
+func TestAnalyze_CustomPromptOverride(t *testing.T) {
+	ai := &mockAIService{}
+	var capturedPrompt string
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.MatchedBy(func(p string) bool {
+		capturedPrompt = p
+		return true
+	}), mock.Anything, mock.Anything).
+		Return(`{"categories":[{"name":"X","priority":"low","description":"d","action":"none","label":"","messages":[1]}],"read_manually":[]}`, nil).Once()
+
+	svc := NewInboxAnalyzerService(ai)
+	_, err := svc.Analyze(context.Background(), analyzerMsgs(1),
+		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10, CustomPromptText: "CUSTOM {{messages}}"}, nil)
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedPrompt, "CUSTOM ")
+	assert.Contains(t, capturedPrompt, "Subject 1")
+}
+
+func TestAnalyze_FirstBatchHardError(t *testing.T) {
+	ai := &mockAIService{}
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return("", fmt.Errorf("llm down")).Once()
+
+	svc := NewInboxAnalyzerService(ai)
+	_, err := svc.Analyze(context.Background(), analyzerMsgs(2),
+		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10}, nil)
+	assert.Error(t, err)
+}
+
+func TestAnalyze_Cancellation(t *testing.T) {
+	ai := &mockAIService{}
+	svc := NewInboxAnalyzerService(ai)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := svc.Analyze(ctx, analyzerMsgs(2),
+		InboxAnalyzerOptions{BatchSize: 50, MaxBatches: 10}, nil)
+	assert.ErrorIs(t, err, context.Canceled)
+	ai.AssertNotCalled(t, "ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
