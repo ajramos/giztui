@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -516,4 +517,29 @@ func (a *App) setVirtualBulkSelection(ids []string) {
 	}
 	a.bulkMode = true
 	a.mu.Unlock()
+}
+
+// openActionPlanWithPrompt opens the panel using a saved prompt (by name or numeric id)
+// as the analyzer override. Falls back to the default prompt if the prompt is not found.
+func (a *App) openActionPlanWithPrompt(nameOrID string) {
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Prompt library unavailable — using default analyzer prompt")
+		a.openActionPlanWithText("")
+		return
+	}
+
+	var tmpl *services.PromptTemplate
+	var err error
+	if id, convErr := strconv.Atoi(nameOrID); convErr == nil {
+		tmpl, err = promptService.GetPrompt(a.ctx, id)
+	} else {
+		tmpl, err = promptService.FindPromptByName(a.ctx, nameOrID)
+	}
+	if err != nil || tmpl == nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("⚠ Prompt %q not found. Using default analyzer prompt.", nameOrID))
+		a.openActionPlanWithText("")
+		return
+	}
+	a.openActionPlanWithText(tmpl.PromptText)
 }
