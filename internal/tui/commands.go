@@ -397,6 +397,13 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"prompt-sa":      {"prompt-save"},
 		"prompt-sav":     {"prompt-save"},
 		"prompt-save":    {"prompt-save"},
+		"ap":             {"action-plan"},
+		"action-":        {"action-plan"},
+		"action-p":       {"action-plan"},
+		"action-pl":      {"action-plan"},
+		"action-pla":     {"action-plan"},
+		"action-plan":    {"action-plan"},
+		"plan":           {"action-plan"},
 		"a":              {"archive", "accounts"},
 		"ar":             {"archive"},
 		"arc":            {"archive"},
@@ -797,6 +804,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executePromptRefineCommand(args)
 	case "prompt-save", "ps":
 		a.executePromptSaveCommand(args)
+	case "action-plan", "plan", "ap":
+		a.executeActionPlanCommand(args)
 	case "theme", "th":
 		if len(args) == 0 {
 			// Open theme picker UI if no subcommands
@@ -2564,4 +2573,22 @@ func (a *App) executePromptSaveCommand(args []string) {
 		return
 	}
 	a.savePromptFromConfigurator()
+}
+
+// executeActionPlanCommand handles :action-plan / :plan / :ap [with-prompt <name-or-id>].
+func (a *App) executeActionPlanCommand(args []string) {
+	if len(args) == 0 {
+		go a.openActionPlanPanel()
+		return
+	}
+	if strings.ToLower(args[0]) == "with-prompt" {
+		if len(args) < 2 {
+			a.GetErrorHandler().ShowError(a.ctx, "Usage: :action-plan with-prompt <name-or-id>")
+			return
+		}
+		nameOrID := strings.Join(args[1:], " ")
+		go a.openActionPlanWithPrompt(nameOrID)
+		return
+	}
+	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
 }
