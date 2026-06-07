@@ -52,3 +52,19 @@ func TestCollapseEmptyTables(t *testing.T) {
 		t.Errorf("real table was damaged:\n%s", got2)
 	}
 }
+
+func TestReferenceLongURLs(t *testing.T) {
+	longURL := "https://track.example.com/" + strings.Repeat("a", 80)
+	in := "Click [Buy now](" + longURL + ") today. Short [ok](https://x.io).\n"
+	got := referenceLongURLs(in, 60)
+
+	if !strings.Contains(got, "Buy now [1]") {
+		t.Errorf("long link not referenced:\n%s", got)
+	}
+	if !strings.Contains(got, "## Links") || !strings.Contains(got, "1. "+longURL) {
+		t.Errorf("Links section missing/incorrect:\n%s", got)
+	}
+	if !strings.Contains(got, "[ok](https://x.io)") {
+		t.Errorf("short link should stay inline:\n%s", got)
+	}
+}

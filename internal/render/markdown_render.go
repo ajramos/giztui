@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -85,4 +86,41 @@ func collapseEmptyTables(md string) string {
 		i = j
 	}
 	return strings.Join(out, "\n")
+}
+
+// mdLinkRe matches a Markdown inline link [text](http(s)://url).
+var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
+
+// referenceLongURLs replaces inline links whose URL exceeds threshold characters
+// with "text [n]" numbered references, collected into a trailing "## Links"
+// section. Short links stay inline. Identical URLs share one reference number.
+func referenceLongURLs(md string, threshold int) string {
+	seen := map[string]int{}
+	order := make([]string, 0, 8)
+
+	body := mdLinkRe.ReplaceAllStringFunc(md, func(m string) string {
+		sub := mdLinkRe.FindStringSubmatch(m)
+		text, url := sub[1], sub[2]
+		if len(url) <= threshold {
+			return m
+		}
+		n, ok := seen[url]
+		if !ok {
+			n = len(order) + 1
+			seen[url] = n
+			order = append(order, url)
+		}
+		return fmt.Sprintf("%s [%d]", text, n)
+	})
+
+	if len(order) == 0 {
+		return body
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(body, "\n"))
+	b.WriteString("\n\n## Links\n")
+	for i, url := range order {
+		fmt.Fprintf(&b, "%d. %s\n", i+1, url)
+	}
+	return b.String()
 }
