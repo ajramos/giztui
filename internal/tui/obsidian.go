@@ -353,6 +353,8 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
+			// Restore focus + indicator to the list after the bulk op completes.
+			a.focusList()
 		})
 
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
@@ -800,6 +802,8 @@ func (a *App) sendSelectedBulkToObsidianAsRepopack(accountEmail, comment string)
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
+			// Restore focus + indicator to the list after the bulk op completes.
+			a.focusList()
 		})
 
 		// Clear progress and show success
