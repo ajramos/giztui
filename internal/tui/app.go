@@ -149,9 +149,10 @@ type App struct {
 	logFile *os.File
 
 	// Side panel picker state management
-	labelsView          *tview.Flex
-	currentActivePicker ActivePicker // Replaces labelsVisible - tracks which picker is active
-	labelsExpanded      bool
+	labelsView             *tview.Flex
+	currentActivePicker    ActivePicker    // Replaces labelsVisible - tracks which picker is active
+	promptPreviewPrevFocus tview.Primitive // focus to restore when the prompt preview modal closes
+	labelsExpanded         bool
 
 	// Slack contextual panel
 	slackView    *tview.Flex
