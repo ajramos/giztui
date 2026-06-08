@@ -224,7 +224,31 @@ func MarkdownToTerminal(markdown, theme string, width int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return stripTagBackgrounds(string(tview.TranslateANSI([]byte(out)))), nil
+	return asciiBoxDrawing(stripTagBackgrounds(string(tview.TranslateANSI([]byte(out))))), nil
+}
+
+// asciiBoxDrawing replaces Unicode box-drawing characters (U+2500–U+257F) emitted
+// by glamour for tables and thematic breaks with ASCII equivalents. Box-drawing
+// glyphs are East-Asian-Width "Ambiguous", so tcell can render them double-width
+// while glamour laid them out as single-width; a width-filling rule then overflows
+// the reader pane and tcell clips the boundary glyph to U+FFFD (the "??"/"�" the
+// user saw). ASCII |, - and + are unambiguously width 1, keeping both layers in
+// agreement so the rule fits and renders cleanly.
+func asciiBoxDrawing(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x2500 || r > 0x257F {
+			return r
+		}
+		switch r {
+		case '│', '┃', '║', '╎', '╏', '┆', '┇', '┊', '┋':
+			return '|'
+		case '─', '━', '═', '╌', '╍', '┄', '┅', '┈', '┉':
+			return '-'
+		default:
+			// Corners, tees, crosses and arcs all become an ASCII junction.
+			return '+'
+		}
+	}, s)
 }
 
 // colorTagRe matches a 3-field tview color tag [foreground:background:flags].
