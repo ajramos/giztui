@@ -136,3 +136,30 @@ func TestRenderEmailMarkdown_RealNewsletter(t *testing.T) {
 		t.Errorf("junk survived cleanup")
 	}
 }
+
+func TestCollapseDuplicateHalves(t *testing.T) {
+	in := "Pide un Glovo [1] Pide un Glovo [1]\nKept once [2]\nha ha ha ha"
+	got := collapseDuplicateHalves(in)
+	if strings.Contains(got, "Pide un Glovo [1] Pide un Glovo [1]") {
+		t.Errorf("duplicate link CTA not collapsed:\n%q", got)
+	}
+	if !strings.Contains(got, "Pide un Glovo [1]") {
+		t.Errorf("collapsed line lost its content:\n%q", got)
+	}
+	if !strings.Contains(got, "Kept once [2]") {
+		t.Errorf("non-duplicated line was altered:\n%q", got)
+	}
+	// Repeated prose WITHOUT a link bracket must be left alone (no false positive).
+	if !strings.Contains(got, "ha ha ha ha") {
+		t.Errorf("non-link repeated text should be untouched:\n%q", got)
+	}
+}
+
+func TestSanitizeDropsEmojiSkinToneModifier(t *testing.T) {
+	// \ud83d\udc47 (U+1F447, So) is already dropped; its orphaned skin-tone modifier
+	// \ud83c\udfff (U+1F3FF, Sk) must now be dropped too rather than left as tofu.
+	got := sanitizeForTerminal("Elige \U0001F447\U0001F3FF ahora")
+	if strings.ContainsRune(got, '\U0001F3FF') {
+		t.Errorf("skin-tone modifier not dropped: %q", got)
+	}
+}

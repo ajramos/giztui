@@ -244,6 +244,12 @@ func sanitizeForTerminal(s string) string {
 			if unicode.IsControl(r) && r != '\n' && r != '\t' {
 				continue
 			}
+			// Drop emoji skin-tone modifiers (Fitzpatrick U+1F3FB–U+1F3FF), which
+			// are category Sk and would otherwise orphan as tofu once their base
+			// emoji (category So) is dropped below.
+			if r >= 0x1F3FB && r <= 0x1F3FF {
+				continue
+			}
 			// Drop many symbol/emoji classified as So to avoid tofu blocks
 			if unicode.Is(unicode.So, r) {
 				continue
