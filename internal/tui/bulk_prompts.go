@@ -319,9 +319,7 @@ func (a *App) exitBulkMode() {
 	}
 
 	// Return focus to list
-	a.SetFocus(a.views["list"])
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.focusList()
 
 	// Update status asynchronously to avoid deadlock
 	go func() {

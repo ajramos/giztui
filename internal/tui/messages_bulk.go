@@ -37,6 +37,9 @@ func (a *App) archiveSelectedBulk() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
+			// Restore focus + indicator to the list (was lost on bulk exit,
+			// previously only recovered by pressing Tab).
+			a.focusList()
 		})
 
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
@@ -83,6 +86,9 @@ func (a *App) trashSelectedBulk() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
+			// Restore focus + indicator to the list (was lost on bulk exit,
+			// previously only recovered by pressing Tab).
+			a.focusList()
 		})
 
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
@@ -168,6 +174,9 @@ func (a *App) toggleMarkReadUnreadBulk() {
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
 			}
+			// Restore focus + indicator to the list (was lost on bulk exit,
+			// previously only recovered by pressing Tab).
+			a.focusList()
 		})
 
 		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock

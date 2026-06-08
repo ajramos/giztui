@@ -289,6 +289,17 @@ func (a *App) createCompositionLayoutWithStatus() tview.Primitive {
 	return compositionLayout
 }
 
+// focusList restores focus and the focus-indicator border to the message list.
+// Use it after closing a picker or completing a bulk action so the active-pane
+// highlight returns immediately instead of disappearing until the next Tab.
+func (a *App) focusList() {
+	if list, ok := a.views["list"]; ok {
+		a.SetFocus(list)
+	}
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+}
+
 // updateFocusIndicators updates the visual indicators for the focused view
 func (a *App) updateFocusIndicators(focusedView string) {
 	// Reset all borders to theme's default border color
