@@ -112,9 +112,44 @@ func cleanupMarkdown(md string, opts MarkdownOptions) string {
 	}
 	md = collapseEmptyTables(md)
 	md = referenceLongURLs(md, 60)
+	md = collapseDuplicateHalves(md)
 	md = sanitizeForTerminal(md)               // defined in format.go
 	md = dedupeNearDuplicateParagraphs(md, 32) // defined in format.go
 	return strings.TrimSpace(md)
+}
+
+// collapseDuplicateHalves collapses lines that are an exact phrase repeated twice
+// (e.g. "Pide un Glovo [1] Pide un Glovo [1]"), which happens when a newsletter
+// renders the same CTA as both a button-image link and a text link side by side.
+// Only lines containing a link bracket "]" are considered, to avoid collapsing
+// legitimately repeated prose.
+func collapseDuplicateHalves(md string) string {
+	lines := strings.Split(md, "\n")
+	for i, ln := range lines {
+		lines[i] = collapseLineDuplicate(ln)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func collapseLineDuplicate(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || !strings.Contains(trimmed, "]") {
+		return line
+	}
+	fields := strings.Fields(trimmed)
+	n := len(fields)
+	if n < 2 || n%2 != 0 {
+		return line
+	}
+	half := n / 2
+	for k := 0; k < half; k++ {
+		if fields[k] != fields[half+k] {
+			return line
+		}
+	}
+	// Halves are identical: keep one, preserving the original leading indent.
+	lead := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+	return lead + strings.Join(fields[:half], " ")
 }
 
 // referenceLongURLs replaces inline links whose URL exceeds threshold characters

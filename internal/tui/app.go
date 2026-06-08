@@ -1401,6 +1401,10 @@ func (a *App) SetMessageInCache(messageID string, message *gmail.Message) {
 	a.messageCache[messageID] = message
 }
 
+// renderCacheMaxEntries bounds the rendered-body cache to keep session memory
+// in check (each entry is a rendered message body per mode/width).
+const renderCacheMaxEntries = 256
+
 // renderCacheKey composes a key for cached rendered body text.
 func renderCacheKey(messageID string, markdown bool, width int) string {
 	return fmt.Sprintf("%s|%t|%d", messageID, markdown, width)
@@ -1424,7 +1428,15 @@ func (a *App) setRenderCache(messageID string, markdown bool, width int, text st
 	if a.renderCache == nil {
 		a.renderCache = make(map[string]string)
 	}
-	a.renderCache[renderCacheKey(messageID, markdown, width)] = text
+	key := renderCacheKey(messageID, markdown, width)
+	// Bound the cache: if full and this is a new key, evict one entry first.
+	if _, exists := a.renderCache[key]; !exists && len(a.renderCache) >= renderCacheMaxEntries {
+		for k := range a.renderCache {
+			delete(a.renderCache, k)
+			break
+		}
+	}
+	a.renderCache[key] = text
 }
 
 // GetScreenSize returns the current screen dimensions thread-safely

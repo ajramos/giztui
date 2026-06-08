@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestRenderCache(t *testing.T) {
 	a := &App{}
@@ -17,5 +20,15 @@ func TestRenderCache(t *testing.T) {
 	}
 	if _, ok := a.getRenderCache("id1", false, 100); ok {
 		t.Error("different mode must miss")
+	}
+}
+
+func TestRenderCacheIsBounded(t *testing.T) {
+	a := &App{}
+	for i := 0; i < renderCacheMaxEntries*2; i++ {
+		a.setRenderCache(fmt.Sprintf("id%d", i), true, 100, "x")
+	}
+	if got := len(a.renderCache); got > renderCacheMaxEntries {
+		t.Errorf("cache unbounded: %d entries, cap %d", got, renderCacheMaxEntries)
 	}
 }
