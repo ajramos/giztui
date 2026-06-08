@@ -224,7 +224,21 @@ func MarkdownToTerminal(markdown, theme string, width int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return asciiBoxDrawing(stripTagBackgrounds(string(tview.TranslateANSI([]byte(out))))), nil
+	result := stripTagBackgrounds(string(tview.TranslateANSI([]byte(out))))
+	result = fixLinkContrast(result)
+	result = asciiBoxDrawing(result)
+	return result, nil
+}
+
+// blackFgTagRe matches a tview color tag whose foreground is "black".
+var blackFgTagRe = regexp.MustCompile(`\[black(:[^\]]*)\]`)
+
+// fixLinkContrast drops the black foreground glamour's dark style assigns to link
+// URLs. Black is effectively invisible on the dark reader pane; clearing the
+// foreground lets the URL inherit the readable pane text color while keeping its
+// underline, so it stays recognizable as a link.
+func fixLinkContrast(s string) string {
+	return blackFgTagRe.ReplaceAllString(s, "[$1]")
 }
 
 // asciiBoxDrawing replaces Unicode box-drawing characters (U+2500–U+257F) emitted
