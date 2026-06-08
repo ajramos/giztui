@@ -5,6 +5,19 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-08
+
+### 🐛 Fixes
+
+- **Markdown rendering polish** (follow-ups to v1.4.0):
+  - Collapse intra-line duplicate call-to-action links (e.g. `Pide un Glovo [1] Pide un Glovo [1]` → `Pide un Glovo [1]`), which occurred when a newsletter rendered the same CTA as both a button image and a text link.
+  - Drop orphaned emoji skin-tone modifiers (U+1F3FB–U+1F3FF) that previously survived as tofu after their base emoji was stripped.
+
+### 🔧 Technical Improvements
+
+- Extracted a shared `rerenderCurrentMessage` helper behind the `M` (markdown) and `:touch-up` toggles, removing duplicated re-render/fetch logic.
+- Bounded the rendered-body cache to 256 entries with single-entry eviction to keep long-session memory in check.
+
 ## [1.4.0] - 2026-06-08
 
 ### ✨ Features
