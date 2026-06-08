@@ -153,6 +153,7 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | `y` | AI summary | Generate/show AI summary of current message |
 | `j` | Regenerate summary | Force regenerate AI summary (ignore cache) |
 | `p` | Prompt picker | Open AI prompt library (single or bulk mode) |
+| `Ctrl+P` | Preview prompt | In the prompt picker, preview the highlighted prompt's description + full template in a popup (`Esc`/`Ctrl+P` to close). Works from the search field or the list. |
 | `g` | Generate reply | Experimental AI reply generation |
 | `P` | Action Plan | AI-triage unread inbox into actionable groups |
 | `Esc` | Cancel AI | Cancel any active streaming AI operation |
