@@ -64,11 +64,23 @@ func (a *App) openBulkPromptPicker() {
 		id          int
 		name        string
 		description string
+		promptText  string
 		category    string
 	}
 
 	var all []promptItem
 	var visible []promptItem
+
+	// previewHighlightedBulkPrompt opens the preview modal for the highlighted row.
+	previewHighlightedBulkPrompt := func(list *tview.List, visible []promptItem) {
+		isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+		if isCreateNew {
+			a.showPromptPreview("Create new with AI", promptPreviewCreateNewHint)
+			return
+		}
+		v := visible[vi]
+		a.showPromptPreview(v.name, promptPreviewText(v.description, v.promptText))
+	}
 
 	// Reload function for filtering
 	reload := func(filter string) {
@@ -163,6 +175,7 @@ func (a *App) openBulkPromptPicker() {
 					id:          p.ID,
 					name:        p.Name,
 					description: p.Description,
+					promptText:  p.PromptText,
 					category:    p.Category,
 				})
 			}
@@ -180,6 +193,10 @@ func (a *App) openBulkPromptPicker() {
 
 			// Handle key events for input field
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyCtrlP {
+					previewHighlightedBulkPrompt(list, visible)
+					return nil
+				}
 				if event.Key() == tcell.KeyEscape {
 					a.closeBulkPromptPicker()
 					return nil
@@ -193,6 +210,10 @@ func (a *App) openBulkPromptPicker() {
 
 			// Handle navigation for list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyCtrlP {
+					previewHighlightedBulkPrompt(list, visible)
+					return nil
+				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
 					a.SetFocus(input)
 					return nil
