@@ -224,5 +224,18 @@ func MarkdownToTerminal(markdown, theme string, width int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(tview.TranslateANSI([]byte(out))), nil
+	return stripTagBackgrounds(string(tview.TranslateANSI([]byte(out)))), nil
+}
+
+// colorTagRe matches a 3-field tview color tag [foreground:background:flags].
+var colorTagRe = regexp.MustCompile(`\[([^\]:]*):([^\]:]*):([^\]]*)\]`)
+
+// stripTagBackgrounds blanks the background field of tview color tags produced by
+// TranslateANSI. Glamour assumes a fixed terminal background and styles code
+// spans, rules and tables with their own background colors; left intact, those
+// clash with the reader pane's themed background and render as non-homogeneous
+// bars. Foreground colors and attributes are preserved, so only the background
+// inherits the pane theme — keeping the message body visually uniform.
+func stripTagBackgrounds(s string) string {
+	return colorTagRe.ReplaceAllString(s, "[$1::$3]")
 }
