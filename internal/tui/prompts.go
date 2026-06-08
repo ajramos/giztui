@@ -66,11 +66,23 @@ func (a *App) openPromptPicker() {
 		id          int
 		name        string
 		description string
+		promptText  string
 		category    string
 	}
 
 	var all []promptItem
 	var visible []promptItem
+
+	// previewHighlightedPrompt opens the preview modal for the highlighted row.
+	previewHighlightedPrompt := func(list *tview.List, visible []promptItem) {
+		isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+		if isCreateNew {
+			a.showPromptPreview("Create new with AI", promptPreviewCreateNewHint)
+			return
+		}
+		v := visible[vi]
+		a.showPromptPreview(v.name, promptPreviewText(v.description, v.promptText))
+	}
 
 	// Reload function for filtering
 	reload := func(filter string) {
@@ -154,6 +166,7 @@ func (a *App) openPromptPicker() {
 				id:          p.ID,
 				name:        p.Name,
 				description: p.Description,
+				promptText:  p.PromptText,
 				category:    p.Category,
 			})
 		}
@@ -164,6 +177,10 @@ func (a *App) openPromptPicker() {
 
 			// Allow navigation from input to list
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyCtrlP {
+					previewHighlightedPrompt(list, visible)
+					return nil
+				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
 					return e
@@ -224,6 +241,10 @@ func (a *App) openPromptPicker() {
 
 			// Handle navigation between input and list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if e.Key() == tcell.KeyCtrlP {
+					previewHighlightedPrompt(list, visible)
+					return nil
+				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
 					a.SetFocus(input)
 					return nil
