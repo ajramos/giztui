@@ -5,6 +5,28 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-06-08
+
+### 🚀 Features
+
+- **Prompt preview (Ctrl+P)**: in the prompt picker (single message or bulk), press `Ctrl+P` with a prompt highlighted to open a popup showing its description and full template, so you can confirm what a prompt does before applying it. Press `Esc` or `Ctrl+P` again to close and return to the picker. Works whether focus is on the search field or the list.
+
+### 🐛 Fixes
+
+- **Prompt picker applied the wrong prompt**: pressing Enter from the search field applied the first prompt regardless of what was highlighted (and the "✨ Create new with AI…" entry could never be chosen that way). Enter now acts on the highlighted item, and the highlight follows the first match while filtering. Fixed in both the single and bulk pickers.
+- **Focus lost after bulk actions**: after a bulk archive, trash, mark-read/unread, Obsidian, or Slack operation, neither pane showed the active highlight until you pressed `Tab`. Focus and the focus-indicator border now return to the message list automatically.
+- **Email rendering (Markdown)**:
+  - Removed non-homogeneous background bars caused by glamour styling code blocks, rules and tables with their own backgrounds that clashed with the reader pane theme.
+  - Eliminated the `??`/`�` glyphs in rendered tables and rules: box-drawing characters (East-Asian-Width "Ambiguous", which tcell could render double-width and clip) are now mapped to ASCII so lines fit the pane.
+  - Made link URLs readable — dropped glamour's black foreground that was effectively invisible on the dark reader pane (links keep their underline).
+- **In-app help (`?`) was out of date**: corrected the `M` shortcut description (it toggles Markdown rendering, it does not "export"), and documented the AI touch-up toggle (`:touch-up`), the account picker (`Ctrl+A` / `:accounts`), and the inbox Action Plan (`P` / `:action-plan`).
+
+### 🔧 Technical Improvements
+
+- Added a shared `focusList()` helper centralizing focus + indicator restoration, and a `promptPickerSelection()` helper shared by the picker Enter handling and the new preview.
+- Render pipeline post-processing (`stripTagBackgrounds`, `asciiBoxDrawing`, `fixLinkContrast`) applied to glamour output before display, each covered by unit tests.
+- Added design specs and implementation plans for the prompt preview (shipped here) and the upcoming auto-refresh inbox toggle under `docs/superpowers/`.
+
 ## [1.4.1] - 2026-06-08
 
 ### 🐛 Fixes
