@@ -5,6 +5,22 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-08
+
+### ✨ Features
+
+- **Markdown email rendering**: HTML emails now render as clean, Markdown-styled text **by default**, making newsletters and marketing emails far more readable in the terminal. Press `M` (or `:markdown` / `:md`) to toggle between the Markdown view and the original raw/plain view, per message.
+  - A cleanup pipeline removes the noise that makes HTML emails unreadable: tracking-pixel images, empty layout tables, and zero-width spacer characters are stripped, and long tracking URLs are collected into a `Links` section at the bottom instead of cluttering the body.
+  - Conversion is **pure-Go and in-process** (`html-to-markdown` v2), styled with `glamour` — no external runtime dependency. A proof-of-concept bake-off against Microsoft's markitdown found markitdown produced empty layout tables and charset corruption on real newsletters, so the pure-Go path was chosen.
+  - New `rendering` config block: `markdown_default` (default `true`), `glamour_theme` (`dark`/`light`/`notty`/`auto`), and `drop_tracking_images` (default `true`).
+  - The previous LLM whitespace touch-up (formerly on `M`) moved to the new `:touch-up` command.
+  - Falls back gracefully to the existing plain-text renderer on any conversion error or for plain-text-only emails.
+
+### 🔧 Technical Improvements
+
+- New service-first rendering pipeline in `internal/render/markdown_render.go`; render-mode state managed by `DisplayService`; rendered output cached per message/mode/width.
+- Fixed a pre-existing data race on the LLM touch-up flag (`llmTouchUpEnabled` is now an `atomic.Bool`).
+
 ## [1.3.0] - 2026-06-07
 
 ### ✨ Features
