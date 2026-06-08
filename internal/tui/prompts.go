@@ -120,6 +120,14 @@ func (a *App) openPromptPicker() {
 				go a.applyPromptToMessage(messageID, promptID, promptName, message)
 			})
 		}
+
+		// Keep the highlight in sync with what Enter will act on: "Create new"
+		// (row 0) when unfiltered, otherwise the first match (row 1).
+		if filter != "" && len(visible) > 0 {
+			list.SetCurrentItem(1)
+		} else {
+			list.SetCurrentItem(0)
+		}
 	}
 
 	// Load prompts in background
@@ -170,14 +178,23 @@ func (a *App) openPromptPicker() {
 					return
 				}
 				if key == tcell.KeyEnter {
-					if len(visible) > 0 {
-						v := visible[0]
-						if a.logger != nil {
-							a.logger.Printf("prompt picker: pick via search promptID=%d name=%s", v.id, v.name)
-						}
-						// Apply prompt (it will handle closing picker and setting focus)
-						go a.applyPromptToMessage(messageID, v.id, v.name, message)
+					// Act on the list's highlighted item so Enter always matches
+					// what's visually selected (row 0 = "✨ Create new with AI...").
+					isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+					if isCreateNew {
+						a.closePromptPicker()
+						a.openPromptConfigurator(promptConfiguratorContext{
+							mode:      "single",
+							messageID: messageID,
+						})
+						return
 					}
+					v := visible[vi]
+					if a.logger != nil {
+						a.logger.Printf("prompt picker: pick via search promptID=%d name=%s", v.id, v.name)
+					}
+					// Apply prompt (it will handle closing picker and setting focus)
+					go a.applyPromptToMessage(messageID, v.id, v.name, message)
 				}
 			})
 

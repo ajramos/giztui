@@ -125,6 +125,14 @@ func (a *App) openBulkPromptPicker() {
 				go a.applyBulkPrompt(promptID, promptName)
 			})
 		}
+
+		// Keep the highlight in sync with what Enter will act on: "Create new"
+		// (row 0) when unfiltered, otherwise the first match (row 1).
+		if filter != "" && len(visible) > 0 {
+			list.SetCurrentItem(1)
+		} else {
+			list.SetCurrentItem(0)
+		}
 	}
 
 	// Load prompts in background
@@ -203,14 +211,27 @@ func (a *App) openBulkPromptPicker() {
 					return
 				}
 				if key == tcell.KeyEnter {
-					if len(visible) > 0 {
-						v := visible[0]
-						if a.logger != nil {
-							a.logger.Printf("bulk prompt picker: pick via search promptID=%d name=%s", v.id, v.name)
+					// Act on the list's highlighted item so Enter always matches
+					// what's visually selected (row 0 = "✨ Create new with AI...").
+					isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+					if isCreateNew {
+						messageIDs := make([]string, 0, len(a.selected))
+						for id := range a.selected {
+							messageIDs = append(messageIDs, id)
 						}
-						// Apply bulk prompt
-						go a.applyBulkPrompt(v.id, v.name)
+						a.closeBulkPromptPicker()
+						a.openPromptConfigurator(promptConfiguratorContext{
+							mode:       "bulk",
+							messageIDs: messageIDs,
+						})
+						return
 					}
+					v := visible[vi]
+					if a.logger != nil {
+						a.logger.Printf("bulk prompt picker: pick via search promptID=%d name=%s", v.id, v.name)
+					}
+					// Apply bulk prompt
+					go a.applyBulkPrompt(v.id, v.name)
 				}
 			})
 
