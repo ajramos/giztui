@@ -2296,7 +2296,9 @@ func (a *App) generateHelpText() string {
 	if a.Config.Slack.Enabled {
 		fmt.Fprintf(&help, "    %-8s  💬  Forward to Slack\n", a.Keys.Slack)
 	}
-	fmt.Fprintf(&help, "    %-8s  📋  Export as Markdown\n\n", a.Keys.Markdown)
+	fmt.Fprintf(&help, "    %-8s  📋  Toggle Markdown rendering (rendered ↔ raw)\n", a.Keys.Markdown)
+	fmt.Fprintf(&help, "    %-8s  👤  Account picker (switch accounts)\n", a.Keys.Accounts)
+	fmt.Fprintf(&help, "    %-8s  🧠  Open inbox Action Plan (AI)\n\n", a.Keys.ActionPlan)
 
 	// Command Equivalents
 	help.WriteString("💻 COMMAND EQUIVALENTS\n\n")
@@ -2325,6 +2327,10 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🎨  Open theme picker\n", ":theme")
 	fmt.Fprintf(&help, "    %-18s 📄  Toggle header visibility\n", ":headers")
 	fmt.Fprintf(&help, "    %-18s 🔢  Toggle message numbers\n", ":numbers")
+	fmt.Fprintf(&help, "    %-18s 📋  Toggle Markdown rendering (alias :md)\n", ":markdown")
+	fmt.Fprintf(&help, "    %-18s 🧾  Toggle AI touch-up of rendered text\n", ":touch-up")
+	fmt.Fprintf(&help, "    %-18s 👤  Open account picker (alias :acc)\n", ":accounts")
+	fmt.Fprintf(&help, "    %-18s 🧠  Open inbox Action Plan (alias :plan, :ap)\n", ":action-plan")
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
@@ -2360,6 +2366,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    • VIM range operations work with any action (s5s, a3a, d7d, etc.)\n")
 	help.WriteString("    • Content search (/) highlights matches and enables n/N navigation\n")
 	help.WriteString("    • Bulk mode allows selecting multiple messages for batch operations\n")
+	fmt.Fprintf(&help, "    • Status bar shows 🧠 when AI touch-up is on, 🧾 when off (toggle with :touch-up)\n")
 
 	return help.String()
 }
