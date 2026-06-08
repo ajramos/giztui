@@ -206,6 +206,41 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	return text, false
 }
 
+// rerenderCurrentMessage re-renders message mid's body (from cache, or by
+// fetching it) on a background goroutine, updates the text view on the UI
+// thread, then runs the optional status callback. Shared by the render-mode
+// toggles below.
+func (a *App) rerenderCurrentMessage(mid string, status func()) {
+	apply := func(msg *gmail.Message) {
+		rendered, _ := a.renderMessageContent(msg)
+		a.QueueUpdateDraw(func() {
+			if text, ok := a.views["text"].(*tview.TextView); ok {
+				text.SetDynamicColors(true)
+				text.Clear()
+				text.SetText(rendered)
+				text.ScrollToBeginning()
+			}
+		})
+		if status != nil {
+			status()
+		}
+	}
+
+	if m, ok := a.GetMessageFromCache(mid); ok {
+		go apply(m)
+		return
+	}
+	go func(id string) {
+		fetched, err := a.Client.GetMessageWithContent(id)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, "❌ Could not load message content")
+			return
+		}
+		a.SetMessageInCache(id, fetched)
+		apply(fetched)
+	}(mid)
+}
+
 // toggleMarkdown toggles Markdown rendering on/off for the current message.
 func (a *App) toggleMarkdown() {
 	mid := a.getCurrentMessageID()
@@ -221,36 +256,13 @@ func (a *App) toggleMarkdown() {
 	}
 	enabled := displayService.ToggleMarkdownRendering()
 
-	rerender := func(msg *gmail.Message) {
-		rendered, _ := a.renderMessageContent(msg)
-		a.QueueUpdateDraw(func() {
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				text.SetDynamicColors(true)
-				text.Clear()
-				text.SetText(rendered)
-				text.ScrollToBeginning()
-			}
-		})
+	a.rerenderCurrentMessage(mid, func() {
 		if enabled {
 			a.GetErrorHandler().ShowInfo(a.ctx, "📄 Markdown view")
 		} else {
 			a.GetErrorHandler().ShowInfo(a.ctx, "📃 Raw view")
 		}
-	}
-
-	if m, ok := a.GetMessageFromCache(mid); ok {
-		go rerender(m)
-		return
-	}
-	go func(id string) {
-		fetched, err := a.Client.GetMessageWithContent(id)
-		if err != nil {
-			a.GetErrorHandler().ShowError(a.ctx, "❌ Could not load message content")
-			return
-		}
-		a.SetMessageInCache(id, fetched)
-		rerender(fetched)
-	}(mid)
+	})
 }
 
 // toggleLLMTouchUp toggles LLM whitespace touch-up for the current message
@@ -262,34 +274,15 @@ func (a *App) toggleLLMTouchUp() {
 		return
 	}
 	a.SetCurrentMessageID(mid)
-	a.llmTouchUpEnabled.Store(!a.llmTouchUpEnabled.Load())
-	rerender := func(msg *gmail.Message) {
-		rendered, _ := a.renderMessageContent(msg)
-		a.QueueUpdateDraw(func() {
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				text.SetDynamicColors(true)
-				text.Clear()
-				text.SetText(rendered)
-				text.ScrollToBeginning()
-			}
-		})
-		if a.llmTouchUpEnabled.Load() {
+
+	enabled := !a.llmTouchUpEnabled.Load()
+	a.llmTouchUpEnabled.Store(enabled)
+
+	a.rerenderCurrentMessage(mid, func() {
+		if enabled {
 			a.GetErrorHandler().ShowInfo(a.ctx, "✅ LLM touch-up enabled")
 		} else {
 			a.GetErrorHandler().ShowInfo(a.ctx, "✅ Deterministic formatting only")
 		}
-	}
-	if m, ok := a.GetMessageFromCache(mid); ok {
-		go rerender(m)
-		return
-	}
-	go func(id string) {
-		fetched, err := a.Client.GetMessageWithContent(id)
-		if err != nil {
-			a.GetErrorHandler().ShowError(a.ctx, "❌ Could not load message content")
-			return
-		}
-		a.SetMessageInCache(id, fetched)
-		rerender(fetched)
-	}(mid)
+	})
 }
