@@ -264,6 +264,15 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	batchSize := a.Config.InboxAnalyzer.BatchSize
 	maxBatches := a.Config.InboxAnalyzer.MaxBatches
 
+	var userRules []string
+	if svc := a.GetAnalyzerRulesService(); svc != nil {
+		if rs, err := svc.ListRules(a.ctx); err == nil {
+			for _, r := range rs {
+				userRules = append(userRules, r.RuleText)
+			}
+		}
+	}
+
 	go func() {
 		defer func() {
 			cancel()
@@ -278,7 +287,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
-			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText},
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules},
 			func(p *services.ActionPlan) {
 				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
 				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
