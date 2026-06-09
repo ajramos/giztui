@@ -58,7 +58,8 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, list *tview.List, f
 			restore()
 			return nil
 		case e.Key() == tcell.KeyEnter:
-			onApply() // applies the prompt or opens the configurator; both navigate away
+			restore() // reset currentFocus="prompts" + swap the list back BEFORE any async apply,
+			onApply() // so an early-returning apply can never leave focus wedged at "prompt_preview"
 			return nil
 		}
 		return e

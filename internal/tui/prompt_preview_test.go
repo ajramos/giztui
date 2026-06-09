@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ajramos/giztui/internal/config"
+	tcell "github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 )
 
@@ -34,8 +35,9 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	// currentTheme is nil → GetComponentColors returns built-in fallback colors; no theme setup needed.
 
 	list := tview.NewList()
+	footerNormal := " Enter to apply | Esc to cancel "
 	footer := tview.NewTextView()
-	footer.SetText(" Enter to apply | Esc to cancel ")
+	footer.SetText(footerNormal)
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetTitle(" 🤖 Prompt Library ")
@@ -45,11 +47,13 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	applied := false
 	app.showPromptPreviewInline(
 		container, list, footer,
-		" Enter to apply | Esc to cancel ",
+		footerNormal,
 		"Quick Summary",
 		"Description:\nx\n\nTemplate:\ny",
 		func() { applied = true },
 	)
+
+	// --- SHOW assertions ---
 
 	// After showPromptPreviewInline the title should contain the prompt name.
 	if !strings.Contains(container.GetTitle(), "Quick Summary") {
@@ -66,5 +70,112 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 		t.Errorf("expected currentFocus=prompt_preview, got %q", app.currentFocus)
 	}
 
-	_ = applied // onApply is tested indirectly via key events in integration; unit scope ends here
+	// The container's second item (index 1, after the input search field is absent here,
+	// so index 0 is the preview TextView and index 1 is the footer) must NOT be the list.
+	// Equivalently, verify the focused primitive is a *tview.TextView (the preview, not the list).
+	tv, ok := app.GetFocus().(*tview.TextView)
+	if !ok {
+		t.Fatalf("expected focused primitive to be *tview.TextView after show, got %T", app.GetFocus())
+	}
+
+	// --- RESTORE path: drive Esc through the TextView's input capture ---
+
+	capture := tv.GetInputCapture()
+	if capture == nil {
+		t.Fatal("preview TextView has no input capture installed")
+	}
+
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	result := capture(escEvent)
+	// A nil return means the event was consumed (restore ran).
+	if result != nil {
+		t.Errorf("Esc should be consumed by the preview capture (return nil), got %v", result)
+	}
+
+	// currentFocus must have been reset to "prompts".
+	if app.currentFocus != "prompts" {
+		t.Errorf("expected currentFocus=prompts after Esc restore, got %q", app.currentFocus)
+	}
+
+	// The footer text must be back to the normal hint.
+	// tview.TextView.GetText appends a trailing newline; trim before comparing.
+	if strings.TrimRight(footer.GetText(false), "\n") != footerNormal {
+		t.Errorf("expected footer restored to %q, got %q", footerNormal, footer.GetText(false))
+	}
+
+	// The container's first non-fixed item must be the list again (restore re-adds it).
+	if container.ItemAt(0) != list {
+		t.Errorf("expected list to be container item[0] after restore, got %T", container.ItemAt(0))
+	}
+
+	_ = applied // onApply is tested via the Enter path below
+}
+
+func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
+	// Verifies that pressing Enter calls restore() before onApply(), so currentFocus is
+	// never left wedged at "prompt_preview" even when onApply early-returns.
+	app := &App{
+		Application: tview.NewApplication(),
+		Config:      &config.Config{},
+	}
+	app.Pages = NewPages()
+
+	list := tview.NewList()
+	footerNormal := " Enter to apply | Esc to cancel "
+	footer := tview.NewTextView()
+	footer.SetText(footerNormal)
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetTitle(" 🤖 Prompt Library ")
+	container.AddItem(list, 0, 1, true)
+	container.AddItem(footer, 1, 0, false)
+
+	// onApply records whether it was called and what currentFocus was at call time.
+	var applyCalled bool
+	var focusAtApply string
+	app.showPromptPreviewInline(
+		container, list, footer,
+		footerNormal,
+		"Quick Summary",
+		"Description:\nx\n\nTemplate:\ny",
+		func() {
+			applyCalled = true
+			focusAtApply = app.currentFocus
+		},
+	)
+
+	// Verify preview is active.
+	if app.currentFocus != "prompt_preview" {
+		t.Fatalf("pre-condition: expected prompt_preview, got %q", app.currentFocus)
+	}
+
+	tv, ok := app.GetFocus().(*tview.TextView)
+	if !ok {
+		t.Fatalf("expected *tview.TextView, got %T", app.GetFocus())
+	}
+
+	capture := tv.GetInputCapture()
+	if capture == nil {
+		t.Fatal("preview TextView has no input capture")
+	}
+
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	result := capture(enterEvent)
+	if result != nil {
+		t.Errorf("Enter should be consumed (return nil), got %v", result)
+	}
+
+	if !applyCalled {
+		t.Error("onApply was not called on Enter")
+	}
+
+	// restore() must have run BEFORE onApply, so focusAtApply should be "prompts" (not "prompt_preview").
+	if focusAtApply != "prompts" {
+		t.Errorf("restore must run before onApply: expected focusAtApply=prompts, got %q", focusAtApply)
+	}
+
+	// After the whole Enter sequence, currentFocus remains "prompts".
+	if app.currentFocus != "prompts" {
+		t.Errorf("expected currentFocus=prompts after Enter, got %q", app.currentFocus)
+	}
 }

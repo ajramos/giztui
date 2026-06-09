@@ -164,8 +164,9 @@ func (a *App) openPromptPicker() {
 			// Set up input field
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 
-			// triggerPreview is declared here so input.SetInputCapture can reference it;
-			// it is assigned after container and footer are created below.
+			// Forward-declared: input.SetInputCapture below closes over triggerPreview, but it
+			// is assigned later in this same synchronous QueueUpdateDraw (after container/footer
+			// exist). Captures can't fire until this closure returns, so the nil window is never observable.
 			var triggerPreview func()
 
 			// Allow navigation from input to list
