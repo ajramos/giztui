@@ -392,6 +392,27 @@ func (a *App) syncActionPlanNode(state *actionPlanState, node *tview.TreeNode, i
 	a.updateActionPlanFooter(state)
 }
 
+// syncSelectionToNode makes node the current node AND derives the selection state
+// (selectedCategory/selectedMsgID) from its reference, then refreshes the footer.
+// SetCurrentNode does NOT fire SetChangedFunc, so callers that relocate the cursor
+// programmatically (e.g. rebuildActionPlanTree) must use this to keep state, cursor,
+// and footer in lockstep — the node reference is the single source of truth.
+func (a *App) syncSelectionToNode(state *actionPlanState, node *tview.TreeNode) {
+	if state == nil || state.tree == nil || node == nil {
+		return
+	}
+	state.tree.SetCurrentNode(node)
+	switch ref := node.GetReference().(type) {
+	case int:
+		state.selectedCategory = ref
+		state.selectedMsgID = ""
+	case emailRef:
+		state.selectedCategory = ref.catIndex
+		state.selectedMsgID = ref.msgID
+	}
+	a.updateActionPlanFooter(state)
+}
+
 // rebuildActionPlanTree repopulates the tree from state.plan, preserving the
 // selected node (category or email). Categories are root nodes; email children
 // are nested under their category and shown when the category is expanded.
@@ -452,7 +473,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 			}
 			for _, child := range parent.GetChildren() {
 				if ref, ok := child.GetReference().(emailRef); ok && ref.msgID == state.selectedMsgID {
-					state.tree.SetCurrentNode(child)
+					a.syncSelectionToNode(state, child)
 					return
 				}
 			}
@@ -463,11 +484,11 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	// 0..n-1; the read-manually node is -1). Falls back to the first node.
 	for _, n := range children {
 		if ref, ok := n.GetReference().(int); ok && ref == state.selectedCategory {
-			state.tree.SetCurrentNode(n)
+			a.syncSelectionToNode(state, n)
 			return
 		}
 	}
-	state.tree.SetCurrentNode(children[0])
+	a.syncSelectionToNode(state, children[0])
 }
 
 // actionPlanFooterText builds the context-aware footer, styled like the other pickers

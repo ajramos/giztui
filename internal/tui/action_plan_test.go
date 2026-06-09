@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ajramos/giztui/internal/services"
+	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
@@ -134,6 +135,43 @@ func TestActionPlanTitleText(t *testing.T) {
 	done := actionPlanTitleText("23 unread (inbox)", 3, 3, 4, false)
 	if !strings.Contains(done, "4 groups") || !strings.Contains(done, "done") {
 		t.Fatalf("done title wrong: %q", done)
+	}
+}
+
+func TestSyncSelectionToNode(t *testing.T) {
+	a := &App{}
+	a.Keys.Archive = "a"
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[int]bool{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+
+	catNode := tview.NewTreeNode("Promos")
+	catNode.SetReference(0)
+	emailNode := tview.NewTreeNode("m1")
+	emailNode.SetReference(emailRef{catIndex: 0, msgID: "m1"})
+	catNode.AddChild(emailNode)
+	state.root.AddChild(catNode)
+
+	// Landing on an email node selects that email.
+	a.syncSelectionToNode(state, emailNode)
+	if state.selectedMsgID != "m1" || state.selectedCategory != 0 {
+		t.Fatalf("email node: got msgID=%q cat=%d", state.selectedMsgID, state.selectedCategory)
+	}
+
+	// Landing on a category node MUST clear selectedMsgID (the desync bug).
+	a.syncSelectionToNode(state, catNode)
+	if state.selectedMsgID != "" {
+		t.Fatalf("category node must clear selectedMsgID, got %q", state.selectedMsgID)
+	}
+	if state.selectedCategory != 0 {
+		t.Fatalf("category node: got cat=%d", state.selectedCategory)
 	}
 }
 
