@@ -385,6 +385,11 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(focusedColor)
 		}
+	case "action_plan":
+		// The Action Plan panel mounts in the shared labelsView slot.
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(focusedColor)
+		}
 	}
 }
 
