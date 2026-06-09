@@ -39,7 +39,6 @@ func TestBuildAnalyzerMessages(t *testing.T) {
 	assert.Equal(t, "m3", got[1].ID)
 }
 
-
 func msgWith(id, from, subj string, unread bool) *gmailapi.Message {
 	m := &gmailapi.Message{Id: id, Snippet: "snip", Payload: &gmailapi.MessagePart{
 		Headers: []*gmailapi.MessagePartHeader{
