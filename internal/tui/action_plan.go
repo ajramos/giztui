@@ -64,6 +64,12 @@ func isUnreadMeta(m *gmailapi.Message) bool {
 	return false
 }
 
+// emailRef identifies an email node within a category.
+type emailRef struct {
+	catIndex int
+	msgID    string
+}
+
 // actionPlanState holds the mutable state of the Action Plan panel.
 type actionPlanState struct {
 	plan             *services.ActionPlan
@@ -73,12 +79,28 @@ type actionPlanState struct {
 	customPromptText string // override prompt text, "" = default
 	scopeLabel       string // "N selected" or "N unread (inbox)"
 
+	excluded      map[string]bool              // message IDs toggled OFF (skip on action)
+	expanded      map[int]bool                 // category index → expanded?
+	metaByID      map[string]*gmailapi.Message // subject/from lookup for email nodes
+	selectedMsgID string                       // msgID of selected email node, "" if a category is selected
+
 	header          *tview.TextView
 	tree            *tview.TreeView
 	root            *tview.TreeNode
 	footer          *tview.TextView
 	container       *tview.Flex
 	streamingCancel context.CancelFunc
+}
+
+// checkedIDs returns the subset of ids not present in excluded, preserving order.
+func checkedIDs(ids []string, excluded map[string]bool) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !excluded[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // actionVerbLabel maps an action token to a human verb for the category header.
@@ -158,7 +180,22 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	colors := a.GetComponentColors("ai")
 	bg := colors.Background.Color()
 
-	state := &actionPlanState{selectedCategory: 0, customPromptText: customPromptText, scopeLabel: scopeLabel}
+	// Build metaByID lookup for subject/from display in email child nodes.
+	metaByID := make(map[string]*gmailapi.Message, len(metas))
+	for _, m := range metas {
+		if m != nil {
+			metaByID[m.Id] = m
+		}
+	}
+
+	state := &actionPlanState{
+		selectedCategory: 0,
+		customPromptText: customPromptText,
+		scopeLabel:       scopeLabel,
+		excluded:         make(map[string]bool),
+		expanded:         make(map[int]bool),
+		metaByID:         metaByID,
+	}
 	state.analyzing.Store(true)
 
 	state.header = tview.NewTextView().SetDynamicColors(true)
@@ -174,8 +211,13 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		if node == nil {
 			return
 		}
-		if idx, ok := node.GetReference().(int); ok {
-			state.selectedCategory = idx
+		switch ref := node.GetReference().(type) {
+		case int:
+			state.selectedCategory = ref
+			state.selectedMsgID = ""
+		case emailRef:
+			state.selectedCategory = ref.catIndex
+			state.selectedMsgID = ref.msgID
 		}
 		a.updateActionPlanFooter(state)
 	})
@@ -304,8 +346,8 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 }
 
 // rebuildActionPlanTree repopulates the tree from state.plan, preserving the
-// selected category index. Categories are root nodes; per-email children are
-// added in a later task.
+// selected node (category or email). Categories are root nodes; email children
+// are nested under their category and shown when the category is expanded.
 func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	if state.plan == nil || state.root == nil {
 		return
@@ -313,15 +355,48 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	colors := a.GetComponentColors("ai")
 	state.root.ClearChildren()
 	for i, c := range state.plan.Categories {
-		label := fmt.Sprintf("%s · %d · %s · %s", actionVerbLabel(c.Action), len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
+		checked := len(checkedIDs(c.MessageIDs, state.excluded))
+		label := fmt.Sprintf("%s · %d/%d · %s · %s", actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 		node := tview.NewTreeNode(label).SetSelectable(true).SetColor(colors.Text.Color())
 		node.SetReference(i) // category index
+		for _, id := range c.MessageIDs {
+			box := "[x]"
+			if state.excluded[id] {
+				box = "[ ]"
+			}
+			subj, from := "(unknown)", ""
+			if m := state.metaByID[id]; m != nil {
+				subj = extractHeaderValue(m, "Subject")
+				from = extractHeaderValue(m, "From")
+			}
+			child := tview.NewTreeNode(fmt.Sprintf("%s %s — %s", box, subj, from)).
+				SetSelectable(true).
+				SetColor(colors.Text.Color())
+			child.SetReference(emailRef{catIndex: i, msgID: id})
+			node.AddChild(child)
+		}
+		node.SetExpanded(state.expanded[i]) // default collapsed (zero value false)
 		state.root.AddChild(node)
 	}
 	children := state.root.GetChildren()
 	if len(children) == 0 {
 		state.tree.SetCurrentNode(state.root)
 		return
+	}
+	// Restore an email-node selection if one was active and still present/visible.
+	if state.selectedMsgID != "" {
+		for _, cat := range children {
+			if !cat.IsExpanded() {
+				continue
+			}
+			for _, child := range cat.GetChildren() {
+				if ref, ok := child.GetReference().(emailRef); ok && ref.msgID == state.selectedMsgID {
+					state.tree.SetCurrentNode(child)
+					return
+				}
+			}
+		}
+		// fall through to category selection if the email node is no longer visible
 	}
 	if state.selectedCategory < 0 {
 		state.selectedCategory = 0
@@ -370,27 +445,42 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		cur := state.tree.GetCurrentNode()
+
 		// Navigation works during and after analysis.
 		switch ev.Key() {
 		case tcell.KeyUp, tcell.KeyDown:
 			return ev // let TreeView move the cursor natively
-		case tcell.KeyEnter:
-			if state.analyzing.Load() {
-				return nil
+		case tcell.KeyEnter, tcell.KeyRight:
+			if cur != nil {
+				if idx, ok := cur.GetReference().(int); ok { // category node
+					state.expanded[idx] = !state.expanded[idx]
+					cur.SetExpanded(state.expanded[idx])
+				}
 			}
-			cat := a.currentActionPlanCategory(state)
-			if cat == nil {
-				return nil
-			}
-			if cat.Action == "none" || cat.Action == "" {
-				a.GetErrorHandler().ShowInfo(a.ctx, "No suggested action — use : palette or p configurator")
-			} else {
-				a.executeActionPlanAction(state, cat.Action)
+			return nil
+		case tcell.KeyLeft:
+			if cur != nil {
+				if idx, ok := cur.GetReference().(int); ok {
+					state.expanded[idx] = false
+					cur.SetExpanded(false)
+				}
 			}
 			return nil
 		}
 
 		key := string(ev.Rune())
+
+		// Space toggles the excluded state of an email node.
+		if ev.Rune() == ' ' {
+			if cur != nil {
+				if ref, ok := cur.GetReference().(emailRef); ok {
+					state.excluded[ref.msgID] = !state.excluded[ref.msgID]
+					a.renderActionPlanPanel(state) // re-render [x]/[ ] + counts; selection restored via selectedMsgID
+				}
+			}
+			return nil
+		}
 
 		// Escape hatches (available any time).
 		if key == a.Keys.CommandMode { // ':'

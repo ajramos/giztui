@@ -81,3 +81,15 @@ func TestActionKeyHint(t *testing.T) {
 	assert.Equal(t, "l", a.actionKeyHint("label"))
 	assert.Equal(t, "", a.actionKeyHint("none"))
 }
+
+func TestCheckedIDs(t *testing.T) {
+	all := []string{"a", "b", "c"}
+	excluded := map[string]bool{"b": true}
+	got := checkedIDs(all, excluded)
+	if len(got) != 2 || got[0] != "a" || got[1] != "c" {
+		t.Fatalf("want [a c], got %v", got)
+	}
+	if len(checkedIDs(all, map[string]bool{"a": true, "b": true, "c": true})) != 0 {
+		t.Fatal("all excluded should yield empty")
+	}
+}
