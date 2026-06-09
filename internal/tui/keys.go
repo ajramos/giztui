@@ -573,6 +573,13 @@ func (a *App) bindKeys() {
 		// ESC always closes the panel regardless of where focus has drifted.
 		if a.isActionPlanActive() {
 			if event.Key() == tcell.KeyEscape {
+				// If a rule overlay (Ctrl+R remember / rules manager) is open on top
+				// of the panel, let ESC reach the modal so it closes the overlay, not
+				// the whole panel. The modals don't change the active picker, so this
+				// HasPage check is what distinguishes "modal open" from "panel only".
+				if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) {
+					return event
+				}
 				a.closeActionPlanPanel()
 				return nil
 			}

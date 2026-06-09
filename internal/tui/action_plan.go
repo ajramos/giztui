@@ -476,6 +476,12 @@ func (a *App) closeActionPlanPanel() {
 	}
 	a.streamingCancel = nil
 
+	// Defensively tear down any rule overlay still on the Pages stack, so closing the
+	// panel can never leave an orphaned modal that re-captures focus. RemovePage is a
+	// no-op when the page is absent.
+	a.Pages.RemovePage(actionPlanRulePage)
+	a.Pages.RemovePage(analyzerRulesPage)
+
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
 			split.ResizeItem(a.labelsView, 0, 0)
