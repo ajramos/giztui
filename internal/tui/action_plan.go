@@ -479,10 +479,10 @@ func actionPlanFooterText(onCategory bool, key, action string, checkedCount int)
 		if key != "" && action != "none" && action != "" {
 			parts = append(parts, fmt.Sprintf("%s to %s (%d)", key, actionRuleVerbShort(action), checkedCount))
 		}
-		parts = append(parts, "Enter to expand", "Ctrl+R to remember", "Esc to close")
+		parts = append(parts, "Enter to expand", "Ctrl+R to remember", "Tab to inbox", "Esc to close")
 		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return " Space to skip  |  Ctrl+R to remember sender  |  ← to collapse  |  Esc to close "
+	return " Space to skip  |  m to move  |  Ctrl+R to remember sender  |  Tab to inbox  |  Esc to close "
 }
 
 // actionRuleVerbShort is the short imperative verb for the footer.
@@ -533,6 +533,7 @@ func (a *App) closeActionPlanPanel() {
 	// no-op when the page is absent.
 	a.Pages.RemovePage(actionPlanRulePage)
 	a.Pages.RemovePage(analyzerRulesPage)
+	a.Pages.RemovePage(actionPlanMovePage)
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
@@ -548,6 +549,27 @@ func (a *App) closeActionPlanPanel() {
 	}
 	a.currentFocus = "list"
 	a.updateFocusIndicators("list")
+}
+
+// focusInboxFromActionPlan moves focus to the message list while leaving the Action Plan
+// panel mounted and its analysis running, so the user can read mail mid-analysis. Tab
+// (handled in keys.go) returns focus to the panel; Esc on the inbox does not close it.
+func (a *App) focusInboxFromActionPlan() {
+	if list, ok := a.views["list"].(*tview.Table); ok {
+		a.SetFocus(list)
+	}
+	a.currentFocus = "list"
+	a.updateFocusIndicators("list")
+}
+
+// focusActionPlanFromInbox returns focus to the Action Plan panel tree.
+func (a *App) focusActionPlanFromInbox() {
+	if a.actionPlanState == nil || a.actionPlanState.tree == nil {
+		return
+	}
+	a.SetFocus(a.actionPlanState.tree)
+	a.currentFocus = "action_plan"
+	a.updateFocusIndicators("action_plan")
 }
 
 // actionPlanInputCapture handles all key input while the Action Plan panel is focused.
@@ -632,6 +654,15 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
 			return nil
+		}
+		// 'm' on an email node opens the move/recategorize picker.
+		if ev.Rune() == 'm' {
+			if cur != nil {
+				if ref, ok := cur.GetReference().(emailRef); ok {
+					a.openActionPlanMovePicker(state, ref.catIndex, ref.msgID)
+					return nil
+				}
+			}
 		}
 		switch key {
 		case a.Keys.Archive:

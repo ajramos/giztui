@@ -566,24 +566,33 @@ func (a *App) bindKeys() {
 			return event
 		}
 
-		// If the Action Plan panel is active, route keys to its own input capture. Its body
-		// is a *tview.TextView, which the focus-type switch below does NOT defer to, so
-		// without this the global configurable-shortcut handling (archive/trash/etc.) and
-		// command-mode (':') would shadow the panel's quick-actions and escape hatches.
-		// ESC always closes the panel regardless of where focus has drifted.
+		// Action Plan panel key routing. The panel stays mounted (active) even when the
+		// user Tabs to the inbox to read mail while analysis runs in the background, so
+		// behavior is gated on FOCUS, not just on the panel being active.
 		if a.isActionPlanActive() {
-			if event.Key() == tcell.KeyEscape {
-				// If a rule overlay (Ctrl+R remember / rules manager) is open on top
-				// of the panel, let ESC reach the modal so it closes the overlay, not
-				// the whole panel. The modals don't change the active picker, so this
-				// HasPage check is what distinguishes "modal open" from "panel only".
-				if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) {
-					return event
+			// A rule/move overlay open on top owns all keys (its own Esc closes it).
+			if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) || a.Pages.HasPage(actionPlanMovePage) {
+				return event
+			}
+			if a.currentFocus == "action_plan" {
+				// Panel focused: Tab hands focus to the inbox (panel keeps analyzing),
+				// Esc closes the panel, everything else goes to the tree's input capture.
+				if event.Key() == tcell.KeyTab {
+					a.focusInboxFromActionPlan()
+					return nil
 				}
-				a.closeActionPlanPanel()
+				if event.Key() == tcell.KeyEscape {
+					a.closeActionPlanPanel()
+					return nil
+				}
+				return event
+			}
+			// Panel mounted but focus is on the inbox: Tab returns to the panel; all
+			// other keys fall through to normal inbox handling (read/navigate freely).
+			if event.Key() == tcell.KeyTab {
+				a.focusActionPlanFromInbox()
 				return nil
 			}
-			return event
 		}
 
 		// If focus is on form widgets (advanced/simple search), don't intercept

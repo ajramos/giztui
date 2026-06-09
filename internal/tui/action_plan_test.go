@@ -136,3 +136,59 @@ func TestActionPlanTitleText(t *testing.T) {
 		t.Fatalf("done title wrong: %q", done)
 	}
 }
+
+func TestApplyActionPlanMove(t *testing.T) {
+	mk := func(name, action string, ids ...string) services.ActionPlanCategory {
+		return services.ActionPlanCategory{Name: name, Action: action, MessageIDs: ids}
+	}
+	// Move m2 from "Promos" (archive) to existing category "Notifs" (mark_read).
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		mk("Promos", "archive", "m1", "m2"),
+		mk("Notifs", "mark_read", "m3"),
+	}}
+	applyActionPlanMove(plan, nil, "m2", moveTarget{kind: "category", catName: "Notifs"})
+	if len(plan.Categories) != 2 {
+		t.Fatalf("want 2 cats, got %d", len(plan.Categories))
+	}
+	if got := plan.Categories[0].MessageIDs; len(got) != 1 || got[0] != "m1" {
+		t.Fatalf("Promos should hold [m1], got %v", got)
+	}
+	if got := plan.Categories[1].MessageIDs; len(got) != 2 {
+		t.Fatalf("Notifs should hold 2, got %v", got)
+	}
+
+	// Move m1 to a standard action (trash) with no existing trash group → new category.
+	applyActionPlanMove(plan, nil, "m1", moveTarget{kind: "action", action: "trash"})
+	idx := firstCategoryWithAction(plan, "trash")
+	if idx < 0 {
+		t.Fatal("expected a new trash category")
+	}
+	if plan.Categories[idx].MessageIDs[0] != "m1" {
+		t.Fatalf("trash group should hold m1, got %v", plan.Categories[idx].MessageIDs)
+	}
+	// "Promos" is now empty and must be pruned.
+	if categoryIndexByName(plan, "Promos") != -1 {
+		t.Fatal("empty Promos category should have been pruned")
+	}
+
+	// Move m3 to keep → ReadManually. Notifs still holds m2 (moved in earlier),
+	// so it must NOT be pruned yet.
+	applyActionPlanMove(plan, nil, "m3", moveTarget{kind: "action", action: "keep"})
+	if len(plan.ReadManually) != 1 || plan.ReadManually[0].ID != "m3" {
+		t.Fatalf("m3 should be in ReadManually, got %+v", plan.ReadManually)
+	}
+	if ni := categoryIndexByName(plan, "Notifs"); ni == -1 {
+		t.Fatal("Notifs should remain — it still holds m2")
+	} else if got := plan.Categories[ni].MessageIDs; len(got) != 1 || got[0] != "m2" {
+		t.Fatalf("Notifs should hold [m2], got %v", got)
+	}
+
+	// Move m2 to keep too → Notifs is now empty and must be pruned.
+	applyActionPlanMove(plan, nil, "m2", moveTarget{kind: "action", action: "keep"})
+	if categoryIndexByName(plan, "Notifs") != -1 {
+		t.Fatal("empty Notifs category should have been pruned")
+	}
+	if len(plan.ReadManually) != 2 {
+		t.Fatalf("ReadManually should hold m3 and m2, got %+v", plan.ReadManually)
+	}
+}
