@@ -236,24 +236,33 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	state.container.AddItem(state.tree, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 
-	a.actionPlanState = state
-
-	// Mount in the shared right-panel slot (same pattern as openPromptConfigurator).
-	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-		if a.labelsView != nil {
-			split.RemoveItem(a.labelsView)
-		}
-		a.labelsView = state.container
-		split.AddItem(a.labelsView, 0, 1, true)
-		split.ResizeItem(a.labelsView, 0, 1)
-	}
-
+	// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
+	state.header.SetText(actionPlanHeaderText(scopeLabel, 0, 0, true))
+	state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
+		SetSelectable(false).SetColor(colors.Text.Color()))
 	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
-	a.SetFocus(state.tree)
-	a.updateActionPlanFooter(state)
-	a.currentFocus = "action_plan"
-	a.updateFocusIndicators("action_plan")
-	a.setActivePicker(PickerActionPlan)
+
+	// Mount, focus and activation must run on the UI thread. openActionPlanWithText is
+	// invoked via `go a.openActionPlanPanel()`, so doing these directly would mutate the
+	// live layout off-thread and nothing would repaint until the next input event — the
+	// panel would be invisible and unfocused until a stray keypress. QueueUpdateDraw
+	// marshals onto the UI thread AND forces a redraw, the same pattern openLinkPicker uses.
+	a.QueueUpdateDraw(func() {
+		a.actionPlanState = state
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = state.container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(state.tree)
+		a.updateActionPlanFooter(state)
+		a.currentFocus = "action_plan"
+		a.updateFocusIndicators("action_plan")
+		a.setActivePicker(PickerActionPlan)
+	})
 
 	// Launch analysis in the background. ctx cancel is registered both on the state
 	// (for closeActionPlanPanel) and on the App (for the global ESC handler in keys.go).
@@ -332,6 +341,20 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	}()
 }
 
+// actionPlanHeaderText builds the panel header. Before the first batch completes
+// (batchesTotal==0) it shows an "analyzing…" indicator without batch counts; once
+// batches are running it shows progress and the analyzing/done status.
+func actionPlanHeaderText(scopeLabel string, batchesDone, batchesTotal int, analyzing bool) string {
+	if batchesTotal == 0 {
+		return fmt.Sprintf("[::b]Action Plan · %s • analyzing…[::-]", scopeLabel)
+	}
+	status := "analyzing"
+	if !analyzing {
+		status = "done"
+	}
+	return fmt.Sprintf("[::b]Action Plan · %s • batch %d/%d • %s[::-]", scopeLabel, batchesDone, batchesTotal, status)
+}
+
 // renderActionPlanPanel refreshes header + body from the current state. It performs raw
 // SetText calls and so must run on the UI thread — callers from the analysis goroutine
 // wrap it in QueueUpdateDraw; UI-thread callers (key handlers) may call it directly.
@@ -340,11 +363,7 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 		return
 	}
 	p := state.plan
-	status := "analyzing"
-	if !state.analyzing.Load() {
-		status = "done"
-	}
-	state.header.SetText(fmt.Sprintf("[::b]Action Plan · %s • batch %d/%d • %s[::-]", state.scopeLabel, p.BatchesDone, p.BatchesTotal, status))
+	state.header.SetText(actionPlanHeaderText(state.scopeLabel, p.BatchesDone, p.BatchesTotal, state.analyzing.Load()))
 	if state.selectedCategory >= len(p.Categories) {
 		state.selectedCategory = len(p.Categories) - 1
 	}

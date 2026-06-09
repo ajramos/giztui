@@ -104,3 +104,24 @@ func TestCheckedIDs(t *testing.T) {
 		t.Fatal("all excluded should yield empty")
 	}
 }
+
+func TestActionPlanHeaderText(t *testing.T) {
+	// Before the first batch (total==0): analyzing indicator, no batch counts.
+	pre := actionPlanHeaderText("5 selected", 0, 0, true)
+	if !strings.Contains(pre, "5 selected") || !strings.Contains(pre, "analyzing") {
+		t.Fatalf("pre-batch header missing scope/indicator: %q", pre)
+	}
+	if strings.Contains(pre, "batch") {
+		t.Fatalf("pre-batch header should not show batch counts: %q", pre)
+	}
+	// Mid-analysis: batch counts + analyzing status.
+	mid := actionPlanHeaderText("23 unread (inbox)", 1, 3, true)
+	if !strings.Contains(mid, "batch 1/3") || !strings.Contains(mid, "analyzing") {
+		t.Fatalf("mid header wrong: %q", mid)
+	}
+	// Completed: batch counts + done status.
+	done := actionPlanHeaderText("23 unread (inbox)", 3, 3, false)
+	if !strings.Contains(done, "batch 3/3") || !strings.Contains(done, "done") {
+		t.Fatalf("done header wrong: %q", done)
+	}
+}
