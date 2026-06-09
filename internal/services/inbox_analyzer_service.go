@@ -232,6 +232,21 @@ func buildBatchPrompt(promptText, payload string) string {
 	return promptText + "\n\n" + payload
 }
 
+// prependUserRules adds a "## User preferences" block before the analyzer prompt
+// so the LLM honors the user's free-text rules. Empty rules → prompt unchanged.
+func prependUserRules(promptText string, rules []string) string {
+	clean := make([]string, 0, len(rules))
+	for _, r := range rules {
+		if strings.TrimSpace(r) != "" {
+			clean = append(clean, "- "+strings.TrimSpace(r))
+		}
+	}
+	if len(clean) == 0 {
+		return promptText
+	}
+	return "## User preferences (respect these rules)\n" + strings.Join(clean, "\n") + "\n\n" + promptText
+}
+
 func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error) {
 	if s.aiService == nil {
 		return nil, fmt.Errorf("AI service not available")
@@ -244,6 +259,8 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 	if strings.TrimSpace(promptText) == "" {
 		promptText = defaultAnalyzerPrompt
 	}
+
+	promptText = prependUserRules(promptText, opts.UserRules)
 
 	batches := splitBatches(messages, opts.BatchSize, opts.MaxBatches)
 	plan := &ActionPlan{BatchesTotal: len(batches)}

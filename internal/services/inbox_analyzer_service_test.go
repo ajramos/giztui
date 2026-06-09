@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -250,4 +251,29 @@ func TestAnalyze_IntermediateBatchErrorReturnsPartialPlan(t *testing.T) {
 	assert.NotNil(t, plan) // partial plan preserved
 	assert.Len(t, plan.Categories, 1)
 	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
+}
+
+func TestPrependUserRules(t *testing.T) {
+	base := "Categorize these messages."
+	got := prependUserRules(base, []string{
+		"Never trash emails from tldr.tech",
+		"Archive newsletters automatically",
+	})
+	if !strings.Contains(got, "## User preferences") {
+		t.Fatalf("missing header in: %q", got)
+	}
+	if !strings.Contains(got, "- Never trash emails from tldr.tech") {
+		t.Fatalf("missing rule 1 in: %q", got)
+	}
+	if !strings.Contains(got, "- Archive newsletters automatically") {
+		t.Fatalf("missing rule 2 in: %q", got)
+	}
+	if !strings.HasSuffix(got, base) {
+		t.Fatalf("base prompt must follow the rules block, got: %q", got)
+	}
+
+	// Empty rules → unchanged.
+	if prependUserRules(base, nil) != base {
+		t.Fatal("nil rules must return the base prompt unchanged")
+	}
 }

@@ -993,9 +993,10 @@ type ActionPlan struct {
 
 // InboxAnalyzerOptions controls a single Analyze invocation.
 type InboxAnalyzerOptions struct {
-	BatchSize        int    // messages per batch (default 50)
-	MaxBatches       int    // safety cap on total batches (default 10)
-	CustomPromptText string // empty → use the built-in default analyzer prompt
+	BatchSize        int      // messages per batch (default 50)
+	MaxBatches       int      // safety cap on total batches (default 10)
+	CustomPromptText string   // empty → use the built-in default analyzer prompt
+	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
 }
 
 // InboxAnalyzerService groups unread messages into an actionable plan via the LLM.
