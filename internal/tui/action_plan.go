@@ -215,6 +215,12 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 			state.selectedMsgID = ref.msgID
 		}
 		a.updateActionPlanFooter(state)
+		// tview postpones cursor movement to draw time (process()), and Flex defers the
+		// FOCUSED item's Draw to last — so this callback runs AFTER the footer already
+		// painted this frame, leaving it one keystroke behind the cursor. Force one more
+		// repaint so the footer tracks the highlighted node live. (go avoids QueueUpdateDraw
+		// deadlocking when invoked from the UI goroutine mid-draw.)
+		go a.QueueUpdateDraw(func() {})
 	})
 
 	// Footer matches the other pickers: right-aligned, " X to Y | … " phrasing.
