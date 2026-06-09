@@ -566,12 +566,20 @@ func (a *App) bindKeys() {
 			return event
 		}
 
+		// In-place panels that live inside a picker body and own ALL keys via their own
+		// input capture: the prompt preview (a TextView) and the action-plan move chooser
+		// (a List). The global capture runs before a focused widget's capture, so without
+		// this pass-through it would swallow their Esc/Ctrl+P/Enter (see prompt-preview bug).
+		if a.currentFocus == "prompt_preview" || a.currentFocus == "action_plan_move" {
+			return event
+		}
+
 		// Action Plan panel key routing. The panel stays mounted (active) even when the
 		// user Tabs to the inbox to read mail while analysis runs in the background, so
 		// behavior is gated on FOCUS, not just on the panel being active.
 		if a.isActionPlanActive() {
 			// A rule/move overlay open on top owns all keys (its own Esc closes it).
-			if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) || a.Pages.HasPage(actionPlanMovePage) {
+			if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) {
 				return event
 			}
 			if a.currentFocus == "action_plan" {
