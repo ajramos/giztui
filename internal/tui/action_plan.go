@@ -516,6 +516,32 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		if ev.Key() == tcell.KeyCtrlR {
+			from, action, negate := "", "none", false
+			if cat := a.currentActionPlanCategory(state); cat != nil {
+				action = cat.Action
+				if len(cat.MessageIDs) > 0 {
+					if m := state.metaByID[cat.MessageIDs[0]]; m != nil {
+						from = extractHeaderValue(m, "From")
+					}
+				}
+			}
+			if cur != nil {
+				if ref, ok := cur.GetReference().(emailRef); ok {
+					if m := state.metaByID[ref.msgID]; m != nil {
+						from = extractHeaderValue(m, "From")
+					}
+					negate = true // on a specific email, default to a prohibition
+				}
+			}
+			suggestion := ""
+			if svc := a.GetAnalyzerRulesService(); svc != nil {
+				suggestion = svc.SuggestRuleFromContext(from, action, negate)
+			}
+			a.showRememberRuleModal(suggestion)
+			return nil
+		}
+
 		key := string(ev.Rune())
 
 		// Space toggles the excluded state of an email node.

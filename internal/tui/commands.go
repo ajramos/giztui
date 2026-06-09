@@ -2605,5 +2605,9 @@ func (a *App) executeActionPlanCommand(args []string) {
 		go a.openActionPlanWithPrompt(nameOrID)
 		return
 	}
+	if strings.ToLower(args[0]) == "rules" {
+		a.openAnalyzerRulesManager()
+		return
+	}
 	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
 }
