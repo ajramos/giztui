@@ -649,24 +649,6 @@ func (a *App) removeActionPlanCategory(state *actionPlanState, name string) {
 	a.renderActionPlanPanel(state)
 }
 
-// setVirtualBulkSelection marks the given IDs as selected and enables bulk mode so the
-// existing command palette / bulk picker operate on exactly these messages.
-func (a *App) setVirtualBulkSelection(ids []string) {
-	a.mu.Lock()
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	} else {
-		for k := range a.selected {
-			delete(a.selected, k)
-		}
-	}
-	for _, id := range ids {
-		a.selected[id] = true
-	}
-	a.bulkMode = true
-	a.mu.Unlock()
-}
-
 // openActionPlanWithPrompt opens the panel using a saved prompt (by name or numeric id)
 // as the analyzer override. Falls back to the default prompt if the prompt is not found.
 func (a *App) openActionPlanWithPrompt(nameOrID string) {

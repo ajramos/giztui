@@ -39,15 +39,6 @@ func TestActionPlan_RebuildTreeAndRemoveCategory(t *testing.T) {
 	assert.Equal(t, "Follow up", state.plan.Categories[0].Name)
 }
 
-func TestActionPlan_VirtualBulkSelection(t *testing.T) {
-	a := &App{selected: map[string]bool{"old": true}}
-	a.setVirtualBulkSelection([]string{"m1", "m2"})
-	assert.True(t, a.bulkMode)
-	assert.True(t, a.selected["m1"])
-	assert.True(t, a.selected["m2"])
-	assert.False(t, a.selected["old"]) // previous selection cleared
-}
-
 func TestActionPlan_CurrentCategoryNilSafe(t *testing.T) {
 	a := &App{}
 	// Empty plan → currentActionPlanCategory returns nil, no panic.
