@@ -225,7 +225,6 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	state.footer = tview.NewTextView().SetDynamicColors(true)
 	state.footer.SetBackgroundColor(bg)
 	state.footer.SetTextColor(colors.Text.Color())
-	state.footer.SetText("[↑↓] navigate  [Enter] action  [:] palette  [p] configurator  [Esc] close")
 
 	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
 	state.container.SetBackgroundColor(bg)
@@ -251,6 +250,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 
 	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
 	a.SetFocus(state.tree)
+	a.updateActionPlanFooter(state)
 	a.currentFocus = "action_plan"
 	a.updateFocusIndicators("action_plan")
 	a.setActivePicker(PickerActionPlan)
@@ -407,9 +407,56 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	state.tree.SetCurrentNode(children[state.selectedCategory])
 }
 
-// updateActionPlanFooter updates the footer text based on current state.
-// Task 9 will implement this fully; for now it is a no-op stub.
-func (a *App) updateActionPlanFooter(state *actionPlanState) {}
+// actionPlanFooterText builds the context-aware footer. onCategory=true means a
+// category node is highlighted; key/verb/count describe its suggested action.
+func actionPlanFooterText(onCategory bool, key, action string, checkedCount int) string {
+	if onCategory {
+		act := "[Enter] expand"
+		if key != "" && action != "none" && action != "" {
+			act = fmt.Sprintf("[%s] %s %d  [Enter] expand", key, actionRuleVerbShort(action), checkedCount)
+		}
+		return act + "  [^R] remember  [Esc]"
+	}
+	return "[space] skip  [^R] remember sender  [←] collapse  [Esc]"
+}
+
+// actionRuleVerbShort is the short imperative verb for the footer.
+func actionRuleVerbShort(action string) string {
+	switch action {
+	case "archive":
+		return "archive"
+	case "mark_read":
+		return "read"
+	case "trash":
+		return "trash"
+	case "label":
+		return "label"
+	default:
+		return "act"
+	}
+}
+
+// updateActionPlanFooter updates the footer text based on current navigation state.
+func (a *App) updateActionPlanFooter(state *actionPlanState) {
+	if state == nil || state.footer == nil {
+		return
+	}
+	cur := state.tree.GetCurrentNode()
+	onCategory := true
+	if cur != nil {
+		if _, ok := cur.GetReference().(emailRef); ok {
+			onCategory = false
+		}
+	}
+	cat := a.currentActionPlanCategory(state)
+	key, action, count := "", "none", 0
+	if cat != nil {
+		action = cat.Action
+		key = a.actionKeyHint(cat.Action)
+		count = len(checkedIDs(cat.MessageIDs, state.excluded))
+	}
+	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count))
+}
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
 // QueueUpdateDraw (CLAUDE.md ESC rule).
@@ -482,16 +529,6 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
-		// Escape hatches (available any time).
-		if key == a.Keys.CommandMode { // ':'
-			a.actionPlanOpenPalette(state)
-			return nil
-		}
-		if key == a.Keys.Prompt { // 'p'
-			a.actionPlanOpenConfigurator(state)
-			return nil
-		}
-
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
 			return nil
@@ -528,8 +565,11 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 	if cat == nil {
 		return
 	}
-	ids := make([]string, len(cat.MessageIDs))
-	copy(ids, cat.MessageIDs)
+	ids := checkedIDs(cat.MessageIDs, state.excluded)
+	if len(ids) == 0 {
+		a.GetErrorHandler().ShowWarning(a.ctx, "All emails in this category are excluded — nothing to do")
+		return
+	}
 	catName := cat.Name
 	label := cat.Label
 
@@ -607,34 +647,6 @@ func (a *App) removeActionPlanCategory(state *actionPlanState, name string) {
 	}
 	state.plan.Categories = kept
 	a.renderActionPlanPanel(state)
-}
-
-// actionPlanOpenPalette sets a virtual bulk selection over the category's messages and
-// opens the command palette (the ':' escape hatch).
-func (a *App) actionPlanOpenPalette(state *actionPlanState) {
-	cat := a.currentActionPlanCategory(state)
-	if cat == nil {
-		return
-	}
-	ids := make([]string, len(cat.MessageIDs))
-	copy(ids, cat.MessageIDs)
-	a.setVirtualBulkSelection(ids)
-	a.closeActionPlanPanel()
-	a.showCommandBar()
-}
-
-// actionPlanOpenConfigurator opens the bulk prompt picker scoped to the category (the
-// 'p' escape hatch).
-func (a *App) actionPlanOpenConfigurator(state *actionPlanState) {
-	cat := a.currentActionPlanCategory(state)
-	if cat == nil {
-		return
-	}
-	ids := make([]string, len(cat.MessageIDs))
-	copy(ids, cat.MessageIDs)
-	a.setVirtualBulkSelection(ids)
-	a.closeActionPlanPanel()
-	go a.openBulkPromptPicker()
 }
 
 // setVirtualBulkSelection marks the given IDs as selected and enables bulk mode so the

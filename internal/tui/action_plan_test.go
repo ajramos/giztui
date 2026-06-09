@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -80,6 +81,17 @@ func TestActionKeyHint(t *testing.T) {
 	assert.Equal(t, "d", a.actionKeyHint("trash"))
 	assert.Equal(t, "l", a.actionKeyHint("label"))
 	assert.Equal(t, "", a.actionKeyHint("none"))
+}
+
+func TestActionPlanFooterText(t *testing.T) {
+	onCat := actionPlanFooterText(true, "a", "archive", 7)
+	if !strings.Contains(onCat, "[a]") || !strings.Contains(onCat, "archive 7") || !strings.Contains(onCat, "[^R]") {
+		t.Fatalf("category footer wrong: %q", onCat)
+	}
+	onEmail := actionPlanFooterText(false, "a", "archive", 7)
+	if !strings.Contains(onEmail, "[space]") || !strings.Contains(onEmail, "[^R]") {
+		t.Fatalf("email footer wrong: %q", onEmail)
+	}
 }
 
 func TestCheckedIDs(t *testing.T) {
