@@ -149,7 +149,7 @@ type App struct {
 	logFile *os.File
 
 	// Side panel picker state management
-	labelsView             *tview.Flex
+	labelsView          *tview.Flex
 	currentActivePicker ActivePicker // Replaces labelsVisible - tracks which picker is active
 	labelsExpanded      bool
 
