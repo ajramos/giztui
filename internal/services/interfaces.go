@@ -1006,3 +1006,24 @@ type InboxAnalyzerService interface {
 	// Honors context cancellation between and during batches.
 	Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error)
 }
+
+// AnalyzerRuleInfo is a free-text analyzer preference rule, surfaced to the TUI.
+type AnalyzerRuleInfo struct {
+	ID        int64
+	RuleText  string
+	CreatedAt int64
+}
+
+// AnalyzerRulesService persists and supplies the user's free-text analyzer
+// preference rules. Rules are natural-language strings injected into the analyzer
+// prompt (the LLM interprets them); no deterministic matching is done here.
+type AnalyzerRulesService interface {
+	SaveRule(ctx context.Context, ruleText string) error
+	ListRules(ctx context.Context) ([]AnalyzerRuleInfo, error)
+	DeleteRule(ctx context.Context, id int64) error
+	// SuggestRuleFromContext builds an editable default rule string from a message's
+	// From header and an action token. negate=true phrases it as a prohibition
+	// (e.g. "Never trash emails from tldr.tech"); negate=false as a directive
+	// (e.g. "Always archive emails from tldr.tech"). Pure — no I/O.
+	SuggestRuleFromContext(from, action string, negate bool) string
+}
