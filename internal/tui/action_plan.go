@@ -366,6 +366,32 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	a.rebuildActionPlanTree(state)
 }
 
+// topLevelNodeLabel builds the display label for a top-level node: a category (i>=0)
+// or the read-manually node (i==-1). The chevron reflects state.expanded[i] so callers
+// can refresh it the moment a node is expanded/collapsed, not only on a full rebuild.
+func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
+	chevron := "▶"
+	if state.expanded[i] {
+		chevron = "▼"
+	}
+	if i < 0 { // read-manually pseudo-node
+		return fmt.Sprintf("%s Read manually · %d", chevron, len(state.plan.ReadManually))
+	}
+	c := state.plan.Categories[i]
+	checked := len(checkedIDs(c.MessageIDs, state.excluded))
+	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
+}
+
+// syncActionPlanNode refreshes a top-level node after an expand/collapse: it updates the
+// chevron in the label in place (no full rebuild) and re-syncs the selection/footer to
+// this node, so the footer can't keep showing email-level hints on a category header.
+func (a *App) syncActionPlanNode(state *actionPlanState, node *tview.TreeNode, idx int) {
+	node.SetText(a.topLevelNodeLabel(state, idx))
+	state.selectedCategory = idx
+	state.selectedMsgID = ""
+	a.updateActionPlanFooter(state)
+}
+
 // rebuildActionPlanTree repopulates the tree from state.plan, preserving the
 // selected node (category or email). Categories are root nodes; email children
 // are nested under their category and shown when the category is expanded.
@@ -376,13 +402,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	colors := a.GetComponentColors("ai")
 	state.root.ClearChildren()
 	for i, c := range state.plan.Categories {
-		checked := len(checkedIDs(c.MessageIDs, state.excluded))
-		chevron := "▶"
-		if state.expanded[i] {
-			chevron = "▼"
-		}
-		label := fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
-		node := tview.NewTreeNode(label).SetSelectable(true).SetColor(colors.Text.Color())
+		node := tview.NewTreeNode(a.topLevelNodeLabel(state, i)).SetSelectable(true).SetColor(colors.Text.Color())
 		node.SetReference(i) // category index
 		for _, id := range c.MessageIDs {
 			box := "☑" // same glyph the inbox uses for bulk selection
@@ -407,11 +427,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	// so nothing the user selected silently disappears. Non-actionable (no checkboxes).
 	if len(state.plan.ReadManually) > 0 {
 		const rmIdx = -1
-		chevron := "▶"
-		if state.expanded[rmIdx] {
-			chevron = "▼"
-		}
-		rm := tview.NewTreeNode(fmt.Sprintf("%s Read manually · %d", chevron, len(state.plan.ReadManually))).
+		rm := tview.NewTreeNode(a.topLevelNodeLabel(state, rmIdx)).
 			SetSelectable(true).SetColor(colors.Text.Color())
 		rm.SetReference(rmIdx)
 		for _, m := range state.plan.ReadManually {
@@ -551,9 +567,10 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return ev // let TreeView move the cursor natively
 		case tcell.KeyEnter, tcell.KeyRight:
 			if cur != nil {
-				if idx, ok := cur.GetReference().(int); ok { // category node
+				if idx, ok := cur.GetReference().(int); ok { // category / read-manually node
 					state.expanded[idx] = !state.expanded[idx]
 					cur.SetExpanded(state.expanded[idx])
+					a.syncActionPlanNode(state, cur, idx) // refresh chevron + footer
 				}
 			}
 			return nil
@@ -562,6 +579,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				if idx, ok := cur.GetReference().(int); ok {
 					state.expanded[idx] = false
 					cur.SetExpanded(false)
+					a.syncActionPlanNode(state, cur, idx)
 				}
 			}
 			return nil
