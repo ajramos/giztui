@@ -5,6 +5,33 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-06-09
+
+### 🚀 Features
+
+- **Inbox Action Plan rework (`P` / `:action-plan`)**: the AI triage panel was substantially reworked for trust and control.
+  - **Selection-scoped analysis**: analyzes your current bulk selection if you have one, otherwise falls back to the unread inbox. The title shows the scope (e.g. "5 selected" vs "23 unread (inbox)").
+  - **Expandable categories with per-email control**: categories are now a navigable tree — `Enter`/`→` expands a group to reveal the actual emails, `←` collapses. Press `Space` to exclude an individual email (`☑`/`☐`); actions act on checked-only. Messages the model declined to categorize appear under a "read manually" group so nothing you selected silently disappears.
+  - **Move / recategorize (`m`)**: on an email, press `m` to reassign it to another destination (standard actions or an existing category). The move is recorded in the plan and applied when you dispatch that group.
+  - **Non-blocking analysis**: while analysis runs you can `Tab` to the inbox to read mail; `Tab` returns to the panel. The panel keeps analyzing in the background, and `Esc` closes it only when it is focused.
+  - **Preference learning**: press `Ctrl+R` to save a free-text, natural-language rule (e.g. "always keep emails from my manager") that the analyzer applies on future runs; manage saved rules with `:action-plan rules`. Rules are interpreted by the LLM (not literal matching) and stored per account.
+- **In-place picker panels**: the prompt preview and the action-plan move chooser now open *inside* their panel as deeper navigation instead of as floating modals — consistent, and they no longer get stuck.
+
+### 🐛 Fixes
+
+- **Prompt preview was unclosable** (`p` → `Ctrl+P`): the floating preview could not be dismissed (neither `Esc` nor `Ctrl+P`) and required killing the app. It is now an in-place panel that closes reliably; `Enter` applies the highlighted prompt, `Esc`/`Ctrl+P` returns to the list. Same treatment in the bulk prompt picker.
+- **Action plan "move" hung the app**: selecting a destination froze the UI (a deadlock from calling a status update synchronously on the UI thread). The status message is now dispatched off-thread.
+- **Action plan footer showed the wrong context**: navigating the tree could show "email" actions while a category header was highlighted (and vice versa), because a programmatic cursor move did not refresh the selection state. The footer now always reflects the highlighted node.
+- **Action plan focus/navigation after analysis**: replacing the scroll-only view with a tree fixes the lost focus and broken `↑`/`↓` navigation after a streamed analysis completed; the panel border is also highlighted when focused.
+- **Email rendering**: repaired malformed 256-color palette tags (e.g. `[#0099ff-::b]`) that leaked as literal text into the reader for some Markdown headings.
+
+### 🔧 Technical Improvements
+
+- New `AnalyzerRulesService` + `analyzer_rules` table (DB migration v8, account-scoped) feeding user preference rules into the analyzer prompt via `InboxAnalyzerOptions.UserRules`; accessed through a dedicated `GetAnalyzerRulesService()` getter.
+- Action plan panel rebuilt on `tview.TreeView`; selection derived from the current node (`syncSelectionToNode`) as the single source of truth; context-aware footer.
+- Shared `showPromptPreviewInline` helper for the single and bulk prompt pickers; in-place body-swap pattern with a `currentFocus` pass-through in the global key router so focused in-panel widgets own their keys.
+- Spec and implementation plans for the rework and the in-place panels under `docs/superpowers/`.
+
 ## [1.5.0] - 2026-06-08
 
 ### 🚀 Features
