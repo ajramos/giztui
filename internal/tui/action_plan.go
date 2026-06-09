@@ -728,7 +728,9 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 	}
 	ids := checkedIDs(cat.MessageIDs, state.excluded)
 	if len(ids) == 0 {
-		a.GetErrorHandler().ShowWarning(a.ctx, "All emails in this category are excluded — nothing to do")
+		// go: ShowWarning wraps QueueUpdateDraw; calling it synchronously here (this runs on the
+		// UI goroutine from the key handler) would deadlock and hang the app.
+		go a.GetErrorHandler().ShowWarning(a.ctx, "All emails in this category are excluded — nothing to do")
 		return
 	}
 	catName := cat.Name
