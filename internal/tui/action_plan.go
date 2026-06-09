@@ -35,6 +35,25 @@ func buildAnalyzerMessages(metas []*gmailapi.Message) []services.AnalyzerMessage
 	return out
 }
 
+// buildAnalyzerMessagesForSelection converts the explicitly-selected messages into
+// AnalyzerMessages. Unlike buildAnalyzerMessages it does NOT filter by UNREAD — an
+// explicit selection counts regardless of read state.
+func buildAnalyzerMessagesForSelection(metas []*gmailapi.Message, selected map[string]bool) []services.AnalyzerMessage {
+	out := make([]services.AnalyzerMessage, 0, len(selected))
+	for _, m := range metas {
+		if m == nil || !selected[m.Id] {
+			continue
+		}
+		out = append(out, services.AnalyzerMessage{
+			ID:      m.Id,
+			Subject: extractHeaderValue(m, "Subject"),
+			From:    extractHeaderValue(m, "From"),
+			Snippet: m.Snippet,
+		})
+	}
+	return out
+}
+
 // isUnreadMeta reports whether a raw message metadata carries the UNREAD label.
 func isUnreadMeta(m *gmailapi.Message) bool {
 	for _, l := range m.LabelIds {
@@ -52,6 +71,7 @@ type actionPlanState struct {
 	analyzing        atomic.Bool // true while batches are still streaming; blocks quick-actions
 
 	customPromptText string // override prompt text, "" = default
+	scopeLabel       string // "N selected" or "N unread (inbox)"
 
 	header          *tview.TextView
 	body            *tview.TextView
@@ -153,21 +173,37 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		a.closeActionPlanPanel()
 	}
 
-	// Collect unread messages already in memory (fast mode, zero Gmail calls).
+	// Scope: selection-first (analyze the user's bulk selection if any), else fall
+	// back to the unread inbox already in memory.
 	a.mu.RLock()
 	metas := make([]*gmailapi.Message, len(a.messagesMeta))
 	copy(metas, a.messagesMeta)
+	selected := make(map[string]bool, len(a.selected))
+	for id, ok := range a.selected {
+		if ok {
+			selected[id] = true
+		}
+	}
 	a.mu.RUnlock()
-	messages := buildAnalyzerMessages(metas)
+
+	var messages []services.AnalyzerMessage
+	scopeLabel := ""
+	if len(selected) > 0 {
+		messages = buildAnalyzerMessagesForSelection(metas, selected)
+		scopeLabel = fmt.Sprintf("%d selected", len(messages))
+	} else {
+		messages = buildAnalyzerMessages(metas)
+		scopeLabel = fmt.Sprintf("%d unread (inbox)", len(messages))
+	}
 	if len(messages) == 0 {
-		a.GetErrorHandler().ShowInfo(a.ctx, "No unread messages in current view. Try :search is:unread or change filter.")
+		a.GetErrorHandler().ShowInfo(a.ctx, "No messages to analyze. Select messages (v/space) or try :search is:unread.")
 		return
 	}
 
 	colors := a.GetComponentColors("ai")
 	bg := colors.Background.Color()
 
-	state := &actionPlanState{selectedCategory: 0, customPromptText: customPromptText}
+	state := &actionPlanState{selectedCategory: 0, customPromptText: customPromptText, scopeLabel: scopeLabel}
 	state.analyzing.Store(true)
 
 	state.header = tview.NewTextView().SetDynamicColors(true)
@@ -292,7 +328,7 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	if !state.analyzing.Load() {
 		status = "done"
 	}
-	state.header.SetText(fmt.Sprintf("[::b]%d msgs • batch %d/%d • %s[::-]", p.TotalAnalyzed, p.BatchesDone, p.BatchesTotal, status))
+	state.header.SetText(fmt.Sprintf("[::b]Action Plan · %s • batch %d/%d • %s[::-]", state.scopeLabel, p.BatchesDone, p.BatchesTotal, status))
 	if state.selectedCategory >= len(p.Categories) {
 		state.selectedCategory = len(p.Categories) - 1
 	}

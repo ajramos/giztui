@@ -68,6 +68,36 @@ func TestRenderActionPlanText(t *testing.T) {
 	assert.NotContains(t, out, "▸ [a]")
 }
 
+func msgWith(id, from, subj string, unread bool) *gmailapi.Message {
+	m := &gmailapi.Message{Id: id, Snippet: "snip", Payload: &gmailapi.MessagePart{
+		Headers: []*gmailapi.MessagePartHeader{
+			{Name: "From", Value: from}, {Name: "Subject", Value: subj},
+		},
+	}}
+	if unread {
+		m.LabelIds = []string{"UNREAD"}
+	}
+	return m
+}
+
+func TestBuildAnalyzerMessagesForSelection(t *testing.T) {
+	metas := []*gmailapi.Message{
+		msgWith("1", "a@x.com", "S1", true),
+		msgWith("2", "b@x.com", "S2", false), // read, but explicitly selected
+		msgWith("3", "c@x.com", "S3", true),
+	}
+	selected := map[string]bool{"2": true, "3": true}
+
+	got := buildAnalyzerMessagesForSelection(metas, selected)
+	if len(got) != 2 {
+		t.Fatalf("want 2 selected (incl. read), got %d", len(got))
+	}
+	ids := map[string]bool{got[0].ID: true, got[1].ID: true}
+	if !ids["2"] || !ids["3"] {
+		t.Fatalf("expected ids 2 and 3, got %+v", ids)
+	}
+}
+
 func TestActionKeyHint(t *testing.T) {
 	a := &App{}
 	a.Keys.Archive = "a"
