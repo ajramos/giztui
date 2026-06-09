@@ -9,8 +9,6 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
-const actionPlanMovePage = "actionPlanMove"
-
 // moveTarget describes a destination chosen in the move picker: either a standard
 // action ("archive"/"trash"/"mark_read"/"keep") or an existing category (by name).
 type moveTarget struct {
@@ -138,10 +136,12 @@ func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveT
 	return targets
 }
 
-// openActionPlanMovePicker opens an overlay to recategorize the email msgID (currently in
-// the category at srcCatIdx, or -1 for read-manually). Selecting a destination reassigns
-// the message in the plan (no action runs yet) and re-renders the tree. Esc cancels.
-func (a *App) openActionPlanMovePicker(state *actionPlanState, srcCatIdx int, msgID string) {
+// showActionPlanMoveInline swaps the panel's tree for a destination chooser inside the
+// SAME container (body-swap), so recategorizing reads as deeper navigation rather than a
+// floating modal — and stays inside the panel's focus, avoiding the global-capture key
+// swallow. srcCatIdx is the email's current category (-1 for read-manually). Enter moves
+// (reassignment only; the action runs at dispatch); Esc returns to the tree.
+func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, msgID string) {
 	colors := a.GetComponentColors("ai")
 
 	srcCatName := ""
@@ -157,55 +157,58 @@ func (a *App) openActionPlanMovePicker(state *actionPlanState, srcCatIdx int, ms
 		list.AddItem(tg.label, "", 0, nil)
 	}
 
-	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(" ➫ Move message to ").
-		SetTitleColor(colors.Title.Color()).SetBorderColor(colors.Border.Color()).
-		SetBackgroundColor(colors.Background.Color())
-	box.AddItem(list, 0, 1, true)
-	footer := tview.NewTextView().SetTextAlign(tview.AlignRight).SetText(" Enter to move  |  Esc to cancel ")
-	footer.SetBackgroundColor(colors.Background.Color())
-	footer.SetTextColor(colors.Text.Color())
-	box.AddItem(footer, 1, 0, false)
-
-	prev := a.GetFocus()
-	closeModal := func() {
-		a.Pages.RemovePage(actionPlanMovePage)
-		if prev != nil {
-			a.SetFocus(prev)
+	prevTitle := state.container.GetTitle()
+	subj := "message"
+	if m := state.metaByID[msgID]; m != nil {
+		if s := extractHeaderValue(m, "Subject"); s != "" {
+			subj = s
 		}
+	}
+
+	restore := func() {
+		state.container.RemoveItem(list)
+		state.container.RemoveItem(state.footer)
+		state.container.AddItem(state.tree, 0, 1, true)
+		state.container.AddItem(state.footer, 1, 0, false)
+		state.container.SetTitle(prevTitle)
+		a.currentFocus = "action_plan"
+		a.SetFocus(state.tree)
+		a.renderActionPlanPanel(state) // restores title, footer and selection from the tree
 	}
 
 	list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
 		if idx < 0 || idx >= len(targets) {
-			closeModal()
+			restore()
 			return
 		}
 		target := targets[idx]
-		closeModal()
 		if state.plan == nil || a.actionPlanState != state {
+			restore()
 			return
 		}
 		applyActionPlanMove(state.plan, state.metaByID, msgID, target)
 		delete(state.excluded, msgID) // a deliberately-placed message starts checked
 		state.selectedMsgID = ""      // land the cursor on a category header after the move
-		a.renderActionPlanPanel(state)
-		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Moved to %s — applies when you dispatch that group", target.label))
+		restore()
+		// ErrorHandler.ShowSuccess wraps QueueUpdateDraw; calling it synchronously here (on
+		// the UI goroutine) would deadlock — dispatch it off-thread (links.go pattern).
+		go a.GetErrorHandler().ShowSuccess(a.ctx,
+			fmt.Sprintf("Moved to %s — applies when you dispatch that group", target.label))
 	})
 	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		if ev.Key() == tcell.KeyEscape {
-			closeModal()
+			restore()
 			return nil
 		}
 		return ev
 	})
 
-	centered := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(box, 0, 4, true).
-			AddItem(nil, 0, 1, false), 0, 3, true).
-		AddItem(nil, 0, 1, false)
-	a.Pages.AddPage(actionPlanMovePage, centered, true, true)
+	state.container.RemoveItem(state.tree)
+	state.container.RemoveItem(state.footer)
+	state.container.AddItem(list, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	state.container.SetTitle(fmt.Sprintf(" ➫ Move %q to ", subj))
+	state.footer.SetText(" Enter to move  |  Esc to go back ")
+	a.currentFocus = "action_plan_move"
 	a.SetFocus(list)
 }

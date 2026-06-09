@@ -181,6 +181,43 @@ func TestSyncSelectionToNode(t *testing.T) {
 	}
 }
 
+func TestActionPlanMoveInlineSwap(t *testing.T) {
+	a := &App{
+		Application: tview.NewApplication(),
+	}
+	a.Pages = NewPages()
+	a.Keys.Archive = "a"
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m3"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[int]bool{0: true},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	a.actionPlanState = state
+
+	a.showActionPlanMoveInline(state, 0, "m2")
+	if a.currentFocus != "action_plan_move" {
+		t.Fatalf("expected currentFocus=action_plan_move, got %q", a.currentFocus)
+	}
+	// The tree must be swapped out; item[0] must be the list chooser, not the tree.
+	if state.container.ItemAt(0) == state.tree {
+		t.Fatal("tree should be swapped out while the move chooser is shown")
+	}
+	// item[1] must still be the footer.
+	if state.container.ItemAt(1) != state.footer {
+		t.Fatal("footer should remain as container item[1]")
+	}
+}
+
 func TestApplyActionPlanMove(t *testing.T) {
 	mk := func(name, action string, ids ...string) services.ActionPlanCategory {
 		return services.ActionPlanCategory{Name: name, Action: action, MessageIDs: ids}

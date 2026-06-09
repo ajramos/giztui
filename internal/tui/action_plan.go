@@ -558,7 +558,6 @@ func (a *App) closeActionPlanPanel() {
 	// no-op when the page is absent.
 	a.Pages.RemovePage(actionPlanRulePage)
 	a.Pages.RemovePage(analyzerRulesPage)
-	a.Pages.RemovePage(actionPlanMovePage)
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
@@ -684,7 +683,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		if ev.Rune() == 'm' {
 			if cur != nil {
 				if ref, ok := cur.GetReference().(emailRef); ok {
-					a.openActionPlanMovePicker(state, ref.catIndex, ref.msgID)
+					a.showActionPlanMoveInline(state, ref.catIndex, ref.msgID)
 					return nil
 				}
 			}
