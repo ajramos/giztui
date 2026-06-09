@@ -362,6 +362,34 @@ CREATE TABLE IF NOT EXISTS thread_summary_cache (
 		ver = 7
 	}
 
+	// v8: analyzer preference rules (free-text, LLM-interpreted)
+	if ver == 7 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS analyzer_rules (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email TEXT NOT NULL,
+  rule_text     TEXT NOT NULL,
+  created_at    INTEGER NOT NULL
+);`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=8;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v8: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 8
+	}
+
 	return nil
 }
 
