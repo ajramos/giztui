@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/ajramos/giztui/internal/services"
 	tcell "github.com/derailed/tcell/v2"
@@ -157,12 +158,15 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 		list.AddItem(tg.label, "", 0, nil)
 	}
 
-	prevTitle := state.container.GetTitle()
 	subj := "message"
 	if m := state.metaByID[msgID]; m != nil {
 		if s := extractHeaderValue(m, "Subject"); s != "" {
 			subj = s
 		}
+	}
+	if utf8.RuneCountInString(subj) > 40 {
+		r := []rune(subj)
+		subj = string(r[:40]) + "…"
 	}
 
 	restore := func() {
@@ -170,7 +174,6 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 		state.container.RemoveItem(state.footer)
 		state.container.AddItem(state.tree, 0, 1, true)
 		state.container.AddItem(state.footer, 1, 0, false)
-		state.container.SetTitle(prevTitle)
 		a.currentFocus = "action_plan"
 		a.SetFocus(state.tree)
 		a.renderActionPlanPanel(state) // restores title, footer and selection from the tree

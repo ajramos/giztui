@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ajramos/giztui/internal/services"
+	tcell "github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -215,6 +216,21 @@ func TestActionPlanMoveInlineSwap(t *testing.T) {
 	// item[1] must still be the footer.
 	if state.container.ItemAt(1) != state.footer {
 		t.Fatal("footer should remain as container item[1]")
+	}
+
+	// Esc must restore the tree and reset focus (no wedge at "action_plan_move").
+	if lst, ok := a.GetFocus().(*tview.List); ok {
+		if cap := lst.GetInputCapture(); cap != nil {
+			cap(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
+		}
+	} else {
+		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
+	}
+	if a.currentFocus != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	}
+	if a.actionPlanState.container.ItemAt(0) != state.tree {
+		t.Fatal("after Esc, the tree should be restored as the container body")
 	}
 }
 
