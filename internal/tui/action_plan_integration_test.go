@@ -20,18 +20,21 @@ func TestActionPlan_RebuildTreeAndRemoveCategory(t *testing.T) {
 	a.Keys.Archive, a.Keys.ToggleRead, a.Keys.Trash, a.Keys.ManageLabels = "a", "t", "d", "l"
 	root := tview.NewTreeNode("")
 	tree := tview.NewTreeView().SetRoot(root).SetCurrentNode(root)
-	state := &actionPlanState{plan: plan, selectedCategory: 0, root: root, tree: tree}
-	state.header = tview.NewTextView()
+	state := &actionPlanState{
+		plan: plan, selectedCategory: 0, root: root, tree: tree,
+		container: tview.NewFlex(),
+		excluded:  map[string]bool{},
+		expanded:  map[int]bool{},
+	}
 
-	// rebuildActionPlanTree populates nodes and clamps selectedCategory.
-	state.selectedCategory = 5 // out-of-range; should be clamped to 1
+	// rebuildActionPlanTree populates one top-level node per category.
 	a.rebuildActionPlanTree(state)
-	assert.Equal(t, 1, state.selectedCategory)
 	assert.Len(t, root.GetChildren(), 2)
 
-	state.selectedCategory = 0
-	a.rebuildActionPlanTree(state)
-	assert.Equal(t, 0, state.selectedCategory)
+	// renderActionPlanPanel clamps an out-of-range selection and refreshes the title.
+	state.selectedCategory = 5
+	a.renderActionPlanPanel(state)
+	assert.Equal(t, 1, state.selectedCategory)
 
 	// Removing a completed category drops it and re-renders without panic.
 	a.removeActionPlanCategory(state, "Newsletters")

@@ -84,7 +84,6 @@ type actionPlanState struct {
 	metaByID      map[string]*gmailapi.Message // subject/from lookup for email nodes
 	selectedMsgID string                       // msgID of selected email node, "" if a category is selected
 
-	header          *tview.TextView
 	tree            *tview.TreeView
 	root            *tview.TreeNode
 	footer          *tview.TextView
@@ -198,10 +197,6 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	}
 	state.analyzing.Store(true)
 
-	state.header = tview.NewTextView().SetDynamicColors(true)
-	state.header.SetBackgroundColor(bg)
-	state.header.SetTextColor(colors.Text.Color())
-
 	state.root = tview.NewTreeNode("")
 	state.tree = tview.NewTreeView().SetRoot(state.root).SetCurrentNode(state.root)
 	state.tree.SetTopLevel(1) // hide the empty root; categories are the visible top level
@@ -222,22 +217,22 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		a.updateActionPlanFooter(state)
 	})
 
-	state.footer = tview.NewTextView().SetDynamicColors(true)
+	// Footer matches the other pickers: right-aligned, " X to Y | … " phrasing.
+	state.footer = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignRight)
 	state.footer.SetBackgroundColor(bg)
 	state.footer.SetTextColor(colors.Text.Color())
 
 	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
 	state.container.SetBackgroundColor(bg)
 	state.container.SetBorder(true)
-	state.container.SetTitle("📋 Action Plan")
+	// The status/summary lives in the border title (no separate header row).
+	state.container.SetTitle(actionPlanTitleText(scopeLabel, 0, 0, 0, true))
 	state.container.SetTitleColor(colors.Title.Color())
 	state.container.SetBorderColor(colors.Border.Color())
-	state.container.AddItem(state.header, 1, 0, false)
 	state.container.AddItem(state.tree, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 
 	// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
-	state.header.SetText(actionPlanHeaderText(scopeLabel, 0, 0, true))
 	state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
 		SetSelectable(false).SetColor(colors.Text.Color()))
 	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
@@ -341,34 +336,32 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	}()
 }
 
-// actionPlanHeaderText builds the panel header. Before the first batch completes
-// (batchesTotal==0) it shows an "analyzing…" indicator without batch counts; once
-// batches are running it shows progress and the analyzing/done status.
-func actionPlanHeaderText(scopeLabel string, batchesDone, batchesTotal int, analyzing bool) string {
+// actionPlanTitleText builds the panel's border title, which carries the live status.
+// Before the first batch (batchesTotal==0) it shows "analyzing…"; while batches run it
+// shows progress; when done it summarizes the number of groups.
+func actionPlanTitleText(scopeLabel string, batchesDone, batchesTotal, groups int, analyzing bool) string {
 	if batchesTotal == 0 {
-		return fmt.Sprintf("[::b]Action Plan · %s • analyzing…[::-]", scopeLabel)
+		return fmt.Sprintf(" 📋 Action Plan · %s · analyzing… ", scopeLabel)
 	}
-	status := "analyzing"
-	if !analyzing {
-		status = "done"
+	if analyzing {
+		return fmt.Sprintf(" 📋 Action Plan · %s · batch %d/%d ", scopeLabel, batchesDone, batchesTotal)
 	}
-	return fmt.Sprintf("[::b]Action Plan · %s • batch %d/%d • %s[::-]", scopeLabel, batchesDone, batchesTotal, status)
+	return fmt.Sprintf(" 📋 Action Plan · %s · %d groups · done ", scopeLabel, groups)
 }
 
-// renderActionPlanPanel refreshes header + body from the current state. It performs raw
-// SetText calls and so must run on the UI thread — callers from the analysis goroutine
-// wrap it in QueueUpdateDraw; UI-thread callers (key handlers) may call it directly.
+// renderActionPlanPanel refreshes the title + tree from the current state. It performs raw
+// SetText/SetTitle calls and so must run on the UI thread — callers from the analysis
+// goroutine wrap it in QueueUpdateDraw; UI-thread callers (key handlers) may call it directly.
 func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	if state == nil || state.plan == nil {
 		return
 	}
 	p := state.plan
-	state.header.SetText(actionPlanHeaderText(state.scopeLabel, p.BatchesDone, p.BatchesTotal, state.analyzing.Load()))
-	if state.selectedCategory >= len(p.Categories) {
+	state.container.SetTitle(actionPlanTitleText(state.scopeLabel, p.BatchesDone, p.BatchesTotal, len(p.Categories), state.analyzing.Load()))
+	// Only clamp an over-range index down; -1 (the read-manually node) is a valid
+	// selection and must survive — rebuildActionPlanTree restores it by ref.
+	if len(p.Categories) > 0 && state.selectedCategory >= len(p.Categories) {
 		state.selectedCategory = len(p.Categories) - 1
-	}
-	if state.selectedCategory < 0 {
-		state.selectedCategory = 0
 	}
 	a.rebuildActionPlanTree(state)
 }
@@ -384,13 +377,17 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	state.root.ClearChildren()
 	for i, c := range state.plan.Categories {
 		checked := len(checkedIDs(c.MessageIDs, state.excluded))
-		label := fmt.Sprintf("%s · %d/%d · %s · %s", actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
+		chevron := "▶"
+		if state.expanded[i] {
+			chevron = "▼"
+		}
+		label := fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 		node := tview.NewTreeNode(label).SetSelectable(true).SetColor(colors.Text.Color())
 		node.SetReference(i) // category index
 		for _, id := range c.MessageIDs {
-			box := "[x]"
+			box := "☑" // same glyph the inbox uses for bulk selection
 			if state.excluded[id] {
-				box = "[ ]"
+				box = "☐"
 			}
 			subj, from := "(unknown)", ""
 			if m := state.metaByID[id]; m != nil {
@@ -406,6 +403,26 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 		node.SetExpanded(state.expanded[i]) // default collapsed (zero value false)
 		state.root.AddChild(node)
 	}
+	// Read-manually pseudo-node (ref -1): messages the LLM declined to categorize. Shown
+	// so nothing the user selected silently disappears. Non-actionable (no checkboxes).
+	if len(state.plan.ReadManually) > 0 {
+		const rmIdx = -1
+		chevron := "▶"
+		if state.expanded[rmIdx] {
+			chevron = "▼"
+		}
+		rm := tview.NewTreeNode(fmt.Sprintf("%s Read manually · %d", chevron, len(state.plan.ReadManually))).
+			SetSelectable(true).SetColor(colors.Text.Color())
+		rm.SetReference(rmIdx)
+		for _, m := range state.plan.ReadManually {
+			child := tview.NewTreeNode(fmt.Sprintf("• %s — %s", m.Subject, m.From)).
+				SetSelectable(true).SetColor(colors.Text.Color())
+			child.SetReference(emailRef{catIndex: rmIdx, msgID: m.ID})
+			rm.AddChild(child)
+		}
+		rm.SetExpanded(state.expanded[rmIdx])
+		state.root.AddChild(rm)
+	}
 	children := state.root.GetChildren()
 	if len(children) == 0 {
 		state.tree.SetCurrentNode(state.root)
@@ -413,39 +430,43 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	}
 	// Restore an email-node selection if one was active and still present/visible.
 	if state.selectedMsgID != "" {
-		for _, cat := range children {
-			if !cat.IsExpanded() {
+		for _, parent := range children {
+			if !parent.IsExpanded() {
 				continue
 			}
-			for _, child := range cat.GetChildren() {
+			for _, child := range parent.GetChildren() {
 				if ref, ok := child.GetReference().(emailRef); ok && ref.msgID == state.selectedMsgID {
 					state.tree.SetCurrentNode(child)
 					return
 				}
 			}
 		}
-		// fall through to category selection if the email node is no longer visible
+		// fall through to top-level selection if the email node is no longer visible
 	}
-	if state.selectedCategory < 0 {
-		state.selectedCategory = 0
+	// Restore the top-level node whose int ref matches selectedCategory (categories are
+	// 0..n-1; the read-manually node is -1). Falls back to the first node.
+	for _, n := range children {
+		if ref, ok := n.GetReference().(int); ok && ref == state.selectedCategory {
+			state.tree.SetCurrentNode(n)
+			return
+		}
 	}
-	if state.selectedCategory >= len(children) {
-		state.selectedCategory = len(children) - 1
-	}
-	state.tree.SetCurrentNode(children[state.selectedCategory])
+	state.tree.SetCurrentNode(children[0])
 }
 
-// actionPlanFooterText builds the context-aware footer. onCategory=true means a
-// category node is highlighted; key/verb/count describe its suggested action.
+// actionPlanFooterText builds the context-aware footer, styled like the other pickers
+// (" X to Y  |  … ", spelled-out Ctrl+R). onCategory=true means a category (or the
+// read-manually node) is highlighted; key/verb/count describe its suggested action.
 func actionPlanFooterText(onCategory bool, key, action string, checkedCount int) string {
 	if onCategory {
-		act := "[Enter] expand"
+		parts := make([]string, 0, 4)
 		if key != "" && action != "none" && action != "" {
-			act = fmt.Sprintf("[%s] %s %d  [Enter] expand", key, actionRuleVerbShort(action), checkedCount)
+			parts = append(parts, fmt.Sprintf("%s to %s (%d)", key, actionRuleVerbShort(action), checkedCount))
 		}
-		return act + "  [^R] remember  [Esc]"
+		parts = append(parts, "Enter to expand", "Ctrl+R to remember", "Esc to close")
+		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return "[space] skip  [^R] remember sender  [←] collapse  [Esc]"
+	return " Space to skip  |  Ctrl+R to remember sender  |  ← to collapse  |  Esc to close "
 }
 
 // actionRuleVerbShort is the short imperative verb for the footer.
@@ -469,13 +490,9 @@ func (a *App) updateActionPlanFooter(state *actionPlanState) {
 	if state == nil || state.footer == nil {
 		return
 	}
-	cur := state.tree.GetCurrentNode()
-	onCategory := true
-	if cur != nil {
-		if _, ok := cur.GetReference().(emailRef); ok {
-			onCategory = false
-		}
-	}
+	// Decide category-vs-email from selectedMsgID (set authoritatively from the changed
+	// node), NOT GetCurrentNode() — the latter lagged a step behind and desynced the footer.
+	onCategory := state.selectedMsgID == ""
 	cat := a.currentActionPlanCategory(state)
 	key, action, count := "", "none", 0
 	if cat != nil {

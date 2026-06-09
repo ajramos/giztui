@@ -84,11 +84,22 @@ func TestActionKeyHint(t *testing.T) {
 
 func TestActionPlanFooterText(t *testing.T) {
 	onCat := actionPlanFooterText(true, "a", "archive", 7)
-	if !strings.Contains(onCat, "[a]") || !strings.Contains(onCat, "archive 7") || !strings.Contains(onCat, "[^R]") {
+	if !strings.Contains(onCat, "a to archive (7)") || !strings.Contains(onCat, "Enter to expand") || !strings.Contains(onCat, "Ctrl+R to remember") {
 		t.Fatalf("category footer wrong: %q", onCat)
 	}
+	if strings.Contains(onCat, "^R") {
+		t.Fatalf("footer should spell out Ctrl+R, not ^R: %q", onCat)
+	}
+	// No suggested action (e.g. read-manually node): only expand/remember/close.
+	noAction := actionPlanFooterText(true, "", "none", 0)
+	if strings.Contains(noAction, " to ") && strings.Contains(noAction, "(0)") {
+		t.Fatalf("no-action footer should not show an action verb: %q", noAction)
+	}
+	if !strings.Contains(noAction, "Enter to expand") {
+		t.Fatalf("no-action footer missing expand: %q", noAction)
+	}
 	onEmail := actionPlanFooterText(false, "a", "archive", 7)
-	if !strings.Contains(onEmail, "[space]") || !strings.Contains(onEmail, "[^R]") {
+	if !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
 		t.Fatalf("email footer wrong: %q", onEmail)
 	}
 }
@@ -105,23 +116,23 @@ func TestCheckedIDs(t *testing.T) {
 	}
 }
 
-func TestActionPlanHeaderText(t *testing.T) {
+func TestActionPlanTitleText(t *testing.T) {
 	// Before the first batch (total==0): analyzing indicator, no batch counts.
-	pre := actionPlanHeaderText("5 selected", 0, 0, true)
+	pre := actionPlanTitleText("5 selected", 0, 0, 0, true)
 	if !strings.Contains(pre, "5 selected") || !strings.Contains(pre, "analyzing") {
-		t.Fatalf("pre-batch header missing scope/indicator: %q", pre)
+		t.Fatalf("pre-batch title missing scope/indicator: %q", pre)
 	}
 	if strings.Contains(pre, "batch") {
-		t.Fatalf("pre-batch header should not show batch counts: %q", pre)
+		t.Fatalf("pre-batch title should not show batch counts: %q", pre)
 	}
-	// Mid-analysis: batch counts + analyzing status.
-	mid := actionPlanHeaderText("23 unread (inbox)", 1, 3, true)
-	if !strings.Contains(mid, "batch 1/3") || !strings.Contains(mid, "analyzing") {
-		t.Fatalf("mid header wrong: %q", mid)
+	// Mid-analysis: batch counts.
+	mid := actionPlanTitleText("23 unread (inbox)", 1, 3, 0, true)
+	if !strings.Contains(mid, "batch 1/3") {
+		t.Fatalf("mid title wrong: %q", mid)
 	}
-	// Completed: batch counts + done status.
-	done := actionPlanHeaderText("23 unread (inbox)", 3, 3, false)
-	if !strings.Contains(done, "batch 3/3") || !strings.Contains(done, "done") {
-		t.Fatalf("done header wrong: %q", done)
+	// Completed: group count + done (no batch counts).
+	done := actionPlanTitleText("23 unread (inbox)", 3, 3, 4, false)
+	if !strings.Contains(done, "4 groups") || !strings.Contains(done, "done") {
+		t.Fatalf("done title wrong: %q", done)
 	}
 }
