@@ -197,30 +197,42 @@ The configurator has three areas cycled via `Tab` / `Shift+Tab`:
 
 ## 📋 Inbox Action Plan
 
-The Action Plan scans the **unread** messages already loaded in the current view, asks the LLM to group them into a few actionable categories, and presents a panel where you dispatch each group with one keystroke. It runs in **fast mode** — it uses only the subject, sender and snippet already in memory, so it makes **no extra Gmail API calls**. Open it with `P` (capital P) or `:action-plan`.
+The Action Plan groups messages into actionable categories and presents a panel where you dispatch each group with one keystroke. It runs in **fast mode** — it uses only the subject, sender and snippet already in memory, so it makes **no extra Gmail API calls**. Open it with `P` (capital P) or `:action-plan`.
+
+**Scope — selection-first:** if you have messages selected (via `v` / `space` in bulk mode), the Action Plan analyzes those selected messages only. Otherwise it falls back to the **unread** messages currently loaded in the list. The panel header shows which scope is active, e.g. `12 selected` or `47 unread (inbox)`.
 
 Messages are processed in batches (default 50); categories stream into the panel as each batch completes. Press `Esc` at any time to cancel — categories rendered so far stay visible until you close.
+
+### Panel Structure
+
+The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] Archive 18 Newsletters  3/5`). Each category can be expanded to show the individual emails inside it.
 
 ### In-Panel Keys
 | Key | Action | Description |
 |-----|--------|-------------|
-| `↑` / `↓` | Navigate | Move the `▸` marker between categories |
-| `Enter` | Suggested action | Run the selected category's recommended action |
-| `a` | Archive | Archive the selected category's messages (when its action is archive) |
-| `t` | Mark read | Mark the selected category's messages as read |
-| `d` | Trash | Trash the selected category's messages |
-| `l` | Label | Apply the category's suggested label (created if needed) |
-| `:` | Command palette | Open the command palette scoped to the category's messages (virtual bulk selection) |
-| `p` | Configurator | Open the bulk prompt picker scoped to the category |
+| `↑` / `↓` | Navigate | Move between nodes (categories and emails) |
+| `Enter` / `→` | Expand category | Show the emails inside the highlighted category |
+| `←` | Collapse category | Hide the email children of the highlighted category |
+| `space` | Exclude / include email | When on an email node, toggle it off (`[ ]`) or back on (`[x]`); actions apply only to checked emails |
+| archive key | Archive | Archive the highlighted category's checked emails |
+| trash key | Trash | Trash the highlighted category's checked emails |
+| label key | Label | Apply the category's suggested label to its checked emails (created if needed) |
+| toggle-read key | Mark read | Mark the highlighted category's checked emails as read |
+| `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses |
 | `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
 
-The action keys (`a`/`t`/`d`/`l`) reuse your configured archive/read/trash/label bindings. Each category shows its suggested action's key in brackets, e.g. `[a] Archive 18 Newsletters`. A "Read manually" bucket lists messages the LLM declined to categorize.
+The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18). A "Read manually" bucket lists messages the LLM declined to categorize.
+
+### Learning Rules
+
+`Ctrl+R` saves a natural-language preference rule (e.g. "Never trash emails from tldr.tech"). Rules are injected into the analyzer prompt on future analyses so the LLM honors them. Manage saved rules with `:action-plan rules` (in the manager: `a` add, `d` delete, `Esc` close).
 
 ### Commands
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `:action-plan` | `:plan`, `:ap` | Open the Action Plan with the built-in analyzer prompt |
+| `:action-plan` | `:plan`, `:ap` | Open the Action Plan (selection-first; falls back to unread inbox) |
 | `:action-plan with-prompt <name-or-id>` | — | Open the Action Plan using one of your saved prompts as the analyzer (falls back to the default if not found) |
+| `:action-plan rules` | — | Open the preference rules manager (add / delete saved learning rules) |
 
 ### Configuration
 Settings live under `inbox_analyzer` in `~/.config/giztui/config.json`:
@@ -236,7 +248,7 @@ The shortcut is configurable via `keys.action_plan` (default `"P"`).
 ### Notes
 - **Local / small models:** the default `batch_size` of 50 is tuned for capable cloud models. A small local model (e.g. a 7B Ollama model) can struggle to follow the JSON schema across 50 messages and may return no categories. If you see "no actionable groups", lower `inbox_analyzer.batch_size` to **15–20**.
 - **Model quality matters:** category quality depends entirely on the configured LLM. The code degrades gracefully (malformed output → one repair retry → messages fall back to "Read manually"), but a stronger model yields better groupings.
-- The panel only considers **unread** messages currently loaded in the list. If there are none, you'll get an info message instead of an empty panel.
+- If there are no messages to analyze (no selection and no unread), you'll get an info message instead of opening the panel.
 
 ## ⚙️ Customizing Shortcuts
 

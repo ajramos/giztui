@@ -1018,7 +1018,7 @@ tags: [email, {{labels}}]
 
 ### Inbox Analyzer Configuration
 
-Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan`), which uses the LLM to triage unread messages into actionable groups.
+Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan`), which uses the LLM to triage messages into actionable groups. It analyzes your current bulk selection if any messages are selected, otherwise it falls back to the unread messages in the current view.
 
 ```json
 "inbox_analyzer": {
