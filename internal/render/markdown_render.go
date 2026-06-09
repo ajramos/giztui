@@ -225,9 +225,22 @@ func MarkdownToTerminal(markdown, theme string, width int) (string, error) {
 		return "", err
 	}
 	result := stripTagBackgrounds(string(tview.TranslateANSI([]byte(out))))
+	result = fixPaletteColorTags(result)
 	result = fixLinkContrast(result)
 	result = asciiBoxDrawing(result)
 	return result, nil
+}
+
+// palette256TagRe matches the malformed tview color tag that tview.TranslateANSI emits
+// for 256-palette foregrounds (the ones glamour's themes use for headings): a stray "-"
+// glued to the 6-hex foreground, e.g. "[#0099ff-::b]". The dash makes the foreground
+// token unparseable, so tview renders the whole tag as literal text in the reader pane.
+var palette256TagRe = regexp.MustCompile(`(\[#[0-9a-fA-F]{6})-(:)`)
+
+// fixPaletteColorTags strips that stray dash, turning "[#0099ff-::b]" back into the valid
+// "[#0099ff::b]" so the color applies instead of leaking the raw tag into the message body.
+func fixPaletteColorTags(s string) string {
+	return palette256TagRe.ReplaceAllString(s, "$1$2")
 }
 
 // blackFgTagRe matches a tview color tag whose foreground is "black".

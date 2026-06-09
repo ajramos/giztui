@@ -2,11 +2,27 @@ package render
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
 	gmailwrap "github.com/ajramos/giztui/internal/gmail"
 )
+
+// malformedHexTagRe matches the broken "[#hex-:" foreground tview.TranslateANSI emits
+// for 256-palette colors; none should survive MarkdownToTerminal (they render literally).
+var malformedHexTagRe = regexp.MustCompile(`\[#[0-9a-fA-F]{6}-:`)
+
+func TestMarkdownToTerminal_Palette256TagsRepaired(t *testing.T) {
+	// Headings use glamour's 256-palette styling, which is where the malformed tag arises.
+	out, err := MarkdownToTerminal("## Organizer\n\nSome body text.\n", "dark", 60)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if malformedHexTagRe.MatchString(out) {
+		t.Fatalf("malformed palette color tag leaked into output: %q", out)
+	}
+}
 
 func TestConvertHTMLToMarkdown(t *testing.T) {
 	html := `<h1>Hi</h1><p>Hello <b>world</b> <a href="https://x.com">link</a></p><ul><li>a</li><li>b</li></ul>`
