@@ -211,6 +211,7 @@ type App struct {
 	themeService            services.ThemeService
 	displayService          services.DisplayService
 	queryService            services.QueryService
+	analyzerRulesService    services.AnalyzerRulesService
 	threadService           services.ThreadService
 	undoService             services.UndoService
 	preloaderService        services.MessagePreloader
@@ -573,6 +574,19 @@ func (a *App) reinitializeServices() {
 
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: query service initialized: %v", a.queryService != nil)
+		}
+	}
+
+	// Initialize analyzer rules service if database store is available
+	if a.dbStore != nil && a.analyzerRulesService == nil {
+		rulesStore := db.NewAnalyzerRulesStore(a.dbStore)
+		svc := services.NewAnalyzerRulesService(rulesStore)
+		if email := a.getActiveAccountEmail(); email != "" {
+			svc.SetAccountEmail(email)
+		}
+		a.analyzerRulesService = svc
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: analyzer rules service initialized: %v", a.analyzerRulesService != nil)
 		}
 	}
 
@@ -1473,6 +1487,11 @@ func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 // GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.
 func (a *App) GetInboxAnalyzerService() services.InboxAnalyzerService {
 	return a.inboxAnalyzerService
+}
+
+// GetAnalyzerRulesService returns the analyzer rules service (may be nil if no DB/account).
+func (a *App) GetAnalyzerRulesService() services.AnalyzerRulesService {
+	return a.analyzerRulesService
 }
 
 // GetBulkPromptService returns the bulk prompt service or nil if not initialized.
