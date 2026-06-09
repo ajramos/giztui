@@ -550,8 +550,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				}
 			}
 			suggestion := ""
-			if svc := a.GetAnalyzerRulesService(); svc != nil {
-				suggestion = svc.SuggestRuleFromContext(from, action, negate)
+			// Only pre-seed a suggestion when we have a sender to anchor it to;
+			// otherwise (e.g. Ctrl+R before the first batch arrives) open a blank
+			// input rather than a meaningless "Always review emails from ".
+			if from != "" {
+				if svc := a.GetAnalyzerRulesService(); svc != nil {
+					suggestion = svc.SuggestRuleFromContext(from, action, negate)
+				}
 			}
 			a.showRememberRuleModal(suggestion)
 			return nil
