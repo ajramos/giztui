@@ -71,16 +71,9 @@ func (a *App) openBulkPromptPicker() {
 	var all []promptItem
 	var visible []promptItem
 
-	// previewHighlightedBulkPrompt opens the preview modal for the highlighted row.
-	previewHighlightedBulkPrompt := func(list *tview.List, visible []promptItem) {
-		isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
-		if isCreateNew {
-			a.showPromptPreview("Create new with AI", promptPreviewCreateNewHint)
-			return
-		}
-		v := visible[vi]
-		a.showPromptPreview(v.name, promptPreviewText(v.description, v.promptText))
-	}
+	// triggerPreview is assigned after container and footer are created below;
+	// declared here so the QueueUpdateDraw captures can reference it.
+	var triggerPreview func()
 
 	// Reload function for filtering
 	reload := func(filter string) {
@@ -194,7 +187,7 @@ func (a *App) openBulkPromptPicker() {
 			// Handle key events for input field
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 				if event.Key() == tcell.KeyCtrlP {
-					previewHighlightedBulkPrompt(list, visible)
+					triggerPreview()
 					return nil
 				}
 				if event.Key() == tcell.KeyEscape {
@@ -211,7 +204,7 @@ func (a *App) openBulkPromptPicker() {
 			// Handle navigation for list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyCtrlP {
-					previewHighlightedBulkPrompt(list, visible)
+					triggerPreview()
 					return nil
 				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
@@ -275,6 +268,30 @@ func (a *App) openBulkPromptPicker() {
 	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	footer.SetBackgroundColor(bgColor)
 	container.AddItem(footer, 1, 0, false)
+
+	// Assign triggerPreview now that container and footer exist.
+	triggerPreview = func() {
+		isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+		var name, body string
+		var onApply func()
+		if isCreateNew {
+			name, body = "Create new with AI", promptPreviewCreateNewHint
+			onApply = func() {
+				messageIDs := make([]string, 0, len(a.selected))
+				for id := range a.selected {
+					messageIDs = append(messageIDs, id)
+				}
+				a.closeBulkPromptPicker()
+				a.openPromptConfigurator(promptConfiguratorContext{mode: "bulk", messageIDs: messageIDs})
+			}
+		} else {
+			v := visible[vi]
+			name, body = v.name, promptPreviewText(v.description, v.promptText)
+			vid, vname := v.id, v.name
+			onApply = func() { go a.applyBulkPrompt(vid, vname) }
+		}
+		a.showPromptPreviewInline(container, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
+	}
 
 	// Add to content split like individual prompt picker
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

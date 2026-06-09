@@ -25,19 +25,46 @@ func TestPromptPreviewText(t *testing.T) {
 	}
 }
 
-func TestShowPromptPreviewAddsAndRemovesPage(t *testing.T) {
+func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	app := &App{
 		Application: tview.NewApplication(),
 		Config:      &config.Config{},
 	}
 	app.Pages = NewPages()
+	// currentTheme is nil → GetComponentColors returns built-in fallback colors; no theme setup needed.
 
-	app.showPromptPreview("Quick Summary", "Description:\nx\n\nTemplate:\ny")
-	if !app.Pages.HasPage("promptPreview") {
-		t.Fatal("expected promptPreview page to be added")
+	list := tview.NewList()
+	footer := tview.NewTextView()
+	footer.SetText(" Enter to apply | Esc to cancel ")
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetTitle(" 🤖 Prompt Library ")
+	container.AddItem(list, 0, 1, true)
+	container.AddItem(footer, 1, 0, false)
+
+	applied := false
+	app.showPromptPreviewInline(
+		container, list, footer,
+		" Enter to apply | Esc to cancel ",
+		"Quick Summary",
+		"Description:\nx\n\nTemplate:\ny",
+		func() { applied = true },
+	)
+
+	// After showPromptPreviewInline the title should contain the prompt name.
+	if !strings.Contains(container.GetTitle(), "Quick Summary") {
+		t.Errorf("container title should contain prompt name, got %q", container.GetTitle())
 	}
-	app.closePromptPreview()
-	if app.Pages.HasPage("promptPreview") {
-		t.Fatal("expected promptPreview page to be removed")
+
+	// The footer text should have changed to the preview hint.
+	if !strings.Contains(footer.GetText(false), "Esc/Ctrl+P to go back") {
+		t.Errorf("footer should show back hint, got %q", footer.GetText(false))
 	}
+
+	// currentFocus should be "prompt_preview".
+	if app.currentFocus != "prompt_preview" {
+		t.Errorf("expected currentFocus=prompt_preview, got %q", app.currentFocus)
+	}
+
+	_ = applied // onApply is tested indirectly via key events in integration; unit scope ends here
 }

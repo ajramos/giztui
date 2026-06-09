@@ -73,17 +73,6 @@ func (a *App) openPromptPicker() {
 	var all []promptItem
 	var visible []promptItem
 
-	// previewHighlightedPrompt opens the preview modal for the highlighted row.
-	previewHighlightedPrompt := func(list *tview.List, visible []promptItem) {
-		isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
-		if isCreateNew {
-			a.showPromptPreview("Create new with AI", promptPreviewCreateNewHint)
-			return
-		}
-		v := visible[vi]
-		a.showPromptPreview(v.name, promptPreviewText(v.description, v.promptText))
-	}
-
 	// Reload function for filtering
 	reload := func(filter string) {
 		list.Clear()
@@ -175,10 +164,14 @@ func (a *App) openPromptPicker() {
 			// Set up input field
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 
+			// triggerPreview is declared here so input.SetInputCapture can reference it;
+			// it is assigned after container and footer are created below.
+			var triggerPreview func()
+
 			// Allow navigation from input to list
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyCtrlP {
-					previewHighlightedPrompt(list, visible)
+					triggerPreview()
 					return nil
 				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
@@ -239,10 +232,31 @@ func (a *App) openPromptPicker() {
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
+			// triggerPreview opens an inline preview of the highlighted prompt inside
+			// the picker container, replacing the list with a scrollable text view.
+			triggerPreview = func() {
+				isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
+				var name, body string
+				var onApply func()
+				if isCreateNew {
+					name, body = "Create new with AI", promptPreviewCreateNewHint
+					onApply = func() {
+						a.closePromptPicker()
+						a.openPromptConfigurator(promptConfiguratorContext{mode: "single", messageID: messageID})
+					}
+				} else {
+					v := visible[vi]
+					name, body = v.name, promptPreviewText(v.description, v.promptText)
+					vid, vname := v.id, v.name
+					onApply = func() { go a.applyPromptToMessage(messageID, vid, vname, message) }
+				}
+				a.showPromptPreviewInline(container, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
+			}
+
 			// Handle navigation between input and list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyCtrlP {
-					previewHighlightedPrompt(list, visible)
+					triggerPreview()
 					return nil
 				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
