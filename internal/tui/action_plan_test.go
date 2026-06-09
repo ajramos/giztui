@@ -164,6 +164,9 @@ func TestSyncSelectionToNode(t *testing.T) {
 	if state.selectedMsgID != "m1" || state.selectedCategory != 0 {
 		t.Fatalf("email node: got msgID=%q cat=%d", state.selectedMsgID, state.selectedCategory)
 	}
+	if !strings.Contains(state.footer.GetText(true), "Space to skip") {
+		t.Fatalf("email footer not shown: %q", state.footer.GetText(true))
+	}
 
 	// Landing on a category node MUST clear selectedMsgID (the desync bug).
 	a.syncSelectionToNode(state, catNode)
@@ -172,6 +175,9 @@ func TestSyncSelectionToNode(t *testing.T) {
 	}
 	if state.selectedCategory != 0 {
 		t.Fatalf("category node: got cat=%d", state.selectedCategory)
+	}
+	if !strings.Contains(state.footer.GetText(true), "Enter to expand") {
+		t.Fatalf("category footer not shown: %q", state.footer.GetText(true))
 	}
 }
 

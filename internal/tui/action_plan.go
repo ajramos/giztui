@@ -382,9 +382,11 @@ func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 }
 
-// syncActionPlanNode refreshes a top-level node after an expand/collapse: it updates the
-// chevron in the label in place (no full rebuild) and re-syncs the selection/footer to
-// this node, so the footer can't keep showing email-level hints on a category header.
+// syncActionPlanNode refreshes state+footer for an already-current node (expand/collapse);
+// unlike syncSelectionToNode it does NOT move the cursor — the caller owns that.
+// It refreshes a top-level node after an expand/collapse: it updates the chevron in the
+// label in place (no full rebuild) and re-syncs the selection/footer to this node, so the
+// footer can't keep showing email-level hints on a category header.
 func (a *App) syncActionPlanNode(state *actionPlanState, node *tview.TreeNode, idx int) {
 	node.SetText(a.topLevelNodeLabel(state, idx))
 	state.selectedCategory = idx
@@ -463,6 +465,8 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	children := state.root.GetChildren()
 	if len(children) == 0 {
 		state.tree.SetCurrentNode(state.root)
+		state.selectedMsgID = ""
+		a.updateActionPlanFooter(state)
 		return
 	}
 	// Restore an email-node selection if one was active and still present/visible.
