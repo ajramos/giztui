@@ -74,7 +74,8 @@ type actionPlanState struct {
 	scopeLabel       string // "N selected" or "N unread (inbox)"
 
 	header          *tview.TextView
-	body            *tview.TextView
+	tree            *tview.TreeView
+	root            *tview.TreeNode
 	footer          *tview.TextView
 	container       *tview.Flex
 	streamingCancel context.CancelFunc
@@ -110,52 +111,6 @@ func (a *App) actionKeyHint(action string) string {
 	default:
 		return ""
 	}
-}
-
-// renderActionPlanText formats a plan into the panel body as PLAIN text (the body has
-// dynamic colors disabled, so literal "[a]" key hints render as-is). selected is the
-// index of the currently-highlighted category (or -1). keyFor resolves an action token to
-// the configured shortcut key (so the body hints honor user keybindings) — pass
-// App.actionKeyHint.
-func renderActionPlanText(plan *services.ActionPlan, selected int, keyFor func(string) string) string {
-	if plan == nil {
-		return "Analyzing…"
-	}
-	if len(plan.Categories) == 0 && len(plan.ReadManually) == 0 {
-		return "No actionable groups found.\n\nThe analyzer did not return any categories for these\nmessages. Press Esc to close, or retry with a custom prompt\nvia :action-plan with-prompt <name>."
-	}
-	var b strings.Builder
-	for i, c := range plan.Categories {
-		marker := "  "
-		if i == selected {
-			marker = "▸ "
-		}
-		key := keyFor(c.Action)
-		keyHint := ""
-		if key != "" {
-			keyHint = fmt.Sprintf("[%s] ", key)
-		}
-		verb := actionVerbLabel(c.Action)
-		fmt.Fprintf(&b, "%s%s%s %d %s   ◀ %s\n", marker, keyHint, verb, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
-		if c.Action == "label" && c.Label != "" {
-			fmt.Fprintf(&b, "     → label: %s\n", c.Label)
-		}
-		if c.Description != "" {
-			fmt.Fprintf(&b, "     %s\n", c.Description)
-		}
-		b.WriteString("\n")
-	}
-	if len(plan.ReadManually) > 0 {
-		fmt.Fprintf(&b, "─── Read manually (%d) ───\n", len(plan.ReadManually))
-		for i, m := range plan.ReadManually {
-			if i >= 10 {
-				fmt.Fprintf(&b, "   …and %d more\n", len(plan.ReadManually)-10)
-				break
-			}
-			fmt.Fprintf(&b, "   • %s — %s\n", m.Subject, m.From)
-		}
-	}
-	return b.String()
 }
 
 // openActionPlanPanel opens the Action Plan panel using the built-in default prompt.
@@ -210,10 +165,20 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	state.header.SetBackgroundColor(bg)
 	state.header.SetTextColor(colors.Text.Color())
 
-	state.body = tview.NewTextView().SetDynamicColors(false).SetScrollable(true)
-	state.body.SetBackgroundColor(bg)
-	state.body.SetTextColor(colors.Text.Color())
-	state.body.SetText("Analyzing…")
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root).SetCurrentNode(state.root)
+	state.tree.SetTopLevel(1) // hide the empty root; categories are the visible top level
+	state.tree.SetBackgroundColor(bg)
+	state.tree.SetGraphics(true)
+	state.tree.SetChangedFunc(func(node *tview.TreeNode) {
+		if node == nil {
+			return
+		}
+		if idx, ok := node.GetReference().(int); ok {
+			state.selectedCategory = idx
+		}
+		a.updateActionPlanFooter(state)
+	})
 
 	state.footer = tview.NewTextView().SetDynamicColors(true)
 	state.footer.SetBackgroundColor(bg)
@@ -226,8 +191,8 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	state.container.SetTitle("📋 Action Plan")
 	state.container.SetTitleColor(colors.Title.Color())
 	state.container.SetBorderColor(colors.Border.Color())
-	state.container.AddItem(state.header, 2, 0, false)
-	state.container.AddItem(state.body, 0, 1, true)
+	state.container.AddItem(state.header, 1, 0, false)
+	state.container.AddItem(state.tree, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 
 	a.actionPlanState = state
@@ -242,8 +207,8 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 
-	state.body.SetInputCapture(a.actionPlanInputCapture(state))
-	a.SetFocus(state.body)
+	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
+	a.SetFocus(state.tree)
 	a.currentFocus = "action_plan"
 	a.updateFocusIndicators("action_plan")
 	a.setActivePicker(PickerActionPlan)
@@ -335,8 +300,41 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	if state.selectedCategory < 0 {
 		state.selectedCategory = 0
 	}
-	state.body.SetText(renderActionPlanText(p, state.selectedCategory, a.actionKeyHint))
+	a.rebuildActionPlanTree(state)
 }
+
+// rebuildActionPlanTree repopulates the tree from state.plan, preserving the
+// selected category index. Categories are root nodes; per-email children are
+// added in a later task.
+func (a *App) rebuildActionPlanTree(state *actionPlanState) {
+	if state.plan == nil || state.root == nil {
+		return
+	}
+	colors := a.GetComponentColors("ai")
+	state.root.ClearChildren()
+	for i, c := range state.plan.Categories {
+		label := fmt.Sprintf("%s · %d · %s · %s", actionVerbLabel(c.Action), len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
+		node := tview.NewTreeNode(label).SetSelectable(true).SetColor(colors.Text.Color())
+		node.SetReference(i) // category index
+		state.root.AddChild(node)
+	}
+	children := state.root.GetChildren()
+	if len(children) == 0 {
+		state.tree.SetCurrentNode(state.root)
+		return
+	}
+	if state.selectedCategory < 0 {
+		state.selectedCategory = 0
+	}
+	if state.selectedCategory >= len(children) {
+		state.selectedCategory = len(children) - 1
+	}
+	state.tree.SetCurrentNode(children[state.selectedCategory])
+}
+
+// updateActionPlanFooter updates the footer text based on current state.
+// Task 9 will implement this fully; for now it is a no-op stub.
+func (a *App) updateActionPlanFooter(state *actionPlanState) {}
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
 // QueueUpdateDraw (CLAUDE.md ESC rule).
@@ -374,12 +372,8 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		// Navigation works during and after analysis.
 		switch ev.Key() {
-		case tcell.KeyUp:
-			a.moveActionPlanSelection(state, -1)
-			return nil
-		case tcell.KeyDown:
-			a.moveActionPlanSelection(state, +1)
-			return nil
+		case tcell.KeyUp, tcell.KeyDown:
+			return ev // let TreeView move the cursor natively
 		case tcell.KeyEnter:
 			if state.analyzing.Load() {
 				return nil
@@ -428,21 +422,6 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		}
 		return ev
 	}
-}
-
-// moveActionPlanSelection moves the highlight and re-renders.
-func (a *App) moveActionPlanSelection(state *actionPlanState, delta int) {
-	if state.plan == nil || len(state.plan.Categories) == 0 {
-		return
-	}
-	state.selectedCategory += delta
-	if state.selectedCategory < 0 {
-		state.selectedCategory = 0
-	}
-	if state.selectedCategory >= len(state.plan.Categories) {
-		state.selectedCategory = len(state.plan.Categories) - 1
-	}
-	a.renderActionPlanPanel(state)
 }
 
 // currentActionPlanCategory returns the selected category or nil.

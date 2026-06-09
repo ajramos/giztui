@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestActionPlan_RenderAndRemoveCategory(t *testing.T) {
+func TestActionPlan_RebuildTreeAndRemoveCategory(t *testing.T) {
 	plan := &services.ActionPlan{
 		TotalAnalyzed: 3, BatchesTotal: 1, BatchesDone: 1,
 		Categories: []services.ActionPlanCategory{
@@ -18,14 +18,19 @@ func TestActionPlan_RenderAndRemoveCategory(t *testing.T) {
 	}
 	a := &App{}
 	a.Keys.Archive, a.Keys.ToggleRead, a.Keys.Trash, a.Keys.ManageLabels = "a", "t", "d", "l"
-	state := &actionPlanState{plan: plan, selectedCategory: 0}
+	root := tview.NewTreeNode("")
+	tree := tview.NewTreeView().SetRoot(root).SetCurrentNode(root)
+	state := &actionPlanState{plan: plan, selectedCategory: 0, root: root, tree: tree}
 	state.header = tview.NewTextView()
-	state.body = tview.NewTextView()
 
-	// Navigation clamps within range.
-	a.moveActionPlanSelection(state, +5)
+	// rebuildActionPlanTree populates nodes and clamps selectedCategory.
+	state.selectedCategory = 5 // out-of-range; should be clamped to 1
+	a.rebuildActionPlanTree(state)
 	assert.Equal(t, 1, state.selectedCategory)
-	a.moveActionPlanSelection(state, -5)
+	assert.Len(t, root.GetChildren(), 2)
+
+	state.selectedCategory = 0
+	a.rebuildActionPlanTree(state)
 	assert.Equal(t, 0, state.selectedCategory)
 
 	// Removing a completed category drops it and re-renders without panic.
