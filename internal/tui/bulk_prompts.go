@@ -516,12 +516,14 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		// Final update with complete information
 		a.QueueUpdateDraw(func() {
 			if a.aiSummaryView != nil {
-				formattedResult := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
-				formattedResult += fmt.Sprintf("📊 Messages Processed: %d\n", result.MessageCount)
-				formattedResult += fmt.Sprintf("⏰ Processing Time: %v\n", result.Duration)
-				formattedResult += fmt.Sprintf("💾 From Cache: %v\n\n", result.FromCache)
-				formattedResult += "📝 Analysis:\n"
-				formattedResult += result.Summary
+				// Metadata header stays as plain text; LLM analysis body goes through
+				// the Markdown pipeline so tables, headings, and <br> render correctly.
+				metaHeader := fmt.Sprintf("🤖 Bulk Prompt Result: %s\n\n", promptName)
+				metaHeader += fmt.Sprintf("📊 Messages Processed: %d\n", result.MessageCount)
+				metaHeader += fmt.Sprintf("⏰ Processing Time: %v\n", result.Duration)
+				metaHeader += fmt.Sprintf("💾 From Cache: %v\n\n", result.FromCache)
+				metaHeader += "📝 Analysis:\n"
+				formattedResult := metaHeader + a.renderPromptResult(result.Summary)
 
 				a.aiSummaryView.SetText(formattedResult)
 				a.aiSummaryView.ScrollToBeginning()

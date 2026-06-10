@@ -423,8 +423,8 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 		// Update AI panel with cached result
 		a.QueueUpdateDraw(func() {
 			if a.aiSummaryView != nil {
-				// Set the cached result text
-				a.aiSummaryView.SetText(cachedResult.ResultText)
+				// Set the cached result text (rendered through Markdown pipeline)
+				a.aiSummaryView.SetText(a.renderPromptResult(cachedResult.ResultText))
 				a.aiSummaryView.ScrollToBeginning()
 			}
 		})
@@ -558,11 +558,10 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 			}
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied: %s", promptName))
 
-			// Final UI update to ensure result is shown
+			// Final UI update to ensure result is shown (rendered through Markdown pipeline)
 			a.QueueUpdateDraw(func() {
 				if a.aiSummaryView != nil {
-					finalText := sanitizeForTerminal(result.ResultText)
-					a.aiSummaryView.SetText(finalText)
+					a.aiSummaryView.SetText(a.renderPromptResult(result.ResultText))
 					a.aiSummaryView.ScrollToBeginning()
 				}
 			})
@@ -595,11 +594,10 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	// Save result for history
 	_ = promptService.SaveResult(a.ctx, accountEmail, messageID, promptID, result.ResultText)
 
-	// Update AI panel with result
+	// Update AI panel with result (rendered through Markdown pipeline)
 	a.QueueUpdateDraw(func() {
 		if a.aiSummaryView != nil {
-			// Set the result text
-			a.aiSummaryView.SetText(result.ResultText)
+			a.aiSummaryView.SetText(a.renderPromptResult(result.ResultText))
 			a.aiSummaryView.ScrollToBeginning()
 		}
 	})

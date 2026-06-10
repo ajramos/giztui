@@ -101,6 +101,20 @@ func paragraphsOnlyDeleted(in, out string) bool {
 	return true
 }
 
+// renderPromptResult turns an LLM Markdown result into terminal-ready text using the same
+// pipeline as the email reader (tables, headings, width-fit). <br> is normalized first
+// because some models emit it inside table cells. Falls back to the raw text on error.
+func (a *App) renderPromptResult(text string) string {
+	clean := strings.ReplaceAll(text, "<br>", "\n")
+	clean = strings.ReplaceAll(clean, "<br/>", "\n")
+	clean = strings.ReplaceAll(clean, "<br />", "\n")
+	out, err := render.MarkdownToTerminal(clean, a.Config.Rendering.GlamourTheme, a.getListWidth())
+	if err != nil {
+		return text
+	}
+	return out
+}
+
 // renderMessageContent builds body via deterministic formatter and optional LLM touch-up
 func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	// Update header TextView separately (tview markup)
