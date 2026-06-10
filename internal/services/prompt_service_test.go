@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ajramos/giztui/internal/db"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -349,4 +350,113 @@ func TestPromptServiceImpl_ClearAllPromptCaches_NilStore(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "store not available")
+}
+
+// stubAIService is a minimal AIService implementation used in tests to capture
+// the exact prompt string passed to ApplyCustomPrompt / ApplyCustomPromptStream.
+type stubAIService struct {
+	capturedPrompt string
+}
+
+func (s *stubAIService) ApplyCustomPrompt(_ context.Context, prompt string, _ map[string]string) (string, error) {
+	s.capturedPrompt = prompt
+	return "stub result", nil
+}
+func (s *stubAIService) ApplyCustomPromptStream(_ context.Context, prompt string, _ map[string]string, _ func(string)) (string, error) {
+	s.capturedPrompt = prompt
+	return "stub stream result", nil
+}
+func (s *stubAIService) GenerateSummary(_ context.Context, _ string, _ SummaryOptions) (*SummaryResult, error) {
+	return nil, nil
+}
+func (s *stubAIService) GenerateSummaryStream(_ context.Context, _ string, _ SummaryOptions, _ func(string)) (*SummaryResult, error) {
+	return nil, nil
+}
+func (s *stubAIService) GenerateReply(_ context.Context, _ string, _ ReplyOptions) (string, error) {
+	return "", nil
+}
+func (s *stubAIService) SuggestLabels(_ context.Context, _ string, _ []string) ([]string, error) {
+	return nil, nil
+}
+func (s *stubAIService) FormatContent(_ context.Context, _ string, _ FormatOptions) (string, error) {
+	return "", nil
+}
+
+// newTestPromptStore creates a real SQLite DB in a temp dir and returns
+// a PromptStore with the schema fully migrated. Caller must close the store.
+func newTestPromptStore(t *testing.T) (*db.PromptStore, func()) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+	ctx := context.Background()
+	store, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("open test db: %v", err)
+	}
+	ps := db.NewPromptStore(store)
+	return ps, func() { _ = store.Close() }
+}
+
+// TestApplyPrompt_MessagesPlaceholder verifies that when a prompt template
+// uses {{messages}} (the bulk-style placeholder), ApplyPrompt substitutes the
+// email body into it so the LLM receives the actual content.
+func TestApplyPrompt_MessagesPlaceholder(t *testing.T) {
+	ctx := context.Background()
+
+	ps, cleanup := newTestPromptStore(t)
+	defer cleanup()
+
+	// Insert a template that uses {{messages}} instead of {{body}}
+	promptID, err := ps.CreatePromptTemplate(ctx,
+		"Bulk-style single test",
+		"uses {{messages}} placeholder",
+		"Summarize:\n\n{{messages}}",
+		"test",
+	)
+	if err != nil {
+		t.Fatalf("create prompt template: %v", err)
+	}
+
+	ai := &stubAIService{}
+	svc := NewPromptService(ps, ai, nil)
+
+	result, err := svc.ApplyPrompt(ctx, "EMAIL BODY HERE", promptID, map[string]string{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, ai.capturedPrompt, "EMAIL BODY HERE",
+		"expected email body to be substituted into {{messages}}")
+	assert.NotContains(t, ai.capturedPrompt, "{{messages}}",
+		"expected {{messages}} placeholder to be replaced, not left literal")
+}
+
+// TestApplyPromptStream_MessagesPlaceholder verifies the same substitution in
+// the streaming path.
+func TestApplyPromptStream_MessagesPlaceholder(t *testing.T) {
+	ctx := context.Background()
+
+	ps, cleanup := newTestPromptStore(t)
+	defer cleanup()
+
+	promptID, err := ps.CreatePromptTemplate(ctx,
+		"Bulk-style stream test",
+		"uses {{messages}} placeholder",
+		"Analyze:\n\n{{messages}}",
+		"test",
+	)
+	if err != nil {
+		t.Fatalf("create prompt template: %v", err)
+	}
+
+	ai := &stubAIService{}
+	svc := NewPromptService(ps, ai, nil)
+
+	result, err := svc.ApplyPromptStream(ctx, "EMAIL BODY HERE", promptID, map[string]string{}, func(string) {})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, ai.capturedPrompt, "EMAIL BODY HERE",
+		"expected email body to be substituted into {{messages}}")
+	assert.NotContains(t, ai.capturedPrompt, "{{messages}}",
+		"expected {{messages}} placeholder to be replaced, not left literal")
 }

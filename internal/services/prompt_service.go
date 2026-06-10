@@ -69,6 +69,7 @@ func (s *PromptServiceImpl) ApplyPrompt(ctx context.Context, messageContent stri
 		variables = make(map[string]string)
 	}
 	variables["body"] = messageContent
+	variables["messages"] = messageContent // single-message alias so bulk-style prompts work on one email
 
 	// Replace all variables in the prompt
 	for key, value := range variables {
@@ -115,6 +116,7 @@ func (s *PromptServiceImpl) ApplyPromptStream(ctx context.Context, messageConten
 		variables = make(map[string]string)
 	}
 	variables["body"] = messageContent
+	variables["messages"] = messageContent // single-message alias so bulk-style prompts work on one email
 
 	// Replace all variables in the prompt
 	for key, value := range variables {
