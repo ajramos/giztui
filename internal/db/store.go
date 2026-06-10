@@ -147,10 +147,10 @@ CREATE TABLE IF NOT EXISTS prompt_results (
 			// Insert default prompts
 			_, err = tx.ExecContext(ctx, `
 INSERT INTO prompt_templates (name, description, prompt_text, category, created_at, is_favorite) VALUES
-('Quick Summary', 'Brief 2-3 bullet point summary', 'Summarize this email in 2-3 bullet points:\n\n{{body}}', 'summary', ?, TRUE),
-('Action Items', 'Extract specific action items and deadlines', 'Extract specific action items and deadlines from this email:\n\n{{body}}', 'analysis', ?, TRUE),
-('Key Decisions', 'Identify key decisions or conclusions', 'What key decisions or conclusions are mentioned in this email?\n\n{{body}}', 'analysis', ?, FALSE),
-('Meeting Summary', 'Summarize meeting details', 'Summarize the meeting details, attendees, and key points from this email:\n\n{{body}}', 'summary', ?, FALSE);
+('Quick Summary', 'Brief 2-3 bullet point summary', 'Summarize this email in 2-3 bullet points:' || char(10) || char(10) || '{{body}}', 'summary', ?, TRUE),
+('Action Items', 'Extract specific action items and deadlines', 'Extract specific action items and deadlines from this email:' || char(10) || char(10) || '{{body}}', 'analysis', ?, TRUE),
+('Key Decisions', 'Identify key decisions or conclusions', 'What key decisions or conclusions are mentioned in this email?' || char(10) || char(10) || '{{body}}', 'analysis', ?, FALSE),
+('Meeting Summary', 'Summarize meeting details', 'Summarize the meeting details, attendees, and key points from this email:' || char(10) || char(10) || '{{body}}', 'summary', ?, FALSE);
 `, time.Now().Unix(), time.Now().Unix(), time.Now().Unix(), time.Now().Unix())
 		}
 		if err == nil {
@@ -388,6 +388,28 @@ CREATE TABLE IF NOT EXISTS analyzer_rules (
 			return err
 		}
 		ver = 8
+	}
+
+	// v9: repair prompt_templates rows that stored literal backslash-n instead of real newlines
+	if ver == 8 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `UPDATE prompt_templates SET prompt_text = REPLACE(prompt_text, '\n', char(10)) WHERE prompt_text LIKE '%\n%';`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=9;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v9: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 9
 	}
 
 	return nil

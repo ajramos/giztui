@@ -250,11 +250,11 @@ func TestMigration_V6_SavedQueriesTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "saved_queries", tableName)
 
-	// Verify current version is 8 (latest migration)
+	// Verify current version is 9 (latest migration)
 	var version int
 	err = store.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version)
 	assert.NoError(t, err)
-	assert.Equal(t, 8, version)
+	assert.Equal(t, 9, version)
 }
 
 func TestPragmas_Configuration(t *testing.T) {
