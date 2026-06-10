@@ -5,6 +5,22 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-06-10
+
+### 🐛 Fixes
+
+- **Action plan footer now tracks the cursor**: navigating the tree could leave the bottom hint one keystroke behind (e.g. showing email actions while a category header was highlighted). The footer now repaints in step with the selection.
+- **Archiving an all-excluded action plan category no longer hangs**: pressing the archive key on a group with 0 checked emails (footer "(0)") deadlocked the UI; the warning is now shown without blocking.
+- **Bulk-style prompts work on a single email**: applying a prompt that uses the `{{messages}}` placeholder to one message via the single-message picker now substitutes the email content (previously the model received no content).
+- **Prompt templates show real line breaks**: the built-in prompts stored literal `\n` sequences (visible in the preview); they now contain real newlines, and a migration repairs existing databases.
+
+### 🚀 Features / Improvements
+
+- **Applied-prompt results render Markdown**: prompt results (single and bulk) now go through the same renderer as the email reader, so tables, headings and width-fitting work and raw `| … |`, literal `<br>`, and `??` glyphs are gone.
+- **Prompt preview polish**: the preview hides the search field while open, and bolds the **Description** / **Template** headings.
+- **Version on the help screen**: the `?` help now shows the GizTUI version at the top.
+- **Consistent prompt-type icons**: bulk-analysis prompts now show the 🚀 icon in the single-message picker too (matching the bulk picker).
+
 ## [1.6.0] - 2026-06-09
 
 ### 🚀 Features
