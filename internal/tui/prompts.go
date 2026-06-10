@@ -253,7 +253,7 @@ func (a *App) openPromptPicker() {
 					vid, vname := v.id, v.name
 					onApply = func() { go a.applyPromptToMessage(messageID, vid, vname, message) }
 				}
-				a.showPromptPreviewInline(container, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
+				a.showPromptPreviewInline(container, input, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
 			}
 
 			// Handle navigation between input and list

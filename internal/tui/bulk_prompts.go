@@ -290,7 +290,7 @@ func (a *App) openBulkPromptPicker() {
 			vid, vname := v.id, v.name
 			onApply = func() { go a.applyBulkPrompt(vid, vname) }
 		}
-		a.showPromptPreviewInline(container, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
+		a.showPromptPreviewInline(container, input, list, footer, " Enter to apply | Esc to cancel ", name, body, onApply)
 	}
 
 	// Add to content split like individual prompt picker

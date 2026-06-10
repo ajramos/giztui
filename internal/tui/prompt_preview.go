@@ -23,7 +23,9 @@ func promptPreviewText(description, promptText string) string {
 	if tmpl == "" {
 		tmpl = "(empty template)"
 	}
-	return fmt.Sprintf("Description:\n%s\n\nTemplate:\n%s", desc, tmpl)
+	// [::b] bold headings; content is tview.Escape()d so template brackets render literally.
+	return fmt.Sprintf("[::b]Description[::-]\n%s\n\n[::b]Template[::-]\n%s",
+		tview.Escape(desc), tview.Escape(tmpl))
 }
 
 // showPromptPreviewInline swaps the picker's list for a scrollable preview inside the
@@ -31,10 +33,10 @@ func promptPreviewText(description, promptText string) string {
 // rather than a floating modal. Enter runs onApply (apply prompt / open configurator);
 // Esc or Ctrl+P restores the list. While shown, currentFocus is "prompt_preview" so
 // keys.go passes keys straight to the preview's own capture.
-func (a *App) showPromptPreviewInline(container *tview.Flex, list *tview.List, footer *tview.TextView, footerNormal, name, body string, onApply func()) {
+func (a *App) showPromptPreviewInline(container *tview.Flex, input *tview.InputField, list *tview.List, footer *tview.TextView, footerNormal, name, body string, onApply func()) {
 	colors := a.GetComponentColors("prompts")
 
-	tv := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetText(body)
+	tv := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetText(body)
 	tv.SetScrollable(true)
 	tv.SetBackgroundColor(colors.Background.Color())
 	tv.SetTextColor(colors.Text.Color())
@@ -44,6 +46,7 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, list *tview.List, f
 	restore := func() {
 		container.RemoveItem(tv)
 		container.RemoveItem(footer)
+		container.AddItem(input, 3, 0, false)
 		container.AddItem(list, 0, 1, true)
 		container.AddItem(footer, 1, 0, false)
 		container.SetTitle(prevTitle)
@@ -65,6 +68,7 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, list *tview.List, f
 		return e
 	})
 
+	container.RemoveItem(input)
 	container.RemoveItem(list)
 	container.RemoveItem(footer)
 	container.AddItem(tv, 0, 1, true)

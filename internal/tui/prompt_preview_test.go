@@ -11,10 +11,10 @@ import (
 
 func TestPromptPreviewText(t *testing.T) {
 	out := promptPreviewText("Short factual summary", "Summarize {{body}} in {{max_words}} words")
-	if !strings.Contains(out, "Description:") || !strings.Contains(out, "Short factual summary") {
+	if !strings.Contains(out, "[::b]Description[::-]") || !strings.Contains(out, "Short factual summary") {
 		t.Errorf("description block missing: %q", out)
 	}
-	if !strings.Contains(out, "Template:") || !strings.Contains(out, "{{body}}") {
+	if !strings.Contains(out, "[::b]Template[::-]") || !strings.Contains(out, "{{body}}") {
 		t.Errorf("template block missing: %q", out)
 	}
 	out2 := promptPreviewText("  ", "")
@@ -34,6 +34,7 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	app.Pages = NewPages()
 	// currentTheme is nil → GetComponentColors returns built-in fallback colors; no theme setup needed.
 
+	input := tview.NewInputField()
 	list := tview.NewList()
 	footerNormal := " Enter to apply | Esc to cancel "
 	footer := tview.NewTextView()
@@ -41,12 +42,13 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetTitle(" 🤖 Prompt Library ")
+	container.AddItem(input, 3, 0, true)
 	container.AddItem(list, 0, 1, true)
 	container.AddItem(footer, 1, 0, false)
 
 	applied := false
 	app.showPromptPreviewInline(
-		container, list, footer,
+		container, input, list, footer,
 		footerNormal,
 		"Quick Summary",
 		"Description:\nx\n\nTemplate:\ny",
@@ -103,9 +105,12 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 		t.Errorf("expected footer restored to %q, got %q", footerNormal, footer.GetText(false))
 	}
 
-	// The container's first non-fixed item must be the list again (restore re-adds it).
-	if container.ItemAt(0) != list {
-		t.Errorf("expected list to be container item[0] after restore, got %T", container.ItemAt(0))
+	// After restore the layout must be [input, list, footer].
+	if container.ItemAt(0) != input {
+		t.Errorf("expected input to be container item[0] after restore, got %T", container.ItemAt(0))
+	}
+	if container.ItemAt(1) != list {
+		t.Errorf("expected list to be container item[1] after restore, got %T", container.ItemAt(1))
 	}
 
 	_ = applied // onApply is tested via the Enter path below
@@ -120,6 +125,7 @@ func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
 	}
 	app.Pages = NewPages()
 
+	input := tview.NewInputField()
 	list := tview.NewList()
 	footerNormal := " Enter to apply | Esc to cancel "
 	footer := tview.NewTextView()
@@ -127,6 +133,7 @@ func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetTitle(" 🤖 Prompt Library ")
+	container.AddItem(input, 3, 0, true)
 	container.AddItem(list, 0, 1, true)
 	container.AddItem(footer, 1, 0, false)
 
@@ -134,7 +141,7 @@ func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
 	var applyCalled bool
 	var focusAtApply string
 	app.showPromptPreviewInline(
-		container, list, footer,
+		container, input, list, footer,
 		footerNormal,
 		"Quick Summary",
 		"Description:\nx\n\nTemplate:\ny",
