@@ -97,6 +97,8 @@ func (a *App) openPromptPicker() {
 			// Category icon
 			var icon string
 			switch item.category {
+			case "bulk_analysis":
+				icon = "🚀"
 			case "summary":
 				icon = "📄"
 			case "analysis":

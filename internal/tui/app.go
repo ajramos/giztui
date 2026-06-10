@@ -19,6 +19,7 @@ import (
 	"github.com/ajramos/giztui/internal/obsidian"
 	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
+	"github.com/ajramos/giztui/internal/version"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -2166,6 +2167,8 @@ func NewCmdBuff() *CmdBuff {
 // generateHelpText generates the help text
 func (a *App) generateHelpText() string {
 	var help strings.Builder
+
+	fmt.Fprintf(&help, "GizTUI %s\n\n", version.Version)
 
 	// Show current status
 	if a.Config != nil && a.Config.Theme.Current != "" {
