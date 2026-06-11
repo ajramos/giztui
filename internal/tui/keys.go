@@ -586,10 +586,6 @@ func (a *App) bindKeys() {
 		// user Tabs to the inbox to read mail while analysis runs in the background, so
 		// behavior is gated on FOCUS, not just on the panel being active.
 		if a.isActionPlanActive() {
-			// A rule/move overlay open on top owns all keys (its own Esc closes it).
-			if a.Pages.HasPage(actionPlanRulePage) || a.Pages.HasPage(analyzerRulesPage) {
-				return event
-			}
 			if a.currentFocus == "action_plan" {
 				// Panel focused: Tab hands focus to the inbox (panel keeps analyzing),
 				// Esc closes the panel, everything else goes to the tree's input capture.

@@ -8,8 +8,6 @@ import (
 	"github.com/derailed/tview"
 )
 
-const actionPlanRulePage = "actionPlanRule"
-const analyzerRulesPage = "analyzerRules"
 
 // showRememberRuleModal body-swaps the Action Plan tree for a pre-seeded input field inside
 // the panel container (the showActionPlanMoveChooser pattern), so saving a preference reads as
