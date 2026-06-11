@@ -1019,6 +1019,10 @@ type InboxAnalyzerService interface {
 	// onProgress (may be nil) is called with the in-progress plan after each batch.
 	// Honors context cancellation between and during batches.
 	Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error)
+	// BuildPromptPreview returns the assembled analyzer prompt (user-rules block + base
+	// prompt) with {{messages}} left literal — the same assembly Analyze performs, minus the
+	// per-batch payload. Pure: no AI call, no network.
+	BuildPromptPreview(opts InboxAnalyzerOptions) string
 }
 
 // AnalyzerRuleInfo is a free-text analyzer preference rule, surfaced to the TUI.
