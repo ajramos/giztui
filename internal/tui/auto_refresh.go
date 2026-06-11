@@ -1,6 +1,10 @@
 package tui
 
-import "time"
+import (
+	"time"
+
+	"github.com/derailed/tview"
+)
 
 // isAutoRefreshRunning reports whether the ticker goroutine is active.
 func (a *App) isAutoRefreshRunning() bool {
@@ -61,5 +65,80 @@ func (a *App) stopAutoRefresh() {
 	a.autoRefreshRunning = false
 }
 
-// performAutoRefreshTick is implemented in a later task.
-func (a *App) performAutoRefreshTick() {}
+// refreshStatusBar repaints the status baseline so indicator changes (⟳, 📬N)
+// show immediately. Must be called on the UI thread (inside QueueUpdateDraw).
+func (a *App) refreshStatusBar() {
+	if status, ok := a.views["status"].(*tview.TextView); ok {
+		status.SetText(a.statusBaseline())
+	}
+}
+
+// shouldAutoRefreshPoll reports whether the displayed view is the plain inbox,
+// i.e. auto-refresh should poll at all. Off-inbox views (search/folder/threading)
+// idle the ticker.
+func (a *App) shouldAutoRefreshPoll() bool {
+	if a.searchMode != "" {
+		return false
+	}
+	if a.currentQuery != "" {
+		return false
+	}
+	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
+		return false
+	}
+	return true
+}
+
+// isAutoRefreshSafeState reports whether it is safe to prepend new rows in place
+// (vs. only bumping the status counter).
+func (a *App) isAutoRefreshSafeState() bool {
+	if !a.shouldAutoRefreshPoll() {
+		return false
+	}
+	if a.currentActivePicker != PickerNone {
+		return false
+	}
+	if a.bulkMode {
+		return false
+	}
+	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {
+		return false
+	}
+	return true
+}
+
+// performAutoRefreshTick runs one detection cycle and applies the result.
+func (a *App) performAutoRefreshTick() {
+	if a.autoRefreshService == nil || !a.autoRefreshService.IsEnabled() {
+		return
+	}
+	if a.IsMessagesLoading() || !a.shouldAutoRefreshPoll() {
+		return
+	}
+
+	known := a.GetMessageIDs()
+	newIDs, err := a.autoRefreshService.CheckForNewMessages(a.ctx, known)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("AUTO_REFRESH: detection error: %v", err)
+		}
+		return
+	}
+	if len(newIDs) == 0 {
+		return
+	}
+
+	if a.isAutoRefreshSafeState() {
+		a.prependNewMessages(newIDs)
+		return
+	}
+
+	// Not safe: surface a pending counter without touching the list.
+	a.SetPendingNewCount(len(newIDs))
+	a.QueueUpdateDraw(func() {
+		a.refreshStatusBar()
+	})
+}
+
+// prependNewMessages is implemented in a later task.
+func (a *App) prependNewMessages(newIDs []string) {}
