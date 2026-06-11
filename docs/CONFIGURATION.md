@@ -1040,6 +1040,24 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 
 The shortcut is configurable via `keys.action_plan` (default `"P"`).
 
+### Auto-Refresh Configuration
+
+Opt-in background polling that detects new inbox mail. While you are viewing the plain inbox and nothing is open (no picker, search, bulk selection, or composer), new mail is **prepended in place** without moving your cursor. Otherwise a pending counter `📬 N` appears in the status bar and you load it with `R` when ready. The status bar shows `⟳` while enabled. Only the plain inbox is polled (search/folder/thread views idle the ticker).
+
+```json
+"auto_refresh": {
+  "enabled": false,
+  "interval": "5m"
+}
+```
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Start auto-refresh on launch. | `false` |
+| `interval` | string | Poll interval as a Go duration (e.g. `"2m"`, `"30s"`). Clamped to a 1-minute minimum; invalid values fall back to 5m. | `"5m"` |
+
+Toggle at runtime with `:autorefresh` / `:arr`, or set the interval with `:autorefresh 2m`. Bind an optional key via `keys.auto_refresh` (unbound by default).
+
 ### Rendering Configuration
 
 Controls how HTML email bodies are displayed in the message view.
