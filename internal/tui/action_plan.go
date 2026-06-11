@@ -542,10 +542,10 @@ func actionPlanFooterText(onCategory bool, key, action string, checkedCount int)
 		if key != "" && action != "none" && action != "" {
 			parts = append(parts, fmt.Sprintf("%s to %s (%d)", key, actionRuleVerbShort(action), checkedCount))
 		}
-		parts = append(parts, "Enter to expand", "Ctrl+R to remember", "Tab to inbox", "Esc to close")
+		parts = append(parts, "Enter to expand", "v prompt", "Ctrl+R to remember", "Tab to inbox", "Esc to close")
 		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return " Space to skip  |  m to move  |  Ctrl+R to remember sender  |  Tab to inbox  |  Esc to close "
+	return " Space to skip  |  m to move  |  v prompt  |  Ctrl+R to remember sender  |  Tab to inbox  |  Esc to close "
 }
 
 // actionRuleVerbShort is the short imperative verb for the footer.

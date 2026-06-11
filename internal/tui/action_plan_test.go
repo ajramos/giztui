@@ -104,6 +104,12 @@ func TestActionPlanFooterText(t *testing.T) {
 	if !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
 		t.Fatalf("email footer wrong: %q", onEmail)
 	}
+	if !strings.Contains(onCat, "v prompt") {
+		t.Fatalf("category footer should advertise the prompt viewer: %q", onCat)
+	}
+	if !strings.Contains(onEmail, "v prompt") {
+		t.Fatalf("email footer should advertise the prompt viewer: %q", onEmail)
+	}
 }
 
 func TestCheckedIDs(t *testing.T) {
