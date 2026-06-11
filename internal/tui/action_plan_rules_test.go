@@ -61,3 +61,50 @@ func TestAnalyzerRulesPickerSwap(t *testing.T) {
 		t.Fatalf("after Esc, active picker should be none, got %q", a.currentActivePicker)
 	}
 }
+
+func TestRememberRuleInlineSwap(t *testing.T) {
+	a := newRulesTestApp()
+
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[int]bool{},
+		metaByID: nil,
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	a.actionPlanState = state
+
+	a.showRememberRuleModal("always archive promos")
+	if a.currentFocus != "action_plan_rule" {
+		t.Fatalf("expected currentFocus=action_plan_rule, got %q", a.currentFocus)
+	}
+	// Tree swapped out for the input.
+	if state.container.ItemAt(0) == state.tree {
+		t.Fatal("tree should be swapped out while the remember-rule input is shown")
+	}
+	input, ok := a.GetFocus().(*tview.InputField)
+	if !ok {
+		t.Fatalf("expected the remember-rule input focused, got %T", a.GetFocus())
+	}
+	if input.GetText() != "always archive promos" {
+		t.Fatalf("input should be pre-seeded with the suggestion, got %q", input.GetText())
+	}
+
+	// Esc restores the tree.
+	if done := input.GetInputCapture(); done != nil {
+		done(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
+	}
+	if a.currentFocus != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	}
+	if a.actionPlanState.container.ItemAt(0) != state.tree {
+		t.Fatal("after Esc, the tree should be restored as the container body")
+	}
+}
