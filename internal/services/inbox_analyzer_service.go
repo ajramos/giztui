@@ -251,6 +251,16 @@ func buildBatchPrompt(promptText, payload string) string {
 	return promptText + "\n\n" + payload
 }
 
+// BuildPromptPreview assembles the analyzer prompt the way Analyze does (base prompt with the
+// user-rules block prepended), leaving {{messages}} as a literal placeholder.
+func (s *InboxAnalyzerServiceImpl) BuildPromptPreview(opts InboxAnalyzerOptions) string {
+	base := opts.CustomPromptText
+	if strings.TrimSpace(base) == "" {
+		base = defaultAnalyzerPrompt
+	}
+	return prependUserRules(base, opts.UserRules)
+}
+
 // prependUserRules adds a "## User preferences" block before the analyzer prompt
 // so the LLM honors the user's free-text rules. Empty rules → prompt unchanged.
 func prependUserRules(promptText string, rules []string) string {

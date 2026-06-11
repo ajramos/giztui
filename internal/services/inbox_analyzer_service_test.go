@@ -319,3 +319,28 @@ func TestBuildBatchPayload_BodyVsSnippet(t *testing.T) {
 		t.Fatalf("body should be truncated to 10 x's, got %d", strings.Count(out, "x"))
 	}
 }
+
+func TestBuildPromptPreview(t *testing.T) {
+	s := NewInboxAnalyzerService(nil)
+
+	// Default base + rules.
+	out := s.BuildPromptPreview(InboxAnalyzerOptions{UserRules: []string{"keep boss emails"}})
+	if !strings.Contains(out, "## User preferences") || !strings.Contains(out, "keep boss emails") {
+		t.Fatalf("rules block missing: %q", out)
+	}
+	if !strings.Contains(out, "{{messages}}") {
+		t.Fatalf("should keep {{messages}} placeholder: %q", out)
+	}
+	if !strings.Contains(out, "email triage assistant") { // default prompt marker
+		t.Fatalf("should include default base: %q", out)
+	}
+
+	// Custom base, no rules.
+	out = s.BuildPromptPreview(InboxAnalyzerOptions{CustomPromptText: "MY CUSTOM {{messages}}"})
+	if !strings.Contains(out, "MY CUSTOM") || strings.Contains(out, "email triage assistant") {
+		t.Fatalf("should use custom base, not default: %q", out)
+	}
+	if strings.Contains(out, "## User preferences") {
+		t.Fatalf("no rules → no preferences block: %q", out)
+	}
+}
