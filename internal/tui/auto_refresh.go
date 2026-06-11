@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/derailed/tview"
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 // isAutoRefreshRunning reports whether the ticker goroutine is active.
@@ -140,5 +142,54 @@ func (a *App) performAutoRefreshTick() {
 	})
 }
 
-// prependNewMessages is implemented in a later task.
-func (a *App) prependNewMessages(newIDs []string) {}
+// prependIDsAndLocate returns the new id slice (newIDs prepended) and the row
+// index (0-based, message-space) of selectedID in the new slice, or 0 if absent.
+func prependIDsAndLocate(newIDs, existingIDs []string, selectedID string) ([]string, int) {
+	merged := make([]string, 0, len(newIDs)+len(existingIDs))
+	merged = append(merged, newIDs...)
+	merged = append(merged, existingIDs...)
+	for i, id := range merged {
+		if id == selectedID {
+			return merged, i
+		}
+	}
+	return merged, 0
+}
+
+// prependNewMessages fetches metadata for newIDs and inserts them at the top of
+// the list in place, preserving the user's cursor. No table.Clear(), no spinner.
+func (a *App) prependNewMessages(newIDs []string) {
+	// Fetch metadata for just the new arrivals (newest-first order preserved).
+	metas, err := a.Client.GetMessagesMetadataParallel(newIDs, 10)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("AUTO_REFRESH: metadata fetch error: %v", err)
+		}
+		return
+	}
+
+	// Capture current selection by message ID.
+	selectedID := a.GetCurrentMessageID()
+
+	// Update the in-memory model under lock: prepend metas and ids.
+	a.mu.Lock()
+	a.messagesMeta = append(append([]*gmailapi.Message{}, metas...), a.messagesMeta...)
+	a.mu.Unlock()
+
+	mergedIDs, newSelIdx := prependIDsAndLocate(newIDs, a.GetMessageIDs(), selectedID)
+	a.SetMessageIDs(mergedIDs)
+
+	// Clear the pending counter — these are now loaded.
+	a.SetPendingNewCount(0)
+
+	count := len(newIDs)
+	a.QueueUpdateDraw(func() {
+		a.reformatListItems() // re-render rows from the model (no network, no clear-flash)
+		if table, ok := a.views["list"].(*tview.Table); ok {
+			table.Select(newSelIdx+1, 0) // +1 for the header row
+		}
+		a.refreshStatusBar()
+	})
+
+	go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📬 %d new message(s)", count))
+}

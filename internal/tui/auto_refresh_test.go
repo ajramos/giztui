@@ -58,3 +58,30 @@ func TestAutoRefreshShouldPoll(t *testing.T) {
 		t.Error("remote search must not poll")
 	}
 }
+
+func TestPrependModelMath(t *testing.T) {
+	// Existing model: cursor on "c" (index 2).
+	ids := []string{"a", "b", "c"}
+	selectedID := "c"
+	newIDs := []string{"x", "y"} // newest-first
+
+	gotIDs, gotIdx := prependIDsAndLocate(newIDs, ids, selectedID)
+	wantIDs := []string{"x", "y", "a", "b", "c"}
+	if len(gotIDs) != len(wantIDs) {
+		t.Fatalf("ids = %v, want %v", gotIDs, wantIDs)
+	}
+	for i := range wantIDs {
+		if gotIDs[i] != wantIDs[i] {
+			t.Fatalf("ids = %v, want %v", gotIDs, wantIDs)
+		}
+	}
+	if gotIdx != 4 { // "c" moved from 2 to 4 (+len(newIDs))
+		t.Errorf("selected index = %d, want 4", gotIdx)
+	}
+
+	// Selection not found => index 0 (top).
+	_, idx := prependIDsAndLocate(newIDs, ids, "missing")
+	if idx != 0 {
+		t.Errorf("missing selection index = %d, want 0", idx)
+	}
+}
