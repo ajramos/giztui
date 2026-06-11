@@ -1024,7 +1024,9 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 "inbox_analyzer": {
   "batch_size": 50,
   "max_batches": 10,
-  "default_prompt_id": ""
+  "default_prompt_id": "",
+  "include_body": true,
+  "body_char_limit": 1000
 }
 ```
 
@@ -1033,6 +1035,8 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 | `batch_size` | integer | Messages sent to the LLM per batch. Lower to 15–20 for small local models that struggle with large prompts. | `50` |
 | `max_batches` | integer | Safety cap on the number of batches per run. | `10` |
 | `default_prompt_id` | string | Reserved for a future built-in override prompt. | `""` |
+| `include_body` | boolean | Include each email's plain-text body (not just the snippet) in the analyzer context for better classification. Fetches the body of every analyzed message, so it adds a brief load step. Set to `false` for very large inboxes or slow local models. | `true` |
+| `body_char_limit` | integer | Max characters of body included per email when `include_body` is true. Lower it to reduce prompt size/tokens. | `1000` |
 
 The shortcut is configurable via `keys.action_plan` (default `"P"`).
 

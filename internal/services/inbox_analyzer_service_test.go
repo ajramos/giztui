@@ -277,3 +277,45 @@ func TestPrependUserRules(t *testing.T) {
 		t.Fatal("nil rules must return the base prompt unchanged")
 	}
 }
+
+func TestTruncateForAnalyzer(t *testing.T) {
+	// Collapses runs of whitespace/newlines to single spaces.
+	if got := truncateForAnalyzer("a\n\n  b\tc", 100); got != "a b c" {
+		t.Fatalf("whitespace collapse: got %q", got)
+	}
+	// Cuts to limit on a rune boundary (no panic, no partial multi-byte rune).
+	if got := truncateForAnalyzer("áéíóú", 3); got != "áéí" {
+		t.Fatalf("rune-boundary cut: got %q", got)
+	}
+	// limit <= 0 returns collapsed-but-untrimmed text.
+	if got := truncateForAnalyzer("a  b", 0); got != "a b" {
+		t.Fatalf("limit<=0: got %q", got)
+	}
+	// Empty/whitespace-only input.
+	if got := truncateForAnalyzer("   ", 10); got != "" {
+		t.Fatalf("empty/whitespace-only: got %q", got)
+	}
+}
+
+func TestBuildBatchPayload_BodyVsSnippet(t *testing.T) {
+	batch := []AnalyzerMessage{
+		{Subject: "Hello", From: "a@x.com", Snippet: "snip-a", Body: "this is the full body of email A"},
+		{Subject: "World", From: "b@x.com", Snippet: "snip-b"}, // no body → snippet
+	}
+	out := buildBatchPayload(batch, 1000)
+
+	if !strings.Contains(out, "full body of email A") {
+		t.Fatalf("expected body for msg 1, got:\n%s", out)
+	}
+	if strings.Contains(out, "snip-a") {
+		t.Fatalf("msg 1 should not fall back to snippet, got:\n%s", out)
+	}
+	if !strings.Contains(out, "snip-b") {
+		t.Fatalf("expected snippet for msg 2, got:\n%s", out)
+	}
+
+	long := []AnalyzerMessage{{Subject: "L", From: "c@mail.com", Body: strings.Repeat("x", 50)}}
+	if out := buildBatchPayload(long, 10); strings.Count(out, "x") != 10 {
+		t.Fatalf("body should be truncated to 10 x's, got %d", strings.Count(out, "x"))
+	}
+}

@@ -519,3 +519,13 @@ func TestIsObsidianEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultInboxAnalyzerConfig_BodyContext(t *testing.T) {
+	c := DefaultInboxAnalyzerConfig()
+	if !c.IncludeBody {
+		t.Fatal("IncludeBody should default to true")
+	}
+	if c.BodyCharLimit != 1000 {
+		t.Fatalf("BodyCharLimit should default to 1000, got %d", c.BodyCharLimit)
+	}
+}

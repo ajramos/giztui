@@ -11,6 +11,7 @@ import (
 
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/render"
+	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 
 // EmailServiceImpl implements EmailService
@@ -482,6 +483,34 @@ func (s *EmailServiceImpl) SaveMessageToFile(ctx context.Context, messageID, fil
 	}
 
 	return nil
+}
+
+// plainTextsByID maps each non-nil message's ID to its extracted plain text.
+func plainTextsByID(msgs []*gmail_v1.Message) map[string]string {
+	out := make(map[string]string, len(msgs))
+	for _, m := range msgs {
+		if m == nil {
+			continue
+		}
+		out[m.Id] = gmail.ExtractPlainText(m)
+	}
+	return out
+}
+
+// GetMessagePlainTexts fetches plain-text bodies for the given message IDs concurrently.
+// Returns id -> plain text; IDs that fail to fetch are simply absent from the map.
+func (s *EmailServiceImpl) GetMessagePlainTexts(ctx context.Context, ids []string, maxWorkers int) (map[string]string, error) {
+	if len(ids) == 0 {
+		return map[string]string{}, nil
+	}
+	if s.gmailClient == nil {
+		return nil, fmt.Errorf("gmail client not available")
+	}
+	msgs, err := s.gmailClient.GetMessagesParallel(ids, maxWorkers)
+	if err != nil {
+		return nil, err
+	}
+	return plainTextsByID(msgs), nil
 }
 
 // MoveToSystemFolder moves a message to a system folder (Inbox, Trash, Spam) with undo support
