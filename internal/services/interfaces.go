@@ -968,6 +968,7 @@ type AnalyzerMessage struct {
 	Subject string
 	From    string
 	Snippet string
+	Body    string // plain-text body (truncated upstream); empty → fall back to Snippet
 }
 
 // ActionPlanCategory is one actionable group the LLM produced.
@@ -997,6 +998,7 @@ type InboxAnalyzerOptions struct {
 	MaxBatches       int      // safety cap on total batches (default 10)
 	CustomPromptText string   // empty → use the built-in default analyzer prompt
 	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
+	BodyCharLimit    int      // max body chars rendered per email; <= 0 → no extra trim
 }
 
 // InboxAnalyzerService groups unread messages into an actionable plan via the LLM.
