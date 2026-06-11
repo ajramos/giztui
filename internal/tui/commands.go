@@ -423,6 +423,12 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"archiv":         {"archive"},
 		"archive":        {"archive"},
 		"archived":       {"archived"},
+		"arr":            {"autorefresh"},
+		"au":             {"autorefresh"},
+		"aut":            {"autorefresh"},
+		"auto":           {"autorefresh"},
+		"autoref":        {"autorefresh"},
+		"autorefresh":    {"autorefresh"},
 		"b":              {"archived"},
 		"unr":            {"unread"},
 		"unre":           {"unread"},
@@ -789,6 +795,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeDraftsCommand(args)
 	case "refresh":
 		a.executeRefreshCommand(args)
+	case "autorefresh", "arr":
+		a.executeAutoRefreshCommand(args)
 	case "load", "more", "next":
 		a.executeLoadMoreCommand(args)
 	case "unread", "u":

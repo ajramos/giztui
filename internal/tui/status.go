@@ -91,6 +91,13 @@ func (a *App) statusBaseline() string {
 		base += " | 🧾"
 	}
 
+	if a != nil && a.autoRefreshService != nil && a.autoRefreshService.IsEnabled() {
+		base += " | ⟳"
+		if n := a.GetPendingNewCount(); n > 0 {
+			base += fmt.Sprintf(" 📬%d", n)
+		}
+	}
+
 	// Check if composition panel is active and show context-appropriate message
 	if a != nil && a.compositionPanel != nil {
 		// Check if we're on the composition page

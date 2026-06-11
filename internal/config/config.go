@@ -102,6 +102,9 @@ type Config struct {
 	// Inbox Action Plan analyzer configuration
 	InboxAnalyzer InboxAnalyzerConfig `json:"inbox_analyzer"`
 
+	// Auto-refresh (opt-in background inbox polling)
+	AutoRefresh AutoRefreshConfig `json:"auto_refresh"`
+
 	// Performance configuration
 	Performance PerformanceConfig `json:"performance"`
 
@@ -220,6 +223,30 @@ type ThreadingConfig struct {
 	PreserveThreadState bool `json:"preserve_thread_state"`
 }
 
+// AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
+type AutoRefreshConfig struct {
+	Enabled  bool   `json:"enabled"`
+	Interval string `json:"interval"` // Go duration string, e.g. "5m"; clamped to a 1m minimum
+}
+
+// autoRefreshMinInterval is the smallest allowed poll interval to avoid hammering the API.
+const autoRefreshMinInterval = time.Minute
+
+// autoRefreshDefaultInterval is used when Interval is empty or unparseable.
+const autoRefreshDefaultInterval = 5 * time.Minute
+
+// ResolvedInterval parses Interval, falling back to the default and clamping to the minimum.
+func (a AutoRefreshConfig) ResolvedInterval() time.Duration {
+	d, err := time.ParseDuration(a.Interval)
+	if err != nil || d <= 0 {
+		return autoRefreshDefaultInterval
+	}
+	if d < autoRefreshMinInterval {
+		return autoRefreshMinInterval
+	}
+	return d
+}
+
 // InboxAnalyzerConfig configures the AI inbox Action Plan analyzer.
 type InboxAnalyzerConfig struct {
 	BatchSize       int    `json:"batch_size"`        // messages per LLM batch (default 50)
@@ -241,6 +268,7 @@ type KeyBindings struct {
 	Forward                string `json:"forward"`   // Forward message
 	Compose                string `json:"compose"`
 	Refresh                string `json:"refresh"`
+	AutoRefresh            string `json:"auto_refresh"` // Toggle background auto-refresh; unbound by default
 	Search                 string `json:"search"`
 	Unread                 string `json:"unread"`
 	Archived               string `json:"archived"`
@@ -411,6 +439,7 @@ func DefaultConfig() *Config {
 		Rendering:     DefaultRenderingConfig(),
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
+		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),
 		LogFile:       "",

@@ -378,6 +378,8 @@ When you customize shortcuts, the priority order is:
 | `:themes` | List available themes |
 | `:theme set <name>` | Switch to theme |
 | `:refresh` | Refresh current view |
+| `:autorefresh` / `:arr` | Toggle background inbox auto-refresh on/off |
+| `:autorefresh <duration>` / `:arr 2m` | Set the auto-refresh poll interval at runtime (min 1m) |
 | `:undo` | Undo last action |
 | `:version` | Show version information |
 | `:config` | Show configuration |

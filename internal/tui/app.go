@@ -215,8 +215,15 @@ type App struct {
 	threadService           services.ThreadService
 	undoService             services.UndoService
 	preloaderService        services.MessagePreloader
+	autoRefreshService      services.AutoRefreshService
 	currentTheme            *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler            *ErrorHandler
+
+	// Auto-refresh ticker lifecycle + pending-new-mail counter (opt-in inbox polling)
+	autoRefreshMu      sync.Mutex
+	autoRefreshStop    chan struct{}
+	autoRefreshRunning bool
+	pendingNewCount    int
 }
 
 // Pages manages the application pages and navigation
@@ -1018,12 +1025,25 @@ func (a *App) initServices() {
 		}
 	}
 
+	// Auto-refresh service (opt-in inbox polling)
+	a.autoRefreshService = services.NewAutoRefreshService(
+		a.Client,
+		a.Config.AutoRefresh.Enabled,
+		a.Config.AutoRefresh.ResolvedInterval(),
+		time.Minute,
+	)
+
 	if a.logger != nil {
 		a.logger.Printf("initServices: service initialization completed")
 	}
 
 	// Initialize error handler
 	a.initErrorHandler()
+
+	// Start the auto-refresh ticker if enabled in config.
+	if a.autoRefreshService.IsEnabled() {
+		a.startAutoRefresh()
+	}
 }
 
 // reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database
@@ -1345,6 +1365,20 @@ func (a *App) ClearMessageIDs() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.ids = []string{}
+}
+
+// GetPendingNewCount returns the count of detected-but-not-loaded new messages.
+func (a *App) GetPendingNewCount() int {
+	a.autoRefreshMu.Lock()
+	defer a.autoRefreshMu.Unlock()
+	return a.pendingNewCount
+}
+
+// SetPendingNewCount sets the pending new-message counter shown in the status bar.
+func (a *App) SetPendingNewCount(n int) {
+	a.autoRefreshMu.Lock()
+	a.pendingNewCount = n
+	a.autoRefreshMu.Unlock()
 }
 
 // Removed unused unsafe methods: setMessageIDsUnsafe, appendMessageIDUnsafe, clearMessageIDsUnsafe
@@ -3345,6 +3379,9 @@ func (a *App) setActivePicker(picker ActivePicker) {
 
 // Shutdown gracefully shuts down the application services
 func (a *App) Shutdown() {
+	// Stop the auto-refresh ticker goroutine
+	a.stopAutoRefresh()
+
 	// Shutdown preloader service to stop background goroutines
 	if a.preloaderService != nil {
 		a.preloaderService.Shutdown()

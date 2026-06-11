@@ -529,3 +529,24 @@ func TestDefaultInboxAnalyzerConfig_BodyContext(t *testing.T) {
 		t.Fatalf("BodyCharLimit should default to 1000, got %d", c.BodyCharLimit)
 	}
 }
+
+func TestDefaultConfigAutoRefresh(t *testing.T) {
+	c := DefaultConfig()
+	if c.AutoRefresh.Enabled {
+		t.Error("auto_refresh.enabled should default to false (opt-in)")
+	}
+	if c.AutoRefresh.Interval != "5m" {
+		t.Errorf("auto_refresh.interval default = %q, want \"5m\"", c.AutoRefresh.Interval)
+	}
+	if got := c.AutoRefresh.ResolvedInterval(); got != 5*time.Minute {
+		t.Errorf("ResolvedInterval() = %v, want 5m", got)
+	}
+	c.AutoRefresh.Interval = "10s"
+	if got := c.AutoRefresh.ResolvedInterval(); got != time.Minute {
+		t.Errorf("ResolvedInterval() clamp = %v, want 1m minimum", got)
+	}
+	c.AutoRefresh.Interval = "garbage"
+	if got := c.AutoRefresh.ResolvedInterval(); got != 5*time.Minute {
+		t.Errorf("ResolvedInterval() bad value = %v, want 5m fallback", got)
+	}
+}

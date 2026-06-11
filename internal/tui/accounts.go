@@ -374,6 +374,10 @@ func (a *App) switchToAccount(accountID, accountName string) {
 		a.GetErrorHandler().ClearPersistentMessage()
 	}
 
+	// Auto-refresh: the "new mail" baseline belongs to the newly active account.
+	// The known-ID baseline resets implicitly because reloadMessages() rebuilds a.ids.
+	a.SetPendingNewCount(0)
+
 	// Refresh message list with new account's messages
 	if a.logger != nil {
 		a.logger.Printf("switchToAccount: refreshing message list for new account %s", accountName)
