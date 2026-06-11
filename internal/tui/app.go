@@ -39,6 +39,7 @@ const (
 	PickerBulkPrompts        ActivePicker = "bulk_prompts"
 	PickerPromptConfigurator ActivePicker = "prompt_configurator"
 	PickerActionPlan         ActivePicker = "action_plan"
+	PickerAnalyzerRules      ActivePicker = "analyzer_rules"
 	PickerSavedQueries       ActivePicker = "saved_queries"
 	PickerThemes             ActivePicker = "themes"
 	PickerAI                 ActivePicker = "ai_labels"

@@ -576,7 +576,9 @@ func (a *App) bindKeys() {
 		// input capture: the prompt preview (a TextView) and the action-plan move chooser
 		// (a List). The global capture runs before a focused widget's capture, so without
 		// this pass-through it would swallow their Esc/Ctrl+P/Enter (see prompt-preview bug).
-		if a.currentFocus == "prompt_preview" || a.currentFocus == "action_plan_move" {
+		if a.currentFocus == "prompt_preview" || a.currentFocus == "action_plan_move" ||
+			a.currentFocus == "analyzer_rules" || a.currentFocus == "analyzer_rules_add" ||
+			a.currentFocus == "action_plan_rule" {
 			return event
 		}
 
