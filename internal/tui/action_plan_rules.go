@@ -8,7 +8,6 @@ import (
 	"github.com/derailed/tview"
 )
 
-
 // showRememberRuleModal body-swaps the Action Plan tree for a pre-seeded input field inside
 // the panel container (the showActionPlanMoveChooser pattern), so saving a preference reads as
 // deeper navigation rather than a floating modal. Enter saves; Esc returns to the tree.
