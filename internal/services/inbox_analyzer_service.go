@@ -210,13 +210,18 @@ func NewInboxAnalyzerService(aiService AIService) *InboxAnalyzerServiceImpl {
 }
 
 // buildBatchPayload renders one batch as a compact, numbered list the LLM can reference
-// by number. Numbering is local to the batch (1-based).
-func buildBatchPayload(batch []AnalyzerMessage) string {
+// by number. Numbering is local to the batch (1-based). When a message has a Body it is
+// rendered (truncated to bodyCharLimit) on its own line; otherwise the Snippet is used inline.
+func buildBatchPayload(batch []AnalyzerMessage, bodyCharLimit int) string {
 	var b strings.Builder
 	for i, m := range batch {
 		subject := strings.ReplaceAll(m.Subject, "\n", " ")
 		if strings.TrimSpace(subject) == "" {
 			subject = "(no subject)"
+		}
+		if strings.TrimSpace(m.Body) != "" {
+			fmt.Fprintf(&b, "%d. Subject: %s | From: %s\n   %s\n", i+1, subject, m.From, truncateForAnalyzer(m.Body, bodyCharLimit))
+			continue
 		}
 		snippet := strings.ReplaceAll(m.Snippet, "\n", " ")
 		fmt.Fprintf(&b, "%d. Subject: %s | From: %s | %s\n", i+1, subject, m.From, snippet)
@@ -284,7 +289,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 			return nil, err
 		}
 
-		payload := buildBatchPayload(batch)
+		payload := buildBatchPayload(batch, opts.BodyCharLimit)
 		batchIDs := make([]string, len(batch))
 		for i, m := range batch {
 			batchIDs[i] = m.ID

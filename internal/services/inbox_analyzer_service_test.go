@@ -296,3 +296,26 @@ func TestTruncateForAnalyzer(t *testing.T) {
 		t.Fatalf("empty/whitespace-only: got %q", got)
 	}
 }
+
+func TestBuildBatchPayload_BodyVsSnippet(t *testing.T) {
+	batch := []AnalyzerMessage{
+		{Subject: "Hello", From: "a@x.com", Snippet: "snip-a", Body: "this is the full body of email A"},
+		{Subject: "World", From: "b@x.com", Snippet: "snip-b"}, // no body → snippet
+	}
+	out := buildBatchPayload(batch, 1000)
+
+	if !strings.Contains(out, "full body of email A") {
+		t.Fatalf("expected body for msg 1, got:\n%s", out)
+	}
+	if strings.Contains(out, "snip-a") {
+		t.Fatalf("msg 1 should not fall back to snippet, got:\n%s", out)
+	}
+	if !strings.Contains(out, "snip-b") {
+		t.Fatalf("expected snippet for msg 2, got:\n%s", out)
+	}
+
+	long := []AnalyzerMessage{{Subject: "L", From: "c@mail.com", Body: strings.Repeat("x", 50)}}
+	if out := buildBatchPayload(long, 10); strings.Count(out, "x") != 10 {
+		t.Fatalf("body should be truncated to 10 x's, got %d", strings.Count(out, "x"))
+	}
+}
