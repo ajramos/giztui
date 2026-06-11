@@ -1,10 +1,14 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
+	"github.com/derailed/tview"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -518,5 +522,27 @@ func BenchmarkExecuteCommand_ContentSearch(b *testing.B) {
 			searchTerm := testCommand[1:]
 			_ = searchTerm
 		}
+	}
+}
+
+func TestToggleAutoRefreshFlipsState(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	a.ctx = context.Background()
+	a.errorHandler = NewErrorHandler(nil, nil, nil, nil, nil)
+	a.autoRefreshService = services.NewAutoRefreshService(nil, false, time.Minute, time.Minute)
+
+	a.toggleAutoRefresh()
+	if !a.autoRefreshService.IsEnabled() {
+		t.Error("toggle should enable")
+	}
+	if !a.isAutoRefreshRunning() {
+		t.Error("enabling should start the ticker")
+	}
+	a.toggleAutoRefresh()
+	if a.autoRefreshService.IsEnabled() {
+		t.Error("toggle should disable")
+	}
+	if a.isAutoRefreshRunning() {
+		t.Error("disabling should stop the ticker")
 	}
 }

@@ -142,6 +142,49 @@ func (a *App) performAutoRefreshTick() {
 	})
 }
 
+// toggleAutoRefresh flips the session enable state and starts/stops the ticker.
+func (a *App) toggleAutoRefresh() {
+	if a.autoRefreshService == nil {
+		return
+	}
+	enabled := !a.autoRefreshService.IsEnabled()
+	a.autoRefreshService.SetEnabled(enabled)
+	if enabled {
+		a.startAutoRefresh()
+		go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⟳ Auto-refresh ON (every %s)", a.autoRefreshService.Interval()))
+	} else {
+		a.stopAutoRefresh()
+		a.SetPendingNewCount(0)
+		go a.GetErrorHandler().ShowInfo(a.ctx, "⟳ Auto-refresh OFF")
+	}
+	// go: QueueUpdateDraw blocks until the UI loop drains it; dispatch off the caller
+	// (key/command handler) to avoid blocking, matching the action_plan SetChangedFunc pattern.
+	go a.QueueUpdateDraw(func() { a.refreshStatusBar() })
+}
+
+// executeAutoRefreshCommand handles :autorefresh / :arr [duration].
+func (a *App) executeAutoRefreshCommand(args []string) {
+	if a.autoRefreshService == nil {
+		return
+	}
+	if len(args) > 0 {
+		if d, err := time.ParseDuration(args[0]); err == nil && d > 0 {
+			a.autoRefreshService.SetInterval(d)
+			// Restart ticker to apply immediately if running.
+			if a.isAutoRefreshRunning() {
+				a.stopAutoRefresh()
+				a.startAutoRefresh()
+			}
+			go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⟳ Auto-refresh interval set to %s", a.autoRefreshService.Interval()))
+			go a.QueueUpdateDraw(func() { a.refreshStatusBar() })
+			return
+		}
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Usage: :autorefresh [duration] (e.g. :arr 2m)")
+		return
+	}
+	a.toggleAutoRefresh()
+}
+
 // prependIDsAndLocate returns the new id slice (newIDs prepended) and the row
 // index (0-based, message-space) of selectedID in the new slice, or 0 if absent.
 func prependIDsAndLocate(newIDs, existingIDs []string, selectedID string) ([]string, int) {
