@@ -60,6 +60,16 @@ const (
 	LabelVisibilityHide LabelVisibility = "labelHide"
 )
 
+// AutoRefreshService owns the opt-in inbox auto-refresh state and new-mail detection.
+type AutoRefreshService interface {
+	IsEnabled() bool
+	SetEnabled(enabled bool)
+	Interval() time.Duration
+	SetInterval(d time.Duration)
+	// CheckForNewMessages lists the first inbox page and returns IDs not in knownIDs.
+	CheckForNewMessages(ctx context.Context, knownIDs []string) (newIDs []string, err error)
+}
+
 // AIService handles AI-related operations
 type AIService interface {
 	GenerateSummary(ctx context.Context, content string, options SummaryOptions) (*SummaryResult, error)
