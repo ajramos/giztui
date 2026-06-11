@@ -77,24 +77,43 @@ func (a *App) showRememberRuleModal(suggestion string) {
 	a.SetFocus(input)
 }
 
-// openAnalyzerRulesManager lists existing rules with add ('a') / delete ('d') / Esc.
+// openAnalyzerRulesManager shows the analyzer rules as an in-place side-panel picker
+// (mounted as a.labelsView in contentSplit, like the Action Plan). 'a' adds a rule via an
+// embedded input (body-swap), 'd' deletes the highlighted rule, Esc closes. No floating modal.
 func (a *App) openAnalyzerRulesManager() {
 	svc := a.GetAnalyzerRulesService()
 	if svc == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
 		return
 	}
+	// The rules picker and the Action Plan both occupy a.labelsView; close the plan first.
+	if a.actionPlanState != nil {
+		a.closeActionPlanPanel()
+	}
 	colors := a.GetComponentColors("ai")
+
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBackgroundColor(colors.Background.Color())
 	list.SetMainTextColor(colors.Text.Color())
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(colors.Background.Color())
+	container.SetBorder(true)
+	container.SetTitle(" 🧠 Analyzer rules ")
+	container.SetTitleColor(colors.Title.Color())
+	container.SetBorderColor(colors.Border.Color())
+
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetBackgroundColor(colors.Background.Color())
+	footer.SetTextColor(colors.Text.Color())
+	footer.SetText(" a add · d delete · Esc close ")
 
 	var rules []services.AnalyzerRuleInfo
 	reload := func() {
 		list.Clear()
 		rs, err := svc.ListRules(a.ctx)
 		if err != nil {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("List rules failed: %v", err))
+			go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("List rules failed: %v", err))
 			return
 		}
 		rules = rs
@@ -108,31 +127,72 @@ func (a *App) openAnalyzerRulesManager() {
 	}
 	reload()
 
-	box := tview.NewFlex().SetDirection(tview.FlexRow)
-	box.SetBorder(true).SetTitle(" 🧠 Analyzer rules ").
-		SetTitleColor(colors.Title.Color()).SetBorderColor(colors.Border.Color()).
-		SetBackgroundColor(colors.Background.Color())
-	box.AddItem(list, 0, 1, true)
-	footer := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText("a add · d delete · Esc close")
-	footer.SetBackgroundColor(colors.Background.Color())
-	footer.SetTextColor(colors.Text.Color())
-	box.AddItem(footer, 1, 0, false)
+	container.AddItem(list, 0, 1, true)
+	container.AddItem(footer, 1, 0, false)
 
-	prev := a.GetFocus()
-	closeModal := func() {
-		a.Pages.RemovePage(analyzerRulesPage)
-		if prev != nil {
-			a.SetFocus(prev)
+	closePicker := func() {
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.ResizeItem(a.labelsView, 0, 0)
+			}
 		}
+		a.setActivePicker(PickerNone)
+		if l, ok := a.views["list"].(*tview.Table); ok {
+			a.SetFocus(l)
+		}
+		a.currentFocus = "list"
+		a.updateFocusIndicators("list")
 	}
+
+	// showAddInput body-swaps the list for an input field inside the same container.
+	showAddInput := func() {
+		input := tview.NewInputField().SetLabel(" New rule: ").SetFieldWidth(0)
+		input.SetBackgroundColor(colors.Background.Color())
+		input.SetFieldBackgroundColor(colors.Background.Color())
+		input.SetFieldTextColor(colors.Text.Color())
+
+		restore := func() {
+			container.RemoveItem(input)
+			container.RemoveItem(footer)
+			container.AddItem(list, 0, 1, true)
+			container.AddItem(footer, 1, 0, false)
+			footer.SetText(" a add · d delete · Esc close ")
+			a.currentFocus = "analyzer_rules"
+			a.SetFocus(list)
+		}
+		input.SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEnter {
+				text := input.GetText()
+				restore()
+				go func() {
+					if err := svc.SaveRule(a.ctx, text); err != nil {
+						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Could not save rule: %v", err))
+						return
+					}
+					a.QueueUpdateDraw(reload)
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Rule saved — applies on next analysis")
+				}()
+				return
+			}
+			restore() // Esc / Tab
+		})
+
+		container.RemoveItem(list)
+		container.RemoveItem(footer)
+		container.AddItem(input, 1, 0, true)
+		container.AddItem(footer, 1, 0, false)
+		footer.SetText(" Enter save · Esc cancel ")
+		a.currentFocus = "analyzer_rules_add"
+		a.SetFocus(input)
+	}
+
 	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch {
 		case ev.Key() == tcell.KeyEscape:
-			closeModal()
+			closePicker()
 			return nil
 		case ev.Rune() == 'a':
-			closeModal()
-			a.showRememberRuleModal("")
+			showAddInput()
 			return nil
 		case ev.Rune() == 'd':
 			idx := list.GetCurrentItem()
@@ -152,13 +212,15 @@ func (a *App) openAnalyzerRulesManager() {
 		return ev
 	})
 
-	centered := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(box, 0, 4, true).
-			AddItem(nil, 0, 1, false), 0, 3, true).
-		AddItem(nil, 0, 1, false)
-	a.Pages.AddPage(analyzerRulesPage, centered, true, true)
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.setActivePicker(PickerAnalyzerRules)
+	a.currentFocus = "analyzer_rules"
 	a.SetFocus(list)
 }
