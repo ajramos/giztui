@@ -72,3 +72,6 @@ config.local.json
 # Github inspiration references
 reference/
 .claude/scheduled_tasks.lock
+
+# Local session handoff notes (/remember skill)
+.remember/
