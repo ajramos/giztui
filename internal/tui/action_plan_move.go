@@ -115,6 +115,27 @@ func applyActionPlanMove(plan *services.ActionPlan, metaByID map[string]*gmailap
 	plan.Categories = pruneEmptyCategories(plan.Categories)
 }
 
+// applyActionPlanBulkMove reassigns every message in the source group (a category by index,
+// or ReadManually when srcCatIdx == -1) to target, returning the number moved. It loops the
+// index-safe applyActionPlanMove over a pre-collected ID list, so mid-loop pruning/re-indexing
+// is harmless (targets resolve by name/action). It does NOT touch any excluded map: msgIDs are
+// unchanged, so the caller's state.excluded keys still apply to the moved emails.
+func applyActionPlanBulkMove(plan *services.ActionPlan, metaByID map[string]*gmailapi.Message, srcCatIdx int, target moveTarget) int {
+	var ids []string
+	switch {
+	case srcCatIdx == -1:
+		for _, m := range plan.ReadManually {
+			ids = append(ids, m.ID)
+		}
+	case srcCatIdx >= 0 && srcCatIdx < len(plan.Categories):
+		ids = append(ids, plan.Categories[srcCatIdx].MessageIDs...)
+	}
+	for _, id := range ids {
+		applyActionPlanMove(plan, metaByID, id, target)
+	}
+	return len(ids)
+}
+
 // actionPlanMoveTargets builds the destination list for the move picker: the standard
 // actions first, then the existing categories (excluding the source category by name).
 func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveTarget {

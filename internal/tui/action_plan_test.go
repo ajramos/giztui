@@ -289,3 +289,63 @@ func TestApplyActionPlanMove(t *testing.T) {
 		t.Fatalf("ReadManually should hold m3 and m2, got %+v", plan.ReadManually)
 	}
 }
+
+func TestApplyActionPlanBulkMove(t *testing.T) {
+	mk := func(name, action string, ids ...string) services.ActionPlanCategory {
+		return services.ActionPlanCategory{Name: name, Action: action, MessageIDs: ids}
+	}
+
+	// Category → another category: all IDs move, empty source pruned.
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		mk("Promos", "archive", "m1", "m2", "m3"),
+		mk("Notifs", "mark_read", "m4"),
+	}}
+	n := applyActionPlanBulkMove(plan, nil, 0, moveTarget{kind: "category", catName: "Notifs"})
+	if n != 3 {
+		t.Fatalf("want 3 moved, got %d", n)
+	}
+	if categoryIndexByName(plan, "Promos") != -1 {
+		t.Fatal("empty source Promos should be pruned")
+	}
+	if ni := categoryIndexByName(plan, "Notifs"); ni < 0 || len(plan.Categories[ni].MessageIDs) != 4 {
+		t.Fatalf("Notifs should hold 4, got %+v", plan.Categories)
+	}
+
+	// Category → action (trash), no existing trash group → new category gets all IDs.
+	plan = &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		mk("Promos", "archive", "a1", "a2"),
+	}}
+	n = applyActionPlanBulkMove(plan, nil, 0, moveTarget{kind: "action", action: "trash"})
+	if n != 2 {
+		t.Fatalf("want 2 moved, got %d", n)
+	}
+	idx := firstCategoryWithAction(plan, "trash")
+	if idx < 0 || len(plan.Categories[idx].MessageIDs) != 2 {
+		t.Fatalf("trash group should hold 2, got %+v", plan.Categories)
+	}
+
+	// Read manually (-1) → a category: all ReadManually IDs move, ReadManually emptied.
+	plan = &services.ActionPlan{
+		Categories:   []services.ActionPlanCategory{mk("Notifs", "mark_read", "k1")},
+		ReadManually: []services.AnalyzerMessage{{ID: "r1"}, {ID: "r2"}},
+	}
+	n = applyActionPlanBulkMove(plan, nil, -1, moveTarget{kind: "category", catName: "Notifs"})
+	if n != 2 {
+		t.Fatalf("want 2 moved from ReadManually, got %d", n)
+	}
+	if len(plan.ReadManually) != 0 {
+		t.Fatalf("ReadManually should be empty, got %+v", plan.ReadManually)
+	}
+	if ni := categoryIndexByName(plan, "Notifs"); ni < 0 || len(plan.Categories[ni].MessageIDs) != 3 {
+		t.Fatalf("Notifs should hold 3, got %+v", plan.Categories)
+	}
+
+	// Out-of-range source: no-op, returns 0.
+	plan = &services.ActionPlan{Categories: []services.ActionPlanCategory{mk("Notifs", "mark_read", "x1")}}
+	if got := applyActionPlanBulkMove(plan, nil, 9, moveTarget{kind: "action", action: "trash"}); got != 0 {
+		t.Fatalf("out-of-range source should move 0, got %d", got)
+	}
+	if len(plan.Categories) != 1 || len(plan.Categories[0].MessageIDs) != 1 {
+		t.Fatalf("plan should be unchanged, got %+v", plan.Categories)
+	}
+}
