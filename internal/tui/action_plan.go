@@ -273,12 +273,44 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 
 	batchSize := a.Config.InboxAnalyzer.BatchSize
 	maxBatches := a.Config.InboxAnalyzer.MaxBatches
+	bodyCharLimit := a.Config.InboxAnalyzer.BodyCharLimit
 
 	var userRules []string
 	if svc := a.GetAnalyzerRulesService(); svc != nil {
 		if rs, err := svc.ListRules(a.ctx); err == nil {
 			for _, r := range rs {
 				userRules = append(userRules, r.RuleText)
+			}
+		}
+	}
+
+	// Enrich the analyzer context with each email's plain-text body (opt-in). Cap to what is
+	// actually analyzed (BatchSize x MaxBatches) so we never fetch bodies for messages the
+	// analyzer would drop. Failures degrade gracefully to the snippet (Body left empty).
+	if a.Config.InboxAnalyzer.IncludeBody {
+		bs, mb := batchSize, maxBatches
+		if bs <= 0 {
+			bs = 50
+		}
+		if mb <= 0 {
+			mb = 10
+		}
+		if capN := bs * mb; len(messages) > capN {
+			messages = messages[:capN]
+		}
+		ids := make([]string, len(messages))
+		for i := range messages {
+			ids[i] = messages[i].ID
+		}
+		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		if emailService != nil {
+			go a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Fetching email bodies for %d messages…", len(ids)))
+			if bodies, err := emailService.GetMessagePlainTexts(a.ctx, ids, 0); err == nil {
+				for i := range messages {
+					if body := bodies[messages[i].ID]; body != "" {
+						messages[i].Body = body
+					}
+				}
 			}
 		}
 	}
@@ -297,7 +329,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
-			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules},
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit},
 			func(p *services.ActionPlan) {
 				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
 				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
