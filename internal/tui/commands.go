@@ -427,7 +427,6 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"au":             {"autorefresh"},
 		"aut":            {"autorefresh"},
 		"auto":           {"autorefresh"},
-		"autor":          {"autorefresh"},
 		"autoref":        {"autorefresh"},
 		"autorefresh":    {"autorefresh"},
 		"b":              {"archived"},
