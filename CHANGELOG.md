@@ -5,6 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-06-11
+
+### 🚀 Features
+
+- **Richer Action Plan analysis (email body, not just snippet)**: the inbox analyzer now includes each email's plain-text body — truncated, opt-in — in the LLM context in addition to subject/sender, substantially improving classification quality. Controlled by `inbox_analyzer.include_body` (default `true`) and `inbox_analyzer.body_char_limit` (default `1000`). Bodies are fetched concurrently only for the messages actually analyzed (capped at `batch_size × max_batches`), with progress feedback and graceful fallback to the snippet if a body can't be fetched. Set `include_body` to `false` for very large inboxes or slow local models.
+- **Bulk-move a whole category in the Action Plan (`m`)**: pressing `m` on a category header — or the "Read manually" group — now moves *all* of that group's emails to a chosen destination at once (another category or a standard action), preserving each email's excluded/checked flag. Pressing `m` on a single email still moves just that one.
+
 ## [1.6.1] - 2026-06-10
 
 ### 🐛 Fixes
