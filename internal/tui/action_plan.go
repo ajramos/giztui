@@ -685,13 +685,16 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		if state.analyzing.Load() {
 			return nil
 		}
-		// 'm' on an email node opens the move/recategorize picker.
-		if ev.Rune() == 'm' {
-			if cur != nil {
-				if ref, ok := cur.GetReference().(emailRef); ok {
-					a.showActionPlanMoveInline(state, ref.catIndex, ref.msgID)
-					return nil
-				}
+		// 'm' moves: on an email node, that one email; on a category or read-manually header,
+		// the whole group.
+		if ev.Rune() == 'm' && cur != nil {
+			switch ref := cur.GetReference().(type) {
+			case emailRef:
+				a.showActionPlanMoveInline(state, ref.catIndex, ref.msgID)
+				return nil
+			case int:
+				a.showActionPlanBulkMoveInline(state, ref)
+				return nil
 			}
 		}
 		switch key {
