@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"testing"
 
@@ -554,5 +555,25 @@ func TestEmailService_ComprehensiveValidation(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestPlainTextsByID(t *testing.T) {
+	mk := func(id, text string) *gmail_v1.Message {
+		return &gmail_v1.Message{
+			Id: id,
+			Payload: &gmail_v1.MessagePart{
+				Body: &gmail_v1.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte(text))},
+			},
+		}
+	}
+	msgs := []*gmail_v1.Message{mk("a", "body-a"), nil, mk("b", "body-b")}
+	got := plainTextsByID(msgs)
+
+	if got["a"] != "body-a" || got["b"] != "body-b" {
+		t.Fatalf("unexpected map: %#v", got)
+	}
+	if len(got) != 2 {
+		t.Fatalf("nil messages must be skipped, got %d entries: %#v", len(got), got)
 	}
 }

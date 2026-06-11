@@ -36,6 +36,7 @@ type EmailService interface {
 	BulkTrash(ctx context.Context, messageIDs []string) error
 	SaveMessageToFile(ctx context.Context, messageID, filePath string) error
 	MoveToSystemFolder(ctx context.Context, messageID, systemFolderID, folderName string) error
+	GetMessagePlainTexts(ctx context.Context, ids []string, maxWorkers int) (map[string]string, error)
 }
 
 // LabelService handles label operations
