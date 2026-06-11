@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -64,4 +65,42 @@ func (s *AutoRefreshServiceImpl) SetInterval(d time.Duration) {
 		d = s.minInterval
 	}
 	s.interval = d
+}
+
+// diffNewIDs returns the entries of fetched (in order) that are not present in knownIDs.
+func diffNewIDs(fetched, knownIDs []string) []string {
+	known := make(map[string]struct{}, len(knownIDs))
+	for _, id := range knownIDs {
+		known[id] = struct{}{}
+	}
+	var out []string
+	for _, id := range fetched {
+		if _, ok := known[id]; !ok {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// CheckForNewMessages lists the first inbox page and diffs against knownIDs.
+func (s *AutoRefreshServiceImpl) CheckForNewMessages(ctx context.Context, knownIDs []string) ([]string, error) {
+	if s.client == nil {
+		return nil, nil
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	msgs, _, err := s.client.ListMessagesPage(autoRefreshPageSize, "")
+	if err != nil {
+		return nil, err
+	}
+	fetched := make([]string, 0, len(msgs))
+	for _, m := range msgs {
+		if m != nil {
+			fetched = append(fetched, m.Id)
+		}
+	}
+	return diffNewIDs(fetched, knownIDs), nil
 }
