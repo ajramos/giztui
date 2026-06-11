@@ -115,6 +115,27 @@ func applyActionPlanMove(plan *services.ActionPlan, metaByID map[string]*gmailap
 	plan.Categories = pruneEmptyCategories(plan.Categories)
 }
 
+// applyActionPlanBulkMove reassigns every message in the source group (a category by index,
+// or ReadManually when srcCatIdx == -1) to target, returning the number moved. It loops the
+// index-safe applyActionPlanMove over a pre-collected ID list, so mid-loop pruning/re-indexing
+// is harmless (targets resolve by name/action). It does NOT touch any excluded map: msgIDs are
+// unchanged, so the caller's state.excluded keys still apply to the moved emails.
+func applyActionPlanBulkMove(plan *services.ActionPlan, metaByID map[string]*gmailapi.Message, srcCatIdx int, target moveTarget) int {
+	var ids []string
+	switch {
+	case srcCatIdx == -1:
+		for _, m := range plan.ReadManually {
+			ids = append(ids, m.ID)
+		}
+	case srcCatIdx >= 0 && srcCatIdx < len(plan.Categories):
+		ids = append(ids, plan.Categories[srcCatIdx].MessageIDs...)
+	}
+	for _, id := range ids {
+		applyActionPlanMove(plan, metaByID, id, target)
+	}
+	return len(ids)
+}
+
 // actionPlanMoveTargets builds the destination list for the move picker: the standard
 // actions first, then the existing categories (excluding the source category by name).
 func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveTarget {
@@ -137,18 +158,14 @@ func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveT
 	return targets
 }
 
-// showActionPlanMoveInline swaps the panel's tree for a destination chooser inside the
-// SAME container (body-swap), so recategorizing reads as deeper navigation rather than a
-// floating modal — and stays inside the panel's focus, avoiding the global-capture key
-// swallow. srcCatIdx is the email's current category (-1 for read-manually). Enter moves
-// (reassignment only; the action runs at dispatch); Esc returns to the tree.
-func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, msgID string) {
+// showActionPlanMoveChooser swaps the panel's tree for a destination chooser inside the SAME
+// container (body-swap), so recategorizing reads as deeper navigation rather than a floating
+// modal — and stays inside the panel's focus, avoiding the global-capture key swallow (see the
+// currentFocus="action_plan_move" pass-through in keys.go). Shared by single-email and whole-
+// group move: srcCatName is excluded from the destination list, title is shown while choosing,
+// and onChosen runs the actual reassignment + feedback. Esc returns to the tree.
+func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, title string, onChosen func(target moveTarget)) {
 	colors := a.GetComponentColors("ai")
-
-	srcCatName := ""
-	if srcCatIdx >= 0 && srcCatIdx < len(state.plan.Categories) {
-		srcCatName = state.plan.Categories[srcCatIdx].Name
-	}
 	targets := actionPlanMoveTargets(state.plan, srcCatName)
 
 	list := tview.NewList().ShowSecondaryText(false)
@@ -156,17 +173,6 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 	list.SetMainTextColor(colors.Text.Color())
 	for _, tg := range targets {
 		list.AddItem(tg.label, "", 0, nil)
-	}
-
-	subj := "message"
-	if m := state.metaByID[msgID]; m != nil {
-		if s := extractHeaderValue(m, "Subject"); s != "" {
-			subj = s
-		}
-	}
-	if utf8.RuneCountInString(subj) > 40 {
-		r := []rune(subj)
-		subj = string(r[:40]) + "…"
 	}
 
 	restore := func() {
@@ -184,19 +190,13 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 			restore()
 			return
 		}
-		target := targets[idx]
 		if state.plan == nil || a.actionPlanState != state {
 			restore()
 			return
 		}
-		applyActionPlanMove(state.plan, state.metaByID, msgID, target)
-		delete(state.excluded, msgID) // a deliberately-placed message starts checked
-		state.selectedMsgID = ""      // land the cursor on a category header after the move
+		onChosen(targets[idx])
+		state.selectedMsgID = "" // land the cursor on a category header after the move
 		restore()
-		// ErrorHandler.ShowSuccess wraps QueueUpdateDraw; calling it synchronously here (on
-		// the UI goroutine) would deadlock — dispatch it off-thread (links.go pattern).
-		go a.GetErrorHandler().ShowSuccess(a.ctx,
-			fmt.Sprintf("Moved to %s — applies when you dispatch that group", target.label))
 	})
 	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		if ev.Key() == tcell.KeyEscape {
@@ -210,8 +210,67 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 	state.container.RemoveItem(state.footer)
 	state.container.AddItem(list, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
-	state.container.SetTitle(fmt.Sprintf(" ➫ Move %q to ", subj))
+	state.container.SetTitle(title)
 	state.footer.SetText(" Enter to move  |  Esc to go back ")
 	a.currentFocus = "action_plan_move"
 	a.SetFocus(list)
+}
+
+// showActionPlanMoveInline opens the destination chooser for a SINGLE email. srcCatIdx is the
+// email's current category (-1 for read-manually). Enter reassigns (the action runs at dispatch).
+func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, msgID string) {
+	srcCatName := ""
+	if srcCatIdx >= 0 && srcCatIdx < len(state.plan.Categories) {
+		srcCatName = state.plan.Categories[srcCatIdx].Name
+	}
+
+	subj := "message"
+	if m := state.metaByID[msgID]; m != nil {
+		if s := extractHeaderValue(m, "Subject"); s != "" {
+			subj = s
+		}
+	}
+	if utf8.RuneCountInString(subj) > 40 {
+		r := []rune(subj)
+		subj = string(r[:40]) + "…"
+	}
+
+	a.showActionPlanMoveChooser(state, srcCatName, fmt.Sprintf(" ➫ Move %q to ", subj), func(target moveTarget) {
+		applyActionPlanMove(state.plan, state.metaByID, msgID, target)
+		delete(state.excluded, msgID) // a deliberately-placed message starts checked
+		// ErrorHandler.ShowSuccess wraps QueueUpdateDraw; calling it synchronously here (on
+		// the UI goroutine) would deadlock — dispatch it off-thread (links.go pattern).
+		go a.GetErrorHandler().ShowSuccess(a.ctx,
+			fmt.Sprintf("Moved to %s — applies when you dispatch that group", target.label))
+	})
+}
+
+// showActionPlanBulkMoveInline opens the destination chooser for a WHOLE group: a category by
+// index, or the read-manually pile when srcCatIdx == -1. Excluded flags are preserved across the
+// move (applyActionPlanBulkMove leaves state.excluded untouched). Empty groups are a no-op.
+func (a *App) showActionPlanBulkMoveInline(state *actionPlanState, srcCatIdx int) {
+	srcName, count := "Read manually", 0
+	if srcCatIdx == -1 {
+		count = len(state.plan.ReadManually)
+	} else if srcCatIdx >= 0 && srcCatIdx < len(state.plan.Categories) {
+		srcName = state.plan.Categories[srcCatIdx].Name
+		count = len(state.plan.Categories[srcCatIdx].MessageIDs)
+	}
+	if count == 0 {
+		go a.GetErrorHandler().ShowWarning(a.ctx, "This group is empty — nothing to move")
+		return
+	}
+
+	// Exclude a real category from its own destination list; read-manually (-1) excludes nothing.
+	srcCatName := ""
+	if srcCatIdx >= 0 {
+		srcCatName = srcName
+	}
+
+	a.showActionPlanMoveChooser(state, srcCatName, fmt.Sprintf(" ➫ Move %q (%d) to ", srcName, count), func(target moveTarget) {
+		n := applyActionPlanBulkMove(state.plan, state.metaByID, srcCatIdx, target)
+		// Excluded flags are intentionally preserved (msgIDs unchanged).
+		go a.GetErrorHandler().ShowSuccess(a.ctx,
+			fmt.Sprintf("Moved %d emails to %s — applies when you dispatch that group", n, target.label))
+	})
 }
