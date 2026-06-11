@@ -277,3 +277,22 @@ func TestPrependUserRules(t *testing.T) {
 		t.Fatal("nil rules must return the base prompt unchanged")
 	}
 }
+
+func TestTruncateForAnalyzer(t *testing.T) {
+	// Collapses runs of whitespace/newlines to single spaces.
+	if got := truncateForAnalyzer("a\n\n  b\tc", 100); got != "a b c" {
+		t.Fatalf("whitespace collapse: got %q", got)
+	}
+	// Cuts to limit on a rune boundary (no panic, no partial multi-byte rune).
+	if got := truncateForAnalyzer("áéíóú", 3); got != "áéí" {
+		t.Fatalf("rune-boundary cut: got %q", got)
+	}
+	// limit <= 0 returns collapsed-but-untrimmed text.
+	if got := truncateForAnalyzer("a  b", 0); got != "a b" {
+		t.Fatalf("limit<=0: got %q", got)
+	}
+	// Empty/whitespace-only input.
+	if got := truncateForAnalyzer("   ", 10); got != "" {
+		t.Fatalf("empty/whitespace-only: got %q", got)
+	}
+}

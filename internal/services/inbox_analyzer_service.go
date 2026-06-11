@@ -224,6 +224,20 @@ func buildBatchPayload(batch []AnalyzerMessage) string {
 	return b.String()
 }
 
+// truncateForAnalyzer collapses runs of whitespace (incl. newlines) to single spaces, trims
+// the ends, and cuts to at most limit runes on a rune boundary. limit <= 0 skips the cut.
+func truncateForAnalyzer(text string, limit int) string {
+	collapsed := strings.TrimSpace(strings.Join(strings.Fields(text), " "))
+	if limit <= 0 {
+		return collapsed
+	}
+	r := []rune(collapsed)
+	if len(r) <= limit {
+		return collapsed
+	}
+	return string(r[:limit])
+}
+
 // buildBatchPrompt injects the batch payload into the chosen prompt template.
 func buildBatchPrompt(promptText, payload string) string {
 	if strings.Contains(promptText, "{{messages}}") {
