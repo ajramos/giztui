@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/services"
 	tcell "github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -353,5 +355,58 @@ func TestApplyActionPlanBulkMove(t *testing.T) {
 	}
 	if len(plan.Categories) != 1 || len(plan.Categories[0].MessageIDs) != 1 {
 		t.Fatalf("plan should be unchanged, got %+v", plan.Categories)
+	}
+}
+
+type stubAnalyzerSvc struct{}
+
+func (stubAnalyzerSvc) Analyze(ctx context.Context, messages []services.AnalyzerMessage, opts services.InboxAnalyzerOptions, onProgress func(*services.ActionPlan)) (*services.ActionPlan, error) {
+	return nil, nil
+}
+func (stubAnalyzerSvc) BuildPromptPreview(opts services.InboxAnalyzerOptions) string {
+	return "PREVIEW-BODY {{messages}}"
+}
+
+func TestActionPlanPromptViewSwap(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	a.Config = config.DefaultConfig()
+	a.inboxAnalyzerService = stubAnalyzerSvc{}
+	state := &actionPlanState{
+		customPromptText: "",
+		excluded:         map[string]bool{},
+		expanded:         map[int]bool{},
+		footer:           tview.NewTextView(),
+		plan:             &services.ActionPlan{},
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	a.actionPlanState = state
+
+	a.showActionPlanPromptView(state)
+	if a.currentFocus != "action_plan_prompt" {
+		t.Fatalf("expected currentFocus=action_plan_prompt, got %q", a.currentFocus)
+	}
+	if state.container.ItemAt(0) == state.tree {
+		t.Fatal("tree should be swapped out while the prompt view is shown")
+	}
+	view, ok := a.GetFocus().(*tview.TextView)
+	if !ok {
+		t.Fatalf("expected the prompt TextView focused, got %T", a.GetFocus())
+	}
+	if !strings.Contains(view.GetText(true), "PREVIEW-BODY") {
+		t.Fatalf("view should show the assembled prompt, got %q", view.GetText(true))
+	}
+
+	if cap := view.GetInputCapture(); cap != nil {
+		cap(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
+	}
+	if a.currentFocus != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	}
+	if a.actionPlanState.container.ItemAt(0) != state.tree {
+		t.Fatal("after Esc, the tree should be restored as the container body")
 	}
 }

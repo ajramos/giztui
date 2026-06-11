@@ -723,6 +723,11 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				return nil
 			}
 		}
+		// 'v' opens the effective-prompt viewer (blocked during analysis, like quick-actions).
+		if ev.Rune() == 'v' {
+			a.showActionPlanPromptView(state)
+			return nil
+		}
 		switch key {
 		case a.Keys.Archive:
 			a.executeActionPlanAction(state, "archive")
