@@ -244,3 +244,33 @@ func (a *App) showActionPlanMoveInline(state *actionPlanState, srcCatIdx int, ms
 			fmt.Sprintf("Moved to %s — applies when you dispatch that group", target.label))
 	})
 }
+
+// showActionPlanBulkMoveInline opens the destination chooser for a WHOLE group: a category by
+// index, or the read-manually pile when srcCatIdx == -1. Excluded flags are preserved across the
+// move (applyActionPlanBulkMove leaves state.excluded untouched). Empty groups are a no-op.
+func (a *App) showActionPlanBulkMoveInline(state *actionPlanState, srcCatIdx int) {
+	srcName, count := "Read manually", 0
+	if srcCatIdx == -1 {
+		count = len(state.plan.ReadManually)
+	} else if srcCatIdx >= 0 && srcCatIdx < len(state.plan.Categories) {
+		srcName = state.plan.Categories[srcCatIdx].Name
+		count = len(state.plan.Categories[srcCatIdx].MessageIDs)
+	}
+	if count == 0 {
+		go a.GetErrorHandler().ShowWarning(a.ctx, "This group is empty — nothing to move")
+		return
+	}
+
+	// Exclude a real category from its own destination list; read-manually (-1) excludes nothing.
+	srcCatName := ""
+	if srcCatIdx >= 0 {
+		srcCatName = srcName
+	}
+
+	a.showActionPlanMoveChooser(state, srcCatName, fmt.Sprintf(" ➫ Move %q (%d) to ", srcName, count), func(target moveTarget) {
+		n := applyActionPlanBulkMove(state.plan, state.metaByID, srcCatIdx, target)
+		// Excluded flags are intentionally preserved (msgIDs unchanged).
+		go a.GetErrorHandler().ShowSuccess(a.ctx,
+			fmt.Sprintf("Moved %d emails to %s — applies when you dispatch that group", n, target.label))
+	})
+}
