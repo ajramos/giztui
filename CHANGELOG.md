@@ -5,6 +5,17 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-12
+
+### 🚀 Features
+
+- **Opt-in inbox auto-refresh**: a configurable background poll detects new inbox mail. While you are on the plain inbox with nothing open (no picker, search, bulk selection, or composer), new mail is **prepended in place** without disturbing your cursor or view; otherwise a `📬 N` pending counter appears in the status bar (load it with `R`). The status bar shows `⟳` while enabled. Configure via `auto_refresh.enabled` / `auto_refresh.interval` (default off / `5m`, 1-minute minimum); toggle at runtime with `:autorefresh` / `:arr`, set the interval with `:arr 2m`, or bind an optional key via `keys.auto_refresh`. Only the plain inbox is polled (search/folder/thread views idle the ticker).
+- **Effective analyzer-prompt viewer (`v`)**: press `v` in the Action Plan to see the exact prompt the analyzer assembles — your saved-rules block plus the base prompt (default or the one opened with `:plan with-prompt`), with `{{messages}}` shown literally and a note on how it is filled per batch. Read-only, in-place; Esc returns to the tree.
+
+### 🐛 Fixes
+
+- **Analyzer rules UI no longer hangs**: the `:plan rules` manager was a floating modal that could not be closed (you had to kill the app). It is now an in-place side-panel picker — `a` adds a rule via an embedded input, `d` deletes, Esc closes — matching the other pickers. The `Ctrl+R` quick-remember input in the Action Plan is likewise now an in-place input instead of a floating modal.
+
 ## [1.7.0] - 2026-06-11
 
 ### 🚀 Features
