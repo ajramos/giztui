@@ -70,11 +70,11 @@ func TestMigrateConfigFile(t *testing.T) {
 	if backup == "" {
 		t.Fatal("expected a backup path")
 	}
-	if b, _ := os.ReadFile(backup); string(b) != original {
+	if b, _ := os.ReadFile(filepath.Clean(backup)); string(b) != original {
 		t.Fatal("backup should contain the original file bytes")
 	}
 	merged := map[string]any{}
-	b, _ := os.ReadFile(path)
+	b, _ := os.ReadFile(filepath.Clean(path))
 	if err := json.Unmarshal(b, &merged); err != nil {
 		t.Fatalf("merged file invalid: %v", err)
 	}

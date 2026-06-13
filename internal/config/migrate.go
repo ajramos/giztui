@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -48,7 +49,7 @@ func defaultConfigMap() (map[string]any, error) {
 // readConfigMap reads a config file as a generic map (preserving _comment keys). A missing or
 // empty file yields an empty map; invalid JSON is an error.
 func readConfigMap(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]any{}, nil
@@ -83,6 +84,7 @@ func MissingDefaultKeys(path string) ([]string, error) {
 // Returns the added dotted paths and the backup path. No-op (nil, "", nil) when nothing is missing.
 // Output is json.MarshalIndent (2-space), keys alphabetically sorted.
 func MigrateConfigFile(path string) ([]string, string, error) {
+	path = filepath.Clean(path)
 	defaults, err := defaultConfigMap()
 	if err != nil {
 		return nil, "", err
@@ -100,8 +102,9 @@ func MigrateConfigFile(path string) ([]string, string, error) {
 		return nil, "", err
 	}
 	backupPath := ""
-	if orig, rerr := os.ReadFile(path); rerr == nil {
+	if orig, rerr := os.ReadFile(path); rerr == nil { // #nosec G304 -- path is filepath.Clean'd above
 		backupPath = path + ".bak"
+		// #nosec G703 -- backupPath is the cleaned config path with a fixed .bak suffix
 		if werr := os.WriteFile(backupPath, orig, 0600); werr != nil {
 			return nil, "", fmt.Errorf("could not write backup %s: %w", backupPath, werr)
 		}
