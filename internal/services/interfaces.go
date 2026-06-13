@@ -47,7 +47,7 @@ type LabelService interface {
 	DeleteLabel(ctx context.Context, labelID string) error
 	ApplyLabel(ctx context.Context, messageID, labelID string) error
 	RemoveLabel(ctx context.Context, messageID, labelID string) error
-	BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error
+	BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string, onProgress ...func(done, total int)) error
 	BulkRemoveLabel(ctx context.Context, messageIDs []string, labelID string) error
 	GetMessageLabels(ctx context.Context, messageID string) ([]string, error)
 }
