@@ -75,3 +75,6 @@ reference/
 
 # Local session handoff notes (/remember skill)
 .remember/
+
+# graphify knowledge graph (regenerated via /graphify or `graphify update`)
+graphify-out/
