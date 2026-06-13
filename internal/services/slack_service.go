@@ -396,6 +396,32 @@ func (s *SlackServiceImpl) truncateText(text string, maxLength int) string {
 	return truncated + "..."
 }
 
+// defaultSlackWebhook returns the webhook of the default channel (the one with Default==true,
+// else the first configured channel). Errors when no channel is configured.
+func defaultSlackWebhook(cfg *config.Config) (string, error) {
+	if cfg == nil || len(cfg.Slack.Channels) == 0 {
+		return "", fmt.Errorf("no Slack channel configured")
+	}
+	for _, ch := range cfg.Slack.Channels {
+		if ch.Default && strings.TrimSpace(ch.WebhookURL) != "" {
+			return ch.WebhookURL, nil
+		}
+	}
+	if wh := strings.TrimSpace(cfg.Slack.Channels[0].WebhookURL); wh != "" {
+		return wh, nil
+	}
+	return "", fmt.Errorf("no Slack webhook configured")
+}
+
+// SendNotification posts a plain-text message to the default Slack channel.
+func (s *SlackServiceImpl) SendNotification(ctx context.Context, text string) error {
+	webhook, err := defaultSlackWebhook(s.config)
+	if err != nil {
+		return err
+	}
+	return s.sendToSlack(ctx, SlackMessage{Text: text}, webhook)
+}
+
 // sendToSlack sends a message to Slack via webhook
 func (s *SlackServiceImpl) sendToSlack(ctx context.Context, message SlackMessage, webhookURL string) error {
 	jsonData, err := json.Marshal(message)
