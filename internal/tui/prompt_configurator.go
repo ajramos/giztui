@@ -91,29 +91,32 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 		SetTitleColor(colors.Title.Color())
 
 	state.promptArea.SetKeyHandler(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
+		switch {
+		// Regenerate (configurable; default "ctrl+r")
+		case a.Keys.PromptRegenerate != "" && a.matchesKeyCombo(event, a.Keys.PromptRegenerate):
 			// Regenerate using whatever intent the user last typed.
 			intent := state.intentInput.GetText()
 			if intent != "" {
 				go a.generateConfiguratorPrompt(intent)
 			}
 			return nil
-		case tcell.KeyCtrlS:
+		// Save (configurable; default "ctrl+s")
+		case a.Keys.SavePrompt != "" && a.matchesKeyCombo(event, a.Keys.SavePrompt):
 			a.savePromptFromConfigurator()
 			return nil
-		case tcell.KeyCtrlG:
+		// Apply (configurable; default "ctrl+g")
+		case a.Keys.PromptApply != "" && a.matchesKeyCombo(event, a.Keys.PromptApply):
 			// Runs on the UI thread: it closes the panel (a UI mutation) before
 			// spawning the LLM goroutine. Do NOT wrap in `go`.
 			a.applyConfiguratorPrompt()
 			return nil
-		case tcell.KeyEscape:
+		case event.Key() == tcell.KeyEscape:
 			a.closePromptConfigurator()
 			return nil
-		case tcell.KeyTab:
+		case event.Key() == tcell.KeyTab:
 			a.SetFocus(state.refineInput)
 			return nil
-		case tcell.KeyBacktab:
+		case event.Key() == tcell.KeyBacktab:
 			a.SetFocus(state.intentInput)
 			return nil
 		}

@@ -5,6 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-06-13
+
+### 🐛 Fixes — configurable key bindings now actually honor the config
+
+- **Ctrl-combo bindings for `speak` / `auto_refresh` now fire**: both keys were read from the config but only matched as a plain single character, so a `ctrl+...` binding (e.g. `keys.speak: "ctrl+e"`) was silently accepted yet never triggered. They now route through the Ctrl-combo matcher.
+- **Navigation/prompt shortcuts respect reconfiguration**: `fast_up`/`fast_down`/`word_left`/`word_right`, `content_search`/`search_next`/`search_prev`, `next_thread`/`prev_thread`, and the prompt-configurator keys (`prompt_regenerate`/`save_prompt`/`prompt_apply`) were hardwired to their default keys and ignored any custom binding. They now match against the configured value (case-sensitive for plain single-character keys).
+
 ## [1.11.0] - 2026-06-13
 
 ### 🚀 Features

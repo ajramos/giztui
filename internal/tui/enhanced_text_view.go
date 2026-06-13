@@ -96,38 +96,39 @@ func (e *EnhancedTextView) setupInputCapture() {
 
 		// Handle different key combinations
 		switch {
-		// Content search: /
-		case char == '/' && e.app.Keys.ContentSearch == "/":
+		// Content search (configurable; default "/"). Plain single-char keys are
+		// case-sensitive, so compare the rune directly (matchesKeyCombo lowercases).
+		case e.app.Keys.ContentSearch != "" && string(char) == e.app.Keys.ContentSearch:
 			e.startContentSearchCommand()
 			return nil
 
-		// Search next: n
-		case char == 'n' && e.app.Keys.SearchNext == "n":
+		// Search next (configurable; default "n")
+		case e.app.Keys.SearchNext != "" && string(char) == e.app.Keys.SearchNext:
 			e.searchNext()
 			return nil
 
-		// Search previous: N
-		case char == 'N' && e.app.Keys.SearchPrev == "N":
+		// Search previous (configurable; default "N")
+		case e.app.Keys.SearchPrev != "" && string(char) == e.app.Keys.SearchPrev:
 			e.searchPrevious()
 			return nil
 
-		// Fast navigation up: Ctrl+K
-		case key == tcell.KeyCtrlK && e.app.Keys.FastUp == "ctrl+k":
+		// Fast navigation up (configurable; default "ctrl+k")
+		case e.app.Keys.FastUp != "" && e.app.matchesKeyCombo(event, e.app.Keys.FastUp):
 			e.fastNavigateUp()
 			return nil
 
-		// Fast navigation down: Ctrl+J
-		case key == tcell.KeyCtrlJ && e.app.Keys.FastDown == "ctrl+j":
+		// Fast navigation down (configurable; default "ctrl+j")
+		case e.app.Keys.FastDown != "" && e.app.matchesKeyCombo(event, e.app.Keys.FastDown):
 			e.fastNavigateDown()
 			return nil
 
-		// Word navigation left: Ctrl+H
-		case key == tcell.KeyCtrlH && e.app.Keys.WordLeft == "ctrl+h":
+		// Word navigation left (configurable; default "ctrl+h")
+		case e.app.Keys.WordLeft != "" && e.app.matchesKeyCombo(event, e.app.Keys.WordLeft):
 			e.wordNavigateLeft()
 			return nil
 
-		// Word navigation right: Ctrl+L
-		case key == tcell.KeyCtrlL && e.app.Keys.WordRight == "ctrl+l":
+		// Word navigation right (configurable; default "ctrl+l")
+		case e.app.Keys.WordRight != "" && e.app.matchesKeyCombo(event, e.app.Keys.WordRight):
 			e.wordNavigateRight()
 			return nil
 

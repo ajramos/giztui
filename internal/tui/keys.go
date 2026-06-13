@@ -709,6 +709,26 @@ func (a *App) bindKeys() {
 			}
 		}
 
+		// Speak / auto-refresh may be bound to a Ctrl combo (e.g. "ctrl+e"). Those events
+		// carry rune 0, so they never reach the plain-rune switch in handleConfigurableKey;
+		// match them here via matchesKeyCombo, mirroring the accounts pattern above.
+		// Scope to Ctrl-prefixed bindings only: plain-letter bindings keep their existing
+		// path (handleConfigurableKey, after vim sequences) so precedence is unchanged.
+		if strings.HasPrefix(a.Keys.Speak, "ctrl+") && a.matchesKeyCombo(event, a.Keys.Speak) {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> speak", a.Keys.Speak)
+			}
+			a.toggleSpeak()
+			return nil
+		}
+		if strings.HasPrefix(a.Keys.AutoRefresh, "ctrl+") && a.matchesKeyCombo(event, a.Keys.AutoRefresh) {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> autorefresh", a.Keys.AutoRefresh)
+			}
+			a.toggleAutoRefresh()
+			return nil
+		}
+
 		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
 		// This allows f3f to work even when f is configured for toggle_read
 		// BUT skip vim sequence handling for control key combinations
@@ -1330,10 +1350,10 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// Handle Ctrl+N for next thread
-		if (event.Key() == tcell.KeyCtrlN) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'n') {
+		// Handle next-thread navigation (configurable; default "ctrl+n")
+		if a.Keys.NextThread != "" && a.matchesKeyCombo(event, a.Keys.NextThread) {
 			if a.logger != nil {
-				a.logger.Printf("Special key: Ctrl+N -> next_thread")
+				a.logger.Printf("Configurable shortcut: '%s' -> next_thread", a.Keys.NextThread)
 			}
 			// TODO: [THREAD] Implement next thread navigation in conversation view
 			go func() {
@@ -1342,10 +1362,10 @@ func (a *App) bindKeys() {
 			return nil
 		}
 
-		// Handle Ctrl+P for previous thread
-		if (event.Key() == tcell.KeyCtrlP) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'p') {
+		// Handle previous-thread navigation (configurable; default "ctrl+p")
+		if a.Keys.PrevThread != "" && a.matchesKeyCombo(event, a.Keys.PrevThread) {
 			if a.logger != nil {
-				a.logger.Printf("Special key: Ctrl+P -> prev_thread")
+				a.logger.Printf("Configurable shortcut: '%s' -> prev_thread", a.Keys.PrevThread)
 			}
 			// TODO: [THREAD] Implement previous thread navigation in conversation view
 			go func() {
