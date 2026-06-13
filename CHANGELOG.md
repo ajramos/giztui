@@ -5,6 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-06-13
+
+### 🚀 Features
+
+- **Text-to-speech (read aloud)**: an opt-in, context-aware key reads the focused panel — the message reader, an AI summary, or an Action Plan digest — aloud using a local neural TTS engine ([Piper](https://github.com/rhasspy/piper)); press it again to stop. Configure `tts.piper_path` / `tts.model_path` and bind `keys.speak`. Full setup guide in **[docs/TTS.md](docs/TTS.md)**.
+- **Auto-refresh → Slack notification**: with `auto_refresh.notify_slack` enabled, auto-refresh also posts a Slack message (count + subject/sender) to your default Slack channel when new mail arrives.
+
 ## [1.10.0] - 2026-06-13
 
 ### 🚀 Features — smarter Action Plan analyzer
