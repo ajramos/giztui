@@ -577,3 +577,21 @@ func TestPlainTextsByID(t *testing.T) {
 		t.Fatalf("nil messages must be skipped, got %d entries: %#v", len(got), got)
 	}
 }
+
+func TestBulkArchiveProgress(t *testing.T) {
+	repo := &MockEmailRepository{}
+	repo.On("UpdateMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	svc := NewEmailService(repo, &gmail.Client{}, &render.EmailRenderer{})
+
+	var calls [][2]int
+	err := svc.BulkArchive(context.Background(), []string{"a", "b", "c"}, func(done, total int) {
+		calls = append(calls, [2]int{done, total})
+	})
+	assert.NoError(t, err)
+	if len(calls) != 3 {
+		t.Fatalf("expected 3 progress calls, got %d: %v", len(calls), calls)
+	}
+	if calls[2] != [2]int{3, 3} {
+		t.Fatalf("final progress should be {3,3}, got %v", calls[2])
+	}
+}
