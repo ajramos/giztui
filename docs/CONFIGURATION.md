@@ -1059,6 +1059,7 @@ Opt-in background polling that detects new inbox mail. While you are viewing the
 |-----------|------|-------------|---------|
 | `enabled` | boolean | Start auto-refresh on launch. | `false` |
 | `interval` | string | Poll interval as a Go duration (e.g. `"2m"`, `"30s"`). Clamped to a 1-minute minimum; invalid values fall back to 5m. | `"5m"` |
+| `notify_slack` | boolean | Also post a Slack notification (count + subject/sender) to your default Slack channel when new mail is detected. Requires Slack configured (`slack.enabled` + a channel). | `false` |
 
 Toggle at runtime with `:autorefresh` / `:arr`. Passing a duration (`:arr 2m`) enables auto-refresh and sets the interval in one step. Bind an optional key via `keys.auto_refresh` (unbound by default).
 
