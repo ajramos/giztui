@@ -25,15 +25,15 @@ type MessageRepository interface {
 type EmailService interface {
 	MarkAsRead(ctx context.Context, messageID string) error
 	MarkAsUnread(ctx context.Context, messageID string) error
-	BulkMarkAsRead(ctx context.Context, messageIDs []string) error
-	BulkMarkAsUnread(ctx context.Context, messageIDs []string) error
+	BulkMarkAsRead(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error
+	BulkMarkAsUnread(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error
 	ArchiveMessage(ctx context.Context, messageID string) error
 	ArchiveMessageAsMove(ctx context.Context, messageID, labelID, labelName string) error
 	TrashMessage(ctx context.Context, messageID string) error
 	SendMessage(ctx context.Context, from, to, subject, body string, cc, bcc []string) error
 	ReplyToMessage(ctx context.Context, originalID, replyBody string, send bool, cc []string) error
-	BulkArchive(ctx context.Context, messageIDs []string) error
-	BulkTrash(ctx context.Context, messageIDs []string) error
+	BulkArchive(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error
+	BulkTrash(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error
 	SaveMessageToFile(ctx context.Context, messageID, filePath string) error
 	MoveToSystemFolder(ctx context.Context, messageID, systemFolderID, folderName string) error
 	GetMessagePlainTexts(ctx context.Context, ids []string, maxWorkers int) (map[string]string, error)
@@ -47,7 +47,7 @@ type LabelService interface {
 	DeleteLabel(ctx context.Context, labelID string) error
 	ApplyLabel(ctx context.Context, messageID, labelID string) error
 	RemoveLabel(ctx context.Context, messageID, labelID string) error
-	BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error
+	BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string, onProgress ...func(done, total int)) error
 	BulkRemoveLabel(ctx context.Context, messageIDs []string, labelID string) error
 	GetMessageLabels(ctx context.Context, messageID string) ([]string, error)
 }

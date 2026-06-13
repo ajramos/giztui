@@ -780,11 +780,11 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 		var err error
 		switch action {
 		case "archive":
-			err = emailService.BulkArchive(a.ctx, ids)
+			err = emailService.BulkArchive(a.ctx, ids, a.bulkProgress(a.ctx, "Archiving"))
 		case "mark_read":
-			err = emailService.BulkMarkAsRead(a.ctx, ids)
+			err = emailService.BulkMarkAsRead(a.ctx, ids, a.bulkProgress(a.ctx, "Marking read"))
 		case "trash":
-			err = emailService.BulkTrash(a.ctx, ids)
+			err = emailService.BulkTrash(a.ctx, ids, a.bulkProgress(a.ctx, "Trashing"))
 		case "label":
 			if label == "" {
 				a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
@@ -794,6 +794,7 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 		default:
 			return
 		}
+		a.GetErrorHandler().ClearPersistentMessage()
 		if err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Action failed on %q: %v", catName, err))
 			return
@@ -814,7 +815,7 @@ func (a *App) applyActionPlanLabel(labelService services.LabelService, ids []str
 	if err != nil {
 		return err
 	}
-	return labelService.BulkApplyLabel(a.ctx, ids, labelID)
+	return labelService.BulkApplyLabel(a.ctx, ids, labelID, a.bulkProgress(a.ctx, "Applying label"))
 }
 
 // resolveOrCreateLabelID finds a label by name (case-insensitive) or creates it.

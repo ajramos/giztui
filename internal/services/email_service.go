@@ -166,7 +166,15 @@ func (s *EmailServiceImpl) MarkAsUnread(ctx context.Context, messageID string) e
 }
 
 // BulkMarkAsRead marks multiple messages as read
-func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []string) error {
+// reportProgress invokes the first non-nil progress callback (if any) with (done, total).
+// Lets the bulk ops report per-item progress without forcing every caller to pass a callback.
+func reportProgress(onProgress []func(done, total int), done, total int) {
+	if len(onProgress) > 0 && onProgress[0] != nil {
+		onProgress[0](done, total)
+	}
+}
+
+func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error {
 	if len(messageIDs) == 0 {
 		return fmt.Errorf("no message IDs provided")
 	}
@@ -202,13 +210,14 @@ func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []stri
 
 	// Perform the actual operations using repository directly (to avoid double undo recording)
 	var errs []string
-	for _, id := range messageIDs {
+	for i, id := range messageIDs {
 		updates := MessageUpdates{
 			RemoveLabels: []string{"UNREAD"},
 		}
 		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to mark as read %s: %v", id, err))
 		}
+		reportProgress(onProgress, i+1, len(messageIDs))
 	}
 
 	if len(errs) > 0 {
@@ -219,7 +228,7 @@ func (s *EmailServiceImpl) BulkMarkAsRead(ctx context.Context, messageIDs []stri
 }
 
 // BulkMarkAsUnread marks multiple messages as unread
-func (s *EmailServiceImpl) BulkMarkAsUnread(ctx context.Context, messageIDs []string) error {
+func (s *EmailServiceImpl) BulkMarkAsUnread(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error {
 	if len(messageIDs) == 0 {
 		return fmt.Errorf("no message IDs provided")
 	}
@@ -255,13 +264,14 @@ func (s *EmailServiceImpl) BulkMarkAsUnread(ctx context.Context, messageIDs []st
 
 	// Perform the actual operations using repository directly (to avoid double undo recording)
 	var errs []string
-	for _, id := range messageIDs {
+	for i, id := range messageIDs {
 		updates := MessageUpdates{
 			AddLabels: []string{"UNREAD"},
 		}
 		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to mark as unread %s: %v", id, err))
 		}
+		reportProgress(onProgress, i+1, len(messageIDs))
 	}
 
 	if len(errs) > 0 {
@@ -353,7 +363,7 @@ func (s *EmailServiceImpl) ReplyToMessage(ctx context.Context, originalID, reply
 	return err
 }
 
-func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string) error {
+func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error {
 	if len(messageIDs) == 0 {
 		return fmt.Errorf("no message IDs provided")
 	}
@@ -389,13 +399,14 @@ func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string)
 
 	// Perform the actual archiving using repository directly (to avoid double undo recording)
 	var errs []string
-	for _, id := range messageIDs {
+	for i, id := range messageIDs {
 		updates := MessageUpdates{
 			RemoveLabels: []string{"INBOX"},
 		}
 		if err := s.repo.UpdateMessage(ctx, id, updates); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to archive %s: %v", id, err))
 		}
+		reportProgress(onProgress, i+1, len(messageIDs))
 	}
 
 	if len(errs) > 0 {
@@ -405,7 +416,7 @@ func (s *EmailServiceImpl) BulkArchive(ctx context.Context, messageIDs []string)
 	return nil
 }
 
-func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string) error {
+func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string, onProgress ...func(done, total int)) error {
 	if len(messageIDs) == 0 {
 		return fmt.Errorf("no message IDs provided")
 	}
@@ -441,10 +452,11 @@ func (s *EmailServiceImpl) BulkTrash(ctx context.Context, messageIDs []string) e
 
 	// Perform the actual trashing using Gmail client directly (to avoid double undo recording)
 	var errs []string
-	for _, id := range messageIDs {
+	for i, id := range messageIDs {
 		if err := s.gmailClient.TrashMessage(id); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to trash %s: %v", id, err))
 		}
+		reportProgress(onProgress, i+1, len(messageIDs))
 	}
 
 	if len(errs) > 0 {

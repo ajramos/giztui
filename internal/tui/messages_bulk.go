@@ -21,7 +21,8 @@ func (a *App) archiveSelectedBulk() {
 	go func() {
 		// Use bulk service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-		err := emailService.BulkArchive(a.ctx, ids)
+		err := emailService.BulkArchive(a.ctx, ids, a.bulkProgress(a.ctx, "Archiving"))
+		a.GetErrorHandler().ClearPersistentMessage()
 
 		failed := 0
 		if err != nil {
@@ -70,7 +71,8 @@ func (a *App) trashSelectedBulk() {
 	go func() {
 		// Use bulk service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-		err := emailService.BulkTrash(a.ctx, ids)
+		err := emailService.BulkTrash(a.ctx, ids, a.bulkProgress(a.ctx, "Trashing"))
+		a.GetErrorHandler().ClearPersistentMessage()
 
 		failed := 0
 		if err != nil {
@@ -152,10 +154,11 @@ func (a *App) toggleMarkReadUnreadBulk() {
 
 		var err error
 		if markAsUnread {
-			err = emailService.BulkMarkAsUnread(a.ctx, ids)
+			err = emailService.BulkMarkAsUnread(a.ctx, ids, a.bulkProgress(a.ctx, "Marking unread"))
 		} else {
-			err = emailService.BulkMarkAsRead(a.ctx, ids)
+			err = emailService.BulkMarkAsRead(a.ctx, ids, a.bulkProgress(a.ctx, "Marking read"))
 		}
+		a.GetErrorHandler().ClearPersistentMessage()
 
 		failed := 0
 		if err != nil {

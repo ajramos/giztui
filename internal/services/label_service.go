@@ -147,7 +147,7 @@ func (s *LabelServiceImpl) GetMessageLabels(ctx context.Context, messageID strin
 }
 
 // BulkApplyLabel applies a label to multiple messages
-func (s *LabelServiceImpl) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error {
+func (s *LabelServiceImpl) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string, onProgress ...func(done, total int)) error {
 	if len(messageIDs) == 0 {
 		return fmt.Errorf("no message IDs provided")
 	}
@@ -174,10 +174,11 @@ func (s *LabelServiceImpl) BulkApplyLabel(ctx context.Context, messageIDs []stri
 
 	// Apply label to all messages using Gmail client directly (to avoid double undo recording)
 	var errs []string
-	for _, messageID := range messageIDs {
+	for i, messageID := range messageIDs {
 		if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
 			errs = append(errs, fmt.Sprintf("failed to apply label to %s: %v", messageID, err))
 		}
+		reportProgress(onProgress, i+1, len(messageIDs))
 	}
 
 	if len(errs) > 0 {
