@@ -273,7 +273,12 @@ func prependUserRules(promptText string, rules []string) string {
 	if len(clean) == 0 {
 		return promptText
 	}
-	return "## User preferences (respect these rules)\n" + strings.Join(clean, "\n") + "\n\n" + promptText
+	header := "## User preferences and interests\n" +
+		"Treat the following as BOTH action rules to respect AND interest/relevance signals. " +
+		"When an email matches a stated interest, do NOT bury it in a bulk archive/trash group: " +
+		"keep it visible, set that category's priority to \"high\", and note the matched interest " +
+		"in the category description.\n"
+	return header + strings.Join(clean, "\n") + "\n\n" + promptText
 }
 
 func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error) {
