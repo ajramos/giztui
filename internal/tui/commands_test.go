@@ -546,3 +546,23 @@ func TestToggleAutoRefreshFlipsState(t *testing.T) {
 		t.Error("disabling should stop the ticker")
 	}
 }
+
+func TestAutoRefreshCommandWithDurationEnables(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	a.ctx = context.Background()
+	a.errorHandler = NewErrorHandler(nil, nil, nil, nil, nil)
+	a.autoRefreshService = services.NewAutoRefreshService(nil, false, 5*time.Minute, time.Minute)
+
+	// :arr 1m on a disabled service must enable it, start the ticker, and set the interval.
+	a.executeAutoRefreshCommand([]string{"1m"})
+	if !a.autoRefreshService.IsEnabled() {
+		t.Error(":arr <dur> should enable auto-refresh")
+	}
+	if !a.isAutoRefreshRunning() {
+		t.Error(":arr <dur> should start the ticker")
+	}
+	if a.autoRefreshService.Interval() != time.Minute {
+		t.Errorf("interval should be 1m, got %v", a.autoRefreshService.Interval())
+	}
+	a.stopAutoRefresh()
+}

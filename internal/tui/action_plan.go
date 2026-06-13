@@ -305,7 +305,11 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
 		if emailService != nil {
 			go a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Fetching email bodies for %d messages…", len(ids)))
-			if bodies, err := emailService.GetMessagePlainTexts(a.ctx, ids, 0); err == nil {
+			bodies, err := emailService.GetMessagePlainTexts(a.ctx, ids, 0)
+			// ShowProgress sets a PERSISTENT status; clear it once the fetch returns so it
+			// never lingers (it is not auto-cleared like transient messages).
+			go a.GetErrorHandler().ClearPersistentMessage()
+			if err == nil {
 				for i := range messages {
 					if body := bodies[messages[i].ID]; body != "" {
 						messages[i].Body = body
