@@ -13,6 +13,7 @@ Rules:
   "trash"     — clearly unwanted
   "label"     — needs follow-up; provide a short kebab-case "label" value
   "none"      — no safe bulk action; user should decide
+  "summarize" — worth a quick AI digest; not full reading, not discarding
 - priority is one of "high", "medium", "low".
 
 Return ONLY a JSON object, no prose, no markdown fences, in exactly this shape:

@@ -113,6 +113,8 @@ func actionVerbLabel(action string) string {
 		return "Trash"
 	case "label":
 		return "Label"
+	case "summarize":
+		return "summarize"
 	default:
 		return "Review"
 	}
@@ -129,6 +131,8 @@ func (a *App) actionKeyHint(action string) string {
 		return a.Keys.Trash
 	case "label":
 		return a.Keys.ManageLabels
+	case "summarize":
+		return a.Keys.Summarize
 	default:
 		return ""
 	}
@@ -567,6 +571,8 @@ func actionRuleVerbShort(action string) string {
 		return "trash"
 	case "label":
 		return "label"
+	case "summarize":
+		return "digest"
 	default:
 		return "act"
 	}

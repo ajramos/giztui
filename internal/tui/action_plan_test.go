@@ -410,3 +410,17 @@ func TestActionPlanPromptViewSwap(t *testing.T) {
 		t.Fatal("after Esc, the tree should be restored as the container body")
 	}
 }
+
+func TestActionVerb_Summarize(t *testing.T) {
+	if got := actionVerbLabel("summarize"); got != "summarize" {
+		t.Fatalf("actionVerbLabel(summarize)=%q", got)
+	}
+	if got := actionRuleVerbShort("summarize"); got != "digest" {
+		t.Fatalf("actionRuleVerbShort(summarize)=%q", got)
+	}
+	a := &App{}
+	a.Keys.Summarize = "y"
+	if got := a.actionKeyHint("summarize"); got != "y" {
+		t.Fatalf("actionKeyHint(summarize)=%q, want y", got)
+	}
+}
