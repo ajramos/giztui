@@ -69,10 +69,11 @@ func (a *App) dispatchActionPlanSummarize(state *actionPlanState)
   - Build the digest input with a pure helper `buildSummarizeInput(ids, bodies, metaByID, limit)`
     → a numbered "Subject / From / body(≤limit)" blob (reusing `truncateForAnalyzer`-style trim;
     `limit` = `a.Config.InboxAnalyzer.BodyCharLimit`).
-  - Call `aiService.GenerateSummaryStream(ctx, blob, options, onToken)` where `onToken` appends
-    **directly** to the TextView (NEVER `QueueUpdateDraw` — streaming-callback rule), guarded by
-    `ctx.Err()`/state-still-active checks.
-  - On completion, render the final text through `renderPromptResult` (Markdown) and set it.
+  - Call `aiService.GenerateSummary(ctx, blob, options)` (non-streaming — one shot). On return,
+    render the result through `renderPromptResult` (Markdown) and set it via a single
+    `a.QueueUpdateDraw(...)` (the standard safe worker→UI update; avoids the per-token
+    streaming-callback deadlock class entirely). The "⏳ Summarizing N emails…" placeholder covers
+    the wait. Guard the final update on `a.actionPlanState == state` / `ctx.Err() == nil`.
 - Esc restores the tree (`renderActionPlanPanel(state)`), `currentFocus = "action_plan"`.
 
 The AI digest framing (a short "what's new across these emails" instruction) is passed via the
@@ -87,8 +88,8 @@ Add `"action_plan_summary"` to the global pass-through sentinel line (next to
 
 - Body fetch + AI call run on a worker goroutine (off the UI thread). `GetMessagePlainTexts` and
   the final `ShowError`/`ShowWarning` are safe there.
-- Streaming tokens update the TextView via **direct `SetText`/append**, never `QueueUpdateDraw`
-  (matches the AI-summary streaming pattern and avoids the ESC-deadlock class).
+- Non-streaming: a single `QueueUpdateDraw` renders the final digest from the worker goroutine —
+  the standard safe pattern; no per-token callback, so no streaming/ESC-deadlock class to worry about.
 - Esc restore is synchronous (no `QueueUpdateDraw`).
 - No checked emails → warning, no panel.
 
@@ -102,7 +103,7 @@ Add `"action_plan_summary"` to the global pass-through sentinel line (next to
 - `TestActionPlanSummarizeSwap` (mirror `TestActionPlanMoveInlineSwap`): `dispatchActionPlanSummarize`
   with a stub AIService body-swaps the tree for a TextView and sets `currentFocus ==
   "action_plan_summary"`; Esc restores the tree (`currentFocus == "action_plan"`). (Use a stub
-  AIService whose `GenerateSummaryStream` returns immediately so the test is deterministic.)
+  AIService whose `GenerateSummary` returns a fixed result so the test is deterministic.)
 
 ## Out of scope
 
