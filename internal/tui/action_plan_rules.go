@@ -64,7 +64,7 @@ func (a *App) showRememberRuleModal(suggestion string) {
 	state.container.RemoveItem(state.footer)
 	state.container.AddItem(input, 1, 0, true)
 	state.container.AddItem(state.footer, 1, 0, false)
-	state.container.SetTitle(" 🧠 Remember preference ")
+	state.container.SetTitle(" 🧠 Remember rule or interest ")
 	state.footer.SetText(" Enter save · Esc cancel ")
 	a.currentFocus = "action_plan_rule"
 	a.SetFocus(input)
@@ -92,7 +92,7 @@ func (a *App) openAnalyzerRulesManager() {
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(colors.Background.Color())
 	container.SetBorder(true)
-	container.SetTitle(" 🧠 Analyzer rules ")
+	container.SetTitle(" 🧠 Analyzer rules & interests ")
 	container.SetTitleColor(colors.Title.Color())
 	container.SetBorderColor(colors.Border.Color())
 
@@ -139,7 +139,7 @@ func (a *App) openAnalyzerRulesManager() {
 
 	// showAddInput body-swaps the list for an input field inside the same container.
 	showAddInput := func() {
-		input := tview.NewInputField().SetLabel(" New rule: ").SetFieldWidth(0)
+		input := tview.NewInputField().SetLabel(" Rule or interest: ").SetFieldWidth(0)
 		input.SetBackgroundColor(colors.Background.Color())
 		input.SetFieldBackgroundColor(colors.Background.Color())
 		input.SetFieldTextColor(colors.Text.Color())
