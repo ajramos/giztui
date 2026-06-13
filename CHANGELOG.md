@@ -5,6 +5,19 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-06-13
+
+### 🚀 Features — fully configurable key bindings
+
+- **Every action key can now be rebound.** Keys that were previously hardwired to their defaults now honor `keys.*` config: thread summary, undo, the search-box mode toggle and advanced-search keys, prompt preview, the Action Plan remember-rule / view-prompt / move / exclude keys, the analyzer-rules add/delete keys, saved-query delete, attachment save, link copy, and compose send.
+- **New `keys.*` options**: `search_toggle_mode` (default `ctrl+t`), `search_advanced` (`ctrl+f`), `prompt_preview` (`ctrl+p`), `remember_rule` (`ctrl+r`), `view_prompt` (`i`), `rule_add` (`a`), `rule_delete` (`d`), `saved_query_delete` (`d`), `attachment_save` (`ctrl+s`), `link_copy` (`ctrl+y`), `compose_send` (`ctrl+j`). They work immediately (defaults are applied at load); run `:config migrate` to also write them into an existing `config.json` for editing.
+- Key matching now understands `shift+<letter>` combos (e.g. `shift+t`) in addition to `ctrl+<letter>` and plain single-character keys.
+
+### 🐛 Fixes & cleanup
+
+- Removed the dead `keys.prompt_test` option (it never had a handler). `:config migrate` now also **prunes obsolete keys** from your config file, not only adds new ones.
+- Saved-query delete now responds to `d` only (previously `d`/`D`) and is configurable via `keys.saved_query_delete`.
+
 ## [1.11.1] - 2026-06-13
 
 ### 🐛 Fixes — configurable key bindings now actually honor the config
