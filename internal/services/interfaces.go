@@ -102,6 +102,7 @@ type SlackService interface {
 	ForwardEmail(ctx context.Context, messageID string, options SlackForwardOptions) error
 	ValidateWebhook(ctx context.Context, webhookURL string) error
 	ListConfiguredChannels(ctx context.Context) ([]SlackChannel, error)
+	SendNotification(ctx context.Context, text string) error
 }
 
 // SearchService handles search operations

@@ -235,8 +235,9 @@ type TTSConfig struct {
 
 // AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
 type AutoRefreshConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Interval string `json:"interval"` // Go duration string, e.g. "5m"; clamped to a 1m minimum
+	Enabled     bool   `json:"enabled"`
+	Interval    string `json:"interval"`     // Go duration string, e.g. "5m"; clamped to a 1m minimum
+	NotifySlack bool   `json:"notify_slack"` // also post a Slack notification when new mail is detected
 }
 
 // autoRefreshMinInterval is the smallest allowed poll interval to avoid hammering the API.

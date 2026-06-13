@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/derailed/tview"
@@ -130,6 +131,8 @@ func (a *App) performAutoRefreshTick() {
 		return
 	}
 
+	go a.notifyNewMailSlack(newIDs)
+
 	if a.isAutoRefreshSafeState() {
 		a.prependNewMessages(newIDs)
 		return
@@ -238,4 +241,46 @@ func (a *App) prependNewMessages(newIDs []string) {
 	})
 
 	go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📬 %d new message(s)", count))
+}
+
+// buildNewMailSlackMessage formats a Slack notification listing the new emails (capped at 10).
+func buildNewMailSlackMessage(metas []*gmailapi.Message) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "📬 %d new email(s):", len(metas))
+	const maxList = 10
+	for i, m := range metas {
+		if m == nil {
+			continue
+		}
+		if i >= maxList {
+			fmt.Fprintf(&b, "\n…and %d more", len(metas)-maxList)
+			break
+		}
+		subject := extractHeaderValue(m, "Subject")
+		from := extractHeaderValue(m, "From")
+		fmt.Fprintf(&b, "\n• %s — %s", subject, from)
+	}
+	return b.String()
+}
+
+// notifyNewMailSlack posts a Slack notification about newly-detected mail, when enabled.
+func (a *App) notifyNewMailSlack(newIDs []string) {
+	if !a.Config.AutoRefresh.NotifySlack || !a.Config.Slack.Enabled {
+		return
+	}
+	svc := a.GetSlackService()
+	if svc == nil || a.Client == nil || len(newIDs) == 0 {
+		return
+	}
+	metas, err := a.Client.GetMessagesMetadataParallel(newIDs, 10)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Printf("AUTO_REFRESH: slack metadata fetch error: %v", err)
+		}
+		return
+	}
+	msg := buildNewMailSlackMessage(metas)
+	if err := svc.SendNotification(a.ctx, msg); err != nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Slack notify failed: "+err.Error())
+	}
 }
