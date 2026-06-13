@@ -60,6 +60,14 @@ const (
 	LabelVisibilityHide LabelVisibility = "labelHide"
 )
 
+// SpeechService reads text aloud via a local TTS engine.
+type SpeechService interface {
+	Speak(ctx context.Context, text string) error
+	Stop()
+	IsConfigured() bool
+	IsSpeaking() bool
+}
+
 // AutoRefreshService owns the opt-in inbox auto-refresh state and new-mail detection.
 type AutoRefreshService interface {
 	IsEnabled() bool
