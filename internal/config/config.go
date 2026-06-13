@@ -352,10 +352,26 @@ type KeyBindings struct {
 	PromptRegenerate string `json:"prompt_regenerate"` // Regenerate prompt via LLM in configurator
 	SavePrompt       string `json:"save_prompt"`       // Save active prompt to library
 	PromptApply      string `json:"prompt_apply"`      // Apply the active prompt to scoped context
-	PromptTest       string `json:"prompt_test"`       // Test the prompt on one message (stretch)
+
+	// Search panel
+	SearchToggleMode string `json:"search_toggle_mode"` // Toggle remote (Gmail) ↔ local filter in the search box
+	SearchAdvanced   string `json:"search_advanced"`    // Open the advanced search modal
+
+	// Prompt pickers
+	PromptPreview string `json:"prompt_preview"` // Preview the selected prompt in a picker
 
 	// Inbox Action Plan
-	ActionPlan string `json:"action_plan"` // Open the AI inbox Action Plan panel
+	ActionPlan    string `json:"action_plan"`        // Open the AI inbox Action Plan panel
+	RememberRule  string `json:"remember_rule"`      // Action plan: remember a rule/interest
+	ViewPrompt    string `json:"view_prompt"`        // Action plan: view the effective analyzer prompt
+	RuleAdd       string `json:"rule_add"`           // Analyzer rules panel: add a rule
+	RuleDelete    string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
+	SavedQueryDel string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
+
+	// Picker / panel actions
+	AttachmentSave string `json:"attachment_save"` // Attachments picker: save the selected attachment
+	LinkCopy       string `json:"link_copy"`       // Links picker: copy the selected link
+	ComposeSend    string `json:"compose_send"`    // Composition: send the message
 
 	// Validation settings
 	ValidateShortcuts bool `json:"validate_shortcuts"` // Enable shortcut conflict validation (default: true)
@@ -582,10 +598,26 @@ func DefaultKeyBindings() KeyBindings {
 		PromptRegenerate: "ctrl+r",
 		SavePrompt:       "ctrl+s",
 		PromptApply:      "ctrl+g", // Ctrl+G = go/apply, doesn't clash with EditableTextView newline
-		PromptTest:       "ctrl+t",
+
+		// Search panel
+		SearchToggleMode: "ctrl+t",
+		SearchAdvanced:   "ctrl+f",
+
+		// Prompt pickers
+		PromptPreview: "ctrl+p",
 
 		// Inbox Action Plan
-		ActionPlan: "P", // capital P (A is taken by Attachments)
+		ActionPlan:    "P", // capital P (A is taken by Attachments)
+		RememberRule:  "ctrl+r",
+		ViewPrompt:    "i", // inspect the effective analyzer prompt (avoids clash with bulk_mode "v")
+		RuleAdd:       "a",
+		RuleDelete:    "d",
+		SavedQueryDel: "d",
+
+		// Picker / panel actions
+		AttachmentSave: "ctrl+s",
+		LinkCopy:       "ctrl+y",
+		ComposeSend:    "ctrl+j",
 
 		// Validation settings (default: enabled for safety)
 		ValidateShortcuts: true, // Enable shortcut conflict validation by default

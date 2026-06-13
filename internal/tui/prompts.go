@@ -173,7 +173,7 @@ func (a *App) openPromptPicker() {
 
 			// Allow navigation from input to list
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-				if e.Key() == tcell.KeyCtrlP {
+				if a.matchesConfiguredKey(e, a.Keys.PromptPreview) {
 					triggerPreview()
 					return nil
 				}
@@ -258,7 +258,7 @@ func (a *App) openPromptPicker() {
 
 			// Handle navigation between input and list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-				if e.Key() == tcell.KeyCtrlP {
+				if a.matchesConfiguredKey(e, a.Keys.PromptPreview) {
 					triggerPreview()
 					return nil
 				}

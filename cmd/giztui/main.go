@@ -69,17 +69,20 @@ func main() {
 
 	// Handle config migration (add missing default keys to the config file, then exit)
 	if *migrateConfigFlag {
-		added, backup, mErr := config.MigrateConfigFile(configPath)
+		added, removed, backup, mErr := config.MigrateConfigFile(configPath)
 		if mErr != nil {
 			fmt.Fprintf(os.Stderr, "Config migrate failed: %v\n", mErr)
 			os.Exit(1)
 		}
-		if len(added) == 0 {
+		if len(added) == 0 && len(removed) == 0 {
 			fmt.Println("Config is already up to date.")
 			return
 		}
-		fmt.Printf("Added %d option(s) to %s (backup: %s):\n", len(added), configPath, backup)
+		fmt.Printf("Updated %s (backup: %s): +%d added, -%d removed\n", configPath, backup, len(added), len(removed))
 		for _, k := range added {
+			fmt.Printf("  + %s\n", k)
+		}
+		for _, k := range removed {
 			fmt.Printf("  - %s\n", k)
 		}
 		return

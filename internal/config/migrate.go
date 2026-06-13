@@ -8,6 +8,40 @@ import (
 	"strings"
 )
 
+// obsoleteKeyPaths lists dotted paths that were removed from the config schema. Migration prunes
+// them from existing user files so stale, no-longer-honored options don't linger and mislead.
+var obsoleteKeyPaths = []string{
+	"keys.prompt_test", // never had a handler; removed in v1.11.2
+}
+
+// pruneObsolete deletes each dotted path in paths from user (descending into nested maps).
+// Returns the paths actually removed.
+func pruneObsolete(user map[string]any, paths []string) []string {
+	var removed []string
+	for _, p := range paths {
+		parts := strings.Split(p, ".")
+		m := user
+		ok := true
+		for _, seg := range parts[:len(parts)-1] {
+			next, isMap := m[seg].(map[string]any)
+			if !isMap {
+				ok = false
+				break
+			}
+			m = next
+		}
+		if !ok {
+			continue
+		}
+		leaf := parts[len(parts)-1]
+		if _, exists := m[leaf]; exists {
+			delete(m, leaf)
+			removed = append(removed, p)
+		}
+	}
+	return removed
+}
+
 // deepMergeMissing adds into user every key present in defaults but absent from user, recursing
 // into nested objects. It never overwrites an existing user value. Returns the dotted paths added.
 func deepMergeMissing(user, defaults map[string]any, prefix string) []string {
@@ -80,37 +114,38 @@ func MissingDefaultKeys(path string) ([]string, error) {
 	return deepMergeMissing(user, defaults, ""), nil // mutates the local user map; discarded
 }
 
-// MigrateConfigFile adds missing default keys to the user's config file, writing a .bak first.
-// Returns the added dotted paths and the backup path. No-op (nil, "", nil) when nothing is missing.
-// Output is json.MarshalIndent (2-space), keys alphabetically sorted.
-func MigrateConfigFile(path string) ([]string, string, error) {
+// MigrateConfigFile reconciles the user's config file with the current schema, writing a .bak
+// first: it adds missing default keys and prunes obsolete ones (see obsoleteKeyPaths). Returns the
+// added and removed dotted paths and the backup path. No-op (nil, nil, "", nil) when there is
+// nothing to add or remove. Output is json.MarshalIndent (2-space), keys alphabetically sorted.
+func MigrateConfigFile(path string) (added, removed []string, backupPath string, err error) {
 	path = filepath.Clean(path)
 	defaults, err := defaultConfigMap()
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	user, err := readConfigMap(path)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
-	added := deepMergeMissing(user, defaults, "")
-	if len(added) == 0 {
-		return nil, "", nil
+	added = deepMergeMissing(user, defaults, "")
+	removed = pruneObsolete(user, obsoleteKeyPaths)
+	if len(added) == 0 && len(removed) == 0 {
+		return nil, nil, "", nil
 	}
 	out, err := json.MarshalIndent(user, "", "  ")
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
-	backupPath := ""
 	if orig, rerr := os.ReadFile(path); rerr == nil { // #nosec G304 -- path is filepath.Clean'd above
 		backupPath = path + ".bak"
 		// #nosec G703 -- backupPath is the cleaned config path with a fixed .bak suffix
 		if werr := os.WriteFile(backupPath, orig, 0600); werr != nil {
-			return nil, "", fmt.Errorf("could not write backup %s: %w", backupPath, werr)
+			return nil, nil, "", fmt.Errorf("could not write backup %s: %w", backupPath, werr)
 		}
 	}
-	if err := os.WriteFile(path, out, 0600); err != nil {
-		return nil, "", err
+	if werr := os.WriteFile(path, out, 0600); werr != nil {
+		return nil, nil, "", werr
 	}
-	return added, backupPath, nil
+	return added, removed, backupPath, nil
 }

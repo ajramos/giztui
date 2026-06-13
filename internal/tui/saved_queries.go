@@ -192,8 +192,8 @@ func (a *App) showSavedQueriesPicker() {
 						return nil
 					}
 				}
-				// Handle delete key
-				if e.Rune() == 'd' || e.Rune() == 'D' {
+				// Delete the selected query (configurable; default "d")
+				if a.matchesConfiguredKey(e, a.Keys.SavedQueryDel) {
 					filtered := a.filterQueriesByName(all, input.GetText())
 					currentItem := list.GetCurrentItem()
 					if currentItem >= 0 && currentItem < len(filtered) {

@@ -289,8 +289,8 @@ func (a *App) openAttachmentPicker() {
 						}
 					}()
 				}
-				// Support save as with Ctrl+S
-				if e.Key() == tcell.KeyCtrlS {
+				// Save as (configurable; default "ctrl+s")
+				if a.matchesConfiguredKey(e, a.Keys.AttachmentSave) {
 					currentItem := list.GetCurrentItem()
 					if currentItem >= 0 && currentItem < len(visible) {
 						item := visible[currentItem]

@@ -2630,16 +2630,16 @@ func (a *App) executeConfigCommand(args []string) {
 	if len(args) > 0 && strings.ToLower(args[0]) == "migrate" {
 		go func() {
 			path := config.DefaultConfigPath()
-			added, backup, err := config.MigrateConfigFile(path)
+			added, removed, backup, err := config.MigrateConfigFile(path)
 			if err != nil {
 				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Config migrate failed: %v", err))
 				return
 			}
-			if len(added) == 0 {
+			if len(added) == 0 && len(removed) == 0 {
 				a.GetErrorHandler().ShowInfo(a.ctx, "Config is already up to date")
 				return
 			}
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✓ Added %d config option(s) (backup: %s). Edit them and restart to apply.", len(added), backup))
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✓ Config updated: +%d added, -%d removed (backup: %s). Edit and restart to apply.", len(added), len(removed), backup))
 		}()
 		return
 	}

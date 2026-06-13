@@ -484,6 +484,12 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		a.showSavedQueriesPicker()
 		return true
+	case a.Keys.Undo:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> undo", key)
+		}
+		a.performUndoFromShortcut()
+		return true
 	}
 
 	return false
@@ -726,6 +732,12 @@ func (a *App) bindKeys() {
 				a.logger.Printf("Configurable shortcut: '%s' -> autorefresh", a.Keys.AutoRefresh)
 			}
 			a.toggleAutoRefresh()
+			return nil
+		}
+		// Undo, when bound to a Ctrl/Shift combo. (A plain-letter undo binding — the default "U" —
+		// is handled in handleConfigurableKey below, preserving precedence vs vim sequences.)
+		if (strings.HasPrefix(a.Keys.Undo, "ctrl+") || strings.HasPrefix(a.Keys.Undo, "shift+")) && a.matchesKeyCombo(event, a.Keys.Undo) {
+			a.performUndoFromShortcut()
 			return nil
 		}
 
@@ -1061,16 +1073,6 @@ func (a *App) bindKeys() {
 				go a.searchByToCurrent()
 				return nil
 			}
-		case 'U':
-			// Undo last action
-			if a.undoService != nil && a.undoService.HasUndoableAction() {
-				go a.performUndo()
-			} else {
-				go func() {
-					a.GetErrorHandler().ShowInfo(a.ctx, "No action to undo")
-				}()
-			}
-			return nil
 		case 'S':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('S') {
@@ -1334,17 +1336,17 @@ func (a *App) bindKeys() {
 			}
 		}
 
-		// Advanced search (Ctrl+F) global binding
-		if (event.Key() == tcell.KeyCtrlF) || ((event.Modifiers()&tcell.ModCtrl) != 0 && event.Rune() == 'f') {
+		// Advanced search (configurable; default "ctrl+f")
+		if a.Keys.SearchAdvanced != "" && a.matchesKeyCombo(event, a.Keys.SearchAdvanced) {
 			a.openAdvancedSearchForm()
 			return nil
 		}
 
 		// Threading special key handlers
-		// Handle Shift+T for thread summary
-		if event.Key() == tcell.KeyRune && (event.Modifiers()&tcell.ModShift) != 0 && event.Rune() == 'T' {
+		// Thread summary (configurable; default "shift+t")
+		if a.Keys.ThreadSummary != "" && a.matchesKeyCombo(event, a.Keys.ThreadSummary) {
 			if a.logger != nil {
-				a.logger.Printf("Special key: Shift+T -> thread_summary")
+				a.logger.Printf("Configurable shortcut: '%s' -> thread_summary", a.Keys.ThreadSummary)
 			}
 			go func() { _ = a.GenerateThreadSummary() }()
 			return nil
@@ -2729,6 +2731,38 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 }
 
 // matchesKeyCombo checks if the given event matches a configured key combination
+// performUndoFromShortcut runs the undo action (or reports there is nothing to undo). Shared by the
+// Ctrl/Shift undo path and the plain-letter undo case so both behave identically.
+func (a *App) performUndoFromShortcut() {
+	if a.undoService != nil && a.undoService.HasUndoableAction() {
+		go a.performUndo()
+		return
+	}
+	go func() {
+		a.GetErrorHandler().ShowInfo(a.ctx, "No action to undo")
+	}()
+}
+
+// matchesConfiguredKey reports whether event matches a configured key binding. Ctrl/Shift combos
+// are routed through matchesKeyCombo; plain single-character bindings are compared case-sensitively
+// (so "N" and "n" stay distinct — matchesKeyCombo lowercases and would conflate them). Empty
+// bindings never match. This is the canonical matcher for honoring keys.* config values.
+func (a *App) matchesConfiguredKey(event *tcell.EventKey, binding string) bool {
+	if binding == "" {
+		return false
+	}
+	if strings.HasPrefix(binding, "ctrl+") || strings.HasPrefix(binding, "shift+") {
+		return a.matchesKeyCombo(event, binding)
+	}
+	if binding == "space" {
+		return event.Key() == tcell.KeyRune && event.Rune() == ' '
+	}
+	if len(binding) == 1 {
+		return event.Key() == tcell.KeyRune && event.Rune() == rune(binding[0])
+	}
+	return a.matchesKeyCombo(event, binding)
+}
+
 func (a *App) matchesKeyCombo(event *tcell.EventKey, keyCombo string) bool {
 	if keyCombo == "" {
 		return false
@@ -2769,6 +2803,17 @@ func (a *App) matchesKeyCombo(event *tcell.EventKey, keyCombo string) bool {
 				return false
 			}
 		}
+	}
+
+	// Handle Shift key combinations (e.g. "shift+t"). Shift+<letter> arrives as a normal
+	// KeyRune carrying the uppercase rune, so the case of the rune already encodes Shift.
+	if strings.HasPrefix(keyCombo, "shift+") {
+		letter := keyCombo[6:]
+		if len(letter) == 1 {
+			want := rune(strings.ToUpper(letter)[0])
+			return event.Key() == tcell.KeyRune && event.Rune() == want
+		}
+		return false
 	}
 
 	// Handle simple character keys

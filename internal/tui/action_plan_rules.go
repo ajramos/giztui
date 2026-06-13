@@ -184,10 +184,10 @@ func (a *App) openAnalyzerRulesManager() {
 		case ev.Key() == tcell.KeyEscape:
 			closePicker()
 			return nil
-		case ev.Rune() == 'a':
+		case a.matchesConfiguredKey(ev, a.Keys.RuleAdd):
 			showAddInput()
 			return nil
-		case ev.Rune() == 'd':
+		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
 			idx := list.GetCurrentItem()
 			if idx >= 0 && idx < len(rules) {
 				id := rules[idx].ID

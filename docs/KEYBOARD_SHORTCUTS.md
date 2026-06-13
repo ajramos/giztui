@@ -59,6 +59,8 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `T` | Quick search: To | Search emails to current sender |
 | `S` | Quick search: Subject | Search by current subject |
 | `B` | Quick search: Archived | Search archived messages |
+| `Ctrl+T` | Toggle search mode | In the search box, switch between Gmail (remote) and local filter (`keys.search_toggle_mode`) |
+| `Ctrl+F` | Advanced search | In the search box, open the advanced search form (`keys.search_advanced`) |
 
 ### Content Search (Within Message)
 | Key | Action | Description |
@@ -176,9 +178,9 @@ The configurator has three areas cycled via `Tab` / `Shift+Tab`:
 | `Tab` | Focus next | Cycle focus: Intent → Editable → Refine |
 | `Shift+Tab` | Focus previous | Cycle focus in reverse |
 | `Enter` | Generate / Refine | Generate prompt from Intent, or refine from Refine input |
-| `Ctrl+G` | Apply prompt | Apply current prompt to the scoped message(s); result appears in the AI panel |
-| `Ctrl+R` | Regenerate | Re-generate the prompt from the Intent input |
-| `Ctrl+S` | Save prompt | Open save dialog (name / description / category) to store prompt in your library |
+| `Ctrl+G` | Apply prompt | Apply current prompt to the scoped message(s); result appears in the AI panel (`keys.prompt_apply`) |
+| `Ctrl+R` | Regenerate | Re-generate the prompt from the Intent input (`keys.prompt_regenerate`) |
+| `Ctrl+S` | Save prompt | Open save dialog (name / description / category) to store prompt in your library (`keys.save_prompt`) |
 | `Esc` | Close | Close the configurator; cancels any in-progress LLM call |
 
 ### Prompt Configurator Commands
@@ -193,7 +195,8 @@ The configurator has three areas cycled via `Tab` / `Shift+Tab`:
 - **Saved prompts** appear in both the single-message prompt picker and the bulk prompt picker after saving; they are immediately available for reuse.
 - **Unsaved prompts** are discarded when you close the configurator with `Esc` — use `Ctrl+S` before closing to keep them.
 - **LLM model quality matters**: prompt generation and refinement quality depends on the model configured for your LLM backend. A small model (e.g. 1.5B parameters) may produce poor or incomplete prompts — a 7B+ model is recommended for best results.
-- The in-panel keys (`Ctrl+G`, `Ctrl+R`, `Ctrl+S`) are currently hardcoded. Config keys (`keys.prompt_apply`, `keys.prompt_regenerate`, `keys.save_prompt`) exist in `config.json` but are reserved for future configurable binding support.
+- The in-panel keys are configurable via `keys.prompt_apply` (default `ctrl+g`), `keys.prompt_regenerate` (default `ctrl+r`), and `keys.save_prompt` (default `ctrl+s`).
+- The prompt **preview** key in the prompt pickers is configurable via `keys.prompt_preview` (default `ctrl+p`).
 
 ## 📋 Inbox Action Plan
 
@@ -213,19 +216,21 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | `↑` / `↓` | Navigate | Move between nodes (categories and emails) |
 | `Enter` / `→` | Expand category | Show the emails inside the highlighted category |
 | `←` | Collapse category | Hide the email children of the highlighted category |
-| `space` | Exclude / include email | When on an email node, toggle it off (`[ ]`) or back on (`[x]`); actions apply only to checked emails |
+| `space` | Exclude / include email | When on an email node, toggle it off (`[ ]`) or back on (`[x]`); actions apply only to checked emails (reuses `keys.bulk_select`) |
+| `m` | Move | Move the highlighted email (or whole category) to another label (reuses `keys.move`) |
+| `i` | View prompt | Open the effective analyzer prompt viewer (`keys.view_prompt`) |
 | archive key | Archive | Archive the highlighted category's checked emails |
 | trash key | Trash | Trash the highlighted category's checked emails |
 | label key | Label | Apply the category's suggested label to its checked emails (created if needed) |
 | toggle-read key | Mark read | Mark the highlighted category's checked emails as read |
-| `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses |
+| `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses (`keys.remember_rule`) |
 | `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
 
 The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18). A "Read manually" bucket lists messages the LLM declined to categorize.
 
 ### Learning Rules
 
-`Ctrl+R` saves a natural-language preference rule (e.g. "Never trash emails from tldr.tech"). Rules are injected into the analyzer prompt on future analyses so the LLM honors them. Manage saved rules with `:action-plan rules` (in the manager: `a` add, `d` delete, `Esc` close).
+`Ctrl+R` saves a natural-language preference rule (e.g. "Never trash emails from tldr.tech"). Rules are injected into the analyzer prompt on future analyses so the LLM honors them. Manage saved rules with `:action-plan rules` (in the manager: `a` add, `d` delete, `Esc` close; the add/delete keys are configurable via `keys.rule_add` / `keys.rule_delete`).
 
 ### Commands
 | Command | Aliases | Description |

@@ -298,8 +298,8 @@ func (a *App) openLinkPicker() {
 						}
 					}()
 				}
-				// Support copying URL with Ctrl+Y
-				if e.Key() == tcell.KeyCtrlY {
+				// Copy URL (configurable; default "ctrl+y")
+				if a.matchesConfiguredKey(e, a.Keys.LinkCopy) {
 					currentItem := list.GetCurrentItem()
 					if currentItem >= 0 && currentItem < len(visible) {
 						item := visible[currentItem]

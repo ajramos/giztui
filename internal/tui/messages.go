@@ -1107,8 +1107,8 @@ func (a *App) openSearchOverlay(mode string) {
 		}
 	})
 	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		// Ctrl+T: toggle remote/local (support both KeyCtrlT and modifier+rune)
-		if ev.Key() == tcell.KeyCtrlT || ((ev.Modifiers()&tcell.ModCtrl) != 0 && ev.Rune() == 't') {
+		// Toggle remote/local (configurable; default "ctrl+t")
+		if a.matchesConfiguredKey(ev, a.Keys.SearchToggleMode) {
 			if curMode == "remote" {
 				curMode = "local"
 				searchContainer.SetTitle("🔎 Local Filter")
@@ -1128,8 +1128,8 @@ func (a *App) openSearchOverlay(mode string) {
 			}
 			return nil
 		}
-		// Ctrl+F: open advanced search form
-		if ev.Key() == tcell.KeyCtrlF || ((ev.Modifiers()&tcell.ModCtrl) != 0 && ev.Rune() == 'f') {
+		// Open advanced search form (configurable; default "ctrl+f")
+		if a.matchesConfiguredKey(ev, a.Keys.SearchAdvanced) {
 			a.openAdvancedSearchForm()
 			return nil
 		}

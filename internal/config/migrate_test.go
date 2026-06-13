@@ -60,7 +60,7 @@ func TestMigrateConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	added, backup, err := MigrateConfigFile(path)
+	added, _, backup, err := MigrateConfigFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,12 +93,12 @@ func TestMigrateConfigFile_NoOp(t *testing.T) {
 	if err := os.WriteFile(path, full, 0600); err != nil {
 		t.Fatal(err)
 	}
-	added, backup, err := MigrateConfigFile(path)
+	added, removed, backup, err := MigrateConfigFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(added) != 0 || backup != "" {
-		t.Fatalf("expected no-op, got added=%v backup=%q", added, backup)
+	if len(added) != 0 || len(removed) != 0 || backup != "" {
+		t.Fatalf("expected no-op, got added=%v removed=%v backup=%q", added, removed, backup)
 	}
 	if _, err := os.Stat(path + ".bak"); !os.IsNotExist(err) {
 		t.Fatal("no .bak should be written on a no-op")
@@ -111,10 +111,68 @@ func TestMigrateConfigFile_InvalidJSON(t *testing.T) {
 	if err := os.WriteFile(path, []byte("{ not json "), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := MigrateConfigFile(path); err == nil {
+	if _, _, _, err := MigrateConfigFile(path); err == nil {
 		t.Fatal("expected an error on invalid JSON")
 	}
 	if _, err := os.Stat(path + ".bak"); !os.IsNotExist(err) {
 		t.Fatal("must not write a backup when the source is invalid")
+	}
+}
+
+func TestPruneObsolete(t *testing.T) {
+	user := map[string]any{
+		"keys": map[string]any{
+			"prompt_test": "ctrl+t",
+			"speak":       "ctrl+e",
+		},
+		"llm": map[string]any{"provider": "ollama"},
+	}
+	removed := pruneObsolete(user, []string{"keys.prompt_test", "keys.does_not_exist", "top.missing"})
+
+	if len(removed) != 1 || removed[0] != "keys.prompt_test" {
+		t.Fatalf("expected only keys.prompt_test removed, got %v", removed)
+	}
+	keys := user["keys"].(map[string]any)
+	if _, ok := keys["prompt_test"]; ok {
+		t.Fatal("keys.prompt_test should have been deleted")
+	}
+	if keys["speak"] != "ctrl+e" {
+		t.Fatal("must not touch sibling keys")
+	}
+}
+
+func TestMigrateConfigFile_PrunesObsolete(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	// A config that is otherwise complete (no additions) but carries the obsolete key.
+	full := map[string]any{}
+	data, _ := json.Marshal(DefaultConfig())
+	_ = json.Unmarshal(data, &full)
+	full["keys"].(map[string]any)["prompt_test"] = "ctrl+t"
+	out, _ := json.MarshalIndent(full, "", "  ")
+	if err := os.WriteFile(path, out, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	added, removed, backup, err := MigrateConfigFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added) != 0 {
+		t.Fatalf("expected no additions, got %v", added)
+	}
+	if len(removed) != 1 || removed[0] != "keys.prompt_test" {
+		t.Fatalf("expected keys.prompt_test pruned, got %v", removed)
+	}
+	if backup == "" {
+		t.Fatal("expected a backup when a key is pruned")
+	}
+	merged := map[string]any{}
+	b, _ := os.ReadFile(filepath.Clean(path))
+	if err := json.Unmarshal(b, &merged); err != nil {
+		t.Fatalf("merged file invalid: %v", err)
+	}
+	if _, ok := merged["keys"].(map[string]any)["prompt_test"]; ok {
+		t.Fatal("prompt_test should be gone from the migrated file")
 	}
 }

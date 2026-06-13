@@ -57,7 +57,7 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, input *tview.InputF
 
 	tv.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch {
-		case e.Key() == tcell.KeyEscape || e.Key() == tcell.KeyCtrlP:
+		case e.Key() == tcell.KeyEscape || a.matchesConfiguredKey(e, a.Keys.PromptPreview):
 			restore()
 			return nil
 		case e.Key() == tcell.KeyEnter:

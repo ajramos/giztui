@@ -2361,6 +2361,12 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-8s  📄  Save raw message\n", a.Keys.SaveRaw)
 	fmt.Fprintf(&help, "    %-8s  📅  RSVP to calendar event\n", a.Keys.RSVP)
 	fmt.Fprintf(&help, "    %-8s  🔗  Link picker (view/open message links)\n", a.Keys.LinkPicker)
+	fmt.Fprintf(&help, "    %-8s  🔎  Advanced search form (in search box)\n", a.Keys.SearchAdvanced)
+	fmt.Fprintf(&help, "    %-8s  🔁  Toggle Gmail/local search (in search box)\n", a.Keys.SearchToggleMode)
+	fmt.Fprintf(&help, "    %-8s  👁️   Preview selected prompt (in prompt picker)\n", a.Keys.PromptPreview)
+	fmt.Fprintf(&help, "    %-8s  📋  Copy selected link (in link picker)\n", a.Keys.LinkCopy)
+	fmt.Fprintf(&help, "    %-8s  💾  Save selected attachment as… (in attachments)\n", a.Keys.AttachmentSave)
+	fmt.Fprintf(&help, "    %-8s  📨  Send the message (in composition)\n", a.Keys.ComposeSend)
 	fmt.Fprintf(&help, "    %-8s  🎨  Theme picker & preview\n", a.Keys.ThemePicker)
 	if a.Config.IsObsidianEnabled() {
 		fmt.Fprintf(&help, "    %-8s  📝  Send to Obsidian (individual files or repopack)\n", a.Keys.Obsidian)
@@ -2370,7 +2376,8 @@ func (a *App) generateHelpText() string {
 	}
 	fmt.Fprintf(&help, "    %-8s  📋  Toggle Markdown rendering (rendered ↔ raw)\n", a.Keys.Markdown)
 	fmt.Fprintf(&help, "    %-8s  👤  Account picker (switch accounts)\n", a.Keys.Accounts)
-	fmt.Fprintf(&help, "    %-8s  🧠  Open inbox Action Plan (AI)\n\n", a.Keys.ActionPlan)
+	fmt.Fprintf(&help, "    %-8s  🧠  Open inbox Action Plan (AI)\n", a.Keys.ActionPlan)
+	fmt.Fprintf(&help, "      └ in panel: %s remember rule · %s view prompt · %s move · %s exclude\n\n", a.Keys.RememberRule, a.Keys.ViewPrompt, a.Keys.Move, a.Keys.BulkSelect)
 
 	// Command Equivalents
 	help.WriteString("💻 COMMAND EQUIVALENTS\n\n")

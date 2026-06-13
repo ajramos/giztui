@@ -677,7 +677,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
-		if ev.Key() == tcell.KeyCtrlR {
+		if a.matchesConfiguredKey(ev, a.Keys.RememberRule) {
 			from, action, negate := "", "none", false
 			if cat := a.currentActionPlanCategory(state); cat != nil {
 				action = cat.Action
@@ -710,8 +710,8 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		key := string(ev.Rune())
 
-		// Space toggles the excluded state of an email node.
-		if ev.Rune() == ' ' {
+		// Toggle the excluded state of an email node (configurable; reuses bulk_select, default "space").
+		if a.matchesConfiguredKey(ev, a.Keys.BulkSelect) {
 			if cur != nil {
 				if ref, ok := cur.GetReference().(emailRef); ok {
 					state.excluded[ref.msgID] = !state.excluded[ref.msgID]
@@ -727,7 +727,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		}
 		// 'm' moves: on an email node, that one email; on a category or read-manually header,
 		// the whole group.
-		if ev.Rune() == 'm' && cur != nil {
+		if a.matchesConfiguredKey(ev, a.Keys.Move) && cur != nil {
 			switch ref := cur.GetReference().(type) {
 			case emailRef:
 				a.showActionPlanMoveInline(state, ref.catIndex, ref.msgID)
@@ -737,8 +737,8 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				return nil
 			}
 		}
-		// 'v' opens the effective-prompt viewer (blocked during analysis, like quick-actions).
-		if ev.Rune() == 'v' {
+		// Open the effective-prompt viewer (configurable; default "i"). Blocked during analysis.
+		if a.matchesConfiguredKey(ev, a.Keys.ViewPrompt) {
 			a.showActionPlanPromptView(state)
 			return nil
 		}
