@@ -1010,6 +1010,7 @@ type InboxAnalyzerOptions struct {
 	CustomPromptText string   // empty → use the built-in default analyzer prompt
 	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
 	BodyCharLimit    int      // max body chars rendered per email; <= 0 → no extra trim
+	AvailableLabels  []string // existing user-label names; analyzer prefers these for the "label" action
 }
 
 // InboxAnalyzerService groups unread messages into an actionable plan via the LLM.

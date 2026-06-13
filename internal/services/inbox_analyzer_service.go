@@ -258,7 +258,28 @@ func (s *InboxAnalyzerServiceImpl) BuildPromptPreview(opts InboxAnalyzerOptions)
 	if strings.TrimSpace(base) == "" {
 		base = defaultAnalyzerPrompt
 	}
-	return prependUserRules(base, opts.UserRules)
+	withRules := prependUserRules(base, opts.UserRules)
+	return prependAvailableLabels(withRules, opts.AvailableLabels)
+}
+
+// prependAvailableLabels prepends an "## Existing labels" block when labels are present, telling
+// the model to prefer an exact existing label for the "label" action. Empty → prompt unchanged.
+func prependAvailableLabels(promptText string, labels []string) string {
+	clean := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if strings.TrimSpace(l) != "" {
+			clean = append(clean, strings.TrimSpace(l))
+		}
+	}
+	if len(clean) == 0 {
+		return promptText
+	}
+	header := "## Existing labels\n" +
+		"These labels already exist in the mailbox: " + strings.Join(clean, ", ") + "\n" +
+		"For the \"label\" action, PREFER an exact name from this list when one fits. Only invent a " +
+		"NEW label when none fits; if you do, keep it short kebab-case and note \"(new)\" in the " +
+		"category description.\n\n"
+	return header + promptText
 }
 
 // prependUserRules adds a "## User preferences" block before the analyzer prompt
@@ -295,6 +316,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 	}
 
 	promptText = prependUserRules(promptText, opts.UserRules)
+	promptText = prependAvailableLabels(promptText, opts.AvailableLabels)
 
 	batches := splitBatches(messages, opts.BatchSize, opts.MaxBatches)
 	plan := &ActionPlan{BatchesTotal: len(batches)}

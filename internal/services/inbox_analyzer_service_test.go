@@ -360,3 +360,34 @@ func TestPrependUserRules_Interests(t *testing.T) {
 		t.Fatal("empty rules must return the base prompt unchanged")
 	}
 }
+
+func TestPrependAvailableLabels(t *testing.T) {
+	got := prependAvailableLabels("BASEPROMPT", []string{"work", "receipts"})
+	if !strings.Contains(got, "## Existing labels") {
+		t.Fatalf("expected labels heading, got:\n%s", got)
+	}
+	if !strings.Contains(got, "work") || !strings.Contains(got, "receipts") {
+		t.Fatalf("expected label names, got:\n%s", got)
+	}
+	if !strings.Contains(got, "PREFER an exact name") {
+		t.Fatalf("expected the prefer-existing instruction, got:\n%s", got)
+	}
+	if !strings.Contains(got, "BASEPROMPT") {
+		t.Fatalf("expected base prompt retained, got:\n%s", got)
+	}
+	if prependAvailableLabels("BASEPROMPT", nil) != "BASEPROMPT" {
+		t.Fatal("empty labels must return the base prompt unchanged")
+	}
+}
+
+func TestBuildPromptPreview_Labels(t *testing.T) {
+	s := NewInboxAnalyzerService(nil)
+	out := s.BuildPromptPreview(InboxAnalyzerOptions{AvailableLabels: []string{"work"}})
+	if !strings.Contains(out, "## Existing labels") || !strings.Contains(out, "work") {
+		t.Fatalf("preview should include the labels block, got:\n%s", out)
+	}
+	out = s.BuildPromptPreview(InboxAnalyzerOptions{})
+	if strings.Contains(out, "## Existing labels") {
+		t.Fatalf("no labels → no labels block, got:\n%s", out)
+	}
+}
