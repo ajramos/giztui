@@ -29,6 +29,7 @@ func (a *App) showActionPlanPromptView(state *actionPlanState) {
 		CustomPromptText: state.customPromptText,
 		UserRules:        userRules,
 		BodyCharLimit:    a.Config.InboxAnalyzer.BodyCharLimit,
+		AvailableLabels:  a.userLabelNames(),
 	}
 	prompt := svc.BuildPromptPreview(opts)
 

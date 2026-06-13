@@ -284,6 +284,10 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}
 	}
 
+	// Existing user labels so the analyzer prefers them for the "label" action (read outside the
+	// analysis goroutine to avoid racing it).
+	availableLabels := a.userLabelNames()
+
 	// Enrich the analyzer context with each email's plain-text body (opt-in). Cap to what is
 	// actually analyzed (BatchSize x MaxBatches) so we never fetch bodies for messages the
 	// analyzer would drop. Failures degrade gracefully to the snippet (Body left empty).
@@ -333,7 +337,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
-			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit},
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit, AvailableLabels: availableLabels},
 			func(p *services.ActionPlan) {
 				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
 				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
@@ -748,6 +752,26 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		}
 		return ev
 	}
+}
+
+// userLabelNames returns the names of the user's own labels (excluding Gmail system labels),
+// for feeding the analyzer so it prefers existing labels. Errors degrade to an empty slice.
+func (a *App) userLabelNames() []string {
+	_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	if labelService == nil {
+		return nil
+	}
+	labels, err := labelService.ListLabels(a.ctx)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if l != nil && l.Type == "user" {
+			out = append(out, l.Name)
+		}
+	}
+	return out
 }
 
 // currentActionPlanCategory returns the selected category or nil.
