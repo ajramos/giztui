@@ -1071,6 +1071,26 @@ New releases may add config options. Your existing `config.json` keeps working (
 
 This adds any missing default keys to your `config.json` (writing a `<config>.bak` backup first) without touching your existing values or `_comment` annotations. On startup the app also tells you when new options are available. Note: the file is re-sorted alphabetically on migrate; the `.bak` keeps the original order.
 
+### Text-to-Speech (read aloud)
+
+Opt-in local TTS (Piper) reads the focused panel aloud. Requires installing Piper + a voice model — see **[docs/TTS.md](TTS.md)** for the full setup.
+
+```json
+"tts": {
+  "enabled": true,
+  "piper_path": "~/.config/giztui/piper/piper",
+  "model_path": "~/.config/giztui/piper/es_ES-carlfm-x_low.onnx"
+}
+```
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `enabled` | boolean | Enable text-to-speech. | `false` |
+| `piper_path` | string | Path to the Piper binary. | `""` |
+| `model_path` | string | Path to the `.onnx` voice model. | `""` |
+
+Bind a key with `keys.speak` (unbound by default); press it on a text panel to read it aloud, again to stop. Run `:config migrate` to add these keys to an existing config.
+
 ### Rendering Configuration
 
 Controls how HTML email bodies are displayed in the message view.

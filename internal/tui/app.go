@@ -2406,6 +2406,9 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s ⟳   Toggle background inbox auto-refresh (alias :arr; :arr 2m sets interval)\n", ":autorefresh")
 	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
+	if a.Keys.Speak != "" {
+		fmt.Fprintf(&help, "    %-18s 🔊  Read the focused panel aloud (TTS; stop = press again)\n", a.Keys.Speak)
+	}
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
