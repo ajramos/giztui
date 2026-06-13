@@ -19,6 +19,7 @@ import (
 	"github.com/ajramos/giztui/internal/obsidian"
 	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
+	"github.com/ajramos/giztui/internal/tts"
 	"github.com/ajramos/giztui/internal/version"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -217,6 +218,7 @@ type App struct {
 	undoService             services.UndoService
 	preloaderService        services.MessagePreloader
 	autoRefreshService      services.AutoRefreshService
+	speechService           services.SpeechService
 	currentTheme            *config.ColorsConfig // Current theme cache for helper functions
 	errorHandler            *ErrorHandler
 
@@ -1045,6 +1047,14 @@ func (a *App) initServices() {
 	if a.autoRefreshService.IsEnabled() {
 		a.startAutoRefresh()
 	}
+
+	// Text-to-speech service (opt-in; unconfigured until piper + model paths are set).
+	a.speechService = services.NewSpeechService(
+		&tts.ExternalPiperSynthesizer{PiperPath: a.Config.TTS.PiperPath},
+		tts.OSPlayer{},
+		a.Config.TTS.PiperPath,
+		a.Config.TTS.ModelPath,
+	)
 }
 
 // reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database
@@ -1527,6 +1537,11 @@ func (a *App) GetInboxAnalyzerService() services.InboxAnalyzerService {
 // GetAnalyzerRulesService returns the analyzer rules service (may be nil if no DB/account).
 func (a *App) GetAnalyzerRulesService() services.AnalyzerRulesService {
 	return a.analyzerRulesService
+}
+
+// GetSpeechService returns the text-to-speech service (may be unconfigured).
+func (a *App) GetSpeechService() services.SpeechService {
+	return a.speechService
 }
 
 // GetBulkPromptService returns the bulk prompt service or nil if not initialized.
