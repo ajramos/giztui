@@ -578,7 +578,8 @@ func (a *App) bindKeys() {
 		// this pass-through it would swallow their Esc/Ctrl+P/Enter (see prompt-preview bug).
 		if a.currentFocus == "prompt_preview" || a.currentFocus == "action_plan_move" ||
 			a.currentFocus == "analyzer_rules" || a.currentFocus == "analyzer_rules_add" ||
-			a.currentFocus == "action_plan_rule" || a.currentFocus == "action_plan_prompt" {
+			a.currentFocus == "action_plan_rule" || a.currentFocus == "action_plan_prompt" ||
+			a.currentFocus == "action_plan_summary" {
 			return event
 		}
 

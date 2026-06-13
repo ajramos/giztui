@@ -755,6 +755,9 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		case a.Keys.ManageLabels:
 			a.executeActionPlanAction(state, "label")
 			return nil
+		case a.Keys.Summarize:
+			a.dispatchActionPlanSummarize(state)
+			return nil
 		}
 		return ev
 	}
