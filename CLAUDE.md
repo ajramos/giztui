@@ -307,7 +307,9 @@ When implementing a new feature:
 8. **Ensure Thread Safety** - Use accessor methods
 9. **Command Parity** - Add equivalent command (see [KEYBOARD_SHORTCUTS.md](docs/KEYBOARD_SHORTCUTS.md))
 10. **Test Integration** - Verify build and functionality (see [TESTING.md](docs/TESTING.md))
-11. **Documentation** - Update relevant docs in [docs/](docs/) if needed
+11. **Update in-app `:help`** - Document new keys/commands/options on the `?` help screen (not just the docs). This is part of Definition of Done, not optional.
+12. **Config defaults + migration** - If the feature adds a config option, add it to `DefaultConfig()` AND ensure the config self-migration path surfaces it to existing users' `config.json` on other machines (a default in code is not enough — users on an older config file must get the new key). Part of Definition of Done.
+13. **Documentation** - Update relevant docs in [docs/](docs/) if needed
 
 ## 🚀 **Release Management**
 
