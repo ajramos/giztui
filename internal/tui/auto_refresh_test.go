@@ -2,7 +2,10 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"testing"
+
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 func TestAutoRefreshLifecycleIdempotent(t *testing.T) {
@@ -83,5 +86,29 @@ func TestPrependModelMath(t *testing.T) {
 	_, idx := prependIDsAndLocate(newIDs, ids, "missing")
 	if idx != 0 {
 		t.Errorf("missing selection index = %d, want 0", idx)
+	}
+}
+
+func TestBuildNewMailSlackMessage(t *testing.T) {
+	mk := func(subj, from string) *gmailapi.Message {
+		return &gmailapi.Message{Payload: &gmailapi.MessagePart{Headers: []*gmailapi.MessagePartHeader{
+			{Name: "Subject", Value: subj}, {Name: "From", Value: from},
+		}}}
+	}
+	msg := buildNewMailSlackMessage([]*gmailapi.Message{mk("Hello", "a@x.com"), mk("World", "b@x.com")})
+	if !strings.Contains(msg, "2 new email") {
+		t.Fatalf("expected count, got:\n%s", msg)
+	}
+	if !strings.Contains(msg, "Hello — a@x.com") || !strings.Contains(msg, "World — b@x.com") {
+		t.Fatalf("expected subject — from lines, got:\n%s", msg)
+	}
+
+	many := make([]*gmailapi.Message, 13)
+	for i := range many {
+		many[i] = mk("S", "f@x.com")
+	}
+	capped := buildNewMailSlackMessage(many)
+	if !strings.Contains(capped, "and 3 more") {
+		t.Fatalf("expected overflow note for 13, got:\n%s", capped)
 	}
 }
