@@ -216,4 +216,7 @@ func (a *App) openAnalyzerRulesManager() {
 	a.setActivePicker(PickerAnalyzerRules)
 	a.currentFocus = "analyzer_rules"
 	a.SetFocus(list)
+	// :plan rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
+	// would otherwise re-focus the message list afterward. "keep" tells it to leave our focus.
+	a.cmdFocusOverride = "keep"
 }

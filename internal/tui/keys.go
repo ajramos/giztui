@@ -1642,6 +1642,9 @@ func (a *App) restoreFocusAfterModal() {
 				a.updateFocusIndicators("text")
 				return
 			}
+		case "keep":
+			// A picker/command already set focus (e.g. :plan rules); leave it as-is.
+			return
 		}
 	}
 
