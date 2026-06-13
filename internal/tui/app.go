@@ -1045,6 +1045,12 @@ func (a *App) initServices() {
 	if a.autoRefreshService.IsEnabled() {
 		a.startAutoRefresh()
 	}
+
+	// Notify (do not modify the file) when the user's config is missing options this version
+	// knows about, so they can pull them in with :config migrate.
+	if missing, err := config.MissingDefaultKeys(config.DefaultConfigPath()); err == nil && len(missing) > 0 {
+		go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("ℹ %d new config option(s) available — run :config migrate to add them", len(missing)))
+	}
 }
 
 // reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database
@@ -2388,6 +2394,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧾  Toggle AI touch-up of rendered text\n", ":touch-up")
 	fmt.Fprintf(&help, "    %-18s 👤  Open account picker (alias :acc)\n", ":accounts")
 	fmt.Fprintf(&help, "    %-18s 🧠  Open inbox Action Plan (alias :plan, :ap)\n", ":action-plan")
+	fmt.Fprintf(&help, "    %-18s ⟳   Toggle background inbox auto-refresh (alias :arr; :arr 2m sets interval)\n", ":autorefresh")
+	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {

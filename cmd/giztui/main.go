@@ -25,6 +25,7 @@ func main() {
 	credPathFlag := flag.String("credentials", "", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
 	versionFlag := flag.Bool("version", false, "Show version information and exit")
+	migrateConfigFlag := flag.Bool("migrate-config", false, "Add missing default options to the config file and exit")
 
 	// Override flag usage text to show clean, simple usage
 	flag.Usage = func() {
@@ -40,7 +41,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  --config string\n        %s\n", "Path to JSON configuration file (default: ~/.config/giztui/config.json)")
 		fmt.Fprintf(os.Stderr, "  --credentials string\n        %s\n", "Path to OAuth client credentials JSON (default: ~/.config/giztui/credentials.json)")
 		fmt.Fprintf(os.Stderr, "  --setup\n        %s\n", "Run interactive setup wizard")
-		fmt.Fprintf(os.Stderr, "  --version\n        %s\n\n", "Show version information and exit")
+		fmt.Fprintf(os.Stderr, "  --version\n        %s\n", "Show version information and exit")
+		fmt.Fprintf(os.Stderr, "  --migrate-config\n        %s\n\n", "Add missing default options to the config file and exit")
 		fmt.Fprintf(os.Stderr, "Environment Variables:\n")
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CONFIG      Override default config file path\n")
 		fmt.Fprintf(os.Stderr, "  GMAIL_TUI_CREDENTIALS Override default credentials file path\n")
@@ -64,6 +66,24 @@ func main() {
 
 	// Load configuration with smart defaults and environment variable support
 	configPath := getConfigPath(*configPathFlag)
+
+	// Handle config migration (add missing default keys to the config file, then exit)
+	if *migrateConfigFlag {
+		added, backup, mErr := config.MigrateConfigFile(configPath)
+		if mErr != nil {
+			fmt.Fprintf(os.Stderr, "Config migrate failed: %v\n", mErr)
+			os.Exit(1)
+		}
+		if len(added) == 0 {
+			fmt.Println("Config is already up to date.")
+			return
+		}
+		fmt.Printf("Added %d option(s) to %s (backup: %s):\n", len(added), configPath, backup)
+		for _, k := range added {
+			fmt.Printf("  - %s\n", k)
+		}
+		return
+	}
 
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {

@@ -383,6 +383,7 @@ When you customize shortcuts, the priority order is:
 | `:undo` | Undo last action |
 | `:version` | Show version information |
 | `:config` | Show configuration |
+| `:config migrate` | Add missing default options to your config.json (backup written) |
 | `:markdown` or `:md` | Toggle Markdown ↔ raw rendering for the current message (same as `M`) |
 | `:touch-up` | Toggle LLM whitespace touch-up for the current message |
 

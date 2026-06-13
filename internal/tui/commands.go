@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
@@ -429,6 +430,8 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 		"auto":           {"autorefresh"},
 		"autoref":        {"autorefresh"},
 		"autorefresh":    {"autorefresh"},
+		"cfg":            {"config"},
+		"config":         {"config"},
 		"b":              {"archived"},
 		"unr":            {"unread"},
 		"unre":           {"unread"},
@@ -797,6 +800,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeRefreshCommand(args)
 	case "autorefresh", "arr":
 		a.executeAutoRefreshCommand(args)
+	case "config", "cfg":
+		a.executeConfigCommand(args)
 	case "load", "more", "next":
 		a.executeLoadMoreCommand(args)
 	case "unread", "u":
@@ -2618,4 +2623,25 @@ func (a *App) executeActionPlanCommand(args []string) {
 		return
 	}
 	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
+}
+
+// executeConfigCommand handles :config [migrate]. Without a subcommand it prints usage.
+func (a *App) executeConfigCommand(args []string) {
+	if len(args) > 0 && strings.ToLower(args[0]) == "migrate" {
+		go func() {
+			path := config.DefaultConfigPath()
+			added, backup, err := config.MigrateConfigFile(path)
+			if err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Config migrate failed: %v", err))
+				return
+			}
+			if len(added) == 0 {
+				a.GetErrorHandler().ShowInfo(a.ctx, "Config is already up to date")
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("✓ Added %d config option(s) (backup: %s). Edit them and restart to apply.", len(added), backup))
+		}()
+		return
+	}
+	go a.GetErrorHandler().ShowInfo(a.ctx, "Usage: :config migrate")
 }
