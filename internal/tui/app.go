@@ -1045,6 +1045,12 @@ func (a *App) initServices() {
 	if a.autoRefreshService.IsEnabled() {
 		a.startAutoRefresh()
 	}
+
+	// Notify (do not modify the file) when the user's config is missing options this version
+	// knows about, so they can pull them in with :config migrate.
+	if missing, err := config.MissingDefaultKeys(config.DefaultConfigPath()); err == nil && len(missing) > 0 {
+		go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("ℹ %d new config option(s) available — run :config migrate to add them", len(missing)))
+	}
 }
 
 // reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database
