@@ -170,12 +170,15 @@ func (a *App) executeAutoRefreshCommand(args []string) {
 	if len(args) > 0 {
 		if d, err := time.ParseDuration(args[0]); err == nil && d > 0 {
 			a.autoRefreshService.SetInterval(d)
-			// Restart ticker to apply immediately if running.
+			// Giving an interval also ENABLES auto-refresh — that is the intuitive meaning of
+			// ":arr 1m" (previously it only set the interval and silently stayed off if it
+			// wasn't already running). (Re)start the ticker so the new interval takes effect.
+			a.autoRefreshService.SetEnabled(true)
 			if a.isAutoRefreshRunning() {
 				a.stopAutoRefresh()
-				a.startAutoRefresh()
 			}
-			go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⟳ Auto-refresh interval set to %s", a.autoRefreshService.Interval()))
+			a.startAutoRefresh()
+			go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⟳ Auto-refresh ON (every %s)", a.autoRefreshService.Interval()))
 			go a.QueueUpdateDraw(func() { a.refreshStatusBar() })
 			return
 		}
