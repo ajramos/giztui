@@ -2026,7 +2026,8 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 			if a.logger != nil {
 				a.logger.Printf("applyLabelToBulkSelection: calling BulkApplyLabel for %d messages", len(messageIDs))
 			}
-			err = labelService.BulkApplyLabel(a.ctx, messageIDs, labelID)
+			err = labelService.BulkApplyLabel(a.ctx, messageIDs, labelID, a.bulkProgress(a.ctx, "Applying label"))
+			a.GetErrorHandler().ClearPersistentMessage()
 		} else {
 			if a.logger != nil {
 				a.logger.Printf("applyLabelToBulkSelection: calling BulkRemoveLabel for %d messages", len(messageIDs))

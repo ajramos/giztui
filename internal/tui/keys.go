@@ -2214,7 +2214,7 @@ func (a *App) archiveRange(startIndex, count int) {
 	go func() {
 		// Use bulk archive service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-		err := emailService.BulkArchive(a.ctx, messageIDs)
+		err := emailService.BulkArchive(a.ctx, messageIDs, a.bulkProgress(a.ctx, "Archiving"))
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
@@ -2255,7 +2255,7 @@ func (a *App) trashRange(startIndex, count int) {
 	go func() {
 		// Use bulk trash service method for proper undo recording
 		emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-		err := emailService.BulkTrash(a.ctx, messageIDs)
+		err := emailService.BulkTrash(a.ctx, messageIDs, a.bulkProgress(a.ctx, "Trashing"))
 
 		// Clear progress and show result
 		a.GetErrorHandler().ClearProgress()
