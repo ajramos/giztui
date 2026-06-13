@@ -1058,6 +1058,15 @@ Opt-in background polling that detects new inbox mail. While you are viewing the
 
 Toggle at runtime with `:autorefresh` / `:arr`. Passing a duration (`:arr 2m`) enables auto-refresh and sets the interval in one step. Bind an optional key via `keys.auto_refresh` (unbound by default).
 
+### Keeping your config up to date
+
+New releases may add config options. Your existing `config.json` keeps working (missing keys use their defaults), but to **see and customize** new options run:
+
+- In-app: `:config migrate`
+- CLI: `giztui --migrate-config`
+
+This adds any missing default keys to your `config.json` (writing a `<config>.bak` backup first) without touching your existing values or `_comment` annotations. On startup the app also tells you when new options are available. Note: the file is re-sorted alphabetically on migrate; the `.bak` keeps the original order.
+
 ### Rendering Configuration
 
 Controls how HTML email bodies are displayed in the message view.

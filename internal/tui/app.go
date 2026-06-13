@@ -2394,6 +2394,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧾  Toggle AI touch-up of rendered text\n", ":touch-up")
 	fmt.Fprintf(&help, "    %-18s 👤  Open account picker (alias :acc)\n", ":accounts")
 	fmt.Fprintf(&help, "    %-18s 🧠  Open inbox Action Plan (alias :plan, :ap)\n", ":action-plan")
+	fmt.Fprintf(&help, "    %-18s ⟳   Toggle background inbox auto-refresh (alias :arr; :arr 2m sets interval)\n", ":autorefresh")
+	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
