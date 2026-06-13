@@ -108,3 +108,24 @@ func TestRememberRuleInlineSwap(t *testing.T) {
 		t.Fatal("after Esc, the tree should be restored as the container body")
 	}
 }
+
+func TestAnalyzerRulesPickerSetsFocusKeepOverride(t *testing.T) {
+	a := newRulesTestApp()
+	a.openAnalyzerRulesManager()
+	if a.cmdFocusOverride != "keep" {
+		t.Fatalf("expected cmdFocusOverride=keep so the command bar teardown won't steal focus, got %q", a.cmdFocusOverride)
+	}
+}
+
+func TestRestoreFocusAfterModal_Keep(t *testing.T) {
+	a := newRulesTestApp()
+	a.currentFocus = "analyzer_rules"
+	a.cmdFocusOverride = "keep"
+	a.restoreFocusAfterModal()
+	if a.currentFocus != "analyzer_rules" {
+		t.Fatalf("keep override must not re-focus the list, got %q", a.currentFocus)
+	}
+	if a.cmdFocusOverride != "" {
+		t.Fatalf("override should be consumed, got %q", a.cmdFocusOverride)
+	}
+}

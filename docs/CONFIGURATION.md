@@ -1040,6 +1040,8 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 
 The shortcut is configurable via `keys.action_plan` (default `"P"`).
 
+**Rules and interests:** with `:plan rules` (or `Ctrl+R` inside the Action Plan) you can save free-text **action rules** ("archive everything from GitHub") *and* **interests** ("I'm interested in AI"). The analyzer treats interests as relevance signals: emails matching them are surfaced (priority "high" + a note in the category description) instead of being buried in a bulk action.
+
 ### Auto-Refresh Configuration
 
 Opt-in background polling that detects new inbox mail. While you are viewing the plain inbox and nothing is open (no picker, search, bulk selection, or composer), new mail is **prepended in place** without moving your cursor. Otherwise a pending counter `📬 N` appears in the status bar and you load it with `R` when ready. The status bar shows `⟳` while enabled. Only the plain inbox is polled (search/folder/thread views idle the ticker).

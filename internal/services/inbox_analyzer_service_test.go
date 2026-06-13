@@ -344,3 +344,19 @@ func TestBuildPromptPreview(t *testing.T) {
 		t.Fatalf("no rules → no preferences block: %q", out)
 	}
 }
+
+func TestPrependUserRules_Interests(t *testing.T) {
+	got := prependUserRules("BASEPROMPT", []string{"interested in AI"})
+	if !strings.Contains(got, "## User preferences and interests") {
+		t.Fatalf("expected reframed heading, got:\n%s", got)
+	}
+	if !strings.Contains(got, "interest/relevance") {
+		t.Fatalf("expected the relevance instruction, got:\n%s", got)
+	}
+	if !strings.Contains(got, "interested in AI") || !strings.Contains(got, "BASEPROMPT") {
+		t.Fatalf("expected rule text + base prompt, got:\n%s", got)
+	}
+	if prependUserRules("BASEPROMPT", nil) != "BASEPROMPT" {
+		t.Fatal("empty rules must return the base prompt unchanged")
+	}
+}
