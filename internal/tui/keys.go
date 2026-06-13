@@ -181,6 +181,12 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		a.toggleAutoRefresh()
 		return true
+	case a.Keys.Speak:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> speak", key)
+		}
+		a.toggleSpeak()
+		return true
 	case a.Keys.Search:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> search", key)

@@ -550,3 +550,13 @@ func TestDefaultConfigAutoRefresh(t *testing.T) {
 		t.Errorf("ResolvedInterval() bad value = %v, want 5m fallback", got)
 	}
 }
+
+func TestDefaultConfig_TTS(t *testing.T) {
+	c := DefaultConfig()
+	if c.TTS.Enabled {
+		t.Error("tts.enabled should default to false (opt-in)")
+	}
+	if c.Keys.Speak != "" {
+		t.Errorf("keys.speak should default to unbound, got %q", c.Keys.Speak)
+	}
+}
