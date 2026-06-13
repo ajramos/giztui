@@ -5,6 +5,18 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-06-13
+
+### 🚀 Features
+
+- **Per-item progress for bulk operations**: bulk archive / trash / mark-read / mark-unread / label now show live progress in the status bar ("Archiving 3/10…"), for both the inbox bulk selection and Action Plan group dispatch — no more "looks hung" on large selections.
+- **Config self-migration**: new options added in newer releases can be pulled into your existing `config.json` with `:config migrate` (or `giztui --migrate-config`), which adds any missing default keys while preserving your values and `_comment` annotations (writing a `.bak` backup first). The app also notifies on startup when new options are available. Your config keeps working regardless; this just makes new options visible and editable on machines with an older config file.
+
+### 🐛 Fixes
+
+- **"Fetching email bodies…" no longer lingers**: the Action Plan analyzer's body-fetch progress message was persistent and never cleared; it now clears once the fetch completes.
+- **`:arr <duration>` now enables auto-refresh**: previously `:autorefresh 1m` only set the interval and silently stayed off if it wasn't already running. It now enables and starts auto-refresh in one step.
+
 ## [1.8.0] - 2026-06-12
 
 ### 🚀 Features
