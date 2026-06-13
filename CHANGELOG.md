@@ -5,6 +5,18 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-06-13
+
+### 🚀 Features — smarter Action Plan analyzer
+
+- **Interests / relevance**: saved analyzer rules are now treated as **interests** too. Write things like "I'm interested in AI" via `:plan rules` (or `Ctrl+R`); the analyzer surfaces matching emails (priority "high" + a note in the category description) instead of burying them in a bulk action. The rules UI is relabeled "rules & interests" for discoverability.
+- **Prefers your existing labels**: the analyzer is now given your existing user labels and prefers an exact match for the `label` action, only inventing a new label when none fits — so it stops recommending labels you don't have.
+- **`summarize` action (AI digest)**: the analyzer can mark a category as `summarize`; press your summarize key (`y`) on it to get a single combined AI digest of its emails in an in-place panel (Markdown, `Esc` to return) — for mail you'd rather skim than read fully or discard.
+
+### 🐛 Fixes
+
+- **`:plan rules` now takes focus**: opening the analyzer-rules picker via `:plan rules` left focus on the message list; it now correctly focuses the picker.
+
 ## [1.9.0] - 2026-06-13
 
 ### 🚀 Features
