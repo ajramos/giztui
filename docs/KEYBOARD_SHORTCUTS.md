@@ -45,7 +45,8 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `W` | Save as raw | Save message as raw .eml file |
 | `h` | Toggle headers | Show/hide email headers |
 | `f` | Fullscreen | Toggle fullscreen message view |
-| `t` | Focus toggle | Switch focus between list and content |
+| `Tab` | Cycle focus | Move focus forward through the visible panes (list → reader → picker → summary → slack) |
+| `Shift+Tab` | Cycle focus back | Move focus backward through the same panes |
 | `M` | Toggle Markdown | Toggle between Markdown-rendered view and raw/plain view (per message) |
 
 ## 🔍 Search & Navigation

@@ -1410,6 +1410,15 @@ func (a *App) bindKeys() {
 			a.toggleFocus()
 			return nil
 		}
+		// Shift+Tab cycles focus in reverse through the same ring.
+		if event.Key() == tcell.KeyBacktab {
+			// The advanced search form handles its own Shift+Tab field navigation.
+			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
+				return event
+			}
+			a.cycleFocus(false)
+			return nil
+		}
 		// If a picker/list or advanced search form field has focus, do not handle runes globally
 		switch a.GetFocus().(type) {
 		case *tview.InputField, *tview.List:
@@ -1580,79 +1589,94 @@ func (a *App) handleBulkSelect() bool {
 	return false
 }
 
-// toggleFocus switches focus between list and text view
-func (a *App) toggleFocus() {
-	currentFocus := a.GetFocus()
+// focusRingEntry pairs a pane's stable name with the primitive to focus. Cycling is keyed on the
+// name (not the focused primitive's pointer) so it survives composite widgets whose inner child
+// actually holds focus — pickers expose an InputField/List, not their container, which made the
+// old pointer-equality lookup skip panes (notably the message reader).
+type focusRingEntry struct {
+	name string
+	prim tview.Primitive
+}
 
-	// Build focus ring dynamically based on visible components
-	ring := []tview.Primitive{}
-	ringNames := []string{}
-	// 1) Search (if visible)
+// buildFocusRing returns the ordered, currently-visible focus panes — the single source of truth
+// for Tab / Shift+Tab cycling.
+func (a *App) buildFocusRing() []focusRingEntry {
+	ring := make([]focusRingEntry, 0, 6)
+	// 1) Search (only when the search container is on-screen).
 	if sc, ok := a.views["searchContainer"].(*tview.Flex); ok {
-		_, _, w, h := sc.GetRect()
-		if w > 0 && h > 0 {
+		if _, _, w, h := sc.GetRect(); w > 0 && h > 0 {
 			if inp, ok2 := a.views["searchInput"].(*tview.InputField); ok2 {
-				ring = append(ring, inp)
-				ringNames = append(ringNames, "search")
+				ring = append(ring, focusRingEntry{"search", inp})
 			}
 		}
 	}
-	// 2) List (always)
-	ring = append(ring, a.views["list"])
-	ringNames = append(ringNames, "list")
-	// 3) Text (always) - keep using regular text view for focus ring
-	// Only use EnhancedTextView when explicitly needed for content navigation
-	ring = append(ring, a.views["text"])
-	ringNames = append(ringNames, "text")
-	// 4) Labels/Prompts (if visible)
-	if a.currentActivePicker != PickerNone {
-		ring = append(ring, a.labelsView)
-		// Use more specific name based on current focus state
+	// 2) List and 3) the message reader are always present.
+	ring = append(ring, focusRingEntry{"list", a.views["list"]})
+	ring = append(ring, focusRingEntry{"text", a.views["text"]})
+	// 4) Labels/Prompts picker (when active). SetFocus on the container delegates to its input.
+	if a.currentActivePicker != PickerNone && a.labelsView != nil {
+		name := "labels"
 		if a.currentFocus == "prompts" {
-			ringNames = append(ringNames, "prompts")
-		} else {
-			ringNames = append(ringNames, "labels")
+			name = "prompts"
+		}
+		ring = append(ring, focusRingEntry{name, a.labelsView})
+	}
+	// 5) AI summary and 6) Slack — when visible.
+	if a.aiSummaryVisible && a.aiSummaryView != nil {
+		ring = append(ring, focusRingEntry{"summary", a.aiSummaryView})
+	}
+	if a.slackVisible && a.slackView != nil {
+		ring = append(ring, focusRingEntry{"slack", a.slackView})
+	}
+	return ring
+}
+
+// focusRingIndex returns the position of the pane named current in the ring, or -1 if absent.
+func focusRingIndex(ring []focusRingEntry, current string) int {
+	for i, e := range ring {
+		if e.name == current {
+			return i
 		}
 	}
-	// 5) Summary (if visible)
-	if a.aiSummaryVisible {
-		ring = append(ring, a.aiSummaryView)
-		ringNames = append(ringNames, "summary")
-	}
-	// 6) Slack (if visible)
-	if a.slackVisible {
-		ring = append(ring, a.slackView)
-		ringNames = append(ringNames, "slack")
-	}
+	return -1
+}
 
-	// Find index of current focus
-	idx := -1
-	for i, p := range ring {
-		if currentFocus == p {
-			idx = i
-			// OBLITERATED: redundant break eliminated! 💥
+// stepFocusIndex returns the next ring position from idx. A current focus not in the ring (idx<0)
+// lands on the first pane going forward, or the last going backward.
+func stepFocusIndex(length, idx int, forward bool) int {
+	if length == 0 {
+		return 0
+	}
+	if idx < 0 {
+		if forward {
+			return 0
 		}
+		return length - 1
 	}
-	// If current focus isn't recognized (e.g., nil), start at beginning
-	next := 0
-	if idx >= 0 {
-		next = (idx + 1) % len(ring)
+	if forward {
+		return (idx + 1) % length
 	}
-	// Apply focus and indicators
-	targetName := ringNames[next]
+	return (idx - 1 + length) % length
+}
 
-	// Special handling for prompt picker - focus will be handled by the container's default behavior
-	// The container should automatically focus the first focusable child (input field)
-	if targetName == "prompts" {
-		a.SetFocus(ring[next])
-		a.currentFocus = "prompts"
-		a.updateFocusIndicators("prompts")
+// cycleFocus moves focus to the next (forward) or previous pane in the visible ring. It is keyed on
+// the a.currentFocus name rather than GetFocus() pointer identity, so it reliably includes the
+// message reader and pickers (whose inner widget holds the actual focus).
+func (a *App) cycleFocus(forward bool) {
+	ring := a.buildFocusRing()
+	if len(ring) == 0 {
 		return
 	}
+	next := stepFocusIndex(len(ring), focusRingIndex(ring, a.currentFocus), forward)
+	target := ring[next]
+	a.SetFocus(target.prim)
+	a.currentFocus = target.name
+	a.updateFocusIndicators(target.name)
+}
 
-	a.SetFocus(ring[next])
-	a.currentFocus = targetName
-	a.updateFocusIndicators(targetName)
+// toggleFocus advances focus to the next pane (Tab). Kept for existing callers.
+func (a *App) toggleFocus() {
+	a.cycleFocus(true)
 }
 
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal

@@ -2450,7 +2450,7 @@ func (a *App) generateHelpText() string {
 	// Footer with tips
 	help.WriteString("💡 TIPS\n\n")
 	help.WriteString("    • All shortcuts are configurable in ~/.config/giztui/config.json\n")
-	help.WriteString("    • Use Tab to cycle between panes (list ↔ content)\n")
+	help.WriteString("    • Use Tab / Shift+Tab to cycle focus across visible panes (list, reader, picker, summary, slack)\n")
 	help.WriteString("    • Press Esc to cancel most operations or exit modes\n")
 	help.WriteString("    • VIM range operations work with any action (s5s, a3a, d7d, etc.)\n")
 	help.WriteString("    • Content search (/) highlights matches and enables n/N navigation\n")
