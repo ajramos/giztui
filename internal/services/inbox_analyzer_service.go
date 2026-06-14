@@ -251,20 +251,20 @@ func buildBatchPrompt(promptText, payload string) string {
 	return promptText + "\n\n" + payload
 }
 
-// BuildPromptPreview assembles the analyzer prompt the way Analyze does (base prompt with the
-// user-rules block prepended), leaving {{messages}} as a literal placeholder.
+// BuildPromptPreview assembles the analyzer prompt the way Analyze does: the base prompt (role +
+// rules + JSON format) leads, and the context block (existing labels + user interests) is injected
+// at the {{context}} marker right before the emails. {{messages}} stays a literal placeholder.
 func (s *InboxAnalyzerServiceImpl) BuildPromptPreview(opts InboxAnalyzerOptions) string {
 	base := opts.CustomPromptText
 	if strings.TrimSpace(base) == "" {
 		base = defaultAnalyzerPrompt
 	}
-	withRules := prependUserRules(base, opts.UserRules)
-	return prependAvailableLabels(withRules, opts.AvailableLabels)
+	return injectAnalyzerContext(base, analyzerContextBlock(opts.UserRules, opts.AvailableLabels))
 }
 
-// prependAvailableLabels prepends an "## Existing labels" block when labels are present, telling
-// the model to prefer an exact existing label for the "label" action. Empty → prompt unchanged.
-func prependAvailableLabels(promptText string, labels []string) string {
+// availableLabelsBlock returns the "## Existing labels" context block telling the model to prefer
+// an exact existing label for the "label" action. Empty labels → "".
+func availableLabelsBlock(labels []string) string {
 	clean := make([]string, 0, len(labels))
 	for _, l := range labels {
 		if strings.TrimSpace(l) != "" {
@@ -272,19 +272,18 @@ func prependAvailableLabels(promptText string, labels []string) string {
 		}
 	}
 	if len(clean) == 0 {
-		return promptText
+		return ""
 	}
-	header := "## Existing labels\n" +
+	return "## Existing labels\n" +
 		"These labels already exist in the mailbox: " + strings.Join(clean, ", ") + "\n" +
 		"For the \"label\" action, PREFER an exact name from this list when one fits. Only invent a " +
 		"NEW label when none fits; if you do, keep it short kebab-case and note \"(new)\" in the " +
-		"category description.\n\n"
-	return header + promptText
+		"category description."
 }
 
-// prependUserRules adds a "## User preferences" block before the analyzer prompt
-// so the LLM honors the user's free-text rules. Empty rules → prompt unchanged.
-func prependUserRules(promptText string, rules []string) string {
+// userRulesBlock returns the "## User preferences and interests" context block so the LLM honors
+// the user's free-text rules/interests. Empty rules → "".
+func userRulesBlock(rules []string) string {
 	clean := make([]string, 0, len(rules))
 	for _, r := range rules {
 		if strings.TrimSpace(r) != "" {
@@ -292,14 +291,47 @@ func prependUserRules(promptText string, rules []string) string {
 		}
 	}
 	if len(clean) == 0 {
-		return promptText
+		return ""
 	}
-	header := "## User preferences and interests\n" +
+	return "## User preferences and interests\n" +
 		"Treat the following as BOTH action rules to respect AND interest/relevance signals. " +
 		"When an email matches a stated interest, do NOT bury it in a bulk archive/trash group: " +
 		"keep it visible, set that category's priority to \"high\", and note the matched interest " +
-		"in the category description.\n"
-	return header + strings.Join(clean, "\n") + "\n\n" + promptText
+		"in the category description.\n" +
+		strings.Join(clean, "\n")
+}
+
+// analyzerContextBlock joins the existing-labels and user-interests blocks (each omitted when
+// empty) into a single context section. Returns "" when there is no context at all.
+func analyzerContextBlock(rules, labels []string) string {
+	parts := make([]string, 0, 2)
+	if b := availableLabelsBlock(labels); b != "" {
+		parts = append(parts, b)
+	}
+	if b := userRulesBlock(rules); b != "" {
+		parts = append(parts, b)
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// injectAnalyzerContext places the context block at the {{context}} marker (the bundled template
+// has one right before the emails, so the role/rules/format lead). For custom prompts without the
+// marker it falls back to inserting the context before {{messages}}, or appending. Empty context
+// removes the marker / leaves the prompt unchanged.
+func injectAnalyzerContext(promptText, contextBlock string) string {
+	if strings.Contains(promptText, "{{context}}") {
+		if strings.TrimSpace(contextBlock) == "" {
+			return strings.Replace(promptText, "{{context}}\n", "", 1)
+		}
+		return strings.Replace(promptText, "{{context}}", contextBlock+"\n", 1)
+	}
+	if strings.TrimSpace(contextBlock) == "" {
+		return promptText
+	}
+	if strings.Contains(promptText, "{{messages}}") {
+		return strings.Replace(promptText, "{{messages}}", contextBlock+"\n\n{{messages}}", 1)
+	}
+	return promptText + "\n\n" + contextBlock
 }
 
 func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []AnalyzerMessage, opts InboxAnalyzerOptions, onProgress func(*ActionPlan)) (*ActionPlan, error) {
@@ -315,8 +347,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 		promptText = defaultAnalyzerPrompt
 	}
 
-	promptText = prependUserRules(promptText, opts.UserRules)
-	promptText = prependAvailableLabels(promptText, opts.AvailableLabels)
+	promptText = injectAnalyzerContext(promptText, analyzerContextBlock(opts.UserRules, opts.AvailableLabels))
 
 	batches := splitBatches(messages, opts.BatchSize, opts.MaxBatches)
 	plan := &ActionPlan{BatchesTotal: len(batches)}

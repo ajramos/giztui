@@ -2325,7 +2325,11 @@ func (a *App) generateHelpText() string {
 		fmt.Fprintf(&help, "    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads)
 		fmt.Fprintf(&help, "    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads)
 		if a.LLM != nil {
-			fmt.Fprintf(&help, "    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary)
+			if a.Keys.ThreadSummary != "" {
+				fmt.Fprintf(&help, "    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary)
+			} else {
+				fmt.Fprintf(&help, "    %-8s  🧵  Generate AI summary of thread (use :thread-summary)\n", ":thread-summary")
+			}
 		}
 		fmt.Fprintf(&help, "    %-8s  ⬆️   Navigate to next thread\n", a.Keys.NextThread)
 		fmt.Fprintf(&help, "    %-8s  ⬇️   Navigate to previous thread\n\n", a.Keys.PrevThread)

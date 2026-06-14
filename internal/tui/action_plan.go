@@ -545,19 +545,48 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 	a.syncSelectionToNode(state, children[0])
 }
 
+// actionPlanFooterKeys holds the configurable bindings advertised in the footer, so the hints
+// always reflect the user's config (not hardcoded letters).
+type actionPlanFooterKeys struct {
+	viewPrompt, remember, move, skip string
+}
+
+// prettyKeyLabel renders a config binding for display in footers (e.g. "ctrl+r" → "Ctrl+R",
+// "shift+t" → "Shift+T", "space" → "Space").
+func prettyKeyLabel(k string) string {
+	switch {
+	case strings.HasPrefix(k, "ctrl+"):
+		return "Ctrl+" + strings.ToUpper(k[len("ctrl+"):])
+	case strings.HasPrefix(k, "shift+"):
+		return "Shift+" + strings.ToUpper(k[len("shift+"):])
+	case k == "space":
+		return "Space"
+	case k == "":
+		return "?"
+	default:
+		return k
+	}
+}
+
 // actionPlanFooterText builds the context-aware footer, styled like the other pickers
-// (" X to Y  |  … ", spelled-out Ctrl+R). onCategory=true means a category (or the
-// read-manually node) is highlighted; key/verb/count describe its suggested action.
-func actionPlanFooterText(onCategory bool, key, action string, checkedCount int) string {
+// (" X to Y  |  … "). onCategory=true means a category (or the read-manually node) is
+// highlighted; key/verb/count describe its suggested action. The keys arg supplies the
+// configured bindings so hints track config (e.g. view-prompt is "i", not a hardcoded "v").
+func actionPlanFooterText(onCategory bool, key, action string, checkedCount int, keys actionPlanFooterKeys) string {
 	if onCategory {
-		parts := make([]string, 0, 4)
+		parts := make([]string, 0, 6)
 		if key != "" && action != "none" && action != "" {
 			parts = append(parts, fmt.Sprintf("%s to %s (%d)", key, actionRuleVerbShort(action), checkedCount))
 		}
-		parts = append(parts, "Enter to expand", "v prompt", "Ctrl+R to remember", "Tab to inbox", "Esc to close")
+		parts = append(parts,
+			"Enter to expand",
+			fmt.Sprintf("%s prompt", prettyKeyLabel(keys.viewPrompt)),
+			fmt.Sprintf("%s to remember", prettyKeyLabel(keys.remember)),
+			"Tab to inbox", "Esc to close")
 		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return " Space to skip  |  m to move  |  v prompt  |  Ctrl+R to remember sender  |  Tab to inbox  |  Esc to close "
+	return fmt.Sprintf(" %s to skip  |  %s to move  |  %s prompt  |  %s to remember sender  |  Tab to inbox  |  Esc to close ",
+		prettyKeyLabel(keys.skip), prettyKeyLabel(keys.move), prettyKeyLabel(keys.viewPrompt), prettyKeyLabel(keys.remember))
 }
 
 // actionRuleVerbShort is the short imperative verb for the footer.
@@ -593,7 +622,12 @@ func (a *App) updateActionPlanFooter(state *actionPlanState) {
 		key = a.actionKeyHint(cat.Action)
 		count = len(checkedIDs(cat.MessageIDs, state.excluded))
 	}
-	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count))
+	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, actionPlanFooterKeys{
+		viewPrompt: a.Keys.ViewPrompt,
+		remember:   a.Keys.RememberRule,
+		move:       a.Keys.Move,
+		skip:       a.Keys.BulkSelect,
+	}))
 }
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no

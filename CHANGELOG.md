@@ -5,6 +5,21 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-06-14
+
+Consolidating round from the v1.7.0→v1.12.0 end-to-end test pass.
+
+### 🐛 Fixes
+
+- **Thread summary key conflict**: `thread_summary` defaulted to `shift+t`, which is the same physical key as `toggle_threading` (`T`) and was always shadowed. It is now **unbound by default** — use the `:thread-summary` command, or bind a free key via `keys.thread_summary`.
+- **Thread-summary panel rendered in a sliver**: the AI Summary panel was only shown *after* generation, so streamed text wrapped into a ~4-character column and opened without focus. The panel is now opened, sized, and focused **before** generating, matching the single-message summary (`y`).
+- **Action Plan footer hints ignored your config**: the panel footer advertised hardcoded keys (e.g. "v prompt") instead of your actual bindings. Hints now reflect `keys.view_prompt`, `keys.remember_rule`, `keys.move`, and `keys.bulk_select`.
+
+### ✨ Improvements
+
+- **Better analyzer prompt structure**: the analyzer prompt now leads with the assistant role + rules + output format, and injects the existing-labels and user-interests **context right before the messages** (previously those blocks were prepended on top, burying the role). Key matching also now understands `shift+<letter>` combos.
+- **Slack new-mail notifications are clickable**: each email in the auto-refresh Slack notification is now a hyperlink that opens the message directly in Gmail.
+
 ## [1.12.0] - 2026-06-13
 
 ### 🚀 Features — fully configurable key bindings

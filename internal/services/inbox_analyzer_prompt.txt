@@ -32,5 +32,6 @@ Return ONLY a JSON object, no prose, no markdown fences, in exactly this shape:
   "read_manually": [2, 5]
 }
 
+{{context}}
 The emails:
 {{messages}}

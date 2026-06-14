@@ -583,13 +583,16 @@ func DefaultKeyBindings() KeyBindings {
 		GotoBottom:    "G",      // Vim-like go to bottom
 
 		// Threading shortcuts
-		ToggleThreading:    "T",       // Toggle between thread and flat view
-		ExpandThread:       "enter",   // Expand/collapse selected thread
-		ExpandAllThreads:   "E",       // Expand all threads in current view
-		CollapseAllThreads: "C",       // Collapse all threads
-		ThreadSummary:      "shift+t", // Generate AI summary of thread
-		NextThread:         "ctrl+n",  // Navigate to next thread
-		PrevThread:         "ctrl+p",  // Navigate to previous thread
+		ToggleThreading:    "T",     // Toggle between thread and flat view
+		ExpandThread:       "enter", // Expand/collapse selected thread
+		ExpandAllThreads:   "E",     // Expand all threads in current view
+		CollapseAllThreads: "C",     // Collapse all threads
+		// Unbound by default: "shift+t" is the same physical key as toggle_threading ("T"),
+		// so binding it here was always eclipsed. Use the :thread-summary command, or set a
+		// free key in config.
+		ThreadSummary: "",
+		NextThread:    "ctrl+n", // Navigate to next thread
+		PrevThread:    "ctrl+p", // Navigate to previous thread
 
 		// Undo functionality
 		Undo: "U", // Undo last action

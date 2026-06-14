@@ -244,7 +244,9 @@ func (a *App) prependNewMessages(newIDs []string) {
 }
 
 // buildNewMailSlackMessage formats a Slack notification listing the new emails (capped at 10).
-func buildNewMailSlackMessage(metas []*gmailapi.Message) string {
+// When urlFor is non-nil it wraps each subject in a Slack hyperlink (<url|subject>) pointing to the
+// message in Gmail, so the recipient can open it with one click.
+func buildNewMailSlackMessage(metas []*gmailapi.Message, urlFor func(id string) string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "📬 %d new email(s):", len(metas))
 	const maxList = 10
@@ -258,7 +260,15 @@ func buildNewMailSlackMessage(metas []*gmailapi.Message) string {
 		}
 		subject := extractHeaderValue(m, "Subject")
 		from := extractHeaderValue(m, "From")
-		fmt.Fprintf(&b, "\n• %s — %s", subject, from)
+		link := ""
+		if urlFor != nil && m.Id != "" {
+			link = urlFor(m.Id)
+		}
+		if link != "" {
+			fmt.Fprintf(&b, "\n• <%s|%s> — %s", link, subject, from)
+		} else {
+			fmt.Fprintf(&b, "\n• %s — %s", subject, from)
+		}
 	}
 	return b.String()
 }
@@ -279,7 +289,11 @@ func (a *App) notifyNewMailSlack(newIDs []string) {
 		}
 		return
 	}
-	msg := buildNewMailSlackMessage(metas)
+	var urlFor func(string) string
+	if a.gmailWebService != nil {
+		urlFor = a.gmailWebService.GenerateGmailWebURL
+	}
+	msg := buildNewMailSlackMessage(metas, urlFor)
 	if err := svc.SendNotification(a.ctx, msg); err != nil {
 		a.GetErrorHandler().ShowWarning(a.ctx, "Slack notify failed: "+err.Error())
 	}

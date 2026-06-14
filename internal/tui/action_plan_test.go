@@ -87,7 +87,9 @@ func TestActionKeyHint(t *testing.T) {
 }
 
 func TestActionPlanFooterText(t *testing.T) {
-	onCat := actionPlanFooterText(true, "a", "archive", 7)
+	// Default-ish bindings: view_prompt "i", remember "ctrl+r", move "m", skip "space".
+	keys := actionPlanFooterKeys{viewPrompt: "i", remember: "ctrl+r", move: "m", skip: "space"}
+	onCat := actionPlanFooterText(true, "a", "archive", 7, keys)
 	if !strings.Contains(onCat, "a to archive (7)") || !strings.Contains(onCat, "Enter to expand") || !strings.Contains(onCat, "Ctrl+R to remember") {
 		t.Fatalf("category footer wrong: %q", onCat)
 	}
@@ -95,22 +97,28 @@ func TestActionPlanFooterText(t *testing.T) {
 		t.Fatalf("footer should spell out Ctrl+R, not ^R: %q", onCat)
 	}
 	// No suggested action (e.g. read-manually node): only expand/remember/close.
-	noAction := actionPlanFooterText(true, "", "none", 0)
+	noAction := actionPlanFooterText(true, "", "none", 0, keys)
 	if strings.Contains(noAction, " to ") && strings.Contains(noAction, "(0)") {
 		t.Fatalf("no-action footer should not show an action verb: %q", noAction)
 	}
 	if !strings.Contains(noAction, "Enter to expand") {
 		t.Fatalf("no-action footer missing expand: %q", noAction)
 	}
-	onEmail := actionPlanFooterText(false, "a", "archive", 7)
+	onEmail := actionPlanFooterText(false, "a", "archive", 7, keys)
 	if !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
 		t.Fatalf("email footer wrong: %q", onEmail)
 	}
-	if !strings.Contains(onCat, "v prompt") {
-		t.Fatalf("category footer should advertise the prompt viewer: %q", onCat)
+	// Footer must advertise the CONFIGURED view-prompt key ("i prompt"), not a hardcoded "v".
+	if !strings.Contains(onCat, "i prompt") {
+		t.Fatalf("category footer should advertise the configured prompt viewer key: %q", onCat)
 	}
-	if !strings.Contains(onEmail, "v prompt") {
-		t.Fatalf("email footer should advertise the prompt viewer: %q", onEmail)
+	if !strings.Contains(onEmail, "i prompt") {
+		t.Fatalf("email footer should advertise the configured prompt viewer key: %q", onEmail)
+	}
+	// And it must reflect a custom binding too.
+	custom := actionPlanFooterText(false, "a", "archive", 1, actionPlanFooterKeys{viewPrompt: "x", remember: "ctrl+r", move: "m", skip: "space"})
+	if !strings.Contains(custom, "x prompt") {
+		t.Fatalf("footer should reflect a custom view-prompt key: %q", custom)
 	}
 }
 
@@ -150,6 +158,10 @@ func TestActionPlanTitleText(t *testing.T) {
 func TestSyncSelectionToNode(t *testing.T) {
 	a := &App{}
 	a.Keys.Archive = "a"
+	a.Keys.BulkSelect = "space"
+	a.Keys.Move = "m"
+	a.Keys.ViewPrompt = "i"
+	a.Keys.RememberRule = "ctrl+r"
 	state := &actionPlanState{
 		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
 			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},

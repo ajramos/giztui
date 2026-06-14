@@ -145,7 +145,9 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 | `Enter` | Expand/collapse | Expand or collapse thread (when on thread root) |
 | `E` | Expand all | Expand all threads in current view |
 | `C` | Collapse all | Collapse all threads to show only root messages |
-| `Shift+T` | Thread summary | Generate AI summary of selected thread |
+| `:thread-summary` | Thread summary | Generate AI summary of selected thread |
+
+> **Note:** `thread_summary` is **unbound by default** — `Shift+T` is the same physical key as `T` (toggle threading), so binding it there was always shadowed. Use the `:thread-summary` command, or set a free key via `keys.thread_summary` in your config.
 
 ## 🧠 AI Features
 
@@ -362,7 +364,7 @@ When you customize shortcuts, the priority order is:
 |---------|-------------------|-------------|
 | `:threads` | `T` | Switch to threaded view |
 | `:flatten` | `T` | Switch to flat view |
-| `:thread-summary` | `Shift+T` | Generate thread summary |
+| `:thread-summary` | — | Generate thread summary (key unbound by default; see note above) |
 | `:expand-all` | `E` | Expand all threads |
 | `:collapse-all` | `C` | Collapse all threads |
 

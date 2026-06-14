@@ -1148,6 +1148,26 @@ func (a *App) GenerateThreadSummary() error {
 		SummaryType:     "conversation",
 	}
 
+	// Open + size + focus the AI panel BEFORE generating, so streamed text wraps at the panel's
+	// real width. Without this the panel was only shown after generation (showAIPanel below), so
+	// text rendered into a width-0 view and wrapped into a ~4-char column, unfocused. Mirrors the
+	// y-summary path (toggleAISummary), which opens up front.
+	a.QueueUpdateDraw(func() {
+		if a.aiSummaryView == nil {
+			return
+		}
+		aiColors := a.GetComponentColors("ai")
+		a.aiSummaryView.SetText("")
+		a.aiSummaryView.SetTitle(" 🧵 Thread Summary ")
+		a.aiSummaryView.SetTitleColor(aiColors.Title.Color())
+		a.aiSummaryView.SetBorderColor(aiColors.Border.Color())
+		a.aiSummaryView.SetBackgroundColor(aiColors.Background.Color())
+		a.showAIPanel()
+		a.SetFocus(a.aiSummaryView)
+		a.currentFocus = "summary"
+		a.updateFocusIndicators("summary")
+	})
+
 	// Generate summary with streaming
 	var summaryResult *services.ThreadSummaryResult
 

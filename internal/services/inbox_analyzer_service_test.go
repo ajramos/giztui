@@ -253,9 +253,8 @@ func TestAnalyze_IntermediateBatchErrorReturnsPartialPlan(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
 }
 
-func TestPrependUserRules(t *testing.T) {
-	base := "Categorize these messages."
-	got := prependUserRules(base, []string{
+func TestUserRulesBlock(t *testing.T) {
+	got := userRulesBlock([]string{
 		"Never trash emails from tldr.tech",
 		"Archive newsletters automatically",
 	})
@@ -268,13 +267,10 @@ func TestPrependUserRules(t *testing.T) {
 	if !strings.Contains(got, "- Archive newsletters automatically") {
 		t.Fatalf("missing rule 2 in: %q", got)
 	}
-	if !strings.HasSuffix(got, base) {
-		t.Fatalf("base prompt must follow the rules block, got: %q", got)
-	}
 
-	// Empty rules → unchanged.
-	if prependUserRules(base, nil) != base {
-		t.Fatal("nil rules must return the base prompt unchanged")
+	// Empty rules → empty block.
+	if userRulesBlock(nil) != "" {
+		t.Fatal("nil rules must return an empty block")
 	}
 }
 
@@ -345,24 +341,24 @@ func TestBuildPromptPreview(t *testing.T) {
 	}
 }
 
-func TestPrependUserRules_Interests(t *testing.T) {
-	got := prependUserRules("BASEPROMPT", []string{"interested in AI"})
+func TestUserRulesBlock_Interests(t *testing.T) {
+	got := userRulesBlock([]string{"interested in AI"})
 	if !strings.Contains(got, "## User preferences and interests") {
 		t.Fatalf("expected reframed heading, got:\n%s", got)
 	}
 	if !strings.Contains(got, "interest/relevance") {
 		t.Fatalf("expected the relevance instruction, got:\n%s", got)
 	}
-	if !strings.Contains(got, "interested in AI") || !strings.Contains(got, "BASEPROMPT") {
-		t.Fatalf("expected rule text + base prompt, got:\n%s", got)
+	if !strings.Contains(got, "interested in AI") {
+		t.Fatalf("expected rule text, got:\n%s", got)
 	}
-	if prependUserRules("BASEPROMPT", nil) != "BASEPROMPT" {
-		t.Fatal("empty rules must return the base prompt unchanged")
+	if userRulesBlock(nil) != "" {
+		t.Fatal("empty rules must return an empty block")
 	}
 }
 
-func TestPrependAvailableLabels(t *testing.T) {
-	got := prependAvailableLabels("BASEPROMPT", []string{"work", "receipts"})
+func TestAvailableLabelsBlock(t *testing.T) {
+	got := availableLabelsBlock([]string{"work", "receipts"})
 	if !strings.Contains(got, "## Existing labels") {
 		t.Fatalf("expected labels heading, got:\n%s", got)
 	}
@@ -372,11 +368,31 @@ func TestPrependAvailableLabels(t *testing.T) {
 	if !strings.Contains(got, "PREFER an exact name") {
 		t.Fatalf("expected the prefer-existing instruction, got:\n%s", got)
 	}
-	if !strings.Contains(got, "BASEPROMPT") {
-		t.Fatalf("expected base prompt retained, got:\n%s", got)
+	if availableLabelsBlock(nil) != "" {
+		t.Fatal("empty labels must return an empty block")
 	}
-	if prependAvailableLabels("BASEPROMPT", nil) != "BASEPROMPT" {
-		t.Fatal("empty labels must return the base prompt unchanged")
+}
+
+func TestInjectAnalyzerContext_Ordering(t *testing.T) {
+	// The role/base must lead; context (labels + interests) must land AFTER the role and
+	// BEFORE the messages — this is the v1.13.0 reorder fix.
+	s := NewInboxAnalyzerService(nil)
+	out := s.BuildPromptPreview(InboxAnalyzerOptions{
+		UserRules:       []string{"interested in AI"},
+		AvailableLabels: []string{"work"},
+	})
+	role := strings.Index(out, "email triage assistant")
+	labels := strings.Index(out, "## Existing labels")
+	interests := strings.Index(out, "## User preferences and interests")
+	msgs := strings.Index(out, "{{messages}}")
+	if role < 0 || labels < 0 || interests < 0 || msgs < 0 {
+		t.Fatalf("missing a section, got:\n%s", out)
+	}
+	if role >= labels || role >= interests {
+		t.Fatalf("role must precede the context blocks; role=%d labels=%d interests=%d", role, labels, interests)
+	}
+	if labels >= msgs || interests >= msgs {
+		t.Fatalf("context blocks must precede {{messages}}; labels=%d interests=%d msgs=%d", labels, interests, msgs)
 	}
 }
 

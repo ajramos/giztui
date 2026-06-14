@@ -90,12 +90,13 @@ func TestPrependModelMath(t *testing.T) {
 }
 
 func TestBuildNewMailSlackMessage(t *testing.T) {
-	mk := func(subj, from string) *gmailapi.Message {
-		return &gmailapi.Message{Payload: &gmailapi.MessagePart{Headers: []*gmailapi.MessagePartHeader{
+	mk := func(id, subj, from string) *gmailapi.Message {
+		return &gmailapi.Message{Id: id, Payload: &gmailapi.MessagePart{Headers: []*gmailapi.MessagePartHeader{
 			{Name: "Subject", Value: subj}, {Name: "From", Value: from},
 		}}}
 	}
-	msg := buildNewMailSlackMessage([]*gmailapi.Message{mk("Hello", "a@x.com"), mk("World", "b@x.com")})
+	// No urlFor → plain "subject — from" lines.
+	msg := buildNewMailSlackMessage([]*gmailapi.Message{mk("1", "Hello", "a@x.com"), mk("2", "World", "b@x.com")}, nil)
 	if !strings.Contains(msg, "2 new email") {
 		t.Fatalf("expected count, got:\n%s", msg)
 	}
@@ -103,11 +104,18 @@ func TestBuildNewMailSlackMessage(t *testing.T) {
 		t.Fatalf("expected subject — from lines, got:\n%s", msg)
 	}
 
+	// With urlFor → each subject becomes a Slack hyperlink <url|subject>.
+	linked := buildNewMailSlackMessage([]*gmailapi.Message{mk("abc", "Hello", "a@x.com")},
+		func(id string) string { return "https://mail.google.com/mail/u/0/#inbox/" + id })
+	if !strings.Contains(linked, "<https://mail.google.com/mail/u/0/#inbox/abc|Hello> — a@x.com") {
+		t.Fatalf("expected a Slack hyperlink, got:\n%s", linked)
+	}
+
 	many := make([]*gmailapi.Message, 13)
 	for i := range many {
-		many[i] = mk("S", "f@x.com")
+		many[i] = mk("x", "S", "f@x.com")
 	}
-	capped := buildNewMailSlackMessage(many)
+	capped := buildNewMailSlackMessage(many, nil)
 	if !strings.Contains(capped, "and 3 more") {
 		t.Fatalf("expected overflow note for 13, got:\n%s", capped)
 	}
