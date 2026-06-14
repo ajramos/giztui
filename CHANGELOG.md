@@ -5,6 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-06-14
+
+### 🚀 Features / Fixes — focus cycling
+
+- **Tab now cycles through all visible panes, including the message reader.** Previously Tab effectively toggled only list ↔ side picker and skipped the reader (the focus ring matched panes by the focused widget's pointer identity, which never matched a picker's inner input). Cycling is now keyed by pane name, so the order is deterministic: **list → reader → picker → AI summary → Slack** (only the panes currently visible).
+- **`Shift+Tab` cycles focus in reverse** through the same ring.
+
 ## [1.13.0] - 2026-06-14
 
 Consolidating round from the v1.7.0→v1.12.0 end-to-end test pass.
