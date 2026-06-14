@@ -5,6 +5,20 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-06-14
+
+### 🚀 Features — Text-to-speech on macOS, multilingual
+
+- **Zero-setup TTS on macOS**: a new `say` engine uses the built-in macOS `say` command — no Piper binary, no voice model, no dependencies. The engine **auto-detects the OS** (`tts.engine: "auto"`, the default): macOS → `say`, other platforms → Piper. Just bind `keys.speak`.
+- **Reads each email in its own language**: GizTUI auto-detects the text's language and picks a matching voice, so English mail is read by an English voice and Spanish by a Spanish voice. Configure per-language voices with `tts.voices` (say) or `tts.models` (Piper), e.g. `"voices": {"en":"Samantha","es":"Mónica"}`. Detection is restricted to the languages you configure, which keeps it accurate even on short emails.
+- **Streaming playback for `say`**: it starts speaking almost immediately (no synthesize-the-whole-thing-first delay) and stops instantly when you press the speak key again.
+
+### 🐛 Fixes
+
+- Pressing the speak key to **stop** no longer surfaces a spurious "TTS failed" error — a user-requested stop is treated as a clean stop.
+
+See **[docs/TTS.md](docs/TTS.md)** for setup (the macOS quick-start needs nothing installed).
+
 ## [1.14.0] - 2026-06-14
 
 ### 🚀 Features / Fixes — focus cycling
