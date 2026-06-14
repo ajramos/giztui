@@ -24,6 +24,25 @@ Optionally pick a voice (e.g. a Spanish one — see `say -v '?'` for the list) a
 "tts": { "enabled": true, "engine": "say", "voice": "Mónica" }
 ```
 
+### Read each email in its own language
+
+GizTUI auto-detects the language of the text and picks a matching voice, so an English email is
+read by an English voice and a Spanish one by a Spanish voice. Map ISO 639-1 codes to voices
+(`say -v '?'` lists voices with their language tag):
+
+```json
+"tts": {
+  "enabled": true,
+  "engine": "say",
+  "voice": "Mónica",
+  "voices": { "en": "Samantha", "es": "Mónica" }
+}
+```
+
+Detection is **restricted to the languages you list**, which makes it accurate even on short
+emails. Unrecognized languages fall back to `voice` (or the system default). For the Piper engine
+use `models` instead (ISO 639-1 → `.onnx` path), e.g. `"models": {"en":"…/en.onnx","es":"…/es.onnx"}`.
+
 That's it — focus a message and press your speak key. Everything below is only for the **Piper**
 engine (better voices, or Linux).
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/tts"
 )
 
@@ -58,11 +59,11 @@ func TestSpeechService_IsConfigured(t *testing.T) {
 	_ = os.WriteFile(piper, []byte("x"), 0600)
 	_ = os.WriteFile(model, []byte("x"), 0600)
 
-	s := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", piper, model)
+	s := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", config.TTSConfig{PiperPath: piper, ModelPath: model})
 	if !s.IsConfigured() {
 		t.Fatal("should be configured when both paths exist")
 	}
-	s2 := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", piper, filepath.Join(dir, "missing.onnx"))
+	s2 := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", config.TTSConfig{PiperPath: piper, ModelPath: filepath.Join(dir, "missing.onnx")})
 	if s2.IsConfigured() {
 		t.Fatal("should NOT be configured when the model is missing")
 	}
@@ -76,7 +77,7 @@ func TestSpeechService_SpeakStop(t *testing.T) {
 	_ = os.WriteFile(model, []byte("x"), 0600)
 	syn := &stubSynth{}
 	pl := &stubPlayer{}
-	s := NewSpeechService(syn, pl, "piper", piper, model)
+	s := NewSpeechService(syn, pl, "piper", config.TTSConfig{PiperPath: piper, ModelPath: model})
 
 	if err := s.Speak(context.Background(), "hola"); err != nil {
 		t.Fatalf("Speak error: %v", err)
@@ -97,7 +98,7 @@ func TestSpeechService_StopSuppressesCancelError(t *testing.T) {
 	_ = os.WriteFile(model, []byte("x"), 0600)
 
 	started := make(chan struct{})
-	s := NewSpeechService(&blockingSynth{started: started}, &stubPlayer{}, "piper", piper, model)
+	s := NewSpeechService(&blockingSynth{started: started}, &stubPlayer{}, "piper", config.TTSConfig{PiperPath: piper, ModelPath: model})
 
 	done := make(chan error, 1)
 	go func() { done <- s.Speak(context.Background(), "hola") }()
@@ -125,7 +126,7 @@ func TestSpeechService_DirectSynthSkipsPlayer(t *testing.T) {
 	pl := &stubPlayer{}
 	// Engine "piper" so IsConfigured passes via the file check (this box has no `say`); the
 	// skip-player behavior keys on the empty AudioPath, not the engine.
-	s := NewSpeechService(syn, pl, "piper", piper, model)
+	s := NewSpeechService(syn, pl, "piper", config.TTSConfig{PiperPath: piper, ModelPath: model})
 	if err := s.Speak(context.Background(), "hola"); err != nil {
 		t.Fatalf("Speak error: %v", err)
 	}

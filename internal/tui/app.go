@@ -1054,17 +1054,11 @@ func (a *App) initServices() {
 	ttsEngine := tts.ResolveEngine(a.Config.TTS.Engine)
 	var synth tts.Synthesizer
 	if ttsEngine == "say" {
-		synth = &tts.SaySynthesizer{Voice: a.Config.TTS.Voice}
+		synth = &tts.SaySynthesizer{}
 	} else {
 		synth = &tts.ExternalPiperSynthesizer{PiperPath: a.Config.TTS.PiperPath}
 	}
-	a.speechService = services.NewSpeechService(
-		synth,
-		tts.OSPlayer{},
-		ttsEngine,
-		a.Config.TTS.PiperPath,
-		a.Config.TTS.ModelPath,
-	)
+	a.speechService = services.NewSpeechService(synth, tts.OSPlayer{}, ttsEngine, a.Config.TTS)
 }
 
 // reinitializeClientDependentServices reinitializes services that depend on the Gmail client or database

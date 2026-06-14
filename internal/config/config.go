@@ -231,8 +231,12 @@ type TTSConfig struct {
 	Enabled   bool   `json:"enabled"`
 	Engine    string `json:"engine"`     // "auto" (default: say on macOS, piper elsewhere), "piper", or "say"
 	PiperPath string `json:"piper_path"` // path to the piper binary (engine "piper")
-	ModelPath string `json:"model_path"` // path to the .onnx voice model (engine "piper")
-	Voice     string `json:"voice"`      // optional macOS voice name for engine "say"; empty = system default
+	ModelPath string `json:"model_path"` // default .onnx voice model (engine "piper")
+	Voice     string `json:"voice"`      // default macOS voice name (engine "say"); empty = system default
+	// Per-language overrides: the email's language is auto-detected (restricted to these keys) and
+	// the matching voice/model is used, so e.g. English mail is read by an English voice.
+	Voices map[string]string `json:"voices,omitempty"` // ISO 639-1 → macOS voice (engine "say"), e.g. {"en":"Samantha","es":"Mónica"}
+	Models map[string]string `json:"models,omitempty"` // ISO 639-1 → .onnx model path (engine "piper")
 }
 
 // AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
