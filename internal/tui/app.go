@@ -1048,10 +1048,20 @@ func (a *App) initServices() {
 		a.startAutoRefresh()
 	}
 
-	// Text-to-speech service (opt-in; unconfigured until piper + model paths are set).
+	// Text-to-speech service (opt-in). The engine auto-selects by OS ("auto"/empty → macOS uses the
+	// built-in "say", no deps; other platforms use the cross-platform Piper binary), or can be
+	// pinned to "say"/"piper" in config.
+	ttsEngine := tts.ResolveEngine(a.Config.TTS.Engine)
+	var synth tts.Synthesizer
+	if ttsEngine == "say" {
+		synth = &tts.SaySynthesizer{Voice: a.Config.TTS.Voice}
+	} else {
+		synth = &tts.ExternalPiperSynthesizer{PiperPath: a.Config.TTS.PiperPath}
+	}
 	a.speechService = services.NewSpeechService(
-		&tts.ExternalPiperSynthesizer{PiperPath: a.Config.TTS.PiperPath},
+		synth,
 		tts.OSPlayer{},
+		ttsEngine,
 		a.Config.TTS.PiperPath,
 		a.Config.TTS.ModelPath,
 	)

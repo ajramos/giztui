@@ -1,8 +1,31 @@
 # Text-to-Speech (Read Aloud)
 
 GizTUI can read the focused panel aloud — the message reader, an AI summary, or an Action Plan
-digest — using a **local** neural TTS engine ([Piper](https://github.com/rhasspy/piper)). It is
-**opt-in**: nothing is bundled, and you point GizTUI at a Piper binary + a voice model.
+digest. It is **opt-in** (bind a key to it) and has two engines, selected by `tts.engine`:
+
+| `tts.engine` | Engine | Notes |
+|--------------|--------|-------|
+| `"auto"` (default) | macOS → `say`, others → `piper` | Auto-detects the OS |
+| `"say"` | macOS built-in `say` | **Zero setup** — no binary, no model, no deps |
+| `"piper"` | [Piper](https://github.com/rhasspy/piper) neural TTS | Cross-platform, better voices; needs a binary + voice model |
+
+## macOS quick start (`say`, zero setup)
+
+On macOS the default `"auto"` resolves to the built-in `say` command — **nothing to install**. Just
+bind a key:
+
+```json
+"keys": { "speak": "ctrl+e" }
+```
+
+Optionally pick a voice (e.g. a Spanish one — see `say -v '?'` for the list) and pin the engine:
+
+```json
+"tts": { "enabled": true, "engine": "say", "voice": "Mónica" }
+```
+
+That's it — focus a message and press your speak key. Everything below is only for the **Piper**
+engine (better voices, or Linux).
 
 ## 1. Install Piper
 
@@ -38,6 +61,7 @@ Add to `~/.config/giztui/config.json` (run `:config migrate` / `giztui --migrate
 ```json
 "tts": {
   "enabled": true,
+  "engine": "piper",
   "piper_path": "~/.config/giztui/piper/piper",
   "model_path": "~/.config/giztui/piper/es_ES-carlfm-x_low.onnx"
 },

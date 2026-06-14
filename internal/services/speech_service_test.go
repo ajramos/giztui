@@ -36,11 +36,11 @@ func TestSpeechService_IsConfigured(t *testing.T) {
 	_ = os.WriteFile(piper, []byte("x"), 0600)
 	_ = os.WriteFile(model, []byte("x"), 0600)
 
-	s := NewSpeechService(&stubSynth{}, &stubPlayer{}, piper, model)
+	s := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", piper, model)
 	if !s.IsConfigured() {
 		t.Fatal("should be configured when both paths exist")
 	}
-	s2 := NewSpeechService(&stubSynth{}, &stubPlayer{}, piper, filepath.Join(dir, "missing.onnx"))
+	s2 := NewSpeechService(&stubSynth{}, &stubPlayer{}, "piper", piper, filepath.Join(dir, "missing.onnx"))
 	if s2.IsConfigured() {
 		t.Fatal("should NOT be configured when the model is missing")
 	}
@@ -54,7 +54,7 @@ func TestSpeechService_SpeakStop(t *testing.T) {
 	_ = os.WriteFile(model, []byte("x"), 0600)
 	syn := &stubSynth{}
 	pl := &stubPlayer{}
-	s := NewSpeechService(syn, pl, piper, model)
+	s := NewSpeechService(syn, pl, "piper", piper, model)
 
 	if err := s.Speak(context.Background(), "hola"); err != nil {
 		t.Fatalf("Speak error: %v", err)

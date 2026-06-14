@@ -229,8 +229,10 @@ type ThreadingConfig struct {
 // TTSConfig controls opt-in local text-to-speech (Piper) for reading content aloud.
 type TTSConfig struct {
 	Enabled   bool   `json:"enabled"`
-	PiperPath string `json:"piper_path"` // path to the piper binary
-	ModelPath string `json:"model_path"` // path to the .onnx voice model
+	Engine    string `json:"engine"`     // "auto" (default: say on macOS, piper elsewhere), "piper", or "say"
+	PiperPath string `json:"piper_path"` // path to the piper binary (engine "piper")
+	ModelPath string `json:"model_path"` // path to the .onnx voice model (engine "piper")
+	Voice     string `json:"voice"`      // optional macOS voice name for engine "say"; empty = system default
 }
 
 // AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
@@ -468,7 +470,7 @@ func DefaultConfig() *Config {
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
 		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m"},
-		TTS:           TTSConfig{Enabled: false},
+		TTS:           TTSConfig{Enabled: false, Engine: "auto"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),
 		LogFile:       "",

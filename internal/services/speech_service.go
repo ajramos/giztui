@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -13,6 +14,7 @@ import (
 type SpeechServiceImpl struct {
 	synth     tts.Synthesizer
 	player    tts.Player
+	engine    string // "piper" (default) or "say"
 	piperPath string
 	modelPath string
 
@@ -20,11 +22,17 @@ type SpeechServiceImpl struct {
 	cancel context.CancelFunc
 }
 
-func NewSpeechService(synth tts.Synthesizer, player tts.Player, piperPath, modelPath string) *SpeechServiceImpl {
-	return &SpeechServiceImpl{synth: synth, player: player, piperPath: piperPath, modelPath: modelPath}
+func NewSpeechService(synth tts.Synthesizer, player tts.Player, engine, piperPath, modelPath string) *SpeechServiceImpl {
+	return &SpeechServiceImpl{synth: synth, player: player, engine: engine, piperPath: piperPath, modelPath: modelPath}
 }
 
+// IsConfigured reports whether the active engine can synthesize. For "say" (macOS) that means the
+// command exists; for "piper" (the default) the binary and model files must both be present.
 func (s *SpeechServiceImpl) IsConfigured() bool {
+	if s.engine == "say" {
+		_, err := exec.LookPath("say")
+		return err == nil
+	}
 	return fileExists(s.piperPath) && fileExists(s.modelPath)
 }
 
