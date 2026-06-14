@@ -58,6 +58,21 @@ func TestParseAnalyzerResponse_Malformed(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// A weak model may categorize only a subset of the batch and omit the rest entirely (neither in a
+// category nor in read_manually). Those omitted messages must be reconciled into read_manually so
+// nothing is silently dropped from the plan.
+func TestParseAnalyzerResponse_ReconcilesOmitted(t *testing.T) {
+	batchIDs := []string{"m1", "m2", "m3"}
+	// Only message 2 is categorized; 1 and 3 are omitted from the response entirely.
+	raw := `{"categories":[{"name":"Mark read","priority":"medium","description":"d","action":"mark_read","label":"","messages":[2]}],"read_manually":[]}`
+	cats, readManually, err := parseAnalyzerResponse(raw, batchIDs)
+	assert.NoError(t, err)
+	assert.Len(t, cats, 1)
+	assert.Equal(t, []string{"m2"}, cats[0].MessageIDs)
+	// m1 and m3 (local indices 1 and 3) must be reconciled into read_manually.
+	assert.ElementsMatch(t, []int{1, 3}, readManually)
+}
+
 func TestSplitBatches(t *testing.T) {
 	mk := func(n int) []AnalyzerMessage {
 		out := make([]AnalyzerMessage, n)

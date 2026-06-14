@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The Action Plan panel is now part of the cycle too.** Before, Tab with the Action Plan open only toggled panel ↔ list and never reached the reader; now `list → reader → Action Plan` cycle fully (the panel keeps analyzing while focus is elsewhere).
 - **`Shift+Tab` cycles focus in reverse** through the same ring.
 
+### 🐛 Fixes
+
+- **Action Plan no longer drops selected emails.** When the analyzer model returned only a subset of the analyzed messages (omitting the rest from both categories and `read_manually`), those emails silently vanished from the plan. Any message not placed in a category is now reconciled into **Read manually**, so every selected/analyzed email always appears.
+
 ## [1.13.0] - 2026-06-14
 
 Consolidating round from the v1.7.0→v1.12.0 end-to-end test pass.

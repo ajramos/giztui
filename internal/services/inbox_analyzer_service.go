@@ -110,7 +110,31 @@ func parseAnalyzerResponse(raw string, batchIDs []string) ([]ActionPlanCategory,
 			MessageIDs:  ids,
 		})
 	}
-	return cats, parsed.ReadManually, nil
+
+	// Reconcile read-manually: include the LLM's list AND any batch message it omitted from
+	// every category and from read_manually. Weak models sometimes return only a subset of the
+	// messages; without this, those would silently vanish from the plan. The invariant the prompt
+	// states — every message appears in a category OR read_manually — is enforced here.
+	readManually := make([]int, 0, len(batchIDs))
+	seenRead := make(map[int]bool)
+	addRead := func(n int) {
+		if n < 1 || n > len(batchIDs) || seenRead[n] {
+			return
+		}
+		if claimed[batchIDs[n-1]] {
+			return // already placed in a category
+		}
+		claimed[batchIDs[n-1]] = true
+		seenRead[n] = true
+		readManually = append(readManually, n)
+	}
+	for _, n := range parsed.ReadManually {
+		addRead(n)
+	}
+	for n := 1; n <= len(batchIDs); n++ {
+		addRead(n)
+	}
+	return cats, readManually, nil
 }
 
 func normalizePriority(p string) string {
