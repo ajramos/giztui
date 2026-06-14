@@ -600,10 +600,15 @@ func (a *App) bindKeys() {
 		// behavior is gated on FOCUS, not just on the panel being active.
 		if a.isActionPlanActive() {
 			if a.currentFocus == "action_plan" {
-				// Panel focused: Tab hands focus to the inbox (panel keeps analyzing),
-				// Esc closes the panel, everything else goes to the tree's input capture.
+				// Panel focused: Tab/Shift+Tab cycle the full focus ring (panel → list →
+				// reader → …, panel keeps analyzing), Esc closes the panel, everything else
+				// goes to the tree's input capture.
 				if event.Key() == tcell.KeyTab {
-					a.focusInboxFromActionPlan()
+					a.cycleFocus(true)
+					return nil
+				}
+				if event.Key() == tcell.KeyBacktab {
+					a.cycleFocus(false)
 					return nil
 				}
 				if event.Key() == tcell.KeyEscape {
@@ -612,12 +617,9 @@ func (a *App) bindKeys() {
 				}
 				return event
 			}
-			// Panel mounted but focus is on the inbox: Tab returns to the panel; all
-			// other keys fall through to normal inbox handling (read/navigate freely).
-			if event.Key() == tcell.KeyTab {
-				a.focusActionPlanFromInbox()
-				return nil
-			}
+			// Panel mounted but focus is on the inbox/reader: fall through so Tab / Shift+Tab
+			// cycle the ring normally — the panel is one of its stops — and all other keys go
+			// to normal inbox handling (read/navigate freely while analysis runs).
 		}
 
 		// If focus is on form widgets (advanced/simple search), don't intercept
@@ -1614,14 +1616,21 @@ func (a *App) buildFocusRing() []focusRingEntry {
 	ring = append(ring, focusRingEntry{"list", a.views["list"]})
 	ring = append(ring, focusRingEntry{"text", a.views["text"]})
 	// 4) Labels/Prompts picker (when active). SetFocus on the container delegates to its input.
-	if a.currentActivePicker != PickerNone && a.labelsView != nil {
+	// The Action Plan also uses currentActivePicker but has its own primitive (handled below),
+	// so exclude it here to avoid adding the hidden labelsView slot twice.
+	if a.currentActivePicker != PickerNone && a.currentActivePicker != PickerActionPlan && a.labelsView != nil {
 		name := "labels"
 		if a.currentFocus == "prompts" {
 			name = "prompts"
 		}
 		ring = append(ring, focusRingEntry{name, a.labelsView})
 	}
-	// 5) AI summary and 6) Slack — when visible.
+	// 5) Action Plan panel (when mounted) — its tree is the focusable primitive. Included so Tab
+	// cycles list → reader → action_plan (the panel keeps analyzing while focus is elsewhere).
+	if a.isActionPlanActive() && a.actionPlanState != nil && a.actionPlanState.tree != nil {
+		ring = append(ring, focusRingEntry{"action_plan", a.actionPlanState.tree})
+	}
+	// 6) AI summary and 7) Slack — when visible.
 	if a.aiSummaryVisible && a.aiSummaryView != nil {
 		ring = append(ring, focusRingEntry{"summary", a.aiSummaryView})
 	}

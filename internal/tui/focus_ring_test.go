@@ -52,6 +52,35 @@ func TestBuildFocusRing_NoPickerNoSummary(t *testing.T) {
 	}
 }
 
+// When the Action Plan is mounted, the ring must include its tree (so Tab reaches the reader and
+// the panel), and must NOT also add the hidden labels slot — Action Plan reuses currentActivePicker.
+func TestBuildFocusRing_ActionPlan(t *testing.T) {
+	a := &App{
+		views: map[string]tview.Primitive{
+			"list": tview.NewTable(),
+			"text": tview.NewTextView(),
+		},
+		currentActivePicker: PickerActionPlan,
+		labelsView:          tview.NewFlex(),
+		actionPlanState:     &actionPlanState{tree: tview.NewTreeView()},
+	}
+	got := ringNames(a.buildFocusRing())
+	want := []string{"list", "text", "action_plan"}
+	if len(got) != len(want) {
+		t.Fatalf("ring = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ring[%d] = %q, want %q (full: %v)", i, got[i], want[i], got)
+		}
+	}
+	for _, n := range got {
+		if n == "labels" {
+			t.Fatalf("Action Plan ring must not include the labels slot: %v", got)
+		}
+	}
+}
+
 // Regression for the "Tab only toggles list ↔ picker, never the reader" bug: cycling must include
 // the message reader ("text") between the list and the picker.
 func TestFocusCycle_IncludesReader(t *testing.T) {

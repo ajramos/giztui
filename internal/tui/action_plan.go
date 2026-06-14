@@ -655,27 +655,6 @@ func (a *App) closeActionPlanPanel() {
 	a.updateFocusIndicators("list")
 }
 
-// focusInboxFromActionPlan moves focus to the message list while leaving the Action Plan
-// panel mounted and its analysis running, so the user can read mail mid-analysis. Tab
-// (handled in keys.go) returns focus to the panel; Esc on the inbox does not close it.
-func (a *App) focusInboxFromActionPlan() {
-	if list, ok := a.views["list"].(*tview.Table); ok {
-		a.SetFocus(list)
-	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
-}
-
-// focusActionPlanFromInbox returns focus to the Action Plan panel tree.
-func (a *App) focusActionPlanFromInbox() {
-	if a.actionPlanState == nil || a.actionPlanState.tree == nil {
-		return
-	}
-	a.SetFocus(a.actionPlanState.tree)
-	a.currentFocus = "action_plan"
-	a.updateFocusIndicators("action_plan")
-}
-
 // actionPlanInputCapture handles all key input while the Action Plan panel is focused.
 func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKey) *tcell.EventKey {
 	return func(ev *tcell.EventKey) *tcell.EventKey {

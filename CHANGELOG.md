@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Features / Fixes — focus cycling
 
-- **Tab now cycles through all visible panes, including the message reader.** Previously Tab effectively toggled only list ↔ side picker and skipped the reader (the focus ring matched panes by the focused widget's pointer identity, which never matched a picker's inner input). Cycling is now keyed by pane name, so the order is deterministic: **list → reader → picker → AI summary → Slack** (only the panes currently visible).
+- **Tab now cycles through all visible panes, including the message reader.** Previously Tab effectively toggled only list ↔ side picker and skipped the reader (the focus ring matched panes by the focused widget's pointer identity, which never matched a picker's inner input). Cycling is now keyed by pane name, so the order is deterministic: **list → reader → picker / Action Plan → AI summary → Slack** (only the panes currently visible).
+- **The Action Plan panel is now part of the cycle too.** Before, Tab with the Action Plan open only toggled panel ↔ list and never reached the reader; now `list → reader → Action Plan` cycle fully (the panel keeps analyzing while focus is elsewhere).
 - **`Shift+Tab` cycles focus in reverse** through the same ring.
 
 ## [1.13.0] - 2026-06-14
