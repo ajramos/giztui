@@ -26,7 +26,17 @@ type stubSynth struct{ called bool }
 
 func (s *stubSynth) Synthesize(ctx context.Context, text string, opts tts.SynthesizeOptions) (*tts.SynthesisResult, error) {
 	s.called = true
-	return &tts.SynthesisResult{AudioPath: "", Engine: "stub"}, nil
+	// Non-empty AudioPath → the SpeechService must hand it to the Player.
+	return &tts.SynthesisResult{AudioPath: "stub.wav", Engine: "stub"}, nil
+}
+
+// directSynth emulates a synthesizer that plays the audio itself (macOS `say`) — it returns an empty
+// AudioPath, so the SpeechService must NOT invoke the Player.
+type directSynth struct{ called bool }
+
+func (s *directSynth) Synthesize(ctx context.Context, text string, opts tts.SynthesizeOptions) (*tts.SynthesisResult, error) {
+	s.called = true
+	return &tts.SynthesisResult{AudioPath: "", Engine: "say"}, nil
 }
 
 type stubPlayer struct {
@@ -100,5 +110,32 @@ func TestSpeechService_StopSuppressesCancelError(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Speak did not return after Stop")
+	}
+}
+
+// A self-playing synthesizer (empty AudioPath, e.g. macOS `say`) must skip the Player.
+func TestSpeechService_DirectSynthSkipsPlayer(t *testing.T) {
+	dir := t.TempDir()
+	piper := filepath.Join(dir, "piper")
+	model := filepath.Join(dir, "m.onnx")
+	_ = os.WriteFile(piper, []byte("x"), 0600)
+	_ = os.WriteFile(model, []byte("x"), 0600)
+
+	syn := &directSynth{}
+	pl := &stubPlayer{}
+	// Engine "piper" so IsConfigured passes via the file check (this box has no `say`); the
+	// skip-player behavior keys on the empty AudioPath, not the engine.
+	s := NewSpeechService(syn, pl, "piper", piper, model)
+	if err := s.Speak(context.Background(), "hola"); err != nil {
+		t.Fatalf("Speak error: %v", err)
+	}
+	if !syn.called {
+		t.Fatal("synthesizer should have been called")
+	}
+	pl.mu.Lock()
+	played := pl.played
+	pl.mu.Unlock()
+	if played {
+		t.Fatal("player must NOT be called when the synthesizer plays directly (empty AudioPath)")
 	}
 }

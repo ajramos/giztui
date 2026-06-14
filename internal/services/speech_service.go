@@ -78,11 +78,11 @@ func (s *SpeechServiceImpl) Speak(ctx context.Context, text string) error {
 		}
 		return err
 	}
-	defer func() {
-		if res.AudioPath != "" {
-			_ = os.Remove(res.AudioPath)
-		}
-	}()
+	// A synthesizer that plays directly (e.g. macOS `say`) returns no file — nothing left to do.
+	if res.AudioPath == "" {
+		return nil
+	}
+	defer func() { _ = os.Remove(res.AudioPath) }()
 	if err := s.player.Play(cctx, res.AudioPath); err != nil && cctx.Err() == nil {
 		return err
 	}
