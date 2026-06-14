@@ -402,34 +402,6 @@ func (er *EmailRenderer) GetMessageColor(message *googleGmail.Message) tcell.Col
 	return er.getMessageColor(message)
 }
 
-// GetColumnConfig returns column configuration for the specified display mode
-func GetColumnConfig(mode DisplayMode) []ColumnConfig {
-	switch mode {
-	case ModeFlatList:
-		return []ColumnConfig{
-			{"", tview.AlignCenter, 0, 3, 2},       // Flags: ●○!
-			{"From", tview.AlignLeft, 1, 0, 15},    // From: expand weight 1
-			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
-			{"", tview.AlignCenter, 0, 4, 2},       // Icons: 📎🗓️
-			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
-		}
-	case ModeThreaded:
-		return []ColumnConfig{
-			{"", tview.AlignLeft, 0, 3, 3},         // Type: Thread/message icons only (▼️/▶️/📧) - increased to 3
-			{"#", tview.AlignRight, 0, 6, 3},       // Thread Count: [4] or empty
-			{"", tview.AlignCenter, 0, 3, 2},       // Status: Read/unread only (●/○)
-			{"From", tview.AlignLeft, 1, 0, 15},    // From: expand weight 1
-			{"Subject", tview.AlignLeft, 3, 0, 20}, // Subject: expand weight 3
-			{"", tview.AlignCenter, 0, 2, 2},       // Attachment: 📎
-			{"", tview.AlignCenter, 0, 2, 2},       // Calendar: 📅
-			{"Date", tview.AlignRight, 0, 16, 8},   // Date: fixed max width
-		}
-	default:
-		// Fallback to flat list config
-		return GetColumnConfig(ModeFlatList)
-	}
-}
-
 // ExtractAttachmentIcon returns attachment icon (📎) padded to 2 characters
 func (er *EmailRenderer) ExtractAttachmentIcon(message *googleGmail.Message) string {
 	if message == nil || message.Payload == nil {
