@@ -2,13 +2,25 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ajramos/giztui/internal/tts"
 )
+
+// blockingSynth blocks until the context is cancelled, then returns an error — emulating the
+// external `say`/piper process being killed by Stop().
+type blockingSynth struct{ started chan struct{} }
+
+func (b *blockingSynth) Synthesize(ctx context.Context, text string, opts tts.SynthesizeOptions) (*tts.SynthesisResult, error) {
+	close(b.started)
+	<-ctx.Done()
+	return nil, fmt.Errorf("tts: say failed: signal: killed")
+}
 
 type stubSynth struct{ called bool }
 
@@ -63,4 +75,30 @@ func TestSpeechService_SpeakStop(t *testing.T) {
 		t.Fatal("Speak should synthesize then play")
 	}
 	s.Stop()
+}
+
+// Stopping playback (Stop() cancels the context, killing the external process) must NOT surface as
+// a "TTS failed" error — it is a user-requested stop.
+func TestSpeechService_StopSuppressesCancelError(t *testing.T) {
+	dir := t.TempDir()
+	piper := filepath.Join(dir, "piper")
+	model := filepath.Join(dir, "m.onnx")
+	_ = os.WriteFile(piper, []byte("x"), 0600)
+	_ = os.WriteFile(model, []byte("x"), 0600)
+
+	started := make(chan struct{})
+	s := NewSpeechService(&blockingSynth{started: started}, &stubPlayer{}, "piper", piper, model)
+
+	done := make(chan error, 1)
+	go func() { done <- s.Speak(context.Background(), "hola") }()
+	<-started
+	s.Stop()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("user-requested Stop must not surface as an error, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Speak did not return after Stop")
+	}
 }

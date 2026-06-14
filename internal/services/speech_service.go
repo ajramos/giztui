@@ -73,6 +73,9 @@ func (s *SpeechServiceImpl) Speak(ctx context.Context, text string) error {
 
 	res, err := s.synth.Synthesize(cctx, text, tts.SynthesizeOptions{ModelPath: s.modelPath})
 	if err != nil {
+		if cctx.Err() != nil {
+			return nil // cancelled by Stop() — a user-requested stop, not a failure
+		}
 		return err
 	}
 	defer func() {
@@ -80,5 +83,8 @@ func (s *SpeechServiceImpl) Speak(ctx context.Context, text string) error {
 			_ = os.Remove(res.AudioPath)
 		}
 	}()
-	return s.player.Play(cctx, res.AudioPath)
+	if err := s.player.Play(cctx, res.AudioPath); err != nil && cctx.Err() == nil {
+		return err
+	}
+	return nil
 }
