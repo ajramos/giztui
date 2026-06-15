@@ -1,6 +1,12 @@
 package services
 
-import "testing"
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/ajramos/giztui/internal/gmail"
+)
 
 func TestLinkService_ValidateURL(t *testing.T) {
 	s := &LinkServiceImpl{}
@@ -55,5 +61,31 @@ func TestLinkService_CategorizeLink(t *testing.T) {
 		if got := s.categorizeLink(in); got != want {
 			t.Errorf("categorizeLink(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+type mockLinkClient struct{ msg *gmail.Message }
+
+func (m *mockLinkClient) GetMessageWithContent(id string) (*gmail.Message, error) {
+	if m.msg == nil {
+		return nil, fmt.Errorf("not found")
+	}
+	return m.msg, nil
+}
+
+func TestLinkService_GetMessageLinks(t *testing.T) {
+	// validation
+	svc := NewLinkService(&mockLinkClient{}, nil)
+	if _, err := svc.GetMessageLinks(context.Background(), ""); err == nil {
+		t.Fatal("empty messageID should error")
+	}
+	// HTML message with one link → extracted + categorized
+	svc = NewLinkService(&mockLinkClient{msg: &gmail.Message{HTML: `<a href="https://github.com/o/r">repo</a>`}}, nil)
+	links, err := svc.GetMessageLinks(context.Background(), "m1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(links) != 1 || links[0].URL != "https://github.com/o/r" || links[0].Type != "external" {
+		t.Fatalf("link extraction wrong: %+v", links)
 	}
 }
