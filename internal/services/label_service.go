@@ -5,18 +5,31 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ajramos/giztui/internal/gmail"
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 
+// LabelClient is the subset of *gmail.Client that LabelService depends on. Depending on this
+// interface (which *gmail.Client satisfies) instead of the concrete type makes the service
+// unit-testable with a mock.
+type LabelClient interface {
+	ApplyLabel(messageID, labelID string) error
+	RemoveLabel(messageID, labelID string) error
+	CreateLabel(name string) (*gmail_v1.Label, error)
+	DeleteLabel(labelID string) error
+	RenameLabel(labelID, newName string) (*gmail_v1.Label, error)
+	ListLabels() ([]*gmail_v1.Label, error)
+	GetMessage(id string) (*gmail_v1.Message, error)
+	ExtractLabels(msg *gmail_v1.Message) []string
+}
+
 // LabelServiceImpl implements LabelService
 type LabelServiceImpl struct {
-	gmailClient *gmail.Client
+	gmailClient LabelClient
 	undoService UndoService // Optional - for recording undo actions
 }
 
 // NewLabelService creates a new label service
-func NewLabelService(gmailClient *gmail.Client) *LabelServiceImpl {
+func NewLabelService(gmailClient LabelClient) *LabelServiceImpl {
 	return &LabelServiceImpl{
 		gmailClient: gmailClient,
 	}
