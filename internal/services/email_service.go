@@ -14,17 +14,28 @@ import (
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
 
+// GmailClient is the subset of *gmail.Client that EmailService depends on. Depending on this
+// interface (which *gmail.Client satisfies) instead of the concrete type lets the client-backed
+// methods be unit-tested with a mock.
+type GmailClient interface {
+	TrashMessage(messageID string) error
+	SendMessage(from, to, subject, body string, cc, bcc []string) (string, error)
+	ReplyMessage(originalID, replyBody string, send bool, cc []string) (string, error)
+	GetMessageWithContent(id string) (*gmail.Message, error)
+	GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gmail_v1.Message, error)
+}
+
 // EmailServiceImpl implements EmailService
 type EmailServiceImpl struct {
 	repo        MessageRepository
-	gmailClient *gmail.Client
+	gmailClient GmailClient
 	renderer    *render.EmailRenderer
 	undoService UndoService // Optional - for recording undo actions
 	logger      *log.Logger // Optional - for debug logging
 }
 
 // NewEmailService creates a new email service
-func NewEmailService(repo MessageRepository, gmailClient *gmail.Client, renderer *render.EmailRenderer) *EmailServiceImpl {
+func NewEmailService(repo MessageRepository, gmailClient GmailClient, renderer *render.EmailRenderer) *EmailServiceImpl {
 	return &EmailServiceImpl{
 		repo:        repo,
 		gmailClient: gmailClient,

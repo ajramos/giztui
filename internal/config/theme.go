@@ -200,31 +200,3 @@ func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
-
-// ApplyThemeToApp applies a theme to the application
-func ApplyThemeToApp(theme *ColorsConfig, app interface{}) error {
-	// This is a placeholder for applying theme to the app
-	// In a real implementation, you would update the app's colors
-	fmt.Printf("Applying theme with %d color configurations\n", len(theme.Email.UnreadColor))
-	return nil
-}
-
-// GetThemePreview generates a preview of the theme colors
-func GetThemePreview(theme *ColorsConfig) string {
-	preview := "🎨 Theme Preview:\n\n"
-
-	preview += "📧 Email Colors:\n"
-	preview += fmt.Sprintf("  • Unread: %s\n", theme.Email.UnreadColor)
-	preview += fmt.Sprintf("  • Read: %s\n", theme.Email.ReadColor)
-	preview += fmt.Sprintf("  • Important: %s\n", theme.Email.ImportantColor)
-	preview += fmt.Sprintf("  • Sent: %s\n", theme.Email.SentColor)
-	preview += fmt.Sprintf("  • Draft: %s\n", theme.Email.DraftColor)
-
-	preview += "\n🎨 UI Colors:\n"
-	preview += fmt.Sprintf("  • Text: %s\n", theme.Body.FgColor)
-	preview += fmt.Sprintf("  • Background: %s\n", theme.Body.BgColor)
-	preview += fmt.Sprintf("  • Border: %s\n", theme.Frame.Border.FgColor)
-	preview += fmt.Sprintf("  • Focus: %s\n", theme.Frame.Border.FocusColor)
-
-	return preview
-}

@@ -37,22 +37,3 @@ var (
 	ErrInvalidMessageID = errors.New("invalid message ID")
 	ErrInvalidLabelID   = errors.New("invalid label ID")
 )
-
-// IsRetryableError determines if an error should be retried
-func IsRetryableError(err error) bool {
-	return errors.Is(err, ErrNetworkUnavailable) ||
-		errors.Is(err, ErrTimeout) ||
-		errors.Is(err, ErrServiceUnavailable) ||
-		errors.Is(err, ErrRateLimited)
-}
-
-// IsPermanentError determines if an error is permanent and should not be retried
-func IsPermanentError(err error) bool {
-	return errors.Is(err, ErrUnauthorized) ||
-		errors.Is(err, ErrForbidden) ||
-		errors.Is(err, ErrNotFound) ||
-		errors.Is(err, ErrInvalidInput) ||
-		errors.Is(err, ErrInvalidFormat) ||
-		errors.Is(err, ErrInvalidMessageID) ||
-		errors.Is(err, ErrInvalidLabelID)
-}

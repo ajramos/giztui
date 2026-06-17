@@ -13,14 +13,19 @@ import (
 	"github.com/ajramos/giztui/internal/render"
 )
 
+// LinkClient is the subset of *gmail.Client that LinkService depends on (satisfied by *gmail.Client).
+type LinkClient interface {
+	GetMessageWithContent(id string) (*gmail.Message, error)
+}
+
 // LinkServiceImpl implements LinkService
 type LinkServiceImpl struct {
-	gmailClient   *gmail.Client
+	gmailClient   LinkClient
 	emailRenderer *render.EmailRenderer
 }
 
 // NewLinkService creates a new link service
-func NewLinkService(gmailClient *gmail.Client, emailRenderer *render.EmailRenderer) *LinkServiceImpl {
+func NewLinkService(gmailClient LinkClient, emailRenderer *render.EmailRenderer) *LinkServiceImpl {
 	return &LinkServiceImpl{
 		gmailClient:   gmailClient,
 		emailRenderer: emailRenderer,

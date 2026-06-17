@@ -234,6 +234,32 @@ func main() {
 			}
 		}
 
+		// Level 1.5: Try the GMAIL_TUI_CREDENTIALS env var. It is advertised in --help and honored
+		// for the token (via getTokenPath), but credential resolution was reimplemented inline and
+		// skipped it — so setting the env var did nothing. Honor it here, matching the documented
+		// CLI → env → config → default priority.
+		if credPath == "" {
+			if envCred := os.Getenv("GMAIL_TUI_CREDENTIALS"); envCred != "" {
+				testCredPath := expandPath(envCred)
+				testTokenPath := getTokenPath("", cfg.Token)
+				if logger != nil {
+					logger.Printf("🎯 Attempt %d: Trying GMAIL_TUI_CREDENTIALS env var: %s", attemptNumber, testCredPath)
+				}
+				attemptNumber++
+				// #nosec G703 -- testCredPath is the operator's own GMAIL_TUI_CREDENTIALS path
+				if _, err := os.Stat(testCredPath); err == nil {
+					credPath = testCredPath
+					tokenPath = testTokenPath
+					fallbackMethod = "env var"
+					if logger != nil {
+						logger.Printf("✅ Env var credentials found and validated")
+					}
+				} else if logger != nil {
+					logger.Printf("❌ Env var credentials not found at %s", testCredPath)
+				}
+			}
+		}
+
 		// Level 2: Try config file credentials (if CLI didn't work and config has credentials)
 		if credPath == "" && cfg.Credentials != "" {
 			if logger != nil {
