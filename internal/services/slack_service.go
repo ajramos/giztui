@@ -470,6 +470,36 @@ func (s *SlackServiceImpl) sendToSlack(ctx context.Context, message SlackMessage
 	return nil
 }
 
+// digestItem is one new-mail row for the Slack notification.
+type digestItem struct {
+	Subject string
+	From    string
+	Link    string // pre-resolved Gmail hyperlink URL, "" if none
+	Summary string // AI summary, "" when not summarized
+}
+
+// buildNewMailDigest formats the new-mail Slack notification, capping listed rows at digestMaxList.
+// A non-empty Summary renders as an indented italic line under the row.
+func buildNewMailDigest(items []digestItem) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "📬 %d new email(s):", len(items))
+	for i, it := range items {
+		if i >= digestMaxList {
+			fmt.Fprintf(&b, "\n…and %d more", len(items)-digestMaxList)
+			break
+		}
+		if it.Link != "" {
+			fmt.Fprintf(&b, "\n• <%s|%s> — %s", it.Link, it.Subject, it.From)
+		} else {
+			fmt.Fprintf(&b, "\n• %s — %s", it.Subject, it.From)
+		}
+		if it.Summary != "" {
+			fmt.Fprintf(&b, "\n   _%s_", it.Summary)
+		}
+	}
+	return b.String()
+}
+
 // SlackMessage represents a message to be sent to Slack
 type SlackMessage struct {
 	Text string `json:"text"`
