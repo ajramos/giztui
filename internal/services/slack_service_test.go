@@ -1,11 +1,72 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/config"
 )
+
+// slackStubAI is a configurable AIService stub for slack_service_test.go.
+// We cannot import internal/services/mocks (import cycle: mocks → services),
+// and stubAIService already exists in prompt_service_test.go without configurable
+// return values, so we define a dedicated variant here.
+type slackStubAI struct {
+	result string
+	err    error
+}
+
+func (s *slackStubAI) ApplyCustomPrompt(_ context.Context, _ string, _ map[string]string) (string, error) {
+	return s.result, s.err
+}
+func (s *slackStubAI) ApplyCustomPromptStream(_ context.Context, _ string, _ map[string]string, _ func(string)) (string, error) {
+	return "", nil
+}
+func (s *slackStubAI) FormatContent(_ context.Context, _ string, _ FormatOptions) (string, error) {
+	return "", nil
+}
+func (s *slackStubAI) GenerateReply(_ context.Context, _ string, _ ReplyOptions) (string, error) {
+	return "", nil
+}
+func (s *slackStubAI) GenerateSummary(_ context.Context, _ string, _ SummaryOptions) (*SummaryResult, error) {
+	return nil, nil
+}
+func (s *slackStubAI) GenerateSummaryStream(_ context.Context, _ string, _ SummaryOptions, _ func(string)) (*SummaryResult, error) {
+	return nil, nil
+}
+func (s *slackStubAI) SuggestLabels(_ context.Context, _ string, _ []string) ([]string, error) {
+	return nil, nil
+}
+
+func TestSummarizeForDigest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Slack = config.DefaultSlackConfig() // provides GetSummaryPrompt with {{body}}/{{max_words}}
+
+	// Success path: returns trimmed AI output.
+	ai := &slackStubAI{result: "  Recap here.  ", err: nil}
+	s := &SlackServiceImpl{config: cfg, aiService: ai}
+	if got := s.summarizeForDigest(context.Background(), "long body text"); got != "Recap here." {
+		t.Errorf("summary = %q, want %q", got, "Recap here.")
+	}
+
+	// AI error → "" (caller keeps the plain line).
+	aiErr := &slackStubAI{result: "", err: errors.New("boom")}
+	sErr := &SlackServiceImpl{config: cfg, aiService: aiErr}
+	if got := sErr.summarizeForDigest(context.Background(), "body"); got != "" {
+		t.Errorf("on AI error want \"\", got %q", got)
+	}
+
+	// nil aiService or empty body → "".
+	sNil := &SlackServiceImpl{config: cfg, aiService: nil}
+	if got := sNil.summarizeForDigest(context.Background(), "body"); got != "" {
+		t.Errorf("nil aiService want \"\", got %q", got)
+	}
+	if got := s.summarizeForDigest(context.Background(), "   "); got != "" {
+		t.Errorf("empty body want \"\", got %q", got)
+	}
+}
 
 func TestDefaultSlackWebhook(t *testing.T) {
 	cfg := &config.Config{Slack: config.SlackConfig{Channels: []config.SlackChannel{

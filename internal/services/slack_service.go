@@ -470,6 +470,24 @@ func (s *SlackServiceImpl) sendToSlack(ctx context.Context, message SlackMessage
 	return nil
 }
 
+// summarizeForDigest returns a short AI summary of body, or "" when unavailable
+// (nil AI service, empty body, or AI error) so the caller falls back to the plain row.
+func (s *SlackServiceImpl) summarizeForDigest(ctx context.Context, body string) string {
+	if s.aiService == nil || strings.TrimSpace(body) == "" {
+		return ""
+	}
+	const maxWords = "50"
+	prompt := s.config.Slack.GetSummaryPrompt()
+	prompt = strings.ReplaceAll(prompt, "{{body}}", body)
+	prompt = strings.ReplaceAll(prompt, "{{max_words}}", maxWords)
+	variables := map[string]string{"body": body, "max_words": maxWords}
+	out, err := s.aiService.ApplyCustomPrompt(ctx, prompt, variables)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
 // digestItem is one new-mail row for the Slack notification.
 type digestItem struct {
 	Subject string
