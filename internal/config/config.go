@@ -241,9 +241,11 @@ type TTSConfig struct {
 
 // AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
 type AutoRefreshConfig struct {
-	Enabled     bool   `json:"enabled"`
-	Interval    string `json:"interval"`     // Go duration string, e.g. "5m"; clamped to a 1m minimum
-	NotifySlack bool   `json:"notify_slack"` // also post a Slack notification when new mail is detected
+	Enabled           bool   `json:"enabled"`
+	Interval          string `json:"interval"`            // Go duration string, e.g. "5m"; clamped to a 1m minimum
+	NotifySlack       bool   `json:"notify_slack"`        // also post a Slack notification when new mail is detected
+	SlackSummary      bool   `json:"slack_summary"`       // include a per-email AI summary in the Slack notification
+	SlackSummaryLimit int    `json:"slack_summary_limit"` // max emails summarized per refresh cycle (default 5)
 }
 
 // autoRefreshMinInterval is the smallest allowed poll interval to avoid hammering the API.
@@ -473,7 +475,7 @@ func DefaultConfig() *Config {
 		Rendering:     DefaultRenderingConfig(),
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
-		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m"},
+		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m", SlackSummary: false, SlackSummaryLimit: 5},
 		TTS:           TTSConfig{Enabled: false, Engine: "auto"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),

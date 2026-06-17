@@ -560,3 +560,13 @@ func TestDefaultConfig_TTS(t *testing.T) {
 		t.Errorf("keys.speak should default to unbound, got %q", c.Keys.Speak)
 	}
 }
+
+func TestAutoRefreshSummaryDefaults(t *testing.T) {
+	c := DefaultConfig()
+	if c.AutoRefresh.SlackSummary {
+		t.Errorf("SlackSummary should default to false (opt-in)")
+	}
+	if c.AutoRefresh.SlackSummaryLimit != 5 {
+		t.Errorf("SlackSummaryLimit default = %d, want 5", c.AutoRefresh.SlackSummaryLimit)
+	}
+}
