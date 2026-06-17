@@ -396,6 +396,27 @@ func (s *SlackServiceImpl) truncateText(text string, maxLength int) string {
 	return truncated + "..."
 }
 
+// digestMaxList caps how many emails are listed in the new-mail Slack digest.
+const digestMaxList = 10
+
+// summaryCount returns how many of `total` new emails should be AI-summarized,
+// applying the opt-in flag, the <=0 → 5 clamp, the digestMaxList cap, and min(total).
+func summaryCount(summaries bool, limit, total int) int {
+	if !summaries {
+		return 0
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > digestMaxList {
+		limit = digestMaxList
+	}
+	if limit > total {
+		return total
+	}
+	return limit
+}
+
 // defaultSlackWebhook returns the webhook of the default channel (the one with Default==true,
 // else the first configured channel). Errors when no channel is configured.
 func defaultSlackWebhook(cfg *config.Config) (string, error) {
