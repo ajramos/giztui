@@ -518,6 +518,63 @@ func buildNewMailDigest(items []digestItem) string {
 	return b.String()
 }
 
+// SendNewMailDigest posts the new-mail notification to the default Slack channel. When
+// opts.Summaries is set, the first summaryCount(...) emails get an AI summary line; AI/fetch
+// failures degrade gracefully to a plain row.
+func (s *SlackServiceImpl) SendNewMailDigest(ctx context.Context, messageIDs []string, opts NewMailDigestOptions) error {
+	if len(messageIDs) == 0 {
+		return nil
+	}
+	webhook, err := defaultSlackWebhook(s.config)
+	if err != nil {
+		return err
+	}
+
+	metas, err := s.client.GetMessagesMetadataParallel(messageIDs, 10)
+	if err != nil {
+		return fmt.Errorf("failed to fetch new mail metadata: %w", err)
+	}
+
+	// Summarize the first n emails (n already clamped + capped).
+	n := summaryCount(opts.Summaries, opts.SummaryLimit, len(metas))
+	summaries := make([]string, len(metas))
+	if n > 0 {
+		full, ferr := s.client.GetMessagesParallel(messageIDs[:n], n)
+		if ferr == nil {
+			for i := 0; i < n && i < len(full); i++ {
+				if full[i] == nil {
+					continue
+				}
+				summaries[i] = s.summarizeForDigest(ctx, s.extractEmailBody(full[i]))
+			}
+		}
+	}
+
+	items := make([]digestItem, 0, len(metas))
+	for i, m := range metas {
+		if m == nil {
+			continue
+		}
+		hdr := s.extractEmailMetadata(m)
+		link := ""
+		if opts.LinkFor != nil && m.Id != "" {
+			link = opts.LinkFor(m.Id)
+		}
+		summary := ""
+		if i < len(summaries) {
+			summary = summaries[i]
+		}
+		items = append(items, digestItem{
+			Subject: hdr["subject"],
+			From:    hdr["from"],
+			Link:    link,
+			Summary: summary,
+		})
+	}
+
+	return s.sendToSlack(ctx, SlackMessage{Text: buildNewMailDigest(items)}, webhook)
+}
+
 // SlackMessage represents a message to be sent to Slack
 type SlackMessage struct {
 	Text string `json:"text"`
