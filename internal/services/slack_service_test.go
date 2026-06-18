@@ -2,11 +2,17 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/config"
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 // slackStubAI is a configurable AIService stub for slack_service_test.go.
@@ -153,5 +159,97 @@ func TestBuildNewMailDigest(t *testing.T) {
 	// Empty input.
 	if got := buildNewMailDigest(nil); !strings.Contains(got, "📬 0 new email(s):") {
 		t.Errorf("empty digest wrong: %q", got)
+	}
+}
+
+type slackStubGmail struct {
+	meta, full       []*gmailapi.Message
+	metaErr, fullErr error
+}
+
+func (s *slackStubGmail) GetMessage(id string) (*gmailapi.Message, error) { return nil, nil }
+func (s *slackStubGmail) GetMessagesMetadataParallel(_ []string, _ int) ([]*gmailapi.Message, error) {
+	return s.meta, s.metaErr
+}
+func (s *slackStubGmail) GetMessagesParallel(_ []string, _ int) ([]*gmailapi.Message, error) {
+	return s.full, s.fullErr
+}
+
+func TestSendNewMailDigest_Orchestration(t *testing.T) {
+	var captured string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		var m SlackMessage
+		_ = json.Unmarshal(b, &m)
+		captured = m.Text
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{}
+	cfg.Slack = config.DefaultSlackConfig()
+	cfg.Slack.Enabled = true
+	cfg.Slack.Channels = []config.SlackChannel{{Name: "gen", WebhookURL: srv.URL, Default: true}}
+
+	meta := func(id, subj, from string) *gmailapi.Message {
+		return &gmailapi.Message{Id: id, Payload: &gmailapi.MessagePart{Headers: []*gmailapi.MessagePartHeader{
+			{Name: "Subject", Value: subj}, {Name: "From", Value: from},
+		}}}
+	}
+	body := func(id, text string) *gmailapi.Message {
+		return &gmailapi.Message{Id: id, Payload: &gmailapi.MessagePart{
+			MimeType: "text/plain",
+			Body:     &gmailapi.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte(text))},
+		}}
+	}
+
+	ids := []string{"m1", "m2"}
+	gc := &slackStubGmail{
+		meta: []*gmailapi.Message{meta("m1", "Hello", "a@x.com"), meta("m2", "World", "b@x.com")},
+		full: []*gmailapi.Message{body("m1", "some content")},
+	}
+
+	// Case A: summaries on, AI returns a summary → summary line present.
+	captured = ""
+	sA := &SlackServiceImpl{client: gc, config: cfg, aiService: &slackStubAI{result: "AI recap"}, httpClient: srv.Client()}
+	if err := sA.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: true, SummaryLimit: 1}); err != nil {
+		t.Fatalf("case A unexpected error: %v", err)
+	}
+	if !strings.Contains(captured, "Hello") || !strings.Contains(captured, "_AI recap_") {
+		t.Errorf("case A expected summary line, got: %q", captured)
+	}
+
+	// Case B: summaries off → no AI summary line, plain rows only.
+	captured = ""
+	sB := &SlackServiceImpl{client: gc, config: cfg, aiService: &slackStubAI{result: "AI recap"}, httpClient: srv.Client()}
+	if err := sB.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: false}); err != nil {
+		t.Fatalf("case B unexpected error: %v", err)
+	}
+	if strings.Contains(captured, "_AI recap_") {
+		t.Errorf("case B summaries disabled but got summary: %q", captured)
+	}
+	if !strings.Contains(captured, "Hello") || !strings.Contains(captured, "World") {
+		t.Errorf("case B expected plain rows: %q", captured)
+	}
+
+	// Case C: AI error → graceful, no summary line.
+	captured = ""
+	sC := &SlackServiceImpl{client: gc, config: cfg, aiService: &slackStubAI{err: errors.New("boom")}, httpClient: srv.Client()}
+	if err := sC.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: true, SummaryLimit: 1}); err != nil {
+		t.Fatalf("case C unexpected error: %v", err)
+	}
+	if strings.Contains(captured, "_") {
+		t.Errorf("case C AI failed, should have no summary line: %q", captured)
+	}
+
+	// Case D: nil client guard.
+	sD := &SlackServiceImpl{client: nil, config: cfg, aiService: &slackStubAI{}, httpClient: srv.Client()}
+	if err := sD.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{}); err == nil {
+		t.Error("case D expected error with nil client")
+	}
+
+	// Empty IDs → nil.
+	if err := sA.SendNewMailDigest(context.Background(), nil, NewMailDigestOptions{}); err != nil {
+		t.Errorf("empty IDs should return nil, got %v", err)
 	}
 }

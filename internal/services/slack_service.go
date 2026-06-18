@@ -15,9 +15,18 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// SlackGmailClient is the subset of *gmail.Client that SlackService depends on. Depending on this
+// interface (which *gmail.Client satisfies) instead of the concrete type makes the service
+// unit-testable with a mock.
+type SlackGmailClient interface {
+	GetMessage(id string) (*gmailapi.Message, error)
+	GetMessagesMetadataParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
+	GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
+}
+
 // SlackServiceImpl implements the SlackService interface
 type SlackServiceImpl struct {
-	client     *gmail.Client
+	client     SlackGmailClient
 	config     *config.Config
 	aiService  AIService
 	httpClient *http.Client
@@ -25,18 +34,21 @@ type SlackServiceImpl struct {
 
 // NewSlackService creates a new SlackService implementation
 func NewSlackService(client *gmail.Client, config *config.Config, aiService AIService) *SlackServiceImpl {
-	return &SlackServiceImpl{
-		client:     client,
+	impl := &SlackServiceImpl{
 		config:     config,
 		aiService:  aiService,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+	if client != nil {
+		impl.client = client
+	}
+	return impl
 }
 
 // ForwardEmail forwards a Gmail message to Slack
 func (s *SlackServiceImpl) ForwardEmail(ctx context.Context, messageID string, options SlackForwardOptions) error {
 	// Get the email message from Gmail API
-	gmailMessage, err := s.client.Service.Users.Messages.Get("me", messageID).Do()
+	gmailMessage, err := s.client.GetMessage(messageID)
 	if err != nil {
 		return fmt.Errorf("failed to get email message: %w", err)
 	}
