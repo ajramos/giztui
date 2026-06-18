@@ -122,6 +122,16 @@ New `internal/tui/vim_navigator_test.go` covering the state machine (today: 0 co
 
 Existing behavior verified by `make test` (TUI suite) + manual VIM smoke test on the user's Mac.
 
+## Follow-up (deferred, not this pilot)
+
+- **VIM expiry is effectively 2× the configured timeout.** The original handler sets
+  `timeout = start + d` and then expires when `now.Sub(timeout) > d`, i.e. at `start + 2d`. This
+  pilot **preserves** that behavior bit-for-bit (`vimState.clearIfExpired` uses `now.Sub > d`). The
+  observable impact is minimal because the main timeout (single-op execution after pressing an op
+  key) is driven by the timeout goroutine's `time.Sleep(d)`, not by `clearIfExpired`. Normalizing
+  the cleanup window to a true `d` is a separate, explicit behavior change — do it in its own commit
+  if desired, not folded into the refactor.
+
 ## Out of scope (YAGNI)
 
 - The effect methods (`executeVim*`) — only their state access changes from `a.vimX` to `a.vim.X()`.
