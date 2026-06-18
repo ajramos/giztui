@@ -525,6 +525,9 @@ func (s *SlackServiceImpl) SendNewMailDigest(ctx context.Context, messageIDs []s
 	if len(messageIDs) == 0 {
 		return nil
 	}
+	if s.client == nil {
+		return fmt.Errorf("gmail client not available")
+	}
 	webhook, err := defaultSlackWebhook(s.config)
 	if err != nil {
 		return err
