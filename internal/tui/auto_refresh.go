@@ -2,9 +2,9 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
@@ -243,58 +243,25 @@ func (a *App) prependNewMessages(newIDs []string) {
 	go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("📬 %d new message(s)", count))
 }
 
-// buildNewMailSlackMessage formats a Slack notification listing the new emails (capped at 10).
-// When urlFor is non-nil it wraps each subject in a Slack hyperlink (<url|subject>) pointing to the
-// message in Gmail, so the recipient can open it with one click.
-func buildNewMailSlackMessage(metas []*gmailapi.Message, urlFor func(id string) string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "📬 %d new email(s):", len(metas))
-	const maxList = 10
-	for i, m := range metas {
-		if m == nil {
-			continue
-		}
-		if i >= maxList {
-			fmt.Fprintf(&b, "\n…and %d more", len(metas)-maxList)
-			break
-		}
-		subject := extractHeaderValue(m, "Subject")
-		from := extractHeaderValue(m, "From")
-		link := ""
-		if urlFor != nil && m.Id != "" {
-			link = urlFor(m.Id)
-		}
-		if link != "" {
-			fmt.Fprintf(&b, "\n• <%s|%s> — %s", link, subject, from)
-		} else {
-			fmt.Fprintf(&b, "\n• %s — %s", subject, from)
-		}
-	}
-	return b.String()
-}
-
 // notifyNewMailSlack posts a Slack notification about newly-detected mail, when enabled.
 func (a *App) notifyNewMailSlack(newIDs []string) {
 	if !a.Config.AutoRefresh.NotifySlack || !a.Config.Slack.Enabled {
 		return
 	}
 	svc := a.GetSlackService()
-	if svc == nil || a.Client == nil || len(newIDs) == 0 {
+	if svc == nil || len(newIDs) == 0 {
 		return
 	}
-	metas, err := a.Client.GetMessagesMetadataParallel(newIDs, 10)
-	if err != nil {
-		if a.logger != nil {
-			a.logger.Printf("AUTO_REFRESH: slack metadata fetch error: %v", err)
-		}
-		return
-	}
-	var urlFor func(string) string
+	var linkFor func(string) string
 	if a.gmailWebService != nil {
-		urlFor = a.gmailWebService.GenerateGmailWebURL
+		linkFor = a.gmailWebService.GenerateGmailWebURL
 	}
-	msg := buildNewMailSlackMessage(metas, urlFor)
-	if err := svc.SendNotification(a.ctx, msg); err != nil {
+	opts := services.NewMailDigestOptions{
+		Summaries:    a.Config.AutoRefresh.SlackSummary,
+		SummaryLimit: a.Config.AutoRefresh.SlackSummaryLimit,
+		LinkFor:      linkFor,
+	}
+	if err := svc.SendNewMailDigest(a.ctx, newIDs, opts); err != nil {
 		a.GetErrorHandler().ShowWarning(a.ctx, "Slack notify failed: "+err.Error())
 	}
 }
