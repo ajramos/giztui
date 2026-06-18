@@ -168,14 +168,8 @@ type App struct {
 	selected map[string]bool // messageID -> selected
 	bulkMode bool
 
-	// VIM-style navigation
-	vimSequence string    // Track VIM key sequences like "gg"
-	vimTimeout  time.Time // Timeout for key sequences
-
-	// VIM-style range operations
-	vimOperationCount    int    // Track count in sequences (e.g., "5" in "s5s")
-	vimOperationType     string // Track operation type (e.g., "s" in "s5s")
-	vimOriginalMessageID string // Store message ID when VIM sequence started
+	// VIM-style navigation and range operations (state machine in vim_navigator.go)
+	vim vimState
 
 	// UI lifecycle flags
 	uiReady          bool // true after first draw

@@ -1735,12 +1735,7 @@ func (a *App) handleVimSequence(key rune) bool {
 	if rangeTimeoutMs <= 0 {
 		rangeTimeoutMs = 2000 // Default fallback
 	}
-	if !a.vimTimeout.IsZero() && now.Sub(a.vimTimeout) > time.Duration(rangeTimeoutMs)*time.Millisecond {
-		// OBLITERATED: empty logger branch eliminated! 💥
-		a.vimSequence = ""
-		a.vimOperationType = ""
-		a.vimOperationCount = 0
-		a.vimOriginalMessageID = ""
+	if a.vim.clearIfExpired(now, time.Duration(rangeTimeoutMs)*time.Millisecond) {
 		// Clear any status message for cancelled sequence
 		go func() {
 			a.GetErrorHandler().ClearProgress()
@@ -1766,10 +1761,9 @@ func (a *App) handleVimNavigation(key rune) bool {
 
 	switch key {
 	case 'g':
-		if a.vimSequence == "g" {
+		if a.vim.pendingG() {
 			// Double 'g' - context-dependent behavior
-			a.vimSequence = ""
-			a.vimTimeout = time.Time{}
+			a.vim.clearSequence()
 
 			// CRITICAL: Check focus context for gg behavior
 			if a.currentFocus == "text" && a.enhancedTextView != nil {
@@ -1788,20 +1782,17 @@ func (a *App) handleVimNavigation(key rune) bool {
 			return true
 		} else {
 			// Start of sequence - wait for next key
-			a.vimSequence = "g"
-
 			// Use configurable navigation timeout for gg sequence
 			navTimeoutMs := a.Keys.VimNavigationTimeoutMs
 			if navTimeoutMs <= 0 {
 				navTimeoutMs = 1000 // Default fallback
 			}
-			a.vimTimeout = now.Add(time.Duration(navTimeoutMs) * time.Millisecond)
+			a.vim.startG(now, time.Duration(navTimeoutMs)*time.Millisecond)
 			return true
 		}
 	case 'G':
 		// Single 'G' - context-dependent behavior
-		a.vimSequence = ""
-		a.vimTimeout = time.Time{}
+		a.vim.clearSequence()
 
 		// CRITICAL: Check focus context for G behavior
 		if a.currentFocus == "text" && a.enhancedTextView != nil {
@@ -1875,26 +1866,17 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 	// Handle digits in sequence
 	if key >= '0' && key <= '9' {
-		if a.vimOperationType != "" {
-			// We're building a count: s5 -> s56
-			digit := int(key - '0')
-			oldCount := a.vimOperationCount
-			a.vimOperationCount = a.vimOperationCount*10 + digit
-			a.vimSequence += string(key)
-			// Use configurable range timeout for digit sequences
-			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
-			if rangeTimeoutMs <= 0 {
-				rangeTimeoutMs = 2000 // Default fallback
-			}
-			a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
-
+		rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
+		if rangeTimeoutMs <= 0 {
+			rangeTimeoutMs = 2000 // Default fallback
+		}
+		if op, count, ok := a.vim.appendDigit(int(key-'0'), now, time.Duration(rangeTimeoutMs)*time.Millisecond); ok {
 			if a.logger != nil {
-				a.logger.Printf("VIM digit pressed: %c, operation: %s, oldCount: %d, digit: %d, newCount: %d", key, a.vimOperationType, oldCount, digit, a.vimOperationCount)
+				a.logger.Printf("VIM digit pressed: %c, operation: %s, newCount: %d", key, op, count)
 			}
-
 			// Show status
 			go func() {
-				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("%s%d... (waiting for operation)", a.vimOperationType, a.vimOperationCount))
+				a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("%s%d... (waiting for operation)", op, count))
 			}()
 			return true
 		}
@@ -1908,27 +1890,29 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 	// For conflict keys, only handle them if we're already in a VIM sequence
 	// This allows 'p' and 'o' to work normally for prompts/obsidian when not in VIM mode
-	if conflictOps[key] && a.vimOperationType == "" {
+	if conflictOps[key] && !a.vim.operationPending() {
 		return false
 	}
 
-	if a.vimOperationType == "" {
+	if op, count, ok := a.vim.completeOperation(string(key)); ok {
+		// Completing sequence: s5s, a3a, etc.
+		if a.logger != nil {
+			a.logger.Printf("VIM completing sequence: %s%d%s, passing count=%d to executeVimRangeOperation", op, count, op, count)
+		}
+		// Execute the range operation
+		a.executeVimRangeOperation(op, count)
+		return true
+	}
+
+	if !a.vim.operationPending() {
 		// Starting new sequence: s, a, d, etc.
-		a.vimOperationType = string(key)
-		a.vimOperationCount = 0
-		a.vimSequence = string(key)
-		// Use configurable range timeout for VIM operation sequences
 		rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
 		if rangeTimeoutMs <= 0 {
 			rangeTimeoutMs = 2000 // Default fallback
 		}
-		a.vimTimeout = now.Add(time.Duration(rangeTimeoutMs) * time.Millisecond)
-
-		// CRITICAL FIX: Capture current message ID when sequence starts
-		// This prevents issues where cursor moves during the timeout delay
-		a.vimOriginalMessageID = a.GetCurrentMessageID()
-
-		// VIM sequence started
+		// CRITICAL FIX: Capture current message ID when sequence starts so a cursor move during
+		// the timeout delay does not change the target.
+		a.vim.startOperation(string(key), now, time.Duration(rangeTimeoutMs)*time.Millisecond, a.GetCurrentMessageID())
 
 		// Show status and consume the key to prevent single operation
 		go func() {
@@ -1937,75 +1921,16 @@ func (a *App) handleVimRangeOperation(key rune) bool {
 
 		// Start timeout goroutine to execute single operation if no sequence completed
 		go func() {
-			// OBLITERATED: empty logger branch eliminated! 💥
-
-			// Use configurable range timeout for single operation fallback
-			rangeTimeoutMs := a.Keys.VimRangeTimeoutMs
-			if rangeTimeoutMs <= 0 {
-				rangeTimeoutMs = 2000 // Default fallback
-			}
 			time.Sleep(time.Duration(rangeTimeoutMs) * time.Millisecond)
-			// OBLITERATED: empty logger branch eliminated! 💥
-			a.mu.Lock()
-
-			// OBLITERATED: empty logger branch eliminated! 💥
-
-			// Check if sequence is still pending (not completed or cleared)
-			if a.vimOperationType == string(key) && a.vimOperationCount == 0 {
-				// OBLITERATED: empty logger branch eliminated! 💥
-				// Capture original message ID while holding mutex
-				originalMessageID := a.vimOriginalMessageID
-
-				// Clear sequence state while holding mutex
-				a.vimSequence = ""
-				a.vimOperationType = ""
-				a.vimTimeout = time.Time{}
-				a.vimOriginalMessageID = ""
-
-				// OBLITERATED: empty logger branch eliminated! 💥
-
-				// Release mutex BEFORE accessing UI elements or executing operations
-				a.mu.Unlock()
-
-				// OBLITERATED: empty logger branch eliminated! 💥
-
+			if originalMessageID, taken := a.vim.takePendingSingle(string(key)); taken {
 				go func() {
 					a.GetErrorHandler().ClearProgress()
 				}()
-
-				// Execute single operation with original message ID (without mutex)
-				// OBLITERATED: empty logger branch eliminated! 💥
 				a.executeVimSingleOperationWithID(string(key), originalMessageID)
-				// OBLITERATED: empty logger branch eliminated! 💥
-			} else {
-				// OBLITERATED: empty logger branch eliminated! 💥
-				a.mu.Unlock()
 			}
 		}()
 
 		return true // Consume the key to prevent immediate single operation
-	} else if a.vimOperationType == string(key) {
-		// Completing sequence: s5s, a3a, etc.
-		count := a.vimOperationCount
-		if count == 0 {
-			count = 1 // Default to 1 if no count specified
-		}
-
-		if a.logger != nil {
-			a.logger.Printf("VIM completing sequence: %s%d%s, passing count=%d to executeVimRangeOperation", string(key), count, string(key), count)
-		}
-
-		// Clear sequence state
-		operation := a.vimOperationType
-		a.vimSequence = ""
-		a.vimOperationType = ""
-		a.vimOperationCount = 0
-		a.vimTimeout = time.Time{}
-		a.vimOriginalMessageID = ""
-
-		// Execute the range operation
-		a.executeVimRangeOperation(operation, count)
-		return true
 	}
 
 	if a.logger != nil {
