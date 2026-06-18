@@ -62,11 +62,16 @@ func TestVimState_ClearIfExpired(t *testing.T) {
 
 	v.startOperation("s", start, d, "msg-1")
 
-	if v.clearIfExpired(start.Add(1*time.Second), d) {
-		t.Fatal("should not expire before the timeout")
+	// timeout is set to start+d (=start+2s); expiry is now.Sub(timeout) > d, i.e. now > start+2d
+	// (=start+4s). This preserves the original handler's inherited 2x-timeout behavior.
+
+	// now=start+3s: 3-2=1s, not > 2s → no reset.
+	if v.clearIfExpired(start.Add(3*time.Second), d) {
+		t.Fatal("should not expire before start+2d")
 	}
-	if !v.clearIfExpired(start.Add(3*time.Second), d) {
-		t.Fatal("should expire after the timeout")
+	// now=start+5s: 5-2=3s > 2s → reset.
+	if !v.clearIfExpired(start.Add(5*time.Second), d) {
+		t.Fatal("should expire after start+2d")
 	}
 	if _, _, ok := v.completeOperation("s"); ok {
 		t.Fatal("expired sequence should have been reset")

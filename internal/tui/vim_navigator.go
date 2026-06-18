@@ -31,11 +31,12 @@ func (v *vimState) reset() {
 
 // clearIfExpired resets the state if the current sequence's timeout has passed. Returns whether a
 // reset happened (so the caller can clear any on-screen progress). An idle state (zero timeout)
-// never expires.
+// never expires. The expiry uses now.Sub(timeout) > d to preserve the original handler's behavior
+// exactly (timeout is set to start+d, so a sequence effectively clears at start+2d).
 func (v *vimState) clearIfExpired(now time.Time, d time.Duration) bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if !v.timeout.IsZero() && now.After(v.timeout) {
+	if !v.timeout.IsZero() && now.Sub(v.timeout) > d {
 		v.reset()
 		return true
 	}
