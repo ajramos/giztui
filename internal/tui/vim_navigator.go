@@ -58,13 +58,15 @@ func (v *vimState) startG(now time.Time, d time.Duration) {
 	v.timeout = now.Add(d)
 }
 
-// clearSequence clears the navigation sequence (used for gg/G completion). It does not touch a
-// pending range operation, matching the original handlers.
+// clearSequence clears the navigation sequence (used for gg/G completion). It clears the navigation
+// fields plus originalMsgID so no stale captured ID lingers; it deliberately leaves operationType
+// untouched, matching the original handlers (which do not abort a pending range op on gg/G).
 func (v *vimState) clearSequence() {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.sequence = ""
 	v.timeout = time.Time{}
+	v.originalMsgID = ""
 }
 
 // appendDigit accumulates a digit into the pending operation's count (count = count*10 + digit) and
