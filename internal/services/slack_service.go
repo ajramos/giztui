@@ -47,6 +47,9 @@ func NewSlackService(client *gmail.Client, config *config.Config, aiService AISe
 
 // ForwardEmail forwards a Gmail message to Slack
 func (s *SlackServiceImpl) ForwardEmail(ctx context.Context, messageID string, options SlackForwardOptions) error {
+	if s.client == nil {
+		return fmt.Errorf("gmail client not available")
+	}
 	// Get the email message from Gmail API
 	gmailMessage, err := s.client.GetMessage(messageID)
 	if err != nil {
