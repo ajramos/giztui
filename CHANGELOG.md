@@ -5,6 +5,23 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-06-19
+
+### 🚀 Features — Slack new-mail summaries
+
+- **Per-email AI summary in the auto-refresh Slack notification.** When auto-refresh detects new mail and `auto_refresh.notify_slack` is on, the notification can now include a short AI-generated summary of each new email, rendered as a Slack blockquote under its row. Opt-in via `auto_refresh.slack_summary` (default `false`, because it adds an LLM call per email).
+- **Configurable cap.** `auto_refresh.slack_summary_limit` (default `5`) bounds how many emails are summarized per refresh cycle; the rest appear without a summary. Values ≤ 0 are treated as 5.
+- **Digest-specific prompt.** `auto_refresh.slack_summary_prompt` overrides the summary prompt; the tuned default produces one factual sentence with no URLs, signatures, or automation/sender boilerplate. Supports `{{body}}` and `{{max_words}}`.
+
+### 🐛 Fixes
+
+- **`GMAIL_TUI_CREDENTIALS` is now honored.** The environment variable was advertised but ignored when resolving the credentials path; it now takes effect (CLI flag → env var → config → default).
+- Slack summaries render as blockquotes instead of `_italic_`, which previously showed literal underscores when the text contained `@mentions`, `#refs`, or URLs.
+
+### 🔧 Internal
+
+- Dead-code sweep (removed unused package/manager/helpers) and extraction of narrow Gmail-client interfaces (`GmailClient`, `LabelClient`, `LinkClient`, `SlackGmailClient`) so the email/label/link/slack services are unit-testable with mocks. Expanded test coverage across services, render, llm, and obsidian.
+
 ## [1.15.0] - 2026-06-14
 
 ### 🚀 Features — Text-to-speech on macOS, multilingual
