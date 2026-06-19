@@ -492,7 +492,7 @@ func (s *SlackServiceImpl) summarizeForDigest(ctx context.Context, body string) 
 		return ""
 	}
 	const maxWords = "50"
-	prompt := s.config.Slack.GetSummaryPrompt()
+	prompt := s.config.AutoRefresh.GetSlackSummaryPrompt()
 	prompt = strings.ReplaceAll(prompt, "{{body}}", body)
 	prompt = strings.ReplaceAll(prompt, "{{max_words}}", maxWords)
 	variables := map[string]string{"body": body, "max_words": maxWords}
@@ -527,7 +527,9 @@ func buildNewMailDigest(items []digestItem) string {
 			fmt.Fprintf(&b, "\n• %s — %s", it.Subject, it.From)
 		}
 		if it.Summary != "" {
-			fmt.Fprintf(&b, "\n   _%s_", it.Summary)
+			// Slack blockquote (line prefix) instead of _italic_: the latter renders the
+			// underscores literally when the text contains @mentions, #refs or URLs.
+			fmt.Fprintf(&b, "\n> %s", it.Summary)
 		}
 	}
 	return b.String()

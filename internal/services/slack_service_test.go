@@ -136,13 +136,14 @@ func TestBuildNewMailDigest(t *testing.T) {
 	if !strings.Contains(linked, "• <https://mail.google.com/x|Hi> — a@x.com") {
 		t.Errorf("missing hyperlink line: %q", linked)
 	}
-	if !strings.Contains(linked, "\n   _Short recap._") {
-		t.Errorf("missing italic summary line: %q", linked)
+	// Summary renders as a Slack blockquote line, not _italic_ (which breaks on @mentions/#refs/URLs).
+	if !strings.Contains(linked, "\n> Short recap.") {
+		t.Errorf("missing blockquote summary line: %q", linked)
 	}
 
 	// Summary line absent when Summary == "".
 	noSum := buildNewMailDigest([]digestItem{{Subject: "Hi", From: "a@x.com"}})
-	if strings.Contains(noSum, "_") {
+	if strings.Contains(noSum, "\n> ") {
 		t.Errorf("should not render summary line when empty: %q", noSum)
 	}
 
@@ -215,8 +216,8 @@ func TestSendNewMailDigest_Orchestration(t *testing.T) {
 	if err := sA.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: true, SummaryLimit: 1}); err != nil {
 		t.Fatalf("case A unexpected error: %v", err)
 	}
-	if !strings.Contains(captured, "Hello") || !strings.Contains(captured, "_AI recap_") {
-		t.Errorf("case A expected summary line, got: %q", captured)
+	if !strings.Contains(captured, "Hello") || !strings.Contains(captured, "\n> AI recap") {
+		t.Errorf("case A expected blockquote summary line, got: %q", captured)
 	}
 
 	// Case B: summaries off → no AI summary line, plain rows only.
@@ -225,7 +226,7 @@ func TestSendNewMailDigest_Orchestration(t *testing.T) {
 	if err := sB.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: false}); err != nil {
 		t.Fatalf("case B unexpected error: %v", err)
 	}
-	if strings.Contains(captured, "_AI recap_") {
+	if strings.Contains(captured, "\n> ") {
 		t.Errorf("case B summaries disabled but got summary: %q", captured)
 	}
 	if !strings.Contains(captured, "Hello") || !strings.Contains(captured, "World") {
@@ -238,7 +239,7 @@ func TestSendNewMailDigest_Orchestration(t *testing.T) {
 	if err := sC.SendNewMailDigest(context.Background(), ids, NewMailDigestOptions{Summaries: true, SummaryLimit: 1}); err != nil {
 		t.Fatalf("case C unexpected error: %v", err)
 	}
-	if strings.Contains(captured, "_") {
+	if strings.Contains(captured, "\n> ") {
 		t.Errorf("case C AI failed, should have no summary line: %q", captured)
 	}
 

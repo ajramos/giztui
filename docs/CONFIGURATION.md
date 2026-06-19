@@ -1054,7 +1054,8 @@ Opt-in background polling that detects new inbox mail. While you are viewing the
   "interval": "5m",
   "notify_slack": false,
   "slack_summary": false,
-  "slack_summary_limit": 5
+  "slack_summary_limit": 5,
+  "slack_summary_prompt": ""
 }
 ```
 
@@ -1063,8 +1064,9 @@ Opt-in background polling that detects new inbox mail. While you are viewing the
 | `enabled` | boolean | Start auto-refresh on launch. | `false` |
 | `interval` | string | Poll interval as a Go duration (e.g. `"2m"`, `"30s"`). Clamped to a 1-minute minimum; invalid values fall back to 5m. | `"5m"` |
 | `notify_slack` | boolean | Also post a Slack notification (count + subject/sender) to your default Slack channel when new mail is detected. Requires Slack configured (`slack.enabled` + a channel). | `false` |
-| `slack_summary` | boolean | When `notify_slack` is on, include a short AI-generated summary of each new email in the Slack notification. Reuses the Slack summary prompt (`slack.summary_prompt`). Requires an LLM configured. | `false` |
+| `slack_summary` | boolean | When `notify_slack` is on, include a short AI-generated summary of each new email as a Slack blockquote under its row. Requires an LLM configured. | `false` |
 | `slack_summary_limit` | integer | Maximum number of emails summarized per refresh cycle. Emails beyond this cap appear in the Slack notification without a summary. Values ≤ 0 are treated as 5. | `5` |
+| `slack_summary_prompt` | string | Override the prompt used for digest summaries. Empty uses a tuned default (one factual sentence, no URLs/signatures/automation boilerplate, plain text). Supports `{{body}}` and `{{max_words}}`. | `""` (tuned default) |
 
 Toggle at runtime with `:autorefresh` / `:arr`. Passing a duration (`:arr 2m`) enables auto-refresh and sets the interval in one step. Bind an optional key via `keys.auto_refresh` (unbound by default).
 
