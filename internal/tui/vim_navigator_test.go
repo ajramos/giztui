@@ -99,6 +99,24 @@ func TestVimState_NavigationGG(t *testing.T) {
 	}
 }
 
+// TestVimState_ClearSequencePreservesPendingOp guards the gg/G-mid-range-op corner case: pressing a
+// navigation key while a range operation is pending must NOT discard the captured message ID, so the
+// timeout-fired single op still targets the original message (matching the pre-refactor handlers).
+func TestVimState_ClearSequencePreservesPendingOp(t *testing.T) {
+	var v vimState
+	now := time.Unix(0, 0)
+	d := 2 * time.Second
+
+	// Start a range op (captures msg-42), then a navigation key clears the nav sequence.
+	v.startOperation("s", now, d, "msg-42")
+	v.clearSequence()
+
+	// The pending single op must still resolve to the captured message.
+	if id, ok := v.takePendingSingle("s"); !ok || id != "msg-42" {
+		t.Fatalf("after clearSequence: takePendingSingle id=%q ok=%v, want msg-42/true", id, ok)
+	}
+}
+
 func TestVimState_TakePendingSingle(t *testing.T) {
 	var v vimState
 	now := time.Unix(0, 0)
