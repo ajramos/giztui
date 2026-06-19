@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strconv"
 	"sync"
 	"time"
 )
@@ -79,7 +80,7 @@ func (v *vimState) appendDigit(digit int, now time.Time, d time.Duration) (op st
 		return "", 0, false
 	}
 	v.operationCount = v.operationCount*10 + digit
-	v.sequence += string(rune('0' + digit))
+	v.sequence += strconv.Itoa(digit)
 	v.timeout = now.Add(d)
 	return v.operationType, v.operationCount, true
 }
