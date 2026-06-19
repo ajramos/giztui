@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -558,5 +559,34 @@ func TestDefaultConfig_TTS(t *testing.T) {
 	}
 	if c.Keys.Speak != "" {
 		t.Errorf("keys.speak should default to unbound, got %q", c.Keys.Speak)
+	}
+}
+
+func TestAutoRefreshSummaryDefaults(t *testing.T) {
+	c := DefaultConfig()
+	if c.AutoRefresh.SlackSummary {
+		t.Errorf("SlackSummary should default to false (opt-in)")
+	}
+	if c.AutoRefresh.SlackSummaryLimit != 5 {
+		t.Errorf("SlackSummaryLimit default = %d, want 5", c.AutoRefresh.SlackSummaryLimit)
+	}
+}
+
+func TestGetSlackSummaryPrompt(t *testing.T) {
+	// Unset → tuned default (mentions the one-sentence rule and the {{body}} placeholder).
+	var a AutoRefreshConfig
+	def := a.GetSlackSummaryPrompt()
+	if !strings.Contains(def, "{{body}}") || !strings.Contains(def, "ONE short sentence") {
+		t.Errorf("default prompt missing expected content: %q", def)
+	}
+	// Override wins.
+	a.SlackSummaryPrompt = "my custom prompt"
+	if got := a.GetSlackSummaryPrompt(); got != "my custom prompt" {
+		t.Errorf("override prompt = %q, want %q", got, "my custom prompt")
+	}
+	// Whitespace-only override falls back to default.
+	a.SlackSummaryPrompt = "   "
+	if got := a.GetSlackSummaryPrompt(); got != def {
+		t.Errorf("whitespace override should fall back to default")
 	}
 }

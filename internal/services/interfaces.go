@@ -103,6 +103,9 @@ type SlackService interface {
 	ValidateWebhook(ctx context.Context, webhookURL string) error
 	ListConfiguredChannels(ctx context.Context) ([]SlackChannel, error)
 	SendNotification(ctx context.Context, text string) error
+	// SendNewMailDigest posts an auto-refresh notification for the given new message IDs to the
+	// default channel, optionally including a per-email AI summary (capped by opts.SummaryLimit).
+	SendNewMailDigest(ctx context.Context, messageIDs []string, opts NewMailDigestOptions) error
 }
 
 // SearchService handles search operations
@@ -301,6 +304,13 @@ type SlackForwardOptions struct {
 	UserMessage      string // Optional user message: "Hey guys, heads up with this email"
 	FormatStyle      string // "summary", "compact", "full", "raw"
 	ProcessedContent string // TUI-processed content for "full" format (optional)
+}
+
+// NewMailDigestOptions configures the auto-refresh new-mail Slack notification.
+type NewMailDigestOptions struct {
+	Summaries    bool                          // generate per-email AI summaries
+	SummaryLimit int                           // max emails summarized; <=0 clamps to 5
+	LinkFor      func(messageID string) string // optional Gmail hyperlink builder; nil = no link
 }
 
 type SlackChannel struct {

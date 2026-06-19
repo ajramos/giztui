@@ -241,9 +241,37 @@ type TTSConfig struct {
 
 // AutoRefreshConfig controls opt-in background polling of the inbox for new mail.
 type AutoRefreshConfig struct {
-	Enabled     bool   `json:"enabled"`
-	Interval    string `json:"interval"`     // Go duration string, e.g. "5m"; clamped to a 1m minimum
-	NotifySlack bool   `json:"notify_slack"` // also post a Slack notification when new mail is detected
+	Enabled            bool   `json:"enabled"`
+	Interval           string `json:"interval"`                       // Go duration string, e.g. "5m"; clamped to a 1m minimum
+	NotifySlack        bool   `json:"notify_slack"`                   // also post a Slack notification when new mail is detected
+	SlackSummary       bool   `json:"slack_summary"`                  // include a per-email AI summary in the Slack notification
+	SlackSummaryLimit  int    `json:"slack_summary_limit"`            // max emails summarized per refresh cycle (default 5)
+	SlackSummaryPrompt string `json:"slack_summary_prompt,omitempty"` // override the prompt used for digest summaries
+}
+
+// defaultSlackSummaryPrompt is the digest-specific summary prompt. Unlike the manual-forward Slack
+// prompt, it is tuned for a one-line notification: no signatures, footers, URLs, sender/automation
+// boilerplate, and no markdown (the digest adds its own blockquote formatting).
+const defaultSlackSummaryPrompt = `Summarize this email in ONE short sentence for a Slack notification. State only the single most important fact or action.
+
+Rules:
+- One sentence, at most {{max_words}} words.
+- Do NOT include URLs, links, email signatures, or footers.
+- Do NOT include automation/sender boilerplate (e.g. "sent by", "this is an automated message", "@username").
+- Do NOT mention who sent or forwarded the message.
+- Plain text only — no markdown, no quotes around the sentence.
+
+Email:
+{{body}}
+
+Respond with only the one-sentence summary.`
+
+// GetSlackSummaryPrompt returns the configured digest summary prompt, or the tuned default when unset.
+func (a AutoRefreshConfig) GetSlackSummaryPrompt() string {
+	if strings.TrimSpace(a.SlackSummaryPrompt) != "" {
+		return a.SlackSummaryPrompt
+	}
+	return defaultSlackSummaryPrompt
 }
 
 // autoRefreshMinInterval is the smallest allowed poll interval to avoid hammering the API.
@@ -473,7 +501,7 @@ func DefaultConfig() *Config {
 		Rendering:     DefaultRenderingConfig(),
 		Threading:     DefaultThreadingConfig(),
 		InboxAnalyzer: DefaultInboxAnalyzerConfig(),
-		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m"},
+		AutoRefresh:   AutoRefreshConfig{Enabled: false, Interval: "5m", SlackSummary: false, SlackSummaryLimit: 5},
 		TTS:           TTSConfig{Enabled: false, Engine: "auto"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),

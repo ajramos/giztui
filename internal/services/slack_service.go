@@ -15,9 +15,18 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// SlackGmailClient is the subset of *gmail.Client that SlackService depends on. Depending on this
+// interface (which *gmail.Client satisfies) instead of the concrete type makes the service
+// unit-testable with a mock.
+type SlackGmailClient interface {
+	GetMessage(id string) (*gmailapi.Message, error)
+	GetMessagesMetadataParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
+	GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
+}
+
 // SlackServiceImpl implements the SlackService interface
 type SlackServiceImpl struct {
-	client     *gmail.Client
+	client     SlackGmailClient
 	config     *config.Config
 	aiService  AIService
 	httpClient *http.Client
@@ -25,18 +34,24 @@ type SlackServiceImpl struct {
 
 // NewSlackService creates a new SlackService implementation
 func NewSlackService(client *gmail.Client, config *config.Config, aiService AIService) *SlackServiceImpl {
-	return &SlackServiceImpl{
-		client:     client,
+	impl := &SlackServiceImpl{
 		config:     config,
 		aiService:  aiService,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+	if client != nil {
+		impl.client = client
+	}
+	return impl
 }
 
 // ForwardEmail forwards a Gmail message to Slack
 func (s *SlackServiceImpl) ForwardEmail(ctx context.Context, messageID string, options SlackForwardOptions) error {
+	if s.client == nil {
+		return fmt.Errorf("gmail client not available")
+	}
 	// Get the email message from Gmail API
-	gmailMessage, err := s.client.Service.Users.Messages.Get("me", messageID).Do()
+	gmailMessage, err := s.client.GetMessage(messageID)
 	if err != nil {
 		return fmt.Errorf("failed to get email message: %w", err)
 	}
@@ -396,6 +411,27 @@ func (s *SlackServiceImpl) truncateText(text string, maxLength int) string {
 	return truncated + "..."
 }
 
+// digestMaxList caps how many emails are listed in the new-mail Slack digest.
+const digestMaxList = 10
+
+// summaryCount returns how many of `total` new emails should be AI-summarized,
+// applying the opt-in flag, the <=0 → 5 clamp, the digestMaxList cap, and min(total).
+func summaryCount(summaries bool, limit, total int) int {
+	if !summaries {
+		return 0
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > digestMaxList {
+		limit = digestMaxList
+	}
+	if limit > total {
+		return total
+	}
+	return limit
+}
+
 // defaultSlackWebhook returns the webhook of the default channel (the one with Default==true,
 // else the first configured channel). Errors when no channel is configured.
 func defaultSlackWebhook(cfg *config.Config) (string, error) {
@@ -447,6 +483,116 @@ func (s *SlackServiceImpl) sendToSlack(ctx context.Context, message SlackMessage
 	}
 
 	return nil
+}
+
+// summarizeForDigest returns a short AI summary of body, or "" when unavailable
+// (nil AI service, empty body, or AI error) so the caller falls back to the plain row.
+func (s *SlackServiceImpl) summarizeForDigest(ctx context.Context, body string) string {
+	if s.aiService == nil || strings.TrimSpace(body) == "" {
+		return ""
+	}
+	const maxWords = "50"
+	prompt := s.config.AutoRefresh.GetSlackSummaryPrompt()
+	prompt = strings.ReplaceAll(prompt, "{{body}}", body)
+	prompt = strings.ReplaceAll(prompt, "{{max_words}}", maxWords)
+	variables := map[string]string{"body": body, "max_words": maxWords}
+	out, err := s.aiService.ApplyCustomPrompt(ctx, prompt, variables)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// digestItem is one new-mail row for the Slack notification.
+type digestItem struct {
+	Subject string
+	From    string
+	Link    string // pre-resolved Gmail hyperlink URL, "" if none
+	Summary string // AI summary, "" when not summarized
+}
+
+// buildNewMailDigest formats the new-mail Slack notification, capping listed rows at digestMaxList.
+// A non-empty Summary renders as an indented italic line under the row.
+func buildNewMailDigest(items []digestItem) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "📬 %d new email(s):", len(items))
+	for i, it := range items {
+		if i >= digestMaxList {
+			fmt.Fprintf(&b, "\n…and %d more", len(items)-digestMaxList)
+			break
+		}
+		if it.Link != "" {
+			fmt.Fprintf(&b, "\n• <%s|%s> — %s", it.Link, it.Subject, it.From)
+		} else {
+			fmt.Fprintf(&b, "\n• %s — %s", it.Subject, it.From)
+		}
+		if it.Summary != "" {
+			// Slack blockquote (line prefix) instead of _italic_: the latter renders the
+			// underscores literally when the text contains @mentions, #refs or URLs.
+			fmt.Fprintf(&b, "\n> %s", it.Summary)
+		}
+	}
+	return b.String()
+}
+
+// SendNewMailDigest posts the new-mail notification to the default Slack channel. When
+// opts.Summaries is set, the first summaryCount(...) emails get an AI summary line; AI/fetch
+// failures degrade gracefully to a plain row.
+func (s *SlackServiceImpl) SendNewMailDigest(ctx context.Context, messageIDs []string, opts NewMailDigestOptions) error {
+	if len(messageIDs) == 0 {
+		return nil
+	}
+	if s.client == nil {
+		return fmt.Errorf("gmail client not available")
+	}
+	webhook, err := defaultSlackWebhook(s.config)
+	if err != nil {
+		return err
+	}
+
+	metas, err := s.client.GetMessagesMetadataParallel(messageIDs, 10)
+	if err != nil {
+		return fmt.Errorf("failed to fetch new mail metadata: %w", err)
+	}
+
+	// Summarize the first n emails (n already clamped + capped).
+	n := summaryCount(opts.Summaries, opts.SummaryLimit, len(metas))
+	summaries := make([]string, len(metas))
+	if n > 0 {
+		full, ferr := s.client.GetMessagesParallel(messageIDs[:n], n)
+		if ferr == nil {
+			for i := 0; i < n && i < len(full); i++ {
+				if full[i] == nil {
+					continue
+				}
+				summaries[i] = s.summarizeForDigest(ctx, s.extractEmailBody(full[i]))
+			}
+		}
+	}
+
+	items := make([]digestItem, 0, len(metas))
+	for i, m := range metas {
+		if m == nil {
+			continue
+		}
+		hdr := s.extractEmailMetadata(m)
+		link := ""
+		if opts.LinkFor != nil && m.Id != "" {
+			link = opts.LinkFor(m.Id)
+		}
+		summary := ""
+		if i < len(summaries) {
+			summary = summaries[i]
+		}
+		items = append(items, digestItem{
+			Subject: hdr["subject"],
+			From:    hdr["from"],
+			Link:    link,
+			Summary: summary,
+		})
+	}
+
+	return s.sendToSlack(ctx, SlackMessage{Text: buildNewMailDigest(items)}, webhook)
 }
 
 // SlackMessage represents a message to be sent to Slack
