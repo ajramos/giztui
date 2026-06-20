@@ -105,7 +105,7 @@ func TestActionPlanFooterText(t *testing.T) {
 		t.Fatalf("no-action footer missing expand: %q", noAction)
 	}
 	onEmail := actionPlanFooterText(false, "a", "archive", 7, keys)
-	if !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
+	if !strings.Contains(onEmail, "Enter to open") || !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
 		t.Fatalf("email footer wrong: %q", onEmail)
 	}
 	// Footer must advertise the CONFIGURED view-prompt key ("i prompt"), not a hardcoded "v".

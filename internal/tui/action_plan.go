@@ -616,7 +616,7 @@ func actionPlanFooterText(onCategory bool, key, action string, checkedCount int,
 			"Tab to inbox", "Esc to close")
 		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return fmt.Sprintf(" %s to skip  |  %s to move  |  %s prompt  |  %s to remember sender  |  Tab to inbox  |  Esc to close ",
+	return fmt.Sprintf(" Enter to open  |  %s to skip  |  %s to move  |  %s prompt  |  %s to remember sender  |  Tab to inbox  |  Esc to close ",
 		prettyKeyLabel(keys.skip), prettyKeyLabel(keys.move), prettyKeyLabel(keys.viewPrompt), prettyKeyLabel(keys.remember))
 }
 
