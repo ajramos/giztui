@@ -351,7 +351,7 @@ func availableLabelsBlock(labels []string) string {
 	}
 	return "## Existing labels\n" +
 		"These labels already exist in the mailbox: " + strings.Join(clean, ", ") + "\n" +
-		"For the \"label\" action, Use ONLY a label from this exact list. Do NOT invent new labels. " +
+		"For the \"label\" action, use ONLY a label from this exact list. Do NOT invent new labels. " +
 		"If none of them fits the email, put the email in read_manually instead."
 }
 

@@ -380,7 +380,7 @@ func TestAvailableLabelsBlock(t *testing.T) {
 	if !strings.Contains(got, "work") || !strings.Contains(got, "receipts") {
 		t.Fatalf("expected label names, got:\n%s", got)
 	}
-	if !strings.Contains(got, "Use ONLY a label from this exact list") {
+	if !strings.Contains(got, "use ONLY a label from this exact list") {
 		t.Fatalf("expected the imperative existing-labels instruction, got:\n%s", got)
 	}
 	if availableLabelsBlock(nil) != "" {
