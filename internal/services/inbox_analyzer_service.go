@@ -351,9 +351,8 @@ func availableLabelsBlock(labels []string) string {
 	}
 	return "## Existing labels\n" +
 		"These labels already exist in the mailbox: " + strings.Join(clean, ", ") + "\n" +
-		"For the \"label\" action, PREFER an exact name from this list when one fits. Only invent a " +
-		"NEW label when none fits; if you do, keep it short kebab-case and note \"(new)\" in the " +
-		"category description."
+		"For the \"label\" action, Use ONLY a label from this exact list. Do NOT invent new labels. " +
+		"If none of them fits the email, put the email in read_manually instead."
 }
 
 // userRulesBlock returns the "## User preferences and interests" context block so the LLM honors
