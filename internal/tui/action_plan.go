@@ -909,7 +909,9 @@ func (a *App) applyActionPlanLabel(labelService services.LabelService, ids []str
 	return labelService.BulkApplyLabel(a.ctx, ids, labelID, a.bulkProgress(a.ctx, "Applying label"))
 }
 
-// resolveOrCreateLabelID finds a label by name (case-insensitive) or creates it.
+// resolveOrCreateLabelID finds a label by name (case-insensitive). It creates a missing label only
+// when strict-labels mode is OFF; in strict mode a missing label is an error (the analyzer's
+// enforceLabelPolicy already drops such categories, so this is defense in depth).
 func (a *App) resolveOrCreateLabelID(labelService services.LabelService, name string) (string, error) {
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
@@ -919,6 +921,9 @@ func (a *App) resolveOrCreateLabelID(labelService services.LabelService, name st
 		if strings.EqualFold(l.Name, name) {
 			return l.Id, nil
 		}
+	}
+	if a.Config.InboxAnalyzer.StrictLabels {
+		return "", fmt.Errorf("label %q does not exist (strict labels mode)", name)
 	}
 	created, err := labelService.CreateLabel(a.ctx, name)
 	if err != nil {
