@@ -125,6 +125,11 @@ func (a *App) openActionPlanEmail(msgID string) {
 	if msgID == "" {
 		return
 	}
+	// Mark this as the active message BEFORE loading: showMessageWithoutFocus aborts its UI update
+	// when currentMessageID != the requested id. For an in-list email, list.Select's
+	// SetSelectionChangedFunc also sets it (to the same value); doing it here too is the backstop for
+	// the not-in-list path and for a programmatic Select that doesn't fire SelectionChangedFunc.
+	a.SetCurrentMessageID(msgID)
 	if row, ok := messageRowInList(a.GetMessageIDs(), msgID); ok {
 		if list, listOK := a.views["list"].(*tview.Table); listOK {
 			list.Select(row, 0)
