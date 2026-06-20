@@ -102,6 +102,20 @@ func checkedIDs(ids []string, excluded map[string]bool) []string {
 	return out
 }
 
+// messageRowInList returns the inbox table row for a message ID (table row = index + 1 because
+// row 0 is the header). ok is false when the id is empty or not in the list.
+func messageRowInList(ids []string, msgID string) (row int, ok bool) {
+	if msgID == "" {
+		return 0, false
+	}
+	for i, id := range ids {
+		if id == msgID {
+			return i + 1, true
+		}
+	}
+	return 0, false
+}
+
 // actionVerbLabel maps an action token to a human verb for the category header.
 func actionVerbLabel(action string) string {
 	switch action {
