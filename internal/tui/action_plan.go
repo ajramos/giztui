@@ -383,7 +383,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
-			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit, AvailableLabels: availableLabels},
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit, AvailableLabels: availableLabels, StrictLabels: a.Config.InboxAnalyzer.StrictLabels},
 			func(p *services.ActionPlan) {
 				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
 				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
