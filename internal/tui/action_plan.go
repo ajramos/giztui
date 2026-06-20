@@ -116,6 +116,23 @@ func messageRowInList(ids []string, msgID string) (row int, ok bool) {
 	return 0, false
 }
 
+// openActionPlanEmail selects the email in the inbox list (when still present) and loads it into the
+// reader, WITHOUT moving focus — the user presses Tab to read it. If the email is no longer in the
+// list (e.g. archived/moved from the Action Plan), it is loaded directly by id. showMessageWithoutFocus
+// is idempotent (captured-ID guard + cache), so calling it after Select() is a harmless safety net
+// against tview not firing SelectionChangedFunc on a programmatic Select.
+func (a *App) openActionPlanEmail(msgID string) {
+	if msgID == "" {
+		return
+	}
+	if row, ok := messageRowInList(a.ids, msgID); ok {
+		if list, listOK := a.views["list"].(*tview.Table); listOK {
+			list.Select(row, 0)
+		}
+	}
+	go a.showMessageWithoutFocus(msgID)
+}
+
 // actionVerbLabel maps an action token to a human verb for the category header.
 func actionVerbLabel(action string) string {
 	switch action {
@@ -686,10 +703,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return ev // let TreeView move the cursor natively
 		case tcell.KeyEnter, tcell.KeyRight:
 			if cur != nil {
-				if idx, ok := cur.GetReference().(int); ok { // category / read-manually node
-					state.expanded[idx] = !state.expanded[idx]
-					cur.SetExpanded(state.expanded[idx])
-					a.syncActionPlanNode(state, cur, idx) // refresh chevron + footer
+				switch ref := cur.GetReference().(type) {
+				case int: // category / read-manually node
+					state.expanded[ref] = !state.expanded[ref]
+					cur.SetExpanded(state.expanded[ref])
+					a.syncActionPlanNode(state, cur, ref) // refresh chevron + footer
+				case emailRef: // email node → load it into the list + reader (focus stays here)
+					a.openActionPlanEmail(ref.msgID)
 				}
 			}
 			return nil
