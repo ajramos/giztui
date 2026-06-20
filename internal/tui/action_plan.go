@@ -471,7 +471,14 @@ func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	}
 	c := state.plan.Categories[i]
 	checked := len(checkedIDs(c.MessageIDs, state.excluded))
-	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
+	verb := actionVerbLabel(c.Action)
+	// For label categories, show the ACTUAL label that will be applied (c.Label) next to the verb,
+	// not just the free-form group name (c.Name) — otherwise the user can't tell which of their
+	// labels is used (the group name is invented by the model).
+	if c.Action == "label" && c.Label != "" {
+		verb = fmt.Sprintf("%s → %s", verb, c.Label)
+	}
+	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, verb, checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 }
 
 // syncActionPlanNode refreshes state+footer for an already-current node (expand/collapse);
