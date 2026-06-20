@@ -102,6 +102,48 @@ func checkedIDs(ids []string, excluded map[string]bool) []string {
 	return out
 }
 
+// messageRowInList returns the inbox table row for a message ID (table row = index + 1 because
+// row 0 is the header). ok is false when the id is empty or not in the list.
+func messageRowInList(ids []string, msgID string) (row int, ok bool) {
+	if msgID == "" {
+		return 0, false
+	}
+	for i, id := range ids {
+		if id == msgID {
+			return i + 1, true
+		}
+	}
+	return 0, false
+}
+
+// openActionPlanEmail selects the email in the inbox list (when still present) and loads it into the
+// reader, WITHOUT moving focus — the user presses Tab to read it. If the email is no longer in the
+// list (e.g. archived/moved from the Action Plan), it is loaded directly by id. showMessageWithoutFocus
+// is idempotent (captured-ID guard + cache), so calling it after Select() is a harmless safety net
+// against tview not firing SelectionChangedFunc on a programmatic Select.
+func (a *App) openActionPlanEmail(msgID string) {
+	if msgID == "" {
+		return
+	}
+	// Mark this as the active message BEFORE loading: showMessageWithoutFocus aborts its UI update
+	// when currentMessageID != the requested id. For an in-list email, list.Select's
+	// SetSelectionChangedFunc also sets it (to the same value); doing it here too is the backstop for
+	// the not-in-list path and for a programmatic Select that doesn't fire SelectionChangedFunc.
+	a.SetCurrentMessageID(msgID)
+	if row, ok := messageRowInList(a.GetMessageIDs(), msgID); ok {
+		if list, listOK := a.views["list"].(*tview.Table); listOK {
+			list.Select(row, 0) // fires SelectionChangedFunc, which paints the list focus indicator
+		}
+	}
+	go a.showMessageWithoutFocus(msgID)
+	// Move focus to the reader so the user can scroll/read the email immediately. This runs after
+	// list.Select on purpose, overriding the "list" focus indicator that SelectionChangedFunc set.
+	// The Action Plan panel stays open (return via Tab/Esc); content loads in the goroutine above.
+	a.SetFocus(a.views["text"])
+	a.currentFocus = "text"
+	a.updateFocusIndicators("text")
+}
+
 // actionVerbLabel maps an action token to a human verb for the category header.
 func actionVerbLabel(action string) string {
 	switch action {
@@ -585,7 +627,7 @@ func actionPlanFooterText(onCategory bool, key, action string, checkedCount int,
 			"Tab to inbox", "Esc to close")
 		return " " + strings.Join(parts, "  |  ") + " "
 	}
-	return fmt.Sprintf(" %s to skip  |  %s to move  |  %s prompt  |  %s to remember sender  |  Tab to inbox  |  Esc to close ",
+	return fmt.Sprintf(" Enter to open  |  %s to skip  |  %s to move  |  %s prompt  |  %s to remember sender  |  Tab to inbox  |  Esc to close ",
 		prettyKeyLabel(keys.skip), prettyKeyLabel(keys.move), prettyKeyLabel(keys.viewPrompt), prettyKeyLabel(keys.remember))
 }
 
@@ -672,10 +714,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return ev // let TreeView move the cursor natively
 		case tcell.KeyEnter, tcell.KeyRight:
 			if cur != nil {
-				if idx, ok := cur.GetReference().(int); ok { // category / read-manually node
-					state.expanded[idx] = !state.expanded[idx]
-					cur.SetExpanded(state.expanded[idx])
-					a.syncActionPlanNode(state, cur, idx) // refresh chevron + footer
+				switch ref := cur.GetReference().(type) {
+				case int: // category / read-manually node
+					state.expanded[ref] = !state.expanded[ref]
+					cur.SetExpanded(state.expanded[ref])
+					a.syncActionPlanNode(state, cur, ref) // refresh chevron + footer
+				case emailRef: // email node → load it into the list + reader (focus stays here)
+					a.openActionPlanEmail(ref.msgID)
 				}
 			}
 			return nil

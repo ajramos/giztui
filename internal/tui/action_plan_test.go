@@ -105,7 +105,7 @@ func TestActionPlanFooterText(t *testing.T) {
 		t.Fatalf("no-action footer missing expand: %q", noAction)
 	}
 	onEmail := actionPlanFooterText(false, "a", "archive", 7, keys)
-	if !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
+	if !strings.Contains(onEmail, "Enter to open") || !strings.Contains(onEmail, "Space to skip") || !strings.Contains(onEmail, "Ctrl+R to remember sender") {
 		t.Fatalf("email footer wrong: %q", onEmail)
 	}
 	// Footer must advertise the CONFIGURED view-prompt key ("i prompt"), not a hardcoded "v".
@@ -434,5 +434,24 @@ func TestActionVerb_Summarize(t *testing.T) {
 	a.Keys.Summarize = "y"
 	if got := a.actionKeyHint("summarize"); got != "y" {
 		t.Fatalf("actionKeyHint(summarize)=%q, want y", got)
+	}
+}
+
+func TestMessageRowInList(t *testing.T) {
+	ids := []string{"a", "b", "c"}
+	if row, ok := messageRowInList(ids, "a"); !ok || row != 1 {
+		t.Errorf("'a' → row=%d ok=%v, want 1/true (header is row 0)", row, ok)
+	}
+	if row, ok := messageRowInList(ids, "c"); !ok || row != 3 {
+		t.Errorf("'c' → row=%d ok=%v, want 3/true", row, ok)
+	}
+	if _, ok := messageRowInList(ids, "z"); ok {
+		t.Error("absent id should return ok=false")
+	}
+	if _, ok := messageRowInList(nil, "a"); ok {
+		t.Error("empty list should return ok=false")
+	}
+	if _, ok := messageRowInList(ids, ""); ok {
+		t.Error("empty msgID should return ok=false")
 	}
 }
