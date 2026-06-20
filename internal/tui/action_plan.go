@@ -125,7 +125,7 @@ func (a *App) openActionPlanEmail(msgID string) {
 	if msgID == "" {
 		return
 	}
-	if row, ok := messageRowInList(a.ids, msgID); ok {
+	if row, ok := messageRowInList(a.GetMessageIDs(), msgID); ok {
 		if list, listOK := a.views["list"].(*tview.Table); listOK {
 			list.Select(row, 0)
 		}
