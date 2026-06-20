@@ -422,3 +422,24 @@ func TestBuildPromptPreview_Labels(t *testing.T) {
 		t.Fatalf("no labels → no labels block, got:\n%s", out)
 	}
 }
+
+func TestResolveExistingLabel(t *testing.T) {
+	existing := []string{"Work", "Receipts", "Newsletters"}
+	// exact, case-insensitive, and whitespace-tolerant matches return the canonical existing name.
+	for _, in := range []string{"Work", "work", "  WORK  "} {
+		if got, ok := resolveExistingLabel(in, existing); !ok || got != "Work" {
+			t.Errorf("resolveExistingLabel(%q) = %q,%v; want Work,true", in, got, ok)
+		}
+	}
+	// genuinely different name → no match (no fuzzy).
+	if _, ok := resolveExistingLabel("Work Urgent", existing); ok {
+		t.Error("'Work Urgent' must NOT match 'Work' (no fuzzy)")
+	}
+	// empty inputs → no match.
+	if _, ok := resolveExistingLabel("", existing); ok {
+		t.Error("empty suggested → no match")
+	}
+	if _, ok := resolveExistingLabel("Work", nil); ok {
+		t.Error("empty existing → no match")
+	}
+}

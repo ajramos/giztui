@@ -286,6 +286,21 @@ func (s *InboxAnalyzerServiceImpl) BuildPromptPreview(opts InboxAnalyzerOptions)
 	return injectAnalyzerContext(base, analyzerContextBlock(opts.UserRules, opts.AvailableLabels))
 }
 
+// resolveExistingLabel returns the canonical existing label matching `suggested` (case- and
+// surrounding-whitespace-insensitive), or ok=false when none matches. No fuzzy matching.
+func resolveExistingLabel(suggested string, existing []string) (string, bool) {
+	s := strings.TrimSpace(suggested)
+	if s == "" {
+		return "", false
+	}
+	for _, e := range existing {
+		if strings.EqualFold(strings.TrimSpace(e), s) {
+			return e, true
+		}
+	}
+	return "", false
+}
+
 // availableLabelsBlock returns the "## Existing labels" context block telling the model to prefer
 // an exact existing label for the "label" action. Empty labels → "".
 func availableLabelsBlock(labels []string) string {
