@@ -443,3 +443,47 @@ func TestResolveExistingLabel(t *testing.T) {
 		t.Error("empty existing → no match")
 	}
 }
+
+func TestEnforceLabelPolicy(t *testing.T) {
+	msgs := []AnalyzerMessage{{ID: "1"}, {ID: "2"}, {ID: "3"}}
+	available := []string{"Work", "Receipts"}
+
+	// strict: a matching (case-variant) label is kept + canonicalized; an invented label's
+	// messages go to ReadManually and its category is dropped.
+	plan := &ActionPlan{
+		Categories: []ActionPlanCategory{
+			{Name: "A", Action: "label", Label: "work", MessageIDs: []string{"1"}},      // case variant → keep as "Work"
+			{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}}, // invented → read-manually
+			{Name: "C", Action: "archive", MessageIDs: []string{"3"}},                   // non-label → untouched
+		},
+	}
+	enforceLabelPolicy(plan, msgs, available, true)
+
+	if len(plan.Categories) != 2 {
+		t.Fatalf("invented label category should be dropped; got %d categories", len(plan.Categories))
+	}
+	if plan.Categories[0].Label != "Work" {
+		t.Errorf("label should be canonicalized to 'Work', got %q", plan.Categories[0].Label)
+	}
+	if len(plan.ReadManually) != 1 || plan.ReadManually[0].ID != "2" {
+		t.Errorf("invented label's message should be in ReadManually, got %+v", plan.ReadManually)
+	}
+
+	// non-strict: invented categories are left untouched (legacy create-on-dispatch).
+	plan2 := &ActionPlan{Categories: []ActionPlanCategory{
+		{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}},
+	}}
+	enforceLabelPolicy(plan2, msgs, available, false)
+	if len(plan2.Categories) != 1 {
+		t.Errorf("non-strict must keep invented category, got %d", len(plan2.Categories))
+	}
+
+	// empty available labels: enforcement is skipped even in strict mode (degrade to current behavior).
+	plan3 := &ActionPlan{Categories: []ActionPlanCategory{
+		{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}},
+	}}
+	enforceLabelPolicy(plan3, msgs, nil, true)
+	if len(plan3.Categories) != 1 || len(plan3.ReadManually) != 0 {
+		t.Errorf("empty available labels must skip enforcement, got %d cats / %d read-manually", len(plan3.Categories), len(plan3.ReadManually))
+	}
+}
