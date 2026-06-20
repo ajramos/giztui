@@ -531,6 +531,13 @@ func TestDefaultInboxAnalyzerConfig_BodyContext(t *testing.T) {
 	}
 }
 
+func TestDefaultInboxAnalyzer_StrictLabels(t *testing.T) {
+	c := DefaultInboxAnalyzerConfig()
+	if !c.StrictLabels {
+		t.Errorf("StrictLabels should default to true")
+	}
+}
+
 func TestDefaultConfigAutoRefresh(t *testing.T) {
 	c := DefaultConfig()
 	if c.AutoRefresh.Enabled {

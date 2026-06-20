@@ -299,6 +299,7 @@ type InboxAnalyzerConfig struct {
 	DefaultPromptID string `json:"default_prompt_id"` // optional saved-prompt override (name or id)
 	IncludeBody     bool   `json:"include_body"`      // include plain-text body in analyzer context (default true)
 	BodyCharLimit   int    `json:"body_char_limit"`   // max body chars per email (default 1000)
+	StrictLabels    bool   `json:"strict_labels"`     // analyzer uses only existing labels; no creating new ones (default true)
 }
 
 // KeyBindings defines keyboard shortcuts for the TUI
@@ -715,6 +716,7 @@ func DefaultInboxAnalyzerConfig() InboxAnalyzerConfig {
 		DefaultPromptID: "",
 		IncludeBody:     true,
 		BodyCharLimit:   1000,
+		StrictLabels:    true,
 	}
 }
 
