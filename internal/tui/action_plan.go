@@ -132,10 +132,16 @@ func (a *App) openActionPlanEmail(msgID string) {
 	a.SetCurrentMessageID(msgID)
 	if row, ok := messageRowInList(a.GetMessageIDs(), msgID); ok {
 		if list, listOK := a.views["list"].(*tview.Table); listOK {
-			list.Select(row, 0)
+			list.Select(row, 0) // fires SelectionChangedFunc, which paints the list focus indicator
 		}
 	}
 	go a.showMessageWithoutFocus(msgID)
+	// Move focus to the reader so the user can scroll/read the email immediately. This runs after
+	// list.Select on purpose, overriding the "list" focus indicator that SelectionChangedFunc set.
+	// The Action Plan panel stays open (return via Tab/Esc); content loads in the goroutine above.
+	a.SetFocus(a.views["text"])
+	a.currentFocus = "text"
+	a.updateFocusIndicators("text")
 }
 
 // actionVerbLabel maps an action token to a human verb for the category header.

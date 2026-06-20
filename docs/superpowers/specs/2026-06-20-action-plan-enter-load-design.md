@@ -40,9 +40,15 @@ When Enter/`→` is pressed and the current node is an `emailRef`:
 3. **If not found** (the email was archived/moved out of the list from within the Action Plan) →
    `go a.showMessageWithoutFocus(msgID)` directly, so Enter still loads it for reading; the list
    cursor is left unchanged.
-4. **Focus stays on the Action Plan tree** in all cases (no `SetFocus`). The user presses **Tab** to
-   reach the reader (the reader is already in the focus ring when the Action Plan is open, per the
-   v1.14.0 Tab-cycling rework).
+4. **Focus moves to the reader** so the user can scroll/read immediately. The Action Plan panel
+   stays open; the user returns with Tab/Esc.
+
+   > **Revised after E2E (2026-06-20):** the original design kept focus on the Action Plan and
+   > relied on Tab to reach the reader. In practice that was not fluid — `list.Select` fires the
+   > list's `SetSelectionChangedFunc`, which paints the *list* focus indicator (looks like focus
+   > jumped to the list), and the focus ring is `Action Plan → list → reader`, so it took **two**
+   > Tabs to reach the reader. Moving focus straight to the reader on Enter resolves both. The
+   > focus move runs *after* `list.Select` to override the indicator it set.
 
 Category nodes keep their current Enter behavior (expand/collapse). Email-node Enter is purely
 additive.
