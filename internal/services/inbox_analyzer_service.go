@@ -464,6 +464,9 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 		}
 	}
 
+	// Enforce the label policy on the FINAL plan only. The per-batch onProgress callback above may
+	// have briefly shown invented-label categories on multi-batch inboxes; they are reconciled here
+	// (canonicalized or moved to read-manually) before the plan is returned.
 	enforceLabelPolicy(plan, messages, opts.AvailableLabels, opts.StrictLabels)
 	return plan, nil
 }
