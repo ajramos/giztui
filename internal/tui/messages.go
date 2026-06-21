@@ -274,10 +274,8 @@ func (a *App) reloadMessagesFlat() {
 	// Set loading state
 	a.SetMessagesLoading(true)
 
-	// Reset modes/state with minimal locking
-	a.mu.Lock()
-	a.draftMode = false
-	a.mu.Unlock()
+	// Reset modes/state
+	a.draft.setMode(false)
 
 	// Clear list UI and state safely on UI thread
 	a.QueueUpdateDraw(func() {

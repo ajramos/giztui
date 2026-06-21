@@ -72,8 +72,7 @@ type App struct {
 	ids                     []string
 	messagesMeta            []*gmailapi.Message
 	currentThreads          []*services.ThreadInfo // Current threads for column system
-	draftMode               bool
-	draftIDs                []string
+	draft                   draftState
 	showHelp                bool
 	helpBackupText          string // Backup of text content before showing help
 	helpBackupHeader        string // Backup of header content before showing help
@@ -328,8 +327,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		emailRenderer:      render.NewEmailRenderer(cfg),
 		ids:                []string{},
 		messagesMeta:       []*gmailapi.Message{},
-		draftMode:          false,
-		draftIDs:           []string{},
 		showHelp:           false,
 		currentView:        "messages",
 		currentFocus:       "list",
