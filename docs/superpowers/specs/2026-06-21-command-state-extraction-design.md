@@ -19,8 +19,10 @@ After the VIM pilot, `App` has 125 fields. The command-bar state is the best nex
   focus-override, history, history cursor).
 - **Has testable logic:** the command history (add with skip-empty/skip-consecutive-dup + cap-100,
   and Up/Down navigation with clamps) — today untested.
-- **No threading complexity:** unlike VIM (which had a timeout goroutine touching its fields), the
-  command fields are accessed only from the tview event loop. No mutex needed.
+- **Minimal threading:** unlike VIM (whose timeout goroutine touched several fields, needing a
+  mutex), only ONE command field crosses a goroutine boundary — the focus-backup goroutine in
+  `executeContentSearchCommand` (commands.go:1018) reads `cmdMode` in a loop. So only `cmdMode` needs
+  synchronization (an `atomic.Bool`); the other five fields are event-loop-only and stay plain.
 - 76 accesses across 4 files (`commands.go`, `keys.go`, `messages.go`, `action_plan_rules.go`); does
   not touch the central `app.go` logic beyond the field declarations + one initializer line.
 
@@ -47,7 +49,11 @@ cmdFocusOverride string   // overrides focus restoration after a special command
 - `cmdMode` gates several key handlers (keys.go:560/568, messages.go:500, commands.go:1022).
 - `cmdFocusOverride` (set in commands.go:1015 + action_plan_rules.go:221) is read once and cleared in
   keys.go:1694-1696 to redirect focus after closing.
-- All accesses are on the event-loop goroutine. No goroutine touches these fields.
+- **One goroutine touch:** the focus-backup loop in `executeContentSearchCommand` (commands.go:1018)
+  spins for ~1s reading `!a.cmdMode` to detect the bar closing. That read is off the event loop while
+  the loop writes `cmdMode` — a latent race on `cmdMode` only. Everything else (the messages.go:500
+  read runs inside `QueueUpdateDraw`, i.e. on the event loop; action_plan_rules.go:221 is a normal
+  event-loop call) is single-goroutine.
 
 ## Architecture
 
@@ -55,7 +61,7 @@ New file `internal/tui/command_state.go` defining a package-private `commandStat
 
 ```go
 type commandState struct {
-    mode          bool
+    mode          atomic.Bool // command bar open? read from the focus-backup goroutine → atomic
     buffer        string
     suggestion    string
     focusOverride string
@@ -65,11 +71,14 @@ type commandState struct {
 ```
 
 `App` composes one field `cmd commandState` in place of the six flat fields. Zero value is ready to
-use, so the `cmdMode: false` initializer line in app.go is removed (no constructor change needed).
+use (`atomic.Bool` zero is false), so the `cmdMode: false` initializer line in app.go is removed.
+`atomic.Bool` is non-copyable, so `commandState` must never be copied — all methods use a pointer
+receiver and `App` accesses it as `a.cmd.*` (same as `vimState`).
 
 **Separation of concerns:** `commandState` owns the **pure history state machine**; `keys.go` /
-`commands.go` keep the UI effects (`input.SetText`, theming, focus) and call the methods. No mutex
-(single-goroutine access, documented on the type).
+`commands.go` keep the UI effects (`input.SetText`, theming, focus) and call the methods. Only
+`cmdMode` is synchronized (via `atomic.Bool` — `a.cmd.mode.Load()` / `.Store(...)`); the other five
+fields are plain (event-loop-only).
 
 ### Method surface (pure history logic; decisions in, the input SetText stays in the handler)
 
