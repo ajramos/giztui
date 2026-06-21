@@ -497,7 +497,7 @@ func (a *App) reloadMessagesFlat() {
 
 	a.QueueUpdateDraw(func() {
 		// If command mode is active, close it to avoid stealing focus after load
-		if a.cmdMode {
+		if a.cmd.mode.Load() {
 			a.hideCommandBar()
 		}
 		if table, ok := a.views["list"].(*tview.Table); ok {

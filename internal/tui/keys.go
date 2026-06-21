@@ -557,7 +557,7 @@ func (a *App) bindKeys() {
 			a.logger.Printf("=== DIGIT KEY PRESSED: '%c', focus=%s, currentFocus=%s ===", event.Rune(), focusType, a.currentFocus)
 		}
 		// If command panel is open but focus moved away, auto-hide to avoid stuck state
-		if a.cmdMode {
+		if a.cmd.mode.Load() {
 			if inp, ok := a.views["cmdInput"].(*tview.InputField); ok {
 				if a.GetFocus() != inp {
 					a.hideCommandBar()
@@ -565,7 +565,7 @@ func (a *App) bindKeys() {
 			}
 		}
 		// Command mode routing
-		if a.cmdMode {
+		if a.cmd.mode.Load() {
 			// If command input has focus, let it handle input natively
 			if inp, ok := a.views["cmdInput"].(*tview.InputField); ok {
 				if a.GetFocus() == inp {
@@ -1691,9 +1691,9 @@ func (a *App) toggleFocus() {
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal
 func (a *App) restoreFocusAfterModal() {
 	// Check for special focus overrides (e.g., content search)
-	if a.cmdFocusOverride != "" {
-		override := a.cmdFocusOverride
-		a.cmdFocusOverride = "" // Clear the override
+	if a.cmd.focusOverride != "" {
+		override := a.cmd.focusOverride
+		a.cmd.focusOverride = "" // Clear the override
 
 		switch override {
 		case "enhanced-text":
