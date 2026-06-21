@@ -380,8 +380,8 @@ func TestAvailableLabelsBlock(t *testing.T) {
 	if !strings.Contains(got, "work") || !strings.Contains(got, "receipts") {
 		t.Fatalf("expected label names, got:\n%s", got)
 	}
-	if !strings.Contains(got, "PREFER an exact name") {
-		t.Fatalf("expected the prefer-existing instruction, got:\n%s", got)
+	if !strings.Contains(got, "use ONLY a label from this exact list") {
+		t.Fatalf("expected the imperative existing-labels instruction, got:\n%s", got)
 	}
 	if availableLabelsBlock(nil) != "" {
 		t.Fatal("empty labels must return an empty block")
@@ -420,5 +420,70 @@ func TestBuildPromptPreview_Labels(t *testing.T) {
 	out = s.BuildPromptPreview(InboxAnalyzerOptions{})
 	if strings.Contains(out, "## Existing labels") {
 		t.Fatalf("no labels → no labels block, got:\n%s", out)
+	}
+}
+
+func TestResolveExistingLabel(t *testing.T) {
+	existing := []string{"Work", "Receipts", "Newsletters"}
+	// exact, case-insensitive, and whitespace-tolerant matches return the canonical existing name.
+	for _, in := range []string{"Work", "work", "  WORK  "} {
+		if got, ok := resolveExistingLabel(in, existing); !ok || got != "Work" {
+			t.Errorf("resolveExistingLabel(%q) = %q,%v; want Work,true", in, got, ok)
+		}
+	}
+	// genuinely different name → no match (no fuzzy).
+	if _, ok := resolveExistingLabel("Work Urgent", existing); ok {
+		t.Error("'Work Urgent' must NOT match 'Work' (no fuzzy)")
+	}
+	// empty inputs → no match.
+	if _, ok := resolveExistingLabel("", existing); ok {
+		t.Error("empty suggested → no match")
+	}
+	if _, ok := resolveExistingLabel("Work", nil); ok {
+		t.Error("empty existing → no match")
+	}
+}
+
+func TestEnforceLabelPolicy(t *testing.T) {
+	msgs := []AnalyzerMessage{{ID: "1"}, {ID: "2"}, {ID: "3"}}
+	available := []string{"Work", "Receipts"}
+
+	// strict: a matching (case-variant) label is kept + canonicalized; an invented label's
+	// messages go to ReadManually and its category is dropped.
+	plan := &ActionPlan{
+		Categories: []ActionPlanCategory{
+			{Name: "A", Action: "label", Label: "work", MessageIDs: []string{"1"}},      // case variant → keep as "Work"
+			{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}}, // invented → read-manually
+			{Name: "C", Action: "archive", MessageIDs: []string{"3"}},                   // non-label → untouched
+		},
+	}
+	enforceLabelPolicy(plan, msgs, available, true)
+
+	if len(plan.Categories) != 2 {
+		t.Fatalf("invented label category should be dropped; got %d categories", len(plan.Categories))
+	}
+	if plan.Categories[0].Label != "Work" {
+		t.Errorf("label should be canonicalized to 'Work', got %q", plan.Categories[0].Label)
+	}
+	if len(plan.ReadManually) != 1 || plan.ReadManually[0].ID != "2" {
+		t.Errorf("invented label's message should be in ReadManually, got %+v", plan.ReadManually)
+	}
+
+	// non-strict: invented categories are left untouched (legacy create-on-dispatch).
+	plan2 := &ActionPlan{Categories: []ActionPlanCategory{
+		{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}},
+	}}
+	enforceLabelPolicy(plan2, msgs, available, false)
+	if len(plan2.Categories) != 1 {
+		t.Errorf("non-strict must keep invented category, got %d", len(plan2.Categories))
+	}
+
+	// empty available labels: enforcement is skipped even in strict mode (degrade to current behavior).
+	plan3 := &ActionPlan{Categories: []ActionPlanCategory{
+		{Name: "B", Action: "label", Label: "Project X", MessageIDs: []string{"2"}},
+	}}
+	enforceLabelPolicy(plan3, msgs, nil, true)
+	if len(plan3.Categories) != 1 || len(plan3.ReadManually) != 0 {
+		t.Errorf("empty available labels must skip enforcement, got %d cats / %d read-manually", len(plan3.Categories), len(plan3.ReadManually))
 	}
 }

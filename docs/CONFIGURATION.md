@@ -1026,7 +1026,8 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
   "max_batches": 10,
   "default_prompt_id": "",
   "include_body": true,
-  "body_char_limit": 1000
+  "body_char_limit": 1000,
+  "strict_labels": true
 }
 ```
 
@@ -1037,6 +1038,7 @@ Controls the **Inbox Action Plan** feature (shortcut `P` / command `:action-plan
 | `default_prompt_id` | string | Reserved for a future built-in override prompt. | `""` |
 | `include_body` | boolean | Include each email's plain-text body (not just the snippet) in the analyzer context for better classification. Fetches the body of every analyzed message, so it adds a brief load step. Set to `false` for very large inboxes or slow local models. | `true` |
 | `body_char_limit` | integer | Max characters of body included per email when `include_body` is true. Lower it to reduce prompt size/tokens. | `1000` |
+| `strict_labels` | boolean | The Action Plan analyzer's `label` action may only use labels you already have (matched ignoring case/whitespace). An email whose suggested label matches none of yours goes to "review manually" instead of creating a new label. Useful with weak local models that invent labels. Set to `false` to allow the analyzer to create new labels (legacy). If you have no labels at all, this is skipped. | `true` |
 
 The shortcut is configurable via `keys.action_plan` (default `"P"`).
 

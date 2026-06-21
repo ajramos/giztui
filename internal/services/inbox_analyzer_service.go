@@ -286,6 +286,57 @@ func (s *InboxAnalyzerServiceImpl) BuildPromptPreview(opts InboxAnalyzerOptions)
 	return injectAnalyzerContext(base, analyzerContextBlock(opts.UserRules, opts.AvailableLabels))
 }
 
+// resolveExistingLabel returns the canonical existing label matching `suggested` (case- and
+// surrounding-whitespace-insensitive), or ok=false when none matches. No fuzzy matching.
+func resolveExistingLabel(suggested string, existing []string) (string, bool) {
+	s := strings.TrimSpace(suggested)
+	if s == "" {
+		return "", false
+	}
+	for _, e := range existing {
+		if strings.EqualFold(strings.TrimSpace(e), s) {
+			return e, true
+		}
+	}
+	return "", false
+}
+
+// enforceLabelPolicy resolves each "label" category against the existing user labels (in place).
+// A match canonicalizes the category's Label. In strict mode (with a non-empty label set), a no-match
+// category's messages are moved to ReadManually and the category is dropped — never creating a new
+// label. With no available labels, enforcement is skipped so the analyzer degrades to prior behavior.
+func enforceLabelPolicy(plan *ActionPlan, messages []AnalyzerMessage, availableLabels []string, strict bool) {
+	if plan == nil {
+		return
+	}
+	byID := make(map[string]AnalyzerMessage, len(messages))
+	for _, m := range messages {
+		byID[m.ID] = m
+	}
+	kept := plan.Categories[:0]
+	for _, c := range plan.Categories {
+		if c.Action != "label" {
+			kept = append(kept, c)
+			continue
+		}
+		if canonical, ok := resolveExistingLabel(c.Label, availableLabels); ok {
+			c.Label = canonical
+			kept = append(kept, c)
+			continue
+		}
+		if strict && len(availableLabels) > 0 {
+			for _, id := range c.MessageIDs {
+				if m, found := byID[id]; found {
+					plan.ReadManually = append(plan.ReadManually, m)
+				}
+			}
+			continue // drop the invented-label category
+		}
+		kept = append(kept, c) // non-strict (or no label set): leave as-is
+	}
+	plan.Categories = kept
+}
+
 // availableLabelsBlock returns the "## Existing labels" context block telling the model to prefer
 // an exact existing label for the "label" action. Empty labels → "".
 func availableLabelsBlock(labels []string) string {
@@ -300,9 +351,8 @@ func availableLabelsBlock(labels []string) string {
 	}
 	return "## Existing labels\n" +
 		"These labels already exist in the mailbox: " + strings.Join(clean, ", ") + "\n" +
-		"For the \"label\" action, PREFER an exact name from this list when one fits. Only invent a " +
-		"NEW label when none fits; if you do, keep it short kebab-case and note \"(new)\" in the " +
-		"category description."
+		"For the \"label\" action, use ONLY a label from this exact list. Do NOT invent new labels. " +
+		"If none of them fits the email, put the email in read_manually instead."
 }
 
 // userRulesBlock returns the "## User preferences and interests" context block so the LLM honors
@@ -413,6 +463,10 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 		}
 	}
 
+	// Enforce the label policy on the FINAL plan only. The per-batch onProgress callback above may
+	// have briefly shown invented-label categories on multi-batch inboxes; they are reconciled here
+	// (canonicalized or moved to read-manually) before the plan is returned.
+	enforceLabelPolicy(plan, messages, opts.AvailableLabels, opts.StrictLabels)
 	return plan, nil
 }
 

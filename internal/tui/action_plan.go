@@ -383,7 +383,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}()
 
 		_, err := a.GetInboxAnalyzerService().Analyze(ctx, messages,
-			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit, AvailableLabels: availableLabels},
+			services.InboxAnalyzerOptions{BatchSize: batchSize, MaxBatches: maxBatches, CustomPromptText: customPromptText, UserRules: userRules, BodyCharLimit: bodyCharLimit, AvailableLabels: availableLabels, StrictLabels: a.Config.InboxAnalyzer.StrictLabels},
 			func(p *services.ActionPlan) {
 				// Per-batch progress callback (low frequency, NOT per-token). Marshal the
 				// render onto the UI thread via QueueUpdateDraw: a bare SetText from a
@@ -471,6 +471,12 @@ func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	}
 	c := state.plan.Categories[i]
 	checked := len(checkedIDs(c.MessageIDs, state.excluded))
+	// For label categories the label IS the group's identity, so show it and drop the free-form
+	// group name (which is just a redundant proxy for the label). For non-label actions the group
+	// name describes what's affected (e.g. "Newsletters & Marketing"), so keep it.
+	if c.Action == "label" && c.Label != "" {
+		return fmt.Sprintf("%s Label → %s · %d/%d · %s", chevron, c.Label, checked, len(c.MessageIDs), strings.ToUpper(c.Priority))
+	}
 	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 }
 
@@ -909,7 +915,9 @@ func (a *App) applyActionPlanLabel(labelService services.LabelService, ids []str
 	return labelService.BulkApplyLabel(a.ctx, ids, labelID, a.bulkProgress(a.ctx, "Applying label"))
 }
 
-// resolveOrCreateLabelID finds a label by name (case-insensitive) or creates it.
+// resolveOrCreateLabelID finds a label by name (case-insensitive). It creates a missing label only
+// when strict-labels mode is OFF; in strict mode a missing label is an error (the analyzer's
+// enforceLabelPolicy already drops such categories, so this is defense in depth).
 func (a *App) resolveOrCreateLabelID(labelService services.LabelService, name string) (string, error) {
 	labels, err := labelService.ListLabels(a.ctx)
 	if err != nil {
@@ -919,6 +927,9 @@ func (a *App) resolveOrCreateLabelID(labelService services.LabelService, name st
 		if strings.EqualFold(l.Name, name) {
 			return l.Id, nil
 		}
+	}
+	if a.Config.InboxAnalyzer.StrictLabels {
+		return "", fmt.Errorf("label %q does not exist (strict labels mode)", name)
 	}
 	created, err := labelService.CreateLabel(a.ctx, name)
 	if err != nil {

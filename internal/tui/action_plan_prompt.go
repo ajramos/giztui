@@ -30,6 +30,7 @@ func (a *App) showActionPlanPromptView(state *actionPlanState) {
 		UserRules:        userRules,
 		BodyCharLimit:    a.Config.InboxAnalyzer.BodyCharLimit,
 		AvailableLabels:  a.userLabelNames(),
+		StrictLabels:     a.Config.InboxAnalyzer.StrictLabels,
 	}
 	prompt := svc.BuildPromptPreview(opts)
 

@@ -531,6 +531,36 @@ func TestDefaultInboxAnalyzerConfig_BodyContext(t *testing.T) {
 	}
 }
 
+func TestDefaultInboxAnalyzer_StrictLabels(t *testing.T) {
+	c := DefaultInboxAnalyzerConfig()
+	if !c.StrictLabels {
+		t.Errorf("StrictLabels should default to true")
+	}
+}
+
+// TestLoadConfig_StrictLabels_AbsentKeepsDefault guards the self-migration path: an existing
+// config.json WITHOUT "strict_labels" must keep the DefaultConfig() value (true), not be reset to
+// the bool zero value. json.Unmarshal only assigns keys present in the JSON; absent keys retain the
+// pre-seeded default. This protects every default-true bool (also include_body) from regression.
+func TestLoadConfig_StrictLabels_AbsentKeepsDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	// A realistic old config with an inbox_analyzer block that predates strict_labels.
+	if err := os.WriteFile(path, []byte(`{"inbox_analyzer":{"batch_size":50,"include_body":true}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.InboxAnalyzer.StrictLabels {
+		t.Error("strict_labels absent from config.json must keep the default true (self-migration)")
+	}
+	if !cfg.InboxAnalyzer.IncludeBody {
+		t.Error("include_body present true should stay true")
+	}
+}
+
 func TestDefaultConfigAutoRefresh(t *testing.T) {
 	c := DefaultConfig()
 	if c.AutoRefresh.Enabled {

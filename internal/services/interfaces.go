@@ -1030,6 +1030,7 @@ type InboxAnalyzerOptions struct {
 	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
 	BodyCharLimit    int      // max body chars rendered per email; <= 0 → no extra trim
 	AvailableLabels  []string // existing user-label names; analyzer prefers these for the "label" action
+	StrictLabels     bool     // when true, the "label" action may only use an existing label; no-match emails go to read-manually
 }
 
 // InboxAnalyzerService groups unread messages into an actionable plan via the LLM.
