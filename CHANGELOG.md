@@ -5,6 +5,18 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-06-21
+
+### 🚀 Features — Action Plan & faithful labels
+
+- **Action Plan: Enter opens the email in the reader.** Pressing Enter (or →) on an email node in the Inbox Action Plan selects it in the message list and loads its body into the reader, then moves focus there so you can scroll and read immediately. An email that was archived/moved out of the list still loads by id. Category nodes keep their expand/collapse behavior; Space/`m`/`i` are unchanged. (#51)
+- **Faithful labels: the analyzer no longer invents or duplicates labels.** With `inbox_analyzer.strict_labels` (new, default `true`), the analyzer's `label` action may only use a label you already have (matched ignoring case/whitespace). An email whose suggested label matches none of yours goes to "review manually" instead of creating a new/duplicate label — a real help with weak local models. Set it to `false` for the old create-on-miss behavior; if you have no labels at all, enforcement is skipped. The existing-labels prompt instruction is now imperative ("use ONLY a label from this exact list").
+- **Action Plan label rows show the actual label.** A label group now reads `Label → <your label> · n/n · PRIORITY` — the real label that will be applied, dropping the redundant model-invented group name (kept for non-label actions like Archive, where it describes what's affected).
+
+### 🔧 Internal
+
+- **God-object refactor pilot (#49):** extracted the VIM key-sequence state out of the 3,400-line `App` struct into a self-contained, mutex-protected `vimState` type with unit tests, fixing a latent locking inconsistency (the event loop wrote the fields without a lock while a timeout goroutine used `App.mu`). No change to VIM behavior (`gg`/`G`/`s5s`/single-op-after-timeout).
+
 ## [1.16.0] - 2026-06-19
 
 ### 🚀 Features — Slack new-mail summaries
