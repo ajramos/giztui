@@ -563,7 +563,8 @@ func (a *App) formatThreadMessageForList(message *gmailapi.Message, messageIndex
 
 		// Right-align date with less padding for indented messages
 		currentLen := len(builder.String())
-		targetWidth := a.screenWidth - 25 // More margin for indented content
+		screenWidth, _ := a.layout.size()
+		targetWidth := screenWidth - 25 // More margin for indented content
 		if currentLen < targetWidth {
 			padding := targetWidth - currentLen - len(dateStr)
 			if padding > 0 {

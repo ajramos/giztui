@@ -88,9 +88,7 @@ type App struct {
 	// Prompt details state
 	originalHeaderHeight int // Store original header height before hiding
 	// Layout management
-	currentLayout    LayoutType
-	screenWidth      int
-	screenHeight     int
+	layout           layoutState
 	currentMessageID string // Added for label command execution
 	nextPageToken    string // Gmail pagination
 
@@ -325,9 +323,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		currentView:        "messages",
 		currentFocus:       "list",
 		previousFocus:      "list", // Initialize previous focus
-		currentLayout:      LayoutMedium,
-		screenWidth:        80,
-		screenHeight:       25,
+		layout:             layoutState{currentLayout: LayoutMedium, width: 80, height: 25},
 		currentMessageID:   "", // Initialize currentMessageID
 		nextPageToken:      "",
 		aiSummaryCache:     make(map[string]string),
@@ -375,8 +371,8 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 			app.uiLifecycle.ready.Store(true)
 		}
 		w, h := screen.Size()
-		if w != app.screenWidth || h != app.screenHeight {
-			app.screenWidth, app.screenHeight = w, h
+		if curW, curH := app.layout.size(); w != curW || h != curH {
+			app.layout.setSize(w, h)
 			// Trigger comprehensive layout refresh on resize
 			app.onWindowResize()
 		}
@@ -1465,17 +1461,12 @@ func (a *App) setRenderCache(messageID string, markdown bool, width int, text st
 
 // GetScreenSize returns the current screen dimensions thread-safely
 func (a *App) GetScreenSize() (int, int) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.screenWidth, a.screenHeight
+	return a.layout.size()
 }
 
 // SetScreenSize sets the screen dimensions thread-safely
 func (a *App) SetScreenSize(width, height int) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.screenWidth = width
-	a.screenHeight = height
+	a.layout.setSize(width, height)
 }
 
 // GetErrorHandler returns the error handler for centralized error handling
