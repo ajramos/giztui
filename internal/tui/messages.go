@@ -2763,8 +2763,8 @@ func (a *App) getListWidth() int {
 			return w
 		}
 	}
-	if a.screenWidth > 0 {
-		return a.screenWidth
+	if w, _ := a.layout.size(); w > 0 {
+		return w
 	}
 	return 80
 }
@@ -2819,8 +2819,8 @@ func (a *App) getFormatWidth() int {
 			return w - 2
 		}
 	}
-	if a.screenWidth > 0 {
-		return a.screenWidth - 2
+	if w, _ := a.layout.size(); w > 0 {
+		return w - 2
 	}
 	return 78
 }
