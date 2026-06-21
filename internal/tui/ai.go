@@ -316,19 +316,21 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 		var finalResult string
 		if options.StreamEnabled {
 			// Set up streaming with UI updates
+			var streamBuilder strings.Builder
 			result, streamErr := aiService.GenerateSummaryStream(a.ctx, body, options, func(token string) {
-				// Update UI with each token for real-time streaming
-				a.QueueUpdateDraw(func() {
-					currentText := a.aiSummaryView.GetText(true)
-					if currentText == "🧠 Summarizing…" {
-						// First token, start building
-						a.aiSummaryView.SetText("🧠 " + token)
-					} else {
-						// Append token to existing content
-						a.aiSummaryView.SetText(currentText + token)
-					}
+				// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks — it can
+				// deadlock with the ESC handler. Update the view directly, guarded by ctx.
+				select {
+				case <-a.ctx.Done():
+					return // Exit early if cancelled (e.g. ESC pressed mid-stream)
+				default:
+				}
+				streamBuilder.WriteString(token)
+				if a.ctx.Err() == nil && a.aiSummaryView != nil {
+					a.aiSummaryView.SetText("🧠 " + streamBuilder.String())
 					a.aiSummaryView.ScrollToEnd()
-				})
+					a.ForceDraw()
+				}
 			})
 			if streamErr != nil {
 				err = streamErr
