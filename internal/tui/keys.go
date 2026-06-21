@@ -894,7 +894,7 @@ func (a *App) bindKeys() {
 		case 'r':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('r') {
-				if a.draftMode {
+				if a.draft.isMode() {
 					go a.loadDrafts()
 				} else {
 					go a.reloadMessages()

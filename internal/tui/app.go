@@ -72,8 +72,7 @@ type App struct {
 	ids            []string
 	messagesMeta   []*gmailapi.Message
 	currentThreads []*services.ThreadInfo // Current threads for column system
-	draftMode      bool
-	draftIDs       []string
+	draft          draftState
 	showHelp       bool
 	// Reader-content backups for full-pane overlays (type in overlay_backup.go)
 	helpBackup           overlayBackup
@@ -323,8 +322,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		emailRenderer:      render.NewEmailRenderer(cfg),
 		ids:                []string{},
 		messagesMeta:       []*gmailapi.Message{},
-		draftMode:          false,
-		draftIDs:           []string{},
 		showHelp:           false,
 		currentView:        "messages",
 		currentFocus:       "list",

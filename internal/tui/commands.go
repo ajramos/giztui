@@ -1610,7 +1610,7 @@ func (a *App) executeReplyCommand(args []string) {
 
 // executeRefreshCommand handles :refresh commands
 func (a *App) executeRefreshCommand(args []string) {
-	if a.draftMode {
+	if a.draft.isMode() {
 		go a.loadDrafts()
 	} else {
 		go a.reloadMessages()
