@@ -1325,7 +1325,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If a search is active and overlay is not focused, delegate to exitSearch
-			if a.searchMode != "" {
+			if a.search.Mode() != "" {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - exiting search")
 				}
@@ -1511,9 +1511,9 @@ func (a *App) bindKeys() {
 						threshold := preloader.GetStatus().Config.NextPageThreshold
 						if float64(messageIndex+1)/float64(totalMessages) >= threshold {
 							// User is at threshold, trigger next page preload
-							query := a.currentQuery
-							if query == "" && a.searchMode == "remote" {
-								query = a.currentQuery
+							query := a.search.Query()
+							if query == "" && a.search.Mode() == "remote" {
+								query = a.search.Query()
 							}
 							maxResults := int64(50) // Default page size
 
@@ -2650,9 +2650,9 @@ func (a *App) triggerPreloadingForMessage(messageIndex int) {
 			}
 			if currentPosition >= threshold {
 				// User is at threshold, trigger next page preload
-				query := a.currentQuery
-				if query == "" && a.searchMode == "remote" {
-					query = a.currentQuery
+				query := a.search.Query()
+				if query == "" && a.search.Mode() == "remote" {
+					query = a.search.Query()
 				}
 				maxResults := int64(50) // Default page size
 

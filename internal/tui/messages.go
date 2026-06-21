@@ -42,47 +42,18 @@ func (a *App) reformatListItems() {
 
 // baseRemoveByID removes a message from the local base snapshot if present
 func (a *App) baseRemoveByID(messageID string) {
-	if a.searchMode != "local" || a.baseIDs == nil {
+	if a.search.Mode() != "local" || a.search.baseIDs == nil {
 		return
 	}
-	idx := -1
-	for i, id := range a.baseIDs {
-		if id == messageID {
-			idx = i
-			break
-		}
-	}
-	if idx >= 0 {
-		a.baseIDs = append(a.baseIDs[:idx], a.baseIDs[idx+1:]...)
-		if idx < len(a.baseMessagesMeta) {
-			a.baseMessagesMeta = append(a.baseMessagesMeta[:idx], a.baseMessagesMeta[idx+1:]...)
-		}
-	}
+	a.search.removeFromSnapshotByID(messageID)
 }
 
 // baseRemoveByIDs removes multiple messages from the local base snapshot
 func (a *App) baseRemoveByIDs(ids []string) {
-	if a.searchMode != "local" || a.baseIDs == nil || len(ids) == 0 {
+	if a.search.Mode() != "local" || a.search.baseIDs == nil || len(ids) == 0 {
 		return
 	}
-	rm := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		rm[id] = struct{}{}
-	}
-	// rebuild slices
-	newIDs := a.baseIDs[:0]
-	newMeta := a.baseMessagesMeta[:0]
-	for i, id := range a.baseIDs {
-		if _, ok := rm[id]; ok {
-			continue
-		}
-		newIDs = append(newIDs, id)
-		if i < len(a.baseMessagesMeta) {
-			newMeta = append(newMeta, a.baseMessagesMeta[i])
-		}
-	}
-	a.baseIDs = append([]string(nil), newIDs...)
-	a.baseMessagesMeta = append([]*gmailapi.Message(nil), newMeta...)
+	a.search.removeFromSnapshotByIDs(ids)
 }
 
 // captureLocalBaseSnapshot stores the current inbox view as base for local filtering
@@ -97,28 +68,19 @@ func (a *App) captureLocalBaseSnapshot() {
 			selID = a.ids[messageIndex]
 		}
 	}
-	// Copy slices to avoid aliasing
-	a.baseIDs = append([]string(nil), a.ids...)
-	a.baseMessagesMeta = append([]*gmailapi.Message(nil), a.messagesMeta...)
-	a.baseNextPageToken = a.nextPageToken
-	a.baseSelectionID = selID
+	a.search.captureSnapshot(a.ids, a.messagesMeta, a.nextPageToken, selID)
 }
 
 // restoreLocalBaseSnapshot restores the base view after exiting local filter
 func (a *App) restoreLocalBaseSnapshot() {
-	ids := append([]string(nil), a.baseIDs...)
-	metas := append([]*gmailapi.Message(nil), a.baseMessagesMeta...)
-	next := a.baseNextPageToken
-	selID := a.baseSelectionID
+	ids, metas, next, selID := a.search.snapshot()
 
 	if a.logger != nil {
-		a.logger.Printf("🔍 ESC: Restoring base snapshot with %d messages (was searchMode=%q)", len(ids), a.searchMode)
+		a.logger.Printf("🔍 ESC: Restoring base snapshot with %d messages (was searchMode=%q)", len(ids), a.search.Mode())
 	}
 
 	a.QueueUpdateDraw(func() {
-		a.searchMode = ""
-		a.currentQuery = ""
-		a.localFilter = ""
+		a.search.clear()
 		a.nextPageToken = next
 		a.SetMessageIDs(ids)
 		a.messagesMeta = metas
@@ -188,7 +150,7 @@ func (a *App) restoreLocalBaseSnapshot() {
 
 // exitSearch handles ESC from search contexts
 func (a *App) exitSearch() {
-	if a.searchMode == "local" {
+	if a.search.Mode() == "local" {
 		if a.logger != nil {
 			a.logger.Printf("🔍 ESC: exitSearch for local search - hiding container and restoring data")
 		}
@@ -205,7 +167,7 @@ func (a *App) exitSearch() {
 		a.restoreLocalBaseSnapshot()
 		return
 	}
-	if a.searchMode == "remote" {
+	if a.search.Mode() == "remote" {
 		if a.logger != nil {
 			a.logger.Printf("🔍 ESC: exitSearch for remote search - hiding container and reloading inbox")
 		}
@@ -221,9 +183,7 @@ func (a *App) exitSearch() {
 		delete(a.views, "searchInput") // Remove search input from views
 
 		// Clear search state
-		a.searchMode = ""
-		a.currentQuery = ""
-		a.localFilter = ""
+		a.search.clear()
 		a.nextPageToken = ""
 		go a.reloadMessages()
 		return
@@ -334,9 +294,8 @@ func (a *App) reloadMessagesFlat() {
 	a.mu.Unlock()
 
 	// If coming from remote search mode, clear it on full reload
-	if a.searchMode == "remote" {
-		a.searchMode = ""
-		a.currentQuery = ""
+	if a.search.Mode() == "remote" {
+		a.search.clear()
 		a.nextPageToken = ""
 	}
 
@@ -347,7 +306,7 @@ func (a *App) reloadMessagesFlat() {
 	}
 
 	// Use current query for reload to maintain current view context
-	query := a.currentQuery
+	query := a.search.Query()
 
 	// Fallback: if currentQuery is empty but we're clearly in a specific folder,
 	// try to detect the folder from current message and construct appropriate query
@@ -390,7 +349,7 @@ func (a *App) reloadMessagesFlat() {
 			m[l.Id] = l.Name
 		}
 		a.emailRenderer.SetLabelMap(m)
-		a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+		a.emailRenderer.SetShowSystemLabelsInList(a.search.Mode() == "remote")
 	}
 
 	// Spinner with progress once we know how many items are coming
@@ -591,7 +550,7 @@ func (a *App) loadMoreMessages() {
 		return
 	}
 	// If in remote search mode, paginate that query
-	if a.searchMode == "remote" {
+	if a.search.Mode() == "remote" {
 		if a.nextPageToken == "" {
 			a.showStatusMessage("No more results")
 			return
@@ -602,7 +561,7 @@ func (a *App) loadMoreMessages() {
 		// Try to use cached results first (with token preservation)
 		if preloader := a.GetPreloaderService(); preloader != nil {
 			// Use cache key with query to match how preloader stores search results
-			cacheKey := a.currentQuery + ":" + a.nextPageToken
+			cacheKey := a.search.Query() + ":" + a.nextPageToken
 			if a.logger != nil {
 				a.logger.Printf("CACHE SEARCH: Checking for cached search results with key='%s'", cacheKey)
 			}
@@ -642,7 +601,7 @@ func (a *App) loadMoreMessages() {
 
 				a.QueueUpdateDraw(func() {
 					if table, ok := a.views["list"].(*tview.Table); ok {
-						table.SetTitle(fmt.Sprintf(" 📧 Search: %s (%d) ", a.currentQuery, len(a.ids)))
+						table.SetTitle(fmt.Sprintf(" 📧 Search: %s (%d) ", a.search.Query(), len(a.ids)))
 					}
 					a.refreshTableDisplay()
 					// FOCUS FIX: Restore focus to message list after loading cached search results
@@ -656,10 +615,10 @@ func (a *App) loadMoreMessages() {
 
 		// Cache miss - fetch from API
 		if a.logger != nil {
-			a.logger.Printf("❌ CACHE MISS (SEARCH): No cached results for key='%s', fetching from API", a.currentQuery+":"+a.nextPageToken)
+			a.logger.Printf("❌ CACHE MISS (SEARCH): No cached results for key='%s', fetching from API", a.search.Query()+":"+a.nextPageToken)
 		}
 		apiStartTime := time.Now()
-		messages, next, err := a.Client.SearchMessagesPage(a.currentQuery, 50, a.nextPageToken)
+		messages, next, err := a.Client.SearchMessagesPage(a.search.Query(), 50, a.nextPageToken)
 		apiLoadTime := time.Since(apiStartTime)
 		if a.logger != nil && err == nil {
 			a.logger.Printf("🌐 API FETCH (SEARCH): Loaded %d messages from API in %v", len(messages), apiLoadTime)
@@ -715,7 +674,7 @@ func (a *App) loadMoreMessages() {
 					m[l.Id] = l.Name
 				}
 				a.emailRenderer.SetLabelMap(m)
-				a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+				a.emailRenderer.SetShowSystemLabelsInList(a.search.Mode() == "remote")
 			}
 
 			for _, meta := range cachedMessages {
@@ -807,7 +766,7 @@ func (a *App) loadMoreMessages() {
 			m[l.Id] = l.Name
 		}
 		a.emailRenderer.SetLabelMap(m)
-		a.emailRenderer.SetShowSystemLabelsInList(a.searchMode == "remote")
+		a.emailRenderer.SetShowSystemLabelsInList(a.search.Mode() == "remote")
 	}
 	// Collect message IDs for parallel fetching
 	messageIDs := make([]string, len(messages))
@@ -1051,17 +1010,17 @@ func (a *App) openSearchOverlay(mode string) {
 			} else {
 				// Before applying local filter, capture base snapshot only if not already in search mode
 				// This preserves the original inbox during search refinement
-				if a.searchMode != "local" {
+				if a.search.Mode() != "local" {
 					if a.logger != nil {
-						a.logger.Printf("🔍 LOCAL SEARCH: Capturing base snapshot (searchMode=%q)", a.searchMode)
+						a.logger.Printf("🔍 LOCAL SEARCH: Capturing base snapshot (searchMode=%q)", a.search.Mode())
 					}
 					a.captureLocalBaseSnapshot()
 				} else {
 					if a.logger != nil {
-						a.logger.Printf("🔍 LOCAL SEARCH: Preserving existing base snapshot during refinement (searchMode=%q)", a.searchMode)
+						a.logger.Printf("🔍 LOCAL SEARCH: Preserving existing base snapshot during refinement (searchMode=%q)", a.search.Mode())
 					}
 				}
-				a.localFilter = query
+				a.search.localFilter = query
 				go a.applyLocalFilter(query)
 			}
 			// Keep searchInput in views map for Tab navigation - do NOT delete it
@@ -1084,7 +1043,7 @@ func (a *App) openSearchOverlay(mode string) {
 						a.SetFocus(a.views["list"])
 						delete(a.views, "searchInput")
 						// If exiting overlay from a local filter, restore base view immediately
-						if a.searchMode == "local" {
+						if a.search.Mode() == "local" {
 							go a.exitSearch()
 						}
 						return
@@ -1101,7 +1060,7 @@ func (a *App) openSearchOverlay(mode string) {
 			a.SetFocus(a.views["list"])
 			delete(a.views, "searchInput")
 			// If leaving overlay and a local filter was active, restore base
-			if a.searchMode == "local" {
+			if a.search.Mode() == "local" {
 				go a.exitSearch()
 			}
 		}
@@ -1158,13 +1117,13 @@ func (a *App) openSearchOverlay(mode string) {
 // hideSearchContainer hides the persistent search container (like Slack panel)
 func (a *App) hideSearchContainer() {
 	// For local search, let exitSearch handle everything (container hiding + data restoration)
-	if a.searchMode == "local" {
+	if a.search.Mode() == "local" {
 		go a.exitSearch()
 		return
 	}
 
 	// For remote search, also call exitSearch to handle data restoration
-	if a.searchMode == "remote" {
+	if a.search.Mode() == "remote" {
 		go a.exitSearch()
 		return
 	}
@@ -2122,8 +2081,8 @@ func (a *App) applyLocalFilter(expr string) {
 
 	// Apply results on UI thread
 	a.QueueUpdateDraw(func() {
-		a.searchMode = "local"
-		a.localFilter = expr
+		a.search.SetMode("local")
+		a.search.localFilter = expr
 		// Replace current view with filtered content BEFORE selecting rows to ensure
 		// selection handlers reference the filtered ids/meta, not the previous inbox
 		a.SetMessageIDs(filteredIDs)
