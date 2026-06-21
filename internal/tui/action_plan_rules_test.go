@@ -112,20 +112,20 @@ func TestRememberRuleInlineSwap(t *testing.T) {
 func TestAnalyzerRulesPickerSetsFocusKeepOverride(t *testing.T) {
 	a := newRulesTestApp()
 	a.openAnalyzerRulesManager()
-	if a.cmdFocusOverride != "keep" {
-		t.Fatalf("expected cmdFocusOverride=keep so the command bar teardown won't steal focus, got %q", a.cmdFocusOverride)
+	if a.cmd.focusOverride != "keep" {
+		t.Fatalf("expected cmd.focusOverride=keep so the command bar teardown won't steal focus, got %q", a.cmd.focusOverride)
 	}
 }
 
 func TestRestoreFocusAfterModal_Keep(t *testing.T) {
 	a := newRulesTestApp()
 	a.currentFocus = "analyzer_rules"
-	a.cmdFocusOverride = "keep"
+	a.cmd.focusOverride = "keep"
 	a.restoreFocusAfterModal()
 	if a.currentFocus != "analyzer_rules" {
 		t.Fatalf("keep override must not re-focus the list, got %q", a.currentFocus)
 	}
-	if a.cmdFocusOverride != "" {
-		t.Fatalf("override should be consumed, got %q", a.cmdFocusOverride)
+	if a.cmd.focusOverride != "" {
+		t.Fatalf("override should be consumed, got %q", a.cmd.focusOverride)
 	}
 }

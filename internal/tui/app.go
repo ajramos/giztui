@@ -89,13 +89,8 @@ type App struct {
 	currentView             string
 	currentFocus            string // Track current focus: "list" or "text"
 	previousFocus           string // Track previous focus before modal
-	// Command system (k9s style)
-	cmdMode          bool     // Whether we're in command mode
-	cmdBuffer        string   // Current command buffer
-	cmdHistory       []string // Command history
-	cmdHistoryIndex  int      // Current position in history
-	cmdSuggestion    string   // Current command suggestion
-	cmdFocusOverride string   // Override focus restoration for special commands
+	// Command bar state (the `:` prompt) — state machine in command_state.go
+	cmd commandState
 	// Prompt details state
 	originalHeaderHeight int // Store original header height before hiding
 	// Layout management
@@ -347,10 +342,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		currentView:        "messages",
 		currentFocus:       "list",
 		previousFocus:      "list", // Initialize previous focus
-		cmdMode:            false,
-		cmdBuffer:          "",
-		cmdHistory:         make([]string, 0),
-		cmdHistoryIndex:    -1,
 		currentLayout:      LayoutMedium,
 		screenWidth:        80,
 		screenHeight:       25,
@@ -3310,9 +3301,6 @@ func (a *App) showCompositionWithDraft(composition *services.Composition) {
 
 // getCurrentMessageID gets the ID of the currently selected message
 // (moved to messages.go)
-
-// addToHistory adds a command to the history
-// (moved to commands.go) addToHistory
 
 // getListWidth returns current inner width of the list view or a sensible fallback
 // (moved to messages.go)

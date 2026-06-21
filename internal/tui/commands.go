@@ -48,9 +48,9 @@ func (a *App) showCommandBar() {
 
 // showCommandBarWithPrefix displays the command bar with a prefilled command
 func (a *App) showCommandBarWithPrefix(prefix string) {
-	a.cmdMode = true
-	a.cmdBuffer = prefix
-	a.cmdSuggestion = ""
+	a.cmd.mode.Store(true)
+	a.cmd.buffer = prefix
+	a.cmd.suggestion = ""
 
 	// Build prompt pieces with an emoji-safe custom box
 	generalColors := a.GetComponentColors("general")
@@ -65,7 +65,7 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	input.SetText(prefix)
 	input.SetDoneFunc(nil) // ensure we set it after capture
 	// Start at end of history
-	a.cmdHistoryIndex = len(a.cmdHistory)
+	a.cmd.resetHistoryCursor()
 	// Behaviors: Enter executes, ESC closes, Tab completes, Up/Down history
 	input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -95,30 +95,21 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 			}
 			return nil
 		case tcell.KeyUp:
-			if a.cmdHistoryIndex > 0 {
-				a.cmdHistoryIndex--
-				if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
-					input.SetText(a.cmdHistory[a.cmdHistoryIndex])
-				}
+			if txt, ok := a.cmd.historyUp(); ok {
+				input.SetText(txt)
 			}
 			return nil
 		case tcell.KeyDown:
-			if a.cmdHistoryIndex < len(a.cmdHistory)-1 {
-				a.cmdHistoryIndex++
-				if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
-					input.SetText(a.cmdHistory[a.cmdHistoryIndex])
-				}
-			} else {
-				a.cmdHistoryIndex = len(a.cmdHistory)
-				input.SetText("")
+			if txt, ok := a.cmd.historyDown(); ok {
+				input.SetText(txt)
 			}
 			return nil
 		}
 		return ev
 	})
-	// Keep cmdBuffer in sync (for history/addToHistory consistency if used elsewhere)
+	// Keep cmd.buffer in sync (for history/addToHistory consistency if used elsewhere)
 	input.SetChangedFunc(func(text string) {
-		a.cmdBuffer = text
+		a.cmd.buffer = text
 		// Update live hint based on current buffer
 		cur := strings.TrimSpace(text)
 		s := a.generateCommandSuggestion(cur)
@@ -155,9 +146,9 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 
 // hideCommandBar hides the command bar and exits command mode
 func (a *App) hideCommandBar() {
-	a.cmdMode = false
-	a.cmdBuffer = ""
-	a.cmdSuggestion = ""
+	a.cmd.mode.Store(false)
+	a.cmd.buffer = ""
+	a.cmd.suggestion = ""
 
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")
@@ -181,44 +172,34 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 		a.hideCommandBar()
 		return nil
 	case tcell.KeyEnter:
-		a.executeCommand(a.cmdBuffer)
+		a.executeCommand(a.cmd.buffer)
 		a.hideCommandBar()
 		return nil
 	case tcell.KeyTab:
 		a.completeCommand()
 		return nil
 	case tcell.KeyBackspace, tcell.KeyDelete:
-		if len(a.cmdBuffer) > 0 {
-			a.cmdBuffer = a.cmdBuffer[:len(a.cmdBuffer)-1]
+		if len(a.cmd.buffer) > 0 {
+			a.cmd.buffer = a.cmd.buffer[:len(a.cmd.buffer)-1]
 			a.updateCommandBar()
 		}
 		return nil
 	case tcell.KeyUp:
-		if a.cmdHistoryIndex > 0 {
-			a.cmdHistoryIndex--
-			if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
-				a.cmdBuffer = a.cmdHistory[a.cmdHistoryIndex]
-				a.updateCommandBar()
-			}
+		if txt, ok := a.cmd.historyUp(); ok {
+			a.cmd.buffer = txt
+			a.updateCommandBar()
 		}
 		return nil
 	case tcell.KeyDown:
-		if a.cmdHistoryIndex < len(a.cmdHistory)-1 {
-			a.cmdHistoryIndex++
-			if a.cmdHistoryIndex >= 0 && a.cmdHistoryIndex < len(a.cmdHistory) {
-				a.cmdBuffer = a.cmdHistory[a.cmdHistoryIndex]
-				a.updateCommandBar()
-			} else {
-				a.cmdBuffer = ""
-				a.cmdHistoryIndex = len(a.cmdHistory)
-			}
+		if txt, ok := a.cmd.historyDown(); ok {
+			a.cmd.buffer = txt
 			a.updateCommandBar()
 		}
 		return nil
 	}
 
 	if event.Rune() != 0 {
-		a.cmdBuffer += string(event.Rune())
+		a.cmd.buffer += string(event.Rune())
 		a.updateCommandBar()
 		return nil
 	}
@@ -651,8 +632,8 @@ func (a *App) generateCommandSuggestion(buffer string) string {
 
 // completeCommand completes the current command with the suggestion
 func (a *App) completeCommand() {
-	if a.cmdSuggestion != "" && a.cmdSuggestion != a.cmdBuffer {
-		a.cmdBuffer = a.cmdSuggestion
+	if a.cmd.suggestion != "" && a.cmd.suggestion != a.cmd.buffer {
+		a.cmd.buffer = a.cmd.suggestion
 		a.updateCommandBar()
 	}
 }
@@ -701,7 +682,7 @@ func parseCommandArgs(cmd string) []string {
 
 // executeCommand executes the current command
 func (a *App) executeCommand(cmd string) {
-	a.addToHistory(cmd)
+	a.cmd.addToHistory(cmd)
 
 	parts := parseCommandArgs(cmd)
 	if len(parts) == 0 {
@@ -938,18 +919,6 @@ func (a *App) executeRSVPCommand(args []string) {
 	}
 }
 
-// addToHistory adds a command to the history
-func (a *App) addToHistory(cmd string) {
-	if cmd == "" || (len(a.cmdHistory) > 0 && a.cmdHistory[len(a.cmdHistory)-1] == cmd) {
-		return
-	}
-	a.cmdHistory = append(a.cmdHistory, cmd)
-	if len(a.cmdHistory) > 100 {
-		a.cmdHistory = a.cmdHistory[1:]
-	}
-	a.cmdHistoryIndex = len(a.cmdHistory)
-}
-
 // executeLabelsCommand handles labels-related commands
 func (a *App) executeLabelsCommand(args []string) {
 	if len(args) == 0 {
@@ -1012,14 +981,14 @@ func (a *App) executeContentSearch(args []string) {
 
 	// CRITICAL: Set a flag to prevent restoreFocusAfterModal from overriding our focus
 	// We'll set focus to EnhancedTextView immediately after command execution
-	a.cmdFocusOverride = "enhanced-text"
+	a.cmd.focusOverride = "enhanced-text"
 
 	// DEBUGGING: Also try direct focus setting as backup
 	go func() {
 		// Wait for command bar to close, then force focus to EnhancedTextView
 		for i := 0; i < 10; i++ { // Try up to 10 times over 1 second
 			time.Sleep(100 * time.Millisecond)
-			if !a.cmdMode { // Command bar closed
+			if !a.cmd.mode.Load() { // Command bar closed
 				a.QueueUpdateDraw(func() {
 					if a.enhancedTextView != nil {
 						a.SetFocus(a.enhancedTextView)

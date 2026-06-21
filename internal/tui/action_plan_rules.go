@@ -218,5 +218,5 @@ func (a *App) openAnalyzerRulesManager() {
 	a.SetFocus(list)
 	// :plan rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" tells it to leave our focus.
-	a.cmdFocusOverride = "keep"
+	a.cmd.focusOverride = "keep"
 }
