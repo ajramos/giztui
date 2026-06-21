@@ -232,7 +232,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 	}
 
 	// Check if already processing
-	if a.aiInFlight[messageID] {
+	if a.caches.aiInFlightHas(messageID) {
 		if a.debug {
 			a.logger.Printf("generateOrShowSummary: already processing message '%s'", messageID)
 		}
@@ -256,13 +256,13 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 	a.aiSummaryView.ScrollToBeginning()
 
 	// Mark as in flight
-	a.aiInFlight[messageID] = true
+	a.caches.aiInFlightSet(messageID)
 
 	// Generate summary in background following the working pattern
 	go func(id string) {
 		defer func() {
 			// Always clean up in-flight status
-			delete(a.aiInFlight, id)
+			a.caches.aiInFlightDelete(id)
 		}()
 
 		// Get message content
@@ -544,7 +544,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			}
 			// Mark suggestions already applied with ✅
 			appliedSet := make(map[string]bool)
-			if meta, ok := a.messageCache[messageID]; ok && meta != nil {
+			if meta, ok := a.caches.messageGet(messageID); ok && meta != nil {
 				for _, ln := range meta.Labels {
 					appliedSet[ln] = true
 				}

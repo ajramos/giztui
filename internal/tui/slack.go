@@ -615,7 +615,7 @@ func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwar
 	// For "full" format, get the TUI-processed content
 	if options.FormatStyle == "full" {
 		// Get processed message content (same as what's displayed in TUI)
-		if cached, ok := a.messageCache[messageID]; ok {
+		if cached, ok := a.caches.messageGet(messageID); ok {
 			// Use the cached processed message
 			rendered, _ := a.renderMessageContent(cached)
 			// Clean up the content for Slack (remove tview markup and ANSI)
@@ -625,7 +625,7 @@ func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwar
 			// If not cached, load the message
 			message, err := a.Client.GetMessageWithContent(messageID)
 			if err == nil {
-				a.messageCache[messageID] = message
+				a.caches.messageSet(messageID, message)
 				rendered, _ := a.renderMessageContent(message)
 				cleanContent := a.cleanContentForSlack(rendered)
 				options.ProcessedContent = cleanContent
@@ -690,7 +690,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 
 			// For "full" format, get the TUI-processed content for this specific message
 			if options.FormatStyle == "full" {
-				if cached, ok := a.messageCache[messageID]; ok {
+				if cached, ok := a.caches.messageGet(messageID); ok {
 					// Use the cached processed message
 					rendered, _ := a.renderMessageContent(cached)
 					cleanContent := a.cleanContentForSlack(rendered)
@@ -699,7 +699,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 					// If not cached, load the message
 					message, err := a.Client.GetMessageWithContent(messageID)
 					if err == nil {
-						a.messageCache[messageID] = message
+						a.caches.messageSet(messageID, message)
 						rendered, _ := a.renderMessageContent(message)
 						cleanContent := a.cleanContentForSlack(rendered)
 						messageOptions.ProcessedContent = cleanContent

@@ -6,7 +6,7 @@ import (
 )
 
 func TestRenderCache(t *testing.T) {
-	a := &App{}
+	a := &App{caches: newAppCaches()}
 	if _, ok := a.getRenderCache("id1", true, 100); ok {
 		t.Error("expected miss on empty cache")
 	}
@@ -24,11 +24,11 @@ func TestRenderCache(t *testing.T) {
 }
 
 func TestRenderCacheIsBounded(t *testing.T) {
-	a := &App{}
+	a := &App{caches: newAppCaches()}
 	for i := 0; i < renderCacheMaxEntries*2; i++ {
 		a.setRenderCache(fmt.Sprintf("id%d", i), true, 100, "x")
 	}
-	if got := len(a.renderCache); got > renderCacheMaxEntries {
+	if got := a.caches.renderLen(); got > renderCacheMaxEntries {
 		t.Errorf("cache unbounded: %d entries, cap %d", got, renderCacheMaxEntries)
 	}
 }

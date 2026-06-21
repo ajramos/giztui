@@ -984,12 +984,8 @@ func (a *App) openSearchOverlay(mode string) {
 			}
 			// If there was an LLM suggestion running, inform user it was cancelled
 			if a.LLM != nil {
-				for k := range a.aiInFlight {
-					if a.aiInFlight[k] {
-						a.aiInFlight[k] = false
-						a.showStatusMessage("🔕 Suggestion cancelled when opening search")
-						break
-					}
+				if a.caches.aiInFlightCancelFirst() {
+					a.showStatusMessage("🔕 Suggestion cancelled when opening search")
 				}
 			}
 			if lc, ok := a.views["listContainer"].(*tview.Flex); ok {
@@ -2199,7 +2195,7 @@ func (a *App) showMessage(id string) {
 		rendered, isANSI := a.renderMessageContent(message)
 		// Detect calendar invite parts (best-effort)
 		if inv, ok := a.detectCalendarInvite(message.Message); ok {
-			a.inviteCache[id] = inv
+			a.caches.inviteSet(id, inv)
 		}
 
 		// Update UI in main thread
@@ -2229,7 +2225,7 @@ func (a *App) showMessage(id string) {
 				text.ScrollToBeginning()
 			}
 			// If invite detected, show hint in status bar
-			if _, ok := a.inviteCache[id]; ok {
+			if _, ok := a.caches.inviteGet(id); ok {
 				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
 			// If AI pane is visible, refresh summary for this message
@@ -2256,7 +2252,7 @@ func (a *App) saveCurrentMessageToFile() {
 	go func(mid string) {
 		// Try cache first
 		var m *gmail.Message
-		if cached, ok := a.messageCache[mid]; ok {
+		if cached, ok := a.caches.messageGet(mid); ok {
 			m = cached
 		} else {
 			fetched, err := a.Client.GetMessageWithContent(mid)
@@ -2457,7 +2453,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 
 		// Detect calendar invite (same as showMessage) and cache result
 		if inv, ok := a.detectCalendarInvite(message.Message); ok {
-			a.inviteCache[id] = inv
+			a.caches.inviteSet(id, inv)
 		}
 
 		a.QueueUpdateDraw(func() {
@@ -2479,7 +2475,7 @@ func (a *App) showMessageWithoutFocus(id string) {
 				text.ScrollToBeginning()
 			}
 			// If invite detected in preview, show the same hint
-			if _, ok := a.inviteCache[id]; ok {
+			if _, ok := a.caches.inviteGet(id); ok {
 				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
 		})
@@ -3029,14 +3025,14 @@ func (a *App) openRSVPModal() {
 		return
 	}
 
-	inv, ok := a.inviteCache[mid]
+	inv, ok := a.caches.inviteGet(mid)
 
 	if !ok {
 		// Fallback 1: Re-detect from message cache
-		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+		if m, ok2 := a.caches.messageGet(mid); ok2 && m != nil {
 			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
 				inv = parsed
-				a.inviteCache[mid] = inv
+				a.caches.inviteSet(mid, inv)
 				ok = true
 				if a.logger != nil {
 					a.logger.Printf("RSVP: Re-detected calendar invite from message cache")
@@ -3045,15 +3041,12 @@ func (a *App) openRSVPModal() {
 		}
 
 		// Fallback 2: Search any invite in cache (handles cache key mismatches)
-		if !ok && len(a.inviteCache) > 0 {
-			for _, cachedInv := range a.inviteCache {
-				if cachedInv.UID != "" {
-					inv = cachedInv
-					// Removed ineffectual assignment: ok = true (not used after break)
-					if a.logger != nil {
-						a.logger.Printf("RSVP: Using cached invite from alternate cache entry")
-					}
-					break
+		if !ok {
+			if cachedInv, found := a.caches.inviteFindAnyWithUID(); found {
+				inv = cachedInv
+				// Removed ineffectual assignment: ok = true (not used after break)
+				if a.logger != nil {
+					a.logger.Printf("RSVP: Using cached invite from alternate cache entry")
 				}
 			}
 		}
@@ -3207,29 +3200,26 @@ func (a *App) sendRSVP(partstat, comment string) {
 		mid = a.currentMessageID
 	}
 
-	inv, ok := a.inviteCache[mid]
+	inv, ok := a.caches.inviteGet(mid)
 
 	// Use fallback strategies if invite not found
 	if !ok || inv.UID == "" {
 		// Fallback 1: Re-detect from message cache
-		if m, ok2 := a.messageCache[mid]; ok2 && m != nil {
+		if m, ok2 := a.caches.messageGet(mid); ok2 && m != nil {
 			if parsed, ok3 := a.detectCalendarInvite(m.Message); ok3 {
 				inv = parsed
-				a.inviteCache[mid] = inv
+				a.caches.inviteSet(mid, inv)
 				ok = true
 			}
 		}
 
 		// Fallback 2: Search any invite in cache (handles cache key mismatches)
-		if (!ok || inv.UID == "") && len(a.inviteCache) > 0 {
-			for _, cachedInv := range a.inviteCache {
-				if cachedInv.UID != "" {
-					inv = cachedInv
-					ok = true
-					if a.logger != nil {
-						a.logger.Printf("RSVP: Using cached invite from alternate cache entry for sending response")
-					}
-					break
+		if !ok || inv.UID == "" {
+			if cachedInv, found := a.caches.inviteFindAnyWithUID(); found {
+				inv = cachedInv
+				ok = true
+				if a.logger != nil {
+					a.logger.Printf("RSVP: Using cached invite from alternate cache entry for sending response")
 				}
 			}
 		}
@@ -4246,7 +4236,7 @@ func (a *App) detectCurrentFolderQuery() string {
 		messageID := messageIDs[i]
 
 		// Check message cache first
-		if cached, ok := a.messageCache[messageID]; ok {
+		if cached, ok := a.caches.messageGet(messageID); ok {
 			folder := a.detectMessageFolder(cached.Labels)
 			if folder != "" {
 				folderCounts[folder]++
