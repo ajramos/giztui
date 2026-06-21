@@ -100,16 +100,8 @@ type App struct {
 	currentMessageID string // Added for label command execution
 	nextPageToken    string // Gmail pagination
 
-	// Search/Filter state
-	searchMode    string // "" | "remote" | "local"
-	currentQuery  string
-	localFilter   string
-	searchHistory []string
-	// Local filter base snapshot (used only while searchMode=="local")
-	baseIDs           []string
-	baseMessagesMeta  []*gmailapi.Message
-	baseNextPageToken string
-	baseSelectionID   string
+	// Search/Filter state (state machine in search_state.go)
+	search searchState
 	// AI Summary pane
 	aiSummaryView    *tview.TextView
 	aiSummaryVisible bool
@@ -347,14 +339,6 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		screenHeight:       25,
 		currentMessageID:   "", // Initialize currentMessageID
 		nextPageToken:      "",
-		searchMode:         "",
-		currentQuery:       "",
-		localFilter:        "",
-		searchHistory:      make([]string, 0, 10),
-		baseIDs:            nil,
-		baseMessagesMeta:   nil,
-		baseNextPageToken:  "",
-		baseSelectionID:    "",
 		aiSummaryCache:     make(map[string]string),
 		aiInFlight:         make(map[string]bool),
 		aiLabelsCache:      make(map[string][]string),
@@ -1602,9 +1586,9 @@ func (a *App) getUndoStatusMessage(result *services.UndoResult) string {
 	baseMessage := fmt.Sprintf("Undone: %s", result.Description)
 
 	// Add refresh guidance based on operation type and current view
-	if strings.Contains(result.Description, "Unarchived") && a.currentQuery == "" {
+	if strings.Contains(result.Description, "Unarchived") && a.search.Query() == "" {
 		return baseMessage // Auto-refreshes, no hint needed
-	} else if strings.Contains(result.Description, "Restored from trash") && a.currentQuery == "" {
+	} else if strings.Contains(result.Description, "Restored from trash") && a.search.Query() == "" {
 		return baseMessage // Auto-refreshes, no hint needed
 	} else if strings.Contains(result.Description, "Unarchived") || strings.Contains(result.Description, "Restored from trash") {
 		return baseMessage + " (Press R to refresh if not visible)"
@@ -1633,14 +1617,14 @@ func (a *App) smartUndoReload(result *services.UndoResult) {
 	// Determine if we need to reload based on operation type and current view
 	needsReload := false
 
-	if result.ActionType == services.UndoActionArchive && a.currentQuery == "" {
+	if result.ActionType == services.UndoActionArchive && a.search.Query() == "" {
 		// Archive undo - restore message to inbox list
 		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.QueueUpdateDraw(func() {
 			a.reformatListItems()
 		})
 		return
-	} else if result.ActionType == services.UndoActionTrash && a.currentQuery == "" {
+	} else if result.ActionType == services.UndoActionTrash && a.search.Query() == "" {
 		// Trash undo - restore message to inbox list
 		a.restoreMessagesToInboxList(result.MessageIDs)
 		a.QueueUpdateDraw(func() {
@@ -1718,7 +1702,7 @@ func (a *App) restoreMessagesToInboxList(messageIDs []string) {
 	// Logging removed for simplicity
 
 	// Only restore if we're viewing INBOX (no search query means we're in inbox)
-	if a.currentQuery != "" {
+	if a.search.Query() != "" {
 		// Logging removed for simplicity
 		return
 	}
@@ -1913,7 +1897,7 @@ func (a *App) GetSlackService() services.SlackService {
 
 // GetCurrentQuery returns the current search query
 func (a *App) GetCurrentQuery() string {
-	return a.currentQuery
+	return a.search.Query()
 }
 
 // GetContentNavService returns the content navigation service instance
@@ -3007,8 +2991,8 @@ func (a *App) performSearch(query string) {
 	a.ClearMessageIDs()
 	a.messagesMeta = []*gmailapi.Message{}
 	a.nextPageToken = next
-	a.searchMode = "remote"
-	a.currentQuery = q
+	a.search.SetMode("remote")
+	a.search.SetQuery(q)
 
 	var spinnerStop chan struct{}
 	if _, ok := a.views["list"].(*tview.Table); ok {
@@ -3131,21 +3115,21 @@ func (a *App) performSearch(query string) {
 
 // updateBaseCachedMessageLabels mirrors updateCachedMessageLabels but for the base snapshot (local filter)
 func (a *App) updateBaseCachedMessageLabels(messageID, labelID string, applied bool) {
-	if a.searchMode != "local" || a.baseIDs == nil {
+	if a.search.Mode() != "local" || a.search.baseIDs == nil {
 		return
 	}
 	// Find index in baseIDs
 	idx := -1
-	for i, id := range a.baseIDs {
+	for i, id := range a.search.baseIDs {
 		if id == messageID {
 			idx = i
 			break
 		}
 	}
-	if idx < 0 || idx >= len(a.baseMessagesMeta) || a.baseMessagesMeta[idx] == nil {
+	if idx < 0 || idx >= len(a.search.baseMessagesMeta) || a.search.baseMessagesMeta[idx] == nil {
 		return
 	}
-	msg := a.baseMessagesMeta[idx]
+	msg := a.search.baseMessagesMeta[idx]
 	if applied {
 		exists := false
 		for _, l := range msg.LabelIds {

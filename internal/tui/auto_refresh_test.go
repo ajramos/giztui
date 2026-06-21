@@ -25,7 +25,7 @@ func TestAutoRefreshLifecycleIdempotent(t *testing.T) {
 func TestAutoRefreshSafeState(t *testing.T) {
 	a := &App{}
 	a.currentActivePicker = PickerNone
-	a.searchMode = ""
+	a.search.SetMode("")
 	a.bulkMode = false
 	if !a.isAutoRefreshSafeState() {
 		t.Error("plain inbox with nothing open should be safe")
@@ -35,11 +35,11 @@ func TestAutoRefreshSafeState(t *testing.T) {
 		t.Error("open picker must be unsafe")
 	}
 	a.currentActivePicker = PickerNone
-	a.searchMode = "remote"
+	a.search.SetMode("remote")
 	if a.isAutoRefreshSafeState() {
 		t.Error("search mode must be unsafe")
 	}
-	a.searchMode = ""
+	a.search.SetMode("")
 	a.bulkMode = true
 	if a.isAutoRefreshSafeState() {
 		t.Error("bulk mode must be unsafe")
@@ -48,12 +48,12 @@ func TestAutoRefreshSafeState(t *testing.T) {
 
 func TestAutoRefreshShouldPoll(t *testing.T) {
 	a := &App{}
-	a.searchMode = ""
-	a.currentQuery = ""
+	a.search.SetMode("")
+	a.search.SetQuery("")
 	if !a.shouldAutoRefreshPoll() {
 		t.Error("plain inbox should poll")
 	}
-	a.searchMode = "remote"
+	a.search.SetMode("remote")
 	if a.shouldAutoRefreshPoll() {
 		t.Error("remote search must not poll")
 	}

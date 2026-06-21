@@ -80,10 +80,10 @@ func (a *App) refreshStatusBar() {
 // i.e. auto-refresh should poll at all. Off-inbox views (search/folder/threading)
 // idle the ticker.
 func (a *App) shouldAutoRefreshPoll() bool {
-	if a.searchMode != "" {
+	if a.search.Mode() != "" {
 		return false
 	}
-	if a.currentQuery != "" {
+	if a.search.Query() != "" {
 		return false
 	}
 	if a.IsThreadingEnabled() && a.GetCurrentThreadViewMode() == ThreadViewThread {
