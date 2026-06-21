@@ -69,26 +69,21 @@ type App struct {
 	// Email renderer
 	emailRenderer *render.EmailRenderer
 	// State management
-	ids                     []string
-	messagesMeta            []*gmailapi.Message
-	currentThreads          []*services.ThreadInfo // Current threads for column system
-	draftMode               bool
-	draftIDs                []string
-	showHelp                bool
-	helpBackupText          string // Backup of text content before showing help
-	helpBackupHeader        string // Backup of header content before showing help
-	helpBackupTitle         string // Backup of text container title before showing help
-	preloadStatusVisible    bool
-	preloadBackupText       string // Backup of text content before showing preload status
-	preloadBackupHeader     string // Backup of header content before showing preload status
-	preloadBackupTitle      string // Backup of text container title before showing preload status
-	promptStatsVisible      bool
-	promptStatsBackupText   string // Backup of text content before showing prompt stats
-	promptStatsBackupHeader string // Backup of header content before showing prompt stats
-	promptStatsBackupTitle  string // Backup of text container title before showing prompt stats
-	currentView             string
-	currentFocus            string // Track current focus: "list" or "text"
-	previousFocus           string // Track previous focus before modal
+	ids            []string
+	messagesMeta   []*gmailapi.Message
+	currentThreads []*services.ThreadInfo // Current threads for column system
+	draftMode      bool
+	draftIDs       []string
+	showHelp       bool
+	// Reader-content backups for full-pane overlays (type in overlay_backup.go)
+	helpBackup           overlayBackup
+	preloadStatusVisible bool
+	preloadBackup        overlayBackup
+	promptStatsVisible   bool
+	promptStatsBackup    overlayBackup
+	currentView          string
+	currentFocus         string // Track current focus: "list" or "text"
+	previousFocus        string // Track previous focus before modal
 	// Command bar state (the `:` prompt) — state machine in command_state.go
 	cmd commandState
 	// Prompt details state
@@ -2514,8 +2509,8 @@ func (a *App) toggleHelp() {
 		a.showHelp = false
 
 		// Restore text content through enhanced text view
-		if a.enhancedTextView != nil && a.helpBackupText != "" {
-			a.enhancedTextView.SetContent(a.helpBackupText)
+		if a.enhancedTextView != nil && a.helpBackup.active() {
+			a.enhancedTextView.SetContent(a.helpBackup.text)
 			a.enhancedTextView.SetDynamicColors(true)
 			a.enhancedTextView.ScrollToBeginning()
 		} else {
@@ -2523,7 +2518,7 @@ func (a *App) toggleHelp() {
 			if text, ok := a.views["text"].(*tview.TextView); ok {
 				text.SetDynamicColors(true)
 				text.Clear()
-				text.SetText(a.helpBackupText)
+				text.SetText(a.helpBackup.text)
 				text.ScrollToBeginning()
 			}
 		}
@@ -2531,7 +2526,7 @@ func (a *App) toggleHelp() {
 		// Restore header content and visibility
 		if header, ok := a.views["header"].(*tview.TextView); ok {
 			header.SetDynamicColors(true)
-			header.SetText(a.helpBackupHeader)
+			header.SetText(a.helpBackup.header)
 		}
 
 		// Restore header height (make it visible again)
@@ -2543,14 +2538,12 @@ func (a *App) toggleHelp() {
 
 		// Restore text container title
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-			textContainer.SetTitle(a.helpBackupTitle)
+			textContainer.SetTitle(a.helpBackup.title)
 			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 		}
 
 		// Clear backup content
-		a.helpBackupText = ""
-		a.helpBackupHeader = ""
-		a.helpBackupTitle = ""
+		a.helpBackup.clear()
 
 		// Update focus state and set focus to text view (unless composer is active)
 		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
@@ -2561,13 +2554,13 @@ func (a *App) toggleHelp() {
 	} else {
 		// Save current content before showing help
 		if text, ok := a.views["text"].(*tview.TextView); ok {
-			a.helpBackupText = text.GetText(false)
+			a.helpBackup.text = text.GetText(false)
 		}
 		if header, ok := a.views["header"].(*tview.TextView); ok {
-			a.helpBackupHeader = header.GetText(false)
+			a.helpBackup.header = header.GetText(false)
 		}
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-			a.helpBackupTitle = textContainer.GetTitle()
+			a.helpBackup.title = textContainer.GetTitle()
 		}
 
 		// Show help content
@@ -2622,13 +2615,13 @@ func (a *App) toggleHelp() {
 func (a *App) showPreloadStatus(statusContent string) {
 	// Save current content before showing preload status
 	if text, ok := a.views["text"].(*tview.TextView); ok {
-		a.preloadBackupText = text.GetText(false)
+		a.preloadBackup.text = text.GetText(false)
 	}
 	if header, ok := a.views["header"].(*tview.TextView); ok {
-		a.preloadBackupHeader = header.GetText(false)
+		a.preloadBackup.header = header.GetText(false)
 	}
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		a.preloadBackupTitle = textContainer.GetTitle()
+		a.preloadBackup.title = textContainer.GetTitle()
 	}
 
 	// Show preload status
@@ -2690,8 +2683,8 @@ func (a *App) hidePreloadStatus() {
 	a.preloadStatusVisible = false
 
 	// Restore text content through enhanced text view
-	if a.enhancedTextView != nil && a.preloadBackupText != "" {
-		a.enhancedTextView.SetContent(a.preloadBackupText)
+	if a.enhancedTextView != nil && a.preloadBackup.active() {
+		a.enhancedTextView.SetContent(a.preloadBackup.text)
 		a.enhancedTextView.SetDynamicColors(true)
 		a.enhancedTextView.ScrollToBeginning()
 	} else {
@@ -2699,7 +2692,7 @@ func (a *App) hidePreloadStatus() {
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			text.SetDynamicColors(true)
 			text.Clear()
-			text.SetText(a.preloadBackupText)
+			text.SetText(a.preloadBackup.text)
 			text.ScrollToBeginning()
 		}
 	}
@@ -2707,7 +2700,7 @@ func (a *App) hidePreloadStatus() {
 	// Restore header content and visibility
 	if header, ok := a.views["header"].(*tview.TextView); ok {
 		header.SetDynamicColors(true)
-		header.SetText(a.preloadBackupHeader)
+		header.SetText(a.preloadBackup.header)
 	}
 
 	// Restore header height (make it visible again)
@@ -2719,14 +2712,12 @@ func (a *App) hidePreloadStatus() {
 
 	// Restore text container title
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		textContainer.SetTitle(a.preloadBackupTitle)
+		textContainer.SetTitle(a.preloadBackup.title)
 		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 	}
 
 	// Clear backup content
-	a.preloadBackupText = ""
-	a.preloadBackupHeader = ""
-	a.preloadBackupTitle = ""
+	a.preloadBackup.clear()
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
@@ -2740,13 +2731,13 @@ func (a *App) hidePreloadStatus() {
 func (a *App) showPromptStats(stats *services.UsageStats) {
 	// Save current content before showing prompt stats
 	if text, ok := a.views["text"].(*tview.TextView); ok {
-		a.promptStatsBackupText = text.GetText(false)
+		a.promptStatsBackup.text = text.GetText(false)
 	}
 	if header, ok := a.views["header"].(*tview.TextView); ok {
-		a.promptStatsBackupHeader = header.GetText(false)
+		a.promptStatsBackup.header = header.GetText(false)
 	}
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		a.promptStatsBackupTitle = textContainer.GetTitle()
+		a.promptStatsBackup.title = textContainer.GetTitle()
 	}
 
 	// Show prompt stats
@@ -2811,8 +2802,8 @@ func (a *App) hidePromptStats() {
 	a.promptStatsVisible = false
 
 	// Restore text content through enhanced text view
-	if a.enhancedTextView != nil && a.promptStatsBackupText != "" {
-		a.enhancedTextView.SetContent(a.promptStatsBackupText)
+	if a.enhancedTextView != nil && a.promptStatsBackup.active() {
+		a.enhancedTextView.SetContent(a.promptStatsBackup.text)
 		a.enhancedTextView.SetDynamicColors(true)
 		a.enhancedTextView.ScrollToBeginning()
 	} else {
@@ -2820,7 +2811,7 @@ func (a *App) hidePromptStats() {
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			text.SetDynamicColors(true)
 			text.Clear()
-			text.SetText(a.promptStatsBackupText)
+			text.SetText(a.promptStatsBackup.text)
 			text.ScrollToBeginning()
 		}
 	}
@@ -2828,7 +2819,7 @@ func (a *App) hidePromptStats() {
 	// Restore header content and visibility
 	if header, ok := a.views["header"].(*tview.TextView); ok {
 		header.SetDynamicColors(true)
-		header.SetText(a.promptStatsBackupHeader)
+		header.SetText(a.promptStatsBackup.header)
 	}
 
 	// Restore header height (make it visible again)
@@ -2840,14 +2831,12 @@ func (a *App) hidePromptStats() {
 
 	// Restore text container title
 	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-		textContainer.SetTitle(a.promptStatsBackupTitle)
+		textContainer.SetTitle(a.promptStatsBackup.title)
 		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
 	}
 
 	// Clear backup content
-	a.promptStatsBackupText = ""
-	a.promptStatsBackupHeader = ""
-	a.promptStatsBackupTitle = ""
+	a.promptStatsBackup.clear()
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
