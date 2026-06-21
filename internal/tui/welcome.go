@@ -33,13 +33,13 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 				text.ScrollToBeginning()
 			} else {
 				// Stop the animation if messages are loaded - set flag to exit the goroutine
-				a.welcomeAnimating = false
+				a.uiLifecycle.welcomeAnimating.Store(false)
 			}
 		}
 		// Do not change focus on startup; keep it in the list for better UX
 	}
 
-	if a.uiReady {
+	if a.uiLifecycle.ready.Load() {
 		a.QueueUpdateDraw(func() { apply(0) })
 	} else {
 		apply(0)
@@ -47,10 +47,10 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 
 	if loading {
 		// Guard to prevent multiple concurrent animations
-		if a.welcomeAnimating {
+		if a.uiLifecycle.welcomeAnimating.Load() {
 			return
 		}
-		a.welcomeAnimating = true
+		a.uiLifecycle.welcomeAnimating.Store(true)
 		// Simple non-blocking animated dots for a short time window
 		go func() {
 			ticker := time.NewTicker(250 * time.Millisecond)
@@ -63,17 +63,17 @@ func (a *App) showWelcomeScreen(loading bool, accountEmail string) {
 				select {
 				case <-ticker.C:
 					// Exit animation if messages are loaded
-					if !a.welcomeAnimating {
+					if !a.uiLifecycle.welcomeAnimating.Load() {
 						return
 					}
 					dots = (dots + 1) % 4
-					if a.uiReady {
+					if a.uiLifecycle.ready.Load() {
 						a.QueueUpdateDraw(func() { apply(dots) })
 					} else {
 						apply(dots)
 					}
 				case <-timeout.C:
-					a.welcomeAnimating = false
+					a.uiLifecycle.welcomeAnimating.Store(false)
 					return
 				}
 			}
