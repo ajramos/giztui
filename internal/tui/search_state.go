@@ -48,12 +48,14 @@ func (s *searchState) SetQuery(q string) {
 	s.query = q
 }
 
-// clear resets mode, query, and localFilter to empty (used when exiting a search/filter).
+// clear resets mode, query, and localFilter to empty (used when exiting a search/filter). All three
+// are cleared under the lock so clear() is atomic — localFilter is event-loop-only today, but this
+// avoids a latent split-unlock footgun if it ever gains a cross-goroutine reader.
 func (s *searchState) clear() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.mode = ""
 	s.query = ""
-	s.mu.Unlock()
 	s.localFilter = ""
 }
 
