@@ -107,28 +107,17 @@ type App struct {
 	aiSummaryVisible bool
 	// Enhanced text view for content navigation and search
 	enhancedTextView    *EnhancedTextView
-	aiSummaryCache      map[string]string  // messageID -> summary
-	aiInFlight          map[string]bool    // messageID -> generating
 	aiPanelInPromptMode bool               // Track if panel is being used for prompt vs summary
 	streamingCancel     context.CancelFunc // Cancel function for active streaming operations
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
 
 	// Markdown rendering
-	markdownEnabled   bool
-	markdownCache     map[string]string // messageID -> rendered ANSI (header+body)
-	markdownTogglePer map[string]bool   // messageID -> prefer markdown
+	markdownEnabled bool
 
-	// Message content cache (to avoid refetch on toggles)
-	messageCache   map[string]*gmail.Message
-	messageCacheMu sync.RWMutex
-
-	// Render cache (stores rendered body text keyed by message/mode/width)
-	renderCache   map[string]string
-	renderCacheMu sync.RWMutex
-
-	// Calendar invite cache (parsed from text/calendar parts)
-	inviteCache map[string]Invite // messageID -> invite metadata
+	// Consolidated in-memory caches (message content, rendered body, calendar
+	// invites, and AI in-flight tracking), all guarded by a single RWMutex.
+	caches *appCaches
 
 	// Database store (SQLite)
 	dbStore *db.Store
@@ -339,14 +328,9 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		screenHeight:       25,
 		currentMessageID:   "", // Initialize currentMessageID
 		nextPageToken:      "",
-		aiSummaryCache:     make(map[string]string),
-		aiInFlight:         make(map[string]bool),
 		aiLabelsCache:      make(map[string][]string),
 		markdownEnabled:    true,
-		markdownCache:      make(map[string]string),
-		markdownTogglePer:  make(map[string]bool),
-		messageCache:       make(map[string]*gmail.Message),
-		inviteCache:        make(map[string]Invite),
+		caches:             newAppCaches(),
 		debug:              true,
 		logger:             logger, // Use passed logger instead of creating new one
 		logFile:            nil,
@@ -1421,17 +1405,12 @@ func (a *App) SetRunning(running bool) {
 
 // GetMessageFromCache returns a cached message thread-safely
 func (a *App) GetMessageFromCache(messageID string) (*gmail.Message, bool) {
-	a.messageCacheMu.RLock()
-	defer a.messageCacheMu.RUnlock()
-	message, exists := a.messageCache[messageID]
-	return message, exists
+	return a.caches.messageGet(messageID)
 }
 
 // SetMessageInCache stores a message in cache thread-safely
 func (a *App) SetMessageInCache(messageID string, message *gmail.Message) {
-	a.messageCacheMu.Lock()
-	defer a.messageCacheMu.Unlock()
-	a.messageCache[messageID] = message
+	a.caches.messageSet(messageID, message)
 }
 
 // renderCacheMaxEntries bounds the rendered-body cache to keep session memory
@@ -1445,31 +1424,13 @@ func renderCacheKey(messageID string, markdown bool, width int) string {
 
 // getRenderCache returns cached rendered body text, if present.
 func (a *App) getRenderCache(messageID string, markdown bool, width int) (string, bool) {
-	a.renderCacheMu.RLock()
-	defer a.renderCacheMu.RUnlock()
-	if a.renderCache == nil {
-		return "", false
-	}
-	v, ok := a.renderCache[renderCacheKey(messageID, markdown, width)]
-	return v, ok
+	return a.caches.renderGet(renderCacheKey(messageID, markdown, width))
 }
 
-// setRenderCache stores rendered body text.
+// setRenderCache stores rendered body text, bounding the cache to
+// renderCacheMaxEntries (evicting one entry when full and the key is new).
 func (a *App) setRenderCache(messageID string, markdown bool, width int, text string) {
-	a.renderCacheMu.Lock()
-	defer a.renderCacheMu.Unlock()
-	if a.renderCache == nil {
-		a.renderCache = make(map[string]string)
-	}
-	key := renderCacheKey(messageID, markdown, width)
-	// Bound the cache: if full and this is a new key, evict one entry first.
-	if _, exists := a.renderCache[key]; !exists && len(a.renderCache) >= renderCacheMaxEntries {
-		for k := range a.renderCache {
-			delete(a.renderCache, k)
-			break
-		}
-	}
-	a.renderCache[key] = text
+	a.caches.renderEvictOneIfFull(renderCacheKey(messageID, markdown, width), text, renderCacheMaxEntries)
 }
 
 // GetScreenSize returns the current screen dimensions thread-safely

@@ -1781,7 +1781,7 @@ func (a *App) updateCachedMessageLabels(messageID, labelID string, applied bool)
 // updateMessageCacheLabels updates the cached full message labels (names) so the
 // rendered header reflects changes without requiring a refetch.
 func (a *App) updateMessageCacheLabels(messageID, labelName string, applied bool) {
-	if m, ok := a.messageCache[messageID]; ok && m != nil {
+	if m, ok := a.caches.messageGet(messageID); ok && m != nil {
 		if applied {
 			// Add if missing (case-insensitive)
 			exists := false
@@ -1811,7 +1811,7 @@ func (a *App) updateMessageCacheLabels(messageID, labelName string, applied bool
 // entity has been renamed. This avoids a refetch and ensures the header reflects
 // the new name immediately for the current message.
 func (a *App) renameLabelInMessageCache(messageID, oldName, newName string) {
-	if m, ok := a.messageCache[messageID]; ok && m != nil {
+	if m, ok := a.caches.messageGet(messageID); ok && m != nil {
 		for i, ln := range m.Labels {
 			if strings.EqualFold(ln, oldName) {
 				m.Labels[i] = newName
@@ -1823,7 +1823,7 @@ func (a *App) renameLabelInMessageCache(messageID, oldName, newName string) {
 // removeLabelNameFromMessageCache removes a label name from the cached full message.
 // Useful after deleting a label entity so the header updates immediately.
 func (a *App) removeLabelNameFromMessageCache(messageID, name string) {
-	if m, ok := a.messageCache[messageID]; ok && m != nil {
+	if m, ok := a.caches.messageGet(messageID); ok && m != nil {
 		out := m.Labels[:0]
 		for _, ln := range m.Labels {
 			if !strings.EqualFold(ln, name) {
