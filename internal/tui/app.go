@@ -153,10 +153,9 @@ type App struct {
 	vim vimState
 
 	// UI lifecycle flags
-	uiReady          bool // true after first draw
-	welcomeAnimating bool // avoid multiple spinner goroutines
-	welcomeEmail     string
-	messagesLoading  bool // true when messages are being loaded
+	uiLifecycle     uiLifecycle // startup/welcome flags (atomic; previously plain bools — latent race)
+	welcomeEmail    string
+	messagesLoading bool // true when messages are being loaded
 
 	// Formatting toggles
 	llmTouchUpEnabled atomic.Bool
@@ -372,8 +371,8 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 	// Enhanced resize handling for responsive column system
 	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
 		// Mark UI as ready on first draw
-		if !app.uiReady {
-			app.uiReady = true
+		if !app.uiLifecycle.ready.Load() {
+			app.uiLifecycle.ready.Store(true)
 		}
 		w, h := screen.Size()
 		if w != app.screenWidth || h != app.screenHeight {
