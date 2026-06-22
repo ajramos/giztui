@@ -2235,9 +2235,17 @@ func (a *App) generateHelpText() string {
 			threadingStatus = "threaded"
 		}
 		fmt.Fprintf(&help, "🧵 MESSAGE THREADING (Current: %s)\n\n", threadingStatus)
-		fmt.Fprintf(&help, "    %-8s  🔄  Toggle between thread and flat view\n", a.Keys.ToggleThreading)
+		if a.Keys.ToggleThreading != "" {
+			fmt.Fprintf(&help, "    %-8s  🔄  Toggle between thread and flat view\n", a.Keys.ToggleThreading)
+		} else {
+			fmt.Fprintf(&help, "    %-8s  🔄  Toggle between thread and flat view (use :threads / :flatten)\n", ":threads")
+		}
 		fmt.Fprintf(&help, "    %-8s  📂  Expand/collapse thread (when in thread view)\n", a.Keys.ExpandThread)
-		fmt.Fprintf(&help, "    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads)
+		if a.Keys.ExpandAllThreads != "" {
+			fmt.Fprintf(&help, "    %-8s  📤  Expand all threads\n", a.Keys.ExpandAllThreads)
+		} else {
+			fmt.Fprintf(&help, "    %-8s  📤  Expand all threads (use :expand-all)\n", ":expand-all")
+		}
 		fmt.Fprintf(&help, "    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads)
 		if a.LLM != nil {
 			if a.Keys.ThreadSummary != "" {
@@ -2338,9 +2346,9 @@ func (a *App) generateHelpText() string {
 
 	// Threading commands (if enabled)
 	if a.IsThreadingEnabled() {
-		fmt.Fprintf(&help, "    %-18s 🧵  Same as %s (switch to threaded view)\n", ":threads", a.Keys.ToggleThreading)
-		fmt.Fprintf(&help, "    %-18s 📄  Same as %s (switch to flat view)\n", ":flatten", a.Keys.ToggleThreading)
-		fmt.Fprintf(&help, "    %-18s 📤  Same as %s (expand all threads)\n", ":expand-all", a.Keys.ExpandAllThreads)
+		fmt.Fprintf(&help, "    %-18s 🧵  Switch to threaded view\n", ":threads")
+		fmt.Fprintf(&help, "    %-18s 📄  Switch to flat view\n", ":flatten")
+		fmt.Fprintf(&help, "    %-18s 📤  Expand all threads\n", ":expand-all")
 		fmt.Fprintf(&help, "    %-18s 📥  Same as %s (collapse all threads)\n", ":collapse-all", a.Keys.CollapseAllThreads)
 		if a.LLM != nil {
 			fmt.Fprintf(&help, "    %-18s 🧵  Same as %s (generate thread summary)\n", ":thread-summary", a.Keys.ThreadSummary)

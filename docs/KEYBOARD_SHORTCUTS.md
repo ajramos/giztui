@@ -142,9 +142,9 @@ Execute operations on multiple messages using VIM-style range syntax: `{operatio
 ### Threading Operations
 | Key | Action | Description |
 |-----|--------|-------------|
-| `T` | Toggle threading | Switch between thread and flat view |
+| `:threads`/`:flatten` | Toggle threading | Switch between thread and flat view (key unbound by default — `T` is used by search-to) |
 | `Enter` | Expand/collapse | Expand or collapse thread (when on thread root) |
-| `E` | Expand all | Expand all threads in current view |
+| `:expand-all` | Expand all | Expand all threads in current view (key unbound by default — `E` is used by reply-all) |
 | `C` | Collapse all | Collapse all threads to show only root messages |
 | `:thread-summary` | Thread summary | Generate AI summary of selected thread |
 
@@ -363,10 +363,10 @@ When you customize shortcuts, the priority order is:
 ### Thread Commands
 | Command | Shortcut Equivalent | Description |
 |---------|-------------------|-------------|
-| `:threads` | `T` | Switch to threaded view |
-| `:flatten` | `T` | Switch to flat view |
+| `:threads` | — | Switch to threaded view (key unbound by default; `T` is search-to) |
+| `:flatten` | — | Switch to flat view |
 | `:thread-summary` | — | Generate thread summary (key unbound by default; see note above) |
-| `:expand-all` | `E` | Expand all threads |
+| `:expand-all` | — | Expand all threads (key unbound by default; `E` is reply-all) |
 | `:collapse-all` | `C` | Collapse all threads |
 
 ### Integration Commands
@@ -522,7 +522,7 @@ All shortcuts can be customized in `~/.config/giztui/config.json`. You can overr
 5. **Content search** - Use `/term` to find specific content within long messages
 
 ### Power User Shortcuts
-1. **Thread management** - `T` to toggle view, `E`/`C` to expand/collapse all
+1. **Thread management** - `:threads`/`:flatten` to toggle view, `:expand-all`/`C` to expand/collapse all
 2. **AI workflow** - `y` for summary, then `p` for detailed analysis
 3. **Integration workflow** - `K` to share via Slack, `Shift+O` to save in Obsidian (individual/repopack)
 4. **Search mastery** - Combine `/` for local filter with `s` for Gmail search

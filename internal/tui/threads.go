@@ -1033,6 +1033,19 @@ func (a *App) ExpandThread() error {
 }
 
 // ExpandAllThreads expands all visible threads
+// currentThreadIDs returns the thread IDs currently displayed in the thread view, read under lock.
+func (a *App) currentThreadIDs() []string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	ids := make([]string, 0, len(a.currentThreads))
+	for _, t := range a.currentThreads {
+		if t != nil && t.ThreadID != "" {
+			ids = append(ids, t.ThreadID)
+		}
+	}
+	return ids
+}
+
 func (a *App) ExpandAllThreads() error {
 	if a.GetCurrentThreadViewMode() != ThreadViewThread {
 		return fmt.Errorf("not in thread view mode")
@@ -1050,8 +1063,9 @@ func (a *App) ExpandAllThreads() error {
 		return fmt.Errorf("failed to get account email: %w", err)
 	}
 
-	// Expand all threads
-	err = threadService.ExpandAllThreads(a.ctx, accountEmail)
+	// Expand all currently-displayed threads (pass the visible IDs so threads without a saved
+	// state row get one — a blanket UPDATE would skip those and silently expand nothing).
+	err = threadService.ExpandAllThreads(a.ctx, accountEmail, a.currentThreadIDs())
 	if err != nil {
 		return fmt.Errorf("failed to expand all threads: %w", err)
 	}
@@ -1085,8 +1099,8 @@ func (a *App) CollapseAllThreads() error {
 		return fmt.Errorf("failed to get account email: %w", err)
 	}
 
-	// Collapse all threads
-	err = threadService.CollapseAllThreads(a.ctx, accountEmail)
+	// Collapse all currently-displayed threads (see ExpandAllThreads for why we pass the IDs).
+	err = threadService.CollapseAllThreads(a.ctx, accountEmail, a.currentThreadIDs())
 	if err != nil {
 		return fmt.Errorf("failed to collapse all threads: %w", err)
 	}
