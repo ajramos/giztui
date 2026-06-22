@@ -5,6 +5,25 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-06-22
+
+### 🐛 Fixes
+
+- **AI summary streaming no longer risks freezing on ESC.** The single-message summary (`y`) and thread summary (`Shift+T` / `:thread-summary`) updated the view via `QueueUpdateDraw` inside their streaming callbacks, which the project's own rules forbid because it can deadlock with the ESC handler. They now update the view directly (guarded by the request context), matching the other AI streaming paths. Pressing ESC mid-stream cancels cleanly and the app stays responsive.
+- **`:expand-all` / `:collapse-all` now work on every thread.** They previously did nothing for threads you had never individually expanded/collapsed (a blanket `UPDATE` only touched threads that already had a saved state row). They now affect all currently-displayed threads.
+- **Fixed three latent concurrent-map crashes.** The calendar-invite cache, the AI in-flight tracker, and the message cache used during Slack bulk-forward were read/written from multiple goroutines without synchronization. Consolidated behind a single guarded cache type.
+- **Fixed latent data races** on the UI-ready / welcome-animation flags, draft-mode reads, and the AI streaming-cancel function (ESC could observe a cancel func a goroutine was clearing).
+
+### 🔧 Changes
+
+- **Cleaner startup — no more spurious key-conflict warnings.** The startup check no longer cries wolf over keys intentionally shared across separate screens (e.g. `a` = archive in the list vs add-rule in the Action Plan). A genuinely new same-context collision is still reported.
+- **Threading keys `T` / `E` are unbound by default.** They were eclipsed by quick-search-to (`T`) and reply-all (`E`) in the global key handler and never actually toggled threading. Use the `:threads` / `:flatten` / `:expand-all` commands, or bind a free key in your config. Help screen and `docs/KEYBOARD_SHORTCUTS.md` updated.
+- **`giztui --migrate-config`** (and `:config migrate`) brings an older `config.json` up to date with newly added defaults.
+
+### 🔧 Internal
+
+- **God-object decomposition (#49) continued, scorecard-driven.** Extracted `overlayBackup`, `draftState`, `uiLifecycle`, `layoutState`, `appCaches`, and `aiPanelState` out of the 3,400-line `App` struct — each a small, unit-tested type — fixing the latent races above along the way. Prioritized with an explicit decision scorecard (`docs/superpowers/REFACTOR-SCORECARD.md`).
+
 ## [1.17.0] - 2026-06-21
 
 ### 🚀 Features — Action Plan & faithful labels
