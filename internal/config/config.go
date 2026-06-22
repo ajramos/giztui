@@ -618,9 +618,13 @@ func DefaultKeyBindings() KeyBindings {
 		GotoBottom:    "G",      // Vim-like go to bottom
 
 		// Threading shortcuts
-		ToggleThreading:    "T",     // Toggle between thread and flat view
+		// Unbound by default: "T" collided with search_to and "E" with reply_all in the global
+		// key switch (handleConfigurableKey), where those cases match first — so binding these
+		// here never fired. Reach them via the :threads / :flatten and :expand-all commands, or
+		// set a free key in config.
+		ToggleThreading:    "",      // (was "T", eclipsed by search_to) — use :threads / :flatten
 		ExpandThread:       "enter", // Expand/collapse selected thread
-		ExpandAllThreads:   "E",     // Expand all threads in current view
+		ExpandAllThreads:   "",      // (was "E", eclipsed by reply_all) — use :expand-all
 		CollapseAllThreads: "C",     // Collapse all threads
 		// Unbound by default: "shift+t" is the same physical key as toggle_threading ("T"),
 		// so binding it here was always eclipsed. Use the :thread-summary command, or set a
@@ -868,11 +872,40 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		}
 	}
 
+	// Keys intentionally shared across mutually-exclusive UI contexts (a global list action
+	// vs a picker/panel/composer action). Only one context handles the key at a time, so these
+	// never collide at runtime and are not reported. A NEW same-context collision (any pair not
+	// listed here) is still warned — this allowlist suppresses only these verified-safe overlaps.
+	contextSeparated := map[string]map[string]bool{
+		"a":      {"archive": true, "rule_add": true},
+		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true},
+		"N":      {"load_more": true, "search_prev": true},
+		"O":      {"obsidian": true, "open_gmail": true},
+		"ctrl+r": {"prompt_regenerate": true, "remember_rule": true},
+		"ctrl+s": {"save_prompt": true, "attachment_save": true},
+		"ctrl+j": {"fast_down": true, "compose_send": true},
+		"ctrl+p": {"prev_thread": true, "prompt_preview": true},
+	}
+
 	// Check for duplicate key assignments
 	for key, fields := range keyMap {
-		if len(fields) > 1 {
-			warnings = append(warnings, fmt.Sprintf("Key '%s' is assigned to multiple functions: %s", key, strings.Join(fields, ", ")))
+		if len(fields) <= 1 {
+			continue
 		}
+		// Skip known context-separated overlaps (every assigned function must be allowlisted).
+		if allowed, ok := contextSeparated[key]; ok {
+			allKnown := true
+			for _, f := range fields {
+				if !allowed[f] {
+					allKnown = false
+					break
+				}
+			}
+			if allKnown {
+				continue
+			}
+		}
+		warnings = append(warnings, fmt.Sprintf("Key '%s' is assigned to multiple functions: %s", key, strings.Join(fields, ", ")))
 	}
 
 	// Check for specific known conflict patterns
