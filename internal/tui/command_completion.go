@@ -163,5 +163,21 @@ func (a *App) commandCandidates(text string) []string {
 	return out
 }
 
-// TEMP stub (replaced in Task 3). Allows Task 1 to compile/test in isolation.
-func completeLabelArg(a *App, prefix string) []string { return nil }
+// completeLabelArg completes a label-name argument from the pre-fetched label list (a.cmd.labelNames,
+// populated off the event loop when the command bar opens). Case-insensitive prefix, sorted.
+func completeLabelArg(a *App, prefix string) []string {
+	lower := strings.ToLower(prefix)
+	var out []string
+	for _, name := range a.cmd.labelNames {
+		if strings.HasPrefix(strings.ToLower(name), lower) {
+			out = append(out, name)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return strings.ToLower(out[i]) < strings.ToLower(out[j])
+	})
+	return out
+}

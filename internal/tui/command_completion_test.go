@@ -53,3 +53,42 @@ func TestCommandRegistry_NoDuplicateNames(t *testing.T) {
 		seen[s.name] = true
 	}
 }
+
+func TestCompleteLabelArg(t *testing.T) {
+	a := &App{}
+	a.cmd.labelNames = []string{"Work", "Personal", "Worklog", "travel"}
+
+	// Case-insensitive prefix, sorted.
+	got := completeLabelArg(a, "wor")
+	want := []string{"Work", "Worklog"}
+	if len(got) != 2 || got[0] != "Work" || got[1] != "Worklog" {
+		t.Fatalf("wor -> %v, want %v", got, want)
+	}
+
+	// Empty prefix returns all (sorted, case-insensitive).
+	all := completeLabelArg(a, "")
+	if len(all) != 4 {
+		t.Fatalf("empty prefix -> %d candidates, want 4", len(all))
+	}
+
+	// No match -> nil.
+	if got := completeLabelArg(a, "zzz"); got != nil {
+		t.Fatalf("zzz -> %v, want nil", got)
+	}
+}
+
+func TestCommandCandidates_LabelArg(t *testing.T) {
+	a := &App{}
+	a.cmd.labelNames = []string{"Work", "Personal"}
+
+	// "labels add wor" -> "labels add Work".
+	got := a.commandCandidates("labels add wor")
+	if len(got) != 1 || got[0] != "labels add Work" {
+		t.Fatalf("labels add wor -> %v, want [labels add Work]", got)
+	}
+
+	// Command without an arg completer yields nil in arg position.
+	if got := a.commandCandidates("archive x"); got != nil {
+		t.Fatalf("archive x -> %v, want nil", got)
+	}
+}
