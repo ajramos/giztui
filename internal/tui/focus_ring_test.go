@@ -22,9 +22,9 @@ func TestBuildFocusRing_Composition(t *testing.T) {
 		},
 		currentActivePicker: PickerLabels,
 		labelsView:          tview.NewFlex(),
-		aiSummaryVisible:    true,
 		aiSummaryView:       tview.NewTextView(),
 	}
+	a.aiPanel.visible.Store(true)
 	got := ringNames(a.buildFocusRing())
 	want := []string{"list", "text", "labels", "summary"}
 	if len(got) != len(want) {

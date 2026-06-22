@@ -1233,8 +1233,8 @@ func (a *App) showAIPanel() {
 	}
 
 	// Show the AI summary panel (reuse existing logic)
-	a.aiSummaryVisible = true
-	a.aiPanelInPromptMode = false
+	a.aiPanel.visible.Store(true)
+	a.aiPanel.inPromptMode = false
 
 	// Update layout to show the AI panel
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

@@ -315,7 +315,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	// (for closeActionPlanPanel) and on the App (for the global ESC handler in keys.go).
 	ctx, cancel := context.WithCancel(a.ctx)
 	state.streamingCancel = cancel
-	a.streamingCancel = cancel
+	a.aiPanel.setStreamingCancel(cancel)
 
 	batchSize := a.Config.InboxAnalyzer.BatchSize
 	maxBatches := a.Config.InboxAnalyzer.MaxBatches
@@ -374,11 +374,11 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 			cancel()
 			state.streamingCancel = nil
 			// Only clear the app-level cancel if THIS panel is still active. If the
-			// panel was closed and reopened, a.streamingCancel belongs to the new
-			// panel's goroutine and must not be clobbered. (func values are not
+			// panel was closed and reopened, the app-level streaming cancel belongs to
+			// the new panel's goroutine and must not be clobbered. (func values are not
 			// comparable, so we gate on the state pointer instead.)
 			if a.actionPlanState == state {
-				a.streamingCancel = nil
+				a.aiPanel.clearStreamingCancel()
 			}
 		}()
 
@@ -685,7 +685,7 @@ func (a *App) closeActionPlanPanel() {
 		a.actionPlanState.streamingCancel()
 		a.actionPlanState.streamingCancel = nil
 	}
-	a.streamingCancel = nil
+	a.aiPanel.clearStreamingCancel()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {

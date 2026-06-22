@@ -120,7 +120,7 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			a.enhancedTextView.SetContent("No messages")
 			text.ScrollToBeginning()
-			if a.aiSummaryVisible && a.aiSummaryView != nil {
+			if a.aiPanel.visible.Load() && a.aiSummaryView != nil {
 				a.aiSummaryView.SetText("")
 			}
 		}
@@ -199,7 +199,7 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 			tv.SetText("No messages")
 			tv.ScrollToBeginning()
 		}
-		if a.aiSummaryVisible && a.aiSummaryView != nil {
+		if a.aiPanel.visible.Load() && a.aiSummaryView != nil {
 			a.aiSummaryView.SetText("")
 		}
 	}

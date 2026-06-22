@@ -484,7 +484,7 @@ func (a *App) reloadMessagesFlat() {
 				}
 
 				// Generate AI summary if panel is visible
-				if a.aiSummaryVisible {
+				if a.aiPanel.visible.Load() {
 					go a.generateOrShowSummary(firstID)
 				}
 			}
@@ -2229,7 +2229,7 @@ func (a *App) showMessage(id string) {
 				a.showStatusMessage("📅 Calendar invite detected — press V to RSVP")
 			}
 			// If AI pane is visible, refresh summary for this message
-			if a.aiSummaryVisible {
+			if a.aiPanel.visible.Load() {
 				a.generateOrShowSummary(id)
 			}
 		})

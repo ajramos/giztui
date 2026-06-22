@@ -258,11 +258,11 @@ func (a *App) generateConfiguratorPrompt(intent string) {
 	// C1: register cancel BOTH at state level (used by closePromptConfigurator)
 	// AND at app level (used by the global ESC handler in keys.go).
 	state.streamingCancel = cancel
-	a.streamingCancel = cancel
+	a.aiPanel.setStreamingCancel(cancel)
 	defer func() {
 		cancel()
 		state.streamingCancel = nil
-		a.streamingCancel = nil
+		a.aiPanel.clearStreamingCancel()
 	}()
 
 	var accumulator string
@@ -343,11 +343,11 @@ func (a *App) refineConfiguratorPrompt(currentPrompt string, refinement string) 
 	// C1: register cancel BOTH at state level (used by closePromptConfigurator)
 	// AND at app level (used by the global ESC handler in keys.go).
 	state.streamingCancel = cancel
-	a.streamingCancel = cancel
+	a.aiPanel.setStreamingCancel(cancel)
 	defer func() {
 		cancel()
 		state.streamingCancel = nil
-		a.streamingCancel = nil
+		a.aiPanel.clearStreamingCancel()
 	}()
 
 	var accumulator string
@@ -484,14 +484,14 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 	}
 
 	a.QueueUpdateDraw(func() {
-		if !a.aiSummaryVisible {
+		if !a.aiPanel.visible.Load() {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.aiSummaryView, 0, 1)
 			}
-			a.aiSummaryVisible = true
+			a.aiPanel.visible.Store(true)
 		}
 		if a.aiSummaryView != nil {
-			a.aiPanelInPromptMode = true
+			a.aiPanel.inPromptMode = true
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s ", name))
 			a.aiSummaryView.SetText("🤖 Applying prompt...")
 			a.aiSummaryView.ScrollToBeginning()
@@ -502,10 +502,10 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 	})
 
 	ctx, cancel := context.WithCancel(a.ctx)
-	a.streamingCancel = cancel
+	a.aiPanel.setStreamingCancel(cancel)
 	defer func() {
 		cancel()
-		a.streamingCancel = nil
+		a.aiPanel.clearStreamingCancel()
 	}()
 
 	var b strings.Builder
@@ -565,14 +565,14 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 	}
 
 	a.QueueUpdateDraw(func() {
-		if !a.aiSummaryVisible {
+		if !a.aiPanel.visible.Load() {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.aiSummaryView, 0, 1)
 			}
-			a.aiSummaryVisible = true
+			a.aiPanel.visible.Store(true)
 		}
 		if a.aiSummaryView != nil {
-			a.aiPanelInPromptMode = true
+			a.aiPanel.inPromptMode = true
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s (%d msgs) ", name, len(messageIDs)))
 			a.aiSummaryView.SetText("🤖 Applying bulk prompt...")
 			a.SetFocus(a.aiSummaryView)
@@ -582,10 +582,10 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 	})
 
 	ctx, cancel := context.WithCancel(a.ctx)
-	a.streamingCancel = cancel
+	a.aiPanel.setStreamingCancel(cancel)
 	defer func() {
 		cancel()
-		a.streamingCancel = nil
+		a.aiPanel.clearStreamingCancel()
 	}()
 
 	var b strings.Builder

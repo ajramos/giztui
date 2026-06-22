@@ -376,10 +376,7 @@ func (a *App) applyThemeFromPicker(themeName string) {
 // closeThemePicker closes the theme picker and restores focus (like closePromptPicker)
 func (a *App) closeThemePicker() {
 	// Cancel any active streaming operations
-	if a.streamingCancel != nil {
-		a.streamingCancel()
-		a.streamingCancel = nil
-	}
+	a.aiPanel.cancelStreaming()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
