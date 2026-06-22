@@ -62,3 +62,33 @@ func TestCommandState_HistoryUpDown(t *testing.T) {
 		t.Errorf("cursor = %d, want 3 (parked at len)", c.historyIndex)
 	}
 }
+
+func TestCommandState_Cycle(t *testing.T) {
+	var c commandState
+	// No candidates yet.
+	if _, ok := c.nextCandidate(true); ok {
+		t.Fatal("nextCandidate on empty must return ok=false")
+	}
+
+	c.startCycle([]string{"search", "slack"})
+	// Forward: -1 -> 0 -> 1 -> wrap 0.
+	if v, ok := c.nextCandidate(true); !ok || v != "search" {
+		t.Fatalf("first forward = %q,%v want search,true", v, ok)
+	}
+	if v, _ := c.nextCandidate(true); v != "slack" {
+		t.Fatalf("second forward = %q want slack", v)
+	}
+	if v, _ := c.nextCandidate(true); v != "search" {
+		t.Fatalf("third forward (wrap) = %q want search", v)
+	}
+	// Backward from index 0 wraps to last.
+	if v, _ := c.nextCandidate(false); v != "slack" {
+		t.Fatalf("backward = %q want slack", v)
+	}
+
+	// clearCycle empties the candidate list.
+	c.clearCycle()
+	if _, ok := c.nextCandidate(true); ok {
+		t.Fatal("nextCandidate after clearCycle must return ok=false")
+	}
+}
