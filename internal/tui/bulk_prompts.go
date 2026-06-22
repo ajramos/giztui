@@ -311,10 +311,7 @@ func (a *App) openBulkPromptPicker() {
 // closeBulkPromptPicker closes the bulk prompt picker and restores the original view
 func (a *App) closeBulkPromptPicker() {
 	// Cancel any active streaming operations
-	if a.streamingCancel != nil {
-		a.streamingCancel()
-		a.streamingCancel = nil
-	}
+	a.aiPanel.cancelStreaming()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		if a.labelsView != nil {
@@ -347,13 +344,13 @@ func (a *App) exitBulkMode() {
 	}
 
 	// Hide AI panel if it's visible
-	if a.aiSummaryVisible {
+	if a.aiPanel.visible.Load() {
 		// Hide AI panel directly
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 			split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
 		}
-		a.aiSummaryVisible = false
-		a.aiPanelInPromptMode = false
+		a.aiPanel.visible.Store(false)
+		a.aiPanel.inPromptMode = false
 	}
 
 	// Return focus to list
@@ -381,8 +378,8 @@ func (a *App) hideAIPanel() {
 		split.ResizeItem(a.aiSummaryView, 0, 0) // Hide AI panel
 	}
 
-	a.aiSummaryVisible = false
-	a.aiPanelInPromptMode = false
+	a.aiPanel.visible.Store(false)
+	a.aiPanel.inPromptMode = false
 
 	// Return focus to list
 	a.SetFocus(a.views["list"])
@@ -418,16 +415,16 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 	// Show AI panel immediately with loading message and set focus
 	a.QueueUpdateDraw(func() {
 		// Show AI panel manually to avoid potential issues with toggleAISummary
-		if !a.aiSummaryVisible {
+		if !a.aiPanel.visible.Load() {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.aiSummaryView, 0, 1)
 			}
-			a.aiSummaryVisible = true
+			a.aiPanel.visible.Store(true)
 		}
 
 		if a.aiSummaryView != nil {
 			// Mark panel as being in prompt mode
-			a.aiPanelInPromptMode = true
+			a.aiPanel.inPromptMode = true
 
 			// Update title to show bulk prompt name
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 Bulk: %s (%d messages) ", promptName, messageCount))
@@ -457,10 +454,10 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		var resultBuilder strings.Builder
 
 		ctx, cancel := context.WithCancel(a.ctx)
-		a.streamingCancel = cancel // Store cancel function for Esc handler
+		a.aiPanel.setStreamingCancel(cancel) // Store cancel function for Esc handler
 		defer func() {
 			cancel()
-			a.streamingCancel = nil // Clear when done
+			a.aiPanel.clearStreamingCancel() // Clear when done
 		}()
 
 		accountEmail := a.getActiveAccountEmail()

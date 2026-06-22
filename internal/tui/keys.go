@@ -1116,7 +1116,7 @@ func (a *App) bindKeys() {
 				return nil
 			}
 			// If focus is on AI summary panel, toggle it off
-			if a.currentFocus == "summary" && a.aiSummaryVisible {
+			if a.currentFocus == "summary" && a.aiPanel.visible.Load() {
 				a.toggleAISummary()
 				return nil
 			}
@@ -1226,7 +1226,7 @@ func (a *App) bindKeys() {
 		if event.Key() == tcell.KeyEscape {
 			if a.logger != nil {
 				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v, streaming=%v, showHelp=%v",
-					a.bulkMode, a.currentFocus, a.aiSummaryVisible, a.streamingCancel != nil, a.showHelp)
+					a.bulkMode, a.currentFocus, a.aiPanel.visible.Load(), a.aiPanel.isStreaming(), a.showHelp)
 			}
 
 			// If help screen is showing, close it first
@@ -1255,15 +1255,12 @@ func (a *App) bindKeys() {
 			}
 
 			// FIRST: Cancel any active streaming operations (this fixes the hanging issue)
-			if a.streamingCancel != nil {
+			if a.aiPanel.cancelStreaming() {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - canceling active streaming operation")
 				}
-				a.streamingCancel()
-				a.streamingCancel = nil
-
 				// After canceling streaming, always hide AI panel if visible
-				if a.aiSummaryVisible {
+				if a.aiPanel.visible.Load() {
 					if a.logger != nil {
 						a.logger.Printf("keys: ESC - hiding AI panel after stream cancellation")
 					}
@@ -1279,7 +1276,7 @@ func (a *App) bindKeys() {
 				}
 				a.exitBulkMode()
 				// If AI panel is visible, also hide it
-				if a.aiSummaryVisible {
+				if a.aiPanel.visible.Load() {
 					if a.logger != nil {
 						a.logger.Printf("keys: ESC - hiding AI panel after bulk mode exit")
 					}
@@ -1289,7 +1286,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If focus is on AI summary panel, close it
-			if a.currentFocus == "summary" && a.aiSummaryVisible {
+			if a.currentFocus == "summary" && a.aiPanel.visible.Load() {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - hiding AI panel")
 				}
@@ -1473,12 +1470,12 @@ func (a *App) bindKeys() {
 					go a.populateLabelsQuickView(id)
 				}
 				// Close AI panel when changing messages to avoid conflicts and storm requests
-				if a.aiSummaryVisible {
+				if a.aiPanel.visible.Load() {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 						split.ResizeItem(a.aiSummaryView, 0, 0)
 					}
-					a.aiSummaryVisible = false
-					a.aiPanelInPromptMode = false
+					a.aiPanel.visible.Store(false)
+					a.aiPanel.inPromptMode = false
 					// Don't change focus, just hide the panel
 				}
 				a.SetCurrentMessageID(id)
@@ -1631,7 +1628,7 @@ func (a *App) buildFocusRing() []focusRingEntry {
 		ring = append(ring, focusRingEntry{"action_plan", a.actionPlanState.tree})
 	}
 	// 6) AI summary and 7) Slack — when visible.
-	if a.aiSummaryVisible && a.aiSummaryView != nil {
+	if a.aiPanel.visible.Load() && a.aiSummaryView != nil {
 		ring = append(ring, focusRingEntry{"summary", a.aiSummaryView})
 	}
 	if a.slackVisible && a.slackView != nil {

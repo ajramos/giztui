@@ -95,12 +95,11 @@ type App struct {
 	// Search/Filter state (state machine in search_state.go)
 	search searchState
 	// AI Summary pane
-	aiSummaryView    *tview.TextView
-	aiSummaryVisible bool
+	aiSummaryView *tview.TextView
+	// aiPanel groups AI-pane visibility, prompt-mode, and streaming-cancel state (ai_panel_state.go)
+	aiPanel aiPanelState
 	// Enhanced text view for content navigation and search
-	enhancedTextView    *EnhancedTextView
-	aiPanelInPromptMode bool               // Track if panel is being used for prompt vs summary
-	streamingCancel     context.CancelFunc // Cancel function for active streaming operations
+	enhancedTextView *EnhancedTextView
 	// AI label suggestion cache
 	aiLabelsCache map[string][]string // messageID -> suggestions
 
@@ -3018,12 +3017,12 @@ func (a *App) performSearch(query string) {
 					}
 				}
 				// Close AI panel when loading new messages to avoid conflicts
-				if a.aiSummaryVisible {
+				if a.aiPanel.visible.Load() {
 					if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 						split.ResizeItem(a.aiSummaryView, 0, 0)
 					}
-					a.aiSummaryVisible = false
-					a.aiPanelInPromptMode = false
+					a.aiPanel.visible.Store(false)
+					a.aiPanel.inPromptMode = false
 				}
 			}
 		}

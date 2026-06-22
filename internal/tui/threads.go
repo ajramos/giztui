@@ -1174,15 +1174,21 @@ func (a *App) GenerateThreadSummary() error {
 
 	if summaryOptions.StreamEnabled {
 		// Use streaming summary generation
+		var threadStreamBuilder strings.Builder
 		summaryResult, err = threadService.GenerateThreadSummaryStream(a.ctx, threadID, summaryOptions, func(token string) {
-			// Update AI panel with streaming tokens
-			a.QueueUpdateDraw(func() {
-				if a.aiSummaryView != nil {
-					currentText := a.aiSummaryView.GetText(false)
-					a.aiSummaryView.SetText(currentText + token)
-					a.aiSummaryView.ScrollToEnd()
-				}
-			})
+			// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks — it can
+			// deadlock with the ESC handler. Update the view directly, guarded by ctx.
+			select {
+			case <-a.ctx.Done():
+				return // Exit early if cancelled (e.g. ESC pressed mid-stream)
+			default:
+			}
+			threadStreamBuilder.WriteString(token)
+			if a.ctx.Err() == nil && a.aiSummaryView != nil {
+				a.aiSummaryView.SetText(threadStreamBuilder.String())
+				a.aiSummaryView.ScrollToEnd()
+				a.ForceDraw()
+			}
 		})
 	} else {
 		// Use non-streaming summary generation
@@ -1227,8 +1233,8 @@ func (a *App) showAIPanel() {
 	}
 
 	// Show the AI summary panel (reuse existing logic)
-	a.aiSummaryVisible = true
-	a.aiPanelInPromptMode = false
+	a.aiPanel.visible.Store(true)
+	a.aiPanel.inPromptMode = false
 
 	// Update layout to show the AI panel
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {

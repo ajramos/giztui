@@ -13,7 +13,7 @@ import (
 // toggleAISummary shows/hides the AI summary pane and triggers generation if needed
 func (a *App) toggleAISummary() {
 	if a.debug {
-		a.logger.Printf("toggleAISummary: called, aiSummaryVisible=%v, currentFocus=%s", a.aiSummaryVisible, a.currentFocus)
+		a.logger.Printf("toggleAISummary: called, aiSummaryVisible=%v, currentFocus=%s", a.aiPanel.visible.Load(), a.currentFocus)
 	}
 
 	// Safety check: ensure application is ready and views are initialized
@@ -61,7 +61,7 @@ func (a *App) toggleAISummary() {
 		return
 	}
 
-	if a.aiSummaryVisible && a.currentFocus == "summary" {
+	if a.aiPanel.visible.Load() && a.currentFocus == "summary" {
 		// If AI summary is visible and focused, close it
 		if a.debug {
 			a.logger.Printf("toggleAISummary: AI summary visible and focused, closing panel")
@@ -138,8 +138,8 @@ func (a *App) toggleAISummary() {
 		a.logger.Printf("toggleAISummary: aiSummaryView is initialized, proceeding with summary generation")
 	}
 
-	a.aiSummaryVisible = true
-	a.aiPanelInPromptMode = false // Reset prompt mode flag
+	a.aiPanel.visible.Store(true)
+	a.aiPanel.inPromptMode = false // Reset prompt mode flag
 
 	// Safety check: ensure aiSummaryView is accessible before setting focus
 	if a.aiSummaryView != nil {
@@ -175,14 +175,11 @@ func (a *App) closeAISummary() {
 			contentSplit.ResizeItem(a.aiSummaryView, 0, 0)
 		}
 	}
-	a.aiSummaryVisible = false
-	a.aiPanelInPromptMode = false // Reset prompt mode flag when hiding panel
+	a.aiPanel.visible.Store(false)
+	a.aiPanel.inPromptMode = false // Reset prompt mode flag when hiding panel
 
 	// Cancel any active streaming operations when hiding panel
-	if a.streamingCancel != nil {
-		a.streamingCancel()
-		a.streamingCancel = nil
-	}
+	a.aiPanel.cancelStreaming()
 
 	// Safety check: ensure text view exists before setting focus
 	if textView, ok := a.views["text"]; ok && textView != nil {
@@ -316,19 +313,21 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 		var finalResult string
 		if options.StreamEnabled {
 			// Set up streaming with UI updates
+			var streamBuilder strings.Builder
 			result, streamErr := aiService.GenerateSummaryStream(a.ctx, body, options, func(token string) {
-				// Update UI with each token for real-time streaming
-				a.QueueUpdateDraw(func() {
-					currentText := a.aiSummaryView.GetText(true)
-					if currentText == "🧠 Summarizing…" {
-						// First token, start building
-						a.aiSummaryView.SetText("🧠 " + token)
-					} else {
-						// Append token to existing content
-						a.aiSummaryView.SetText(currentText + token)
-					}
+				// CRITICAL: NEVER use QueueUpdateDraw in streaming callbacks — it can
+				// deadlock with the ESC handler. Update the view directly, guarded by ctx.
+				select {
+				case <-a.ctx.Done():
+					return // Exit early if cancelled (e.g. ESC pressed mid-stream)
+				default:
+				}
+				streamBuilder.WriteString(token)
+				if a.ctx.Err() == nil && a.aiSummaryView != nil {
+					a.aiSummaryView.SetText("🧠 " + streamBuilder.String())
 					a.aiSummaryView.ScrollToEnd()
-				})
+					a.ForceDraw()
+				}
 			})
 			if streamErr != nil {
 				err = streamErr

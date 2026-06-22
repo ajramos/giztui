@@ -296,10 +296,7 @@ func (a *App) openPromptPicker() {
 // closePromptPicker closes the prompt picker and restores focus
 func (a *App) closePromptPicker() {
 	// Cancel any active streaming operations
-	if a.streamingCancel != nil {
-		a.streamingCancel()
-		a.streamingCancel = nil
-	}
+	a.aiPanel.cancelStreaming()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 		split.ResizeItem(a.labelsView, 0, 0)
@@ -373,16 +370,16 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 	// Show AI panel immediately with loading message and set focus
 	a.QueueUpdateDraw(func() {
 		// Show AI panel manually to avoid potential issues with toggleAISummary
-		if !a.aiSummaryVisible {
+		if !a.aiPanel.visible.Load() {
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 				split.ResizeItem(a.aiSummaryView, 0, 1)
 			}
-			a.aiSummaryVisible = true
+			a.aiPanel.visible.Store(true)
 		}
 
 		if a.aiSummaryView != nil {
 			// Mark panel as being in prompt mode
-			a.aiPanelInPromptMode = true
+			a.aiPanel.inPromptMode = true
 
 			// Update title to show prompt name
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s ", promptName))
@@ -490,10 +487,10 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 		})
 
 		ctx, cancel := context.WithCancel(a.ctx)
-		a.streamingCancel = cancel // Store cancel function for Esc handler
+		a.aiPanel.setStreamingCancel(cancel) // Store cancel function for Esc handler
 		defer func() {
 			cancel()
-			a.streamingCancel = nil // Clear when done
+			a.aiPanel.clearStreamingCancel() // Clear when done
 		}()
 
 		// Throttling for visible streaming effect
