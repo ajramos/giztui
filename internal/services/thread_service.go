@@ -229,37 +229,50 @@ func (s *ThreadServiceImpl) IsThreadExpanded(ctx context.Context, accountEmail, 
 }
 
 // ExpandAllThreads expands all threads for a user
-func (s *ThreadServiceImpl) ExpandAllThreads(ctx context.Context, accountEmail string) error {
-	if s.dbStore == nil {
-		// Thread state persistence not available without database
-		return nil
-	}
-
-	query := `UPDATE thread_state SET is_expanded = true, last_updated = ? WHERE account_email = ?`
-
-	_, err := s.dbStore.DB().Exec(query, time.Now(), accountEmail)
-	if err != nil {
-		return fmt.Errorf("failed to expand all threads: %w", err)
-	}
-
-	return nil
+func (s *ThreadServiceImpl) ExpandAllThreads(ctx context.Context, accountEmail string, threadIDs []string) error {
+	return s.setAllThreadsExpanded(accountEmail, threadIDs, true)
 }
 
 // CollapseAllThreads collapses all threads for a user
-func (s *ThreadServiceImpl) CollapseAllThreads(ctx context.Context, accountEmail string) error {
+func (s *ThreadServiceImpl) CollapseAllThreads(ctx context.Context, accountEmail string, threadIDs []string) error {
+	return s.setAllThreadsExpanded(accountEmail, threadIDs, false)
+}
+
+// setAllThreadsExpanded upserts the expanded state for each given thread. It UPSERTs (not a blanket
+// UPDATE) so threads never toggled before — which have no thread_state row yet and therefore default
+// to collapsed in IsThreadExpanded — are affected too. The old blanket `UPDATE ... WHERE account_email`
+// only touched existing rows, so expand-all silently did nothing for fresh threads.
+func (s *ThreadServiceImpl) setAllThreadsExpanded(accountEmail string, threadIDs []string, expanded bool) error {
+	if len(threadIDs) == 0 {
+		return nil
+	}
 	if s.dbStore == nil {
-		// Thread state persistence not available without database
+		// In-memory fallback when no database is configured.
+		for _, id := range threadIDs {
+			s.memoryState.Store(accountEmail+":"+id, expanded)
+		}
 		return nil
 	}
 
-	query := `UPDATE thread_state SET is_expanded = false, last_updated = ? WHERE account_email = ?`
-
-	_, err := s.dbStore.DB().Exec(query, time.Now(), accountEmail)
+	tx, err := s.dbStore.DB().Begin()
 	if err != nil {
-		return fmt.Errorf("failed to collapse all threads: %w", err)
+		return fmt.Errorf("failed to begin thread-state tx: %w", err)
 	}
+	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO thread_state (account_email, thread_id, is_expanded, last_updated) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("failed to prepare thread-state upsert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
 
-	return nil
+	now := time.Now()
+	for _, id := range threadIDs {
+		if _, err := stmt.Exec(accountEmail, id, expanded, now); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to set thread expansion state: %w", err)
+		}
+	}
+	return tx.Commit()
 }
 
 // GenerateThreadSummary generates an AI summary of a thread

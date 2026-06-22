@@ -518,8 +518,8 @@ type ThreadService interface {
 	// Thread state management
 	SetThreadExpanded(ctx context.Context, accountEmail, threadID string, expanded bool) error
 	IsThreadExpanded(ctx context.Context, accountEmail, threadID string) (bool, error)
-	ExpandAllThreads(ctx context.Context, accountEmail string) error
-	CollapseAllThreads(ctx context.Context, accountEmail string) error
+	ExpandAllThreads(ctx context.Context, accountEmail string, threadIDs []string) error
+	CollapseAllThreads(ctx context.Context, accountEmail string, threadIDs []string) error
 
 	// Thread summaries and AI integration
 	GenerateThreadSummary(ctx context.Context, threadID string, options ThreadSummaryOptions) (*ThreadSummaryResult, error)
