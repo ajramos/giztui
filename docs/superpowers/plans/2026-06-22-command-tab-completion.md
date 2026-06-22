@@ -40,32 +40,26 @@ import (
 
 func TestCommandCandidates_Names(t *testing.T) {
 	a := &App{}
-	// Unique completion: only "archive" starts with "arch" among canonical names... plus "archived".
-	got := a.commandCandidates("arch")
-	want := []string{"archived", "archive"} // sorted: "archive" < "archived"
-	// sort-independent compare: both present, archive before archived
-	if len(got) != 2 || got[0] != "archive" || got[1] != "archived" {
+
+	// "arch" matches canonical names "archive" and "archived" (sorted: "archive" < "archived").
+	if got := a.commandCandidates("arch"); !reflect.DeepEqual(got, []string{"archive", "archived"}) {
 		t.Fatalf("arch -> %v, want [archive archived]", got)
 	}
 
-	// Alias maps to canonical name: "a" is an alias of "archive".
-	gotA := a.commandCandidates("a")
+	// Alias maps to its canonical name: "a" (an alias of archive) must include "archive".
 	foundArchive := false
-	for _, c := range gotA {
+	for _, c := range a.commandCandidates("a") {
 		if c == "archive" {
 			foundArchive = true
 		}
-		if c == "a" {
-			// "a" is also a real canonical command? it is not; ensure we never emit a bare alias that isn't a name
-		}
 	}
 	if !foundArchive {
-		t.Fatalf("prefix 'a' should include canonical 'archive', got %v", gotA)
+		t.Fatalf("prefix 'a' should include canonical 'archive'")
 	}
 
-	// Single exact-ish match completes: "labe" -> only "labels".
-	if got := a.commandCandidates("labe"); !reflect.DeepEqual(got, []string{"labels"}) {
-		t.Fatalf("labe -> %v, want [labels]", got)
+	// Unique match completes fully: only "attachments" (name) / "attach" (alias) start with "atta".
+	if got := a.commandCandidates("atta"); !reflect.DeepEqual(got, []string{"attachments"}) {
+		t.Fatalf("atta -> %v, want [attachments]", got)
 	}
 
 	// No match -> nil.
@@ -73,7 +67,7 @@ func TestCommandCandidates_Names(t *testing.T) {
 		t.Fatalf("zzzzz -> %v, want nil", got)
 	}
 
-	// Empty -> nil.
+	// Blank -> nil.
 	if got := a.commandCandidates("   "); got != nil {
 		t.Fatalf("blank -> %v, want nil", got)
 	}
