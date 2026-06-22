@@ -51,6 +51,13 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.cmd.mode.Store(true)
 	a.cmd.buffer = prefix
 	a.cmd.suggestion = ""
+	a.cmd.clearCycle()
+	a.cmd.labelNames = nil
+	// Pre-fetch label names off the event loop so the Tab path can complete them without blocking.
+	go func() {
+		names := a.userLabelNames()
+		a.QueueUpdateDraw(func() { a.cmd.labelNames = names })
+	}()
 
 	// Build prompt pieces with an emoji-safe custom box
 	generalColors := a.GetComponentColors("general")
@@ -86,12 +93,15 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 		case tcell.KeyEscape:
 			a.hideCommandBar()
 			return nil
-		case tcell.KeyTab:
-			// Complete using context-aware suggestion; may return full-line replacement
-			cur := strings.TrimSpace(input.GetText())
-			s := a.generateCommandSuggestion(cur)
-			if s != "" && s != cur {
-				input.SetText(s)
+		case tcell.KeyTab, tcell.KeyBacktab:
+			forward := ev.Key() == tcell.KeyTab
+			if len(a.cmd.candidates) == 0 {
+				a.cmd.startCycle(a.commandCandidates(input.GetText()))
+			}
+			if cand, ok := a.cmd.nextCandidate(forward); ok {
+				a.cmd.cycling = true
+				input.SetText(cand)
+				a.cmd.cycling = false
 			}
 			return nil
 		case tcell.KeyUp:
@@ -110,11 +120,14 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	// Keep cmd.buffer in sync (for history/addToHistory consistency if used elsewhere)
 	input.SetChangedFunc(func(text string) {
 		a.cmd.buffer = text
-		// Update live hint based on current buffer
-		cur := strings.TrimSpace(text)
-		s := a.generateCommandSuggestion(cur)
-		if s != "" && s != cur {
-			hint.SetText("[" + s + "]")
+		// A user edit (not a programmatic cycle step) invalidates the current Tab cycle.
+		if !a.cmd.cycling {
+			a.cmd.clearCycle()
+		}
+		// Ghost hint = first candidate, when it adds something beyond what's typed.
+		cands := a.commandCandidates(text)
+		if len(cands) > 0 && cands[0] != strings.TrimSpace(text) {
+			hint.SetText("[" + cands[0] + "]")
 		} else {
 			hint.SetText("")
 		}
@@ -149,6 +162,8 @@ func (a *App) hideCommandBar() {
 	a.cmd.mode.Store(false)
 	a.cmd.buffer = ""
 	a.cmd.suggestion = ""
+	a.cmd.clearCycle()
+	a.cmd.labelNames = nil
 
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")
@@ -176,7 +191,10 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 		a.hideCommandBar()
 		return nil
 	case tcell.KeyTab:
-		a.completeCommand()
+		a.cmd.startCycle(a.commandCandidates(a.cmd.buffer))
+		if c, ok := a.cmd.nextCandidate(true); ok {
+			a.cmd.buffer = c
+		}
 		return nil
 	case tcell.KeyBackspace, tcell.KeyDelete:
 		if len(a.cmd.buffer) > 0 {
@@ -209,433 +227,6 @@ func (a *App) handleCommandInput(event *tcell.EventKey) *tcell.EventKey {
 // updateCommandBar updates the command bar display
 func (a *App) updateCommandBar() {
 	// Kept for backward compatibility if cmdBar is used elsewhere; no-op with new InputField
-}
-
-// generateCommandSuggestion generates a suggestion based on the current command buffer
-func (a *App) generateCommandSuggestion(buffer string) string {
-	if buffer == "" {
-		return ""
-	}
-
-	// First-level suggestions
-	commands := map[string][]string{
-		"/":              {"/"},
-		"l":              {"labels", "links", "list"},
-		"la":             {"labels"},
-		"lab":            {"labels"},
-		"labe":           {"labels"},
-		"label":          {"labels"},
-		"labels":         {"labels"},
-		"li":             {"links"},
-		"lin":            {"links"},
-		"link":           {"links"},
-		"links":          {"links"},
-		"at":             {"attachments"},
-		"att":            {"attachments"},
-		"atta":           {"attachments"},
-		"attac":          {"attachments"},
-		"attach":         {"attachments"},
-		"attachm":        {"attachments"},
-		"attachme":       {"attachments"},
-		"attachmen":      {"attachments"},
-		"attachment":     {"attachments"},
-		"attachments":    {"attachments"},
-		"s":              {"search", "slack"},
-		"sl":             {"slack"},
-		"sla":            {"slack"},
-		"slac":           {"slack"},
-		"slack":          {"slack"},
-		"se":             {"search"},
-		"sea":            {"search"},
-		"sear":           {"search"},
-		"searc":          {"search"},
-		"search":         {"search"},
-		"i":              {"inbox"},
-		"in":             {"inbox"},
-		"inb":            {"inbox"},
-		"inbo":           {"inbox"},
-		"inbox":          {"inbox"},
-		"c":              {"compose"},
-		"co":             {"compose"},
-		"com":            {"compose"},
-		"comp":           {"compose"},
-		"compo":          {"compose"},
-		"compos":         {"compose"},
-		"compose":        {"compose"},
-		"r":              {"reply"},
-		"re":             {"reply"},
-		"rep":            {"reply"},
-		"repl":           {"reply"},
-		"reply":          {"reply"},
-		"ra":             {"reply-all"},
-		"reply-":         {"reply-all"},
-		"reply-a":        {"reply-all"},
-		"reply-al":       {"reply-all"},
-		"reply-all":      {"reply-all"},
-		"f":              {"forward"},
-		"fo":             {"forward"},
-		"for":            {"forward"},
-		"forw":           {"forward"},
-		"forwa":          {"forward"},
-		"forwar":         {"forward"},
-		"forward":        {"forward"},
-		"dr":             {"drafts"},
-		"dra":            {"drafts"},
-		"draf":           {"drafts"},
-		"draft":          {"drafts"},
-		"drafts":         {"drafts"},
-		"h":              {"help"},
-		"he":             {"help", "headers"},
-		"hea":            {"headers"},
-		"head":           {"headers"},
-		"heade":          {"headers"},
-		"header":         {"headers"},
-		"headers":        {"headers"},
-		"hel":            {"help"},
-		"help":           {"help"},
-		"nu":             {"numbers"},
-		"num":            {"numbers"},
-		"numb":           {"numbers"},
-		"numbe":          {"numbers"},
-		"number":         {"numbers"},
-		"numbers":        {"numbers"},
-		"pre":            {"preload"},
-		"prel":           {"preload"},
-		"prelo":          {"preload"},
-		"preloa":         {"preload"},
-		"preload":        {"preload"},
-		"pl":             {"preload"},
-		"q":              {"quit"},
-		"qu":             {"quit"},
-		"qui":            {"quit"},
-		"quit":           {"quit"},
-		"g":              {"G"},
-		"G":              {"G"},
-		"1":              {"1"},
-		"$":              {"$"},
-		"5":              {"5"},
-		"10":             {"10"},
-		"st":             {"stats"},
-		"sta":            {"stats"},
-		"stat":           {"stats"},
-		"stats":          {"stats"},
-		"u":              {"usage"},
-		"us":             {"usage"},
-		"usa":            {"usage"},
-		"usag":           {"usage"},
-		"usage":          {"usage"},
-		"sel":            {"select"},
-		"sele":           {"select"},
-		"selec":          {"select"},
-		"select":         {"select"},
-		"m":              {"move", "more"},
-		"mov":            {"move"},
-		"move":           {"move"},
-		"mv":             {"move"},
-		"lbl":            {"label"},
-		"lo":             {"load"},
-		"loa":            {"load"},
-		"load":           {"load"},
-		"mor":            {"more"},
-		"more":           {"more"},
-		"n":              {"next", "numbers"},
-		"ne":             {"next"},
-		"nex":            {"next"},
-		"next":           {"next"},
-		"o":              {"obsidian"},
-		"ob":             {"obsidian"},
-		"obs":            {"obsidian"},
-		"obsi":           {"obsidian"},
-		"obsid":          {"obsidian"},
-		"obsidi":         {"obsidian"},
-		"obsidian":       {"obsidian"},
-		"ac":             {"accounts"},
-		"acc":            {"accounts"},
-		"acco":           {"accounts"},
-		"accou":          {"accounts"},
-		"accoun":         {"accounts"},
-		"account":        {"accounts"},
-		"accounts":       {"accounts"},
-		"p":              {"prompt"},
-		"pr":             {"prompt"},
-		"pro":            {"prompt"},
-		"prom":           {"prompt"},
-		"promp":          {"prompt"},
-		"prompt":         {"prompt"},
-		"pn":             {"prompt-new"},
-		"prompt-":        {"prompt-new"},
-		"prompt-n":       {"prompt-new"},
-		"prompt-ne":      {"prompt-new"},
-		"prompt-new":     {"prompt-new"},
-		"prf":            {"prompt-refine"},
-		"prompt-r":       {"prompt-refine"},
-		"prompt-re":      {"prompt-refine"},
-		"prompt-ref":     {"prompt-refine"},
-		"prompt-refi":    {"prompt-refine"},
-		"prompt-refin":   {"prompt-refine"},
-		"prompt-refine":  {"prompt-refine"},
-		"ps":             {"prompt-save"},
-		"prompt-s":       {"prompt-save"},
-		"prompt-sa":      {"prompt-save"},
-		"prompt-sav":     {"prompt-save"},
-		"prompt-save":    {"prompt-save"},
-		"ap":             {"action-plan"},
-		"action-":        {"action-plan"},
-		"action-p":       {"action-plan"},
-		"action-pl":      {"action-plan"},
-		"action-pla":     {"action-plan"},
-		"action-plan":    {"action-plan"},
-		"plan":           {"action-plan"},
-		"md":             {"markdown"},
-		"mar":            {"markdown"},
-		"mark":           {"markdown"},
-		"markd":          {"markdown"},
-		"markdo":         {"markdown"},
-		"markdow":        {"markdown"},
-		"markdown":       {"markdown"},
-		"touch-":         {"touch-up"},
-		"touch-u":        {"touch-up"},
-		"touch-up":       {"touch-up"},
-		"touchup":        {"touch-up"},
-		"a":              {"archive", "accounts"},
-		"ar":             {"archive"},
-		"arc":            {"archive"},
-		"arch":           {"archive"},
-		"archi":          {"archive"},
-		"archiv":         {"archive"},
-		"archive":        {"archive"},
-		"archived":       {"archived"},
-		"arr":            {"autorefresh"},
-		"au":             {"autorefresh"},
-		"aut":            {"autorefresh"},
-		"auto":           {"autorefresh"},
-		"autoref":        {"autorefresh"},
-		"autorefresh":    {"autorefresh"},
-		"cfg":            {"config"},
-		"config":         {"config"},
-		"b":              {"archived"},
-		"unr":            {"unread"},
-		"unre":           {"unread"},
-		"unrea":          {"unread"},
-		"unread":         {"unread"},
-		"un":             {"undo", "unread"},
-		"und":            {"undo"},
-		"undo":           {"undo"},
-		"U":              {"undo"},
-		"d":              {"trash"},
-		"tr":             {"trash"},
-		"tra":            {"trash"},
-		"tras":           {"trash"},
-		"trash":          {"trash"},
-		"t":              {"read"},
-		"rea":            {"read"},
-		"read":           {"read"},
-		"toggle":         {"read"},
-		"toggle-":        {"read", "headers"},
-		"toggle-h":       {"headers"},
-		"toggle-he":      {"headers"},
-		"toggle-hea":     {"headers"},
-		"toggle-head":    {"headers"},
-		"toggle-heade":   {"headers"},
-		"toggle-header":  {"headers"},
-		"toggle-headers": {"headers"},
-		"toggle-r":       {"read"},
-		"toggle-re":      {"read"},
-		"toggle-rea":     {"read"},
-		"toggle-read":    {"read"},
-		"sa":             {"save-query"},
-		"sav":            {"save-query"},
-		"save":           {"save-query"},
-		"save-":          {"save-query"},
-		"save-q":         {"save-query"},
-		"save-qu":        {"save-query"},
-		"save-que":       {"save-query"},
-		"save-quer":      {"save-query"},
-		"save-query":     {"save-query"},
-		"sq":             {"save-query"},
-		"bo":             {"bookmarks"},
-		"boo":            {"bookmarks"},
-		"book":           {"bookmarks"},
-		"bookm":          {"bookmarks"},
-		"bookma":         {"bookmarks"},
-		"bookmar":        {"bookmarks"},
-		"bookmark":       {"bookmark", "bookmarks"},
-		"bookmarks":      {"bookmarks"},
-		"bm":             {"bookmarks"},
-		"que":            {"queries", "query"},
-		"quer":           {"queries", "query"},
-		"queri":          {"queries"},
-		"querie":         {"queries"},
-		"queries":        {"queries"},
-		"query":          {"query"},
-		"qb":             {"bookmarks"},
-	}
-
-	if suggestions, exists := commands[buffer]; exists && len(suggestions) > 0 {
-		return suggestions[0]
-	}
-	for cmd, suggestions := range commands {
-		if strings.HasPrefix(cmd, buffer) && cmd != buffer {
-			return suggestions[0]
-		}
-	}
-
-	// Contextual arguments for 'search'
-	if strings.HasPrefix(buffer, "search ") || strings.HasPrefix(buffer, "s ") {
-		arg := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(buffer, "search"), "s"))
-		arg = strings.TrimSpace(arg)
-		// If empty or partial, suggest full tokens
-		// Support: from:current | to:current | subject:current | domain:current
-		opts := []string{"search from:current", "search to:current", "search subject:current", "search domain:current"}
-		if arg == "" {
-			return opts[0]
-		}
-		// Suggest the first option that starts with current arg
-		for _, o := range opts {
-			if strings.HasPrefix(o, buffer) {
-				return o
-			}
-		}
-		// If user typed token start after space (e.g., "search f"), expand to from:current
-		tail := strings.TrimSpace(strings.TrimPrefix(buffer, "search"))
-		tail = strings.TrimSpace(tail)
-		lower := strings.ToLower(tail)
-		switch {
-		case strings.HasPrefix("from:current", lower):
-			return "search from:current"
-		case strings.HasPrefix("to:current", lower):
-			return "search to:current"
-		case strings.HasPrefix("subject:current", lower):
-			return "search subject:current"
-		case strings.HasPrefix("domain:current", lower):
-			return "search domain:current"
-		}
-	}
-
-	// Contextual arguments for 'bookmark' commands - complete query names
-	if strings.HasPrefix(buffer, "bookmark ") || strings.HasPrefix(buffer, "query ") {
-		// Get the partial query name
-		prefix := "bookmark "
-		if strings.HasPrefix(buffer, "query ") {
-			prefix = "query "
-		}
-
-		partialName := strings.TrimSpace(strings.TrimPrefix(buffer, prefix))
-
-		// Get query service and list saved queries
-		queryService := a.GetQueryService()
-		if queryService != nil {
-			// Set account email if available
-			if queryServiceImpl, ok := queryService.(*services.QueryServiceImpl); ok {
-				if email := a.getActiveAccountEmail(); email != "" {
-					queryServiceImpl.SetAccountEmail(email)
-				}
-			}
-
-			// Get saved queries
-			queries, err := queryService.ListQueries(a.ctx, "")
-			if err == nil && len(queries) > 0 {
-				// Find first query name that starts with the partial name (case-insensitive)
-				partialLower := strings.ToLower(partialName)
-				for _, query := range queries {
-					queryNameLower := strings.ToLower(query.Name)
-					if strings.HasPrefix(queryNameLower, partialLower) {
-						return prefix + query.Name
-					}
-				}
-			}
-		}
-	}
-
-	// Contextual help for G command
-	if strings.HasPrefix(buffer, "G ") {
-		return "G <message_number>"
-	}
-
-	// Contextual suggestions for 'prompt' commands
-	if strings.HasPrefix(buffer, "prompt ") {
-		tail := strings.TrimSpace(strings.TrimPrefix(buffer, "prompt"))
-		lower := strings.ToLower(tail)
-		switch {
-		case strings.HasPrefix("stats", lower):
-			return "prompt stats"
-		case strings.HasPrefix("statistics", lower):
-			return "prompt statistics"
-		case strings.HasPrefix("list", lower):
-			return "prompt list"
-		case strings.HasPrefix("create", lower):
-			return "prompt create"
-		case strings.HasPrefix("update", lower):
-			return "prompt update"
-		case strings.HasPrefix("delete", lower):
-			return "prompt delete"
-		case strings.HasPrefix("export", lower):
-			return "prompt export"
-		case lower == "s":
-			return "prompt stats"
-		case lower == "l":
-			return "prompt list"
-		case lower == "c":
-			return "prompt create"
-		case lower == "u":
-			return "prompt update"
-		case lower == "d":
-			return "prompt delete"
-		case lower == "e":
-			return "prompt export"
-		}
-	}
-
-	// Contextual suggestions for 'accounts' commands
-	if strings.HasPrefix(buffer, "accounts ") || strings.HasPrefix(buffer, "acc ") {
-		prefix := "accounts "
-		if strings.HasPrefix(buffer, "acc ") {
-			prefix = "acc "
-		}
-
-		tail := strings.TrimSpace(strings.TrimPrefix(buffer, strings.TrimSpace(prefix)))
-		lower := strings.ToLower(tail)
-		switch {
-		case strings.HasPrefix("switch", lower):
-			return prefix + "switch"
-		case lower == "s":
-			return prefix + "switch"
-		case lower == "sw":
-			return prefix + "switch"
-		}
-	}
-
-	// Contextual suggestions for 'obsidian' commands
-	if strings.HasPrefix(buffer, "obsidian ") || strings.HasPrefix(buffer, "obs ") {
-		prefix := "obsidian "
-		if strings.HasPrefix(buffer, "obs ") {
-			prefix = "obs "
-		}
-
-		tail := strings.TrimSpace(strings.TrimPrefix(buffer, strings.TrimSpace(prefix)))
-		lower := strings.ToLower(tail)
-
-		switch {
-		case strings.HasPrefix("repack", lower):
-			return prefix + "repack"
-		case strings.HasPrefix("repopack", lower):
-			return prefix + "repack" // Normalize to repack
-		case lower == "r":
-			return prefix + "repack"
-		case tail == "":
-			return prefix + "repack" // Default suggestion for obsidian subcommands
-		}
-	}
-
-	return ""
-}
-
-// completeCommand completes the current command with the suggestion
-func (a *App) completeCommand() {
-	if a.cmd.suggestion != "" && a.cmd.suggestion != a.cmd.buffer {
-		a.cmd.buffer = a.cmd.suggestion
-		a.updateCommandBar()
-	}
 }
 
 // parseCommandArgs parses command arguments handling quoted strings properly
