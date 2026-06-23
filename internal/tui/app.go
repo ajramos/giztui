@@ -2155,7 +2155,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-8s  👁️   View selected message\n", "Enter")
 	fmt.Fprintf(&help, "    %-8s  🚪  Quit application\n", a.Keys.Quit)
 	fmt.Fprintf(&help, "    %-8s  💻  Command mode (type commands like :search, :help)\n", a.Keys.CommandMode)
-	fmt.Fprintf(&help, "    %-8s  ⭾   Cycle matching commands in the : bar (Shift+Tab back); after a space, completes label names for :label/:labels/:move\n\n", "Tab")
+	fmt.Fprintf(&help, "    %-8s  ⭾   Cycle matching commands in the : bar (Shift+Tab back); after a space, completes arguments (labels, :search operators, Slack channels, prompts, themes, saved queries, accounts)\n\n", "Tab")
 
 	// Essential Operations
 	help.WriteString("📧 MESSAGE BASICS\n\n")

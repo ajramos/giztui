@@ -26,8 +26,8 @@ var commandRegistry = []commandSpec{
 	{name: "links", aliases: []string{"link"}},
 	{name: "attachments", aliases: []string{"attach"}},
 	{name: "gmail", aliases: []string{"web", "open-web", "o"}},
-	{name: "search"},
-	{name: "slack", aliases: []string{"sl"}},
+	{name: "search", completeArg: completeSearchArg},
+	{name: "slack", aliases: []string{"sl"}, completeArg: completeSlackArg},
 	{name: "s"},
 	{name: "summary"},
 	{name: "rsvp"},
@@ -65,18 +65,18 @@ var commandRegistry = []commandSpec{
 	{name: "move", aliases: []string{"mv"}, completeArg: completeLabelArg},
 	{name: "label", aliases: []string{"lbl"}, completeArg: completeLabelArg},
 	{name: "obsidian", aliases: []string{"obs"}},
-	{name: "accounts", aliases: []string{"acc"}},
-	{name: "prompt", aliases: []string{"pr", "p"}},
+	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountArg},
+	{name: "prompt", aliases: []string{"pr", "p"}, completeArg: completePromptArg},
 	{name: "prompt-new", aliases: []string{"pn"}},
 	{name: "prompt-refine", aliases: []string{"prf"}},
 	{name: "prompt-save", aliases: []string{"ps"}},
 	{name: "action-plan", aliases: []string{"plan", "ap"}},
 	{name: "markdown", aliases: []string{"md"}},
 	{name: "touch-up", aliases: []string{"touchup"}},
-	{name: "theme", aliases: []string{"th"}},
+	{name: "theme", aliases: []string{"th"}, completeArg: completeThemeArg},
 	{name: "save-query", aliases: []string{"save", "sq"}},
 	{name: "bookmarks", aliases: []string{"queries", "bm", "qb"}},
-	{name: "bookmark", aliases: []string{"query"}},
+	{name: "bookmark", aliases: []string{"query"}, completeArg: completeQueryArg},
 }
 
 // lookupCommand resolves a command token (name or alias, case-insensitive) to its spec, or nil.
@@ -163,14 +163,14 @@ func (a *App) commandCandidates(text string) []string {
 	return out
 }
 
-// completeLabelArg completes a label-name argument from the pre-fetched label list (a.cmd.labelNames,
-// populated off the event loop when the command bar opens). Case-insensitive prefix, sorted.
-func completeLabelArg(a *App, prefix string) []string {
+// filterByPrefix returns the items that start with prefix (case-insensitive), sorted
+// case-insensitively. nil when nothing matches. Shared by all argument completers.
+func filterByPrefix(items []string, prefix string) []string {
 	lower := strings.ToLower(prefix)
 	var out []string
-	for _, name := range a.cmd.labelNames {
-		if strings.HasPrefix(strings.ToLower(name), lower) {
-			out = append(out, name)
+	for _, s := range items {
+		if s != "" && strings.HasPrefix(strings.ToLower(s), lower) {
+			out = append(out, s)
 		}
 	}
 	if len(out) == 0 {
@@ -179,5 +179,109 @@ func completeLabelArg(a *App, prefix string) []string {
 	sort.Slice(out, func(i, j int) bool {
 		return strings.ToLower(out[i]) < strings.ToLower(out[j])
 	})
+	return out
+}
+
+// gmailSearchOperators are the Gmail search operators offered after :search (see GMAIL_SEARCH_REFERENCE.md).
+var gmailSearchOperators = []string{
+	"from:", "to:", "cc:", "bcc:", "subject:", "has:attachment",
+	"is:unread", "is:read", "is:starred", "is:important",
+	"label:", "in:inbox", "in:sent", "in:spam", "in:trash",
+	"after:", "before:", "newer_than:", "older_than:", "filename:",
+	"larger:", "smaller:",
+}
+
+// completeLabelArg completes a label-name argument from the pre-fetched label list (a.cmd.labelNames,
+// populated off the event loop when the command bar opens). The other dynamic completers follow the
+// same pattern; the static ones (search/slack/accounts) read constants/in-memory config directly.
+func completeLabelArg(a *App, prefix string) []string {
+	return filterByPrefix(a.cmd.labelNames, prefix)
+}
+func completePromptArg(a *App, prefix string) []string {
+	return filterByPrefix(a.cmd.promptNames, prefix)
+}
+func completeThemeArg(a *App, prefix string) []string {
+	return filterByPrefix(a.cmd.themeNames, prefix)
+}
+func completeQueryArg(a *App, prefix string) []string {
+	return filterByPrefix(a.cmd.queryNames, prefix)
+}
+
+// completeSearchArg completes Gmail search operators (static list; no I/O).
+func completeSearchArg(a *App, prefix string) []string {
+	return filterByPrefix(gmailSearchOperators, prefix)
+}
+
+// completeSlackArg completes configured Slack channel names (in-memory config; no I/O).
+func completeSlackArg(a *App, prefix string) []string {
+	if a.Config == nil {
+		return nil
+	}
+	names := make([]string, 0, len(a.Config.Slack.Channels))
+	for _, ch := range a.Config.Slack.Channels {
+		names = append(names, ch.Name)
+	}
+	return filterByPrefix(names, prefix)
+}
+
+// completeAccountArg completes configured account IDs (for :accounts switch <id>; in-memory config).
+func completeAccountArg(a *App, prefix string) []string {
+	if a.Config == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(a.Config.Accounts))
+	for _, ac := range a.Config.Accounts {
+		ids = append(ids, ac.ID)
+	}
+	return filterByPrefix(ids, prefix)
+}
+
+// completionPromptNames / completionThemeNames / completionQueryNames fetch the dynamic argument
+// lists off the event loop (called from the command-bar open goroutine; they touch the DB / disk).
+func (a *App) completionPromptNames() []string {
+	_, _, _, _, _, _, ps, _, _, _, _, _ := a.GetServices()
+	if ps == nil {
+		return nil
+	}
+	list, err := ps.ListPrompts(a.ctx, "")
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(list))
+	for _, p := range list {
+		if p != nil && p.Name != "" {
+			out = append(out, p.Name)
+		}
+	}
+	return out
+}
+
+func (a *App) completionThemeNames() []string {
+	ts := a.GetThemeService()
+	if ts == nil {
+		return nil
+	}
+	names, err := ts.ListAvailableThemes(a.ctx)
+	if err != nil {
+		return nil
+	}
+	return names
+}
+
+func (a *App) completionQueryNames() []string {
+	qs := a.GetQueryService()
+	if qs == nil {
+		return nil
+	}
+	list, err := qs.ListQueries(a.ctx, "")
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(list))
+	for _, q := range list {
+		if q != nil && q.Name != "" {
+			out = append(out, q.Name)
+		}
+	}
 	return out
 }

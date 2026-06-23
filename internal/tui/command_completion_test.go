@@ -3,6 +3,8 @@ package tui
 import (
 	"reflect"
 	"testing"
+
+	"github.com/ajramos/giztui/internal/config"
 )
 
 func TestCommandCandidates_Names(t *testing.T) {
@@ -90,5 +92,49 @@ func TestCommandCandidates_LabelArg(t *testing.T) {
 	// Command without an arg completer yields nil in arg position.
 	if got := a.commandCandidates("archive x"); got != nil {
 		t.Fatalf("archive x -> %v, want nil", got)
+	}
+}
+
+func TestArgCompleters_Dynamic(t *testing.T) {
+	a := &App{}
+	a.cmd.promptNames = []string{"Summarize", "Translate", "Sentiment"}
+	if got := completePromptArg(a, "s"); len(got) != 2 || got[0] != "Sentiment" || got[1] != "Summarize" {
+		t.Fatalf("prompt 's' -> %v, want [Sentiment Summarize]", got)
+	}
+	a.cmd.themeNames = []string{"gmail-dark", "gruvbox", "dracula"}
+	if got := completeThemeArg(a, "gr"); len(got) != 1 || got[0] != "gruvbox" {
+		t.Fatalf("theme 'gr' -> %v, want [gruvbox]", got)
+	}
+	a.cmd.queryNames = []string{"Unread VIP", "Receipts"}
+	if got := completeQueryArg(a, "rec"); len(got) != 1 || got[0] != "Receipts" {
+		t.Fatalf("query 'rec' -> %v, want [Receipts]", got)
+	}
+}
+
+func TestArgCompleters_Static(t *testing.T) {
+	a := &App{}
+	if got := completeSearchArg(a, "ha"); len(got) != 1 || got[0] != "has:attachment" {
+		t.Fatalf("search 'ha' -> %v, want [has:attachment]", got)
+	}
+	if got := completeSearchArg(a, "is:"); len(got) < 3 {
+		t.Fatalf("search 'is:' -> %v, want several", got)
+	}
+
+	a.Config = &config.Config{}
+	a.Config.Slack.Channels = []config.SlackChannel{{Name: "team-updates"}, {Name: "random"}}
+	if got := completeSlackArg(a, "te"); len(got) != 1 || got[0] != "team-updates" {
+		t.Fatalf("slack 'te' -> %v, want [team-updates]", got)
+	}
+	a.Config.Accounts = []config.AccountConfig{{ID: "personal"}, {ID: "work"}}
+	if got := completeAccountArg(a, "w"); len(got) != 1 || got[0] != "work" {
+		t.Fatalf("account 'w' -> %v, want [work]", got)
+	}
+}
+
+func TestArgCompleters_Wired(t *testing.T) {
+	for _, name := range []string{"search", "slack", "prompt", "theme", "bookmark", "accounts", "labels", "label", "move"} {
+		if s := lookupCommand(name); s == nil || s.completeArg == nil {
+			t.Fatalf("command %q should have an arg completer", name)
+		}
 	}
 }

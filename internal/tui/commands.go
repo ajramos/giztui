@@ -53,10 +53,21 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.cmd.suggestion = ""
 	a.cmd.clearCycle()
 	a.cmd.labelNames = nil
-	// Pre-fetch label names off the event loop so the Tab path can complete them without blocking.
+	a.cmd.promptNames = nil
+	a.cmd.themeNames = nil
+	a.cmd.queryNames = nil
+	// Pre-fetch the I/O-backed argument lists off the event loop so the Tab path never blocks.
 	go func() {
-		names := a.userLabelNames()
-		a.QueueUpdateDraw(func() { a.cmd.labelNames = names })
+		labels := a.userLabelNames()
+		prompts := a.completionPromptNames()
+		themes := a.completionThemeNames()
+		queries := a.completionQueryNames()
+		a.QueueUpdateDraw(func() {
+			a.cmd.labelNames = labels
+			a.cmd.promptNames = prompts
+			a.cmd.themeNames = themes
+			a.cmd.queryNames = queries
+		})
 	}()
 
 	// Build prompt pieces with an emoji-safe custom box
@@ -164,6 +175,9 @@ func (a *App) hideCommandBar() {
 	a.cmd.suggestion = ""
 	a.cmd.clearCycle()
 	a.cmd.labelNames = nil
+	a.cmd.promptNames = nil
+	a.cmd.themeNames = nil
+	a.cmd.queryNames = nil
 
 	if cmdBar, ok := a.views["cmdBar"].(*tview.TextView); ok {
 		cmdBar.SetText("")

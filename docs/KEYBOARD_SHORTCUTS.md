@@ -339,7 +339,7 @@ When you customize shortcuts, the priority order is:
 | Key | Action | Description |
 |-----|--------|-------------|
 | `:` | Command mode | Enter command mode (k9s-style) |
-| `Tab` / `Shift+Tab` | Autocomplete commands | In the `:` bar, cycle through commands that match what you've typed (Shift+Tab reverses). After `:label`/`:labels`/`:move ` + space, Tab completes your label names. |
+| `Tab` / `Shift+Tab` | Autocomplete commands | In the `:` bar, cycle through commands that match what you've typed (Shift+Tab reverses). After a command + space, Tab completes arguments: labels (`:label`/`:labels`/`:move`), `:search` operators, Slack channels, prompts, themes, saved queries, accounts. |
 | `↑↓` | History | Navigate command history |
 | `Enter` | Execute | Execute command |
 | `Esc` | Cancel | Cancel command mode |
