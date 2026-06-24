@@ -5,6 +5,16 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-06-24
+
+### 🚀 Features
+
+- **Tab autocompletion in the `:` command bar.** Pressing Tab now cycles through the commands that match what you've typed (Shift+Tab goes back, Enter runs whichever is shown); a single match completes fully. After a command + space, Tab completes its arguments where it applies, honoring each command's real grammar:
+  - subcommands — `:labels add/list/remove`, `:prompt list/create/update/export/delete/stats`, `:theme list/preview/set`, `:accounts switch`;
+  - then names where a name is expected — label names (`:labels add <name>`), theme names (`:theme set <name>`), account ids (`:accounts switch <id>`), saved-query names (`:bookmark <name>`);
+  - Gmail search operators after `:search` (`from:`, `has:attachment`, `is:unread`…).
+  Completion is driven by a single command registry (replacing the old hand-maintained prefix map), so every command autocompletes and stays in sync. A greyed inline hint shows the first candidate as you type.
+
 ## [1.18.0] - 2026-06-22
 
 ### 🐛 Fixes
