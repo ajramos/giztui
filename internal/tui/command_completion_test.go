@@ -56,85 +56,94 @@ func TestCommandRegistry_NoDuplicateNames(t *testing.T) {
 	}
 }
 
-func TestCompleteLabelArg(t *testing.T) {
+func TestCompleteLabelsArg(t *testing.T) {
 	a := &App{}
-	a.cmd.labelNames = []string{"Work", "Personal", "Worklog", "travel"}
+	a.cmd.labelNames = []string{"Work", "Personal", "Worklog"}
 
-	// Case-insensitive prefix, sorted.
-	got := completeLabelArg(a, "wor")
-	want := []string{"Work", "Worklog"}
-	if len(got) != 2 || got[0] != "Work" || got[1] != "Worklog" {
-		t.Fatalf("wor -> %v, want %v", got, want)
+	// First token = subcommand.
+	if got := completeLabelsArg(a, ""); len(got) != 3 || got[0] != "add" || got[1] != "list" || got[2] != "remove" {
+		t.Fatalf("'' -> %v, want [add list remove]", got)
 	}
-
-	// Empty prefix returns all (sorted, case-insensitive).
-	all := completeLabelArg(a, "")
-	if len(all) != 4 {
-		t.Fatalf("empty prefix -> %d candidates, want 4", len(all))
+	if got := completeLabelsArg(a, "re"); len(got) != 1 || got[0] != "remove" {
+		t.Fatalf("'re' -> %v, want [remove]", got)
 	}
-
-	// No match -> nil.
-	if got := completeLabelArg(a, "zzz"); got != nil {
-		t.Fatalf("zzz -> %v, want nil", got)
+	// After add/remove → a label name.
+	if got := completeLabelsArg(a, "add wor"); len(got) != 2 || got[0] != "add Work" || got[1] != "add Worklog" {
+		t.Fatalf("'add wor' -> %v, want [add Work add Worklog]", got)
+	}
+	// list takes no name.
+	if got := completeLabelsArg(a, "list x"); got != nil {
+		t.Fatalf("'list x' -> %v, want nil", got)
 	}
 }
 
-func TestCommandCandidates_LabelArg(t *testing.T) {
+func TestCommandCandidates_ArgGrammar(t *testing.T) {
 	a := &App{}
 	a.cmd.labelNames = []string{"Work", "Personal"}
-
-	// "labels add wor" -> "labels add Work".
-	got := a.commandCandidates("labels add wor")
-	if len(got) != 1 || got[0] != "labels add Work" {
-		t.Fatalf("labels add wor -> %v, want [labels add Work]", got)
-	}
-
-	// Command without an arg completer yields nil in arg position.
-	if got := a.commandCandidates("archive x"); got != nil {
-		t.Fatalf("archive x -> %v, want nil", got)
-	}
-}
-
-func TestArgCompleters_Dynamic(t *testing.T) {
-	a := &App{}
-	a.cmd.promptNames = []string{"Summarize", "Translate", "Sentiment"}
-	if got := completePromptArg(a, "s"); len(got) != 2 || got[0] != "Sentiment" || got[1] != "Summarize" {
-		t.Fatalf("prompt 's' -> %v, want [Sentiment Summarize]", got)
-	}
-	a.cmd.themeNames = []string{"gmail-dark", "gruvbox", "dracula"}
-	if got := completeThemeArg(a, "gr"); len(got) != 1 || got[0] != "gruvbox" {
-		t.Fatalf("theme 'gr' -> %v, want [gruvbox]", got)
-	}
+	a.cmd.themeNames = []string{"gmail-dark", "gruvbox"}
 	a.cmd.queryNames = []string{"Unread VIP", "Receipts"}
-	if got := completeQueryArg(a, "rec"); len(got) != 1 || got[0] != "Receipts" {
-		t.Fatalf("query 'rec' -> %v, want [Receipts]", got)
+
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"labels ", []string{"labels add", "labels list", "labels remove"}},
+		{"labels add wor", []string{"labels add Work"}},
+		{"prompt li", []string{"prompt list"}},
+		{"theme ", []string{"theme list", "theme preview", "theme set"}},
+		{"theme set gr", []string{"theme set gruvbox"}},
+		{"bookmark Unread V", []string{"bookmark Unread VIP"}},
+		{"search ha", []string{"search has:attachment"}},
+		{"search from:x ha", []string{"search from:x has:attachment"}},
+		// Commands whose argument is a number / message-id have NO completer:
+		{"move 3", nil},
+		{"label 3", nil},
+		{"slack 5", nil},
+		{"archive x", nil},
+	}
+	for _, c := range cases {
+		got := a.commandCandidates(c.in)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Fatalf("commandCandidates(%q) -> %v, want %v", c.in, got, c.want)
+		}
 	}
 }
 
-func TestArgCompleters_Static(t *testing.T) {
+func TestArgCompleters_Subcommands(t *testing.T) {
 	a := &App{}
-	if got := completeSearchArg(a, "ha"); len(got) != 1 || got[0] != "has:attachment" {
-		t.Fatalf("search 'ha' -> %v, want [has:attachment]", got)
+	// prompt is a subcommand dispatcher (no name completion).
+	if got := completePromptArg(a, ""); len(got) != 6 {
+		t.Fatalf("prompt '' -> %v, want 6 subcommands", got)
 	}
-	if got := completeSearchArg(a, "is:"); len(got) < 3 {
-		t.Fatalf("search 'is:' -> %v, want several", got)
+	if got := completePromptArg(a, "list x"); got != nil {
+		t.Fatalf("prompt 'list x' -> %v, want nil", got)
 	}
-
+	// theme set <name>
+	a.cmd.themeNames = []string{"gmail-dark", "gruvbox"}
+	if got := completeThemeArg(a, "set gm"); len(got) != 1 || got[0] != "set gmail-dark" {
+		t.Fatalf("theme 'set gm' -> %v, want [set gmail-dark]", got)
+	}
+	// accounts switch <id>
 	a.Config = &config.Config{}
-	a.Config.Slack.Channels = []config.SlackChannel{{Name: "team-updates"}, {Name: "random"}}
-	if got := completeSlackArg(a, "te"); len(got) != 1 || got[0] != "team-updates" {
-		t.Fatalf("slack 'te' -> %v, want [team-updates]", got)
-	}
 	a.Config.Accounts = []config.AccountConfig{{ID: "personal"}, {ID: "work"}}
-	if got := completeAccountArg(a, "w"); len(got) != 1 || got[0] != "work" {
-		t.Fatalf("account 'w' -> %v, want [work]", got)
+	if got := completeAccountsArg(a, ""); len(got) != 1 || got[0] != "switch" {
+		t.Fatalf("accounts '' -> %v, want [switch]", got)
+	}
+	if got := completeAccountsArg(a, "switch w"); len(got) != 1 || got[0] != "switch work" {
+		t.Fatalf("accounts 'switch w' -> %v, want [switch work]", got)
 	}
 }
 
 func TestArgCompleters_Wired(t *testing.T) {
-	for _, name := range []string{"search", "slack", "prompt", "theme", "bookmark", "accounts", "labels", "label", "move"} {
+	for _, name := range []string{"search", "labels", "prompt", "theme", "bookmark", "accounts"} {
 		if s := lookupCommand(name); s == nil || s.completeArg == nil {
 			t.Fatalf("command %q should have an arg completer", name)
+		}
+	}
+	// These take a number / message id — they must NOT have a completer.
+	for _, name := range []string{"slack", "label", "move"} {
+		if s := lookupCommand(name); s == nil || s.completeArg != nil {
+			t.Fatalf("command %q must NOT have an arg completer (takes a number)", name)
 		}
 	}
 }

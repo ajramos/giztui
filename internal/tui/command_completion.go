@@ -5,10 +5,12 @@ import (
 	"strings"
 )
 
-// argCompleter returns candidate completions for the current (last) argument token of a command.
-// prefix is the partial token the user has typed (may be ""). Implementations must NOT block the
-// event loop (no network) — read already-loaded state only.
-type argCompleter func(a *App, prefix string) []string
+// argCompleter returns full-replacement candidates for the argument text `rest` (everything the user
+// typed after "command "). Each returned string replaces `rest` entirely; the engine prepends
+// "command ". Passing the whole arg text lets a completer honor its command's grammar (subcommands,
+// names with spaces). Implementations must NOT block the event loop (no network) — read already-loaded
+// state only.
+type argCompleter func(a *App, rest string) []string
 
 // commandSpec is one entry in the command registry: a canonical command name, its aliases, and an
 // optional argument completer. The registry mirrors the executeCommand switch and is the single
@@ -22,12 +24,12 @@ type commandSpec struct {
 // commandRegistry lists every top-level `:` command. Keep in sync with the executeCommand switch in
 // commands.go. Adding a command here is all that's needed for it to autocomplete.
 var commandRegistry = []commandSpec{
-	{name: "labels", aliases: []string{"l"}, completeArg: completeLabelArg},
+	{name: "labels", aliases: []string{"l"}, completeArg: completeLabelsArg},
 	{name: "links", aliases: []string{"link"}},
 	{name: "attachments", aliases: []string{"attach"}},
 	{name: "gmail", aliases: []string{"web", "open-web", "o"}},
 	{name: "search", completeArg: completeSearchArg},
-	{name: "slack", aliases: []string{"sl"}, completeArg: completeSlackArg},
+	{name: "slack", aliases: []string{"sl"}},
 	{name: "s"},
 	{name: "summary"},
 	{name: "rsvp"},
@@ -62,10 +64,10 @@ var commandRegistry = []commandSpec{
 	{name: "undo"},
 	{name: "archived", aliases: []string{"arch-search", "b"}},
 	{name: "select", aliases: []string{"sel"}},
-	{name: "move", aliases: []string{"mv"}, completeArg: completeLabelArg},
-	{name: "label", aliases: []string{"lbl"}, completeArg: completeLabelArg},
+	{name: "move", aliases: []string{"mv"}},
+	{name: "label", aliases: []string{"lbl"}},
 	{name: "obsidian", aliases: []string{"obs"}},
-	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountArg},
+	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountsArg},
 	{name: "prompt", aliases: []string{"pr", "p"}, completeArg: completePromptArg},
 	{name: "prompt-new", aliases: []string{"pn"}},
 	{name: "prompt-refine", aliases: []string{"prf"}},
@@ -76,7 +78,7 @@ var commandRegistry = []commandSpec{
 	{name: "theme", aliases: []string{"th"}, completeArg: completeThemeArg},
 	{name: "save-query", aliases: []string{"save", "sq"}},
 	{name: "bookmarks", aliases: []string{"queries", "bm", "qb"}},
-	{name: "bookmark", aliases: []string{"query"}, completeArg: completeQueryArg},
+	{name: "bookmark", aliases: []string{"query"}, completeArg: completeBookmarkArg},
 }
 
 // lookupCommand resolves a command token (name or alias, case-insensitive) to its spec, or nil.
@@ -120,27 +122,20 @@ func (a *App) commandCandidates(text string) []string {
 		return nil
 	}
 
-	// Argument completion: "command<space>...".
+	// Argument completion: "command<space>...". The completer is handed everything after the command
+	// and returns full replacements for that argument text.
 	if i := strings.IndexByte(text, ' '); i >= 0 {
 		spec := lookupCommand(text[:i])
 		if spec == nil || spec.completeArg == nil {
 			return nil
 		}
-		rest := text[i+1:] // everything after "command "
-		head := ""         // already-typed arg tokens, including the trailing space
-		argPrefix := rest
-		if ls := strings.LastIndexByte(rest, ' '); ls >= 0 {
-			head = rest[:ls+1]
-			argPrefix = rest[ls+1:]
-		}
-		cands := spec.completeArg(a, argPrefix)
+		cands := spec.completeArg(a, text[i+1:])
 		if len(cands) == 0 {
 			return nil
 		}
-		linePrefix := text[:i] + " " + head
 		out := make([]string, 0, len(cands))
 		for _, c := range cands {
-			out = append(out, linePrefix+c)
+			out = append(out, text[:i]+" "+c)
 		}
 		return out
 	}
@@ -191,41 +186,102 @@ var gmailSearchOperators = []string{
 	"larger:", "smaller:",
 }
 
-// completeLabelArg completes a label-name argument from the pre-fetched label list (a.cmd.labelNames,
-// populated off the event loop when the command bar opens). The other dynamic completers follow the
-// same pattern; the static ones (search/slack/accounts) read constants/in-memory config directly.
-func completeLabelArg(a *App, prefix string) []string {
-	return filterByPrefix(a.cmd.labelNames, prefix)
-}
-func completePromptArg(a *App, prefix string) []string {
-	return filterByPrefix(a.cmd.promptNames, prefix)
-}
-func completeThemeArg(a *App, prefix string) []string {
-	return filterByPrefix(a.cmd.themeNames, prefix)
-}
-func completeQueryArg(a *App, prefix string) []string {
-	return filterByPrefix(a.cmd.queryNames, prefix)
+// splitLastToken splits arg text into the head (everything up to and including the last space) and
+// the final, partial token. A trailing space yields prefix=="" (completing a fresh token).
+func splitLastToken(rest string) (head, prefix string) {
+	if ls := strings.LastIndexByte(rest, ' '); ls >= 0 {
+		return rest[:ls+1], rest[ls+1:]
+	}
+	return "", rest
 }
 
-// completeSearchArg completes Gmail search operators (static list; no I/O).
-func completeSearchArg(a *App, prefix string) []string {
-	return filterByPrefix(gmailSearchOperators, prefix)
+// firstToken returns the first whitespace-separated token of rest, lowercased ("" if none).
+func firstToken(rest string) string {
+	f := strings.Fields(rest)
+	if len(f) == 0 {
+		return ""
+	}
+	return strings.ToLower(f[0])
 }
 
-// completeSlackArg completes configured Slack channel names (in-memory config; no I/O).
-func completeSlackArg(a *App, prefix string) []string {
-	if a.Config == nil {
+// withHead prepends head to each match, returning nil when there are no matches.
+func withHead(head string, matches []string) []string {
+	if len(matches) == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(a.Config.Slack.Channels))
-	for _, ch := range a.Config.Slack.Channels {
-		names = append(names, ch.Name)
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		out = append(out, head+m)
 	}
-	return filterByPrefix(names, prefix)
+	return out
 }
 
-// completeAccountArg completes configured account IDs (for :accounts switch <id>; in-memory config).
-func completeAccountArg(a *App, prefix string) []string {
+// --- argument completers (each honors its command's real grammar) ---
+
+// completeSearchArg completes the current token with a Gmail search operator, at any position.
+func completeSearchArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	return withHead(head, filterByPrefix(gmailSearchOperators, prefix))
+}
+
+// completeLabelsArg: ':labels <subcommand> [name]'. First token → add/list/remove; after add/remove
+// → a label name (from the pre-fetched a.cmd.labelNames).
+func completeLabelsArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head == "" {
+		return withHead("", filterByPrefix([]string{"add", "list", "remove"}, prefix))
+	}
+	switch firstToken(rest) {
+	case "add", "remove", "rm":
+		return withHead(head, filterByPrefix(a.cmd.labelNames, prefix))
+	}
+	return nil
+}
+
+// completePromptArg: ':prompt <subcommand>' is a subcommand dispatcher — only the subcommand keyword
+// is completable (prompt *names* are not command arguments; :prompt with no args opens the manager).
+func completePromptArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head != "" {
+		return nil
+	}
+	return withHead("", filterByPrefix([]string{"create", "delete", "export", "list", "stats", "update"}, prefix))
+}
+
+// completeThemeArg: ':theme <subcommand> [name]'. First token → list/preview/set; after set/preview
+// → a theme name (from the pre-fetched a.cmd.themeNames).
+func completeThemeArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head == "" {
+		return withHead("", filterByPrefix([]string{"list", "preview", "set"}, prefix))
+	}
+	switch firstToken(rest) {
+	case "set", "preview":
+		return withHead(head, filterByPrefix(a.cmd.themeNames, prefix))
+	}
+	return nil
+}
+
+// completeAccountsArg: ':accounts switch <id>'. First token → switch; after switch → an account id.
+func completeAccountsArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head == "" {
+		return withHead("", filterByPrefix([]string{"switch"}, prefix))
+	}
+	if firstToken(rest) == "switch" {
+		return withHead(head, filterByPrefix(a.accountIDs(), prefix))
+	}
+	return nil
+}
+
+// completeBookmarkArg: ':bookmark <saved-query name>'. The whole rest is the name (the command joins
+// args with spaces), so it is matched as a unit against the saved-query names.
+func completeBookmarkArg(a *App, rest string) []string {
+	return filterByPrefix(a.cmd.queryNames, rest)
+}
+
+// accountIDs returns the configured account IDs (in-memory config; no I/O).
+func (a *App) accountIDs() []string {
 	if a.Config == nil {
 		return nil
 	}
@@ -233,29 +289,11 @@ func completeAccountArg(a *App, prefix string) []string {
 	for _, ac := range a.Config.Accounts {
 		ids = append(ids, ac.ID)
 	}
-	return filterByPrefix(ids, prefix)
+	return ids
 }
 
-// completionPromptNames / completionThemeNames / completionQueryNames fetch the dynamic argument
-// lists off the event loop (called from the command-bar open goroutine; they touch the DB / disk).
-func (a *App) completionPromptNames() []string {
-	_, _, _, _, _, _, ps, _, _, _, _, _ := a.GetServices()
-	if ps == nil {
-		return nil
-	}
-	list, err := ps.ListPrompts(a.ctx, "")
-	if err != nil {
-		return nil
-	}
-	out := make([]string, 0, len(list))
-	for _, p := range list {
-		if p != nil && p.Name != "" {
-			out = append(out, p.Name)
-		}
-	}
-	return out
-}
-
+// completionThemeNames / completionQueryNames fetch the dynamic argument lists off the event loop
+// (called from the command-bar open goroutine; they touch the DB / disk).
 func (a *App) completionThemeNames() []string {
 	ts := a.GetThemeService()
 	if ts == nil {

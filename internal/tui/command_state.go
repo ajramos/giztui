@@ -18,13 +18,11 @@ type commandState struct {
 	candidates []string
 	cycleIndex int
 	cycling    bool // true while we programmatically set the input during a cycle (see SetChangedFunc)
-	// labelNames caches the user's label names for argument completion, pre-fetched off the event
-	// loop when the bar opens (the labels API is a blocking network call). promptNames/themeNames/
-	// queryNames are the same pattern for the other I/O-backed argument completers.
-	labelNames  []string
-	promptNames []string
-	themeNames  []string
-	queryNames  []string
+	// labelNames/themeNames/queryNames cache the I/O-backed argument lists for completion, pre-fetched
+	// off the event loop when the bar opens (ListLabels/ListAvailableThemes/ListQueries block).
+	labelNames []string
+	themeNames []string
+	queryNames []string
 }
 
 // addToHistory records a command, skipping empties and a consecutive duplicate, capping the history

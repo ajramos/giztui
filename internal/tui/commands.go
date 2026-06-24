@@ -53,18 +53,15 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.cmd.suggestion = ""
 	a.cmd.clearCycle()
 	a.cmd.labelNames = nil
-	a.cmd.promptNames = nil
 	a.cmd.themeNames = nil
 	a.cmd.queryNames = nil
 	// Pre-fetch the I/O-backed argument lists off the event loop so the Tab path never blocks.
 	go func() {
 		labels := a.userLabelNames()
-		prompts := a.completionPromptNames()
 		themes := a.completionThemeNames()
 		queries := a.completionQueryNames()
 		a.QueueUpdateDraw(func() {
 			a.cmd.labelNames = labels
-			a.cmd.promptNames = prompts
 			a.cmd.themeNames = themes
 			a.cmd.queryNames = queries
 		})
@@ -175,7 +172,6 @@ func (a *App) hideCommandBar() {
 	a.cmd.suggestion = ""
 	a.cmd.clearCycle()
 	a.cmd.labelNames = nil
-	a.cmd.promptNames = nil
 	a.cmd.themeNames = nil
 	a.cmd.queryNames = nil
 
