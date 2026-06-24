@@ -339,7 +339,7 @@ When you customize shortcuts, the priority order is:
 | Key | Action | Description |
 |-----|--------|-------------|
 | `:` | Command mode | Enter command mode (k9s-style) |
-| `Tab` | Auto-complete | Auto-complete commands |
+| `Tab` / `Shift+Tab` | Autocomplete commands | In the `:` bar, cycle through commands that match what you've typed (Shift+Tab reverses). After a command + space, Tab completes its arguments where it applies: subcommands (`:labels add/list/remove`, `:prompt`, `:theme set`, `:accounts switch`), `:search` operators, and label / theme / saved-query names. |
 | `↑↓` | History | Navigate command history |
 | `Enter` | Execute | Execute command |
 | `Esc` | Cancel | Cancel command mode |

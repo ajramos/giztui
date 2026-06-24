@@ -14,6 +14,15 @@ type commandState struct {
 	focusOverride string      // overrides focus restoration after a special command
 	history       []string    // executed-command history (capped)
 	historyIndex  int         // cursor into history; == len(history) means "new line"
+	// Tab-completion cycle (event-loop only): candidate list and current index (-1 = before first).
+	candidates []string
+	cycleIndex int
+	cycling    bool // true while we programmatically set the input during a cycle (see SetChangedFunc)
+	// labelNames/themeNames/queryNames cache the I/O-backed argument lists for completion, pre-fetched
+	// off the event loop when the bar opens (ListLabels/ListAvailableThemes/ListQueries block).
+	labelNames []string
+	themeNames []string
+	queryNames []string
 }
 
 // addToHistory records a command, skipping empties and a consecutive duplicate, capping the history
@@ -59,4 +68,31 @@ func (c *commandState) historyDown() (string, bool) {
 	}
 	c.historyIndex = len(c.history)
 	return "", true
+}
+
+// startCycle begins a fresh Tab cycle over cands (index parked before the first element).
+func (c *commandState) startCycle(cands []string) {
+	c.candidates = cands
+	c.cycleIndex = -1
+}
+
+// nextCandidate advances the cycle (forward or backward, wrapping) and returns the candidate.
+// ok is false when there are no candidates.
+func (c *commandState) nextCandidate(forward bool) (string, bool) {
+	n := len(c.candidates)
+	if n == 0 {
+		return "", false
+	}
+	if forward {
+		c.cycleIndex = (c.cycleIndex + 1) % n
+	} else {
+		c.cycleIndex = (c.cycleIndex - 1 + n) % n
+	}
+	return c.candidates[c.cycleIndex], true
+}
+
+// clearCycle drops the candidate cache (called when the user edits the buffer).
+func (c *commandState) clearCycle() {
+	c.candidates = nil
+	c.cycleIndex = -1
 }
