@@ -16,6 +16,7 @@ func TestGenerateHelpText_CoversRecentFeatures(t *testing.T) {
 	app := &App{
 		Application: tview.NewApplication(),
 		Config:      &config.Config{},
+		bulk:        newBulkState(),
 		Keys: config.KeyBindings{
 			Help:       "?",
 			Markdown:   "M",

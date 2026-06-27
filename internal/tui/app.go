@@ -131,9 +131,8 @@ type App struct {
 	compositionPanel *CompositionPanel
 	// RSVP side panel state managed by ActivePicker enum
 
-	// Bulk selection
-	selected map[string]bool // messageID -> selected
-	bulkMode bool
+	// Bulk selection (mode + selected set), mutex-guarded — see bulk_state.go
+	bulk *bulkState
 
 	// VIM-style navigation and range operations (state machine in vim_navigator.go)
 	vim vimState
@@ -320,8 +319,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		debug:              true,
 		logger:             logger, // Use passed logger instead of creating new one
 		logFile:            nil,
-		selected:           make(map[string]bool),
-		bulkMode:           false,
+		bulk:               newBulkState(),
 		messagesLoading:    false,
 		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}
@@ -2200,8 +2198,8 @@ func (a *App) generateHelpText() string {
 
 	// Bulk Operations
 	bulkStatus := "OFF"
-	if a.bulkMode {
-		bulkStatus = fmt.Sprintf("ON (%d selected)", len(a.selected))
+	if a.bulk.isMode() {
+		bulkStatus = fmt.Sprintf("ON (%d selected)", a.bulk.count())
 	}
 	fmt.Fprintf(&help, "📦 BULK OPERATIONS (Currently: %s)\n\n", bulkStatus)
 	fmt.Fprintf(&help, "    %-8s  ✅  Enter bulk mode\n", a.Keys.BulkMode)

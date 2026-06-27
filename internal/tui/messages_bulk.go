@@ -9,14 +9,12 @@ import (
 
 // archiveSelectedBulk archives all selected messages
 func (a *App) archiveSelectedBulk() {
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		return
 	}
 	// Snapshot selection
-	ids := make([]string, 0, len(a.selected))
-	for id := range a.selected {
-		ids = append(ids, id)
-	}
+	ids := make([]string, 0, a.bulk.count())
+	ids = append(ids, a.bulk.ids()...)
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
@@ -32,8 +30,8 @@ func (a *App) archiveSelectedBulk() {
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -60,13 +58,11 @@ func (a *App) archiveSelectedBulk() {
 
 // trashSelectedBulk moves all selected messages to trash
 func (a *App) trashSelectedBulk() {
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		return
 	}
-	ids := make([]string, 0, len(a.selected))
-	for id := range a.selected {
-		ids = append(ids, id)
-	}
+	ids := make([]string, 0, a.bulk.count())
+	ids = append(ids, a.bulk.ids()...)
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
@@ -82,8 +78,8 @@ func (a *App) trashSelectedBulk() {
 		a.QueueUpdateDraw(func() {
 			a.removeIDsFromCurrentList(ids)
 			// Exit bulk mode and restore normal rendering/styles
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -110,15 +106,13 @@ func (a *App) trashSelectedBulk() {
 
 // toggleMarkReadUnreadBulk toggles read/unread status for all selected messages
 func (a *App) toggleMarkReadUnreadBulk() {
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		return
 	}
 
 	// Snapshot selection
-	ids := make([]string, 0, len(a.selected))
-	for id := range a.selected {
-		ids = append(ids, id)
-	}
+	ids := make([]string, 0, a.bulk.count())
+	ids = append(ids, a.bulk.ids()...)
 
 	// Determine the action by checking the majority state of selected messages
 	// If majority are unread, mark all as read. If majority are read, mark all as unread.
@@ -171,8 +165,8 @@ func (a *App) toggleMarkReadUnreadBulk() {
 			// The bulk service methods record proper undo actions, and undo will handle cache updates
 
 			// Exit bulk mode and restore normal rendering/styles
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())

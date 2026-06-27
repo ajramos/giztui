@@ -693,14 +693,14 @@ func (a *App) populateThreadedTableRow(table *tview.Table, row int, data render.
 
 // applyBulkModeStyle applies bulk selection styling to the table if in bulk mode
 func (a *App) applyBulkModeStyle(table *tview.Table) {
-	if !a.bulkMode {
+	if !a.bulk.isMode() {
 		return
 	}
 
 	// Apply bulk selection styling to selected rows
 	for row := 1; row < table.GetRowCount(); row++ { // Skip header row
 		messageID := a.getRowMessageID(row - 1) // Adjust for header
-		if a.selected[messageID] {
+		if a.bulk.isSelected(messageID) {
 			// Apply bulk selection style to entire row
 			for col := 0; col < table.GetColumnCount(); col++ {
 				if cell := table.GetCell(row, col); cell != nil {
@@ -836,7 +836,7 @@ func (a *App) populateFlatRows(table *tview.Table) {
 		columnData.Columns[0].Content = flags
 
 		// Apply bulk mode styling if this message is selected
-		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
+		if a.bulk.isMode() && a.bulk.isSelected(a.ids[i]) {
 			// Apply bulk selection styling
 			cur, _ := table.GetSelection()
 			if cur == i+1 { // +1 for header
@@ -851,7 +851,7 @@ func (a *App) populateFlatRows(table *tview.Table) {
 		a.populateTableRow(table, i+1, columnData) // +1 for header row
 
 		// Apply bulk mode background styling if needed
-		if a.bulkMode && a.selected != nil && a.selected[a.ids[i]] {
+		if a.bulk.isMode() && a.bulk.isSelected(a.ids[i]) {
 			cur, _ := table.GetSelection()
 			if cur != i+1 { // Not currently focused
 				for col := 0; col < table.GetColumnCount(); col++ {
@@ -870,8 +870,8 @@ func (a *App) buildEnhancedFlags(msg *gmailapi.Message, index int, originalFlags
 	var flags strings.Builder
 
 	// Add bulk mode checkbox, but preserve original status flags
-	if a.bulkMode {
-		if a.selected != nil && a.selected[a.ids[index]] {
+	if a.bulk.isMode() {
+		if a.bulk.isSelected(a.ids[index]) {
 			flags.WriteString("☑")
 		} else {
 			flags.WriteString("☐")

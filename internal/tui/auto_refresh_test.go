@@ -24,9 +24,10 @@ func TestAutoRefreshLifecycleIdempotent(t *testing.T) {
 
 func TestAutoRefreshSafeState(t *testing.T) {
 	a := &App{}
+	a.bulk = newBulkState()
 	a.currentActivePicker = PickerNone
 	a.search.SetMode("")
-	a.bulkMode = false
+	a.bulk.setMode(false)
 	if !a.isAutoRefreshSafeState() {
 		t.Error("plain inbox with nothing open should be safe")
 	}
@@ -40,7 +41,7 @@ func TestAutoRefreshSafeState(t *testing.T) {
 		t.Error("search mode must be unsafe")
 	}
 	a.search.SetMode("")
-	a.bulkMode = true
+	a.bulk.setMode(true)
 	if a.isAutoRefreshSafeState() {
 		t.Error("bulk mode must be unsafe")
 	}
