@@ -407,7 +407,7 @@ func (a *App) suggestLabel() {
 		a.showError("No message selected")
 		return
 	}
-	if cached, ok := a.aiLabelsCache[messageID]; ok && len(cached) > 0 {
+	if cached, ok := a.caches.aiLabelsGet(messageID); ok && len(cached) > 0 {
 		a.showLabelSuggestions(messageID, cached)
 		return
 	}
@@ -491,7 +491,7 @@ func (a *App) suggestLabel() {
 			}
 		}
 		// Always show panel (even empty) to keep UX consistent
-		a.aiLabelsCache[messageID] = uniq
+		a.caches.aiLabelsSet(messageID, uniq)
 		a.QueueUpdateDraw(func() {
 			if a.currentFocus == "search" {
 				// Clear persistent status if user moved to search meanwhile

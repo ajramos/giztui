@@ -82,7 +82,6 @@ type App struct {
 	promptStatsBackup    overlayBackup
 	currentView          string
 	currentFocus         string // Track current focus: "list" or "text"
-	previousFocus        string // Track previous focus before modal
 	// Command bar state (the `:` prompt) — state machine in command_state.go
 	cmd commandState
 	// Prompt details state
@@ -100,8 +99,6 @@ type App struct {
 	aiPanel aiPanelState
 	// Enhanced text view for content navigation and search
 	enhancedTextView *EnhancedTextView
-	// AI label suggestion cache
-	aiLabelsCache map[string][]string // messageID -> suggestions
 
 	// Markdown rendering
 	markdownEnabled bool
@@ -309,11 +306,9 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		showHelp:           false,
 		currentView:        "messages",
 		currentFocus:       "list",
-		previousFocus:      "list", // Initialize previous focus
 		layout:             layoutState{currentLayout: LayoutMedium, width: 80, height: 25},
 		currentMessageID:   "", // Initialize currentMessageID
 		nextPageToken:      "",
-		aiLabelsCache:      make(map[string][]string),
 		markdownEnabled:    true,
 		caches:             newAppCaches(),
 		debug:              true,
