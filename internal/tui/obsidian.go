@@ -288,9 +288,7 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 
 	// Snapshot selection (following archiveSelectedBulk pattern)
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📝 Saving %d emails to your notes…", len(ids)))
 	go func() {
@@ -728,9 +726,7 @@ func (a *App) sendSelectedBulkToObsidianAsRepopack(accountEmail, comment string)
 
 	// Snapshot selection (following archiveSelectedBulk pattern)
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 
 	messageCount := len(ids)
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("📦 Creating repopack with %d emails…", messageCount))

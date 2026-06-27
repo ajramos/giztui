@@ -82,9 +82,7 @@ func (a *App) openBulkPromptPicker() {
 
 		// "Create new with AI" as the first entry in bulk mode.
 		messageIDs := make([]string, 0, a.bulk.count())
-		for _, id := range a.bulk.ids() {
-			messageIDs = append(messageIDs, id)
-		}
+		messageIDs = append(messageIDs, a.bulk.ids()...)
 		list.AddItem("✨ Create new with AI...", "Enter: open configurator", 0, func() {
 			pctx := promptConfiguratorContext{
 				mode:       "bulk",
@@ -230,9 +228,7 @@ func (a *App) openBulkPromptPicker() {
 					isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
 					if isCreateNew {
 						messageIDs := make([]string, 0, a.bulk.count())
-						for _, id := range a.bulk.ids() {
-							messageIDs = append(messageIDs, id)
-						}
+						messageIDs = append(messageIDs, a.bulk.ids()...)
 						a.closeBulkPromptPicker()
 						a.openPromptConfigurator(promptConfiguratorContext{
 							mode:       "bulk",
@@ -278,9 +274,7 @@ func (a *App) openBulkPromptPicker() {
 			name, body = "Create new with AI", promptPreviewCreateNewHint
 			onApply = func() {
 				messageIDs := make([]string, 0, a.bulk.count())
-				for _, id := range a.bulk.ids() {
-					messageIDs = append(messageIDs, id)
-				}
+				messageIDs = append(messageIDs, a.bulk.ids()...)
 				a.closeBulkPromptPicker()
 				a.openPromptConfigurator(promptConfiguratorContext{mode: "bulk", messageIDs: messageIDs})
 			}
@@ -405,9 +399,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 
 	messageCount := a.bulk.count()
 	messageIDs := make([]string, 0, messageCount)
-	for _, id := range a.bulk.ids() {
-		messageIDs = append(messageIDs, id)
-	}
+	messageIDs = append(messageIDs, a.bulk.ids()...)
 
 	// Close the picker
 	a.closeBulkPromptPicker()

@@ -47,11 +47,11 @@ func TestBulkState_Basics(t *testing.T) {
 func TestBulkState_Race(t *testing.T) {
 	b := newBulkState()
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
+	ids := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	for i := 0; i < len(ids); i++ {
 		wg.Add(1)
-		go func(n int) {
+		go func(id string) {
 			defer wg.Done()
-			id := string(rune('a' + n))
 			for j := 0; j < 1000; j++ {
 				b.add(id)
 				_ = b.count()
@@ -59,7 +59,7 @@ func TestBulkState_Race(t *testing.T) {
 				_ = b.isSelected(id)
 				b.remove(id)
 			}
-		}(i)
+		}(ids[i])
 	}
 	wg.Wait()
 }

@@ -2129,9 +2129,7 @@ func (a *App) executePromptNewCommand(args []string) {
 
 	if a.bulk.isMode() && a.bulk.count() > 0 {
 		ids := make([]string, 0, a.bulk.count())
-		for _, id := range a.bulk.ids() {
-			ids = append(ids, id)
-		}
+		ids = append(ids, a.bulk.ids()...)
 		pctx.mode = "bulk"
 		pctx.messageIDs = ids
 	} else if msgID := a.GetCurrentMessageID(); msgID != "" {

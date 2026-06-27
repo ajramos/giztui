@@ -666,9 +666,7 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 
 	// Snapshot selection to avoid race conditions
 	messageIDs := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		messageIDs = append(messageIDs, id)
-	}
+	messageIDs = append(messageIDs, a.bulk.ids()...)
 
 	messageCount := len(messageIDs)
 

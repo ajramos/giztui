@@ -14,9 +14,7 @@ func (a *App) archiveSelectedBulk() {
 	}
 	// Snapshot selection
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
@@ -64,9 +62,7 @@ func (a *App) trashSelectedBulk() {
 		return
 	}
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		// Use bulk service method for proper undo recording
@@ -116,9 +112,7 @@ func (a *App) toggleMarkReadUnreadBulk() {
 
 	// Snapshot selection
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 
 	// Determine the action by checking the majority state of selected messages
 	// If majority are unread, mark all as read. If majority are read, mark all as unread.

@@ -3589,9 +3589,7 @@ func (a *App) archiveSelectedBulk() {
 	}
 	// Snapshot selection
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 	a.setStatusPersistent(fmt.Sprintf("Archiving %d message(s)…", len(ids)))
 	go func() {
 		failed := 0
@@ -3637,9 +3635,7 @@ func (a *App) trashSelectedBulk() {
 		return
 	}
 	ids := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		ids = append(ids, id)
-	}
+	ids = append(ids, a.bulk.ids()...)
 	a.setStatusPersistent(fmt.Sprintf("Trashing %d message(s)…", len(ids)))
 	go func() {
 		failed := 0

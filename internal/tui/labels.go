@@ -661,9 +661,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					idsToMove := []string{messageID}
 					if a.bulk.isMode() && a.bulk.count() > 0 {
 						idsToMove = idsToMove[:0]
-						for _, sid := range a.bulk.ids() {
-							idsToMove = append(idsToMove, sid)
-						}
+						idsToMove = append(idsToMove, a.bulk.ids()...)
 					}
 
 					failed := 0
@@ -947,9 +945,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 								idsToMove := []string{messageID}
 								if a.bulk.isMode() && a.bulk.count() > 0 {
 									idsToMove = idsToMove[:0]
-									for _, sid := range a.bulk.ids() {
-										idsToMove = append(idsToMove, sid)
-									}
+									idsToMove = append(idsToMove, a.bulk.ids()...)
 								}
 								failed := 0
 
@@ -1974,9 +1970,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 
 	// Get all selected message IDs
 	messageIDs := make([]string, 0, a.bulk.count())
-	for _, id := range a.bulk.ids() {
-		messageIDs = append(messageIDs, id)
-	}
+	messageIDs = append(messageIDs, a.bulk.ids()...)
 
 	// Debug logging
 	if a.logger != nil {
