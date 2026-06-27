@@ -74,12 +74,12 @@ func (a *App) showSlackBulkForwardDialog() {
 	}
 
 	// Check if we have selected messages
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		a.GetErrorHandler().ShowError(a.ctx, "No messages selected for bulk Slack forwarding")
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	go func() {
 		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Preparing to forward %d messages to Slack", messageCount))
 	}()
@@ -142,7 +142,7 @@ func (a *App) populateSlackBulkPanel() {
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	searchInput := a.createSlackBulkPanel(messageCount, channels)
 
 	// Set focus after panel is fully created and populated
@@ -653,7 +653,7 @@ func (a *App) forwardEmailToSlack(messageID string, options services.SlackForwar
 
 // forwardBulkEmailsToSlack forwards multiple selected emails to Slack
 func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		a.GetErrorHandler().ShowError(a.ctx, "No messages selected for bulk Slack forwarding")
 		return
 	}
@@ -665,8 +665,8 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 	}
 
 	// Snapshot selection to avoid race conditions
-	messageIDs := make([]string, 0, len(a.selected))
-	for id := range a.selected {
+	messageIDs := make([]string, 0, a.bulk.count())
+	for _, id := range a.bulk.ids() {
 		messageIDs = append(messageIDs, id)
 	}
 
@@ -725,8 +725,8 @@ func (a *App) forwardBulkEmailsToSlack(options services.SlackForwardOptions) {
 
 		// Exit bulk mode after successful operation (following other bulk operations pattern)
 		a.QueueUpdateDraw(func() {
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())

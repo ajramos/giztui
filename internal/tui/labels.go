@@ -333,7 +333,7 @@ func (a *App) manageLabels() {
 // populateLabelsQuickView renders current labels + quick actions in the side panel
 func (a *App) populateLabelsQuickView(messageID string) {
 	if a.logger != nil {
-		a.logger.Printf("populateLabelsQuickView: starting for messageID=%s, bulkMode=%v, selectedCount=%d", messageID, a.bulkMode, len(a.selected))
+		a.logger.Printf("populateLabelsQuickView: starting for messageID=%s, bulkMode=%v, selectedCount=%d", messageID, a.bulk.isMode(), a.bulk.count())
 	}
 	go func() {
 		if a.logger != nil {
@@ -389,7 +389,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			lid := l.Id
 			body.AddItem("✅ "+name, "Enter: toggle off", 0, func() {
 				// Check if we need to apply to bulk selection
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					// Apply label to all selected messages (remove since currently applied)
 					go a.applyLabelToBulkSelection(lid, name, true)
 				} else {
@@ -419,7 +419,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			lid := l.Id
 			body.AddItem("○ "+name, "Enter: apply", 0, func() {
 				// Check if we need to apply to bulk selection
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					// Apply label to all selected messages (add since not currently applied)
 					go a.applyLabelToBulkSelection(lid, name, false)
 				} else {
@@ -462,9 +462,9 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				}
 				a.setActivePicker(PickerNone)
 				// Also exit bulk mode if it was active
-				if a.bulkMode {
-					a.bulkMode = false
-					a.selected = make(map[string]bool)
+				if a.bulk.isMode() {
+					a.bulk.setMode(false)
+					a.bulk.clear()
 					a.refreshTableDisplay()
 					// CRITICAL: Clear progress asynchronously to avoid ESC deadlock
 					go func() {
@@ -629,7 +629,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				}
 				if !moveMode {
 					// Check if we need to apply to bulk selection
-					if a.bulkMode && len(a.selected) > 0 {
+					if a.bulk.isMode() && a.bulk.count() > 0 {
 						// Apply label to all selected messages
 						go a.applyLabelToBulkSelection(id, name, applied)
 					} else {
@@ -659,9 +659,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 					// Construir conjunto de mensajes a mover
 					idsToMove := []string{messageID}
-					if a.bulkMode && len(a.selected) > 0 {
+					if a.bulk.isMode() && a.bulk.count() > 0 {
 						idsToMove = idsToMove[:0]
-						for sid := range a.selected {
+						for _, sid := range a.bulk.ids() {
 							idsToMove = append(idsToMove, sid)
 						}
 					}
@@ -771,8 +771,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						a.labelsExpanded = false
 
 						// Exit bulk mode
-						a.selected = make(map[string]bool)
-						a.bulkMode = false
+						a.bulk.clear()
+						a.bulk.setMode(false)
 						a.refreshTableDisplay()
 
 						// Restore focus
@@ -864,9 +864,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					split.ResizeItem(a.labelsView, 0, 0)
 				}
 				a.setActivePicker(PickerNone)
-				if a.bulkMode {
-					a.bulkMode = false
-					a.selected = make(map[string]bool)
+				if a.bulk.isMode() {
+					a.bulk.setMode(false)
+					a.bulk.clear()
 					a.refreshTableDisplay()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
@@ -883,9 +883,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			} else {
 				// back to quick view - synchronous operations
 				a.labelsExpanded = false
-				if a.bulkMode {
-					a.bulkMode = false
-					a.selected = make(map[string]bool)
+				if a.bulk.isMode() {
+					a.bulk.setMode(false)
+					a.bulk.clear()
 					a.refreshTableDisplay()
 					// Use synchronous operation for list style reset
 					if list, ok := a.views["list"].(*tview.Table); ok {
@@ -913,7 +913,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						v := visible[0]
 						if !moveMode {
 							// Check if we need to apply to bulk selection
-							if a.bulkMode && len(a.selected) > 0 {
+							if a.bulk.isMode() && a.bulk.count() > 0 {
 								// Apply label to all selected messages
 								go a.applyLabelToBulkSelection(v.id, v.name, v.applied)
 							} else {
@@ -945,9 +945,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							// Move mode: reuse the same logic as the list callback
 							go func(id, name string) {
 								idsToMove := []string{messageID}
-								if a.bulkMode && len(a.selected) > 0 {
+								if a.bulk.isMode() && a.bulk.count() > 0 {
 									idsToMove = idsToMove[:0]
-									for sid := range a.selected {
+									for _, sid := range a.bulk.ids() {
 										idsToMove = append(idsToMove, sid)
 									}
 								}
@@ -1013,8 +1013,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 									a.labelsExpanded = false
 
 									// Exit bulk mode
-									a.selected = make(map[string]bool)
-									a.bulkMode = false
+									a.bulk.clear()
+									a.bulk.setMode(false)
 									a.refreshTableDisplay()
 
 									// Restore focus
@@ -1085,8 +1085,8 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			titleText := " 🔖 › 🔎 Browse all labels… "
 			if moveMode {
 				count := 1
-				if a.bulkMode && len(a.selected) > 0 {
-					count = len(a.selected)
+				if a.bulk.isMode() && a.bulk.count() > 0 {
+					count = a.bulk.count()
 				}
 				if count == 1 {
 					titleText = " 📦 Move message to… "
@@ -1131,9 +1131,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							split.ResizeItem(a.labelsView, 0, 0)
 						}
 						a.setActivePicker(PickerNone)
-						if a.bulkMode {
-							a.bulkMode = false
-							a.selected = make(map[string]bool)
+						if a.bulk.isMode() {
+							a.bulk.setMode(false)
+							a.bulk.clear()
 							a.refreshTableDisplay()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
@@ -1148,9 +1148,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 						a.currentFocus = "list"
 						a.updateFocusIndicators("list")
 					} else {
-						if a.bulkMode {
-							a.bulkMode = false
-							a.selected = make(map[string]bool)
+						if a.bulk.isMode() {
+							a.bulk.setMode(false)
+							a.bulk.clear()
 							a.refreshTableDisplay()
 							// Use synchronous operation for list style reset
 							if list, ok := a.views["list"].(*tview.Table); ok {
@@ -1485,7 +1485,7 @@ func (a *App) openMovePanel() {
 // openMovePanelBulk opens the move panel in bulk mode with pluralized title
 func (a *App) openMovePanelBulk() {
 	// If nothing selected fallback to single
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		a.openMovePanel()
 		return
 	}
@@ -1498,20 +1498,20 @@ func (a *App) openMovePanelBulk() {
 	a.updateFocusIndicators("labels")
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
 	mid := a.getCurrentMessageID()
-	if mid == "" || !a.selected[mid] {
-		for id := range a.selected {
+	if mid == "" || !a.bulk.isSelected(mid) {
+		for _, id := range a.bulk.ids() {
 			mid = id
 			break
 		}
 	}
-	// Reuse browse with moveMode; title inside will be adjusted by len(a.selected) later if needed
+	// Reuse browse with moveMode; title inside will be adjusted by a.bulk.count() later if needed
 	a.expandLabelsBrowseWithMode(mid, true)
 }
 
 // manageLabelsBulk opens labels management for all selected messages
 func (a *App) manageLabelsBulk() {
 	// If nothing selected fallback to single
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		a.manageLabels()
 		return
 	}
@@ -1526,8 +1526,8 @@ func (a *App) manageLabelsBulk() {
 
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
 	mid := a.getCurrentMessageID()
-	if mid == "" || !a.selected[mid] {
-		for id := range a.selected {
+	if mid == "" || !a.bulk.isSelected(mid) {
+		for _, id := range a.bulk.ids() {
 			mid = id
 			break
 		}
@@ -1968,13 +1968,13 @@ func (a *App) applyLabelAndRefresh(messageID, labelID, labelName string) {
 
 // applyLabelToBulkSelection applies a label to all selected messages WITHOUT archiving them
 func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyApplied bool) {
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		return
 	}
 
 	// Get all selected message IDs
-	messageIDs := make([]string, 0, len(a.selected))
-	for id := range a.selected {
+	messageIDs := make([]string, 0, a.bulk.count())
+	for _, id := range a.bulk.ids() {
 		messageIDs = append(messageIDs, id)
 	}
 

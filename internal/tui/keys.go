@@ -13,7 +13,7 @@ import (
 // updateBulkSelectionStyling updates only the row styling based on current selections
 // without doing a full table rebuild to preserve focus
 func (a *App) updateBulkSelectionStyling(table *tview.Table) {
-	if !a.bulkMode {
+	if !a.bulk.isMode() {
 		return
 	}
 
@@ -32,7 +32,7 @@ func (a *App) updateBulkSelectionStyling(table *tview.Table) {
 
 		// Determine colors based on selection state
 		var bgColor, textColor tcell.Color
-		isSelected := a.selected[messageID]
+		isSelected := a.bulk.isSelected(messageID)
 		if isSelected {
 			bgColor = bulkBgColor
 			textColor = bulkTextColor
@@ -232,9 +232,9 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> toggle_read", key)
 		}
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("Bulk mode active with %d selected messages, calling toggleMarkReadUnreadBulk()", len(a.selected))
+				a.logger.Printf("Bulk mode active with %d selected messages, calling toggleMarkReadUnreadBulk()", a.bulk.count())
 			}
 			go a.toggleMarkReadUnreadBulk()
 		} else {
@@ -243,13 +243,13 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		return true
 	case a.Keys.Trash:
 		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> trash (bulkMode: %t, selected: %d)", key, a.bulkMode, len(a.selected))
+			a.logger.Printf("Configurable shortcut: '%s' -> trash (bulkMode: %t, selected: %d)", key, a.bulk.isMode(), a.bulk.count())
 		}
 		go func() {
 		}()
 
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			// OBLITERATED: empty logger branch eliminated! 💥
 			go a.trashSelectedBulk()
 		} else {
@@ -262,9 +262,9 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> archive", key)
 		}
 		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("Bulk mode active with %d selected messages, calling archiveSelectedBulk()", len(a.selected))
+				a.logger.Printf("Bulk mode active with %d selected messages, calling archiveSelectedBulk()", a.bulk.count())
 			}
 			go a.archiveSelectedBulk()
 		} else {
@@ -288,7 +288,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> move", key)
 		}
 		// In bulk mode, prioritize bulk operations
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			a.openMovePanelBulk()
 		} else {
 			a.openMovePanel()
@@ -296,10 +296,10 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		return true
 	case a.Keys.ManageLabels:
 		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels (bulkMode: %t, selected: %d)", key, a.bulkMode, len(a.selected))
+			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels (bulkMode: %t, selected: %d)", key, a.bulk.isMode(), a.bulk.count())
 		}
 		// CRITICAL: Check for bulk mode to ensure bulk label operations work
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			// OBLITERATED: empty logger branch eliminated! 💥
 			a.manageLabelsBulk()
 		} else {
@@ -325,7 +325,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> slack", key)
 		}
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			go a.showSlackBulkForwardDialog()
 		} else {
 			go a.showSlackForwardDialog()
@@ -386,14 +386,11 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> bulk_mode", key)
 		}
 		if list, ok := a.views["list"].(*tview.Table); ok {
-			if !a.bulkMode {
-				a.bulkMode = true
+			if !a.bulk.isMode() {
+				a.bulk.setMode(true)
 				messageIndex := a.getCurrentSelectedMessageIndex()
 				if messageIndex >= 0 {
-					if a.selected == nil {
-						a.selected = make(map[string]bool)
-					}
-					a.selected[a.ids[messageIndex]] = true
+					a.bulk.add(a.ids[messageIndex])
 				}
 				a.refreshTableDisplay()
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -401,8 +398,8 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 					a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 				}()
 			} else {
-				a.bulkMode = false
-				a.selected = make(map[string]bool)
+				a.bulk.setMode(false)
+				a.bulk.clear()
 				a.refreshTableDisplay()
 				list.SetSelectedStyle(a.getSelectionStyle())
 				go func() {
@@ -662,9 +659,9 @@ func (a *App) bindKeys() {
 
 		// CRITICAL FIX: Check bulk mode operations BEFORE VIM sequences
 		// This ensures bulk operations like 'p' work correctly in bulk mode
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("Bulk mode active with %d selected - checking for bulk operations first", len(a.selected))
+				a.logger.Printf("Bulk mode active with %d selected - checking for bulk operations first", a.bulk.count())
 			}
 			// Handle bulk-specific operations before VIM processing
 			switch event.Rune() {
@@ -777,14 +774,11 @@ func (a *App) bindKeys() {
 			if !a.isKeyConfigured('v') {
 				// Toggle bulk mode with 'v' (visual mode - like Vim)
 				if list, ok := a.views["list"].(*tview.Table); ok {
-					if !a.bulkMode {
-						a.bulkMode = true
+					if !a.bulk.isMode() {
+						a.bulk.setMode(true)
 						messageIndex := a.getCurrentSelectedMessageIndex()
 						if messageIndex >= 0 {
-							if a.selected == nil {
-								a.selected = make(map[string]bool)
-							}
-							a.selected[a.ids[messageIndex]] = true
+							a.bulk.add(a.ids[messageIndex])
 						}
 						a.refreshTableDisplay()
 						// Keep focus highlight consistent (blue) even in Bulk mode
@@ -794,8 +788,8 @@ func (a *App) bindKeys() {
 							a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 						}()
 					} else {
-						a.bulkMode = false
-						a.selected = make(map[string]bool)
+						a.bulk.setMode(false)
+						a.bulk.clear()
 						a.refreshTableDisplay()
 						list.SetSelectedStyle(a.getSelectionStyle())
 						// Clear status message asynchronously to avoid deadlock
@@ -810,14 +804,11 @@ func (a *App) bindKeys() {
 		case 'b':
 			// Toggle bulk mode with 'b' (alternative to 'v')
 			if list, ok := a.views["list"].(*tview.Table); ok {
-				if !a.bulkMode {
-					a.bulkMode = true
+				if !a.bulk.isMode() {
+					a.bulk.setMode(true)
 					messageIndex := a.getCurrentSelectedMessageIndex()
 					if messageIndex >= 0 {
-						if a.selected == nil {
-							a.selected = make(map[string]bool)
-						}
-						a.selected[a.ids[messageIndex]] = true
+						a.bulk.add(a.ids[messageIndex])
 					}
 					a.refreshTableDisplay()
 					// Keep focus highlight consistent (blue) even in Bulk mode
@@ -827,8 +818,8 @@ func (a *App) bindKeys() {
 						a.GetErrorHandler().ShowInfo(a.ctx, "Bulk mode — space/v=select, *=all, a=archive, d=trash, m=move, p=prompt, K=slack, O=obsidian, ESC=exit")
 					}()
 				} else {
-					a.bulkMode = false
-					a.selected = make(map[string]bool)
+					a.bulk.setMode(false)
+					a.bulk.clear()
 					a.refreshTableDisplay()
 					list.SetSelectedStyle(a.getSelectionStyle())
 					// Clear status message asynchronously to avoid deadlock
@@ -839,7 +830,7 @@ func (a *App) bindKeys() {
 				return nil
 			}
 		case '*':
-			if a.bulkMode {
+			if a.bulk.isMode() {
 				if list, ok := a.views["list"].(*tview.Table); ok {
 					totalRows := list.GetRowCount()
 					if totalRows <= 1 { // Header only or empty
@@ -848,18 +839,18 @@ func (a *App) bindKeys() {
 					dataRows := totalRows - 1 // Exclude header row
 					sel := 0
 					for i := 0; i < dataRows && i < len(a.ids); i++ {
-						if a.selected[a.ids[i]] {
+						if a.bulk.isSelected(a.ids[i]) {
 							sel++
 						}
 					}
 
 					if sel == dataRows && dataRows > 1 {
 						// All messages selected (and more than 1) -> clear all
-						a.selected = make(map[string]bool)
+						a.bulk.clear()
 					} else {
 						// Not all messages selected OR single message case -> select all
 						for i := 0; i < dataRows && i < len(a.ids); i++ {
-							a.selected[a.ids[i]] = true
+							a.bulk.add(a.ids[i])
 						}
 					}
 
@@ -868,7 +859,7 @@ func (a *App) bindKeys() {
 
 					// Show status message asynchronously to avoid deadlock
 					go func() {
-						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
+						a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", a.bulk.count()))
 					}()
 				}
 				return nil
@@ -975,10 +966,10 @@ func (a *App) bindKeys() {
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('t') {
 				if a.logger != nil {
-					a.logger.Printf("=== MAIN KEY HANDLER: 't' pressed, bulkMode=%v, selected=%d ===", a.bulkMode, len(a.selected))
+					a.logger.Printf("=== MAIN KEY HANDLER: 't' pressed, bulkMode=%v, selected=%d ===", a.bulk.isMode(), a.bulk.count())
 				}
 				// In bulk mode, prioritize bulk operations over VIM sequences
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					if a.logger != nil {
 						a.logger.Printf("Main handler: bulk mode active, calling toggleMarkReadUnreadBulk")
 					}
@@ -1005,12 +996,12 @@ func (a *App) bindKeys() {
 		case 'd':
 			// DEBUGGING: Log bulk mode state
 			if a.logger != nil {
-				a.logger.Printf("=== 'd' key pressed: bulkMode=%v, selected=%d, currentFocus=%s ===", a.bulkMode, len(a.selected), a.currentFocus)
+				a.logger.Printf("=== 'd' key pressed: bulkMode=%v, selected=%d, currentFocus=%s ===", a.bulk.isMode(), a.bulk.count(), a.currentFocus)
 			}
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('d') {
 				// In bulk mode, prioritize bulk operations over VIM sequences
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					if a.logger != nil {
 						a.logger.Printf("=== Executing bulk trash operation ===")
 					}
@@ -1036,7 +1027,7 @@ func (a *App) bindKeys() {
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('a') {
 				// In bulk mode, prioritize bulk operations over VIM sequences
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					go a.archiveSelectedBulk()
 					return nil
 				}
@@ -1088,7 +1079,7 @@ func (a *App) bindKeys() {
 				if a.currentFocus == "search" {
 					return nil
 				}
-				if a.bulkMode && len(a.selected) > 0 {
+				if a.bulk.isMode() && a.bulk.count() > 0 {
 					go a.showSlackBulkForwardDialog()
 				} else {
 					go a.showSlackForwardDialog()
@@ -1226,7 +1217,7 @@ func (a *App) bindKeys() {
 		if event.Key() == tcell.KeyEscape {
 			if a.logger != nil {
 				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v, streaming=%v, showHelp=%v",
-					a.bulkMode, a.currentFocus, a.aiPanel.visible.Load(), a.aiPanel.isStreaming(), a.showHelp)
+					a.bulk.isMode(), a.currentFocus, a.aiPanel.visible.Load(), a.aiPanel.isStreaming(), a.showHelp)
 			}
 
 			// If help screen is showing, close it first
@@ -1270,7 +1261,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If we're in bulk mode, exit bulk mode
-			if a.bulkMode {
+			if a.bulk.isMode() {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - exiting bulk mode")
 				}
@@ -1544,15 +1535,12 @@ func (a *App) handleBulkSelect() bool {
 	}()
 
 	if list, ok := a.views["list"].(*tview.Table); ok {
-		if !a.bulkMode {
+		if !a.bulk.isMode() {
 			// OBLITERATED: empty logger branch eliminated! 💥
-			a.bulkMode = true
+			a.bulk.setMode(true)
 			messageIndex := a.getCurrentSelectedMessageIndex()
 			if messageIndex >= 0 {
-				if a.selected == nil {
-					a.selected = make(map[string]bool)
-				}
-				a.selected[a.ids[messageIndex]] = true
+				a.bulk.add(a.ids[messageIndex])
 				// OBLITERATED: empty logger branch eliminated! 💥
 			}
 			a.refreshTableDisplay()
@@ -1570,17 +1558,13 @@ func (a *App) handleBulkSelect() bool {
 		messageIndex := a.getCurrentSelectedMessageIndex()
 		if messageIndex >= 0 {
 			mid := a.ids[messageIndex]
-			if a.selected[mid] {
-				delete(a.selected, mid)
-			} else {
-				a.selected[mid] = true
-			}
+			a.bulk.toggle(mid)
 			a.refreshTableDisplay()
 			// Update focus indicators after selection toggle
 			a.updateFocusIndicators("list")
 			// Show status message asynchronously to avoid deadlock
 			go func() {
-				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", len(a.selected)))
+				a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Selected: %d", a.bulk.count()))
 			}()
 		}
 		return true
@@ -2006,9 +1990,9 @@ func (a *App) executeVimSingleOperation(operation string) {
 		a.openMovePanel()
 	case a.Keys.ManageLabels:
 		// CRITICAL: Check for bulk mode first - VIM 'l' should respect bulk selection
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", len(a.selected))
+				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", a.bulk.count())
 			}
 			a.manageLabelsBulk()
 		} else {
@@ -2049,9 +2033,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}()
 	case a.Keys.Archive:
 		// CRITICAL: Check for bulk mode first - VIM 'a' should respect bulk selection
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("VIM BULK FIX: 'a' key with bulk mode - %d selected messages, calling archiveSelectedBulk()", len(a.selected))
+				a.logger.Printf("VIM BULK FIX: 'a' key with bulk mode - %d selected messages, calling archiveSelectedBulk()", a.bulk.count())
 			}
 			go a.archiveSelectedBulk()
 		} else {
@@ -2063,9 +2047,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}
 	case a.Keys.Trash:
 		// CRITICAL: Check for bulk mode first - VIM 'd' should respect bulk selection
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("VIM BULK FIX: 'd' key with bulk mode - %d selected messages, calling trashSelectedBulk()", len(a.selected))
+				a.logger.Printf("VIM BULK FIX: 'd' key with bulk mode - %d selected messages, calling trashSelectedBulk()", a.bulk.count())
 			}
 			go a.trashSelectedBulk()
 		} else {
@@ -2076,9 +2060,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}
 	case a.Keys.ToggleRead:
 		// CRITICAL: Check for bulk mode first - VIM 't' should respect bulk selection
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("VIM BULK FIX: 't' key with bulk mode - %d selected messages, calling toggleMarkReadUnreadBulk()", len(a.selected))
+				a.logger.Printf("VIM BULK FIX: 't' key with bulk mode - %d selected messages, calling toggleMarkReadUnreadBulk()", a.bulk.count())
 			}
 			go a.toggleMarkReadUnreadBulk()
 		} else {
@@ -2098,9 +2082,9 @@ func (a *App) executeVimSingleOperationWithID(operation string, messageID string
 		}()
 	case a.Keys.ManageLabels:
 		// CRITICAL: Check for bulk mode first - VIM 'l' should respect bulk selection
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			if a.logger != nil {
-				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", len(a.selected))
+				a.logger.Printf("VIM BULK FIX: 'l' key with bulk mode - %d selected messages, calling manageLabelsBulk()", a.bulk.count())
 			}
 			a.manageLabelsBulk()
 		} else {
@@ -2151,18 +2135,15 @@ func (a *App) selectRange(startIndex, count int) {
 	}
 
 	// Enter bulk mode if not already in it
-	if !a.bulkMode {
-		a.bulkMode = true
-		if a.selected == nil {
-			a.selected = make(map[string]bool)
-		}
+	if !a.bulk.isMode() {
+		a.bulk.setMode(true)
 	}
 
 	// Select the range of messages
 	selected := 0
 	for i := 0; i < count && startIndex+i < len(a.ids); i++ {
 		messageID := a.ids[startIndex+i]
-		a.selected[messageID] = true
+		a.bulk.add(messageID)
 		selected++
 	}
 
@@ -2418,15 +2399,12 @@ func (a *App) moveRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 
 	// Enter bulk mode and select the messages
-	a.bulkMode = true
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	}
+	a.bulk.setMode(true)
 
 	// Clear previous selection and select the range
-	a.selected = make(map[string]bool)
+	a.bulk.clear()
 	for _, id := range messageIDs {
-		a.selected[id] = true
+		a.bulk.add(id)
 	}
 
 	// Update UI to show selection
@@ -2459,15 +2437,12 @@ func (a *App) labelRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 
 	// Enter bulk mode and select the messages
-	a.bulkMode = true
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	}
+	a.bulk.setMode(true)
 
 	// Clear previous selection and select the range
-	a.selected = make(map[string]bool)
+	a.bulk.clear()
 	for _, id := range messageIDs {
-		a.selected[id] = true
+		a.bulk.add(id)
 	}
 
 	// Update UI to show selection
@@ -2506,15 +2481,12 @@ func (a *App) slackRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 
 	// Enter bulk mode and select the messages
-	a.bulkMode = true
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	}
+	a.bulk.setMode(true)
 
 	// Clear previous selection and select the range
-	a.selected = make(map[string]bool)
+	a.bulk.clear()
 	for _, id := range messageIDs {
-		a.selected[id] = true
+		a.bulk.add(id)
 	}
 
 	// Update UI to show selection
@@ -2547,15 +2519,12 @@ func (a *App) obsidianRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 
 	// Enter bulk mode and select the messages
-	a.bulkMode = true
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	}
+	a.bulk.setMode(true)
 
 	// Clear previous selection and select the range
-	a.selected = make(map[string]bool)
+	a.bulk.clear()
 	for _, id := range messageIDs {
-		a.selected[id] = true
+		a.bulk.add(id)
 	}
 
 	// Update UI to show selection
@@ -2588,15 +2557,12 @@ func (a *App) promptRange(startIndex, count int) {
 	actualCount := len(messageIDs)
 
 	// Enter bulk mode and select the messages
-	a.bulkMode = true
-	if a.selected == nil {
-		a.selected = make(map[string]bool)
-	}
+	a.bulk.setMode(true)
 
 	// Clear previous selection and select the range
-	a.selected = make(map[string]bool)
+	a.bulk.clear()
 	for _, id := range messageIDs {
-		a.selected[id] = true
+		a.bulk.add(id)
 	}
 
 	// Update UI to show selection

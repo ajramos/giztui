@@ -101,7 +101,7 @@ func (a *App) isAutoRefreshSafeState() bool {
 	if a.currentActivePicker != PickerNone {
 		return false
 	}
-	if a.bulkMode {
+	if a.bulk.isMode() {
 		return false
 	}
 	if a.compositionPanel != nil && a.compositionPanel.IsVisible() {

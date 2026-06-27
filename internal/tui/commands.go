@@ -1139,7 +1139,7 @@ func (a *App) executeArchiveCommand(args []string) {
 	}
 
 	// Check if we're in bulk mode with selections
-	if a.bulkMode && len(a.selected) > 0 {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
 		go a.archiveSelectedBulk()
 	} else {
 		go a.archiveSelected()
@@ -1168,7 +1168,7 @@ func (a *App) executeTrashCommand(args []string) {
 	}
 
 	// Check if we're in bulk mode with selections
-	if a.bulkMode && len(a.selected) > 0 {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
 		go a.trashSelectedBulk()
 	} else {
 		go a.trashSelected()
@@ -1197,7 +1197,7 @@ func (a *App) executeToggleReadCommand(args []string) {
 	}
 
 	// Check if we're in bulk mode with selections
-	if a.bulkMode && len(a.selected) > 0 {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
 		go a.toggleMarkReadUnreadBulk()
 	} else {
 		go a.toggleMarkReadUnread()
@@ -1322,7 +1322,7 @@ func (a *App) executeObsidianCommand(args []string) {
 	// Check for repack subcommand
 	if strings.ToLower(args[0]) == "repack" || strings.ToLower(args[0]) == "repopack" {
 		// Handle repack mode
-		if a.bulkMode && len(a.selected) > 0 {
+		if a.bulk.isMode() && a.bulk.count() > 0 {
 			// Open bulk Obsidian picker with focus on repack mode
 			go a.openBulkObsidianPanelWithRepack()
 		} else {
@@ -2127,9 +2127,9 @@ func (a *App) executeDraftsCommand(args []string) {
 func (a *App) executePromptNewCommand(args []string) {
 	pctx := promptConfiguratorContext{}
 
-	if a.bulkMode && len(a.selected) > 0 {
-		ids := make([]string, 0, len(a.selected))
-		for id := range a.selected {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
+		ids := make([]string, 0, a.bulk.count())
+		for _, id := range a.bulk.ids() {
 			ids = append(ids, id)
 		}
 		pctx.mode = "bulk"

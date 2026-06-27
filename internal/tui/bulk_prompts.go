@@ -13,18 +13,18 @@ import (
 // openBulkPromptPicker shows a picker for selecting prompts to apply to multiple messages
 func (a *App) openBulkPromptPicker() {
 	if a.logger != nil {
-		a.logger.Printf("openBulkPromptPicker: starting - bulkMode=%v, selectedCount=%d", a.bulkMode, len(a.selected))
+		a.logger.Printf("openBulkPromptPicker: starting - bulkMode=%v, selectedCount=%d", a.bulk.isMode(), a.bulk.count())
 	}
 
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		if a.logger != nil {
-			a.logger.Printf("openBulkPromptPicker: invalid state - bulkMode=%v, selectedCount=%d", a.bulkMode, len(a.selected))
+			a.logger.Printf("openBulkPromptPicker: invalid state - bulkMode=%v, selectedCount=%d", a.bulk.isMode(), a.bulk.count())
 		}
 		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk prompt")
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	if a.logger != nil {
 		a.logger.Printf("openBulkPromptPicker: opening picker for %d messages", messageCount)
 	}
@@ -81,8 +81,8 @@ func (a *App) openBulkPromptPicker() {
 		visible = visible[:0]
 
 		// "Create new with AI" as the first entry in bulk mode.
-		messageIDs := make([]string, 0, len(a.selected))
-		for id := range a.selected {
+		messageIDs := make([]string, 0, a.bulk.count())
+		for _, id := range a.bulk.ids() {
 			messageIDs = append(messageIDs, id)
 		}
 		list.AddItem("✨ Create new with AI...", "Enter: open configurator", 0, func() {
@@ -143,7 +143,7 @@ func (a *App) openBulkPromptPicker() {
 	// Load prompts in background
 	go func() {
 		if a.logger != nil {
-			a.logger.Printf("bulk prompt picker: loading prompts for bulk mode=%v, selected=%d", a.bulkMode, len(a.selected))
+			a.logger.Printf("bulk prompt picker: loading prompts for bulk mode=%v, selected=%d", a.bulk.isMode(), a.bulk.count())
 		}
 
 		prompts, err := promptService.ListPrompts(a.ctx, "")
@@ -229,8 +229,8 @@ func (a *App) openBulkPromptPicker() {
 					// what's visually selected (row 0 = "✨ Create new with AI...").
 					isCreateNew, vi := promptPickerSelection(list.GetCurrentItem(), len(visible))
 					if isCreateNew {
-						messageIDs := make([]string, 0, len(a.selected))
-						for id := range a.selected {
+						messageIDs := make([]string, 0, a.bulk.count())
+						for _, id := range a.bulk.ids() {
 							messageIDs = append(messageIDs, id)
 						}
 						a.closeBulkPromptPicker()
@@ -277,8 +277,8 @@ func (a *App) openBulkPromptPicker() {
 		if isCreateNew {
 			name, body = "Create new with AI", promptPreviewCreateNewHint
 			onApply = func() {
-				messageIDs := make([]string, 0, len(a.selected))
-				for id := range a.selected {
+				messageIDs := make([]string, 0, a.bulk.count())
+				for _, id := range a.bulk.ids() {
 					messageIDs = append(messageIDs, id)
 				}
 				a.closeBulkPromptPicker()
@@ -332,8 +332,8 @@ func (a *App) exitBulkMode() {
 
 	// Do everything synchronously to avoid UI thread blocking
 	// Clear bulk mode
-	a.bulkMode = false
-	a.selected = make(map[string]bool)
+	a.bulk.setMode(false)
+	a.bulk.clear()
 
 	// Reformat list items to remove bulk indicators
 	a.refreshTableDisplay()
@@ -398,14 +398,14 @@ func (a *App) hideAIPanel() {
 
 // applyBulkPrompt applies a prompt to all selected messages
 func (a *App) applyBulkPrompt(promptID int, promptName string) {
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk prompt")
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	messageIDs := make([]string, 0, messageCount)
-	for id := range a.selected {
+	for _, id := range a.bulk.ids() {
 		messageIDs = append(messageIDs, id)
 	}
 

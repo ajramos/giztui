@@ -12,13 +12,13 @@ import (
 // sendEmailToObsidian initiates the process of sending an email to Obsidian
 func (a *App) sendEmailToObsidian() {
 	if a.logger != nil {
-		a.logger.Printf("=== sendEmailToObsidian called: bulkMode=%t, selected=%d ===", a.bulkMode, len(a.selected))
+		a.logger.Printf("=== sendEmailToObsidian called: bulkMode=%t, selected=%d ===", a.bulk.isMode(), a.bulk.count())
 	}
 
 	// Check for bulk mode first - but don't open panel here since keys.go handles it directly
-	if a.bulkMode && len(a.selected) > 0 {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
 		if a.logger != nil {
-			a.logger.Printf("Bulk mode detected with %d selected messages, but keys.go should handle this directly", len(a.selected))
+			a.logger.Printf("Bulk mode detected with %d selected messages, but keys.go should handle this directly", a.bulk.count())
 		}
 		// Don't call openBulkObsidianPanel here to avoid double opening
 		// The bulk mode is handled directly in keys.go
@@ -282,13 +282,13 @@ Press Enter to ingest or Esc to cancel.`
 
 // sendSelectedBulkToObsidianWithComment sends all selected messages to Obsidian with a comment
 func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		return
 	}
 
 	// Snapshot selection (following archiveSelectedBulk pattern)
-	ids := make([]string, 0, len(a.selected))
-	for id := range a.selected {
+	ids := make([]string, 0, a.bulk.count())
+	for _, id := range a.bulk.ids() {
 		ids = append(ids, id)
 	}
 
@@ -347,8 +347,8 @@ func (a *App) sendSelectedBulkToObsidianWithComment(comment string) {
 		// Final UI update (following archiveSelectedBulk pattern)
 		a.QueueUpdateDraw(func() {
 			// Exit bulk mode and restore normal rendering/styles
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -382,15 +382,15 @@ func (a *App) openBulkObsidianPanel() {
 		a.logger.Printf("=== openBulkObsidianPanel START ===")
 	}
 
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		if a.logger != nil {
-			a.logger.Printf("ERROR: Invalid bulk mode state - bulkMode=%t, selected=%d", a.bulkMode, len(a.selected))
+			a.logger.Printf("ERROR: Invalid bulk mode state - bulkMode=%t, selected=%d", a.bulk.isMode(), a.bulk.count())
 		}
 		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk Obsidian ingestion")
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	if a.logger != nil {
 		a.logger.Printf("Processing bulk obsidian for %d messages", messageCount)
 	}
@@ -721,14 +721,14 @@ func (a *App) performBulkObsidianIngest(accountEmail, comment string, repopackMo
 
 // sendSelectedBulkToObsidianAsRepopack sends all selected messages to Obsidian as a single repopack file
 func (a *App) sendSelectedBulkToObsidianAsRepopack(accountEmail, comment string) {
-	if len(a.selected) == 0 {
+	if a.bulk.count() == 0 {
 		a.GetErrorHandler().ShowError(a.ctx, "No messages selected")
 		return
 	}
 
 	// Snapshot selection (following archiveSelectedBulk pattern)
-	ids := make([]string, 0, len(a.selected))
-	for id := range a.selected {
+	ids := make([]string, 0, a.bulk.count())
+	for _, id := range a.bulk.ids() {
 		ids = append(ids, id)
 	}
 
@@ -796,8 +796,8 @@ func (a *App) sendSelectedBulkToObsidianAsRepopack(accountEmail, comment string)
 		// Final UI update (following archiveSelectedBulk pattern)
 		a.QueueUpdateDraw(func() {
 			// Exit bulk mode and restore normal rendering/styles
-			a.selected = make(map[string]bool)
-			a.bulkMode = false
+			a.bulk.clear()
+			a.bulk.setMode(false)
 			a.refreshTableDisplay()
 			if list, ok := a.views["list"].(*tview.Table); ok {
 				list.SetSelectedStyle(a.getSelectionStyle())
@@ -852,12 +852,12 @@ func (a *App) closeObsidianPanel() {
 
 // openBulkObsidianPanelWithRepack opens the bulk Obsidian panel with repack mode pre-selected
 func (a *App) openBulkObsidianPanelWithRepack() {
-	if !a.bulkMode || len(a.selected) == 0 {
+	if !a.bulk.isMode() || a.bulk.count() == 0 {
 		a.GetErrorHandler().ShowWarning(a.ctx, "No messages selected for bulk Obsidian repack")
 		return
 	}
 
-	messageCount := len(a.selected)
+	messageCount := a.bulk.count()
 	a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Preparing to create repopack with %d messages", messageCount))
 
 	// Get account email

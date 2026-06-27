@@ -200,11 +200,9 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	a.mu.RLock()
 	metas := make([]*gmailapi.Message, len(a.messagesMeta))
 	copy(metas, a.messagesMeta)
-	selected := make(map[string]bool, len(a.selected))
-	for id, ok := range a.selected {
-		if ok {
-			selected[id] = true
-		}
+	selected := make(map[string]bool)
+	for _, id := range a.bulk.ids() {
+		selected[id] = true
 	}
 	a.mu.RUnlock()
 
