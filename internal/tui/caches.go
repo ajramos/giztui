@@ -18,6 +18,7 @@ type appCaches struct {
 	render     map[string]string
 	invite     map[string]Invite
 	aiInFlight map[string]bool
+	aiLabels   map[string][]string // messageID -> suggested label names
 }
 
 func newAppCaches() *appCaches {
@@ -26,7 +27,23 @@ func newAppCaches() *appCaches {
 		render:     make(map[string]string),
 		invite:     make(map[string]Invite),
 		aiInFlight: make(map[string]bool),
+		aiLabels:   make(map[string][]string),
 	}
+}
+
+// --- AI label-suggestion cache -------------------------------------------
+
+func (c *appCaches) aiLabelsGet(id string) ([]string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	v, ok := c.aiLabels[id]
+	return v, ok
+}
+
+func (c *appCaches) aiLabelsSet(id string, labels []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.aiLabels[id] = labels
 }
 
 // --- message cache -------------------------------------------------------
