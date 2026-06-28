@@ -80,8 +80,7 @@ type App struct {
 	preloadBackup        overlayBackup
 	promptStatsVisible   bool
 	promptStatsBackup    overlayBackup
-	currentView          string
-	currentFocus         string // Track current focus: "list" or "text"
+	focus                focusState // current focus name + view mode (focus_state.go)
 	// Command bar state (the `:` prompt) — state machine in command_state.go
 	cmd commandState
 	// Prompt details state
@@ -304,8 +303,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		ids:                []string{},
 		messagesMeta:       []*gmailapi.Message{},
 		showHelp:           false,
-		currentView:        "messages",
-		currentFocus:       "list",
+		focus:              focusState{current: "list", view: "messages"},
 		layout:             layoutState{currentLayout: LayoutMedium, width: 80, height: 25},
 		currentMessageID:   "", // Initialize currentMessageID
 		nextPageToken:      "",
@@ -394,8 +392,7 @@ func (a *App) onWindowResize() {
 				// Restore previous focus and picker state
 				if currentPickerState != PickerNone {
 					// If a picker was active, restore its focus
-					a.currentFocus = currentFocusState
-					a.updateFocusIndicators(currentFocusState)
+					a.markFocus(currentFocusState)
 					// Restore picker focus by setting focus to the picker view
 					if a.labelsView != nil {
 						a.SetFocus(a.labelsView)
@@ -1224,23 +1221,17 @@ func (a *App) initErrorHandler() {
 
 // GetCurrentView returns the current view name thread-safely
 func (a *App) GetCurrentView() string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.currentView
+	return a.focus.viewName()
 }
 
 // GetCurrentFocus returns the current focus state thread-safely
 func (a *App) GetCurrentFocus() string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.currentFocus
+	return a.focus.cur()
 }
 
 // SetCurrentView sets the current view name thread-safely
 func (a *App) SetCurrentView(view string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.currentView = view
+	a.focus.setView(view)
 }
 
 // GetCurrentMessageID returns the current message ID thread-safely
@@ -2496,7 +2487,7 @@ func (a *App) toggleHelp() {
 
 		// Update focus state and set focus to text view (unless composer is active)
 		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-			a.currentFocus = "text"
+			a.focus.set("text")
 			a.SetFocus(a.views["text"])
 			a.updateFocusIndicators("text")
 		}
@@ -2553,7 +2544,7 @@ func (a *App) toggleHelp() {
 
 		// Update focus state and set focus to text view so users can search immediately (unless composer is active)
 		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-			a.currentFocus = "text"
+			a.focus.set("text")
 			a.SetFocus(a.views["text"])
 			a.updateFocusIndicators("text")
 		}
@@ -2613,7 +2604,7 @@ func (a *App) showPreloadStatus(statusContent string) {
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-		a.currentFocus = "text"
+		a.focus.set("text")
 		a.SetFocus(a.views["text"])
 		// Use QueueUpdateDraw only for focus indicators since we're now in goroutine context
 		a.QueueUpdateDraw(func() {
@@ -2670,7 +2661,7 @@ func (a *App) hidePreloadStatus() {
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-		a.currentFocus = "text"
+		a.focus.set("text")
 		a.SetFocus(a.views["text"])
 		a.updateFocusIndicators("text")
 	}
@@ -2732,7 +2723,7 @@ func (a *App) showPromptStats(stats *services.UsageStats) {
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-		a.currentFocus = "text"
+		a.focus.set("text")
 		a.SetFocus(a.views["text"])
 		// Use QueueUpdateDraw only for focus indicators since we're now in goroutine context
 		a.QueueUpdateDraw(func() {
@@ -2789,7 +2780,7 @@ func (a *App) hidePromptStats() {
 
 	// Update focus state and set focus to text view (unless composer is active)
 	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-		a.currentFocus = "text"
+		a.focus.set("text")
 		a.SetFocus(a.views["text"])
 		a.updateFocusIndicators("text")
 	}
@@ -3032,8 +3023,7 @@ func (a *App) performSearch(query string) {
 		a.emailRenderer.SetShowSystemLabelsInList(true)
 
 		// Set focus to list and update focus indicators after search results are loaded
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 		a.SetFocus(a.views["list"])
 	})
 }

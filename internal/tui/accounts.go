@@ -235,7 +235,7 @@ func (a *App) openAccountPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "labels" // Reuse labels focus infrastructure
+			a.focus.set("labels") // Reuse labels focus infrastructure
 			a.updateFocusIndicators("labels")
 			a.setActivePicker(PickerAccounts) // Use new picker enum
 
@@ -271,8 +271,7 @@ func (a *App) closeAccountPicker() {
 
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	}
 }
 

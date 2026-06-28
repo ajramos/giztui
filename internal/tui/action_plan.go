@@ -140,8 +140,7 @@ func (a *App) openActionPlanEmail(msgID string) {
 	// list.Select on purpose, overriding the "list" focus indicator that SelectionChangedFunc set.
 	// The Action Plan panel stays open (return via Tab/Esc); content loads in the goroutine above.
 	a.SetFocus(a.views["text"])
-	a.currentFocus = "text"
-	a.updateFocusIndicators("text")
+	a.markFocus("text")
 }
 
 // actionVerbLabel maps an action token to a human verb for the category header.
@@ -304,8 +303,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}
 		a.SetFocus(state.tree)
 		a.updateActionPlanFooter(state)
-		a.currentFocus = "action_plan"
-		a.updateFocusIndicators("action_plan")
+		a.markFocus("action_plan")
 		a.setActivePicker(PickerActionPlan)
 	})
 
@@ -697,8 +695,7 @@ func (a *App) closeActionPlanPanel() {
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		a.SetFocus(list)
 	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 }
 
 // actionPlanInputCapture handles all key input while the Action Plan panel is focused.

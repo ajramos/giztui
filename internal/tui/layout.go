@@ -296,8 +296,15 @@ func (a *App) focusList() {
 	if list, ok := a.views["list"]; ok {
 		a.SetFocus(list)
 	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
+}
+
+// markFocus records which named view is focused and repaints the focus borders. It replaces the
+// duplicated `a.focus.set(name); a.updateFocusIndicators(name)` pair that was scattered ~95 times
+// (where the focus name had to be written twice and could drift).
+func (a *App) markFocus(name string) {
+	a.focus.set(name)
+	a.updateFocusIndicators(name)
 }
 
 // updateFocusIndicators updates the visual indicators for the focused view

@@ -19,8 +19,7 @@ func (a *App) showSlackForwardDialog() {
 		}
 		a.slackVisible = false
 		a.SetFocus(a.views["text"])
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 		// Use ErrorHandler instead of showStatusMessage
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "💬 Slack panel hidden")
@@ -60,8 +59,7 @@ func (a *App) showSlackForwardDialog() {
 		split.ResizeItem(a.slackView, 0, 1)
 	}
 	a.slackVisible = true
-	a.currentFocus = "slack"
-	a.updateFocusIndicators("slack")
+	a.markFocus("slack")
 	a.populateSlackPanel(messageID)
 }
 
@@ -89,8 +87,7 @@ func (a *App) showSlackBulkForwardDialog() {
 		split.ResizeItem(a.slackView, 0, 1)
 	}
 	a.slackVisible = true
-	a.currentFocus = "slack"
-	a.updateFocusIndicators("slack")
+	a.markFocus("slack")
 	a.populateSlackBulkPanel()
 }
 
@@ -267,8 +264,7 @@ func (a *App) createSlackPanel(messageID string, channels []services.SlackChanne
 			}
 			a.slackVisible = false
 			a.SetFocus(a.views["text"])
-			a.currentFocus = "text"
-			a.updateFocusIndicators("text")
+			a.markFocus("text")
 		}
 	})
 
@@ -600,8 +596,7 @@ func (a *App) hideSlackPanel() {
 	}
 	a.slackVisible = false
 	a.SetFocus(a.views["text"])
-	a.currentFocus = "text"
-	a.updateFocusIndicators("text")
+	a.markFocus("text")
 }
 
 // forwardEmailToSlack forwards the email using the Slack service

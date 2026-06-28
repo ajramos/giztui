@@ -182,8 +182,7 @@ func (a *App) openObsidianIngestPanel(message *gmail.Message) {
 
 	// CRITICAL FIX: Set focus FIRST, then focus state (like working bulk prompt picker)
 	a.SetFocus(form)
-	a.currentFocus = "obsidian"
-	a.updateFocusIndicators("obsidian")
+	a.markFocus("obsidian")
 	a.setActivePicker(PickerObsidian)
 
 	if a.logger != nil {
@@ -205,8 +204,7 @@ func (a *App) performObsidianIngest(message *gmail.Message, accountEmail string,
 		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	})
 
 	// Show progress
@@ -658,8 +656,7 @@ func (a *App) openBulkObsidianPanel() {
 		}
 
 		// Set focus state first to ensure proper theme application
-		a.currentFocus = "obsidian"
-		a.updateFocusIndicators("obsidian")
+		a.markFocus("obsidian")
 		a.setActivePicker(PickerObsidian)
 
 		// Then set the actual focus - this should now have correct theme colors
@@ -705,8 +702,7 @@ func (a *App) performBulkObsidianIngest(accountEmail, comment string, repopackMo
 		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	})
 
 	// Call the appropriate bulk function based on repopack mode
@@ -837,8 +833,7 @@ func (a *App) closeObsidianPanel() {
 	if a.logger != nil {
 		a.logger.Printf("closeObsidianPanel: Restoring focus to message list with proper theme")
 	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 	a.SetFocus(a.views["list"])
 
 	if a.logger != nil {
@@ -956,8 +951,7 @@ func (a *App) openBulkObsidianPanelWithRepack() {
 
 	// CRITICAL FIX: Set focus FIRST, then focus state (like working bulk prompt picker)
 	a.SetFocus(form)
-	a.currentFocus = "obsidian"
-	a.updateFocusIndicators("obsidian")
+	a.markFocus("obsidian")
 	a.setActivePicker(PickerObsidian)
 
 	if a.logger != nil {

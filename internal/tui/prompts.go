@@ -283,8 +283,7 @@ func (a *App) openPromptPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "prompts"
-			a.updateFocusIndicators("prompts")
+			a.markFocus("prompts")
 			a.setActivePicker(PickerPrompts) // Needed for proper visual state
 
 			// Initial load
@@ -323,8 +322,7 @@ func (a *App) closePromptPicker() {
 
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	}
 }
 
@@ -394,8 +392,7 @@ func (a *App) applyPromptToMessage(messageID string, promptID int, promptName st
 
 			// Set focus to AI panel
 			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
+			a.markFocus("summary")
 
 			if a.logger != nil {
 				a.logger.Printf("applyPromptToMessage: initial panel setup - title: %s, text: 🤖 Applying prompt...", promptName)
@@ -814,8 +811,7 @@ func (a *App) openPromptPickerForManagement() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.SetFocus(input)
-	a.currentFocus = "prompts"
-	a.updateFocusIndicators("prompts")
+	a.markFocus("prompts")
 	a.setActivePicker(PickerPrompts)
 }
 
@@ -847,8 +843,7 @@ func (a *App) closePromptManager() {
 	}
 
 	a.SetFocus(a.views["list"])
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 }
 
 // showPromptDetails displays the full prompt in the text view
@@ -908,8 +903,7 @@ func (a *App) showPromptDetails(promptID int, promptName string) {
 				} else {
 					a.SetFocus(textView)
 				}
-				a.currentFocus = "text"
-				a.updateFocusIndicators("text")
+				a.markFocus("text")
 			}
 			// Also update enhanced text view if available
 			if a.enhancedTextView != nil {

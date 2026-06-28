@@ -138,8 +138,7 @@ func (a *App) restoreLocalBaseSnapshot() {
 		a.refreshTableDisplay()
 
 		// Ensure focus is properly set to list after restore
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 		a.SetFocus(a.views["list"])
 
 		if a.logger != nil {
@@ -494,8 +493,7 @@ func (a *App) reloadMessagesFlat() {
 		// If advanced search is visible, keep focus on it
 		if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
 			if f, fok := a.views["advFrom"].(*tview.InputField); fok {
-				a.currentFocus = "search"
-				a.updateFocusIndicators("search")
+				a.markFocus("search")
 				a.SetFocus(f)
 			}
 		}
@@ -510,8 +508,7 @@ func (a *App) reloadMessagesFlat() {
 				if a.logger != nil {
 					a.logger.Printf("📧 RELOAD: Setting focus to list (no advanced search, no composer)")
 				}
-				a.currentFocus = "list"
-				a.updateFocusIndicators("list")
+				a.markFocus("list")
 				a.SetFocus(a.views["list"])
 			} else {
 				if a.logger != nil {
@@ -604,8 +601,7 @@ func (a *App) loadMoreMessages() {
 					a.refreshTableDisplay()
 					// FOCUS FIX: Restore focus to message list after loading cached search results
 					a.SetFocus(a.views["list"])
-					a.currentFocus = "list"
-					a.updateFocusIndicators("list")
+					a.markFocus("list")
 				})
 				return
 			}
@@ -638,8 +634,7 @@ func (a *App) loadMoreMessages() {
 		// FOCUS FIX: Restore focus to message list after loading more search results
 		a.QueueUpdateDraw(func() {
 			a.SetFocus(a.views["list"])
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
+			a.markFocus("list")
 		})
 		return
 	}
@@ -708,8 +703,7 @@ func (a *App) loadMoreMessages() {
 				a.refreshTableDisplay()
 				// FOCUS FIX: Restore focus to message list after loading cached messages
 				a.SetFocus(a.views["list"])
-				a.currentFocus = "list"
-				a.updateFocusIndicators("list")
+				a.markFocus("list")
 			})
 			return
 		}
@@ -824,8 +818,7 @@ func (a *App) loadMoreMessages() {
 
 		// FOCUS FIX: Restore focus to message list after loading more messages
 		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	})
 }
 
@@ -1032,8 +1025,7 @@ func (a *App) openSearchOverlay(mode string) {
 						sp.SetTitle("")
 						lc.AddItem(a.views["searchPanel"], 0, 0, false)
 						lc.AddItem(a.views["list"], 0, 1, true)
-						a.currentFocus = "list"
-						a.updateFocusIndicators("list")
+						a.markFocus("list")
 						a.SetFocus(a.views["list"])
 						delete(a.views, "searchInput")
 						// If exiting overlay from a local filter, restore base view immediately
@@ -1049,8 +1041,7 @@ func (a *App) openSearchOverlay(mode string) {
 			} else {
 				a.hideSearchContainer()
 			}
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
+			a.markFocus("list")
 			a.SetFocus(a.views["list"])
 			delete(a.views, "searchInput")
 			// If leaving overlay and a local filter was active, restore base
@@ -1088,8 +1079,7 @@ func (a *App) openSearchOverlay(mode string) {
 		}
 		if ev.Key() == tcell.KeyTab {
 			// move focus back to list while keeping search open
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
+			a.markFocus("list")
 			a.SetFocus(a.views["list"])
 			return nil
 		}
@@ -1103,8 +1093,7 @@ func (a *App) openSearchOverlay(mode string) {
 	// Old searchPanel path removed - using persistent container approach only
 
 	// Focus the input field
-	a.currentFocus = "search"
-	a.updateFocusIndicators("search")
+	a.markFocus("search")
 	a.SetFocus(input)
 }
 
@@ -1128,8 +1117,7 @@ func (a *App) hideSearchContainer() {
 			mainFlex.ResizeItem(searchContainer, 0, 0) // Hide container
 		}
 	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 	a.SetFocus(a.views["list"])
 	delete(a.views, "searchInput")
 }
@@ -1744,8 +1732,7 @@ func (a *App) openAdvancedSearchForm() {
 			lc.AddItem(a.views["searchPanel"], 0, 0, false)
 			lc.AddItem(a.views["list"], 0, 1, true)
 		}
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 		a.SetFocus(a.views["list"])
 		if a.logger != nil {
 			a.logger.Println("advsearch: calling performSearch")
@@ -1830,8 +1817,7 @@ func (a *App) openAdvancedSearchForm() {
 				if btnIdx < form.GetButtonCount() {
 					if btn := form.GetButton(btnIdx); btn != nil {
 						a.SetFocus(btn)
-						a.currentFocus = "search"
-						a.updateFocusIndicators("search")
+						a.markFocus("search")
 						if a.logger != nil {
 							a.logger.Printf("advsearch: focusing button index=%d (next=%d items=%d)", btnIdx, next, items)
 						}
@@ -1842,8 +1828,7 @@ func (a *App) openAdvancedSearchForm() {
 			if item := form.GetFormItem(next); item != nil {
 				if p, ok := item.(tview.Primitive); ok {
 					a.SetFocus(p)
-					a.currentFocus = "search"
-					a.updateFocusIndicators("search")
+					a.markFocus("search")
 				} else {
 					form.SetFocus(next)
 				}
@@ -1945,8 +1930,7 @@ func (a *App) openAdvancedSearchForm() {
 			return ev
 		})
 
-		a.currentFocus = "search"
-		a.updateFocusIndicators("search")
+		a.markFocus("search")
 		a.SetFocus(fromField)
 		return
 	}
@@ -2127,8 +2111,7 @@ func (a *App) applyLocalFilter(expr string) {
 		a.refreshTableDisplay()
 
 		// Set focus to list and update focus indicators after table is fully rebuilt
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 		a.SetFocus(a.views["list"])
 	})
 }
@@ -2159,8 +2142,7 @@ func (a *App) showMessage(id string) {
 
 	// Automatically switch focus to text view when viewing a message
 	a.SetFocus(a.views["text"])
-	a.currentFocus = "text"
-	a.updateFocusIndicators("text")
+	a.markFocus("text")
 	a.SetCurrentMessageID(id)
 
 	a.Draw()
@@ -3187,8 +3169,7 @@ func (a *App) openRSVPModal() {
 			split.ResizeItem(a.labelsView, 0, 1) // Show RSVP panel
 		}
 		a.setActivePicker(PickerRSVP)
-		a.currentFocus = "labels"
-		a.updateFocusIndicators("labels")
+		a.markFocus("labels")
 		a.SetFocus(list)
 	})
 }
@@ -3508,7 +3489,7 @@ func formatOrganizerName(organizer string) string {
 func (a *App) archiveSelected() {
 	var messageID string
 	var selectedIndex int = -1
-	if a.currentFocus == "list" {
+	if a.focus.is("list") {
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
@@ -3520,7 +3501,7 @@ func (a *App) archiveSelected() {
 			return
 		}
 		messageID = a.ids[selectedIndex]
-	} else if a.currentFocus == "text" {
+	} else if a.focus.is("text") {
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
@@ -3532,7 +3513,7 @@ func (a *App) archiveSelected() {
 			return
 		}
 		messageID = a.ids[selectedIndex]
-	} else if a.currentFocus == "summary" {
+	} else if a.focus.is("summary") {
 		list, ok := a.views["list"].(*tview.Table)
 		if !ok {
 			a.showError("❌ Could not access message list")
@@ -4155,7 +4136,7 @@ func (a *App) showDraftsPicker(container *tview.Flex) {
 
 		// Update state
 		a.setActivePicker(PickerDrafts) // Set specific drafts picker state
-		a.currentFocus = "drafts"       // Set focus state to drafts
+		a.focus.set("drafts")           // Set focus state to drafts
 		a.updateFocusIndicators("drafts")
 
 		if a.logger != nil {
@@ -4172,8 +4153,7 @@ func (a *App) hideDraftsPicker() {
 
 		// Update state
 		a.setActivePicker(PickerNone)
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 		a.SetFocus(a.views["list"])
 
 		if a.logger != nil {

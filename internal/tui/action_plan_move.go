@@ -180,7 +180,7 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 		state.container.RemoveItem(state.footer)
 		state.container.AddItem(state.tree, 0, 1, true)
 		state.container.AddItem(state.footer, 1, 0, false)
-		a.currentFocus = "action_plan"
+		a.focus.set("action_plan")
 		a.SetFocus(state.tree)
 		a.renderActionPlanPanel(state) // restores title, footer and selection from the tree
 	}
@@ -212,7 +212,7 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(title)
 	state.footer.SetText(" Enter to move  |  Esc to go back ")
-	a.currentFocus = "action_plan_move"
+	a.focus.set("action_plan_move")
 	a.SetFocus(list)
 }
 

@@ -19,11 +19,11 @@ func TestFocusListRestoresListFocus(t *testing.T) {
 		},
 	}
 	// Simulate the post-bulk state where focus is stale/elsewhere.
-	app.currentFocus = "text"
+	app.focus.set("text")
 
 	app.focusList()
 
-	if app.currentFocus != "list" {
-		t.Errorf("currentFocus = %q, want \"list\"", app.currentFocus)
+	if app.focus.cur() != "list" {
+		t.Errorf("currentFocus = %q, want \"list\"", app.focus.cur())
 	}
 }

@@ -154,7 +154,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		return true
 	case a.Keys.Compose:
 		// CRITICAL: Check if this is 'n' and we're in content search context
-		if key == "n" && a.currentFocus == "text" && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
+		if key == "n" && a.focus.is("text") && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
 			if a.logger != nil {
 				a.logger.Printf("Configurable shortcut: '%s' -> content search next (overriding compose)", key)
 			}
@@ -193,7 +193,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 		}
 		// Only handle for email list search when focus is NOT on message content
 		// When focus is on "text", let EnhancedTextView handle content search if using same key
-		if a.currentFocus != "text" {
+		if !a.focus.is("text") {
 			a.openSearchOverlay("remote")
 		}
 		return true
@@ -425,7 +425,7 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			a.logger.Printf("Configurable shortcut: '%s' -> load_more", key)
 		}
 		// Only handle when focus is on list
-		if a.currentFocus == "list" {
+		if a.focus.is("list") {
 			go a.loadMoreMessages()
 		}
 		return true
@@ -551,7 +551,7 @@ func (a *App) bindKeys() {
 			if focus := a.GetFocus(); focus != nil {
 				focusType = fmt.Sprintf("%T", focus)
 			}
-			a.logger.Printf("=== DIGIT KEY PRESSED: '%c', focus=%s, currentFocus=%s ===", event.Rune(), focusType, a.currentFocus)
+			a.logger.Printf("=== DIGIT KEY PRESSED: '%c', focus=%s, currentFocus=%s ===", event.Rune(), focusType, a.focus.cur())
 		}
 		// If command panel is open but focus moved away, auto-hide to avoid stuck state
 		if a.cmd.mode.Load() {
@@ -585,10 +585,10 @@ func (a *App) bindKeys() {
 		// input capture: the prompt preview (a TextView) and the action-plan move chooser
 		// (a List). The global capture runs before a focused widget's capture, so without
 		// this pass-through it would swallow their Esc/Ctrl+P/Enter (see prompt-preview bug).
-		if a.currentFocus == "prompt_preview" || a.currentFocus == "action_plan_move" ||
-			a.currentFocus == "analyzer_rules" || a.currentFocus == "analyzer_rules_add" ||
-			a.currentFocus == "action_plan_rule" || a.currentFocus == "action_plan_prompt" ||
-			a.currentFocus == "action_plan_summary" {
+		if a.focus.is("prompt_preview") || a.focus.is("action_plan_move") ||
+			a.focus.is("analyzer_rules") || a.focus.is("analyzer_rules_add") ||
+			a.focus.is("action_plan_rule") || a.focus.is("action_plan_prompt") ||
+			a.focus.is("action_plan_summary") {
 			return event
 		}
 
@@ -596,7 +596,7 @@ func (a *App) bindKeys() {
 		// user Tabs to the inbox to read mail while analysis runs in the background, so
 		// behavior is gated on FOCUS, not just on the panel being active.
 		if a.isActionPlanActive() {
-			if a.currentFocus == "action_plan" {
+			if a.focus.is("action_plan") {
 				// Panel focused: Tab/Shift+Tab cycle the full focus ring (panel → list →
 				// reader → …, panel keeps analyzing), Esc closes the panel, everything else
 				// goes to the tree's input capture.
@@ -762,7 +762,7 @@ func (a *App) bindKeys() {
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured(' ') {
 				// Don't handle bulk select when focus is on a picker/modal
-				if a.currentFocus == "obsidian" || a.currentFocus == "prompts" || a.currentFocus == "search" {
+				if a.focus.is("obsidian") || a.focus.is("prompts") || a.focus.is("search") {
 					// Let the focused component handle the space key
 					return event
 				}
@@ -900,13 +900,13 @@ func (a *App) bindKeys() {
 				if focus := a.GetFocus(); focus != nil {
 					focusType = fmt.Sprintf("%T", focus)
 				}
-				a.logger.Printf("=== 'n' key pressed: currentFocus=%s, actualFocus=%s ===", a.currentFocus, focusType)
+				a.logger.Printf("=== 'n' key pressed: currentFocus=%s, actualFocus=%s ===", a.focus.cur(), focusType)
 			}
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('n') {
 				// Only handle 'n' for compose/load more when focus is on list
 				// When focus is on text, let the EnhancedTextView handle it for search navigation
-				if a.currentFocus == "list" {
+				if a.focus.is("list") {
 					if (event.Modifiers() & tcell.ModShift) == 0 {
 						if a.logger != nil {
 							a.logger.Printf("=== 'n' executing loadMoreMessages ===")
@@ -914,16 +914,16 @@ func (a *App) bindKeys() {
 						go a.loadMoreMessages()
 						return nil
 					}
-				} else if a.currentFocus != "text" {
+				} else if !a.focus.is("text") {
 					// Only compose message if not focused on text (let text view handle 'n' for search)
 					if a.logger != nil {
-						a.logger.Printf("=== 'n' executing composeMessage (currentFocus=%s) ===", a.currentFocus)
+						a.logger.Printf("=== 'n' executing composeMessage (currentFocus=%s) ===", a.focus.cur())
 					}
 					go a.composeMessage(false)
 					return nil
 				}
 				// If focus is on text, check if we should handle content search navigation
-				if a.currentFocus == "text" && a.enhancedTextView != nil {
+				if a.focus.is("text") && a.enhancedTextView != nil {
 					// Check if there's an active search in the EnhancedTextView
 					if a.enhancedTextView.HasActiveSearch() {
 						if a.logger != nil {
@@ -951,7 +951,7 @@ func (a *App) bindKeys() {
 		case '/':
 			// Only handle for email list search when focus is NOT on message content
 			// When focus is on "text", let EnhancedTextView handle content search
-			if a.currentFocus != "text" {
+			if !a.focus.is("text") {
 				a.openSearchOverlay("local")
 				return nil
 			}
@@ -996,7 +996,7 @@ func (a *App) bindKeys() {
 		case 'd':
 			// DEBUGGING: Log bulk mode state
 			if a.logger != nil {
-				a.logger.Printf("=== 'd' key pressed: bulkMode=%v, selected=%d, currentFocus=%s ===", a.bulk.isMode(), a.bulk.count(), a.currentFocus)
+				a.logger.Printf("=== 'd' key pressed: bulkMode=%v, selected=%d, currentFocus=%s ===", a.bulk.isMode(), a.bulk.count(), a.focus.cur())
 			}
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('d') {
@@ -1076,7 +1076,7 @@ func (a *App) bindKeys() {
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('K') {
 				// Forward to Slack
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				if a.bulk.isMode() && a.bulk.count() > 0 {
@@ -1090,7 +1090,7 @@ func (a *App) bindKeys() {
 		case 'l':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('l') {
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				// Check if this might be part of a VIM sequence first
@@ -1103,11 +1103,11 @@ func (a *App) bindKeys() {
 			}
 			// OBLITERATED: redundant break eliminated! 💥
 		case 'p':
-			if a.currentFocus == "search" {
+			if a.focus.is("search") {
 				return nil
 			}
 			// If focus is on AI summary panel, toggle it off
-			if a.currentFocus == "summary" && a.aiPanel.visible.Load() {
+			if a.focus.is("summary") && a.aiPanel.visible.Load() {
 				a.toggleAISummary()
 				return nil
 			}
@@ -1125,7 +1125,7 @@ func (a *App) bindKeys() {
 		case 'm':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('m') {
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				// Bulk mode is now handled above, before VIM sequences
@@ -1147,7 +1147,7 @@ func (a *App) bindKeys() {
 		case 'V':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('V') {
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				// Toggle RSVP side panel
@@ -1165,7 +1165,7 @@ func (a *App) bindKeys() {
 			// OBLITERATED: redundant break eliminated! 💥
 		case 'o':
 			// Avoid opening suggestions while advanced search is active
-			if a.currentFocus == "search" {
+			if a.focus.is("search") {
 				a.showStatusMessage("🔕 Label suggestions disabled while searching")
 				return nil
 			}
@@ -1178,7 +1178,7 @@ func (a *App) bindKeys() {
 		case 'O': // Shift+O for Obsidian ingestion
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('O') {
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				// Allow Obsidian ingestion in both normal and bulk modes
@@ -1189,7 +1189,7 @@ func (a *App) bindKeys() {
 		case 'L': // Shift+L for link picker
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured('L') {
-				if a.currentFocus == "search" {
+				if a.focus.is("search") {
 					return nil
 				}
 				// Open link picker for current message
@@ -1217,7 +1217,7 @@ func (a *App) bindKeys() {
 		if event.Key() == tcell.KeyEscape {
 			if a.logger != nil {
 				a.logger.Printf("keys: ESC pressed - bulkMode=%v, currentFocus=%s, aiSummaryVisible=%v, streaming=%v, showHelp=%v",
-					a.bulk.isMode(), a.currentFocus, a.aiPanel.visible.Load(), a.aiPanel.isStreaming(), a.showHelp)
+					a.bulk.isMode(), a.focus.cur(), a.aiPanel.visible.Load(), a.aiPanel.isStreaming(), a.showHelp)
 			}
 
 			// If help screen is showing, close it first
@@ -1277,7 +1277,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If focus is on AI summary panel, close it
-			if a.currentFocus == "summary" && a.aiPanel.visible.Load() {
+			if a.focus.is("summary") && a.aiPanel.visible.Load() {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - hiding AI panel")
 				}
@@ -1286,7 +1286,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If focus is on Slack panel, close it
-			if a.currentFocus == "slack" && a.slackVisible {
+			if a.focus.is("slack") && a.slackVisible {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - hiding Slack panel")
 				}
@@ -1295,7 +1295,7 @@ func (a *App) bindKeys() {
 			}
 
 			// If focus is on prompts panel, close it
-			if a.currentFocus == "prompts" && a.currentActivePicker != PickerNone {
+			if a.focus.is("prompts") && a.currentActivePicker != PickerNone {
 				if a.logger != nil {
 					a.logger.Printf("keys: ESC - closing prompts panel")
 				}
@@ -1392,8 +1392,7 @@ func (a *App) bindKeys() {
 					if a.logger != nil {
 						a.logger.Printf("keys: Tab advsearch idx=%d -> next=%d (items=%d buttons=%d)", idx, next, items, buttons)
 					}
-					a.currentFocus = "search"
-					a.updateFocusIndicators("search")
+					a.markFocus("search")
 					return nil
 				}
 			}
@@ -1601,7 +1600,7 @@ func (a *App) buildFocusRing() []focusRingEntry {
 	// so exclude it here to avoid adding the hidden labelsView slot twice.
 	if a.currentActivePicker != PickerNone && a.currentActivePicker != PickerActionPlan && a.labelsView != nil {
 		name := "labels"
-		if a.currentFocus == "prompts" {
+		if a.focus.is("prompts") {
 			name = "prompts"
 		}
 		ring = append(ring, focusRingEntry{name, a.labelsView})
@@ -1650,18 +1649,17 @@ func stepFocusIndex(length, idx int, forward bool) int {
 }
 
 // cycleFocus moves focus to the next (forward) or previous pane in the visible ring. It is keyed on
-// the a.currentFocus name rather than GetFocus() pointer identity, so it reliably includes the
+// the a.focus.cur() name rather than GetFocus() pointer identity, so it reliably includes the
 // message reader and pickers (whose inner widget holds the actual focus).
 func (a *App) cycleFocus(forward bool) {
 	ring := a.buildFocusRing()
 	if len(ring) == 0 {
 		return
 	}
-	next := stepFocusIndex(len(ring), focusRingIndex(ring, a.currentFocus), forward)
+	next := stepFocusIndex(len(ring), focusRingIndex(ring, a.focus.cur()), forward)
 	target := ring[next]
 	a.SetFocus(target.prim)
-	a.currentFocus = target.name
-	a.updateFocusIndicators(target.name)
+	a.markFocus(target.name)
 }
 
 // toggleFocus advances focus to the next pane (Tab). Kept for existing callers.
@@ -1681,8 +1679,7 @@ func (a *App) restoreFocusAfterModal() {
 			// For content search, focus the EnhancedTextView directly
 			if a.enhancedTextView != nil {
 				a.SetFocus(a.enhancedTextView)
-				a.currentFocus = "text"
-				a.updateFocusIndicators("text")
+				a.markFocus("text")
 				return
 			}
 		case "keep":
@@ -1693,8 +1690,7 @@ func (a *App) restoreFocusAfterModal() {
 
 	// Default behavior - restore to list
 	a.SetFocus(a.views["list"])
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 }
 
 // handleVimSequence handles VIM-style key sequences including navigation and range operations
@@ -1702,9 +1698,9 @@ func (a *App) handleVimSequence(key rune) bool {
 
 	// Check if we're in a context where VIM sequences should work
 	// Allow VIM sequences when focus is on list or text (for content navigation)
-	if a.currentFocus != "" && a.currentFocus != "list" && a.currentFocus != "text" {
+	if !a.focus.is("") && !a.focus.is("list") && !a.focus.is("text") {
 		if a.logger != nil {
-			a.logger.Printf("handleVimSequence: wrong focus context '%s', returning false", a.currentFocus)
+			a.logger.Printf("handleVimSequence: wrong focus context '%s', returning false", a.focus.cur())
 		}
 		return false
 	}
@@ -1747,7 +1743,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 			a.vim.clearSequence()
 
 			// CRITICAL: Check focus context for gg behavior
-			if a.currentFocus == "text" && a.enhancedTextView != nil {
+			if a.focus.is("text") && a.enhancedTextView != nil {
 				// Content context: go to top of message content
 				if a.logger != nil {
 					a.logger.Printf("VIM NAVIGATION: 'gg' in text context - calling EnhancedTextView.gotoTop()")
@@ -1776,7 +1772,7 @@ func (a *App) handleVimNavigation(key rune) bool {
 		a.vim.clearSequence()
 
 		// CRITICAL: Check focus context for G behavior
-		if a.currentFocus == "text" && a.enhancedTextView != nil {
+		if a.focus.is("text") && a.enhancedTextView != nil {
 			// Content context: go to bottom of message content
 			if a.logger != nil {
 				a.logger.Printf("VIM NAVIGATION: 'G' in text context - calling EnhancedTextView.gotoBottom()")

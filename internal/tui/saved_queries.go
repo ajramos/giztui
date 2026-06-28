@@ -244,8 +244,7 @@ func (a *App) showSavedQueriesPicker() {
 			}
 
 			// Set focus and state (use "labels" for proper border highlighting)
-			a.currentFocus = "labels"
-			a.updateFocusIndicators("labels")
+			a.markFocus("labels")
 			a.setActivePicker(PickerSavedQueries)
 
 			// Set focus to input
@@ -326,8 +325,7 @@ func (a *App) performQuerySave(name, query, description, category string, queryS
 		a.setActivePicker(PickerNone)
 		// Restore focus to message list
 		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	})
 
 	// Show progress
@@ -454,8 +452,7 @@ You can execute it later using the bookmarks picker (Q key) or the :bookmark com
 	}
 
 	// Set focus and state (use "labels" for proper border highlighting)
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 	a.setActivePicker(PickerSavedQueries)
 
 	// Configure input handling

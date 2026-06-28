@@ -160,8 +160,7 @@ func (a *App) showCommandBarWithPrefix(prefix string) {
 	a.views["cmdPromptDog"] = dog
 	a.views["cmdInput"] = input
 	a.views["cmdHint"] = hint
-	a.currentFocus = "cmd"
-	a.updateFocusIndicators("cmd")
+	a.markFocus("cmd")
 	a.SetFocus(input)
 }
 
@@ -593,8 +592,7 @@ func (a *App) executeContentSearch(args []string) {
 				a.QueueUpdateDraw(func() {
 					if a.enhancedTextView != nil {
 						a.SetFocus(a.enhancedTextView)
-						a.currentFocus = "text"
-						a.updateFocusIndicators("text")
+						a.markFocus("text")
 					}
 				})
 				break
@@ -1221,7 +1219,7 @@ func (a *App) executeRefreshCommand(args []string) {
 // executeLoadMoreCommand handles :load/:more/:next commands
 func (a *App) executeLoadMoreCommand(args []string) {
 	// Only load more when focused on list
-	if a.currentFocus == "list" {
+	if a.focus.is("list") {
 		go a.loadMoreMessages()
 	} else {
 		a.GetErrorHandler().ShowWarning(a.ctx, "Load more only available when message list is focused")
@@ -1872,8 +1870,7 @@ func (a *App) executeThemeList() {
 				textView.SetText(output)
 				textView.ScrollToBeginning()
 				a.SetFocus(textView)
-				a.currentFocus = "text"
-				a.updateFocusIndicators("text")
+				a.markFocus("text")
 			}
 			// Also update enhanced text view if available
 			if a.enhancedTextView != nil {
@@ -2020,8 +2017,7 @@ func (a *App) executeThreadsCommand(args []string) {
 	}
 
 	// Set focus state like the keyboard shortcut
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 
 	// Switch to thread mode
 	a.SetCurrentThreadViewMode(ThreadViewThread)
@@ -2036,8 +2032,7 @@ func (a *App) executeThreadsCommand(args []string) {
 // executeFlattenCommand handles :flatten command
 func (a *App) executeFlattenCommand(args []string) {
 	// Set focus state like the keyboard shortcut
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 
 	// Switch to flat mode
 	a.SetCurrentThreadViewMode(ThreadViewFlat)

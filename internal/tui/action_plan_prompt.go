@@ -50,7 +50,7 @@ func (a *App) showActionPlanPromptView(state *actionPlanState) {
 		state.container.RemoveItem(state.footer)
 		state.container.AddItem(state.tree, 0, 1, true)
 		state.container.AddItem(state.footer, 1, 0, false)
-		a.currentFocus = "action_plan"
+		a.focus.set("action_plan")
 		a.SetFocus(state.tree)
 		a.renderActionPlanPanel(state) // restores title, footer and selection from the tree
 	}
@@ -68,6 +68,6 @@ func (a *App) showActionPlanPromptView(state *actionPlanState) {
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(" 🔎 Effective analyzer prompt ")
 	state.footer.SetText(" ↑/↓ scroll  |  Esc to go back ")
-	a.currentFocus = "action_plan_prompt"
+	a.focus.set("action_plan_prompt")
 	a.SetFocus(view)
 }

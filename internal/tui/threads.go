@@ -35,7 +35,7 @@ func (a *App) GetCurrentThreadViewMode() ThreadViewMode {
 	defer a.mu.RUnlock()
 
 	if a.Config != nil && a.Config.Threading.Enabled {
-		if a.currentView == "thread" {
+		if a.focus.viewName() == "thread" {
 			return ThreadViewThread
 		}
 	}
@@ -49,9 +49,9 @@ func (a *App) SetCurrentThreadViewMode(mode ThreadViewMode) {
 	defer a.mu.Unlock()
 
 	if mode == ThreadViewThread {
-		a.currentView = "thread"
+		a.focus.setView("thread")
 	} else {
-		a.currentView = "flat"
+		a.focus.setView("flat")
 	}
 }
 
@@ -1179,8 +1179,7 @@ func (a *App) GenerateThreadSummary() error {
 		a.aiSummaryView.SetBackgroundColor(aiColors.Background.Color())
 		a.showAIPanel()
 		a.SetFocus(a.aiSummaryView)
-		a.currentFocus = "summary"
-		a.updateFocusIndicators("summary")
+		a.markFocus("summary")
 	})
 
 	// Generate summary with streaming
