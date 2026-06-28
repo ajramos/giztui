@@ -13,7 +13,7 @@ func (a *App) archiveSelected() {
 		return
 	}
 
-	if a.currentFocus == "list" || a.currentFocus == "text" || a.currentFocus == "summary" {
+	if a.focus.is("list") || a.focus.is("text") || a.focus.is("summary") {
 		// messageID is already correctly determined above
 	} else {
 		a.showError("❌ Unknown focus state")

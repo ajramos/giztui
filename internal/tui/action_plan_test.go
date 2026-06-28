@@ -226,8 +226,8 @@ func TestActionPlanMoveInlineSwap(t *testing.T) {
 	a.actionPlanState = state
 
 	a.showActionPlanMoveInline(state, 0, "m2")
-	if a.currentFocus != "action_plan_move" {
-		t.Fatalf("expected currentFocus=action_plan_move, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan_move" {
+		t.Fatalf("expected currentFocus=action_plan_move, got %q", a.focus.cur())
 	}
 	// The tree must be swapped out; item[0] must be the list chooser, not the tree.
 	if state.container.ItemAt(0) == state.tree {
@@ -246,8 +246,8 @@ func TestActionPlanMoveInlineSwap(t *testing.T) {
 	} else {
 		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
 	}
-	if a.currentFocus != "action_plan" {
-		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.focus.cur())
 	}
 	if a.actionPlanState.container.ItemAt(0) != state.tree {
 		t.Fatal("after Esc, the tree should be restored as the container body")
@@ -398,8 +398,8 @@ func TestActionPlanPromptViewSwap(t *testing.T) {
 	a.actionPlanState = state
 
 	a.showActionPlanPromptView(state)
-	if a.currentFocus != "action_plan_prompt" {
-		t.Fatalf("expected currentFocus=action_plan_prompt, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan_prompt" {
+		t.Fatalf("expected currentFocus=action_plan_prompt, got %q", a.focus.cur())
 	}
 	if state.container.ItemAt(0) == state.tree {
 		t.Fatal("tree should be swapped out while the prompt view is shown")
@@ -415,8 +415,8 @@ func TestActionPlanPromptViewSwap(t *testing.T) {
 	if cap := view.GetInputCapture(); cap != nil {
 		cap(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
 	}
-	if a.currentFocus != "action_plan" {
-		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.focus.cur())
 	}
 	if a.actionPlanState.container.ItemAt(0) != state.tree {
 		t.Fatal("after Esc, the tree should be restored as the container body")

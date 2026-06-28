@@ -64,7 +64,7 @@ func (a *App) dispatchActionPlanSummarize(state *actionPlanState) {
 		state.container.RemoveItem(state.footer)
 		state.container.AddItem(state.tree, 0, 1, true)
 		state.container.AddItem(state.footer, 1, 0, false)
-		a.currentFocus = "action_plan"
+		a.focus.set("action_plan")
 		a.SetFocus(state.tree)
 		a.renderActionPlanPanel(state)
 	}
@@ -82,7 +82,7 @@ func (a *App) dispatchActionPlanSummarize(state *actionPlanState) {
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(fmt.Sprintf(" 📝 Digest of %q ", cat.Name))
 	state.footer.SetText(" ↑/↓ scroll  |  Esc to go back ")
-	a.currentFocus = "action_plan_summary"
+	a.focus.set("action_plan_summary")
 	a.SetFocus(view)
 
 	limit := 1000

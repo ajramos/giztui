@@ -332,7 +332,7 @@ func (a *App) openAttachmentPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "labels" // Reuse labels focus state for consistency
+			a.focus.set("labels") // Reuse labels focus state for consistency
 			a.updateFocusIndicators("labels")
 			a.setActivePicker(PickerAttachments)
 
@@ -363,8 +363,7 @@ func (a *App) closeAttachmentPicker() {
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	}
 }
 
@@ -487,8 +486,7 @@ func (a *App) saveAttachmentAs(messageID, attachmentID, filename string) {
 	}
 
 	a.SetFocus(pathInput)
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 	a.setActivePicker(PickerAttachments)
 }
 
@@ -501,8 +499,7 @@ func (a *App) closeSaveAsPanel() {
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	}
 }
 

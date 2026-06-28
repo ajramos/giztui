@@ -231,7 +231,7 @@ func (a *App) openThemePicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "prompts" // Use same focus identifier as prompts for consistency
+			a.focus.set("prompts") // Use same focus identifier as prompts for consistency
 			a.updateFocusIndicators("prompts")
 			a.setActivePicker(PickerThemes) // Needed for proper visual state
 
@@ -316,8 +316,7 @@ func (a *App) showThemePreview(themeName string) {
 				} else {
 					a.SetFocus(textView)
 				}
-				a.currentFocus = "text"
-				a.updateFocusIndicators("text")
+				a.markFocus("text")
 			}
 			// Also update enhanced text view if available
 			if a.enhancedTextView != nil {
@@ -426,8 +425,7 @@ func (a *App) closeThemePicker() {
 	} else if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
 	}
-	a.currentFocus = "text"
-	a.updateFocusIndicators("text")
+	a.markFocus("text")
 
 	if a.logger != nil {
 		a.logger.Printf("closeThemePicker: theme picker closed")

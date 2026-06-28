@@ -297,8 +297,7 @@ func (a *App) openBulkPromptPicker() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.SetFocus(input)
-	a.currentFocus = "prompts"
-	a.updateFocusIndicators("prompts")
+	a.markFocus("prompts")
 	a.setActivePicker(PickerBulkPrompts) // Needed for proper visual state
 }
 
@@ -314,8 +313,7 @@ func (a *App) closeBulkPromptPicker() {
 	}
 	a.setActivePicker(PickerNone)
 	a.SetFocus(a.views["list"])
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 }
 
 // exitBulkMode exits bulk mode and returns to normal view
@@ -377,8 +375,7 @@ func (a *App) hideAIPanel() {
 
 	// Return focus to list
 	a.SetFocus(a.views["list"])
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 
 	// Clear any status message asynchronously to avoid deadlock
 	go func() {
@@ -426,8 +423,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 
 			// Set focus to AI panel
 			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
+			a.markFocus("summary")
 		}
 	})
 
@@ -519,8 +515,7 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 
 				// Ensure focus is on AI panel so escape key works
 				a.SetFocus(a.aiSummaryView)
-				a.currentFocus = "summary"
-				a.updateFocusIndicators("summary")
+				a.markFocus("summary")
 			}
 		})
 

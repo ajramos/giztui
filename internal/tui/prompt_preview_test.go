@@ -68,8 +68,8 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	}
 
 	// currentFocus should be "prompt_preview".
-	if app.currentFocus != "prompt_preview" {
-		t.Errorf("expected currentFocus=prompt_preview, got %q", app.currentFocus)
+	if app.focus.cur() != "prompt_preview" {
+		t.Errorf("expected currentFocus=prompt_preview, got %q", app.focus.cur())
 	}
 
 	// The container's second item (index 1, after the input search field is absent here,
@@ -95,8 +95,8 @@ func TestShowPromptPreviewInlineSwapsAndRestores(t *testing.T) {
 	}
 
 	// currentFocus must have been reset to "prompts".
-	if app.currentFocus != "prompts" {
-		t.Errorf("expected currentFocus=prompts after Esc restore, got %q", app.currentFocus)
+	if app.focus.cur() != "prompts" {
+		t.Errorf("expected currentFocus=prompts after Esc restore, got %q", app.focus.cur())
 	}
 
 	// The footer text must be back to the normal hint.
@@ -147,13 +147,13 @@ func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
 		"Description:\nx\n\nTemplate:\ny",
 		func() {
 			applyCalled = true
-			focusAtApply = app.currentFocus
+			focusAtApply = app.focus.cur()
 		},
 	)
 
 	// Verify preview is active.
-	if app.currentFocus != "prompt_preview" {
-		t.Fatalf("pre-condition: expected prompt_preview, got %q", app.currentFocus)
+	if app.focus.cur() != "prompt_preview" {
+		t.Fatalf("pre-condition: expected prompt_preview, got %q", app.focus.cur())
 	}
 
 	tv, ok := app.GetFocus().(*tview.TextView)
@@ -182,7 +182,7 @@ func TestShowPromptPreviewInlineEnterRestoresBeforeApply(t *testing.T) {
 	}
 
 	// After the whole Enter sequence, currentFocus remains "prompts".
-	if app.currentFocus != "prompts" {
-		t.Errorf("expected currentFocus=prompts after Enter, got %q", app.currentFocus)
+	if app.focus.cur() != "prompts" {
+		t.Errorf("expected currentFocus=prompts after Enter, got %q", app.focus.cur())
 	}
 }

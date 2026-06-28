@@ -87,7 +87,7 @@ func (e *EnhancedTextView) HasActiveSearch() bool {
 func (e *EnhancedTextView) setupInputCapture() {
 	e.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Only handle navigation if we're focused on text content
-		if e.app.currentFocus != "text" {
+		if !e.app.focus.is("text") {
 			return event
 		}
 

@@ -51,7 +51,7 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, input *tview.InputF
 		container.AddItem(footer, 1, 0, false)
 		container.SetTitle(prevTitle)
 		footer.SetText(footerNormal)
-		a.currentFocus = "prompts"
+		a.focus.set("prompts")
 		a.SetFocus(list)
 	}
 
@@ -75,6 +75,6 @@ func (a *App) showPromptPreviewInline(container *tview.Flex, input *tview.InputF
 	container.AddItem(footer, 1, 0, false)
 	container.SetTitle(fmt.Sprintf(" 👁 Preview: %s ", name))
 	footer.SetText(" Enter to apply  |  Esc/Ctrl+P to go back ")
-	a.currentFocus = "prompt_preview"
+	a.focus.set("prompt_preview")
 	a.SetFocus(tv)
 }

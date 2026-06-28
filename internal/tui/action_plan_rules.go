@@ -33,7 +33,7 @@ func (a *App) showRememberRuleModal(suggestion string) {
 		state.container.RemoveItem(state.footer)
 		state.container.AddItem(state.tree, 0, 1, true)
 		state.container.AddItem(state.footer, 1, 0, false)
-		a.currentFocus = "action_plan"
+		a.focus.set("action_plan")
 		a.SetFocus(state.tree)
 		a.renderActionPlanPanel(state) // restores title, footer and selection from the tree
 	}
@@ -66,7 +66,7 @@ func (a *App) showRememberRuleModal(suggestion string) {
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(" 🧠 Remember rule or interest ")
 	state.footer.SetText(" Enter save · Esc cancel ")
-	a.currentFocus = "action_plan_rule"
+	a.focus.set("action_plan_rule")
 	a.SetFocus(input)
 }
 
@@ -133,8 +133,7 @@ func (a *App) openAnalyzerRulesManager() {
 		if l, ok := a.views["list"].(*tview.Table); ok {
 			a.SetFocus(l)
 		}
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	}
 
 	// showAddInput body-swaps the list for an input field inside the same container.
@@ -150,7 +149,7 @@ func (a *App) openAnalyzerRulesManager() {
 			container.AddItem(list, 0, 1, true)
 			container.AddItem(footer, 1, 0, false)
 			footer.SetText(" a add · d delete · Esc close ")
-			a.currentFocus = "analyzer_rules"
+			a.focus.set("analyzer_rules")
 			a.SetFocus(list)
 		}
 		input.SetDoneFunc(func(key tcell.Key) {
@@ -175,7 +174,7 @@ func (a *App) openAnalyzerRulesManager() {
 		container.AddItem(input, 1, 0, true)
 		container.AddItem(footer, 1, 0, false)
 		footer.SetText(" Enter save · Esc cancel ")
-		a.currentFocus = "analyzer_rules_add"
+		a.focus.set("analyzer_rules_add")
 		a.SetFocus(input)
 	}
 
@@ -214,7 +213,7 @@ func (a *App) openAnalyzerRulesManager() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerAnalyzerRules)
-	a.currentFocus = "analyzer_rules"
+	a.focus.set("analyzer_rules")
 	a.SetFocus(list)
 	// :plan rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" tells it to leave our focus.

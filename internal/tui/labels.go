@@ -296,8 +296,7 @@ func (a *App) manageLabels() {
 		}
 		a.setActivePicker(PickerNone)
 		a.SetFocus(a.views["text"])
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 		go func() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "🙈 Labels hidden")
 		}()
@@ -321,8 +320,7 @@ func (a *App) manageLabels() {
 	}
 	a.setActivePicker(PickerLabels)
 	a.labelsExpanded = false
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 
 	a.populateLabelsQuickView(messageID)
 }
@@ -479,14 +477,12 @@ func (a *App) populateLabelsQuickView(messageID string) {
 					l.SetInputCapture(nil)
 				}
 				a.SetFocus(a.views["text"])
-				a.currentFocus = "text"
-				a.updateFocusIndicators("text")
+				a.markFocus("text")
 				return nil
 			}
 			// Keep focus anchored in labels list when using Up/Down
 			if e.Key() == tcell.KeyUp || e.Key() == tcell.KeyDown {
-				a.currentFocus = "labels"
-				a.updateFocusIndicators("labels")
+				a.markFocus("labels")
 				return e
 			}
 			return e
@@ -532,7 +528,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 			// Tab a la lista, las flechas deben funcionar normalmente.
 			if l, ok := a.views["list"].(*tview.Table); ok {
 				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-					if a.isLabelsPickerActive() && a.currentFocus == "labels" {
+					if a.isLabelsPickerActive() && a.focus.is("labels") {
 						switch ev.Key() {
 						case tcell.KeyUp, tcell.KeyDown, tcell.KeyPgUp, tcell.KeyPgDn, tcell.KeyHome, tcell.KeyEnd:
 							return nil
@@ -542,7 +538,7 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				})
 			}
 			// Solo forzar foco si ya estamos en labels (toggle inicial)
-			if a.currentFocus == "labels" {
+			if a.focus.is("labels") {
 				a.SetFocus(body)
 				a.updateFocusIndicators("labels")
 				// Preselect first label item for proper arrow navigation
@@ -775,8 +771,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 
 						// Restore focus
 						a.SetFocus(a.views["list"])
-						a.currentFocus = "list"
-						a.updateFocusIndicators("list")
+						a.markFocus("list")
 					})
 
 					// Do complex operations outside QueueUpdateDraw to avoid hanging
@@ -872,8 +867,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					}
 				}
 				a.SetFocus(a.views["list"])
-				a.currentFocus = "list"
-				a.updateFocusIndicators("list")
+				a.markFocus("list")
 				// Clear progress asynchronously to avoid deadlock
 				go func() {
 					a.GetErrorHandler().ClearProgress()
@@ -1015,8 +1009,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 
 									// Restore focus
 									a.SetFocus(a.views["list"])
-									a.currentFocus = "list"
-									a.updateFocusIndicators("list")
+									a.markFocus("list")
 								})
 
 								// Do complex operations outside QueueUpdateDraw to avoid hanging
@@ -1062,8 +1055,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 				if e.Key() == tcell.KeyUp || e.Key() == tcell.KeyDown {
 					// Redirect arrow keys to the list when in the search field
 					a.SetFocus(list)
-					a.currentFocus = "labels"
-					a.updateFocusIndicators("labels")
+					a.markFocus("labels")
 					return e
 				}
 				return e
@@ -1115,7 +1107,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.logger != nil {
-					a.logger.Printf("🎹 LIST INPUT CAPTURE: key=%d, rune=%c, currentFocus=%s", int(e.Key()), e.Rune(), a.currentFocus)
+					a.logger.Printf("🎹 LIST INPUT CAPTURE: key=%d, rune=%c, currentFocus=%s", int(e.Key()), e.Rune(), a.focus.cur())
 				}
 				// Remove custom Enter handling to let tview's built-in mechanism handle it
 				// This allows both Enter and Space to work identically via AddItem selectedFunc
@@ -1141,8 +1133,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 							}()
 						}
 						a.SetFocus(a.views["list"])
-						a.currentFocus = "list"
-						a.updateFocusIndicators("list")
+						a.markFocus("list")
 					} else {
 						if a.bulk.isMode() {
 							a.bulk.setMode(false)
@@ -1165,8 +1156,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 					idx := list.GetCurrentItem()
 					if idx <= 0 {
 						a.SetFocus(input)
-						a.currentFocus = "labels"
-						a.updateFocusIndicators("labels")
+						a.markFocus("labels")
 						return nil
 					}
 				}
@@ -1177,8 +1167,7 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			})
 			reload("")
 			a.SetFocus(input)
-			a.currentFocus = "labels"
-			a.updateFocusIndicators("labels")
+			a.markFocus("labels")
 		})
 	}()
 }
@@ -1263,8 +1252,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
-					a.currentFocus = "labels"
-					a.updateFocusIndicators("labels")
+					a.markFocus("labels")
 					return e
 				}
 				return e
@@ -1312,16 +1300,14 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 					idx := list.GetCurrentItem()
 					if idx <= 0 {
 						a.SetFocus(input)
-						a.currentFocus = "labels"
-						a.updateFocusIndicators("labels")
+						a.markFocus("labels")
 						return nil
 					}
 				}
 				return e
 			})
 			a.setActivePicker(PickerLabels)
-			a.currentFocus = "labels"
-			a.updateFocusIndicators("labels")
+			a.markFocus("labels")
 			a.SetFocus(input)
 			reload("")
 		})
@@ -1393,8 +1379,7 @@ func (a *App) editLabelInline(labelID, name string) {
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
 		a.SetFocus(input)
-		a.currentFocus = "labels"
-		a.updateFocusIndicators("labels")
+		a.markFocus("labels")
 	})
 }
 
@@ -1455,8 +1440,7 @@ func (a *App) confirmDeleteLabel(labelID, name string) {
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
 		a.SetFocus(container)
-		a.currentFocus = "labels"
-		a.updateFocusIndicators("labels")
+		a.markFocus("labels")
 	})
 }
 
@@ -1472,8 +1456,7 @@ func (a *App) openMovePanel() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerLabels)
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 	// Open browse in move mode
 	a.expandLabelsBrowseWithMode(messageID, true)
 }
@@ -1490,8 +1473,7 @@ func (a *App) openMovePanelBulk() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerLabels)
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
 	mid := a.getCurrentMessageID()
 	if mid == "" || !a.bulk.isSelected(mid) {
@@ -1517,8 +1499,7 @@ func (a *App) manageLabelsBulk() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerLabels)
-	a.currentFocus = "labels"
-	a.updateFocusIndicators("labels")
+	a.markFocus("labels")
 
 	// Use any selected message to populate current labels; choose the current focus message if selected, else any
 	mid := a.getCurrentMessageID()
@@ -1689,8 +1670,7 @@ func (a *App) addCustomLabelInline(messageID string) {
 			split.ResizeItem(a.labelsView, 0, 1)
 		}
 		a.setActivePicker(PickerLabels)
-		a.currentFocus = "labels"
-		a.updateFocusIndicators("labels")
+		a.markFocus("labels")
 		a.SetFocus(input)
 	})
 }
@@ -2004,8 +1984,7 @@ func (a *App) applyLabelToBulkSelection(labelID, labelName string, currentlyAppl
 
 		// Stay in bulk mode (don't exit like move operations do)
 		a.SetFocus(a.views["list"])
-		a.currentFocus = "list"
-		a.updateFocusIndicators("list")
+		a.markFocus("list")
 	})
 
 	// Do the actual labeling work in a separate goroutine (like move operations)

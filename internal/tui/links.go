@@ -345,7 +345,7 @@ func (a *App) openLinkPicker() {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.SetFocus(input)
-			a.currentFocus = "labels" // Reuse labels focus state for consistency
+			a.focus.set("labels") // Reuse labels focus state for consistency
 			a.updateFocusIndicators("labels")
 			a.setActivePicker(PickerLinks) // Reuse labels visibility state
 
@@ -375,8 +375,7 @@ func (a *App) closeLinkPicker() {
 	// Restore focus to text view
 	if text, ok := a.views["text"].(*tview.TextView); ok {
 		a.SetFocus(text)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	}
 }
 

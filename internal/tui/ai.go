@@ -13,7 +13,7 @@ import (
 // toggleAISummary shows/hides the AI summary pane and triggers generation if needed
 func (a *App) toggleAISummary() {
 	if a.debug {
-		a.logger.Printf("toggleAISummary: called, aiSummaryVisible=%v, currentFocus=%s", a.aiPanel.visible.Load(), a.currentFocus)
+		a.logger.Printf("toggleAISummary: called, aiSummaryVisible=%v, currentFocus=%s", a.aiPanel.visible.Load(), a.focus.cur())
 	}
 
 	// Safety check: ensure application is ready and views are initialized
@@ -61,7 +61,7 @@ func (a *App) toggleAISummary() {
 		return
 	}
 
-	if a.aiPanel.visible.Load() && a.currentFocus == "summary" {
+	if a.aiPanel.visible.Load() && a.focus.is("summary") {
 		// If AI summary is visible and focused, close it
 		if a.debug {
 			a.logger.Printf("toggleAISummary: AI summary visible and focused, closing panel")
@@ -144,7 +144,7 @@ func (a *App) toggleAISummary() {
 	// Safety check: ensure aiSummaryView is accessible before setting focus
 	if a.aiSummaryView != nil {
 		a.SetFocus(a.aiSummaryView)
-		a.currentFocus = "summary"
+		a.focus.set("summary")
 		a.aiSummaryView.SetBorderColor(a.GetComponentColors("ai").Border.Color())
 		a.aiSummaryView.SetBackgroundColor(a.GetComponentColors("ai").Background.Color())
 		// Reset title to AI Summary when switching from prompt mode
@@ -184,14 +184,12 @@ func (a *App) closeAISummary() {
 	// Safety check: ensure text view exists before setting focus
 	if textView, ok := a.views["text"]; ok && textView != nil {
 		a.SetFocus(textView)
-		a.currentFocus = "text"
-		a.updateFocusIndicators("text")
+		a.markFocus("text")
 	} else {
 		// Fallback to list view if text view is not available
 		if listView, ok := a.views["list"]; ok && listView != nil {
 			a.SetFocus(listView)
-			a.currentFocus = "list"
-			a.updateFocusIndicators("list")
+			a.markFocus("list")
 		}
 	}
 	a.showStatusMessage("🙈 AI summary hidden")
@@ -412,7 +410,7 @@ func (a *App) suggestLabel() {
 		return
 	}
 	// If search is active, do not start suggestion to avoid UI conflicts
-	if a.currentFocus == "search" {
+	if a.focus.is("search") {
 		return
 	}
 	a.setStatusPersistent("🔖 Suggesting labels…")
@@ -493,7 +491,7 @@ func (a *App) suggestLabel() {
 		// Always show panel (even empty) to keep UX consistent
 		a.caches.aiLabelsSet(messageID, uniq)
 		a.QueueUpdateDraw(func() {
-			if a.currentFocus == "search" {
+			if a.focus.is("search") {
 				// Clear persistent status if user moved to search meanwhile
 				a.setStatusPersistent("")
 				return
@@ -510,7 +508,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 		a.logger.Printf("showLabelSuggestions: start mid=%s count=%d", messageID, len(suggestions))
 	}
 	// Do not interrupt advanced search
-	if a.currentFocus == "search" {
+	if a.focus.is("search") {
 		if a.logger != nil {
 			a.logger.Println("showLabelSuggestions: aborted (search active)")
 		}
@@ -631,8 +629,7 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
 			a.setActivePicker(PickerAI)
-			a.currentFocus = "labels"
-			a.updateFocusIndicators("labels")
+			a.markFocus("labels")
 			a.SetFocus(body)
 			if body.GetItemCount() > 0 {
 				body.SetCurrentItem(0)

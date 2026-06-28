@@ -202,8 +202,7 @@ func (a *App) openPromptConfigurator(pctx promptConfiguratorContext) {
 	}
 
 	a.SetFocus(state.intentInput)
-	a.currentFocus = "prompt_configurator"
-	a.updateFocusIndicators("prompt_configurator")
+	a.markFocus("prompt_configurator")
 	a.setActivePicker(PickerPromptConfigurator)
 }
 
@@ -227,8 +226,7 @@ func (a *App) closePromptConfigurator() {
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		a.SetFocus(list)
 	}
-	a.currentFocus = "list"
-	a.updateFocusIndicators("list")
+	a.markFocus("list")
 }
 
 // generateConfiguratorPrompt invokes the LLM streaming to fill the editable prompt area.
@@ -496,8 +494,7 @@ func (a *App) applyEphemeralPromptToMessage(messageID string, promptText string,
 			a.aiSummaryView.SetText("🤖 Applying prompt...")
 			a.aiSummaryView.ScrollToBeginning()
 			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
+			a.markFocus("summary")
 		}
 	})
 
@@ -576,8 +573,7 @@ func (a *App) applyEphemeralPromptToBulk(messageIDs []string, promptText string,
 			a.aiSummaryView.SetTitle(fmt.Sprintf(" 🤖 %s (%d msgs) ", name, len(messageIDs)))
 			a.aiSummaryView.SetText("🤖 Applying bulk prompt...")
 			a.SetFocus(a.aiSummaryView)
-			a.currentFocus = "summary"
-			a.updateFocusIndicators("summary")
+			a.markFocus("summary")
 		}
 	})
 

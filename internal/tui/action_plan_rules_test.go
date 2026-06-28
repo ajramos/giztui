@@ -38,8 +38,8 @@ func TestAnalyzerRulesPickerSwap(t *testing.T) {
 	a := newRulesTestApp()
 
 	a.openAnalyzerRulesManager()
-	if a.currentFocus != "analyzer_rules" {
-		t.Fatalf("expected currentFocus=analyzer_rules, got %q", a.currentFocus)
+	if a.focus.cur() != "analyzer_rules" {
+		t.Fatalf("expected currentFocus=analyzer_rules, got %q", a.focus.cur())
 	}
 	if a.currentActivePicker != PickerAnalyzerRules {
 		t.Fatalf("expected active picker=analyzer_rules, got %q", a.currentActivePicker)
@@ -54,8 +54,8 @@ func TestAnalyzerRulesPickerSwap(t *testing.T) {
 	if cap := list.GetInputCapture(); cap != nil {
 		cap(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
 	}
-	if a.currentFocus != "list" {
-		t.Fatalf("after Esc, currentFocus should be list, got %q", a.currentFocus)
+	if a.focus.cur() != "list" {
+		t.Fatalf("after Esc, currentFocus should be list, got %q", a.focus.cur())
 	}
 	if a.currentActivePicker != PickerNone {
 		t.Fatalf("after Esc, active picker should be none, got %q", a.currentActivePicker)
@@ -82,8 +82,8 @@ func TestRememberRuleInlineSwap(t *testing.T) {
 	a.actionPlanState = state
 
 	a.showRememberRuleModal("always archive promos")
-	if a.currentFocus != "action_plan_rule" {
-		t.Fatalf("expected currentFocus=action_plan_rule, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan_rule" {
+		t.Fatalf("expected currentFocus=action_plan_rule, got %q", a.focus.cur())
 	}
 	// Tree swapped out for the input.
 	if state.container.ItemAt(0) == state.tree {
@@ -101,8 +101,8 @@ func TestRememberRuleInlineSwap(t *testing.T) {
 	if done := input.GetInputCapture(); done != nil {
 		done(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
 	}
-	if a.currentFocus != "action_plan" {
-		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.focus.cur())
 	}
 	if a.actionPlanState.container.ItemAt(0) != state.tree {
 		t.Fatal("after Esc, the tree should be restored as the container body")
@@ -119,11 +119,11 @@ func TestAnalyzerRulesPickerSetsFocusKeepOverride(t *testing.T) {
 
 func TestRestoreFocusAfterModal_Keep(t *testing.T) {
 	a := newRulesTestApp()
-	a.currentFocus = "analyzer_rules"
+	a.focus.set("analyzer_rules")
 	a.cmd.focusOverride = "keep"
 	a.restoreFocusAfterModal()
-	if a.currentFocus != "analyzer_rules" {
-		t.Fatalf("keep override must not re-focus the list, got %q", a.currentFocus)
+	if a.focus.cur() != "analyzer_rules" {
+		t.Fatalf("keep override must not re-focus the list, got %q", a.focus.cur())
 	}
 	if a.cmd.focusOverride != "" {
 		t.Fatalf("override should be consumed, got %q", a.cmd.focusOverride)

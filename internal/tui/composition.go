@@ -888,7 +888,7 @@ func (c *CompositionPanel) hide() {
 	// Return focus to main view
 	if list := c.app.views["list"]; list != nil {
 		c.app.SetFocus(list)
-		c.app.currentFocus = "list"
+		c.app.focus.set("list")
 
 		// Check if we need to auto-select a message after closing composer
 		if table, ok := list.(*tview.Table); ok {

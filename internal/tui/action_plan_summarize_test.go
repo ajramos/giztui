@@ -57,8 +57,8 @@ func TestActionPlanSummarizeSwap(t *testing.T) {
 	a.actionPlanState = state
 
 	a.dispatchActionPlanSummarize(state)
-	if a.currentFocus != "action_plan_summary" {
-		t.Fatalf("expected currentFocus=action_plan_summary, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan_summary" {
+		t.Fatalf("expected currentFocus=action_plan_summary, got %q", a.focus.cur())
 	}
 	if state.container.ItemAt(0) == state.tree {
 		t.Fatal("tree should be swapped out for the summary view")
@@ -70,8 +70,8 @@ func TestActionPlanSummarizeSwap(t *testing.T) {
 	if cap := view.GetInputCapture(); cap != nil {
 		cap(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
 	}
-	if a.currentFocus != "action_plan" {
-		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.currentFocus)
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after Esc, currentFocus should be action_plan, got %q", a.focus.cur())
 	}
 	if a.actionPlanState.container.ItemAt(0) != state.tree {
 		t.Fatal("after Esc the tree should be restored")
