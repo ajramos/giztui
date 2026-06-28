@@ -431,7 +431,11 @@ func (a *App) executeCommand(cmd string) {
 	default:
 		// Check for numeric shortcuts like :1, :$
 		if matched := a.executeNumericShortcut(command); !matched {
-			a.showError(fmt.Sprintf("Unknown command: %s", command))
+			if suggestion, ok := closestCommand(command); ok {
+				a.showError(fmt.Sprintf("Unknown command: '%s'. Did you mean ':%s'?", command, suggestion))
+			} else {
+				a.showError(fmt.Sprintf("Unknown command: %s", command))
+			}
 		}
 	}
 }

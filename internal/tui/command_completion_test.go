@@ -147,3 +147,44 @@ func TestArgCompleters_Wired(t *testing.T) {
 		}
 	}
 }
+
+func TestLevenshtein(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{
+		{"", "", 0},
+		{"", "abc", 3},
+		{"abc", "", 3},
+		{"a", "a", 0},
+		{"kitten", "sitting", 3},
+		{"archive", "archvie", 2}, // i<->v transposition = 2 plain edits
+		{"labels", "lables", 2},
+	}
+	for _, c := range cases {
+		if got := levenshtein(c.a, c.b); got != c.want {
+			t.Errorf("levenshtein(%q,%q) = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}
+
+func TestClosestCommand(t *testing.T) {
+	cases := []struct {
+		typed     string
+		want      string
+		wantFound bool
+	}{
+		{"archvie", "archive", true},
+		{"lables", "labels", true},
+		{"serach", "search", true},
+		{"zzzzzzz", "", false}, // far from everything
+		{"xy", "", false},      // too short (< 3)
+		{"qqqq", "", false},    // no command within distance 2
+	}
+	for _, c := range cases {
+		got, found := closestCommand(c.typed)
+		if found != c.wantFound || got != c.want {
+			t.Errorf("closestCommand(%q) = (%q,%v), want (%q,%v)", c.typed, got, found, c.want, c.wantFound)
+		}
+	}
+}
