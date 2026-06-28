@@ -5,6 +5,16 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.1] - 2026-06-28
+
+### 🐛 Fixes
+
+- **Fixed a latent crash in bulk selection.** The set of bulk-selected messages was an unsynchronized map read from background operation goroutines (bulk archive/label/prompt/Slack/Obsidian) while being modified on the event loop — a concurrent-map access that could panic under the right timing. It is now behind a small mutex-guarded type, eliminating the race.
+
+### 🔧 Internal
+
+- **God-object decomposition (#49) wrapped up.** Extracted `bulkState` and `focusState` from the 3,400-line `App` struct and removed dead/orphan fields; `App` is down from 129 to 89 fields. Notably, the focus name (e.g. `"labels"`) used to be written twice at ~95 call sites (`currentFocus = name` + `updateFocusIndicators(name)`) — a drift footgun now collapsed into a single `markFocus(name)` helper. No user-visible behavior change. The remaining loose field groups were analyzed and consciously left as-is (see #52).
+
 ## [1.19.0] - 2026-06-24
 
 ### 🚀 Features
