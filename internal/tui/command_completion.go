@@ -323,3 +323,75 @@ func (a *App) completionQueryNames() []string {
 	}
 	return out
 }
+
+// levenshtein returns the edit distance between a and b (two-row DP, O(len(a)*len(b))).
+func levenshtein(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	la, lb := len(ra), len(rb)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+	prev := make([]int, lb+1)
+	curr := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+	for i := 1; i <= la; i++ {
+		curr[0] = i
+		for j := 1; j <= lb; j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			del := prev[j] + 1
+			ins := curr[j-1] + 1
+			sub := prev[j-1] + cost
+			m := del
+			if ins < m {
+				m = ins
+			}
+			if sub < m {
+				m = sub
+			}
+			curr[j] = m
+		}
+		prev, curr = curr, prev
+	}
+	return prev[lb]
+}
+
+// closestCommand returns the canonical command name nearest to typed (case-insensitive Levenshtein
+// over every registry name and alias of length >= 3), or ("", false) when there is no confident
+// suggestion. Guards: typed must be >= 3 chars, and the best distance must be in (0, 2].
+func closestCommand(typed string) (string, bool) {
+	typed = strings.ToLower(strings.TrimSpace(typed))
+	if len(typed) < 3 {
+		return "", false
+	}
+	best := ""
+	bestDist := 1 << 30
+	consider := func(candidate, canonical string) {
+		if len(candidate) < 3 {
+			return
+		}
+		d := levenshtein(typed, strings.ToLower(candidate))
+		if d < bestDist {
+			bestDist = d
+			best = canonical
+		}
+	}
+	for i := range commandRegistry {
+		s := &commandRegistry[i]
+		consider(s.name, s.name)
+		for _, al := range s.aliases {
+			consider(al, s.name)
+		}
+	}
+	if best != "" && bestDist > 0 && bestDist <= 2 {
+		return best, true
+	}
+	return "", false
+}
