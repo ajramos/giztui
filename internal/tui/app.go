@@ -2353,7 +2353,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s ✏️   Update existing prompt\n", ":prompt update")
 	fmt.Fprintf(&help, "    %-18s 🗑️   Delete prompt\n", ":prompt delete")
 	fmt.Fprintf(&help, "    %-18s 📤  Export prompts\n", ":prompt export")
-	fmt.Fprintf(&help, "    %-18s ❓  Show this help\n\n", ":help")
+	fmt.Fprintf(&help, "    %-18s ❓  Show this help\n", ":help")
+	fmt.Fprintf(&help, "    %-18s 📖  Focused help for one command (e.g. :help search)\n\n", ":help <cmd>")
 
 	// Footer with tips
 	help.WriteString("💡 TIPS\n\n")
@@ -2492,7 +2493,16 @@ func (a *App) toggleHelp() {
 			a.updateFocusIndicators("text")
 		}
 	} else {
-		// Save current content before showing help
+		a.showHelpScreen(a.generateHelpText(), " 📚 Help & Shortcuts ")
+	}
+}
+
+// showHelpScreen renders content in the reader pane with the given title, using the same overlay as
+// the full help (Esc restores via toggleHelp's restore branch). The reader is backed up and the
+// header hidden only on first show, so re-rendering (e.g. :help <cmd> while help is open) keeps the
+// original backup. Shared by the full ? help and :help <cmd>.
+func (a *App) showHelpScreen(content, title string) {
+	if !a.showHelp {
 		if text, ok := a.views["text"].(*tview.TextView); ok {
 			a.helpBackup.text = text.GetText(false)
 		}
@@ -2502,52 +2512,37 @@ func (a *App) toggleHelp() {
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			a.helpBackup.title = textContainer.GetTitle()
 		}
-
-		// Show help content
-		a.showHelp = true
-
-		// Store current header height and hide header section
 		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
 			if header, ok := a.views["header"].(*tview.TextView); ok {
-				// Calculate current header height before hiding it
-				headerContent := header.GetText(false)
-				a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
-
-				// Clear header content and hide it completely
+				a.originalHeaderHeight = a.calculateHeaderHeight(header.GetText(false))
 				header.SetDynamicColors(true)
 				header.SetText("")
 				textContainer.ResizeItem(header, 0, 0)
 			}
 		}
+	}
+	a.showHelp = true
 
-		// Display help title in text container border
-		if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
-			textContainer.SetTitle(" 📚 Help & Shortcuts ")
-			textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
-		}
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(title)
+		textContainer.SetTitleColor(a.GetComponentColors("general").Title.Color())
+	}
 
-		// Display help content in enhanced text view with proper content setting
-		helpContent := a.generateHelpText()
-		if a.enhancedTextView != nil {
-			a.enhancedTextView.SetContent(helpContent)
-			a.enhancedTextView.SetDynamicColors(true)
-			a.enhancedTextView.ScrollToBeginning()
-		} else {
-			// Fallback to regular text view if enhanced view not available
-			if text, ok := a.views["text"].(*tview.TextView); ok {
-				text.SetDynamicColors(true)
-				text.Clear()
-				text.SetText(helpContent)
-				text.ScrollToBeginning()
-			}
-		}
+	if a.enhancedTextView != nil {
+		a.enhancedTextView.SetContent(content)
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
+	} else if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetDynamicColors(true)
+		text.Clear()
+		text.SetText(content)
+		text.ScrollToBeginning()
+	}
 
-		// Update focus state and set focus to text view so users can search immediately (unless composer is active)
-		if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
-			a.focus.set("text")
-			a.SetFocus(a.views["text"])
-			a.updateFocusIndicators("text")
-		}
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.focus.set("text")
+		a.SetFocus(a.views["text"])
+		a.updateFocusIndicators("text")
 	}
 }
 

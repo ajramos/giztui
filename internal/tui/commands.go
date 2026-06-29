@@ -672,7 +672,13 @@ func (a *App) executeComposeCommand(args []string) {
 
 // executeHelpCommand handles help commands
 func (a *App) executeHelpCommand(args []string) {
-	a.toggleHelp()
+	if len(args) > 0 {
+		if s := lookupCommand(args[0]); s != nil {
+			a.showHelpScreen(generateCommandHelpText(s), " 📚 :"+s.name+" ")
+			return
+		}
+	}
+	a.toggleHelp() // no arg, or unknown command → full help screen (toggle)
 }
 
 // executeToggleHeadersCommand handles header toggle commands
