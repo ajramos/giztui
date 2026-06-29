@@ -15,21 +15,41 @@ type argCompleter func(a *App, rest string) []string
 // commandSpec is one entry in the command registry: a canonical command name, its aliases, and an
 // optional argument completer. The registry mirrors the executeCommand switch and is the single
 // source of truth for Tab completion.
+// cmdHelp is the optional rich help for a command (registry-sourced, shown by :help <cmd>).
+type cmdHelp struct {
+	summary  string   // one-line description
+	syntax   string   // e.g. ":search <query>"
+	examples []string // e.g. {":search from:ana has:attachment"}
+}
+
 type commandSpec struct {
 	name        string
 	aliases     []string
 	completeArg argCompleter
+	help        *cmdHelp // nil → auto fallback in generateCommandHelpText
 }
 
 // commandRegistry lists every top-level `:` command. Keep in sync with the executeCommand switch in
 // commands.go. Adding a command here is all that's needed for it to autocomplete.
 var commandRegistry = []commandSpec{
-	{name: "labels", aliases: []string{"l"}, completeArg: completeLabelsArg},
+	{name: "labels", aliases: []string{"l"}, completeArg: completeLabelsArg, help: &cmdHelp{
+		summary:  "Manage labels on the selected message(s).",
+		syntax:   ":labels [add|remove|list] <label>",
+		examples: []string{":labels add Work", ":labels remove Work", ":labels list"},
+	}},
 	{name: "links", aliases: []string{"link"}},
 	{name: "attachments", aliases: []string{"attach"}},
 	{name: "gmail", aliases: []string{"web", "open-web", "o"}},
-	{name: "search", completeArg: completeSearchArg},
-	{name: "slack", aliases: []string{"sl"}},
+	{name: "search", completeArg: completeSearchArg, help: &cmdHelp{
+		summary:  "Search Gmail messages (server-side).",
+		syntax:   ":search <query>",
+		examples: []string{":search from:ana has:attachment", ":search is:unread after:2026/01/01", ":search subject:invoice"},
+	}},
+	{name: "slack", aliases: []string{"sl"}, help: &cmdHelp{
+		summary:  "Forward a message to a configured Slack channel.",
+		syntax:   ":slack [<message #>]",
+		examples: []string{":slack", ":slack 3"},
+	}},
 	{name: "s"},
 	{name: "summary"},
 	{name: "rsvp"},
@@ -64,21 +84,45 @@ var commandRegistry = []commandSpec{
 	{name: "undo"},
 	{name: "archived", aliases: []string{"arch-search", "b"}},
 	{name: "select", aliases: []string{"sel"}},
-	{name: "move", aliases: []string{"mv"}},
-	{name: "label", aliases: []string{"lbl"}},
+	{name: "move", aliases: []string{"mv"}, help: &cmdHelp{
+		summary:  "Move the next N messages to a folder/label (VIM-style range).",
+		syntax:   ":move <count>",
+		examples: []string{":move 5"},
+	}},
+	{name: "label", aliases: []string{"lbl"}, help: &cmdHelp{
+		summary:  "Open the label picker for the next N messages (VIM-style range).",
+		syntax:   ":label <count>",
+		examples: []string{":label 3"},
+	}},
 	{name: "obsidian", aliases: []string{"obs"}},
-	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountsArg},
-	{name: "prompt", aliases: []string{"pr", "p"}, completeArg: completePromptArg},
+	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountsArg, help: &cmdHelp{
+		summary:  "Switch the active Gmail account.",
+		syntax:   ":accounts [switch <id>]",
+		examples: []string{":accounts", ":accounts switch work"},
+	}},
+	{name: "prompt", aliases: []string{"pr", "p"}, completeArg: completePromptArg, help: &cmdHelp{
+		summary:  "AI prompt library and management.",
+		syntax:   ":prompt [list|create|update|export|delete|stats]",
+		examples: []string{":prompt", ":prompt list"},
+	}},
 	{name: "prompt-new", aliases: []string{"pn"}},
 	{name: "prompt-refine", aliases: []string{"prf"}},
 	{name: "prompt-save", aliases: []string{"ps"}},
 	{name: "action-plan", aliases: []string{"plan", "ap"}},
 	{name: "markdown", aliases: []string{"md"}},
 	{name: "touch-up", aliases: []string{"touchup"}},
-	{name: "theme", aliases: []string{"th"}, completeArg: completeThemeArg},
+	{name: "theme", aliases: []string{"th"}, completeArg: completeThemeArg, help: &cmdHelp{
+		summary:  "Switch or inspect the color theme.",
+		syntax:   ":theme [list|set <name>|preview <name>]",
+		examples: []string{":theme set gruvbox", ":theme list"},
+	}},
 	{name: "save-query", aliases: []string{"save", "sq"}},
 	{name: "bookmarks", aliases: []string{"queries", "bm", "qb"}},
-	{name: "bookmark", aliases: []string{"query"}, completeArg: completeBookmarkArg},
+	{name: "bookmark", aliases: []string{"query"}, completeArg: completeBookmarkArg, help: &cmdHelp{
+		summary:  "Run a saved search query by name.",
+		syntax:   ":bookmark <query name>",
+		examples: []string{":bookmark Unread VIP"},
+	}},
 }
 
 // lookupCommand resolves a command token (name or alias, case-insensitive) to its spec, or nil.
