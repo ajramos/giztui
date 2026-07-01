@@ -675,10 +675,17 @@ func (a *App) executeHelpCommand(args []string) {
 	if len(args) > 0 {
 		if s := lookupCommand(args[0]); s != nil {
 			a.showHelpScreen(a.generateCommandHelpText(s), " 📚 :"+s.name+" ")
+			// showHelpScreen focused the help card, but hideCommandBar()'s
+			// restoreFocusAfterModal() would re-focus the message list. "keep" leaves our focus.
+			a.cmd.focusOverride = "keep"
 			return
 		}
 	}
 	a.toggleHelp() // no arg, or unknown command → full help screen (toggle)
+	if a.showHelp {
+		// Opened (not closed) the full help via the command bar: keep focus on it.
+		a.cmd.focusOverride = "keep"
+	}
 }
 
 // executeToggleHeadersCommand handles header toggle commands
