@@ -37,9 +37,15 @@ var commandRegistry = []commandSpec{
 		syntax:   ":labels [add|remove|list] <label>",
 		examples: []string{":labels add Work", ":labels remove Work", ":labels list"},
 	}},
-	{name: "links", aliases: []string{"link"}},
-	{name: "attachments", aliases: []string{"attach"}},
-	{name: "gmail", aliases: []string{"web", "open-web", "o"}},
+	{name: "links", aliases: []string{"link"}, help: &cmdHelp{
+		summary: "Open the links panel to browse and open URLs found in the message.",
+	}},
+	{name: "attachments", aliases: []string{"attach"}, help: &cmdHelp{
+		summary: "Open the attachment picker to view or download the message's attachments.",
+	}},
+	{name: "gmail", aliases: []string{"web", "open-web", "o"}, help: &cmdHelp{
+		summary: "Open the current message in the Gmail web interface in your browser.",
+	}},
 	{name: "search", completeArg: completeSearchArg, help: &cmdHelp{
 		summary:  "Search Gmail messages (server-side).",
 		syntax:   ":search <query>",
@@ -51,39 +57,105 @@ var commandRegistry = []commandSpec{
 		examples: []string{":slack", ":slack 3"},
 	}},
 	{name: "s"},
-	{name: "summary"},
-	{name: "rsvp"},
-	{name: "inbox", aliases: []string{"i"}},
-	{name: "compose", aliases: []string{"c"}},
-	{name: "headers", aliases: []string{"toggle-headers"}},
-	{name: "threads", aliases: []string{"thr"}},
-	{name: "flatten", aliases: []string{"flat"}},
-	{name: "thread-summary", aliases: []string{"th-sum"}},
-	{name: "expand-all", aliases: []string{"expand"}},
-	{name: "collapse-all", aliases: []string{"collapse"}},
-	{name: "help", aliases: []string{"h"}},
-	{name: "numbers", aliases: []string{"n"}},
-	{name: "quit", aliases: []string{"q"}},
-	{name: "cache"},
-	{name: "preload", aliases: []string{"pl"}},
-	{name: "stats", aliases: []string{"usage"}},
+	{name: "summary", help: &cmdHelp{
+		summary: "Generate an AI summary of the current message.",
+	}},
+	{name: "rsvp", help: &cmdHelp{
+		summary: "Respond to a calendar invitation (Yes/No/Maybe) in the current message.",
+	}},
+	{name: "inbox", aliases: []string{"i"}, help: &cmdHelp{
+		summary: "Return to the inbox and reload the message list.",
+	}},
+	{name: "compose", aliases: []string{"c"}, help: &cmdHelp{
+		summary: "Compose a new email.",
+	}},
+	{name: "headers", aliases: []string{"toggle-headers"}, help: &cmdHelp{
+		summary: "Toggle full email header visibility in the reader.",
+	}},
+	{name: "threads", aliases: []string{"thr"}, help: &cmdHelp{
+		summary: "Switch the message list to threaded (conversation) view.",
+	}},
+	{name: "flatten", aliases: []string{"flat"}, help: &cmdHelp{
+		summary: "Switch the message list to flat (non-threaded) view.",
+	}},
+	{name: "thread-summary", aliases: []string{"th-sum"}, help: &cmdHelp{
+		summary: "Generate an AI summary of the whole thread.",
+	}},
+	{name: "expand-all", aliases: []string{"expand"}, help: &cmdHelp{
+		summary: "Expand all threads in the message list.",
+	}},
+	{name: "collapse-all", aliases: []string{"collapse"}, help: &cmdHelp{
+		summary: "Collapse all threads in the message list.",
+	}},
+	{name: "help", aliases: []string{"h"}, help: &cmdHelp{
+		summary:  "Show help. With no argument, opens the full help screen; with a command name, shows focused help for it.",
+		syntax:   ":help [command]",
+		examples: []string{":help", ":help search", ":help archive"},
+	}},
+	{name: "numbers", aliases: []string{"n"}, help: &cmdHelp{
+		summary: "Toggle message row numbers in the list.",
+	}},
+	{name: "quit", aliases: []string{"q"}, help: &cmdHelp{
+		summary: "Quit GizTUI.",
+	}},
+	{name: "cache", help: &cmdHelp{
+		summary: "Show or manage the local message cache.",
+	}},
+	{name: "preload", aliases: []string{"pl"}, help: &cmdHelp{
+		summary: "Preload messages into the cache for faster browsing.",
+	}},
+	{name: "stats", aliases: []string{"usage"}, help: &cmdHelp{
+		summary: "Show LLM/token usage statistics.",
+	}},
 	{name: "g"},
-	{name: "archive", aliases: []string{"a"}},
-	{name: "trash", aliases: []string{"d"}},
-	{name: "read", aliases: []string{"toggle-read", "t"}},
+	{name: "archive", aliases: []string{"a"}, help: &cmdHelp{
+		summary: "Archive the current message (or the selected messages in bulk mode).",
+	}},
+	{name: "trash", aliases: []string{"d"}, help: &cmdHelp{
+		summary: "Move the current message (or the selected messages) to Trash.",
+	}},
+	{name: "read", aliases: []string{"toggle-read", "t"}, help: &cmdHelp{
+		summary: "Toggle the read/unread state of the current message (or selection).",
+	}},
 	{name: "new"},
-	{name: "reply", aliases: []string{"r"}},
-	{name: "reply-all", aliases: []string{"ra"}},
-	{name: "forward", aliases: []string{"f"}},
-	{name: "drafts", aliases: []string{"dr"}},
-	{name: "refresh"},
-	{name: "autorefresh", aliases: []string{"arr"}},
-	{name: "config", aliases: []string{"cfg"}},
-	{name: "load", aliases: []string{"more", "next"}},
-	{name: "unread", aliases: []string{"u"}},
-	{name: "undo"},
-	{name: "archived", aliases: []string{"arch-search", "b"}},
-	{name: "select", aliases: []string{"sel"}},
+	{name: "reply", aliases: []string{"r"}, help: &cmdHelp{
+		summary: "Reply to the sender of the current message.",
+	}},
+	{name: "reply-all", aliases: []string{"ra"}, help: &cmdHelp{
+		summary: "Reply to the sender and all recipients of the current message.",
+	}},
+	{name: "forward", aliases: []string{"f"}, help: &cmdHelp{
+		summary: "Forward the current message.",
+	}},
+	{name: "drafts", aliases: []string{"dr"}, help: &cmdHelp{
+		summary: "Open the drafts picker.",
+	}},
+	{name: "refresh", help: &cmdHelp{
+		summary: "Reload the message list from Gmail.",
+	}},
+	{name: "autorefresh", aliases: []string{"arr"}, help: &cmdHelp{
+		summary: "Toggle automatic periodic inbox refresh.",
+	}},
+	{name: "config", aliases: []string{"cfg"}, help: &cmdHelp{
+		summary: "Show the active configuration.",
+	}},
+	{name: "load", aliases: []string{"more", "next"}, help: &cmdHelp{
+		summary: "Load the next batch of older messages.",
+	}},
+	{name: "unread", aliases: []string{"u"}, help: &cmdHelp{
+		summary: "Show only unread messages.",
+	}},
+	{name: "undo", help: &cmdHelp{
+		summary: "Undo the last action (archive, trash, label, move, ...).",
+	}},
+	{name: "archived", aliases: []string{"arch-search", "b"}, help: &cmdHelp{
+		summary: "Quick search: archived messages.",
+	}},
+	{name: "select", aliases: []string{"sel"}, help: &cmdHelp{
+		summary:  "Bulk-select messages.",
+		syntax:   ":select [all|none]",
+		examples: []string{":select all", ":select none"},
+	}},
 	{name: "move", aliases: []string{"mv"}, help: &cmdHelp{
 		summary:  "Move the next N messages to a folder/label (VIM-style range).",
 		syntax:   ":move <count>",
@@ -94,7 +166,9 @@ var commandRegistry = []commandSpec{
 		syntax:   ":label <count>",
 		examples: []string{":label 3"},
 	}},
-	{name: "obsidian", aliases: []string{"obs"}},
+	{name: "obsidian", aliases: []string{"obs"}, help: &cmdHelp{
+		summary: "Send the current message (or selection) to Obsidian.",
+	}},
 	{name: "accounts", aliases: []string{"acc"}, completeArg: completeAccountsArg, help: &cmdHelp{
 		summary:  "Switch the active Gmail account.",
 		syntax:   ":accounts [switch <id>]",
@@ -105,19 +179,35 @@ var commandRegistry = []commandSpec{
 		syntax:   ":prompt [list|create|update|export|delete|stats]",
 		examples: []string{":prompt", ":prompt list"},
 	}},
-	{name: "prompt-new", aliases: []string{"pn"}},
-	{name: "prompt-refine", aliases: []string{"prf"}},
-	{name: "prompt-save", aliases: []string{"ps"}},
-	{name: "action-plan", aliases: []string{"plan", "ap"}},
-	{name: "markdown", aliases: []string{"md"}},
-	{name: "touch-up", aliases: []string{"touchup"}},
+	{name: "prompt-new", aliases: []string{"pn"}, help: &cmdHelp{
+		summary: "Create a new AI prompt template.",
+	}},
+	{name: "prompt-refine", aliases: []string{"prf"}, help: &cmdHelp{
+		summary: "Iteratively refine the current AI result with a follow-up instruction.",
+	}},
+	{name: "prompt-save", aliases: []string{"ps"}, help: &cmdHelp{
+		summary: "Save the current prompt as a reusable template.",
+	}},
+	{name: "action-plan", aliases: []string{"plan", "ap"}, help: &cmdHelp{
+		summary: "Run the AI Inbox Action Plan over the selected messages.",
+	}},
+	{name: "markdown", aliases: []string{"md"}, help: &cmdHelp{
+		summary: "Toggle Markdown rendering of the message body.",
+	}},
+	{name: "touch-up", aliases: []string{"touchup"}, help: &cmdHelp{
+		summary: "Apply an AI touch-up pass to clean up the rendered message.",
+	}},
 	{name: "theme", aliases: []string{"th"}, completeArg: completeThemeArg, help: &cmdHelp{
 		summary:  "Switch or inspect the color theme.",
 		syntax:   ":theme [list|set <name>|preview <name>]",
 		examples: []string{":theme set gruvbox", ":theme list"},
 	}},
-	{name: "save-query", aliases: []string{"save", "sq"}},
-	{name: "bookmarks", aliases: []string{"queries", "bm", "qb"}},
+	{name: "save-query", aliases: []string{"save", "sq"}, help: &cmdHelp{
+		summary: "Save the current search as a named query (bookmark).",
+	}},
+	{name: "bookmarks", aliases: []string{"queries", "bm", "qb"}, help: &cmdHelp{
+		summary: "Open the saved-queries picker to run a bookmarked search.",
+	}},
 	{name: "bookmark", aliases: []string{"query"}, completeArg: completeBookmarkArg, help: &cmdHelp{
 		summary:  "Run a saved search query by name.",
 		syntax:   ":bookmark <query name>",
