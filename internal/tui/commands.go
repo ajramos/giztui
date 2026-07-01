@@ -674,7 +674,7 @@ func (a *App) executeComposeCommand(args []string) {
 func (a *App) executeHelpCommand(args []string) {
 	if len(args) > 0 {
 		if s := lookupCommand(args[0]); s != nil {
-			a.showHelpScreen(generateCommandHelpText(s), " 📚 :"+s.name+" ")
+			a.showHelpScreen(a.generateCommandHelpText(s), " 📚 :"+s.name+" ")
 			return
 		}
 	}
