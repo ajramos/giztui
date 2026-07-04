@@ -110,12 +110,32 @@ func TestMergeCategories(t *testing.T) {
 
 	merged := mergeCategories(existing, incoming)
 	assert.Len(t, merged, 2)
-	assert.Equal(t, []string{"m1", "m2", "m3"}, merged[0].MessageIDs)
-	assert.Equal(t, "Follow up", merged[1].Name)
-	assert.Equal(t, []string{"m4"}, merged[1].MessageIDs)
+	// Result is alphabetical by name (case-insensitive): "Follow up" < "Newsletters".
+	assert.Equal(t, "Follow up", merged[0].Name)
+	assert.Equal(t, []string{"m4"}, merged[0].MessageIDs)
+	assert.Equal(t, "Newsletters", merged[1].Name)
+	assert.Equal(t, []string{"m1", "m2", "m3"}, merged[1].MessageIDs)
 
 	// Fix 1: merging must not mutate the caller's original inner slice.
 	assert.Equal(t, []string{"m1", "m2"}, existing[0].MessageIDs)
+}
+
+// Live feedback: categories arrived in LLM order and felt intermixed across batches.
+// The plan must stay alphabetically sorted (case-insensitive) after every merge.
+func TestMergeCategoriesSortsAlphabetically(t *testing.T) {
+	existing := []ActionPlanCategory{
+		{Name: "Newsletters", Action: "archive", MessageIDs: []string{"m1"}},
+		{Name: "alerts", Action: "trash", MessageIDs: []string{"m2"}},
+	}
+	incoming := []ActionPlanCategory{
+		{Name: "Billing", Action: "label", Label: "Finance", MessageIDs: []string{"m3"}},
+	}
+	merged := mergeCategories(existing, incoming)
+	names := make([]string, len(merged))
+	for i, c := range merged {
+		names[i] = c.Name
+	}
+	assert.Equal(t, []string{"alerts", "Billing", "Newsletters"}, names)
 }
 
 func analyzerMsgs(n int) []AnalyzerMessage {
@@ -150,8 +170,9 @@ func TestAnalyze_HappyPath_SingleBatch(t *testing.T) {
 	assert.Equal(t, 3, plan.TotalAnalyzed)
 	assert.Equal(t, 1, plan.BatchesTotal)
 	assert.Len(t, plan.Categories, 2)
-	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
-	assert.Equal(t, []string{"m3"}, plan.Categories[1].MessageIDs)
+	// Alphabetical: "Follow up" (m3) sorts before "Newsletters" (m1,m2).
+	assert.Equal(t, []string{"m3"}, plan.Categories[0].MessageIDs)
+	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[1].MessageIDs)
 	assert.Equal(t, 1, progressCalls)
 	ai.AssertExpectations(t)
 }

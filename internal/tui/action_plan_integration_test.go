@@ -24,7 +24,7 @@ func TestActionPlan_RebuildTreeAndRemoveCategory(t *testing.T) {
 		plan: plan, selectedCategory: 0, root: root, tree: tree,
 		container: tview.NewFlex(),
 		excluded:  map[string]bool{},
-		expanded:  map[int]bool{},
+		expanded:  map[string]bool{},
 	}
 
 	// rebuildActionPlanTree populates one top-level node per category.

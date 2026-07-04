@@ -85,7 +85,7 @@ func newConfirmTestApp(t *testing.T) (*App, *actionPlanState, func(*tcell.EventK
 			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{},
+		expanded: map[string]bool{},
 		metaByID: map[string]*gmailapi.Message{},
 		footer:   tview.NewTextView(),
 	}

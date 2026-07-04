@@ -80,7 +80,7 @@ type actionPlanState struct {
 	scopeLabel       string // "N selected" or "N unread (inbox)"
 
 	excluded      map[string]bool              // message IDs toggled OFF (skip on action)
-	expanded      map[int]bool                 // category index → expanded?
+	expanded      map[string]bool              // category name (lowercase) → expanded? Keyed by NAME, not index: the plan stays alphabetically sorted, so a mid-analysis merge can insert a category and shift indices.
 	metaByID      map[string]*gmailapi.Message // subject/from lookup for email nodes
 	selectedMsgID string                       // msgID of selected email node, "" if a category is selected
 
@@ -240,7 +240,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		customPromptText: customPromptText,
 		scopeLabel:       scopeLabel,
 		excluded:         make(map[string]bool),
-		expanded:         make(map[int]bool),
+		expanded:         make(map[string]bool),
 		metaByID:         metaByID,
 	}
 	state.analyzing.Store(true)
@@ -459,12 +459,22 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	a.rebuildActionPlanTree(state)
 }
 
+// catExpandKey is the expansion-map key for top-level node i: the category's lowercase
+// name (stable across the plan's alphabetical re-sorts, unlike its index), or a sentinel
+// for the read-manually pseudo-node (i == -1).
+func catExpandKey(state *actionPlanState, i int) string {
+	if i < 0 || state.plan == nil || i >= len(state.plan.Categories) {
+		return "\x00read-manually"
+	}
+	return strings.ToLower(state.plan.Categories[i].Name)
+}
+
 // topLevelNodeLabel builds the display label for a top-level node: a category (i>=0)
-// or the read-manually node (i==-1). The chevron reflects state.expanded[i] so callers
+// or the read-manually node (i==-1). The chevron reflects the expanded state so callers
 // can refresh it the moment a node is expanded/collapsed, not only on a full rebuild.
 func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	chevron := "▶"
-	if state.expanded[i] {
+	if state.expanded[catExpandKey(state, i)] {
 		chevron = "▼"
 	}
 	if i < 0 { // read-manually pseudo-node
@@ -542,7 +552,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 			child.SetReference(emailRef{catIndex: i, msgID: id})
 			node.AddChild(child)
 		}
-		node.SetExpanded(state.expanded[i]) // default collapsed (zero value false)
+		node.SetExpanded(state.expanded[catExpandKey(state, i)]) // default collapsed (zero value false)
 		state.root.AddChild(node)
 	}
 	// Read-manually pseudo-node (ref -1): messages the LLM declined to categorize. Shown
@@ -558,7 +568,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 			child.SetReference(emailRef{catIndex: rmIdx, msgID: m.ID})
 			rm.AddChild(child)
 		}
-		rm.SetExpanded(state.expanded[rmIdx])
+		rm.SetExpanded(state.expanded[catExpandKey(state, rmIdx)])
 		state.root.AddChild(rm)
 	}
 	children := state.root.GetChildren()
@@ -746,8 +756,9 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			if cur != nil {
 				switch ref := cur.GetReference().(type) {
 				case int: // category / read-manually node
-					state.expanded[ref] = !state.expanded[ref]
-					cur.SetExpanded(state.expanded[ref])
+					k := catExpandKey(state, ref)
+					state.expanded[k] = !state.expanded[k]
+					cur.SetExpanded(state.expanded[k])
 					a.syncActionPlanNode(state, cur, ref) // refresh chevron + footer
 				case emailRef: // email node → load it into the list + reader (focus stays here)
 					a.openActionPlanEmail(ref.msgID)
@@ -757,7 +768,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		case tcell.KeyLeft:
 			if cur != nil {
 				if idx, ok := cur.GetReference().(int); ok {
-					state.expanded[idx] = false
+					state.expanded[catExpandKey(state, idx)] = false
 					cur.SetExpanded(false)
 					a.syncActionPlanNode(state, cur, idx)
 				}

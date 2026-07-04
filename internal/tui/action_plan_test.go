@@ -167,7 +167,7 @@ func TestSyncSelectionToNode(t *testing.T) {
 			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{},
+		expanded: map[string]bool{},
 		footer:   tview.NewTextView(),
 	}
 	state.root = tview.NewTreeNode("")
@@ -214,7 +214,7 @@ func TestActionPlanMoveInlineSwap(t *testing.T) {
 			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m3"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{0: true},
+		expanded: map[string]bool{"promos": true},
 		metaByID: map[string]*gmailapi.Message{},
 		footer:   tview.NewTextView(),
 	}
@@ -386,7 +386,7 @@ func TestActionPlanPromptViewSwap(t *testing.T) {
 	state := &actionPlanState{
 		customPromptText: "",
 		excluded:         map[string]bool{},
-		expanded:         map[int]bool{},
+		expanded:         map[string]bool{},
 		footer:           tview.NewTextView(),
 		plan:             &services.ActionPlan{},
 	}
@@ -458,5 +458,51 @@ func TestMessageRowInList(t *testing.T) {
 	}
 	if _, ok := messageRowInList(ids, ""); ok {
 		t.Error("empty msgID should return ok=false")
+	}
+}
+
+// Categories stay alphabetically sorted, so a mid-analysis merge can INSERT a category
+// and shift every index after it. Expansion is keyed by name (catExpandKey), not index:
+// the same category must stay expanded across the shift.
+func TestActionPlanExpansionSurvivesResort(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m1"}},
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m2"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[string]bool{"promos": true},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+
+	expandedOf := func(name string) bool {
+		for _, n := range state.root.GetChildren() {
+			if strings.Contains(n.GetText(), name) {
+				return n.IsExpanded()
+			}
+		}
+		t.Fatalf("category %q not found in tree", name)
+		return false
+	}
+
+	a.rebuildActionPlanTree(state)
+	if !expandedOf("Promos") || expandedOf("Notifs") {
+		t.Fatal("initial expansion wrong")
+	}
+
+	// A new batch inserts "Alerts" first (alphabetical) — Promos' index shifts 1→2.
+	state.plan.Categories = append([]services.ActionPlanCategory{
+		{Name: "Alerts", Action: "trash", MessageIDs: []string{"m3"}},
+	}, state.plan.Categories...)
+	a.rebuildActionPlanTree(state)
+	if !expandedOf("Promos") {
+		t.Fatal("Promos must stay expanded after an index-shifting insert")
+	}
+	if expandedOf("Alerts") || expandedOf("Notifs") {
+		t.Fatal("only Promos should be expanded")
 	}
 }
