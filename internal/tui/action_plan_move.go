@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -11,7 +13,7 @@ import (
 )
 
 // moveTarget describes a destination chosen in the move picker: either a standard
-// action ("archive"/"trash"/"mark_read"/"keep") or an existing category (by name).
+// action ("archive"/"trash"/"mark_read"/"keep"/"none") or an existing category (by name).
 type moveTarget struct {
 	label   string
 	kind    string // "action" | "category"
@@ -113,6 +115,9 @@ func applyActionPlanMove(plan *services.ActionPlan, metaByID map[string]*gmailap
 		}
 	}
 	plan.Categories = pruneEmptyCategories(plan.Categories)
+	// A move can create a brand-new category (appended above) — re-sort so the tree
+	// and the move chooser keep showing categories in display order (live feedback).
+	services.SortCategories(plan.Categories)
 }
 
 // applyActionPlanBulkMove reassigns every message in the source group (a category by index,
@@ -137,25 +142,50 @@ func applyActionPlanBulkMove(plan *services.ActionPlan, metaByID map[string]*gma
 }
 
 // actionPlanMoveTargets builds the destination list for the move picker: the standard
-// actions first, then the existing categories (excluding the source category by name).
+// actions and the existing categories (excluding the source category by name), as ONE
+// list sorted by label — fixed actions and categories interleaved. Two separately-sorted
+// blocks glued together read as unsorted (live feedback: "dos grupos distintos ordenados
+// pero pegados"). "No action" keeps the email grouped in a themed category with nothing
+// applied — distinct from the read-manually pile (live feedback: both destinations wanted).
 func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveTarget {
 	targets := []moveTarget{
 		{label: "Archive", kind: "action", action: "archive"},
-		{label: "Trash", kind: "action", action: "trash"},
-		{label: "Mark read", kind: "action", action: "mark_read"},
 		{label: "Keep (read manually)", kind: "action", action: "keep"},
+		{label: "Mark read", kind: "action", action: "mark_read"},
+		{label: "No action", kind: "action", action: "none"},
+		{label: "Trash", kind: "action", action: "trash"},
 	}
 	for _, c := range plan.Categories {
 		if c.Name == srcCatName {
 			continue
 		}
+		// Categories auto-created by a move are named after their action verb; the
+		// "verb · name" format would read "Mark read · Mark read" (live feedback:
+		// "cosas raras que se repiten") — render the label once in that case.
+		label := c.Name
+		if verb := actionVerbLabel(c.Action); verb != c.Name {
+			label = fmt.Sprintf("%s · %s", verb, c.Name)
+		}
 		targets = append(targets, moveTarget{
-			label:   fmt.Sprintf("%s · %s", actionVerbLabel(c.Action), c.Name),
+			label:   label,
 			kind:    "category",
 			catName: c.Name,
 		})
 	}
-	return targets
+	sort.SliceStable(targets, func(i, j int) bool {
+		return strings.ToLower(targets[i].label) < strings.ToLower(targets[j].label)
+	})
+	// Drop label duplicates: a verb-named category (e.g. "Mark read") and its fixed action
+	// resolve to the same destination (firstCategoryWithAction), so showing both just reads
+	// as a repeat. Stable sort keeps the fixed action first; it wins.
+	deduped := targets[:0]
+	for _, tg := range targets {
+		if n := len(deduped); n > 0 && strings.EqualFold(deduped[n-1].label, tg.label) {
+			continue
+		}
+		deduped = append(deduped, tg)
+	}
+	return deduped
 }
 
 // showActionPlanMoveChooser swaps the panel's tree for a destination chooser inside the SAME
@@ -171,8 +201,15 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBackgroundColor(colors.Background.Color())
 	list.SetMainTextColor(colors.Text.Color())
-	for _, tg := range targets {
-		list.AddItem(tg.label, "", 0, nil)
+	for i, tg := range targets {
+		// Number the first 9 destinations so "m then a digit" picks one directly
+		// (live feedback: no cursor navigation). tview renders the rune as "(1) …"
+		// and pressing it fires the selected func; later targets keep Enter-only.
+		var shortcut rune
+		if i < 9 {
+			shortcut = rune('1' + i)
+		}
+		list.AddItem(tg.label, "", shortcut, nil)
 	}
 
 	restore := func() {
@@ -211,7 +248,7 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 	state.container.AddItem(list, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(title)
-	state.footer.SetText(" Enter to move  |  Esc to go back ")
+	state.footer.SetText(" 1-9 or Enter to move  |  Esc to go back ")
 	a.focus.set("action_plan_move")
 	a.SetFocus(list)
 }

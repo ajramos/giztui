@@ -2192,7 +2192,7 @@ func (a *App) executePromptSaveCommand(args []string) {
 	a.savePromptFromConfigurator()
 }
 
-// executeActionPlanCommand handles :action-plan / :plan / :ap [with-prompt <name-or-id>].
+// executeActionPlanCommand handles :action-plan / :plan / :ap [apply|rules|with-prompt <name-or-id>].
 func (a *App) executeActionPlanCommand(args []string) {
 	if len(args) == 0 {
 		go a.openActionPlanPanel()
@@ -2205,6 +2205,10 @@ func (a *App) executeActionPlanCommand(args []string) {
 		}
 		nameOrID := strings.Join(args[1:], " ")
 		go a.openActionPlanWithPrompt(nameOrID)
+		return
+	}
+	if strings.ToLower(args[0]) == "apply" {
+		a.applyActionPlanFromCommand()
 		return
 	}
 	if strings.ToLower(args[0]) == "rules" {

@@ -45,7 +45,7 @@ func TestActionPlanSummarizeSwap(t *testing.T) {
 		}},
 		selectedCategory: 0,
 		excluded:         map[string]bool{},
-		expanded:         map[int]bool{},
+		expanded:         map[string]bool{},
 		metaByID:         map[string]*gmailapi.Message{"m1": {Id: "m1", Snippet: "s"}},
 		footer:           tview.NewTextView(),
 	}

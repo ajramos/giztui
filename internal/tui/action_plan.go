@@ -80,7 +80,7 @@ type actionPlanState struct {
 	scopeLabel       string // "N selected" or "N unread (inbox)"
 
 	excluded      map[string]bool              // message IDs toggled OFF (skip on action)
-	expanded      map[int]bool                 // category index → expanded?
+	expanded      map[string]bool              // category name (lowercase) → expanded? Keyed by NAME, not index: the plan stays alphabetically sorted, so a mid-analysis merge can insert a category and shift indices.
 	metaByID      map[string]*gmailapi.Message // subject/from lookup for email nodes
 	selectedMsgID string                       // msgID of selected email node, "" if a category is selected
 
@@ -89,6 +89,8 @@ type actionPlanState struct {
 	footer          *tview.TextView
 	container       *tview.Flex
 	streamingCancel context.CancelFunc
+
+	confirmPending bool // whole-plan apply armed (first press of keys.confirm_plan); UI goroutine only
 }
 
 // checkedIDs returns the subset of ids not present in excluded, preserving order.
@@ -157,7 +159,10 @@ func actionVerbLabel(action string) string {
 	case "summarize":
 		return "summarize"
 	default:
-		return "Review"
+		// action "none" (and anything unknown): no bulk action — the user handles these
+		// emails by hand. "No action" avoids reading like a distinct action next to the
+		// separate "Read manually" bucket (live feedback: "Review" looked like a new verb).
+		return "No action"
 	}
 }
 
@@ -235,7 +240,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		customPromptText: customPromptText,
 		scopeLabel:       scopeLabel,
 		excluded:         make(map[string]bool),
-		expanded:         make(map[int]bool),
+		expanded:         make(map[string]bool),
 		metaByID:         metaByID,
 	}
 	state.analyzing.Store(true)
@@ -454,12 +459,22 @@ func (a *App) renderActionPlanPanel(state *actionPlanState) {
 	a.rebuildActionPlanTree(state)
 }
 
+// catExpandKey is the expansion-map key for top-level node i: the category's lowercase
+// name (stable across the plan's alphabetical re-sorts, unlike its index), or a sentinel
+// for the read-manually pseudo-node (i == -1).
+func catExpandKey(state *actionPlanState, i int) string {
+	if i < 0 || state.plan == nil || i >= len(state.plan.Categories) {
+		return "\x00read-manually"
+	}
+	return strings.ToLower(state.plan.Categories[i].Name)
+}
+
 // topLevelNodeLabel builds the display label for a top-level node: a category (i>=0)
-// or the read-manually node (i==-1). The chevron reflects state.expanded[i] so callers
+// or the read-manually node (i==-1). The chevron reflects the expanded state so callers
 // can refresh it the moment a node is expanded/collapsed, not only on a full rebuild.
 func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	chevron := "▶"
-	if state.expanded[i] {
+	if state.expanded[catExpandKey(state, i)] {
 		chevron = "▼"
 	}
 	if i < 0 { // read-manually pseudo-node
@@ -472,6 +487,11 @@ func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	// name describes what's affected (e.g. "Newsletters & Marketing"), so keep it.
 	if c.Action == "label" && c.Label != "" {
 		return fmt.Sprintf("%s Label → %s · %d/%d · %s", chevron, c.Label, checked, len(c.MessageIDs), strings.ToUpper(c.Priority))
+	}
+	// Categories auto-created by a move are named after their action verb; "verb · … · name"
+	// would repeat it ("Mark read · 0/1 · Mark read") — drop the redundant name then.
+	if verb := actionVerbLabel(c.Action); verb == c.Name {
+		return fmt.Sprintf("%s %s · %d/%d · %s", chevron, verb, checked, len(c.MessageIDs), strings.ToUpper(c.Priority))
 	}
 	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 }
@@ -537,7 +557,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 			child.SetReference(emailRef{catIndex: i, msgID: id})
 			node.AddChild(child)
 		}
-		node.SetExpanded(state.expanded[i]) // default collapsed (zero value false)
+		node.SetExpanded(state.expanded[catExpandKey(state, i)]) // default collapsed (zero value false)
 		state.root.AddChild(node)
 	}
 	// Read-manually pseudo-node (ref -1): messages the LLM declined to categorize. Shown
@@ -553,7 +573,7 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 			child.SetReference(emailRef{catIndex: rmIdx, msgID: m.ID})
 			rm.AddChild(child)
 		}
-		rm.SetExpanded(state.expanded[rmIdx])
+		rm.SetExpanded(state.expanded[catExpandKey(state, rmIdx)])
 		state.root.AddChild(rm)
 	}
 	children := state.root.GetChildren()
@@ -681,6 +701,9 @@ func (a *App) closeActionPlanPanel() {
 		a.actionPlanState.streamingCancel()
 		a.actionPlanState.streamingCancel = nil
 	}
+	if a.actionPlanState != nil && a.actionPlanState.confirmPending {
+		go a.GetErrorHandler().ClearPersistentMessage()
+	}
 	a.aiPanel.clearStreamingCancel()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -701,6 +724,27 @@ func (a *App) closeActionPlanPanel() {
 // actionPlanInputCapture handles all key input while the Action Plan panel is focused.
 func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKey) *tcell.EventKey {
 	return func(ev *tcell.EventKey) *tcell.EventKey {
+		// Two-press confirm state: while armed, the confirm key executes, Esc cancels the
+		// confirmation ONLY (panel stays open; next Esc closes as usual), and any other key
+		// disarms then does its normal job. Status calls are go-wrapped (QueueUpdateDraw inside).
+		if state.confirmPending {
+			switch {
+			case a.matchesConfiguredKey(ev, a.Keys.ConfirmPlan):
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				a.executeActionPlanApply(state)
+				return nil
+			case ev.Key() == tcell.KeyEscape:
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				return nil
+			default:
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				// fall through: the key still performs its normal action below
+			}
+		}
+
 		// ESC: synchronous close (no QueueUpdateDraw).
 		if ev.Key() == tcell.KeyEscape {
 			a.closeActionPlanPanel()
@@ -717,8 +761,9 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			if cur != nil {
 				switch ref := cur.GetReference().(type) {
 				case int: // category / read-manually node
-					state.expanded[ref] = !state.expanded[ref]
-					cur.SetExpanded(state.expanded[ref])
+					k := catExpandKey(state, ref)
+					state.expanded[k] = !state.expanded[k]
+					cur.SetExpanded(state.expanded[k])
 					a.syncActionPlanNode(state, cur, ref) // refresh chevron + footer
 				case emailRef: // email node → load it into the list + reader (focus stays here)
 					a.openActionPlanEmail(ref.msgID)
@@ -728,7 +773,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		case tcell.KeyLeft:
 			if cur != nil {
 				if idx, ok := cur.GetReference().(int); ok {
-					state.expanded[idx] = false
+					state.expanded[catExpandKey(state, idx)] = false
 					cur.SetExpanded(false)
 					a.syncActionPlanNode(state, cur, idx)
 				}
@@ -769,8 +814,12 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		key := string(ev.Rune())
 
-		// Toggle the excluded state of an email node (configurable; reuses bulk_select, default "space").
-		if a.matchesConfiguredKey(ev, a.Keys.BulkSelect) {
+		// Toggle the excluded state of an email node. Literal Space ALWAYS works here in
+		// addition to the configured bulk_select key (live feedback: with bulk_select bound
+		// to another key, Space silently did nothing — but it's the habit from inbox bulk
+		// selection and Space has no other meaning in this panel).
+		isSpace := ev.Key() == tcell.KeyRune && ev.Rune() == ' '
+		if a.matchesConfiguredKey(ev, a.Keys.BulkSelect) || isSpace {
 			if cur != nil {
 				if ref, ok := cur.GetReference().(emailRef); ok {
 					state.excluded[ref.msgID] = !state.excluded[ref.msgID]
@@ -782,6 +831,11 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
+			return nil
+		}
+		// Confirm & apply the whole plan (two-press; see startActionPlanConfirm).
+		if a.matchesConfiguredKey(ev, a.Keys.ConfirmPlan) {
+			a.startActionPlanConfirm(state)
 			return nil
 		}
 		// 'm' moves: on an email node, that one email; on a category or read-manually header,
@@ -869,23 +923,11 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 	emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 	go func() {
-		var err error
-		switch action {
-		case "archive":
-			err = emailService.BulkArchive(a.ctx, ids, a.bulkProgress(a.ctx, "Archiving"))
-		case "mark_read":
-			err = emailService.BulkMarkAsRead(a.ctx, ids, a.bulkProgress(a.ctx, "Marking read"))
-		case "trash":
-			err = emailService.BulkTrash(a.ctx, ids, a.bulkProgress(a.ctx, "Trashing"))
-		case "label":
-			if label == "" {
-				a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
-				return
-			}
-			err = a.applyActionPlanLabel(labelService, ids, label)
-		default:
+		if action == "label" && label == "" {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
 			return
 		}
+		err := a.runActionPlanBulkOp(emailService, labelService, action, ids, label)
 		a.GetErrorHandler().ClearPersistentMessage()
 		if err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Action failed on %q: %v", catName, err))

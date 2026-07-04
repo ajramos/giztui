@@ -167,7 +167,7 @@ func TestSyncSelectionToNode(t *testing.T) {
 			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{},
+		expanded: map[string]bool{},
 		footer:   tview.NewTextView(),
 	}
 	state.root = tview.NewTreeNode("")
@@ -214,7 +214,7 @@ func TestActionPlanMoveInlineSwap(t *testing.T) {
 			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m3"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{0: true},
+		expanded: map[string]bool{"promos": true},
 		metaByID: map[string]*gmailapi.Message{},
 		footer:   tview.NewTextView(),
 	}
@@ -267,10 +267,11 @@ func TestApplyActionPlanMove(t *testing.T) {
 	if len(plan.Categories) != 2 {
 		t.Fatalf("want 2 cats, got %d", len(plan.Categories))
 	}
-	if got := plan.Categories[0].MessageIDs; len(got) != 1 || got[0] != "m1" {
+	// Look up by name: moves keep the plan alphabetically sorted, so indices shift.
+	if got := plan.Categories[categoryIndexByName(plan, "Promos")].MessageIDs; len(got) != 1 || got[0] != "m1" {
 		t.Fatalf("Promos should hold [m1], got %v", got)
 	}
-	if got := plan.Categories[1].MessageIDs; len(got) != 2 {
+	if got := plan.Categories[categoryIndexByName(plan, "Notifs")].MessageIDs; len(got) != 2 {
 		t.Fatalf("Notifs should hold 2, got %v", got)
 	}
 
@@ -386,7 +387,7 @@ func TestActionPlanPromptViewSwap(t *testing.T) {
 	state := &actionPlanState{
 		customPromptText: "",
 		excluded:         map[string]bool{},
-		expanded:         map[int]bool{},
+		expanded:         map[string]bool{},
 		footer:           tview.NewTextView(),
 		plan:             &services.ActionPlan{},
 	}
@@ -427,6 +428,11 @@ func TestActionVerb_Summarize(t *testing.T) {
 	if got := actionVerbLabel("summarize"); got != "summarize" {
 		t.Fatalf("actionVerbLabel(summarize)=%q", got)
 	}
+	// Live feedback: "Review" read like a distinct action next to the "Read manually"
+	// bucket. Action "none" must render as "No action".
+	if got := actionVerbLabel("none"); got != "No action" {
+		t.Fatalf("actionVerbLabel(none)=%q, want \"No action\"", got)
+	}
 	if got := actionRuleVerbShort("summarize"); got != "digest" {
 		t.Fatalf("actionRuleVerbShort(summarize)=%q", got)
 	}
@@ -453,5 +459,220 @@ func TestMessageRowInList(t *testing.T) {
 	}
 	if _, ok := messageRowInList(ids, ""); ok {
 		t.Error("empty msgID should return ok=false")
+	}
+}
+
+// Categories stay alphabetically sorted, so a mid-analysis merge can INSERT a category
+// and shift every index after it. Expansion is keyed by name (catExpandKey), not index:
+// the same category must stay expanded across the shift.
+func TestActionPlanExpansionSurvivesResort(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m1"}},
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m2"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[string]bool{"promos": true},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+
+	expandedOf := func(name string) bool {
+		for _, n := range state.root.GetChildren() {
+			if strings.Contains(n.GetText(), name) {
+				return n.IsExpanded()
+			}
+		}
+		t.Fatalf("category %q not found in tree", name)
+		return false
+	}
+
+	a.rebuildActionPlanTree(state)
+	if !expandedOf("Promos") || expandedOf("Notifs") {
+		t.Fatal("initial expansion wrong")
+	}
+
+	// A new batch inserts "Alerts" first (alphabetical) — Promos' index shifts 1→2.
+	state.plan.Categories = append([]services.ActionPlanCategory{
+		{Name: "Alerts", Action: "trash", MessageIDs: []string{"m3"}},
+	}, state.plan.Categories...)
+	a.rebuildActionPlanTree(state)
+	if !expandedOf("Promos") {
+		t.Fatal("Promos must stay expanded after an index-shifting insert")
+	}
+	if expandedOf("Alerts") || expandedOf("Notifs") {
+		t.Fatal("only Promos should be expanded")
+	}
+}
+
+// Live feedback: the move chooser must number its destinations so "m then a digit"
+// picks that target directly — no cursor navigation. Targets beyond 9 keep plain
+// Enter selection.
+func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	a.Pages = NewPages()
+	a.errorHandler = NewErrorHandler(nil, nil, nil, nil, nil)
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m3"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[string]bool{},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	a.actionPlanState = state
+
+	a.showActionPlanMoveInline(state, 0, "m2")
+	lst, ok := a.GetFocus().(*tview.List)
+	if !ok {
+		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
+	}
+
+	// Destinations (single sorted list): 1 Archive, 2 Keep, 3 Mark read,
+	// 4 Mark read · Notifs, 5 No action, 6 Trash. Pressing '4' must select
+	// target 4 immediately (List shortcut runes).
+	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '4', tcell.ModNone), func(p tview.Primitive) {})
+
+	ni := categoryIndexByName(state.plan, "Notifs")
+	if ni == -1 {
+		t.Fatal("Notifs category missing after move")
+	}
+	if got := state.plan.Categories[ni].MessageIDs; len(got) != 2 || got[1] != "m2" {
+		t.Fatalf("digit shortcut should move m2 into Notifs, got %v", got)
+	}
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after a digit move, focus should return to action_plan, got %q", a.focus.cur())
+	}
+}
+
+// Live feedback: after moving an email to an action with no existing group, the new
+// category was appended at the END of the plan — the tree and the move chooser then
+// showed categories out of order. Moves must keep the plan in display order
+// (action first, then name — how the rows read left to right).
+func TestApplyActionPlanMoveKeepsDisplayOrder(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+		{Name: "Updates", Action: "trash", MessageIDs: []string{"m3"}},
+	}}
+
+	// No mark_read group exists → a new "Mark read" category is created. It must slot
+	// into display order (archive:Promos < mark_read:Mark read < trash:Updates),
+	// not land at the end.
+	applyActionPlanMove(plan, nil, "m1", moveTarget{kind: "action", action: "mark_read"})
+
+	var names []string
+	for _, c := range plan.Categories {
+		names = append(names, c.Name)
+	}
+	want := []string{"Promos", "Mark read", "Updates"}
+	if len(names) != 3 || names[0] != want[0] || names[1] != want[1] || names[2] != want[2] {
+		t.Fatalf("plan must stay in display order after a move, got %v", names)
+	}
+}
+
+// Same duplication in the tree: the category header renders "verb · … · name", so a
+// verb-named category reads "Mark read · 0/1 · Mark read · MEDIUM". Render the verb once.
+func TestTopLevelNodeLabelNoDuplicateVerbName(t *testing.T) {
+	a := &App{}
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Mark read", Action: "mark_read", Priority: "medium", MessageIDs: []string{"m1"}},
+		}},
+		expanded: map[string]bool{},
+		excluded: map[string]bool{},
+	}
+	got := a.topLevelNodeLabel(state, 0)
+	if strings.Count(got, "Mark read") != 1 {
+		t.Fatalf("verb-named category header should show the verb once, got %q", got)
+	}
+}
+
+// The chooser must be ONE alphabetical list — fixed actions and categories interleaved.
+// Two separately-sorted blocks glued together read as unsorted (live feedback: "dos
+// grupos distintos ordenados pero pegados uno a continuación de otro").
+func TestActionPlanMoveTargetsSingleSortedList(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Newsletters", Action: "archive", MessageIDs: []string{"m1"}},
+		{Name: "Zeta", Action: "trash", MessageIDs: []string{"m2"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "")
+	want := []string{
+		"Archive", "Archive · Newsletters", "Keep (read manually)",
+		"Mark read", "No action", "Trash", "Trash · Zeta",
+	}
+	if len(targets) != len(want) {
+		t.Fatalf("want %d targets %v, got %+v", len(want), want, targets)
+	}
+	for i, w := range want {
+		if targets[i].label != w {
+			t.Fatalf("target %d should be %q, got %q (full: %+v)", i, w, targets[i].label, targets)
+		}
+	}
+}
+
+// Categories auto-created by a move are named after their action verb (e.g. a "Mark read"
+// category with action mark_read). The chooser's "verb · name" format then read
+// "Mark read · Mark read", and after collapsing that, the category label collides with the
+// fixed action's — both destinations resolve to the same category (firstCategoryWithAction),
+// so only ONE "Mark read" entry may appear (live feedback: "cosas raras que se repiten").
+func TestActionPlanMoveTargetsNoDuplicateVerbLabel(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Mark read", Action: "mark_read", MessageIDs: []string{"m1"}},
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m2"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "Promos")
+	n := 0
+	for _, tg := range targets {
+		if tg.label == "Mark read" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("exactly one Mark read destination expected, got %d (full: %+v)", n, targets)
+	}
+	// The surviving entry must still land the email in the existing "Mark read" category.
+	for _, tg := range targets {
+		if tg.label != "Mark read" {
+			continue
+		}
+		applyActionPlanMove(plan, nil, "m2", tg)
+		idx := categoryIndexByName(plan, "Mark read")
+		if idx < 0 || len(plan.Categories[idx].MessageIDs) != 2 {
+			t.Fatalf("m2 should join the Mark read category, got %+v", plan.Categories)
+		}
+	}
+}
+
+// Live feedback: besides "Keep (read manually)" the move chooser must offer "No action" —
+// it keeps the email in a themed group with nothing applied, distinct from read-manually.
+func TestActionPlanMoveTargetsIncludeNoAction(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "")
+	// Single sorted list — find No action by label (position depends on the plan).
+	var noAction *moveTarget
+	for i := range targets {
+		if targets[i].label == "No action" {
+			noAction = &targets[i]
+		}
+	}
+	if noAction == nil || noAction.action != "none" {
+		t.Fatalf("No action (action none) must be offered, got %+v", targets)
+	}
+	applyActionPlanMove(plan, nil, "m1", *noAction)
+	idx := firstCategoryWithAction(plan, "none")
+	if idx < 0 || plan.Categories[idx].Name != "No action" || plan.Categories[idx].MessageIDs[0] != "m1" {
+		t.Fatalf("moving to No action should create a none-category holding m1, got %+v", plan.Categories)
 	}
 }
