@@ -488,6 +488,11 @@ func (a *App) topLevelNodeLabel(state *actionPlanState, i int) string {
 	if c.Action == "label" && c.Label != "" {
 		return fmt.Sprintf("%s Label → %s · %d/%d · %s", chevron, c.Label, checked, len(c.MessageIDs), strings.ToUpper(c.Priority))
 	}
+	// Categories auto-created by a move are named after their action verb; "verb · … · name"
+	// would repeat it ("Mark read · 0/1 · Mark read") — drop the redundant name then.
+	if verb := actionVerbLabel(c.Action); verb == c.Name {
+		return fmt.Sprintf("%s %s · %d/%d · %s", chevron, verb, checked, len(c.MessageIDs), strings.ToUpper(c.Priority))
+	}
 	return fmt.Sprintf("%s %s · %d/%d · %s · %s", chevron, actionVerbLabel(c.Action), checked, len(c.MessageIDs), c.Name, strings.ToUpper(c.Priority))
 }
 
