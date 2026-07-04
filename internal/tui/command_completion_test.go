@@ -112,8 +112,8 @@ func TestCommandCandidates_ArgGrammar(t *testing.T) {
 func TestArgCompleters_Subcommands(t *testing.T) {
 	a := &App{}
 	// prompt is a subcommand dispatcher (no name completion).
-	if got := completePromptArg(a, ""); len(got) != 6 {
-		t.Fatalf("prompt '' -> %v, want 6 subcommands", got)
+	if got := completePromptArg(a, ""); len(got) != 9 {
+		t.Fatalf("prompt '' -> %v, want 9 subcommands", got)
 	}
 	if got := completePromptArg(a, "list x"); got != nil {
 		t.Fatalf("prompt 'list x' -> %v, want nil", got)

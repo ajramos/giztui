@@ -399,6 +399,7 @@ type KeyBindings struct {
 	ActionPlan    string `json:"action_plan"`        // Open the AI inbox Action Plan panel
 	RememberRule  string `json:"remember_rule"`      // Action plan: remember a rule/interest
 	ViewPrompt    string `json:"view_prompt"`        // Action plan: view the effective analyzer prompt
+	ConfirmPlan   string `json:"confirm_plan"`       // Action plan: confirm & apply the whole plan (two-press)
 	RuleAdd       string `json:"rule_add"`           // Analyzer rules panel: add a rule
 	RuleDelete    string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
 	SavedQueryDel string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
@@ -652,6 +653,7 @@ func DefaultKeyBindings() KeyBindings {
 		ActionPlan:    "P", // capital P (A is taken by Attachments)
 		RememberRule:  "ctrl+r",
 		ViewPrompt:    "i", // inspect the effective analyzer prompt (avoids clash with bulk_mode "v")
+		ConfirmPlan:   "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
 		RuleAdd:       "a",
 		RuleDelete:    "d",
 		SavedQueryDel: "d",
@@ -878,6 +880,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 	// listed here) is still warned — this allowlist suppresses only these verified-safe overlaps.
 	contextSeparated := map[string]map[string]bool{
 		"a":      {"archive": true, "rule_add": true},
+		"c":      {"compose": true, "confirm_plan": true},
 		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true},
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},

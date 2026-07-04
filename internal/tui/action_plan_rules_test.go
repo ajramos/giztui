@@ -70,7 +70,7 @@ func TestRememberRuleInlineSwap(t *testing.T) {
 			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
 		}},
 		excluded: map[string]bool{},
-		expanded: map[int]bool{},
+		expanded: map[string]bool{},
 		metaByID: nil,
 		footer:   tview.NewTextView(),
 	}
