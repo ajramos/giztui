@@ -142,21 +142,30 @@ func applyActionPlanBulkMove(plan *services.ActionPlan, metaByID map[string]*gma
 // actionPlanMoveTargets builds the destination list for the move picker: the standard
 // actions first, then the existing categories (excluding the source category by name).
 func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveTarget {
+	// Fixed actions in alphabetical label order, matching the sorted category rows below
+	// (live feedback: "Trash before Mark read" read as unsorted). "No action" keeps the
+	// email grouped in a themed category with nothing applied — distinct from the
+	// read-manually pile (live feedback: both destinations wanted).
 	targets := []moveTarget{
 		{label: "Archive", kind: "action", action: "archive"},
-		{label: "Trash", kind: "action", action: "trash"},
-		{label: "Mark read", kind: "action", action: "mark_read"},
 		{label: "Keep (read manually)", kind: "action", action: "keep"},
-		// "No action" keeps the email grouped in a themed category with nothing applied —
-		// distinct from the read-manually pile (live feedback: both destinations wanted).
+		{label: "Mark read", kind: "action", action: "mark_read"},
 		{label: "No action", kind: "action", action: "none"},
+		{label: "Trash", kind: "action", action: "trash"},
 	}
 	for _, c := range plan.Categories {
 		if c.Name == srcCatName {
 			continue
 		}
+		// Categories auto-created by a move are named after their action verb; the
+		// "verb · name" format would read "Mark read · Mark read" (live feedback:
+		// "cosas raras que se repiten") — render the label once in that case.
+		label := c.Name
+		if verb := actionVerbLabel(c.Action); verb != c.Name {
+			label = fmt.Sprintf("%s · %s", verb, c.Name)
+		}
 		targets = append(targets, moveTarget{
-			label:   fmt.Sprintf("%s · %s", actionVerbLabel(c.Action), c.Name),
+			label:   label,
 			kind:    "category",
 			catName: c.Name,
 		})

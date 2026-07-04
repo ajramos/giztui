@@ -538,9 +538,9 @@ func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
 		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
 	}
 
-	// Destinations: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 No action,
-	// 6 Mark read · Notifs. Pressing '6' must select target 6 immediately
-	// (List shortcut runes).
+	// Destinations (alphabetical actions first): 1 Archive, 2 Keep, 3 Mark read,
+	// 4 No action, 5 Trash, 6 Mark read · Notifs. Pressing '6' must select
+	// target 6 immediately (List shortcut runes).
 	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '6', tcell.ModNone), func(p tview.Primitive) {})
 
 	ni := categoryIndexByName(state.plan, "Notifs")
@@ -580,6 +580,39 @@ func TestApplyActionPlanMoveKeepsDisplayOrder(t *testing.T) {
 	}
 }
 
+// Same duplication in the tree: the category header renders "verb · … · name", so a
+// verb-named category reads "Mark read · 0/1 · Mark read · MEDIUM". Render the verb once.
+func TestTopLevelNodeLabelNoDuplicateVerbName(t *testing.T) {
+	a := &App{}
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Mark read", Action: "mark_read", Priority: "medium", MessageIDs: []string{"m1"}},
+		}},
+		expanded: map[string]bool{},
+		excluded: map[string]bool{},
+	}
+	got := a.topLevelNodeLabel(state, 0)
+	if strings.Count(got, "Mark read") != 1 {
+		t.Fatalf("verb-named category header should show the verb once, got %q", got)
+	}
+}
+
+// Categories auto-created by a move are named after their action verb (e.g. a "Mark read"
+// category with action mark_read). The chooser's "verb · name" format then reads
+// "Mark read · Mark read" (live feedback: "cosas raras que se repiten") — when the name
+// IS the verb, render it once.
+func TestActionPlanMoveTargetsNoDuplicateVerbLabel(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Mark read", Action: "mark_read", MessageIDs: []string{"m1"}},
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m2"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "Promos")
+	last := targets[len(targets)-1]
+	if last.label != "Mark read" || last.kind != "category" || last.catName != "Mark read" {
+		t.Fatalf("verb-named category should render its label once, got %+v", last)
+	}
+}
+
 // Live feedback: besides "Keep (read manually)" the move chooser must offer "No action" —
 // it keeps the email in a themed group with nothing applied, distinct from read-manually.
 func TestActionPlanMoveTargetsIncludeNoAction(t *testing.T) {
@@ -587,11 +620,11 @@ func TestActionPlanMoveTargetsIncludeNoAction(t *testing.T) {
 		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
 	}}
 	targets := actionPlanMoveTargets(plan, "")
-	// Fixed actions: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 No action.
-	if targets[4].label != "No action" || targets[4].action != "none" {
-		t.Fatalf("5th fixed target should be No action (action none), got %+v", targets[4])
+	// Fixed actions, alphabetical: 1 Archive, 2 Keep, 3 Mark read, 4 No action, 5 Trash.
+	if targets[3].label != "No action" || targets[3].action != "none" {
+		t.Fatalf("4th fixed target should be No action (action none), got %+v", targets[3])
 	}
-	applyActionPlanMove(plan, nil, "m1", targets[4])
+	applyActionPlanMove(plan, nil, "m1", targets[3])
 	idx := firstCategoryWithAction(plan, "none")
 	if idx < 0 || plan.Categories[idx].Name != "No action" || plan.Categories[idx].MessageIDs[0] != "m1" {
 		t.Fatalf("moving to No action should create a none-category holding m1, got %+v", plan.Categories)
