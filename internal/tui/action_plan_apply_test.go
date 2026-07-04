@@ -4,6 +4,9 @@ import (
 	"testing"
 
 	"github.com/ajramos/giztui/internal/services"
+	tcell "github.com/derailed/tcell/v2"
+	"github.com/derailed/tview"
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 func TestBuildPlanApply(t *testing.T) {
@@ -68,5 +71,81 @@ func TestPlanApplyStatusLine(t *testing.T) {
 	want2 := "Apply plan: 4 mark read — press 'x' again to confirm, Esc cancels"
 	if got := s2.statusLine("x"); got != want2 {
 		t.Fatalf("statusLine single:\n got %q\nwant %q", got, want2)
+	}
+}
+
+func newConfirmTestApp(t *testing.T) (*App, *actionPlanState, func(*tcell.EventKey) *tcell.EventKey) {
+	t.Helper()
+	a := &App{Application: tview.NewApplication()}
+	a.Pages = NewPages()
+	a.errorHandler = NewErrorHandler(nil, nil, nil, nil, nil)
+	a.Keys.ConfirmPlan = "c"
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[int]bool{},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	a.actionPlanState = state
+	return a, state, a.actionPlanInputCapture(state)
+}
+
+func TestActionPlanConfirmTwoPressStateMachine(t *testing.T) {
+	a, state, capture := newConfirmTestApp(t)
+
+	// First press of 'c' arms the confirmation and is consumed.
+	if ev := capture(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone)); ev != nil {
+		t.Fatal("first confirm press should be consumed")
+	}
+	if !state.confirmPending {
+		t.Fatal("first confirm press should set confirmPending")
+	}
+
+	// Any other key clears the pending confirmation AND still does its normal job
+	// (Down passes through to the TreeView).
+	if ev := capture(tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)); ev == nil {
+		t.Fatal("navigation key should still pass through to the tree")
+	}
+	if state.confirmPending {
+		t.Fatal("any other key must clear confirmPending")
+	}
+
+	// Esc while pending cancels the confirmation ONLY — panel stays open.
+	capture(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
+	if !state.confirmPending {
+		t.Fatal("re-arming failed")
+	}
+	if ev := capture(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)); ev != nil {
+		t.Fatal("Esc while pending should be consumed")
+	}
+	if state.confirmPending {
+		t.Fatal("Esc while pending must clear confirmPending")
+	}
+	if a.actionPlanState != state {
+		t.Fatal("Esc while pending must NOT close the panel")
+	}
+}
+
+func TestActionPlanConfirmBlockedWhileAnalyzing(t *testing.T) {
+	_, state, capture := newConfirmTestApp(t)
+	state.analyzing.Store(true)
+	capture(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
+	if state.confirmPending {
+		t.Fatal("confirm must be blocked while analysis is running")
+	}
+}
+
+func TestStartActionPlanConfirmNothingToApply(t *testing.T) {
+	_, state, capture := newConfirmTestApp(t)
+	state.excluded["m1"] = true
+	state.excluded["m2"] = true // everything excluded → nothing applicable
+	capture(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
+	if state.confirmPending {
+		t.Fatal("empty apply set must not arm the confirmation")
 	}
 }

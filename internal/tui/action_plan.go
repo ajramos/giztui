@@ -89,6 +89,8 @@ type actionPlanState struct {
 	footer          *tview.TextView
 	container       *tview.Flex
 	streamingCancel context.CancelFunc
+
+	confirmPending bool // whole-plan apply armed (first press of keys.confirm_plan); UI goroutine only
 }
 
 // checkedIDs returns the subset of ids not present in excluded, preserving order.
@@ -681,6 +683,9 @@ func (a *App) closeActionPlanPanel() {
 		a.actionPlanState.streamingCancel()
 		a.actionPlanState.streamingCancel = nil
 	}
+	if a.actionPlanState != nil && a.actionPlanState.confirmPending {
+		go a.GetErrorHandler().ClearPersistentMessage()
+	}
 	a.aiPanel.clearStreamingCancel()
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -701,6 +706,27 @@ func (a *App) closeActionPlanPanel() {
 // actionPlanInputCapture handles all key input while the Action Plan panel is focused.
 func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKey) *tcell.EventKey {
 	return func(ev *tcell.EventKey) *tcell.EventKey {
+		// Two-press confirm state: while armed, the confirm key executes, Esc cancels the
+		// confirmation ONLY (panel stays open; next Esc closes as usual), and any other key
+		// disarms then does its normal job. Status calls are go-wrapped (QueueUpdateDraw inside).
+		if state.confirmPending {
+			switch {
+			case a.matchesConfiguredKey(ev, a.Keys.ConfirmPlan):
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				a.executeActionPlanApply(state)
+				return nil
+			case ev.Key() == tcell.KeyEscape:
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				return nil
+			default:
+				state.confirmPending = false
+				go a.GetErrorHandler().ClearPersistentMessage()
+				// fall through: the key still performs its normal action below
+			}
+		}
+
 		// ESC: synchronous close (no QueueUpdateDraw).
 		if ev.Key() == tcell.KeyEscape {
 			a.closeActionPlanPanel()
@@ -782,6 +808,11 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
+			return nil
+		}
+		// Confirm & apply the whole plan (two-press; see startActionPlanConfirm).
+		if a.matchesConfiguredKey(ev, a.Keys.ConfirmPlan) {
+			a.startActionPlanConfirm(state)
 			return nil
 		}
 		// 'm' moves: on an email node, that one email; on a category or read-manually header,
