@@ -412,6 +412,39 @@ CREATE TABLE IF NOT EXISTS analyzer_rules (
 		ver = 9
 	}
 
+	// v10: deterministic rules (Gmail-query → action, optional Gmail filter mirror)
+	if ver == 9 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS deterministic_rules (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_email   TEXT NOT NULL,
+  query           TEXT NOT NULL,
+  action          TEXT NOT NULL,
+  label           TEXT NOT NULL DEFAULT '',
+  prompt_id       INTEGER NOT NULL DEFAULT 0,
+  gmail_filter_id TEXT NOT NULL DEFAULT '',
+  created_at      INTEGER NOT NULL
+);`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=10;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v10: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 10
+	}
+
+	_ = ver
 	return nil
 }
 
