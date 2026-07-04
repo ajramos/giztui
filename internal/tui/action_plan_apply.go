@@ -121,6 +121,25 @@ func (a *App) executeActionPlanApply(state *actionPlanState) {
 	}()
 }
 
+// applyActionPlanFromCommand backs ':action-plan apply' / ':plan apply' / ':ap apply'.
+// Runs on the UI goroutine (command dispatch). ShowError is called synchronously here,
+// matching the existing style of executeActionPlanCommand.
+func (a *App) applyActionPlanFromCommand() {
+	state := a.actionPlanState
+	if state == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Open the action plan first (:plan)")
+		return
+	}
+	if state.analyzing.Load() {
+		a.GetErrorHandler().ShowError(a.ctx, "Analysis still running — wait for it to finish")
+		return
+	}
+	// Keep focus on the panel: hideCommandBar's restoreFocusAfterModal would otherwise
+	// force focus back to the list (see :plan rules, action_plan_rules.go:220).
+	a.cmd.focusOverride = "keep"
+	a.startActionPlanConfirm(state)
+}
+
 // runActionPlanBulkOp dispatches one category's bulk operation. Shared by the per-category
 // quick-action keys and the whole-plan apply so the two paths cannot drift. Must be called
 // from a worker goroutine (bulkProgress and the services block).

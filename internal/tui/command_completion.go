@@ -179,8 +179,10 @@ var commandRegistry = []commandSpec{
 		syntax:   ":prompt [list|new|refine|save|create|update|export|delete|stats]",
 		examples: []string{":prompt", ":prompt list", ":prompt new", ":prompt refine make it more formal", ":prompt save"},
 	}},
-	{name: "action-plan", aliases: []string{"plan", "ap"}, help: &cmdHelp{
-		summary: "Run the AI Inbox Action Plan over the selected messages.",
+	{name: "action-plan", aliases: []string{"plan", "ap"}, completeArg: completeActionPlanArg, help: &cmdHelp{
+		summary:  "Run the AI Inbox Action Plan over the selected messages.",
+		syntax:   ":action-plan [apply|rules|with-prompt <name-or-id>]",
+		examples: []string{":plan", ":plan apply", ":plan rules", ":plan with-prompt triage"},
 	}},
 	{name: "markdown", aliases: []string{"md"}, help: &cmdHelp{
 		summary: "Toggle Markdown rendering of the message body.",
@@ -371,6 +373,15 @@ func completePromptArg(a *App, rest string) []string {
 		return nil
 	}
 	return withHead("", filterByPrefix([]string{"create", "delete", "export", "list", "new", "refine", "save", "stats", "update"}, prefix))
+}
+
+// completeActionPlanArg: ':action-plan <subcommand>'. First token → apply/rules/with-prompt.
+func completeActionPlanArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head != "" {
+		return nil
+	}
+	return withHead("", filterByPrefix([]string{"apply", "rules", "with-prompt"}, prefix))
 }
 
 // completeThemeArg: ':theme <subcommand> [name]'. First token → list/preview/set; after set/preview

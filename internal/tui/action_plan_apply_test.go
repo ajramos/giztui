@@ -149,3 +149,29 @@ func TestStartActionPlanConfirmNothingToApply(t *testing.T) {
 		t.Fatal("empty apply set must not arm the confirmation")
 	}
 }
+
+func TestExecuteActionPlanApplyCommand(t *testing.T) {
+	a, state, _ := newConfirmTestApp(t)
+
+	// Analysis still running → refused, not armed.
+	state.analyzing.Store(true)
+	a.executeActionPlanCommand([]string{"apply"})
+	if state.confirmPending {
+		t.Fatal(":plan apply must be refused while analysis is running")
+	}
+	state.analyzing.Store(false)
+
+	// Panel open + finished → same first-press behavior as the key, and focusOverride
+	// is set so hideCommandBar's teardown doesn't steal focus from the panel.
+	a.executeActionPlanCommand([]string{"apply"})
+	if !state.confirmPending {
+		t.Fatal(":plan apply should arm the two-press confirmation")
+	}
+	if a.cmd.focusOverride != "keep" {
+		t.Fatalf("expected cmd.focusOverride=keep, got %q", a.cmd.focusOverride)
+	}
+
+	// No panel open → error, no panic.
+	a.actionPlanState = nil
+	a.executeActionPlanCommand([]string{"apply"})
+}
