@@ -115,27 +115,41 @@ func (a *App) renderPromptResult(text string) string {
 	return out
 }
 
+// updateReaderHeader writes the reader header TextView (and adjusts its height).
+// renderMessageContent runs on background goroutines (showMessage/showMessageWithoutFocus),
+// so two overlapping loads — rapid selection changes — used to call SetText concurrently
+// and panic inside tview's TextView.Write ("index out of range"), the same failure mode
+// the reader body had before writeReaderContent; this is the header path that stayed
+// unguarded. Every reader write, header included, must take readerMu.
+func (a *App) updateReaderHeader(m *gmail.Message) {
+	hv, ok := a.views["header"].(*tview.TextView)
+	if !ok {
+		return
+	}
+	a.readerMu.Lock()
+	defer a.readerMu.Unlock()
+	hv.SetDynamicColors(true)
+
+	// Check header visibility via DisplayService
+	_, _, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
+	if displayService != nil && displayService.IsHeaderVisible() {
+		headerWidth := a.getHeaderWidth()
+		headerContent := a.emailRenderer.FormatHeaderPlainWithWidth(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels, headerWidth)
+		hv.SetText(headerContent)
+
+		// Dynamically adjust header height based on content
+		a.adjustHeaderHeight(headerContent)
+	} else {
+		// Headers hidden - clear content and set height to 0
+		hv.SetText("")
+		a.adjustHeaderHeight("") // This will set height to 0
+	}
+}
+
 // renderMessageContent builds body via deterministic formatter and optional LLM touch-up
 func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 	// Update header TextView separately (tview markup)
-	if hv, ok := a.views["header"].(*tview.TextView); ok {
-		hv.SetDynamicColors(true)
-
-		// Check header visibility via DisplayService
-		_, _, _, _, _, _, _, _, _, _, _, displayService := a.GetServices()
-		if displayService != nil && displayService.IsHeaderVisible() {
-			headerWidth := a.getHeaderWidth()
-			headerContent := a.emailRenderer.FormatHeaderPlainWithWidth(m.Subject, m.From, m.To, m.Cc, m.Date, m.Labels, headerWidth)
-			hv.SetText(headerContent)
-
-			// Dynamically adjust header height based on content
-			a.adjustHeaderHeight(headerContent)
-		} else {
-			// Headers hidden - clear content and set height to 0
-			hv.SetText("")
-			a.adjustHeaderHeight("") // This will set height to 0
-		}
-	}
+	a.updateReaderHeader(m)
 
 	width := a.getListWidth()
 	useLLM := a.llmTouchUpEnabled.Load()
