@@ -229,6 +229,7 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | label key | Label | Apply the category's suggested label to its checked emails (created if needed) |
 | toggle-read key | Mark read | Mark the highlighted category's checked emails as read |
 | `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses (`keys.remember_rule`) |
+| `c` | Confirm whole plan | Press once to see a summary of everything the plan will do (e.g. `Apply plan: 12 archive, 3 trash, 5 label`), press `c` again to apply every category's suggested action to its checked emails; `Esc` cancels the confirmation without closing the panel (`keys.confirm_plan`) |
 | `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
 
 The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18). A "Read manually" bucket lists messages the LLM declined to categorize.
@@ -243,6 +244,7 @@ The action keys (archive / trash / label / toggle-read) reuse your configured bi
 | `:action-plan` | `:plan`, `:ap` | Open the Action Plan (selection-first; falls back to unread inbox) |
 | `:action-plan with-prompt <name-or-id>` | — | Open the Action Plan using one of your saved prompts as the analyzer (falls back to the default if not found) |
 | `:action-plan rules` | — | Open the preference rules manager (add / delete saved learning rules) |
+| `:action-plan apply` | `:plan apply`, `:ap apply` | Apply the whole plan — same two-step confirmation as `c` in the panel (requires the panel to be open with analysis finished) |
 
 ### Configuration
 Settings live under `inbox_analyzer` in `~/.config/giztui/config.json`:
