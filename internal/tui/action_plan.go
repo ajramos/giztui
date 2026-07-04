@@ -869,23 +869,11 @@ func (a *App) executeActionPlanAction(state *actionPlanState, action string) {
 	emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
 
 	go func() {
-		var err error
-		switch action {
-		case "archive":
-			err = emailService.BulkArchive(a.ctx, ids, a.bulkProgress(a.ctx, "Archiving"))
-		case "mark_read":
-			err = emailService.BulkMarkAsRead(a.ctx, ids, a.bulkProgress(a.ctx, "Marking read"))
-		case "trash":
-			err = emailService.BulkTrash(a.ctx, ids, a.bulkProgress(a.ctx, "Trashing"))
-		case "label":
-			if label == "" {
-				a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
-				return
-			}
-			err = a.applyActionPlanLabel(labelService, ids, label)
-		default:
+		if action == "label" && label == "" {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Category has no label to apply")
 			return
 		}
+		err := a.runActionPlanBulkOp(emailService, labelService, action, ids, label)
 		a.GetErrorHandler().ClearPersistentMessage()
 		if err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Action failed on %q: %v", catName, err))
