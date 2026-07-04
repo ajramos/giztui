@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -140,12 +142,12 @@ func applyActionPlanBulkMove(plan *services.ActionPlan, metaByID map[string]*gma
 }
 
 // actionPlanMoveTargets builds the destination list for the move picker: the standard
-// actions first, then the existing categories (excluding the source category by name).
+// actions and the existing categories (excluding the source category by name), as ONE
+// list sorted by label — fixed actions and categories interleaved. Two separately-sorted
+// blocks glued together read as unsorted (live feedback: "dos grupos distintos ordenados
+// pero pegados"). "No action" keeps the email grouped in a themed category with nothing
+// applied — distinct from the read-manually pile (live feedback: both destinations wanted).
 func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveTarget {
-	// Fixed actions in alphabetical label order, matching the sorted category rows below
-	// (live feedback: "Trash before Mark read" read as unsorted). "No action" keeps the
-	// email grouped in a themed category with nothing applied — distinct from the
-	// read-manually pile (live feedback: both destinations wanted).
 	targets := []moveTarget{
 		{label: "Archive", kind: "action", action: "archive"},
 		{label: "Keep (read manually)", kind: "action", action: "keep"},
@@ -170,7 +172,20 @@ func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveT
 			catName: c.Name,
 		})
 	}
-	return targets
+	sort.SliceStable(targets, func(i, j int) bool {
+		return strings.ToLower(targets[i].label) < strings.ToLower(targets[j].label)
+	})
+	// Drop label duplicates: a verb-named category (e.g. "Mark read") and its fixed action
+	// resolve to the same destination (firstCategoryWithAction), so showing both just reads
+	// as a repeat. Stable sort keeps the fixed action first; it wins.
+	deduped := targets[:0]
+	for _, tg := range targets {
+		if n := len(deduped); n > 0 && strings.EqualFold(deduped[n-1].label, tg.label) {
+			continue
+		}
+		deduped = append(deduped, tg)
+	}
+	return deduped
 }
 
 // showActionPlanMoveChooser swaps the panel's tree for a destination chooser inside the SAME

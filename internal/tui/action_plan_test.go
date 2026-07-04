@@ -538,10 +538,10 @@ func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
 		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
 	}
 
-	// Destinations (alphabetical actions first): 1 Archive, 2 Keep, 3 Mark read,
-	// 4 No action, 5 Trash, 6 Mark read · Notifs. Pressing '6' must select
-	// target 6 immediately (List shortcut runes).
-	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '6', tcell.ModNone), func(p tview.Primitive) {})
+	// Destinations (single sorted list): 1 Archive, 2 Keep, 3 Mark read,
+	// 4 Mark read · Notifs, 5 No action, 6 Trash. Pressing '4' must select
+	// target 4 immediately (List shortcut runes).
+	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '4', tcell.ModNone), func(p tview.Primitive) {})
 
 	ni := categoryIndexByName(state.plan, "Notifs")
 	if ni == -1 {
@@ -597,19 +597,59 @@ func TestTopLevelNodeLabelNoDuplicateVerbName(t *testing.T) {
 	}
 }
 
+// The chooser must be ONE alphabetical list — fixed actions and categories interleaved.
+// Two separately-sorted blocks glued together read as unsorted (live feedback: "dos
+// grupos distintos ordenados pero pegados uno a continuación de otro").
+func TestActionPlanMoveTargetsSingleSortedList(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Newsletters", Action: "archive", MessageIDs: []string{"m1"}},
+		{Name: "Zeta", Action: "trash", MessageIDs: []string{"m2"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "")
+	want := []string{
+		"Archive", "Archive · Newsletters", "Keep (read manually)",
+		"Mark read", "No action", "Trash", "Trash · Zeta",
+	}
+	if len(targets) != len(want) {
+		t.Fatalf("want %d targets %v, got %+v", len(want), want, targets)
+	}
+	for i, w := range want {
+		if targets[i].label != w {
+			t.Fatalf("target %d should be %q, got %q (full: %+v)", i, w, targets[i].label, targets)
+		}
+	}
+}
+
 // Categories auto-created by a move are named after their action verb (e.g. a "Mark read"
-// category with action mark_read). The chooser's "verb · name" format then reads
-// "Mark read · Mark read" (live feedback: "cosas raras que se repiten") — when the name
-// IS the verb, render it once.
+// category with action mark_read). The chooser's "verb · name" format then read
+// "Mark read · Mark read", and after collapsing that, the category label collides with the
+// fixed action's — both destinations resolve to the same category (firstCategoryWithAction),
+// so only ONE "Mark read" entry may appear (live feedback: "cosas raras que se repiten").
 func TestActionPlanMoveTargetsNoDuplicateVerbLabel(t *testing.T) {
 	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
 		{Name: "Mark read", Action: "mark_read", MessageIDs: []string{"m1"}},
 		{Name: "Promos", Action: "archive", MessageIDs: []string{"m2"}},
 	}}
 	targets := actionPlanMoveTargets(plan, "Promos")
-	last := targets[len(targets)-1]
-	if last.label != "Mark read" || last.kind != "category" || last.catName != "Mark read" {
-		t.Fatalf("verb-named category should render its label once, got %+v", last)
+	n := 0
+	for _, tg := range targets {
+		if tg.label == "Mark read" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("exactly one Mark read destination expected, got %d (full: %+v)", n, targets)
+	}
+	// The surviving entry must still land the email in the existing "Mark read" category.
+	for _, tg := range targets {
+		if tg.label != "Mark read" {
+			continue
+		}
+		applyActionPlanMove(plan, nil, "m2", tg)
+		idx := categoryIndexByName(plan, "Mark read")
+		if idx < 0 || len(plan.Categories[idx].MessageIDs) != 2 {
+			t.Fatalf("m2 should join the Mark read category, got %+v", plan.Categories)
+		}
 	}
 }
 
@@ -620,11 +660,17 @@ func TestActionPlanMoveTargetsIncludeNoAction(t *testing.T) {
 		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
 	}}
 	targets := actionPlanMoveTargets(plan, "")
-	// Fixed actions, alphabetical: 1 Archive, 2 Keep, 3 Mark read, 4 No action, 5 Trash.
-	if targets[3].label != "No action" || targets[3].action != "none" {
-		t.Fatalf("4th fixed target should be No action (action none), got %+v", targets[3])
+	// Single sorted list — find No action by label (position depends on the plan).
+	var noAction *moveTarget
+	for i := range targets {
+		if targets[i].label == "No action" {
+			noAction = &targets[i]
+		}
 	}
-	applyActionPlanMove(plan, nil, "m1", targets[3])
+	if noAction == nil || noAction.action != "none" {
+		t.Fatalf("No action (action none) must be offered, got %+v", targets)
+	}
+	applyActionPlanMove(plan, nil, "m1", *noAction)
 	idx := firstCategoryWithAction(plan, "none")
 	if idx < 0 || plan.Categories[idx].Name != "No action" || plan.Categories[idx].MessageIDs[0] != "m1" {
 		t.Fatalf("moving to No action should create a none-category holding m1, got %+v", plan.Categories)
