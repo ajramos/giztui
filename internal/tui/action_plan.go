@@ -798,8 +798,12 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 
 		key := string(ev.Rune())
 
-		// Toggle the excluded state of an email node (configurable; reuses bulk_select, default "space").
-		if a.matchesConfiguredKey(ev, a.Keys.BulkSelect) {
+		// Toggle the excluded state of an email node. Literal Space ALWAYS works here in
+		// addition to the configured bulk_select key (live feedback: with bulk_select bound
+		// to another key, Space silently did nothing — but it's the habit from inbox bulk
+		// selection and Space has no other meaning in this panel).
+		isSpace := ev.Key() == tcell.KeyRune && ev.Rune() == ' '
+		if a.matchesConfiguredKey(ev, a.Keys.BulkSelect) || isSpace {
 			if cur != nil {
 				if ref, ok := cur.GetReference().(emailRef); ok {
 					state.excluded[ref.msgID] = !state.excluded[ref.msgID]

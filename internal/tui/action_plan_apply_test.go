@@ -150,6 +150,26 @@ func TestStartActionPlanConfirmNothingToApply(t *testing.T) {
 	}
 }
 
+// Live feedback: Space must ALWAYS toggle an email's exclusion in the plan panel,
+// regardless of what bulk_select is bound to (on the user's machine it wasn't "space",
+// so Space silently did nothing and only the configured key worked).
+func TestActionPlanSpaceAlwaysTogglesExclusion(t *testing.T) {
+	a, state, capture := newConfirmTestApp(t)
+	a.Keys.BulkSelect = "s" // simulate a non-space bulk_select binding
+	state.container = tview.NewFlex()
+
+	email := tview.NewTreeNode("mail").SetReference(emailRef{catIndex: 0, msgID: "m1"})
+	state.root.AddChild(email)
+	state.tree.SetCurrentNode(email)
+
+	if ev := capture(tcell.NewEventKey(tcell.KeyRune, ' ', tcell.ModNone)); ev != nil {
+		t.Fatal("Space on an email node should be consumed")
+	}
+	if !state.excluded["m1"] {
+		t.Fatal("Space must toggle exclusion even when bulk_select is not \"space\"")
+	}
+}
+
 // Regression (live-found): the GLOBAL input capture (bindKeys, keys.go) runs before the
 // tree's capture and used to close the panel on Esc even while a whole-plan confirmation
 // was pending — the panel's own Esc-cancels-confirmation branch was never reached.
