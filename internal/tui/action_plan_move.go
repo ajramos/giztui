@@ -11,7 +11,7 @@ import (
 )
 
 // moveTarget describes a destination chosen in the move picker: either a standard
-// action ("archive"/"trash"/"mark_read"/"keep") or an existing category (by name).
+// action ("archive"/"trash"/"mark_read"/"keep"/"none") or an existing category (by name).
 type moveTarget struct {
 	label   string
 	kind    string // "action" | "category"
@@ -114,8 +114,8 @@ func applyActionPlanMove(plan *services.ActionPlan, metaByID map[string]*gmailap
 	}
 	plan.Categories = pruneEmptyCategories(plan.Categories)
 	// A move can create a brand-new category (appended above) — re-sort so the tree
-	// and the move chooser keep showing categories alphabetically (live feedback).
-	services.SortCategoriesByName(plan.Categories)
+	// and the move chooser keep showing categories in display order (live feedback).
+	services.SortCategories(plan.Categories)
 }
 
 // applyActionPlanBulkMove reassigns every message in the source group (a category by index,
@@ -147,6 +147,9 @@ func actionPlanMoveTargets(plan *services.ActionPlan, srcCatName string) []moveT
 		{label: "Trash", kind: "action", action: "trash"},
 		{label: "Mark read", kind: "action", action: "mark_read"},
 		{label: "Keep (read manually)", kind: "action", action: "keep"},
+		// "No action" keeps the email grouped in a themed category with nothing applied —
+		// distinct from the read-manually pile (live feedback: both destinations wanted).
+		{label: "No action", kind: "action", action: "none"},
 	}
 	for _, c := range plan.Categories {
 		if c.Name == srcCatName {

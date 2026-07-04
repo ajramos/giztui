@@ -538,9 +538,10 @@ func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
 		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
 	}
 
-	// Destinations: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 mark read · Notifs.
-	// Pressing '5' must select target 5 immediately (List shortcut runes).
-	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '5', tcell.ModNone), func(p tview.Primitive) {})
+	// Destinations: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 No action,
+	// 6 Mark read · Notifs. Pressing '6' must select target 6 immediately
+	// (List shortcut runes).
+	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '6', tcell.ModNone), func(p tview.Primitive) {})
 
 	ni := categoryIndexByName(state.plan, "Notifs")
 	if ni == -1 {
@@ -556,23 +557,43 @@ func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
 
 // Live feedback: after moving an email to an action with no existing group, the new
 // category was appended at the END of the plan — the tree and the move chooser then
-// showed categories out of alphabetical order. Moves must keep the plan sorted.
-func TestApplyActionPlanMoveKeepsAlphabeticalOrder(t *testing.T) {
+// showed categories out of order. Moves must keep the plan in display order
+// (action first, then name — how the rows read left to right).
+func TestApplyActionPlanMoveKeepsDisplayOrder(t *testing.T) {
 	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
-		{Name: "Alerts", Action: "mark_read", MessageIDs: []string{"m1", "m2"}},
-		{Name: "Zeta", Action: "label", Label: "Z", MessageIDs: []string{"m3"}},
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+		{Name: "Updates", Action: "trash", MessageIDs: []string{"m3"}},
 	}}
 
-	// No trash group exists → a new "Trash" category is created. It must slot in
-	// alphabetically (Alerts < Trash < Zeta), not land at the end.
-	applyActionPlanMove(plan, nil, "m1", moveTarget{kind: "action", action: "trash"})
+	// No mark_read group exists → a new "Mark read" category is created. It must slot
+	// into display order (archive:Promos < mark_read:Mark read < trash:Updates),
+	// not land at the end.
+	applyActionPlanMove(plan, nil, "m1", moveTarget{kind: "action", action: "mark_read"})
 
 	var names []string
 	for _, c := range plan.Categories {
 		names = append(names, c.Name)
 	}
-	want := []string{"Alerts", "Trash", "Zeta"}
+	want := []string{"Promos", "Mark read", "Updates"}
 	if len(names) != 3 || names[0] != want[0] || names[1] != want[1] || names[2] != want[2] {
-		t.Fatalf("plan must stay alphabetical after a move, got %v", names)
+		t.Fatalf("plan must stay in display order after a move, got %v", names)
+	}
+}
+
+// Live feedback: besides "Keep (read manually)" the move chooser must offer "No action" —
+// it keeps the email in a themed group with nothing applied, distinct from read-manually.
+func TestActionPlanMoveTargetsIncludeNoAction(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Promos", Action: "archive", MessageIDs: []string{"m1"}},
+	}}
+	targets := actionPlanMoveTargets(plan, "")
+	// Fixed actions: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 No action.
+	if targets[4].label != "No action" || targets[4].action != "none" {
+		t.Fatalf("5th fixed target should be No action (action none), got %+v", targets[4])
+	}
+	applyActionPlanMove(plan, nil, "m1", targets[4])
+	idx := firstCategoryWithAction(plan, "none")
+	if idx < 0 || plan.Categories[idx].Name != "No action" || plan.Categories[idx].MessageIDs[0] != "m1" {
+		t.Fatalf("moving to No action should create a none-category holding m1, got %+v", plan.Categories)
 	}
 }

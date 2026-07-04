@@ -203,15 +203,24 @@ func mergeCategories(existing, incoming []ActionPlanCategory) []ActionPlanCatego
 		indexByName[key] = len(out)
 		out = append(out, inc)
 	}
-	SortCategoriesByName(out)
+	SortCategories(out)
 	return out
 }
 
-// SortCategoriesByName keeps the plan alphabetical by category name (case-insensitive).
-// Stable so same-name-modulo-case categories keep their merge order. Applied after every
-// merge AND after enforceLabelPolicy (which can rename categories on the final plan).
-func SortCategoriesByName(cats []ActionPlanCategory) {
+// SortCategories keeps the plan in display order: by action first, then by category name
+// (both case-insensitive). The panel and the move chooser render the action verb before
+// the name, so users read "Archive · …" / "Label · …" left to right — sorting by name
+// alone still looked intermixed (live feedback). Raw action strings sort in the same
+// relative order as their display verbs (archive/label/mark_read/none/summarize/trash →
+// Archive/Label/Mark read/No action/summarize/Trash), so no verb mapping is needed here.
+// Stable so equal keys keep their merge order. Applied after every merge AND after
+// enforceLabelPolicy (which can rename categories on the final plan).
+func SortCategories(cats []ActionPlanCategory) {
 	sort.SliceStable(cats, func(i, j int) bool {
+		ai, aj := strings.ToLower(cats[i].Action), strings.ToLower(cats[j].Action)
+		if ai != aj {
+			return ai < aj
+		}
 		return strings.ToLower(cats[i].Name) < strings.ToLower(cats[j].Name)
 	})
 }
@@ -478,7 +487,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 	// have briefly shown invented-label categories on multi-batch inboxes; they are reconciled here
 	// (canonicalized or moved to read-manually) before the plan is returned.
 	enforceLabelPolicy(plan, messages, opts.AvailableLabels, opts.StrictLabels)
-	SortCategoriesByName(plan.Categories) // policy can rename/canonicalize → re-sort the final plan
+	SortCategories(plan.Categories) // policy can rename/canonicalize → re-sort the final plan
 	return plan, nil
 }
 
