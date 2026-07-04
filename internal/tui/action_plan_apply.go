@@ -82,6 +82,17 @@ func (a *App) startActionPlanConfirm(state *actionPlanState) {
 	go a.GetErrorHandler().ShowPersistentMessage(a.ctx, summary.statusLine(a.Keys.ConfirmPlan), LogLevelInfo)
 }
 
+// cancelActionPlanConfirm clears a pending whole-plan confirmation and its persistent
+// status message. No-op when nothing is pending. UI goroutine only; the flag clear is
+// synchronous (ESC rule), the status clear go-wrapped (ErrorHandler wraps QueueUpdateDraw).
+func (a *App) cancelActionPlanConfirm() {
+	if a.actionPlanState == nil || !a.actionPlanState.confirmPending {
+		return
+	}
+	a.actionPlanState.confirmPending = false
+	go a.GetErrorHandler().ClearPersistentMessage()
+}
+
 // executeActionPlanApply runs the whole plan: every applicable category, sequentially, in one
 // worker goroutine. Failures are reported and skipped (the rest of the plan still runs);
 // applied categories disappear from the tree as they complete, same as per-category apply.

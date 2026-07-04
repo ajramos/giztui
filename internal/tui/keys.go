@@ -600,15 +600,25 @@ func (a *App) bindKeys() {
 				// Panel focused: Tab/Shift+Tab cycle the full focus ring (panel → list →
 				// reader → …, panel keeps analyzing), Esc closes the panel, everything else
 				// goes to the tree's input capture.
+				// A pending whole-plan confirmation must be handled HERE for the keys this
+				// global capture consumes: it runs before the tree's input capture, so the
+				// panel's own Esc-cancels-confirmation branch would never see them.
 				if event.Key() == tcell.KeyTab {
+					a.cancelActionPlanConfirm()
 					a.cycleFocus(true)
 					return nil
 				}
 				if event.Key() == tcell.KeyBacktab {
+					a.cancelActionPlanConfirm()
 					a.cycleFocus(false)
 					return nil
 				}
 				if event.Key() == tcell.KeyEscape {
+					if a.actionPlanState != nil && a.actionPlanState.confirmPending {
+						// Cancel the confirmation ONLY — panel stays open; next Esc closes.
+						a.cancelActionPlanConfirm()
+						return nil
+					}
 					a.closeActionPlanPanel()
 					return nil
 				}

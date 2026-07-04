@@ -150,6 +150,41 @@ func TestStartActionPlanConfirmNothingToApply(t *testing.T) {
 	}
 }
 
+// Regression (live-found): the GLOBAL input capture (bindKeys, keys.go) runs before the
+// tree's capture and used to close the panel on Esc even while a whole-plan confirmation
+// was pending — the panel's own Esc-cancels-confirmation branch was never reached.
+func TestActionPlanConfirmEscGlobalHandler(t *testing.T) {
+	a, state, capture := newConfirmTestApp(t)
+	a.currentActivePicker = PickerActionPlan
+	a.focus.set("action_plan")
+	a.bindKeys()
+	global := a.GetInputCapture()
+
+	// Arm via the panel capture, as the real tree would.
+	capture(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
+	if !state.confirmPending {
+		t.Fatal("arming failed")
+	}
+
+	// Esc hits the global handler first: while pending it must cancel the
+	// confirmation ONLY — panel stays open.
+	if ev := global(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)); ev != nil {
+		t.Fatal("global Esc should be consumed")
+	}
+	if state.confirmPending {
+		t.Fatal("global Esc must clear confirmPending")
+	}
+	if a.actionPlanState != state || !a.isActionPlanActive() {
+		t.Fatal("global Esc while pending must NOT close the panel")
+	}
+
+	// With nothing pending, Esc closes the panel as always.
+	global(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))
+	if a.isActionPlanActive() || a.actionPlanState != nil {
+		t.Fatal("plain Esc should close the panel")
+	}
+}
+
 func TestExecuteActionPlanApplyCommand(t *testing.T) {
 	a, state, _ := newConfirmTestApp(t)
 
