@@ -506,3 +506,49 @@ func TestActionPlanExpansionSurvivesResort(t *testing.T) {
 		t.Fatal("only Promos should be expanded")
 	}
 }
+
+// Live feedback: the move chooser must number its destinations so "m then a digit"
+// picks that target directly — no cursor navigation. Targets beyond 9 keep plain
+// Enter selection.
+func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
+	a := &App{Application: tview.NewApplication()}
+	a.Pages = NewPages()
+	a.errorHandler = NewErrorHandler(nil, nil, nil, nil, nil)
+	state := &actionPlanState{
+		plan: &services.ActionPlan{Categories: []services.ActionPlanCategory{
+			{Name: "Promos", Action: "archive", MessageIDs: []string{"m1", "m2"}},
+			{Name: "Notifs", Action: "mark_read", MessageIDs: []string{"m3"}},
+		}},
+		excluded: map[string]bool{},
+		expanded: map[string]bool{},
+		metaByID: map[string]*gmailapi.Message{},
+		footer:   tview.NewTextView(),
+	}
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root)
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+	a.actionPlanState = state
+
+	a.showActionPlanMoveInline(state, 0, "m2")
+	lst, ok := a.GetFocus().(*tview.List)
+	if !ok {
+		t.Fatalf("expected the move chooser list to be focused, got %T", a.GetFocus())
+	}
+
+	// Destinations: 1 Archive, 2 Trash, 3 Mark read, 4 Keep, 5 mark read · Notifs.
+	// Pressing '5' must select target 5 immediately (List shortcut runes).
+	lst.InputHandler()(tcell.NewEventKey(tcell.KeyRune, '5', tcell.ModNone), func(p tview.Primitive) {})
+
+	ni := categoryIndexByName(state.plan, "Notifs")
+	if ni == -1 {
+		t.Fatal("Notifs category missing after move")
+	}
+	if got := state.plan.Categories[ni].MessageIDs; len(got) != 2 || got[1] != "m2" {
+		t.Fatalf("digit shortcut should move m2 into Notifs, got %v", got)
+	}
+	if a.focus.cur() != "action_plan" {
+		t.Fatalf("after a digit move, focus should return to action_plan, got %q", a.focus.cur())
+	}
+}

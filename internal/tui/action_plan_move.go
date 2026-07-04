@@ -171,8 +171,15 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBackgroundColor(colors.Background.Color())
 	list.SetMainTextColor(colors.Text.Color())
-	for _, tg := range targets {
-		list.AddItem(tg.label, "", 0, nil)
+	for i, tg := range targets {
+		// Number the first 9 destinations so "m then a digit" picks one directly
+		// (live feedback: no cursor navigation). tview renders the rune as "(1) …"
+		// and pressing it fires the selected func; later targets keep Enter-only.
+		var shortcut rune
+		if i < 9 {
+			shortcut = rune('1' + i)
+		}
+		list.AddItem(tg.label, "", shortcut, nil)
 	}
 
 	restore := func() {
@@ -211,7 +218,7 @@ func (a *App) showActionPlanMoveChooser(state *actionPlanState, srcCatName, titl
 	state.container.AddItem(list, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 	state.container.SetTitle(title)
-	state.footer.SetText(" Enter to move  |  Esc to go back ")
+	state.footer.SetText(" 1-9 or Enter to move  |  Esc to go back ")
 	a.focus.set("action_plan_move")
 	a.SetFocus(list)
 }
