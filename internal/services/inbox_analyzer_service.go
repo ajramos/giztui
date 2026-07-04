@@ -203,14 +203,14 @@ func mergeCategories(existing, incoming []ActionPlanCategory) []ActionPlanCatego
 		indexByName[key] = len(out)
 		out = append(out, inc)
 	}
-	sortCategoriesByName(out)
+	SortCategoriesByName(out)
 	return out
 }
 
-// sortCategoriesByName keeps the plan alphabetical by category name (case-insensitive).
+// SortCategoriesByName keeps the plan alphabetical by category name (case-insensitive).
 // Stable so same-name-modulo-case categories keep their merge order. Applied after every
 // merge AND after enforceLabelPolicy (which can rename categories on the final plan).
-func sortCategoriesByName(cats []ActionPlanCategory) {
+func SortCategoriesByName(cats []ActionPlanCategory) {
 	sort.SliceStable(cats, func(i, j int) bool {
 		return strings.ToLower(cats[i].Name) < strings.ToLower(cats[j].Name)
 	})
@@ -478,7 +478,7 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 	// have briefly shown invented-label categories on multi-batch inboxes; they are reconciled here
 	// (canonicalized or moved to read-manually) before the plan is returned.
 	enforceLabelPolicy(plan, messages, opts.AvailableLabels, opts.StrictLabels)
-	sortCategoriesByName(plan.Categories) // policy can rename/canonicalize → re-sort the final plan
+	SortCategoriesByName(plan.Categories) // policy can rename/canonicalize → re-sort the final plan
 	return plan, nil
 }
 

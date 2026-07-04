@@ -267,10 +267,11 @@ func TestApplyActionPlanMove(t *testing.T) {
 	if len(plan.Categories) != 2 {
 		t.Fatalf("want 2 cats, got %d", len(plan.Categories))
 	}
-	if got := plan.Categories[0].MessageIDs; len(got) != 1 || got[0] != "m1" {
+	// Look up by name: moves keep the plan alphabetically sorted, so indices shift.
+	if got := plan.Categories[categoryIndexByName(plan, "Promos")].MessageIDs; len(got) != 1 || got[0] != "m1" {
 		t.Fatalf("Promos should hold [m1], got %v", got)
 	}
-	if got := plan.Categories[1].MessageIDs; len(got) != 2 {
+	if got := plan.Categories[categoryIndexByName(plan, "Notifs")].MessageIDs; len(got) != 2 {
 		t.Fatalf("Notifs should hold 2, got %v", got)
 	}
 
@@ -550,5 +551,28 @@ func TestActionPlanMoveChooserDigitShortcut(t *testing.T) {
 	}
 	if a.focus.cur() != "action_plan" {
 		t.Fatalf("after a digit move, focus should return to action_plan, got %q", a.focus.cur())
+	}
+}
+
+// Live feedback: after moving an email to an action with no existing group, the new
+// category was appended at the END of the plan — the tree and the move chooser then
+// showed categories out of alphabetical order. Moves must keep the plan sorted.
+func TestApplyActionPlanMoveKeepsAlphabeticalOrder(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "Alerts", Action: "mark_read", MessageIDs: []string{"m1", "m2"}},
+		{Name: "Zeta", Action: "label", Label: "Z", MessageIDs: []string{"m3"}},
+	}}
+
+	// No trash group exists → a new "Trash" category is created. It must slot in
+	// alphabetically (Alerts < Trash < Zeta), not land at the end.
+	applyActionPlanMove(plan, nil, "m1", moveTarget{kind: "action", action: "trash"})
+
+	var names []string
+	for _, c := range plan.Categories {
+		names = append(names, c.Name)
+	}
+	want := []string{"Alerts", "Trash", "Zeta"}
+	if len(names) != 3 || names[0] != want[0] || names[1] != want[1] || names[2] != want[2] {
+		t.Fatalf("plan must stay alphabetical after a move, got %v", names)
 	}
 }

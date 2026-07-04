@@ -113,6 +113,9 @@ func applyActionPlanMove(plan *services.ActionPlan, metaByID map[string]*gmailap
 		}
 	}
 	plan.Categories = pruneEmptyCategories(plan.Categories)
+	// A move can create a brand-new category (appended above) — re-sort so the tree
+	// and the move chooser keep showing categories alphabetically (live feedback).
+	services.SortCategoriesByName(plan.Categories)
 }
 
 // applyActionPlanBulkMove reassigns every message in the source group (a category by index,
