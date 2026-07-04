@@ -159,7 +159,10 @@ func actionVerbLabel(action string) string {
 	case "summarize":
 		return "summarize"
 	default:
-		return "Review"
+		// action "none" (and anything unknown): no bulk action — the user handles these
+		// emails by hand. "No action" avoids reading like a distinct action next to the
+		// separate "Read manually" bucket (live feedback: "Review" looked like a new verb).
+		return "No action"
 	}
 }
 

@@ -427,6 +427,11 @@ func TestActionVerb_Summarize(t *testing.T) {
 	if got := actionVerbLabel("summarize"); got != "summarize" {
 		t.Fatalf("actionVerbLabel(summarize)=%q", got)
 	}
+	// Live feedback: "Review" read like a distinct action next to the "Read manually"
+	// bucket. Action "none" must render as "No action".
+	if got := actionVerbLabel("none"); got != "No action" {
+		t.Fatalf("actionVerbLabel(none)=%q, want \"No action\"", got)
+	}
 	if got := actionRuleVerbShort("summarize"); got != "digest" {
 		t.Fatalf("actionRuleVerbShort(summarize)=%q", got)
 	}
