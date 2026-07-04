@@ -49,17 +49,24 @@ func (_m *EmailService) ArchiveMessageAsMove(ctx context.Context, messageID stri
 	return r0
 }
 
-// BulkArchive provides a mock function with given fields: ctx, messageIDs
-func (_m *EmailService) BulkArchive(ctx context.Context, messageIDs []string) error {
-	ret := _m.Called(ctx, messageIDs)
+// BulkArchive provides a mock function with given fields: ctx, messageIDs, onProgress
+func (_m *EmailService) BulkArchive(ctx context.Context, messageIDs []string, onProgress ...func(int, int)) error {
+	_va := make([]interface{}, len(onProgress))
+	for _i := range onProgress {
+		_va[_i] = onProgress[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, messageIDs)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkArchive")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
-		r0 = rf(ctx, messageIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, ...func(int, int)) error); ok {
+		r0 = rf(ctx, messageIDs, onProgress...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -67,17 +74,24 @@ func (_m *EmailService) BulkArchive(ctx context.Context, messageIDs []string) er
 	return r0
 }
 
-// BulkMarkAsRead provides a mock function with given fields: ctx, messageIDs
-func (_m *EmailService) BulkMarkAsRead(ctx context.Context, messageIDs []string) error {
-	ret := _m.Called(ctx, messageIDs)
+// BulkMarkAsRead provides a mock function with given fields: ctx, messageIDs, onProgress
+func (_m *EmailService) BulkMarkAsRead(ctx context.Context, messageIDs []string, onProgress ...func(int, int)) error {
+	_va := make([]interface{}, len(onProgress))
+	for _i := range onProgress {
+		_va[_i] = onProgress[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, messageIDs)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkMarkAsRead")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
-		r0 = rf(ctx, messageIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, ...func(int, int)) error); ok {
+		r0 = rf(ctx, messageIDs, onProgress...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -85,17 +99,24 @@ func (_m *EmailService) BulkMarkAsRead(ctx context.Context, messageIDs []string)
 	return r0
 }
 
-// BulkMarkAsUnread provides a mock function with given fields: ctx, messageIDs
-func (_m *EmailService) BulkMarkAsUnread(ctx context.Context, messageIDs []string) error {
-	ret := _m.Called(ctx, messageIDs)
+// BulkMarkAsUnread provides a mock function with given fields: ctx, messageIDs, onProgress
+func (_m *EmailService) BulkMarkAsUnread(ctx context.Context, messageIDs []string, onProgress ...func(int, int)) error {
+	_va := make([]interface{}, len(onProgress))
+	for _i := range onProgress {
+		_va[_i] = onProgress[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, messageIDs)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkMarkAsUnread")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
-		r0 = rf(ctx, messageIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, ...func(int, int)) error); ok {
+		r0 = rf(ctx, messageIDs, onProgress...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -103,22 +124,59 @@ func (_m *EmailService) BulkMarkAsUnread(ctx context.Context, messageIDs []strin
 	return r0
 }
 
-// BulkTrash provides a mock function with given fields: ctx, messageIDs
-func (_m *EmailService) BulkTrash(ctx context.Context, messageIDs []string) error {
-	ret := _m.Called(ctx, messageIDs)
+// BulkTrash provides a mock function with given fields: ctx, messageIDs, onProgress
+func (_m *EmailService) BulkTrash(ctx context.Context, messageIDs []string, onProgress ...func(int, int)) error {
+	_va := make([]interface{}, len(onProgress))
+	for _i := range onProgress {
+		_va[_i] = onProgress[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, messageIDs)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkTrash")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
-		r0 = rf(ctx, messageIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, ...func(int, int)) error); ok {
+		r0 = rf(ctx, messageIDs, onProgress...)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
+}
+
+// GetMessagePlainTexts provides a mock function with given fields: ctx, ids, maxWorkers
+func (_m *EmailService) GetMessagePlainTexts(ctx context.Context, ids []string, maxWorkers int) (map[string]string, error) {
+	ret := _m.Called(ctx, ids, maxWorkers)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMessagePlainTexts")
+	}
+
+	var r0 map[string]string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, int) (map[string]string, error)); ok {
+		return rf(ctx, ids, maxWorkers)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string, int) map[string]string); ok {
+		r0 = rf(ctx, ids, maxWorkers)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string, int) error); ok {
+		r1 = rf(ctx, ids, maxWorkers)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MarkAsRead provides a mock function with given fields: ctx, messageID

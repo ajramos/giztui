@@ -1008,6 +1008,7 @@ type ActionPlanCategory struct {
 	Description string   // one-line LLM rationale
 	Action      string   // "archive" | "mark_read" | "trash" | "label" | "none"
 	Label       string   // label name, set only when Action == "label"
+	PromptID    int64    // saved prompt (prompt_templates.id), set only when Action == "prompt" (deterministic rules)
 	MessageIDs  []string // concrete, resolved message IDs in this category
 }
 
@@ -1065,4 +1066,42 @@ type AnalyzerRulesService interface {
 	// (e.g. "Never trash emails from tldr.tech"); negate=false as a directive
 	// (e.g. "Always archive emails from tldr.tech"). Pure — no I/O.
 	SuggestRuleFromContext(from, action string, negate bool) string
+}
+
+// DeterministicRuleInfo describes one deterministic rule (Gmail query → action) for the UI.
+type DeterministicRuleInfo struct {
+	ID            int64
+	Query         string
+	Action        string // archive | mark_read | trash | label | prompt
+	Label         string // when Action == "label"
+	PromptID      int64  // when Action == "prompt" (prompt_templates.id)
+	GmailFilterID string // non-empty when mirrored as a server-side Gmail filter
+	CreatedAt     int64
+}
+
+// RuleMatch pairs a rule with the message IDs its query matched during a sweep.
+type RuleMatch struct {
+	Rule       DeterministicRuleInfo
+	MessageIDs []string
+}
+
+// DeterministicRulesService manages deterministic rules: CRUD (with Gmail-side query
+// validation at save time), first-match-wins partitioning of a message set, and optional
+// mirroring of rules as real Gmail filters.
+type DeterministicRulesService interface {
+	SetAccountEmail(email string)
+	SaveRule(ctx context.Context, query, action, label string, promptID int64) (*DeterministicRuleInfo, error)
+	UpdateRule(ctx context.Context, id int64, query, action, label string, promptID int64) error
+	ListRules(ctx context.Context) ([]DeterministicRuleInfo, error)
+	DeleteRule(ctx context.Context, id int64) error
+	// Partition runs each rule's query (creation order) prefixed by scopeQuery and assigns
+	// every message to the FIRST rule that matches it. candidates == nil means "no
+	// intersection" (take whatever Gmail returns, deduped across rules); otherwise matches
+	// are intersected with candidates and remaining returns the unmatched candidates in
+	// input order. Rules that match nothing produce no RuleMatch entry.
+	Partition(ctx context.Context, scopeQuery string, candidates []string) (matches []RuleMatch, remaining []string, err error)
+	// SyncRule mirrors the rule as a Gmail filter (recreating it if already mirrored);
+	// UnsyncRule deletes the mirrored filter. Both persist gmail_filter_id.
+	SyncRule(ctx context.Context, id int64) error
+	UnsyncRule(ctx context.Context, id int64) error
 }
