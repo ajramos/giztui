@@ -752,6 +752,16 @@ func (a *App) bindKeys() {
 			a.performUndoFromShortcut()
 			return nil
 		}
+		// New rule from the current view (default "ctrl+s"): opens the rules manager on
+		// the New-rule form, Query pre-filled with the active search. Gated on list focus
+		// so the other ctrl+s contexts (save_prompt, attachment_save) are unaffected.
+		if a.focus.is("list") && strings.HasPrefix(a.Keys.RuleFromQuery, "ctrl+") && a.matchesKeyCombo(event, a.Keys.RuleFromQuery) {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> rule_from_search", a.Keys.RuleFromQuery)
+			}
+			a.openRulesManagerNewRule(a.activeSearchPrefill())
+			return nil
+		}
 
 		// CRITICAL FIX: Check VIM sequences BEFORE configurable shortcuts
 		// This allows f3f to work even when f is configured for toggle_read

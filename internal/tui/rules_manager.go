@@ -53,6 +53,29 @@ func deterministicRuleListItem(r services.DeterministicRuleInfo, promptName stri
 // (the openAnalyzerRulesManager pattern). 'a' adds, Enter edits, 'd' deletes, Esc
 // closes. Add/edit body-swap the list for a form inside the same container.
 func (a *App) openRulesManager() {
+	a.openRulesManagerOpts(false, "")
+}
+
+// openRulesManagerNewRule opens the manager directly on the New-rule form, with the
+// Query pre-filled (create-a-rule-from-the-active-search flow; "" = blank form).
+func (a *App) openRulesManagerNewRule(prefillQuery string) {
+	a.openRulesManagerOpts(true, prefillQuery)
+}
+
+// activeSearchPrefill returns the query to seed a new rule with: the user-typed text
+// of the active remote search, or "" when nothing (or only a local filter) is active.
+// Local filters are not Gmail queries, so they can't become a rule verbatim.
+func (a *App) activeSearchPrefill() string {
+	if a.search.Mode() != "remote" {
+		return ""
+	}
+	if q := a.search.Original(); q != "" {
+		return q
+	}
+	return a.search.Query()
+}
+
+func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	svc := a.GetDeterministicRulesService()
 	if svc == nil {
 		go a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
@@ -140,6 +163,10 @@ func (a *App) openRulesManager() {
 		queryText, labelText := "", ""
 		actionIdx, promptIdx := 0, 0
 		mirrored := false
+		if existing == nil && prefillQuery != "" {
+			queryText = prefillQuery
+			prefillQuery = "" // one-shot: a later 'a' in the same session starts blank
+		}
 		if existing != nil {
 			queryText, labelText = existing.Query, existing.Label
 			for i, tok := range actionTokens {
@@ -161,6 +188,14 @@ func (a *App) openRulesManager() {
 		action := actionTokens[actionIdx]
 		promptID := promptIDs[promptIdx]
 		mirror := mirrored
+
+		// Snapshot the search state at form open so a Preview can be undone on close.
+		prevSearchMode := a.search.Mode()
+		prevSearchQuery := a.search.Original()
+		if prevSearchQuery == "" {
+			prevSearchQuery = a.search.Query()
+		}
+		previewed := false
 
 		form := tview.NewForm()
 		form.SetBackgroundColor(colors.Background.Color())
@@ -231,6 +266,19 @@ func (a *App) openRulesManager() {
 			footer.SetText(rulesManagerFooter)
 			a.markFocus("rules_manager")
 			a.SetFocus(list)
+			// If a Preview replaced the message list, put back what was there before
+			// the form opened: re-run the prior remote search, or reload the inbox.
+			// (A prior LOCAL filter can't be replayed from here — inbox fallback.)
+			if previewed {
+				previewed = false
+				if prevSearchMode == "remote" && prevSearchQuery != "" {
+					go a.performSearch(prevSearchQuery)
+				} else {
+					a.search.clear()
+					a.nextPageToken = ""
+					go a.reloadMessages()
+				}
+			}
 		}
 
 		save := func() {
@@ -302,6 +350,18 @@ func (a *App) openRulesManager() {
 			}()
 		}
 
+		// Preview runs the Query as a search shown in the main message list (verbatim,
+		// no hidden scoping) while the form stays open and keeps focus. Re-runnable
+		// after editing the query; the list is restored when the form closes.
+		form.AddButton("Preview", func() {
+			q := strings.TrimSpace(queryText)
+			if q == "" {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Query cannot be empty")
+				return
+			}
+			previewed = true
+			go a.performSearchPreview(q)
+		})
 		form.AddButton("Save", save)
 		form.AddButton("Cancel", restore)
 		form.SetCancelFunc(restore) // Esc anywhere in the form
@@ -315,7 +375,7 @@ func (a *App) openRulesManager() {
 		} else {
 			container.SetTitle(" ⚡ Edit rule ")
 		}
-		footer.SetText(" Tab to move  |  Save to confirm  |  Esc to cancel ")
+		footer.SetText(" Tab to move  |  Preview to test the query  |  Save to confirm  |  Esc to cancel ")
 		a.markFocus("rules_manager_form")
 		a.SetFocus(form)
 	}
@@ -367,4 +427,8 @@ func (a *App) openRulesManager() {
 	// :rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" leaves our focus alone.
 	a.cmd.focusOverride = "keep"
+
+	if openForm {
+		showRuleForm(nil)
+	}
 }

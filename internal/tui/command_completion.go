@@ -186,8 +186,8 @@ var commandRegistry = []commandSpec{
 	}},
 	{name: "rules", aliases: []string{"ru"}, completeArg: completeRulesArg, help: &cmdHelp{
 		summary:  "Deterministic rules (no AI): manage, preview as a plan, mirror to Gmail.",
-		syntax:   ":rules [plan|sync <n>|unsync <n>]",
-		examples: []string{":rules", ":rules plan", ":rules sync 2", ":rules unsync 2"},
+		syntax:   ":rules [new [query]|plan|sync <n>|unsync <n>]",
+		examples: []string{":rules", ":rules new", ":rules new from:github.com", ":rules plan", ":rules sync 2"},
 	}},
 	{name: "rp", help: &cmdHelp{
 		summary:  "Shortcut for :rules plan — preview your deterministic rules as an Action Plan.",
@@ -394,13 +394,13 @@ func completeActionPlanArg(a *App, rest string) []string {
 	return withHead("", filterByPrefix([]string{"apply", "rules", "with-prompt"}, prefix))
 }
 
-// completeRulesArg: ':rules <subcommand>'. First token → plan/sync/unsync.
+// completeRulesArg: ':rules <subcommand>'. First token → new/plan/sync/unsync.
 func completeRulesArg(a *App, rest string) []string {
 	head, prefix := splitLastToken(rest)
 	if head != "" {
 		return nil
 	}
-	return withHead("", filterByPrefix([]string{"plan", "sync", "unsync"}, prefix))
+	return withHead("", filterByPrefix([]string{"new", "plan", "sync", "unsync"}, prefix))
 }
 
 // completeThemeArg: ':theme <subcommand> [name]'. First token → list/preview/set; after set/preview

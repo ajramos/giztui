@@ -2371,6 +2371,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s 🧠  Apply the whole plan (same as '%s' in the panel; press twice to confirm)\n", ":plan apply", a.Keys.ConfirmPlan)
 	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁ = also in Gmail)\n", ":rules")
+	fmt.Fprintf(&help, "    %-18s ⚡  New rule — pre-fills the active search (or '%s' from the list)\n", ":rules new", a.Keys.RuleFromQuery)
+	fmt.Fprintf(&help, "    %-18s ⚡  In the rule form: Preview shows the query's matches in the list\n", "")
 	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")
 	fmt.Fprintf(&help, "    %-18s ⚡  Mirror rule <n> to Gmail / remove the mirror\n", ":rules sync <n>")
 	fmt.Fprintf(&help, "    %-18s ⚡  Rules pre-filter the AI :plan (config: inbox_analyzer.deterministic_prefilter)\n", "")
@@ -2930,6 +2932,18 @@ func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
 
 // performSearch executes the search query
 func (a *App) performSearch(query string) {
+	a.performSearchInternal(query, false)
+}
+
+// performSearchPreview runs the query as a search shown in the message list WITHOUT
+// stealing focus and WITHOUT the implicit inbox scoping — used by the rule form's
+// Preview button, where the query must mean exactly what the rule will match and the
+// user's focus must stay on the form.
+func (a *App) performSearchPreview(query string) {
+	a.performSearchInternal(query, true)
+}
+
+func (a *App) performSearchInternal(query string, preview bool) {
 	if strings.TrimSpace(query) == "" {
 		a.showError("Search query cannot be empty")
 		return
@@ -2943,10 +2957,11 @@ func (a *App) performSearch(query string) {
 		}
 	})
 
-	// Build effective query
+	// Build effective query. Previews search the query verbatim — what you see is
+	// exactly what the rule's query means, with no hidden scoping.
 	originalQuery := strings.TrimSpace(query)
 	q := originalQuery
-	if !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
+	if !preview && !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
 		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
 
@@ -2968,6 +2983,7 @@ func (a *App) performSearch(query string) {
 	a.nextPageToken = next
 	a.search.SetMode("remote")
 	a.search.SetQuery(q)
+	a.search.SetOriginal(originalQuery)
 
 	var spinnerStop chan struct{}
 	if _, ok := a.views["list"].(*tview.Table); ok {
@@ -3068,9 +3084,12 @@ func (a *App) performSearch(query string) {
 		// Keep policy for system labels on list while user is in search mode
 		a.emailRenderer.SetShowSystemLabelsInList(true)
 
-		// Set focus to list and update focus indicators after search results are loaded
-		a.markFocus("list")
-		a.SetFocus(a.views["list"])
+		// Set focus to list and update focus indicators after search results are loaded.
+		// Previews keep focus where it is (the rule form).
+		if !preview {
+			a.markFocus("list")
+			a.SetFocus(a.views["list"])
+		}
 	})
 }
 

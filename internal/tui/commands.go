@@ -2222,7 +2222,7 @@ func (a *App) executeActionPlanCommand(args []string) {
 	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
 }
 
-// executeRulesCommand handles :rules / :ru [plan|sync <n>|unsync <n>].
+// executeRulesCommand handles :rules / :ru [new [query]|plan|sync <n>|unsync <n>].
 // <n> is the 1-based position in the :rules list (creation order).
 func (a *App) executeRulesCommand(args []string) {
 	if len(args) == 0 {
@@ -2236,6 +2236,13 @@ func (a *App) executeRulesCommand(args []string) {
 	}
 	sub := strings.ToLower(args[0])
 	switch sub {
+	case "new", "add":
+		// Query priority: explicit args > the active search > blank form.
+		prefill := strings.TrimSpace(strings.Join(args[1:], " "))
+		if prefill == "" {
+			prefill = a.activeSearchPrefill()
+		}
+		a.openRulesManagerNewRule(prefill)
 	case "plan":
 		go a.openDeterministicPlan()
 	case "sync", "unsync":
