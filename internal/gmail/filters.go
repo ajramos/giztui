@@ -26,6 +26,19 @@ func (c *Client) CreateFilter(query string, action *gmail.FilterAction) (string,
 	return created.Id, nil
 }
 
+// ListFilters returns all server-side Gmail filters (Settings → Filters).
+// Requires the gmail.settings.basic OAuth scope, like CreateFilter.
+func (c *Client) ListFilters() ([]*gmail.Filter, error) {
+	if c == nil || c.Service == nil {
+		return nil, fmt.Errorf("gmail client not initialized")
+	}
+	res, err := c.Service.Users.Settings.Filters.List("me").Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not list filters: %w", err)
+	}
+	return res.Filter, nil
+}
+
 // DeleteFilter removes a server-side Gmail filter by ID.
 func (c *Client) DeleteFilter(id string) error {
 	if c == nil || c.Service == nil {

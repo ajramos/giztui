@@ -1085,6 +1085,22 @@ type RuleMatch struct {
 	MessageIDs []string
 }
 
+// GmailOnlyFilter describes a Gmail filter the rule model cannot represent
+// (forwarding, combined actions, size criteria…). Shown read-only in the manager
+// so the rules list stays a complete picture of what acts on the inbox.
+type GmailOnlyFilter struct {
+	ID          string
+	Description string // human-readable "criteria → action" summary
+	Reason      string // why it can't be imported as a rule
+}
+
+// GmailImportResult summarizes one automatic Gmail-filter import pass.
+type GmailImportResult struct {
+	Imported    int // new rules created from Gmail filters
+	Adopted     int // existing unmirrored rules linked to a matching filter
+	Unsupported []GmailOnlyFilter
+}
+
 // DeterministicRulesService manages deterministic rules: CRUD (with Gmail-side query
 // validation at save time), first-match-wins partitioning of a message set, and optional
 // mirroring of rules as real Gmail filters.
@@ -1106,4 +1122,9 @@ type DeterministicRulesService interface {
 	// UnsyncRule deletes the mirrored filter. Both persist gmail_filter_id.
 	SyncRule(ctx context.Context, id int64) error
 	UnsyncRule(ctx context.Context, id int64) error
+	// ImportGmailFilters fetches the account's Gmail filters and folds them into the
+	// rules list: filters matching an existing unmirrored rule are adopted (linked),
+	// translatable ones become new rules born mirrored, and unrepresentable ones are
+	// returned in Unsupported for read-only display. Idempotent per filter ID.
+	ImportGmailFilters(ctx context.Context) (*GmailImportResult, error)
 }

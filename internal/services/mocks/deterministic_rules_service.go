@@ -32,6 +32,36 @@ func (_m *DeterministicRulesService) DeleteRule(ctx context.Context, id int64) e
 	return r0
 }
 
+// ImportGmailFilters provides a mock function with given fields: ctx
+func (_m *DeterministicRulesService) ImportGmailFilters(ctx context.Context) (*services.GmailImportResult, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportGmailFilters")
+	}
+
+	var r0 *services.GmailImportResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*services.GmailImportResult, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *services.GmailImportResult); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*services.GmailImportResult)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListRules provides a mock function with given fields: ctx
 func (_m *DeterministicRulesService) ListRules(ctx context.Context) ([]services.DeterministicRuleInfo, error) {
 	ret := _m.Called(ctx)

@@ -2371,6 +2371,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s 🧠  Apply the whole plan (same as '%s' in the panel; press twice to confirm)\n", ":plan apply", a.Keys.ConfirmPlan)
 	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁️ = also in Gmail)\n", ":rules")
+	fmt.Fprintf(&help, "    %-18s ⚡  Your Gmail filters are folded in automatically on open\n", "")
 	fmt.Fprintf(&help, "    %-18s ⚡  New rule — pre-fills the active search (or '%s' from the list)\n", ":rules new", a.Keys.RuleFromQuery)
 	fmt.Fprintf(&help, "    %-18s ⚡  In the rule form: Preview shows the query's matches in the list\n", "")
 	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")
@@ -3370,6 +3371,11 @@ func (a *App) isPromptConfiguratorActive() bool {
 // isActionPlanActive returns true if the Action Plan panel is currently active.
 func (a *App) isActionPlanActive() bool {
 	return a.currentActivePicker == PickerActionPlan
+}
+
+// isRulesPickerActive returns true if the deterministic rules manager is currently active.
+func (a *App) isRulesPickerActive() bool {
+	return a.currentActivePicker == PickerRules
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging

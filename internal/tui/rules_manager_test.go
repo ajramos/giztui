@@ -32,6 +32,14 @@ func TestDeterministicRuleListItem(t *testing.T) {
 	}
 }
 
+func TestGmailOnlyListItem(t *testing.T) {
+	f := services.GmailOnlyFilter{ID: "F1", Description: "from:(boss@x.com) → forward to me@else.com", Reason: "forwards mail"}
+	want := "☁️ from:(boss@x.com) → forward to me@else.com  (Gmail only)"
+	if got := gmailOnlyListItem(f); got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
 func TestRuleSyncOp(t *testing.T) {
 	cases := []struct {
 		name      string

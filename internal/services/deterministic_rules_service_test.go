@@ -145,6 +145,9 @@ func (f *stubFailingFilter) CreateFilter(_ string, _ *gmailapi.FilterAction) (st
 func (f *stubFailingFilter) DeleteFilter(_ string) error {
 	return fmt.Errorf("remote: permission denied")
 }
+func (f *stubFailingFilter) ListFilters() ([]*gmailapi.Filter, error) {
+	return nil, nil
+}
 
 // seedRule inserts a rule bypassing Gmail validation (direct store write) so Partition
 // tests don't need SearchMessages expectations for the save path.
@@ -359,6 +362,16 @@ type fakeFilterAPI struct {
 	nextID    string
 	fail      error // returned by CreateFilter (and DeleteFilter if deleteErr is nil)
 	deleteErr error // returned by DeleteFilter when set (takes priority over fail)
+
+	remote    []*gmailapi.Filter // returned by ListFilters
+	remoteErr error              // returned by ListFilters when set
+}
+
+func (f *fakeFilterAPI) ListFilters() ([]*gmailapi.Filter, error) {
+	if f.remoteErr != nil {
+		return nil, f.remoteErr
+	}
+	return f.remote, nil
 }
 
 func (f *fakeFilterAPI) CreateFilter(query string, action *gmailapi.FilterAction) (string, error) {

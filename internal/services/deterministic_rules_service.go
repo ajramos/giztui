@@ -25,6 +25,7 @@ func isNotFound(err error) bool {
 type GmailFilterAPI interface {
 	CreateFilter(query string, action *gmailapi.FilterAction) (string, error)
 	DeleteFilter(id string) error
+	ListFilters() ([]*gmailapi.Filter, error)
 }
 
 // DeterministicRulesServiceImpl implements DeterministicRulesService.

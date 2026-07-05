@@ -51,6 +51,12 @@ func deterministicRuleListItem(r services.DeterministicRuleInfo, promptName stri
 	return item
 }
 
+// gmailOnlyListItem renders a Gmail filter the rule model can't represent — shown
+// read-only after the rules so the list stays a complete picture of the inbox.
+func gmailOnlyListItem(f services.GmailOnlyFilter) string {
+	return fmt.Sprintf("☁️ %s  (Gmail only)", f.Description)
+}
+
 // openRulesManager shows the deterministic rules as an in-place side-panel picker
 // (the openAnalyzerRulesManager pattern). 'a' adds, Enter edits, 'd' deletes, Esc
 // closes. Add/edit body-swap the list for a form inside the same container.
@@ -120,6 +126,7 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	footer.SetText(rulesManagerFooter)
 
 	var rules []services.DeterministicRuleInfo
+	var gmailOnly []services.GmailOnlyFilter // filters not representable as rules (read-only rows)
 	reload := func() {
 		list.Clear()
 		rs, err := svc.ListRules(a.ctx)
@@ -130,12 +137,15 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			return
 		}
 		rules = rs
-		if len(rs) == 0 {
+		if len(rs) == 0 && len(gmailOnly) == 0 {
 			list.AddItem("(no rules yet — press 'a' to add)", "", 0, nil)
 			return
 		}
 		for _, r := range rs {
 			list.AddItem(deterministicRuleListItem(r, promptNameByID[r.PromptID]), "", 0, nil)
+		}
+		for _, f := range gmailOnly {
+			list.AddItem(gmailOnlyListItem(f), "", 0, nil)
 		}
 	}
 	reload()
@@ -382,7 +392,16 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 		a.SetFocus(form)
 	}
 
+	// gmailOnlyRow reports whether list index idx is one of the read-only
+	// Gmail-only rows appended after the editable rules.
+	gmailOnlyRow := func(idx int) bool {
+		return idx >= len(rules) && idx < len(rules)+len(gmailOnly)
+	}
 	list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
+		if gmailOnlyRow(idx) {
+			go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
+			return
+		}
 		if idx >= 0 && idx < len(rules) {
 			r := rules[idx]
 			showRuleForm(&r)
@@ -398,6 +417,10 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			return nil
 		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
 			idx := list.GetCurrentItem()
+			if gmailOnlyRow(idx) {
+				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
+				return nil
+			}
 			if idx >= 0 && idx < len(rules) {
 				id := rules[idx].ID
 				go func() {
@@ -429,6 +452,30 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	// :rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" leaves our focus alone.
 	a.cmd.focusOverride = "keep"
+
+	// Fold the account's Gmail filters into the list in the background (one-shot
+	// per open): matching filters adopt/import as rules, unrepresentable ones show
+	// as read-only rows. The panel keeps working on local rules if Gmail fails.
+	go func() {
+		res, err := svc.ImportGmailFilters(a.ctx)
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Printf("rules: Gmail filter import skipped: %v", err)
+			}
+			a.GetErrorHandler().ShowWarning(a.ctx, "Could not check Gmail filters — showing local rules only")
+			return
+		}
+		a.QueueUpdateDraw(func() {
+			if !a.isRulesPickerActive() {
+				return // panel already closed — don't touch a recycled list
+			}
+			gmailOnly = res.Unsupported
+			reload()
+		})
+		if res.Imported+res.Adopted > 0 {
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("☁️ %d Gmail filter(s) added to your rules", res.Imported+res.Adopted))
+		}
+	}()
 
 	if openForm {
 		showRuleForm(nil)
