@@ -397,6 +397,12 @@ func (a *App) updateFocusIndicators(focusedView string) {
 		if a.labelsView != nil {
 			a.labelsView.SetBorderColor(focusedColor)
 		}
+	case "rules_manager", "rules_manager_form", "analyzer_rules", "analyzer_rules_add":
+		// Rules pickers (deterministic + analyzer) also mount in the labelsView slot;
+		// the form contexts keep the border highlighted while editing a rule.
+		if a.labelsView != nil {
+			a.labelsView.SetBorderColor(focusedColor)
+		}
 	}
 }
 

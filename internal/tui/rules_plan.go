@@ -66,8 +66,38 @@ func (a *App) openDeterministicPlan() {
 		a.closeActionPlanPanel()
 	}
 
-	a.GetErrorHandler().ShowProgress(a.ctx, "Matching inbox against your rules…")
-	matches, _, err := svc.Partition(a.ctx, "in:inbox", nil)
+	// Scope mirrors the AI Action Plan: the bulk selection if any, else the messages
+	// currently loaded in the list — never the whole remote inbox. Partition intersects
+	// each rule's search results with these candidates.
+	a.mu.RLock()
+	metaByID := make(map[string]*gmailapi.Message, len(a.messagesMeta))
+	for _, m := range a.messagesMeta {
+		if m != nil {
+			metaByID[m.Id] = m
+		}
+	}
+	selected := a.bulk.ids()
+	a.mu.RUnlock()
+
+	var candidates []string
+	scopeNote := ""
+	if len(selected) > 0 {
+		candidates = selected
+		scopeNote = fmt.Sprintf("%d selected", len(selected))
+	} else {
+		candidates = make([]string, 0, len(metaByID))
+		for id := range metaByID {
+			candidates = append(candidates, id)
+		}
+		scopeNote = fmt.Sprintf("%d loaded", len(candidates))
+	}
+	if len(candidates) == 0 {
+		a.GetErrorHandler().ShowInfo(a.ctx, "No messages to match — load or select messages first")
+		return
+	}
+
+	a.GetErrorHandler().ShowProgress(a.ctx, "Matching messages against your rules…")
+	matches, _, err := svc.Partition(a.ctx, "in:inbox", candidates)
 	a.GetErrorHandler().ClearPersistentMessage()
 	if err != nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Rules search failed — check connection")
@@ -75,7 +105,7 @@ func (a *App) openDeterministicPlan() {
 	}
 	plan := buildDeterministicPlan(matches)
 	if len(plan.Categories) == 0 {
-		a.GetErrorHandler().ShowInfo(a.ctx, "No rules matched any inbox messages")
+		a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("No rules matched (%s)", scopeNote))
 		return
 	}
 
@@ -84,35 +114,7 @@ func (a *App) openDeterministicPlan() {
 		total += len(c.MessageIDs)
 	}
 
-	// metaByID from the in-memory list; rule searches can surface messages beyond the
-	// loaded page, so fetch metadata for the gap (subjects/senders in the tree).
-	a.mu.RLock()
-	metaByID := make(map[string]*gmailapi.Message, len(a.messagesMeta))
-	for _, m := range a.messagesMeta {
-		if m != nil {
-			metaByID[m.Id] = m
-		}
-	}
-	a.mu.RUnlock()
-	var missing []string
-	for _, c := range plan.Categories {
-		for _, id := range c.MessageIDs {
-			if _, ok := metaByID[id]; !ok {
-				missing = append(missing, id)
-			}
-		}
-	}
-	if len(missing) > 0 && a.Client != nil {
-		if fetched, ferr := a.Client.GetMessagesMetadataParallel(missing, 5); ferr == nil {
-			for _, m := range fetched {
-				if m != nil {
-					metaByID[m.Id] = m
-				}
-			}
-		}
-	}
-
-	scopeLabel := fmt.Sprintf("⚡ %d by rules (no AI)", total)
+	scopeLabel := fmt.Sprintf("⚡ %d of %s by rules (no AI)", total, scopeNote)
 	state := a.buildActionPlanPanelState("", scopeLabel, metaByID, false)
 	state.plan = plan
 	a.mountActionPlanPanel(state)

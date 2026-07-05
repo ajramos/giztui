@@ -588,7 +588,10 @@ func (a *App) bindKeys() {
 		if a.focus.is("prompt_preview") || a.focus.is("action_plan_move") ||
 			a.focus.is("analyzer_rules") || a.focus.is("analyzer_rules_add") ||
 			a.focus.is("action_plan_rule") || a.focus.is("action_plan_prompt") ||
-			a.focus.is("action_plan_summary") {
+			a.focus.is("action_plan_summary") || a.focus.is("rules_manager_form") {
+			// rules_manager_form: the form's checkbox/buttons are neither InputField nor
+			// DropDown, so without this pass-through the type switch below misses them and
+			// global rune shortcuts fire mid-form ('a' would archive the selected email).
 			return event
 		}
 
@@ -1385,10 +1388,6 @@ func (a *App) bindKeys() {
 
 		// Focus toggle between panes; but when advanced search is active, Tab navigates fields
 		if event.Key() == tcell.KeyTab {
-			// The rules-manager form owns Tab for field navigation (tview handles it natively).
-			if a.focus.is("rules_manager_form") {
-				return event
-			}
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
 				if frm, ok2 := a.views["advForm"].(*tview.Form); ok2 {
 					idx, _ := frm.GetFocusedItemIndex()
@@ -1415,10 +1414,6 @@ func (a *App) bindKeys() {
 		}
 		// Shift+Tab cycles focus in reverse through the same ring.
 		if event.Key() == tcell.KeyBacktab {
-			// The rules-manager form owns Shift+Tab for field navigation.
-			if a.focus.is("rules_manager_form") {
-				return event
-			}
 			// The advanced search form handles its own Shift+Tab field navigation.
 			if sp, ok := a.views["searchPanel"].(*tview.Flex); ok && sp.GetTitle() == "🔎 Advanced Search" {
 				return event

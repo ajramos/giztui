@@ -189,6 +189,11 @@ var commandRegistry = []commandSpec{
 		syntax:   ":rules [plan|sync <n>|unsync <n>]",
 		examples: []string{":rules", ":rules plan", ":rules sync 2", ":rules unsync 2"},
 	}},
+	{name: "rp", help: &cmdHelp{
+		summary:  "Shortcut for :rules plan — preview your deterministic rules as an Action Plan.",
+		syntax:   ":rp",
+		examples: []string{":rp"},
+	}},
 	{name: "markdown", aliases: []string{"md"}, help: &cmdHelp{
 		summary: "Toggle Markdown rendering of the message body.",
 	}},

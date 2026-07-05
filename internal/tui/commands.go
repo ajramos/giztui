@@ -413,6 +413,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeActionPlanCommand(args)
 	case "rules", "ru":
 		a.executeRulesCommand(args)
+	case "rp": // shortcut for :rules plan
+		a.executeRulesCommand(append([]string{"plan"}, args...))
 	case "markdown", "md":
 		a.toggleMarkdown()
 	case "touch-up", "touchup":

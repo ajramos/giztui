@@ -9,7 +9,7 @@ import (
 	"github.com/derailed/tview"
 )
 
-const rulesManagerFooter = " a add · Enter edit · d delete · Esc close "
+const rulesManagerFooter = " a to add  |  Enter to edit  |  d to delete  |  Esc to close "
 const rulesManagerTitle = " ⚡ Deterministic rules "
 
 // ruleSyncOp decides what Gmail-filter operation a save requires.
@@ -169,19 +169,58 @@ func (a *App) openRulesManager() {
 		form.SetLabelColor(colors.Title.Color())
 		form.SetButtonBackgroundColor(colors.Background.Color())
 		form.SetButtonTextColor(colors.Text.Color())
+
+		// styleDropDownOptions themes a dropdown's expanded option list — tview's
+		// defaults (bright green) ignore the component theme.
+		styleDropDownOptions := func(label string) {
+			if dd, ok := form.GetFormItemByLabel(label).(*tview.DropDown); ok {
+				dd.SetListStyles(colors.Text.Color(), colors.Background.Color(),
+					colors.Background.Color(), colors.Accent.Color())
+			}
+		}
+
 		form.AddInputField("Query", queryText, 0, nil, func(text string) { queryText = text })
+
+		// rebuildForAction keeps only the fields that make sense for the selected
+		// action: a Label input for "label", a Prompt dropdown for "prompt", and the
+		// Gmail mirror checkbox for everything except "prompt" (prompt rules can't be
+		// Gmail filters). Field values persist across rebuilds via the captured vars.
+		rebuildForAction := func() {
+			for form.GetFormItemCount() > 2 { // keep Query (0) and Action (1)
+				form.RemoveFormItem(2)
+			}
+			switch action {
+			case "label":
+				form.AddInputField("Label", labelText, 0, nil, func(text string) { labelText = text })
+			case "prompt":
+				pIdx := 0
+				for i, pid := range promptIDs {
+					if pid != 0 && pid == promptID {
+						pIdx = i
+						break
+					}
+				}
+				form.AddDropDown("Prompt", promptNames, pIdx, func(_ string, idx int) {
+					if idx >= 0 && idx < len(promptIDs) {
+						promptID = promptIDs[idx]
+					}
+				})
+				styleDropDownOptions("Prompt")
+			}
+			if action != "prompt" {
+				form.AddCheckbox("Also in Gmail", mirror, func(_ string, checked bool) { mirror = checked })
+			}
+		}
+
 		form.AddDropDown("Action", actionsDisplay, actionIdx, func(_ string, idx int) {
-			if idx >= 0 && idx < len(actionTokens) {
-				action = actionTokens[idx]
+			if idx < 0 || idx >= len(actionTokens) || actionTokens[idx] == action {
+				return // no-op includes the initial-selection callback at build time
 			}
+			action = actionTokens[idx]
+			rebuildForAction()
 		})
-		form.AddInputField("Label (for Label action)", labelText, 0, nil, func(text string) { labelText = text })
-		form.AddDropDown("Prompt (for Prompt action)", promptNames, promptIdx, func(_ string, idx int) {
-			if idx >= 0 && idx < len(promptIDs) {
-				promptID = promptIDs[idx]
-			}
-		})
-		form.AddCheckbox("Also in Gmail", mirrored, func(_ string, checked bool) { mirror = checked })
+		styleDropDownOptions("Action")
+		rebuildForAction()
 
 		restore := func() {
 			container.RemoveItem(form)
@@ -190,7 +229,7 @@ func (a *App) openRulesManager() {
 			container.AddItem(footer, 1, 0, false)
 			container.SetTitle(rulesManagerTitle)
 			footer.SetText(rulesManagerFooter)
-			a.focus.set("rules_manager")
+			a.markFocus("rules_manager")
 			a.SetFocus(list)
 		}
 
@@ -241,12 +280,9 @@ func (a *App) openRulesManager() {
 					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Could not save rule: %v", err))
 					return
 				}
-				// Gmail mirroring. Prompt rules cannot exist as Gmail filters.
+				// Gmail mirroring. Prompt rules cannot exist as Gmail filters (the form
+				// hides the mirror checkbox for them; ruleSyncOp enforces it regardless).
 				warned := false
-				if mir && act == "prompt" {
-					a.GetErrorHandler().ShowWarning(a.ctx, "Prompt rules can't be mirrored to Gmail — saved locally only")
-					warned = true
-				}
 				switch ruleSyncOp(mir, act, hadFilter) {
 				case "sync":
 					if serr := svc.SyncRule(a.ctx, id); serr != nil {
@@ -279,8 +315,8 @@ func (a *App) openRulesManager() {
 		} else {
 			container.SetTitle(" ⚡ Edit rule ")
 		}
-		footer.SetText(" Tab fields · Save button saves · Esc cancel ")
-		a.focus.set("rules_manager_form")
+		footer.SetText(" Tab to move  |  Save to confirm  |  Esc to cancel ")
+		a.markFocus("rules_manager_form")
 		a.SetFocus(form)
 	}
 
@@ -326,7 +362,7 @@ func (a *App) openRulesManager() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerRules)
-	a.focus.set("rules_manager")
+	a.markFocus("rules_manager")
 	a.SetFocus(list)
 	// :rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" leaves our focus alone.

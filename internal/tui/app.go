@@ -2358,7 +2358,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s 🧠  Apply the whole plan (same as '%s' in the panel; press twice to confirm)\n", ":plan apply", a.Keys.ConfirmPlan)
 	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁ = also in Gmail)\n", ":rules")
-	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved\n", ":rules plan")
+	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")
 	fmt.Fprintf(&help, "    %-18s ⚡  Mirror rule <n> to Gmail / remove the mirror\n", ":rules sync <n>")
 	fmt.Fprintf(&help, "    %-18s ⚡  Rules pre-filter the AI :plan (config: inbox_analyzer.deterministic_prefilter)\n", "")
 	fmt.Fprintf(&help, "    %-18s ⟳   Toggle inbox auto-refresh (alias :arr; :arr 2m sets interval; Slack notify+AI summary via config)\n", ":autorefresh")
