@@ -37,6 +37,8 @@ func TestGenerateHelpText_CoversRecentFeatures(t *testing.T) {
 		":action-plan",
 		"Account picker",
 		"Action Plan",
+		":rules",
+		"Deterministic rules",
 	} {
 		if !strings.Contains(help, want) {
 			t.Errorf("help is missing %q", want)

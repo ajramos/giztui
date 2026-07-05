@@ -184,6 +184,11 @@ var commandRegistry = []commandSpec{
 		syntax:   ":action-plan [apply|rules|with-prompt <name-or-id>]",
 		examples: []string{":plan", ":plan apply", ":plan rules", ":plan with-prompt triage"},
 	}},
+	{name: "rules", aliases: []string{"ru"}, completeArg: completeRulesArg, help: &cmdHelp{
+		summary:  "Deterministic rules (no AI): manage, preview as a plan, mirror to Gmail.",
+		syntax:   ":rules [plan|sync <n>|unsync <n>]",
+		examples: []string{":rules", ":rules plan", ":rules sync 2", ":rules unsync 2"},
+	}},
 	{name: "markdown", aliases: []string{"md"}, help: &cmdHelp{
 		summary: "Toggle Markdown rendering of the message body.",
 	}},
@@ -382,6 +387,15 @@ func completeActionPlanArg(a *App, rest string) []string {
 		return nil
 	}
 	return withHead("", filterByPrefix([]string{"apply", "rules", "with-prompt"}, prefix))
+}
+
+// completeRulesArg: ':rules <subcommand>'. First token → plan/sync/unsync.
+func completeRulesArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head != "" {
+		return nil
+	}
+	return withHead("", filterByPrefix([]string{"plan", "sync", "unsync"}, prefix))
 }
 
 // completeThemeArg: ':theme <subcommand> [name]'. First token → list/preview/set; after set/preview
