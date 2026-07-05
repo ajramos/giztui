@@ -10,6 +10,27 @@ import (
 )
 
 const rulesManagerFooter = " a add · Enter edit · d delete · Esc close "
+const rulesManagerTitle = " ⚡ Deterministic rules "
+
+// ruleSyncOp decides what Gmail-filter operation a save requires.
+// "sync" mirrors the rule, "unsync" removes a stale filter, "none" does nothing.
+// Prompt rules can never be mirrored; if one previously had a filter (e.g. the
+// action was edited from archive to prompt), the stale filter must be removed.
+func ruleSyncOp(mirror bool, action string, hadFilter bool) string {
+	switch {
+	case action == "prompt":
+		if hadFilter {
+			return "unsync"
+		}
+		return "none"
+	case mirror:
+		return "sync"
+	case hadFilter:
+		return "unsync"
+	default:
+		return "none"
+	}
+}
 
 // deterministicRuleListItem renders one rule for the manager list:
 // "⚡ <verb>: <query>" plus " ☁" when the rule is mirrored as a Gmail filter.
@@ -64,7 +85,7 @@ func (a *App) openRulesManager() {
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(colors.Background.Color())
 	container.SetBorder(true)
-	container.SetTitle(" ⚡ Deterministic rules ")
+	container.SetTitle(rulesManagerTitle)
 	container.SetTitleColor(colors.Title.Color())
 	container.SetBorderColor(colors.Border.Color())
 
@@ -78,6 +99,8 @@ func (a *App) openRulesManager() {
 		list.Clear()
 		rs, err := svc.ListRules(a.ctx)
 		if err != nil {
+			rules = nil
+			list.AddItem("(failed to load rules)", "", 0, nil)
 			go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("List rules failed: %v", err))
 			return
 		}
@@ -122,11 +145,13 @@ func (a *App) openRulesManager() {
 			for i, tok := range actionTokens {
 				if tok == existing.Action {
 					actionIdx = i
+					break
 				}
 			}
 			for i, pid := range promptIDs {
 				if pid != 0 && pid == existing.PromptID {
 					promptIdx = i
+					break
 				}
 			}
 			mirrored = existing.GmailFilterID != ""
@@ -163,7 +188,7 @@ func (a *App) openRulesManager() {
 			container.RemoveItem(footer)
 			container.AddItem(list, 0, 1, true)
 			container.AddItem(footer, 1, 0, false)
-			container.SetTitle(" ⚡ Deterministic rules ")
+			container.SetTitle(rulesManagerTitle)
 			footer.SetText(rulesManagerFooter)
 			a.focus.set("rules_manager")
 			a.SetFocus(list)
@@ -176,6 +201,18 @@ func (a *App) openRulesManager() {
 			pid := promptID
 			if act != "prompt" {
 				pid = 0
+			}
+			if q == "" {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Query cannot be empty")
+				return
+			}
+			if act == "label" && lbl == "" {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Label action needs a label name")
+				return
+			}
+			if act == "prompt" && pid == 0 {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Prompt action needs a prompt — pick one in the Prompt dropdown")
+				return
 			}
 			mir := mirror
 			var existingID int64
@@ -206,16 +243,17 @@ func (a *App) openRulesManager() {
 				}
 				// Gmail mirroring. Prompt rules cannot exist as Gmail filters.
 				warned := false
-				switch {
-				case mir && act == "prompt":
+				if mir && act == "prompt" {
 					a.GetErrorHandler().ShowWarning(a.ctx, "Prompt rules can't be mirrored to Gmail — saved locally only")
 					warned = true
-				case mir:
+				}
+				switch ruleSyncOp(mir, act, hadFilter) {
+				case "sync":
 					if serr := svc.SyncRule(a.ctx, id); serr != nil {
 						a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Rule saved locally, but Gmail did not accept it as a filter: %v", serr))
 						warned = true
 					}
-				case hadFilter:
+				case "unsync":
 					if serr := svc.UnsyncRule(a.ctx, id); serr != nil {
 						a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Rule saved, but the Gmail filter could not be removed: %v", serr))
 						warned = true
@@ -241,7 +279,7 @@ func (a *App) openRulesManager() {
 		} else {
 			container.SetTitle(" ⚡ Edit rule ")
 		}
-		footer.SetText(" Tab fields · Enter/Save save · Esc cancel ")
+		footer.SetText(" Tab fields · Save button saves · Esc cancel ")
 		a.focus.set("rules_manager_form")
 		a.SetFocus(form)
 	}
