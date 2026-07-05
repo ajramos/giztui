@@ -158,6 +158,8 @@ func actionVerbLabel(action string) string {
 		return "Label"
 	case "summarize":
 		return "summarize"
+	case "prompt":
+		return "Prompt"
 	default:
 		// action "none" (and anything unknown): no bulk action — the user handles these
 		// emails by hand. "No action" avoids reading like a distinct action next to the
@@ -178,6 +180,8 @@ func (a *App) actionKeyHint(action string) string {
 	case "label":
 		return a.Keys.ManageLabels
 	case "summarize":
+		return a.Keys.Summarize
+	case "prompt":
 		return a.Keys.Summarize
 	default:
 		return ""
@@ -679,6 +683,8 @@ func actionRuleVerbShort(action string) string {
 		return "label"
 	case "summarize":
 		return "digest"
+	case "prompt":
+		return "prompt"
 	default:
 		return "act"
 	}
