@@ -190,50 +190,13 @@ func (a *App) openActionPlanPanel() {
 }
 
 // openActionPlanWithText opens the panel; customPromptText=="" uses the default prompt.
-func (a *App) openActionPlanWithText(customPromptText string) {
-	if a.GetInboxAnalyzerService() == nil {
-		a.GetErrorHandler().ShowError(a.ctx, "Inbox analyzer not available — check LLM configuration")
-		return
-	}
-	if a.actionPlanState != nil {
-		a.closeActionPlanPanel()
-	}
-
-	// Scope: selection-first (analyze the user's bulk selection if any), else fall
-	// back to the unread inbox already in memory.
-	a.mu.RLock()
-	metas := make([]*gmailapi.Message, len(a.messagesMeta))
-	copy(metas, a.messagesMeta)
-	selected := make(map[string]bool)
-	for _, id := range a.bulk.ids() {
-		selected[id] = true
-	}
-	a.mu.RUnlock()
-
-	var messages []services.AnalyzerMessage
-	scopeLabel := ""
-	if len(selected) > 0 {
-		messages = buildAnalyzerMessagesForSelection(metas, selected)
-		scopeLabel = fmt.Sprintf("%d selected", len(messages))
-	} else {
-		messages = buildAnalyzerMessages(metas)
-		scopeLabel = fmt.Sprintf("%d unread (inbox)", len(messages))
-	}
-	if len(messages) == 0 {
-		a.GetErrorHandler().ShowInfo(a.ctx, "No messages to analyze. Select messages (v/space) or try :search is:unread.")
-		return
-	}
-
+// buildActionPlanPanelState constructs the Action Plan panel widgets (tree, footer,
+// container) and state, shared by the AI plan (openActionPlanWithText) and the
+// deterministic rules plan (:rules plan). analyzing=true shows the "Analyzing…"
+// placeholder + spinner title; false builds an idle panel the caller renders into.
+func (a *App) buildActionPlanPanelState(customPromptText, scopeLabel string, metaByID map[string]*gmailapi.Message, analyzing bool) *actionPlanState {
 	colors := a.GetComponentColors("ai")
 	bg := colors.Background.Color()
-
-	// Build metaByID lookup for subject/from display in email child nodes.
-	metaByID := make(map[string]*gmailapi.Message, len(metas))
-	for _, m := range metas {
-		if m != nil {
-			metaByID[m.Id] = m
-		}
-	}
 
 	state := &actionPlanState{
 		selectedCategory: 0,
@@ -243,7 +206,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		expanded:         make(map[string]bool),
 		metaByID:         metaByID,
 	}
-	state.analyzing.Store(true)
+	state.analyzing.Store(analyzing)
 
 	state.root = tview.NewTreeNode("")
 	state.tree = tview.NewTreeView().SetRoot(state.root).SetCurrentNode(state.root)
@@ -280,22 +243,26 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 	state.container.SetBackgroundColor(bg)
 	state.container.SetBorder(true)
 	// The status/summary lives in the border title (no separate header row).
-	state.container.SetTitle(actionPlanTitleText(scopeLabel, 0, 0, 0, true))
+	state.container.SetTitle(actionPlanTitleText(scopeLabel, 0, 0, 0, analyzing))
 	state.container.SetTitleColor(colors.Title.Color())
 	state.container.SetBorderColor(colors.Border.Color())
 	state.container.AddItem(state.tree, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
 
-	// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
-	state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
-		SetSelectable(false).SetColor(colors.Text.Color()))
+	if analyzing {
+		// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
+		state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
+			SetSelectable(false).SetColor(colors.Text.Color()))
+	}
 	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
+	return state
+}
 
-	// Mount, focus and activation must run on the UI thread. openActionPlanWithText is
-	// invoked via `go a.openActionPlanPanel()`, so doing these directly would mutate the
-	// live layout off-thread and nothing would repaint until the next input event — the
-	// panel would be invisible and unfocused until a stray keypress. QueueUpdateDraw
-	// marshals onto the UI thread AND forces a redraw, the same pattern openLinkPicker uses.
+// mountActionPlanPanel mounts the panel into the content split, focuses it and
+// activates the picker. Must run on the UI thread; both entry points are invoked
+// on background goroutines, so QueueUpdateDraw marshals AND forces a redraw
+// (the same pattern openLinkPicker uses).
+func (a *App) mountActionPlanPanel(state *actionPlanState) {
 	a.QueueUpdateDraw(func() {
 		a.actionPlanState = state
 		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -311,6 +278,52 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		a.markFocus("action_plan")
 		a.setActivePicker(PickerActionPlan)
 	})
+}
+
+func (a *App) openActionPlanWithText(customPromptText string) {
+	if a.GetInboxAnalyzerService() == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Inbox analyzer not available — check LLM configuration")
+		return
+	}
+	if a.actionPlanState != nil {
+		a.closeActionPlanPanel()
+	}
+
+	// Scope: selection-first (analyze the user's bulk selection if any), else fall
+	// back to the unread inbox already in memory.
+	a.mu.RLock()
+	metas := make([]*gmailapi.Message, len(a.messagesMeta))
+	copy(metas, a.messagesMeta)
+	selected := make(map[string]bool)
+	for _, id := range a.bulk.ids() {
+		selected[id] = true
+	}
+	a.mu.RUnlock()
+
+	var messages []services.AnalyzerMessage
+	scopeLabel := ""
+	if len(selected) > 0 {
+		messages = buildAnalyzerMessagesForSelection(metas, selected)
+		scopeLabel = fmt.Sprintf("%d selected", len(messages))
+	} else {
+		messages = buildAnalyzerMessages(metas)
+		scopeLabel = fmt.Sprintf("%d unread (inbox)", len(messages))
+	}
+	if len(messages) == 0 {
+		a.GetErrorHandler().ShowInfo(a.ctx, "No messages to analyze. Select messages (v/space) or try :search is:unread.")
+		return
+	}
+
+	// Build metaByID lookup for subject/from display in email child nodes.
+	metaByID := make(map[string]*gmailapi.Message, len(metas))
+	for _, m := range metas {
+		if m != nil {
+			metaByID[m.Id] = m
+		}
+	}
+
+	state := a.buildActionPlanPanelState(customPromptText, scopeLabel, metaByID, true)
+	a.mountActionPlanPanel(state)
 
 	// Launch analysis in the background. ctx cancel is registered both on the state
 	// (for closeActionPlanPanel) and on the App (for the global ESC handler in keys.go).
