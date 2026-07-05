@@ -189,7 +189,6 @@ func (a *App) openActionPlanPanel() {
 	a.openActionPlanWithText("")
 }
 
-// openActionPlanWithText opens the panel; customPromptText=="" uses the default prompt.
 // buildActionPlanPanelState constructs the Action Plan panel widgets (tree, footer,
 // container) and state, shared by the AI plan (openActionPlanWithText) and the
 // deterministic rules plan (:rules plan). analyzing=true shows the "Analyzing…"
@@ -280,6 +279,7 @@ func (a *App) mountActionPlanPanel(state *actionPlanState) {
 	})
 }
 
+// openActionPlanWithText opens the panel; customPromptText=="" uses the default prompt.
 func (a *App) openActionPlanWithText(customPromptText string) {
 	if a.GetInboxAnalyzerService() == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Inbox analyzer not available — check LLM configuration")
