@@ -54,7 +54,9 @@ func (a *App) dispatchActionPlanSummarize(state *actionPlanState) {
 	}
 
 	colors := a.GetComponentColors("ai")
-	view := tview.NewTextView().SetWrap(true).SetWordWrap(true)
+	// SetDynamicColors: renderPromptResult emits tview color tags (Markdown pipeline);
+	// without it the tags print literally ("[#dddddd::]…") instead of coloring the text.
+	view := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetWordWrap(true)
 	view.SetBackgroundColor(colors.Background.Color())
 	view.SetTextColor(colors.Text.Color())
 	view.SetText(fmt.Sprintf("⏳ Summarizing %d email(s)…", len(ids)))
