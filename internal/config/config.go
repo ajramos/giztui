@@ -294,12 +294,13 @@ func (a AutoRefreshConfig) ResolvedInterval() time.Duration {
 
 // InboxAnalyzerConfig configures the AI inbox Action Plan analyzer.
 type InboxAnalyzerConfig struct {
-	BatchSize       int    `json:"batch_size"`        // messages per LLM batch (default 50)
-	MaxBatches      int    `json:"max_batches"`       // safety cap on batches (default 10)
-	DefaultPromptID string `json:"default_prompt_id"` // optional saved-prompt override (name or id)
-	IncludeBody     bool   `json:"include_body"`      // include plain-text body in analyzer context (default true)
-	BodyCharLimit   int    `json:"body_char_limit"`   // max body chars per email (default 1000)
-	StrictLabels    bool   `json:"strict_labels"`     // analyzer uses only existing labels; no creating new ones (default true)
+	BatchSize              int    `json:"batch_size"`              // messages per LLM batch (default 50)
+	MaxBatches             int    `json:"max_batches"`             // safety cap on batches (default 10)
+	DefaultPromptID        string `json:"default_prompt_id"`       // optional saved-prompt override (name or id)
+	IncludeBody            bool   `json:"include_body"`            // include plain-text body in analyzer context (default true)
+	BodyCharLimit          int    `json:"body_char_limit"`         // max body chars per email (default 1000)
+	StrictLabels           bool   `json:"strict_labels"`           // analyzer uses only existing labels; no creating new ones (default true)
+	DeterministicPrefilter bool   `json:"deterministic_prefilter"` // resolve deterministic rules before sending the rest to the LLM (default true)
 }
 
 // KeyBindings defines keyboard shortcuts for the TUI
@@ -717,12 +718,13 @@ func DefaultThreadingConfig() ThreadingConfig {
 // DefaultInboxAnalyzerConfig returns default analyzer settings.
 func DefaultInboxAnalyzerConfig() InboxAnalyzerConfig {
 	return InboxAnalyzerConfig{
-		BatchSize:       50,
-		MaxBatches:      10,
-		DefaultPromptID: "",
-		IncludeBody:     true,
-		BodyCharLimit:   1000,
-		StrictLabels:    true,
+		BatchSize:              50,
+		MaxBatches:             10,
+		DefaultPromptID:        "",
+		IncludeBody:            true,
+		BodyCharLimit:          1000,
+		StrictLabels:           true,
+		DeterministicPrefilter: true,
 	}
 }
 

@@ -620,3 +620,9 @@ func TestGetSlackSummaryPrompt(t *testing.T) {
 		t.Errorf("whitespace override should fall back to default")
 	}
 }
+
+func TestDefaultInboxAnalyzerConfigDeterministicPrefilter(t *testing.T) {
+	if !DefaultInboxAnalyzerConfig().DeterministicPrefilter {
+		t.Fatal("DeterministicPrefilter should default to true")
+	}
+}
