@@ -14,7 +14,7 @@ func TestDeterministicRuleListItem(t *testing.T) {
 		want       string
 	}{
 		{"archive local", services.DeterministicRuleInfo{Query: "from:foo", Action: "archive"}, "", "⚡ Archive: from:foo"},
-		{"archive mirrored", services.DeterministicRuleInfo{Query: "from:foo", Action: "archive", GmailFilterID: "flt1"}, "", "⚡ Archive: from:foo ☁"},
+		{"archive mirrored", services.DeterministicRuleInfo{Query: "from:foo", Action: "archive", GmailFilterID: "flt1"}, "", "⚡ Archive: from:foo ☁️"},
 		{"label", services.DeterministicRuleInfo{Query: "from:bank", Action: "label", Label: "Finance"}, "", "⚡ Label Finance: from:bank"},
 		{"prompt named", services.DeterministicRuleInfo{Query: "from:boss", Action: "prompt", PromptID: 3}, "Daily digest", "⚡ Prompt 'Daily digest': from:boss"},
 		{"prompt unnamed", services.DeterministicRuleInfo{Query: "from:boss", Action: "prompt", PromptID: 3}, "", "⚡ Prompt: from:boss"},

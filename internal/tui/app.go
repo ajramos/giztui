@@ -2370,7 +2370,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Open inbox Action Plan (alias :plan, :ap)\n", ":action-plan")
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s 🧠  Apply the whole plan (same as '%s' in the panel; press twice to confirm)\n", ":plan apply", a.Keys.ConfirmPlan)
-	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁ = also in Gmail)\n", ":rules")
+	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁️ = also in Gmail)\n", ":rules")
 	fmt.Fprintf(&help, "    %-18s ⚡  New rule — pre-fills the active search (or '%s' from the list)\n", ":rules new", a.Keys.RuleFromQuery)
 	fmt.Fprintf(&help, "    %-18s ⚡  In the rule form: Preview shows the query's matches in the list\n", "")
 	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")

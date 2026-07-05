@@ -33,7 +33,9 @@ func ruleSyncOp(mirror bool, action string, hadFilter bool) string {
 }
 
 // deterministicRuleListItem renders one rule for the manager list:
-// "⚡ <verb>: <query>" plus " ☁" when the rule is mirrored as a Gmail filter.
+// "⚡ <verb>: <query>" plus " ☁️" when the rule is mirrored as a Gmail filter.
+// U+FE0F (emoji presentation) matters: the bare text-presentation cloud renders
+// as a tiny, near-invisible glyph on some terminals (reported on macOS).
 func deterministicRuleListItem(r services.DeterministicRuleInfo, promptName string) string {
 	verb := actionVerbLabel(r.Action)
 	switch {
@@ -44,7 +46,7 @@ func deterministicRuleListItem(r services.DeterministicRuleInfo, promptName stri
 	}
 	item := fmt.Sprintf("⚡ %s: %s", verb, r.Query)
 	if r.GmailFilterID != "" {
-		item += " ☁"
+		item += " ☁️"
 	}
 	return item
 }
