@@ -253,6 +253,44 @@ func TestRulesServicePartitionPaginates(t *testing.T) {
 	}
 }
 
+func TestRulesServicePartitionCapsPerRule(t *testing.T) {
+	// 5 pages of 100 distinct IDs each, every page with a non-empty NextPageToken.
+	// The cap (500) stops the sweep after exactly 5 calls; a 6th call panics (overcall).
+	const pages = 5
+	const idsPerPage = 100
+
+	calls := make([]func(string, QueryOptions) (*MessagePage, error), pages)
+	for p := 0; p < pages; p++ {
+		p := p // capture
+		calls[p] = func(_ string, opts QueryOptions) (*MessagePage, error) {
+			ids := make([]string, idsPerPage)
+			for i := 0; i < idsPerPage; i++ {
+				ids[i] = fmt.Sprintf("msg-%d-%d", p, i)
+			}
+			return page("tok-next", ids...), nil
+		}
+	}
+
+	repo := &stubMessageRepo{calls: calls}
+	svc := newTestRulesService(t, repo)
+	ctx := context.Background()
+	seedRule(t, svc, "from:newsletter.com", "archive", "", 0)
+
+	matches, _, err := svc.Partition(ctx, "", nil)
+	if err != nil {
+		t.Fatalf("partition: %v", err)
+	}
+	if repo.idx != pages {
+		t.Fatalf("expected exactly %d SearchMessages calls, got %d", pages, repo.idx)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 RuleMatch, got %d", len(matches))
+	}
+	if got := len(matches[0].MessageIDs); got != partitionMaxPerRule {
+		t.Fatalf("expected %d MessageIDs (cap), got %d", partitionMaxPerRule, got)
+	}
+}
+
 // TestDeleteRuleBestEffort verifies that when the mirrored Gmail filter delete
 // fails, DeleteRule still removes the local rule and returns a non-nil error
 // mentioning the Gmail filter.

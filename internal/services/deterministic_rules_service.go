@@ -209,7 +209,8 @@ const (
 // the combined scopeQuery, assigns each message to the first matching rule, and
 // returns the slice of per-rule matches plus any candidate IDs left unmatched.
 // When candidates is nil the scope is treated as unbounded (no candidate filter)
-// and remaining is also nil.
+// and remaining is also nil. Each rule's sweep is capped at 500 messages, so
+// with large candidate sets, IDs beyond the cap may land in remaining (best-effort).
 func (s *DeterministicRulesServiceImpl) Partition(ctx context.Context, scopeQuery string, candidates []string) ([]RuleMatch, []string, error) {
 	rules, err := s.ListRules(ctx)
 	if err != nil {
@@ -225,10 +226,13 @@ func (s *DeterministicRulesServiceImpl) Partition(ctx context.Context, scopeQuer
 	seen := make(map[string]bool)
 	var matches []RuleMatch
 	for _, r := range rules {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		query := strings.TrimSpace(strings.TrimSpace(scopeQuery) + " " + r.Query)
 		ids, err := s.searchAllIDs(ctx, query)
 		if err != nil {
-			return nil, nil, fmt.Errorf("rule %q: %w", r.Query, err)
+			return nil, nil, fmt.Errorf("rule %d (%q): %w", r.ID, r.Query, err)
 		}
 		var mine []string
 		for _, id := range ids {
@@ -258,14 +262,17 @@ func (s *DeterministicRulesServiceImpl) Partition(ctx context.Context, scopeQuer
 }
 
 // searchAllIDs collects message IDs for the given query across all pages, capped
-// at partitionMaxPerRule to prevent unbounded sweeps.
+// at partitionMaxPerRule to prevent unbounded sweeps. The loop is also bounded to
+// maxPages iterations so a misbehaving repository returning empty pages with tokens
+// cannot loop forever.
 func (s *DeterministicRulesServiceImpl) searchAllIDs(ctx context.Context, query string) ([]string, error) {
 	if s.repo == nil {
 		return nil, fmt.Errorf("message repository not available")
 	}
+	maxPages := partitionMaxPerRule/partitionPageSize + 1
 	var ids []string
 	pageToken := ""
-	for {
+	for page := 0; page < maxPages; page++ {
 		res, err := s.repo.SearchMessages(ctx, query, QueryOptions{MaxResults: partitionPageSize, PageToken: pageToken})
 		if err != nil {
 			return nil, err
@@ -280,6 +287,7 @@ func (s *DeterministicRulesServiceImpl) searchAllIDs(ctx context.Context, query 
 		}
 		pageToken = res.NextPageToken
 	}
+	return ids, nil
 }
 
 // SyncRule / UnsyncRule are implemented in Task 5.

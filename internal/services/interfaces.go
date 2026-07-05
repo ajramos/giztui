@@ -1098,7 +1098,9 @@ type DeterministicRulesService interface {
 	// every message to the FIRST rule that matches it. candidates == nil means "no
 	// intersection" (take whatever Gmail returns, deduped across rules); otherwise matches
 	// are intersected with candidates and remaining returns the unmatched candidates in
-	// input order. Rules that match nothing produce no RuleMatch entry.
+	// input order. Rules that match nothing produce no RuleMatch entry. Each rule's sweep
+	// is capped at 500 messages, so with large candidate sets, IDs beyond the cap may land
+	// in remaining (best-effort).
 	Partition(ctx context.Context, scopeQuery string, candidates []string) (matches []RuleMatch, remaining []string, err error)
 	// SyncRule mirrors the rule as a Gmail filter (recreating it if already mirrored);
 	// UnsyncRule deletes the mirrored filter. Both persist gmail_filter_id.
