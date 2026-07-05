@@ -349,3 +349,133 @@ func TestDeleteRuleBestEffort(t *testing.T) {
 		t.Fatalf("rule should be deleted locally, got %d rule(s)", len(rules))
 	}
 }
+
+// fakeFilterAPI records filter calls for sync tests.
+type fakeFilterAPI struct {
+	created []string // queries passed to CreateFilter
+	deleted []string // ids passed to DeleteFilter
+	nextID  string
+	fail    error
+}
+
+func (f *fakeFilterAPI) CreateFilter(query string, action *gmailapi.FilterAction) (string, error) {
+	if f.fail != nil {
+		return "", f.fail
+	}
+	f.created = append(f.created, query)
+	return f.nextID, nil
+}
+func (f *fakeFilterAPI) DeleteFilter(id string) error {
+	if f.fail != nil {
+		return f.fail
+	}
+	f.deleted = append(f.deleted, id)
+	return nil
+}
+
+func TestFilterActionForRule(t *testing.T) {
+	cases := []struct {
+		action, labelID string
+		wantAdd         []string
+		wantRemove      []string
+		wantErr         bool
+	}{
+		{action: "archive", wantRemove: []string{"INBOX"}},
+		{action: "mark_read", wantRemove: []string{"UNREAD"}},
+		{action: "trash", wantAdd: []string{"TRASH"}},
+		{action: "label", labelID: "Label_42", wantAdd: []string{"Label_42"}},
+		{action: "label", labelID: "", wantErr: true},
+		{action: "prompt", wantErr: true},
+		{action: "explode", wantErr: true},
+	}
+	for _, c := range cases {
+		got, err := FilterActionForRule(c.action, c.labelID)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("%s: want error", c.action)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v", c.action, err)
+			continue
+		}
+		if len(c.wantAdd) > 0 && (len(got.AddLabelIds) != 1 || got.AddLabelIds[0] != c.wantAdd[0]) {
+			t.Errorf("%s: add %v, want %v", c.action, got.AddLabelIds, c.wantAdd)
+		}
+		if len(c.wantRemove) > 0 && (len(got.RemoveLabelIds) != 1 || got.RemoveLabelIds[0] != c.wantRemove[0]) {
+			t.Errorf("%s: remove %v, want %v", c.action, got.RemoveLabelIds, c.wantRemove)
+		}
+	}
+}
+
+func TestRulesServiceSyncUnsync(t *testing.T) {
+	svc := newTestRulesService(t, &stubMessageRepo{})
+	ctx := context.Background()
+	filters := &fakeFilterAPI{nextID: "F1"}
+	svc.filters = filters
+	seedRule(t, svc, "from:medium.com", "archive", "", 0)
+	rules, _ := svc.ListRules(ctx)
+	id := rules[0].ID
+
+	if err := svc.SyncRule(ctx, id); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "F1" {
+		t.Fatalf("filter id not stored: %+v", rules[0])
+	}
+	if len(filters.created) != 1 || filters.created[0] != "from:medium.com" {
+		t.Fatalf("create not called with rule query: %v", filters.created)
+	}
+
+	// Re-sync recreates: delete old + create new.
+	filters.nextID = "F2"
+	if err := svc.SyncRule(ctx, id); err != nil {
+		t.Fatalf("resync: %v", err)
+	}
+	if len(filters.deleted) != 1 || filters.deleted[0] != "F1" {
+		t.Fatalf("resync must delete the old filter: %v", filters.deleted)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "F2" {
+		t.Fatalf("resync id not stored: %+v", rules[0])
+	}
+
+	// Unsync deletes and clears.
+	if err := svc.UnsyncRule(ctx, id); err != nil {
+		t.Fatalf("unsync: %v", err)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "" {
+		t.Fatalf("unsync must clear the id: %+v", rules[0])
+	}
+}
+
+func TestRulesServiceSyncPromptRuleRejected(t *testing.T) {
+	svc := newTestRulesService(t, &stubMessageRepo{})
+	svc.filters = &fakeFilterAPI{nextID: "F1"}
+	seedRule(t, svc, "from:jira", "prompt", "", 7)
+	rules, _ := svc.ListRules(context.Background())
+	if err := svc.SyncRule(context.Background(), rules[0].ID); err == nil {
+		t.Fatal("prompt rules cannot be mirrored — sync must fail")
+	}
+}
+
+func TestRulesServiceDeleteMirroredRuleDeletesFilter(t *testing.T) {
+	svc := newTestRulesService(t, &stubMessageRepo{})
+	ctx := context.Background()
+	filters := &fakeFilterAPI{nextID: "F1"}
+	svc.filters = filters
+	seedRule(t, svc, "from:medium.com", "archive", "", 0)
+	rules, _ := svc.ListRules(ctx)
+	if err := svc.SyncRule(ctx, rules[0].ID); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	if err := svc.DeleteRule(ctx, rules[0].ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if len(filters.deleted) != 1 || filters.deleted[0] != "F1" {
+		t.Fatalf("delete must remove the Gmail filter: %v", filters.deleted)
+	}
+}

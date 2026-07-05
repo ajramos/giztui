@@ -290,12 +290,110 @@ func (s *DeterministicRulesServiceImpl) searchAllIDs(ctx context.Context, query 
 	return ids, nil
 }
 
-// SyncRule / UnsyncRule are implemented in Task 5.
-func (s *DeterministicRulesServiceImpl) SyncRule(ctx context.Context, id int64) error {
-	return fmt.Errorf("not implemented")
+// FilterActionForRule maps a rule action to the Gmail filter action applied to future
+// incoming mail. labelID must be a resolved Gmail label ID when action == "label".
+// "prompt" (and anything unknown) cannot run server-side.
+func FilterActionForRule(action, labelID string) (*gmailapi.FilterAction, error) {
+	switch action {
+	case "archive":
+		return &gmailapi.FilterAction{RemoveLabelIds: []string{"INBOX"}}, nil
+	case "mark_read":
+		return &gmailapi.FilterAction{RemoveLabelIds: []string{"UNREAD"}}, nil
+	case "trash":
+		return &gmailapi.FilterAction{AddLabelIds: []string{"TRASH"}}, nil
+	case "label":
+		if strings.TrimSpace(labelID) == "" {
+			return nil, fmt.Errorf("label rule needs a label")
+		}
+		return &gmailapi.FilterAction{AddLabelIds: []string{labelID}}, nil
+	default:
+		return nil, fmt.Errorf("a %q rule cannot run as a Gmail filter", action)
+	}
 }
+
+// resolveLabelID finds (case-insensitively) or creates the Gmail label and returns its ID.
+func (s *DeterministicRulesServiceImpl) resolveLabelID(ctx context.Context, name string) (string, error) {
+	if s.labels == nil {
+		return "", fmt.Errorf("label service not available")
+	}
+	existing, err := s.labels.ListLabels(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, l := range existing {
+		if l != nil && strings.EqualFold(l.Name, name) {
+			return l.Id, nil
+		}
+	}
+	created, err := s.labels.CreateLabel(ctx, name)
+	if err != nil {
+		return "", err
+	}
+	return created.Id, nil
+}
+
+// SyncRule mirrors the rule as a Gmail filter; if already mirrored, the old filter is
+// deleted first (edit → recreate semantics).
+func (s *DeterministicRulesServiceImpl) SyncRule(ctx context.Context, id int64) error {
+	if s.store == nil {
+		return fmt.Errorf("deterministic rules store not available")
+	}
+	acct, err := s.account()
+	if err != nil {
+		return err
+	}
+	if s.filters == nil {
+		return fmt.Errorf("Gmail client not available")
+	}
+	rule, err := s.findRule(ctx, id)
+	if err != nil {
+		return err
+	}
+	labelID := ""
+	if rule.Action == "label" {
+		if labelID, err = s.resolveLabelID(ctx, rule.Label); err != nil {
+			return err
+		}
+	}
+	action, err := FilterActionForRule(rule.Action, labelID)
+	if err != nil {
+		return err
+	}
+	if rule.GmailFilterID != "" {
+		if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil {
+			return fmt.Errorf("could not replace the existing Gmail filter: %w", err)
+		}
+	}
+	filterID, err := s.filters.CreateFilter(rule.Query, action)
+	if err != nil {
+		return fmt.Errorf("Gmail did not accept the query as a filter: %w", err)
+	}
+	return s.store.SetGmailFilterID(ctx, acct, id, filterID)
+}
+
+// UnsyncRule deletes the mirrored Gmail filter and clears gmail_filter_id.
 func (s *DeterministicRulesServiceImpl) UnsyncRule(ctx context.Context, id int64) error {
-	return fmt.Errorf("not implemented")
+	if s.store == nil {
+		return fmt.Errorf("deterministic rules store not available")
+	}
+	acct, err := s.account()
+	if err != nil {
+		return err
+	}
+	rule, err := s.findRule(ctx, id)
+	if err != nil {
+		return err
+	}
+	if rule.GmailFilterID == "" {
+		return nil // nothing mirrored — no-op
+	}
+	if s.filters == nil {
+		return fmt.Errorf("Gmail client not available")
+	}
+	if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil {
+		return fmt.Errorf("could not delete the Gmail filter: %w", err)
+	}
+	return s.store.SetGmailFilterID(ctx, acct, id, "")
 }
 
 var _ DeterministicRulesService = (*DeterministicRulesServiceImpl)(nil)
