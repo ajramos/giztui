@@ -9,6 +9,7 @@ import (
 	"github.com/ajramos/giztui/internal/db"
 	internalgmail "github.com/ajramos/giztui/internal/gmail"
 	gmailapi "google.golang.org/api/gmail/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Compile-time check: *internalgmail.Client must satisfy GmailFilterAPI.
@@ -352,10 +353,12 @@ func TestDeleteRuleBestEffort(t *testing.T) {
 
 // fakeFilterAPI records filter calls for sync tests.
 type fakeFilterAPI struct {
-	created []string // queries passed to CreateFilter
-	deleted []string // ids passed to DeleteFilter
-	nextID  string
-	fail    error
+	created   []string                 // queries passed to CreateFilter
+	actions   []*gmailapi.FilterAction // actions passed to CreateFilter
+	deleted   []string                 // ids passed to DeleteFilter
+	nextID    string
+	fail      error // returned by CreateFilter (and DeleteFilter if deleteErr is nil)
+	deleteErr error // returned by DeleteFilter when set (takes priority over fail)
 }
 
 func (f *fakeFilterAPI) CreateFilter(query string, action *gmailapi.FilterAction) (string, error) {
@@ -363,9 +366,13 @@ func (f *fakeFilterAPI) CreateFilter(query string, action *gmailapi.FilterAction
 		return "", f.fail
 	}
 	f.created = append(f.created, query)
+	f.actions = append(f.actions, action)
 	return f.nextID, nil
 }
 func (f *fakeFilterAPI) DeleteFilter(id string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
 	if f.fail != nil {
 		return f.fail
 	}
@@ -428,6 +435,17 @@ func TestRulesServiceSyncUnsync(t *testing.T) {
 	if len(filters.created) != 1 || filters.created[0] != "from:medium.com" {
 		t.Fatalf("create not called with rule query: %v", filters.created)
 	}
+	// Archive action must map to RemoveLabelIds=["INBOX"] with no AddLabelIds.
+	if len(filters.actions) != 1 {
+		t.Fatalf("expected 1 recorded action, got %d", len(filters.actions))
+	}
+	gotAction := filters.actions[0]
+	if len(gotAction.RemoveLabelIds) != 1 || gotAction.RemoveLabelIds[0] != "INBOX" {
+		t.Fatalf("archive action: want RemoveLabelIds=[INBOX], got %v", gotAction.RemoveLabelIds)
+	}
+	if len(gotAction.AddLabelIds) != 0 {
+		t.Fatalf("archive action: want empty AddLabelIds, got %v", gotAction.AddLabelIds)
+	}
 
 	// Re-sync recreates: delete old + create new.
 	filters.nextID = "F2"
@@ -477,5 +495,72 @@ func TestRulesServiceDeleteMirroredRuleDeletesFilter(t *testing.T) {
 	}
 	if len(filters.deleted) != 1 || filters.deleted[0] != "F1" {
 		t.Fatalf("delete must remove the Gmail filter: %v", filters.deleted)
+	}
+}
+
+// TestRulesServiceSyncToleratesMissingRemoteFilter verifies that a 404 from Gmail
+// on delete (stale filter ID) is treated as success so sync and unsync can proceed.
+// Also asserts that a non-404 delete error still propagates.
+func TestRulesServiceSyncToleratesMissingRemoteFilter(t *testing.T) {
+	ctx := context.Background()
+
+	// --- Part 1: 404 on SyncRule (re-sync of already-gone filter) ---
+	svc := newTestRulesService(t, &stubMessageRepo{})
+	filters := &fakeFilterAPI{nextID: "F1"}
+	svc.filters = filters
+	seedRule(t, svc, "from:newsletter.com", "archive", "", 0)
+	rules, _ := svc.ListRules(ctx)
+	id := rules[0].ID
+
+	// Initial sync → stores "F1".
+	if err := svc.SyncRule(ctx, id); err != nil {
+		t.Fatalf("initial sync: %v", err)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "F1" {
+		t.Fatalf("expected F1 stored, got %q", rules[0].GmailFilterID)
+	}
+
+	// Simulate filter already deleted on Gmail side → 404 on next delete.
+	filters.deleteErr = &googleapi.Error{Code: 404}
+	filters.nextID = "F2"
+
+	// Re-sync must succeed and store "F2".
+	if err := svc.SyncRule(ctx, id); err != nil {
+		t.Fatalf("re-sync with 404 delete must succeed: %v", err)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "F2" {
+		t.Fatalf("expected F2 stored after 404-tolerant re-sync, got %q", rules[0].GmailFilterID)
+	}
+
+	// --- Part 2: 404 on UnsyncRule ---
+	// deleteErr is still 404; unsync must succeed and clear the ID.
+	if err := svc.UnsyncRule(ctx, id); err != nil {
+		t.Fatalf("unsync with 404 delete must succeed: %v", err)
+	}
+	rules, _ = svc.ListRules(ctx)
+	if rules[0].GmailFilterID != "" {
+		t.Fatalf("unsync must clear GmailFilterID, got %q", rules[0].GmailFilterID)
+	}
+
+	// --- Part 3: non-404 delete error must still fail SyncRule ---
+	// Seed a second rule and sync it cleanly first.
+	svc2 := newTestRulesService(t, &stubMessageRepo{})
+	filters2 := &fakeFilterAPI{nextID: "F3"}
+	svc2.filters = filters2
+	seedRule(t, svc2, "from:spam.com", "archive", "", 0)
+	rules2, _ := svc2.ListRules(ctx)
+	id2 := rules2[0].ID
+
+	if err := svc2.SyncRule(ctx, id2); err != nil {
+		t.Fatalf("sync rule2: %v", err)
+	}
+
+	// Inject a 500 delete error → re-sync must fail.
+	filters2.deleteErr = &googleapi.Error{Code: 500}
+	filters2.nextID = "F4"
+	if err := svc2.SyncRule(ctx, id2); err == nil {
+		t.Fatal("re-sync with non-404 delete error must fail")
 	}
 }

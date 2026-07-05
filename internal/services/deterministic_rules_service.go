@@ -2,13 +2,23 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/ajramos/giztui/internal/db"
 	gmailapi "google.golang.org/api/gmail/v1"
+	"google.golang.org/api/googleapi"
 )
+
+// isNotFound reports whether err is a Gmail 404 — the remote filter is already gone,
+// which the sync paths treat as "nothing to delete".
+func isNotFound(err error) bool {
+	var gerr *googleapi.Error
+	return errors.As(err, &gerr) && gerr.Code == http.StatusNotFound
+}
 
 // GmailFilterAPI is the narrow Gmail settings surface the rules service needs for
 // mirroring rules as server-side filters. *gmail.Client implements it (Task 4).
@@ -173,7 +183,9 @@ func (s *DeterministicRulesServiceImpl) DeleteRule(ctx context.Context, id int64
 	}
 	var filterErr error
 	if rule.GmailFilterID != "" && s.filters != nil {
-		filterErr = s.filters.DeleteFilter(rule.GmailFilterID)
+		if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil && !isNotFound(err) {
+			filterErr = err
+		}
 	}
 	if err := s.store.DeleteRule(ctx, acct, id); err != nil {
 		return err
@@ -329,6 +341,9 @@ func (s *DeterministicRulesServiceImpl) resolveLabelID(ctx context.Context, name
 	if err != nil {
 		return "", err
 	}
+	if created == nil {
+		return "", fmt.Errorf("label %q could not be created", name)
+	}
 	return created.Id, nil
 }
 
@@ -360,9 +375,11 @@ func (s *DeterministicRulesServiceImpl) SyncRule(ctx context.Context, id int64) 
 		return err
 	}
 	if rule.GmailFilterID != "" {
-		if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil {
+		if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil && !isNotFound(err) {
 			return fmt.Errorf("could not replace the existing Gmail filter: %w", err)
 		}
+		// Clear the stored ID immediately so a failed create leaves consistent state.
+		_ = s.store.SetGmailFilterID(ctx, acct, id, "")
 	}
 	filterID, err := s.filters.CreateFilter(rule.Query, action)
 	if err != nil {
@@ -390,7 +407,7 @@ func (s *DeterministicRulesServiceImpl) UnsyncRule(ctx context.Context, id int64
 	if s.filters == nil {
 		return fmt.Errorf("Gmail client not available")
 	}
-	if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil {
+	if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil && !isNotFound(err) {
 		return fmt.Errorf("could not delete the Gmail filter: %w", err)
 	}
 	return s.store.SetGmailFilterID(ctx, acct, id, "")
