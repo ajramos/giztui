@@ -47,6 +47,7 @@ const (
 	PickerContentSearch      ActivePicker = "content_search"
 	PickerRSVP               ActivePicker = "rsvp"
 	PickerAccounts           ActivePicker = "accounts"
+	PickerRules              ActivePicker = "rules"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -145,37 +146,38 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	accountService          services.AccountService
-	databaseManager         services.DatabaseManager
-	emailService            services.EmailService
-	aiService               services.AIService
-	labelService            services.LabelService
-	cacheService            services.CacheService
-	repository              services.MessageRepository
-	compositionService      services.CompositionService
-	bulkPromptService       *services.BulkPromptServiceImpl
-	promptService           services.PromptService
-	promptGeneratorService  services.PromptGeneratorService
-	inboxAnalyzerService    services.InboxAnalyzerService
-	promptConfiguratorState *promptConfiguratorState
-	actionPlanState         *actionPlanState
-	slackService            services.SlackService
-	obsidianService         services.ObsidianService
-	linkService             services.LinkService
-	attachmentService       services.AttachmentService
-	gmailWebService         services.GmailWebService
-	contentNavService       services.ContentNavigationService
-	themeService            services.ThemeService
-	displayService          services.DisplayService
-	queryService            services.QueryService
-	analyzerRulesService    services.AnalyzerRulesService
-	threadService           services.ThreadService
-	undoService             services.UndoService
-	preloaderService        services.MessagePreloader
-	autoRefreshService      services.AutoRefreshService
-	speechService           services.SpeechService
-	currentTheme            *config.ColorsConfig // Current theme cache for helper functions
-	errorHandler            *ErrorHandler
+	accountService            services.AccountService
+	databaseManager           services.DatabaseManager
+	emailService              services.EmailService
+	aiService                 services.AIService
+	labelService              services.LabelService
+	cacheService              services.CacheService
+	repository                services.MessageRepository
+	compositionService        services.CompositionService
+	bulkPromptService         *services.BulkPromptServiceImpl
+	promptService             services.PromptService
+	promptGeneratorService    services.PromptGeneratorService
+	inboxAnalyzerService      services.InboxAnalyzerService
+	promptConfiguratorState   *promptConfiguratorState
+	actionPlanState           *actionPlanState
+	slackService              services.SlackService
+	obsidianService           services.ObsidianService
+	linkService               services.LinkService
+	attachmentService         services.AttachmentService
+	gmailWebService           services.GmailWebService
+	contentNavService         services.ContentNavigationService
+	themeService              services.ThemeService
+	displayService            services.DisplayService
+	queryService              services.QueryService
+	analyzerRulesService      services.AnalyzerRulesService
+	deterministicRulesService services.DeterministicRulesService
+	threadService             services.ThreadService
+	undoService               services.UndoService
+	preloaderService          services.MessagePreloader
+	autoRefreshService        services.AutoRefreshService
+	speechService             services.SpeechService
+	currentTheme              *config.ColorsConfig // Current theme cache for helper functions
+	errorHandler              *ErrorHandler
 
 	// Serializes writes to the reader TextView. Message renders build content in a
 	// background goroutine and some write a placeholder directly (off the event loop);
@@ -532,6 +534,25 @@ func (a *App) reinitializeServices() {
 		a.analyzerRulesService = svc
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: analyzer rules service initialized: %v", a.analyzerRulesService != nil)
+		}
+	}
+
+	// Initialize deterministic rules service if database store is available
+	if a.dbStore != nil && a.deterministicRulesService == nil {
+		rulesStore := db.NewDeterministicRulesStore(a.dbStore)
+		// a.Client may be nil in degraded startups — the service treats a nil filter API
+		// as "sync unavailable" while CRUD and sweeps keep working.
+		var filters services.GmailFilterAPI
+		if a.Client != nil {
+			filters = a.Client
+		}
+		svc := services.NewDeterministicRulesService(rulesStore, a.repository, a.labelService, filters)
+		if email := a.getActiveAccountEmail(); email != "" {
+			svc.SetAccountEmail(email)
+		}
+		a.deterministicRulesService = svc
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: deterministic rules service initialized: %v", a.deterministicRulesService != nil)
 		}
 	}
 
@@ -1442,6 +1463,12 @@ func (a *App) GetInboxAnalyzerService() services.InboxAnalyzerService {
 // GetAnalyzerRulesService returns the analyzer rules service (may be nil if no DB/account).
 func (a *App) GetAnalyzerRulesService() services.AnalyzerRulesService {
 	return a.analyzerRulesService
+}
+
+// GetDeterministicRulesService returns the deterministic rules service (nil when the
+// account has no DB — callers must nil-check, like GetAnalyzerRulesService).
+func (a *App) GetDeterministicRulesService() services.DeterministicRulesService {
+	return a.deterministicRulesService
 }
 
 // GetSpeechService returns the text-to-speech service (may be unconfigured).
