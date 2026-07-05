@@ -326,6 +326,40 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}
 	}
 
+	var preResolved []services.ActionPlanCategory
+	if a.Config.InboxAnalyzer.DeterministicPrefilter {
+		if svc := a.GetDeterministicRulesService(); svc != nil {
+			scopeQuery := "in:inbox is:unread"
+			if len(selected) > 0 {
+				scopeQuery = "in:inbox"
+			}
+			candidates := make([]string, len(messages))
+			for i := range messages {
+				candidates[i] = messages[i].ID
+			}
+			matches, remaining, err := svc.Partition(a.ctx, scopeQuery, candidates)
+			if err == nil && len(matches) > 0 {
+				preResolved = buildDeterministicPlan(matches).Categories
+				resolved := len(messages) - len(remaining)
+				messages = applyPrefilterToMessages(messages, remaining)
+				go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⚡ %d resolved by rules · %d sent to AI", resolved, len(messages)))
+				if len(messages) == 0 {
+					// Rules resolved everything — mount the plan with no AI involvement.
+					plan := buildDeterministicPlan(matches)
+					state := a.buildActionPlanPanelState(customPromptText, fmt.Sprintf("⚡ %d by rules (no AI)", resolved), metaByID, false)
+					state.plan = plan
+					a.mountActionPlanPanel(state)
+					a.QueueUpdateDraw(func() {
+						if a.actionPlanState == state {
+							a.renderActionPlanPanel(state)
+						}
+					})
+					return
+				}
+			}
+		}
+	}
+
 	state := a.buildActionPlanPanelState(customPromptText, scopeLabel, metaByID, true)
 	a.mountActionPlanPanel(state)
 
@@ -415,7 +449,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 					if a.actionPlanState != state {
 						return
 					}
-					state.plan = p
+					state.plan = mergePreResolved(p, preResolved)
 					a.renderActionPlanPanel(state)
 				})
 			})
