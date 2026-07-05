@@ -47,11 +47,31 @@ func NewDeterministicRulesService(store *db.DeterministicRulesStore, repo Messag
 	return &DeterministicRulesServiceImpl{store: store, repo: repo, labels: labels, filters: filters}
 }
 
+// FallbackAccountEmail is the placeholder the TUI uses while the Gmail profile
+// hasn't resolved yet. Rules saved under it are re-keyed to the real account as
+// soon as it becomes known (AdoptOrphanRules).
+const FallbackAccountEmail = "user@example.com"
+
 // SetAccountEmail scopes all operations to the given account.
 func (s *DeterministicRulesServiceImpl) SetAccountEmail(email string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.accountEmail = email
+}
+
+// AdoptOrphanRules re-keys rules stored under FallbackAccountEmail to the
+// current account. At startup the profile fetch may not have resolved when the
+// service was initialized, so rules created in that window were saved under the
+// placeholder and would otherwise vanish from every later session.
+func (s *DeterministicRulesServiceImpl) AdoptOrphanRules(ctx context.Context) error {
+	if s.store == nil {
+		return nil
+	}
+	email, err := s.account()
+	if err != nil || email == FallbackAccountEmail {
+		return nil // no real account yet — nothing to adopt into
+	}
+	return s.store.AdoptOrphanRules(ctx, FallbackAccountEmail, email)
 }
 
 func (s *DeterministicRulesServiceImpl) account() (string, error) {

@@ -91,3 +91,52 @@ func TestDeterministicRulesStoreValidation(t *testing.T) {
 		t.Fatal("unknown action must fail")
 	}
 }
+
+func TestDeterministicRulesStoreAdoptOrphans(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, t.TempDir()+"/rules.db")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+	s := NewDeterministicRulesStore(store)
+
+	// A rule saved before the real account email resolved (startup placeholder),
+	// plus one already under the real account.
+	if _, err := s.SaveRule(ctx, "user@example.com", "from:github.com", "archive", "", 0); err != nil {
+		t.Fatalf("save orphan: %v", err)
+	}
+	if _, err := s.SaveRule(ctx, "real@gmail.com", "from:jira@corp.com", "trash", "", 0); err != nil {
+		t.Fatalf("save real: %v", err)
+	}
+
+	if err := s.AdoptOrphanRules(ctx, "user@example.com", "real@gmail.com"); err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	rules, err := s.ListRules(ctx, "real@gmail.com")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(rules) != 2 {
+		t.Fatalf("want 2 rules after adoption, got %d: %+v", len(rules), rules)
+	}
+	if rules[0].Query != "from:github.com" {
+		t.Fatalf("orphan not adopted first (creation order): %+v", rules)
+	}
+
+	// Idempotent: re-running adopts nothing and changes nothing.
+	if err := s.AdoptOrphanRules(ctx, "user@example.com", "real@gmail.com"); err != nil {
+		t.Fatalf("re-adopt: %v", err)
+	}
+	if rules, _ = s.ListRules(ctx, "real@gmail.com"); len(rules) != 2 {
+		t.Fatalf("re-adoption changed rules: %+v", rules)
+	}
+
+	// Validation: same/empty emails are rejected.
+	if err := s.AdoptOrphanRules(ctx, "a@b.com", "a@b.com"); err == nil {
+		t.Fatal("want error for identical emails")
+	}
+	if err := s.AdoptOrphanRules(ctx, "", "a@b.com"); err == nil {
+		t.Fatal("want error for empty fromEmail")
+	}
+}

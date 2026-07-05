@@ -511,7 +511,7 @@ func (a *App) reinitializeServices() {
 			// Try to get account email, use fallback if not available
 			email := a.getActiveAccountEmail()
 			if email == "" {
-				email = "user@example.com" // Safe fallback
+				email = services.FallbackAccountEmail // Safe fallback
 			}
 			queryServiceImpl.SetAccountEmail(email)
 			if a.logger != nil {
@@ -1468,7 +1468,20 @@ func (a *App) GetAnalyzerRulesService() services.AnalyzerRulesService {
 // GetDeterministicRulesService returns the deterministic rules service (nil when the
 // account has no DB — callers must nil-check, like GetAnalyzerRulesService).
 func (a *App) GetDeterministicRulesService() services.DeterministicRulesService {
-	return a.deterministicRulesService
+	svc := a.deterministicRulesService
+	// The service captured the account email at init, but the Gmail profile may not
+	// have resolved yet at that point — rules would silently key to the
+	// FallbackAccountEmail placeholder and "disappear" on the next launch. Refresh
+	// the email on every access and adopt any rules orphaned under the placeholder.
+	if impl, ok := svc.(*services.DeterministicRulesServiceImpl); ok && a.Client != nil {
+		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
+			impl.SetAccountEmail(email)
+			if aerr := impl.AdoptOrphanRules(a.ctx); aerr != nil && a.logger != nil {
+				a.logger.Printf("deterministic rules: orphan adoption failed: %v", aerr)
+			}
+		}
+	}
+	return svc
 }
 
 // GetSpeechService returns the text-to-speech service (may be unconfigured).
@@ -2464,7 +2477,7 @@ func (a *App) getActiveAccountEmail() string {
 	if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
 		return email
 	}
-	return "user@example.com" // fallback for when account email can't be retrieved
+	return services.FallbackAccountEmail // fallback for when account email can't be retrieved
 }
 
 // (moved to keys.go) bindKeys

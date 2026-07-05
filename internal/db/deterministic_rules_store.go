@@ -132,6 +132,21 @@ func (s *DeterministicRulesStore) SetGmailFilterID(ctx context.Context, accountE
 	return nil
 }
 
+// AdoptOrphanRules re-keys every rule stored under fromEmail to toEmail.
+// Used to heal rules saved under the startup placeholder account before the
+// real profile email resolved (they would otherwise never be listed again).
+func (s *DeterministicRulesStore) AdoptOrphanRules(ctx context.Context, fromEmail, toEmail string) error {
+	if strings.TrimSpace(fromEmail) == "" || strings.TrimSpace(toEmail) == "" || fromEmail == toEmail {
+		return fmt.Errorf("fromEmail and toEmail must be non-empty and different")
+	}
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE deterministic_rules SET account_email = ? WHERE account_email = ?`,
+		toEmail, fromEmail); err != nil {
+		return fmt.Errorf("failed to adopt orphan rules: %w", err)
+	}
+	return nil
+}
+
 // DeleteRule removes a rule by id for the account.
 func (s *DeterministicRulesStore) DeleteRule(ctx context.Context, accountEmail string, id int64) error {
 	if strings.TrimSpace(accountEmail) == "" || id <= 0 {
