@@ -84,3 +84,24 @@ func TestActionVerbsForPrompt(t *testing.T) {
 		t.Fatalf("actionRuleVerbShort(prompt) = %q, want prompt", got)
 	}
 }
+
+func TestBuildDeterministicPlanDisambiguatesDuplicateNames(t *testing.T) {
+	matches := []services.RuleMatch{
+		{Rule: services.DeterministicRuleInfo{Query: "from:a", Action: "archive"}, MessageIDs: []string{"m1"}},
+		{Rule: services.DeterministicRuleInfo{Query: "from:a", Action: "archive"}, MessageIDs: []string{"m2"}},
+	}
+	plan := buildDeterministicPlan(matches)
+	if len(plan.Categories) != 2 {
+		t.Fatalf("expected 2 categories, got %d", len(plan.Categories))
+	}
+	names := map[string]bool{}
+	for _, c := range plan.Categories {
+		if names[c.Name] {
+			t.Fatalf("duplicate category name %q", c.Name)
+		}
+		names[c.Name] = true
+	}
+	if !names["⚡ Archive: from:a"] || !names["⚡ Archive: from:a (2)"] {
+		t.Fatalf("unexpected names: %v", names)
+	}
+}

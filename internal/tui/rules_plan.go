@@ -24,15 +24,24 @@ func deterministicRuleCategoryName(r services.DeterministicRuleInfo) string {
 
 // buildDeterministicPlan converts rule matches into an ActionPlan without any LLM
 // involvement. Rules with no matched messages are dropped; categories are sorted
-// with the same criterion as AI plans (action first, then name).
+// with the same criterion as AI plans (action first, then name). Duplicate display
+// names get a " (n)" suffix — the panel keys expansion/removal by category NAME, so
+// two rules colliding (same action + same 40-rune query prefix) would otherwise be
+// expanded/removed together, silently skipping the second rule's messages.
 func buildDeterministicPlan(matches []services.RuleMatch) *services.ActionPlan {
 	cats := make([]services.ActionPlanCategory, 0, len(matches))
+	seen := make(map[string]int, len(matches))
 	for _, m := range matches {
 		if len(m.MessageIDs) == 0 {
 			continue
 		}
+		name := deterministicRuleCategoryName(m.Rule)
+		seen[name]++
+		if n := seen[name]; n > 1 {
+			name = fmt.Sprintf("%s (%d)", name, n)
+		}
 		cats = append(cats, services.ActionPlanCategory{
-			Name:       deterministicRuleCategoryName(m.Rule),
+			Name:       name,
 			Priority:   "medium",
 			Action:     m.Rule.Action,
 			Label:      m.Rule.Label,
