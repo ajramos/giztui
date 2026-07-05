@@ -935,6 +935,10 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			a.executeActionPlanAction(state, "label")
 			return nil
 		case a.Keys.Summarize:
+			if cat := a.currentActionPlanCategory(state); cat != nil && cat.Action == "prompt" {
+				a.dispatchActionPlanPrompt(state)
+				return nil
+			}
 			a.dispatchActionPlanSummarize(state)
 			return nil
 		}
