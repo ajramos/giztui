@@ -1006,7 +1006,7 @@ type ActionPlanCategory struct {
 	Name        string   // e.g. "Newsletters"
 	Priority    string   // "high" | "medium" | "low"
 	Description string   // one-line LLM rationale
-	Action      string   // "archive" | "mark_read" | "trash" | "label" | "none"
+	Action      string   // "archive" | "mark_read" | "trash" | "label" | "prompt" | "none"
 	Label       string   // label name, set only when Action == "label"
 	PromptID    int64    // saved prompt (prompt_templates.id), set only when Action == "prompt" (deterministic rules)
 	MessageIDs  []string // concrete, resolved message IDs in this category

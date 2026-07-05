@@ -18,8 +18,10 @@ type GmailFilterAPI interface {
 }
 
 // DeterministicRulesServiceImpl implements DeterministicRulesService.
-// labels and filters may be nil (no Gmail client / no label service): CRUD and
-// Partition still work; SyncRule/UnsyncRule fail with a clear error.
+// store may be nil when no database is available; CRUD methods return a clear
+// error in that case. labels and filters may be nil (no Gmail client / no label
+// service): CRUD and Partition still work; SyncRule/UnsyncRule fail with a
+// clear error.
 type DeterministicRulesServiceImpl struct {
 	store   *db.DeterministicRulesStore
 	repo    MessageRepository
@@ -95,6 +97,9 @@ func ruleInfoFromDB(r *db.DeterministicRule) DeterministicRuleInfo {
 
 // SaveRule validates fields + Gmail query syntax, then persists the rule.
 func (s *DeterministicRulesServiceImpl) SaveRule(ctx context.Context, query, action, label string, promptID int64) (*DeterministicRuleInfo, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("deterministic rules store not available")
+	}
 	acct, err := s.account()
 	if err != nil {
 		return nil, err
@@ -116,6 +121,9 @@ func (s *DeterministicRulesServiceImpl) SaveRule(ctx context.Context, query, act
 // UpdateRule validates and rewrites an existing rule. Re-mirroring an already-synced
 // rule is the caller's job (manager calls SyncRule afterwards).
 func (s *DeterministicRulesServiceImpl) UpdateRule(ctx context.Context, id int64, query, action, label string, promptID int64) error {
+	if s.store == nil {
+		return fmt.Errorf("deterministic rules store not available")
+	}
 	acct, err := s.account()
 	if err != nil {
 		return err
@@ -131,6 +139,9 @@ func (s *DeterministicRulesServiceImpl) UpdateRule(ctx context.Context, id int64
 
 // ListRules returns the account's rules in creation (first-match-wins) order.
 func (s *DeterministicRulesServiceImpl) ListRules(ctx context.Context) ([]DeterministicRuleInfo, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("deterministic rules store not available")
+	}
 	acct, err := s.account()
 	if err != nil {
 		return nil, err
@@ -149,6 +160,9 @@ func (s *DeterministicRulesServiceImpl) ListRules(ctx context.Context) ([]Determ
 // DeleteRule removes the rule; if mirrored, it deletes the Gmail filter first (best
 // effort — a failed remote delete still removes the local rule but returns the error).
 func (s *DeterministicRulesServiceImpl) DeleteRule(ctx context.Context, id int64) error {
+	if s.store == nil {
+		return fmt.Errorf("deterministic rules store not available")
+	}
 	acct, err := s.account()
 	if err != nil {
 		return err

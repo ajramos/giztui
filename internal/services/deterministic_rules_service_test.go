@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/db"
@@ -127,5 +128,72 @@ func TestRulesServiceNoAccount(t *testing.T) {
 	svc.SetAccountEmail("")
 	if _, err := svc.ListRules(context.Background()); err == nil {
 		t.Fatal("no account must fail, not panic")
+	}
+}
+
+// stubFailingFilter implements GmailFilterAPI; CreateFilter succeeds (returns a
+// fixed filter ID) and DeleteFilter always returns an error.
+type stubFailingFilter struct{}
+
+func (f *stubFailingFilter) CreateFilter(_ string, _ *gmailapi.FilterAction) (string, error) {
+	return "filter-abc", nil
+}
+func (f *stubFailingFilter) DeleteFilter(_ string) error {
+	return fmt.Errorf("remote: permission denied")
+}
+
+// TestDeleteRuleBestEffort verifies that when the mirrored Gmail filter delete
+// fails, DeleteRule still removes the local rule and returns a non-nil error
+// mentioning the Gmail filter.
+func TestDeleteRuleBestEffort(t *testing.T) {
+	ctx := context.Background()
+
+	// Build the DB store so we can call SetGmailFilterID directly.
+	rawDB, err := db.Open(ctx, t.TempDir()+"/best_effort.db")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = rawDB.Close() })
+	rulesStore := db.NewDeterministicRulesStore(rawDB)
+
+	repo := &stubMessageRepo{
+		calls: []func(string, QueryOptions) (*MessagePage, error){
+			// validateQuery probe for SaveRule.
+			func(_ string, _ QueryOptions) (*MessagePage, error) {
+				return page(""), nil
+			},
+		},
+	}
+
+	svc := NewDeterministicRulesService(rulesStore, repo, nil, &stubFailingFilter{})
+	svc.SetAccountEmail("user@example.com")
+
+	// Save a rule so we have something to delete.
+	r, err := svc.SaveRule(ctx, "from:newsletter.com", "archive", "", 0)
+	if err != nil || r == nil {
+		t.Fatalf("save rule: %v %+v", err, r)
+	}
+
+	// Simulate the rule having been synced: stamp a gmail_filter_id directly.
+	if err := rulesStore.SetGmailFilterID(ctx, "user@example.com", r.ID, "filter-abc"); err != nil {
+		t.Fatalf("SetGmailFilterID: %v", err)
+	}
+
+	// DeleteRule should propagate the remote error but still remove locally.
+	delErr := svc.DeleteRule(ctx, r.ID)
+	if delErr == nil {
+		t.Fatal("expected non-nil error when Gmail filter delete fails")
+	}
+	if !strings.Contains(delErr.Error(), "Gmail filter") {
+		t.Errorf("error should mention Gmail filter, got: %v", delErr)
+	}
+
+	// Rule must be gone locally.
+	rules, err := svc.ListRules(ctx)
+	if err != nil {
+		t.Fatalf("ListRules: %v", err)
+	}
+	if len(rules) != 0 {
+		t.Fatalf("rule should be deleted locally, got %d rule(s)", len(rules))
 	}
 }
