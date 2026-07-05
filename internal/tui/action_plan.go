@@ -337,15 +337,17 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 			for i := range messages {
 				candidates[i] = messages[i].ID
 			}
+			a.GetErrorHandler().ShowProgress(a.ctx, "Matching inbox against your rules…")
 			matches, remaining, err := svc.Partition(a.ctx, scopeQuery, candidates)
+			a.GetErrorHandler().ClearPersistentMessage()
 			if err == nil && len(matches) > 0 {
-				preResolved = buildDeterministicPlan(matches).Categories
+				plan := buildDeterministicPlan(matches)
+				preResolved = plan.Categories
 				resolved := len(messages) - len(remaining)
 				messages = applyPrefilterToMessages(messages, remaining)
 				go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⚡ %d resolved by rules · %d sent to AI", resolved, len(messages)))
 				if len(messages) == 0 {
 					// Rules resolved everything — mount the plan with no AI involvement.
-					plan := buildDeterministicPlan(matches)
 					state := a.buildActionPlanPanelState(customPromptText, fmt.Sprintf("⚡ %d by rules (no AI)", resolved), metaByID, false)
 					state.plan = plan
 					a.mountActionPlanPanel(state)
@@ -356,6 +358,11 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 					})
 					return
 				}
+				if resolved > 0 {
+					scopeLabel = fmt.Sprintf("%s · ⚡%d by rules", scopeLabel, resolved)
+				}
+			} else if err != nil {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Rules prefilter skipped — check your rules")
 			}
 		}
 	}
@@ -460,10 +467,16 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		state.analyzing.Store(false)
 		if err != nil {
 			if state.plan == nil {
-				a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
-				return
+				if len(preResolved) > 0 {
+					state.plan = &services.ActionPlan{Categories: preResolved}
+					a.GetErrorHandler().ShowWarning(a.ctx, "LLM unavailable — showing rule-resolved groups only")
+				} else {
+					a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
+					return
+				}
+			} else {
+				a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
 			}
-			a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
 		}
 		// Final render on the UI thread so the completed plan is actually painted.
 		a.QueueUpdateDraw(func() {
@@ -484,7 +497,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 // Before the first batch (batchesTotal==0) it shows "analyzing…"; while batches run it
 // shows progress; when done it summarizes the number of groups.
 func actionPlanTitleText(scopeLabel string, batchesDone, batchesTotal, groups int, analyzing bool) string {
-	if batchesTotal == 0 {
+	if batchesTotal == 0 && analyzing {
 		return fmt.Sprintf(" 📋 Action Plan · %s · analyzing… ", scopeLabel)
 	}
 	if analyzing {

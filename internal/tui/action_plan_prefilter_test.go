@@ -16,6 +16,11 @@ func TestApplyPrefilterToMessages(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("nil remaining should filter everything, got %+v", out)
 	}
+	// remaining contains an ID not present in messages — result is intersection only.
+	out = applyPrefilterToMessages(msgs, []string{"m1", "zz"})
+	if len(out) != 1 || out[0].ID != "m1" {
+		t.Fatalf("expected intersection [m1] only, got %+v", out)
+	}
 }
 
 func TestMergePreResolved(t *testing.T) {
@@ -37,5 +42,19 @@ func TestMergePreResolved(t *testing.T) {
 	}
 	if got := mergePreResolved(ai, nil); got != ai {
 		t.Fatalf("nil preResolved must return the same plan pointer unchanged")
+	}
+
+	// Scalar fields (BatchesDone, BatchesTotal) must survive the merge copy.
+	aiWithScalars := &services.ActionPlan{
+		BatchesDone:  2,
+		BatchesTotal: 3,
+		Categories: []services.ActionPlanCategory{
+			{Name: "Work", Action: "archive", MessageIDs: []string{"w1"}},
+		},
+	}
+	mergedScalars := mergePreResolved(aiWithScalars, pre)
+	if mergedScalars.BatchesDone != 2 || mergedScalars.BatchesTotal != 3 {
+		t.Fatalf("scalar fields must survive merge: BatchesDone=%d BatchesTotal=%d",
+			mergedScalars.BatchesDone, mergedScalars.BatchesTotal)
 	}
 }

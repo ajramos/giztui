@@ -153,6 +153,14 @@ func TestActionPlanTitleText(t *testing.T) {
 	if !strings.Contains(done, "4 groups") || !strings.Contains(done, "done") {
 		t.Fatalf("done title wrong: %q", done)
 	}
+	// No-AI path (rules-only / all-resolved): analyzing=false, batchesTotal==0 → done-style, NOT "analyzing…"
+	noAI := actionPlanTitleText("⚡ 5 by rules (no AI)", 0, 0, 3, false)
+	if strings.Contains(noAI, "analyzing") {
+		t.Fatalf("no-AI title must not contain 'analyzing': %q", noAI)
+	}
+	if !strings.Contains(noAI, "done") {
+		t.Fatalf("no-AI title should show done-style title: %q", noAI)
+	}
 }
 
 func TestSyncSelectionToNode(t *testing.T) {
