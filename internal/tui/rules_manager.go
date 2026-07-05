@@ -250,7 +250,7 @@ func (a *App) openRulesManager() {
 				switch ruleSyncOp(mir, act, hadFilter) {
 				case "sync":
 					if serr := svc.SyncRule(a.ctx, id); serr != nil {
-						a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Rule saved locally, but Gmail did not accept it as a filter: %v", serr))
+						a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Rule saved locally, but the Gmail mirror failed: %v", serr))
 						warned = true
 					}
 				case "unsync":

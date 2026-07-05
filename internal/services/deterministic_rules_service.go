@@ -93,7 +93,7 @@ func (s *DeterministicRulesServiceImpl) validateQuery(ctx context.Context, query
 		return fmt.Errorf("message repository not available")
 	}
 	if _, err := s.repo.SearchMessages(ctx, query, QueryOptions{MaxResults: 1}); err != nil {
-		return fmt.Errorf("Gmail rejected the query: %w", err)
+		return fmt.Errorf("query rejected by Gmail: %w", err)
 	}
 	return nil
 }
@@ -358,7 +358,7 @@ func (s *DeterministicRulesServiceImpl) SyncRule(ctx context.Context, id int64) 
 		return err
 	}
 	if s.filters == nil {
-		return fmt.Errorf("Gmail client not available")
+		return fmt.Errorf("no Gmail client available")
 	}
 	rule, err := s.findRule(ctx, id)
 	if err != nil {
@@ -383,7 +383,7 @@ func (s *DeterministicRulesServiceImpl) SyncRule(ctx context.Context, id int64) 
 	}
 	filterID, err := s.filters.CreateFilter(rule.Query, action)
 	if err != nil {
-		return fmt.Errorf("Gmail did not accept the query as a filter: %w", err)
+		return fmt.Errorf("filter rejected by Gmail: %w", err)
 	}
 	return s.store.SetGmailFilterID(ctx, acct, id, filterID)
 }
@@ -405,7 +405,7 @@ func (s *DeterministicRulesServiceImpl) UnsyncRule(ctx context.Context, id int64
 		return nil // nothing mirrored — no-op
 	}
 	if s.filters == nil {
-		return fmt.Errorf("Gmail client not available")
+		return fmt.Errorf("no Gmail client available")
 	}
 	if err := s.filters.DeleteFilter(rule.GmailFilterID); err != nil && !isNotFound(err) {
 		return fmt.Errorf("could not delete the Gmail filter: %w", err)

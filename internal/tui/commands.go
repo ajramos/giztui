@@ -2263,7 +2263,7 @@ func (a *App) executeRulesCommand(args []string) {
 					return
 				}
 				if serr := svc.SyncRule(a.ctx, r.ID); serr != nil {
-					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Gmail did not accept the filter: %v", serr))
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Sync failed: %v", serr))
 					return
 				}
 				a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Rule mirrored to Gmail")
