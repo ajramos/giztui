@@ -197,9 +197,89 @@ func (s *DeterministicRulesServiceImpl) findRule(ctx context.Context, id int64) 
 	return nil, fmt.Errorf("rule not found")
 }
 
-// Partition is implemented in Task 3.
+// partitionPageSize is the number of IDs fetched per Gmail search page.
+// partitionMaxPerRule caps how many IDs a single rule can claim so a
+// catch-all query cannot sweep an entire mailbox in one call.
+const (
+	partitionPageSize   = 100
+	partitionMaxPerRule = 500
+)
+
+// Partition runs every rule's query (creation order, first-match-wins) against
+// the combined scopeQuery, assigns each message to the first matching rule, and
+// returns the slice of per-rule matches plus any candidate IDs left unmatched.
+// When candidates is nil the scope is treated as unbounded (no candidate filter)
+// and remaining is also nil.
 func (s *DeterministicRulesServiceImpl) Partition(ctx context.Context, scopeQuery string, candidates []string) ([]RuleMatch, []string, error) {
-	return nil, nil, fmt.Errorf("not implemented")
+	rules, err := s.ListRules(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	var candidateSet map[string]bool
+	if candidates != nil {
+		candidateSet = make(map[string]bool, len(candidates))
+		for _, id := range candidates {
+			candidateSet[id] = true
+		}
+	}
+	seen := make(map[string]bool)
+	var matches []RuleMatch
+	for _, r := range rules {
+		query := strings.TrimSpace(strings.TrimSpace(scopeQuery) + " " + r.Query)
+		ids, err := s.searchAllIDs(ctx, query)
+		if err != nil {
+			return nil, nil, fmt.Errorf("rule %q: %w", r.Query, err)
+		}
+		var mine []string
+		for _, id := range ids {
+			if seen[id] {
+				continue // first-match-wins: an earlier rule already owns this message
+			}
+			if candidateSet != nil && !candidateSet[id] {
+				continue // outside candidate set
+			}
+			seen[id] = true
+			mine = append(mine, id)
+		}
+		if len(mine) > 0 {
+			matches = append(matches, RuleMatch{Rule: r, MessageIDs: mine})
+		}
+	}
+	var remaining []string
+	if candidates != nil {
+		remaining = make([]string, 0, len(candidates))
+		for _, id := range candidates {
+			if !seen[id] {
+				remaining = append(remaining, id)
+			}
+		}
+	}
+	return matches, remaining, nil
+}
+
+// searchAllIDs collects message IDs for the given query across all pages, capped
+// at partitionMaxPerRule to prevent unbounded sweeps.
+func (s *DeterministicRulesServiceImpl) searchAllIDs(ctx context.Context, query string) ([]string, error) {
+	if s.repo == nil {
+		return nil, fmt.Errorf("message repository not available")
+	}
+	var ids []string
+	pageToken := ""
+	for {
+		res, err := s.repo.SearchMessages(ctx, query, QueryOptions{MaxResults: partitionPageSize, PageToken: pageToken})
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range res.Messages {
+			if m != nil {
+				ids = append(ids, m.Id)
+			}
+		}
+		if res.NextPageToken == "" || len(ids) >= partitionMaxPerRule {
+			return ids, nil
+		}
+		pageToken = res.NextPageToken
+	}
 }
 
 // SyncRule / UnsyncRule are implemented in Task 5.
