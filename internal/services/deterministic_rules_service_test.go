@@ -11,6 +11,9 @@ import (
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
+// Compile-time check: *internalgmail.Client must satisfy GmailFilterAPI.
+var _ GmailFilterAPI = (*internalgmail.Client)(nil)
+
 // stubMessageRepo is a minimal MessageRepository for testing the rules service.
 // Only SearchMessages is exercised; all other methods panic if called unexpectedly.
 type stubMessageRepo struct {
