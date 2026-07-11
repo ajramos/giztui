@@ -2231,7 +2231,9 @@ func (a *App) executeRulesCommand(args []string) {
 	}
 	svc := a.GetDeterministicRulesService()
 	if svc == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
+		// go: executeCommand runs on the tview event loop; a direct ErrorHandler call
+		// blocks in QueueUpdateDraw and deadlocks the UI.
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
 		return
 	}
 	sub := strings.ToLower(args[0])
@@ -2247,12 +2249,12 @@ func (a *App) executeRulesCommand(args []string) {
 		go a.openDeterministicPlan()
 	case "sync", "unsync":
 		if len(args) < 2 {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
+			go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
 			return
 		}
 		n, err := strconv.Atoi(args[1])
 		if err != nil || n < 1 {
-			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
+			go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
 			return
 		}
 		go func() {
@@ -2285,7 +2287,7 @@ func (a *App) executeRulesCommand(args []string) {
 			a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Gmail filter removed — rule kept locally")
 		}()
 	default:
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown rules option: %s", args[0]))
+		go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown rules option: %s", args[0]))
 	}
 }
 
