@@ -205,7 +205,7 @@ The configurator has three areas cycled via `Tab` / `Shift+Tab`:
 
 ## 📋 Inbox Action Plan
 
-The Action Plan groups messages into actionable categories and presents a panel where you dispatch each group with one keystroke. It runs in **fast mode** — it uses only the subject, sender and snippet already in memory, so it makes **no extra Gmail API calls**. Open it with `P` (capital P) or `:action-plan`.
+The Action Plan groups messages into actionable categories and presents a panel where you dispatch each group with one keystroke. It runs in **fast mode** — it uses only the subject, sender and snippet already in memory, so it makes **no extra Gmail API calls**. Open it with `P` (capital P) or `:action-plan`. Categories marked ⚡ were resolved by your deterministic rules (no AI); with `inbox_analyzer.deterministic_prefilter` enabled (default), the AI plan resolves rule matches first and only sends the remainder to the LLM.
 
 **Scope — selection-first:** if you have messages selected (via `v` / `space` in bulk mode), the Action Plan analyzes those selected messages only. Otherwise it falls back to the **unread** messages currently loaded in the list. The panel header shows which scope is active, e.g. `12 selected` or `47 unread (inbox)`.
 
@@ -245,6 +245,9 @@ The action keys (archive / trash / label / toggle-read) reuse your configured bi
 | `:action-plan with-prompt <name-or-id>` | — | Open the Action Plan using one of your saved prompts as the analyzer (falls back to the default if not found) |
 | `:action-plan rules` | — | Open the preference rules manager (add / delete saved learning rules) |
 | `:action-plan apply` | `:plan apply`, `:ap apply` | Apply the whole plan — same two-step confirmation as `c` in the panel (requires the panel to be open with analysis finished) |
+| `:rules` | `:ru` | Deterministic rules manager (⚡ rules run without AI; ☁ = also mirrored as a Gmail filter) |
+| `:rules plan` | `:ru plan` | Preview what your rules match as an Action Plan — no AI involved |
+| `:rules sync <n>` / `:rules unsync <n>` | — | Mirror rule *n* to Gmail / remove the mirror (*n* = position in `:rules`) |
 
 ### Configuration
 Settings live under `inbox_analyzer` in `~/.config/giztui/config.json`:

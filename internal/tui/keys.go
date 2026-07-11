@@ -588,7 +588,10 @@ func (a *App) bindKeys() {
 		if a.focus.is("prompt_preview") || a.focus.is("action_plan_move") ||
 			a.focus.is("analyzer_rules") || a.focus.is("analyzer_rules_add") ||
 			a.focus.is("action_plan_rule") || a.focus.is("action_plan_prompt") ||
-			a.focus.is("action_plan_summary") {
+			a.focus.is("action_plan_summary") || a.focus.is("rules_manager_form") {
+			// rules_manager_form: the form's checkbox/buttons are neither InputField nor
+			// DropDown, so without this pass-through the type switch below misses them and
+			// global rune shortcuts fire mid-form ('a' would archive the selected email).
 			return event
 		}
 
@@ -747,6 +750,16 @@ func (a *App) bindKeys() {
 		// is handled in handleConfigurableKey below, preserving precedence vs vim sequences.)
 		if (strings.HasPrefix(a.Keys.Undo, "ctrl+") || strings.HasPrefix(a.Keys.Undo, "shift+")) && a.matchesKeyCombo(event, a.Keys.Undo) {
 			a.performUndoFromShortcut()
+			return nil
+		}
+		// New rule from the current view (default "ctrl+s"): opens the rules manager on
+		// the New-rule form, Query pre-filled with the active search. Gated on list focus
+		// so the other ctrl+s contexts (save_prompt, attachment_save) are unaffected.
+		if a.focus.is("list") && strings.HasPrefix(a.Keys.RuleFromQuery, "ctrl+") && a.matchesKeyCombo(event, a.Keys.RuleFromQuery) {
+			if a.logger != nil {
+				a.logger.Printf("Configurable shortcut: '%s' -> rule_from_search", a.Keys.RuleFromQuery)
+			}
+			a.openRulesManagerNewRule(a.activeSearchPrefill())
 			return nil
 		}
 

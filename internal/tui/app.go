@@ -47,6 +47,7 @@ const (
 	PickerContentSearch      ActivePicker = "content_search"
 	PickerRSVP               ActivePicker = "rsvp"
 	PickerAccounts           ActivePicker = "accounts"
+	PickerRules              ActivePicker = "rules"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -145,37 +146,38 @@ type App struct {
 	showMessageNumbers bool
 
 	// Services (new architecture)
-	accountService          services.AccountService
-	databaseManager         services.DatabaseManager
-	emailService            services.EmailService
-	aiService               services.AIService
-	labelService            services.LabelService
-	cacheService            services.CacheService
-	repository              services.MessageRepository
-	compositionService      services.CompositionService
-	bulkPromptService       *services.BulkPromptServiceImpl
-	promptService           services.PromptService
-	promptGeneratorService  services.PromptGeneratorService
-	inboxAnalyzerService    services.InboxAnalyzerService
-	promptConfiguratorState *promptConfiguratorState
-	actionPlanState         *actionPlanState
-	slackService            services.SlackService
-	obsidianService         services.ObsidianService
-	linkService             services.LinkService
-	attachmentService       services.AttachmentService
-	gmailWebService         services.GmailWebService
-	contentNavService       services.ContentNavigationService
-	themeService            services.ThemeService
-	displayService          services.DisplayService
-	queryService            services.QueryService
-	analyzerRulesService    services.AnalyzerRulesService
-	threadService           services.ThreadService
-	undoService             services.UndoService
-	preloaderService        services.MessagePreloader
-	autoRefreshService      services.AutoRefreshService
-	speechService           services.SpeechService
-	currentTheme            *config.ColorsConfig // Current theme cache for helper functions
-	errorHandler            *ErrorHandler
+	accountService            services.AccountService
+	databaseManager           services.DatabaseManager
+	emailService              services.EmailService
+	aiService                 services.AIService
+	labelService              services.LabelService
+	cacheService              services.CacheService
+	repository                services.MessageRepository
+	compositionService        services.CompositionService
+	bulkPromptService         *services.BulkPromptServiceImpl
+	promptService             services.PromptService
+	promptGeneratorService    services.PromptGeneratorService
+	inboxAnalyzerService      services.InboxAnalyzerService
+	promptConfiguratorState   *promptConfiguratorState
+	actionPlanState           *actionPlanState
+	slackService              services.SlackService
+	obsidianService           services.ObsidianService
+	linkService               services.LinkService
+	attachmentService         services.AttachmentService
+	gmailWebService           services.GmailWebService
+	contentNavService         services.ContentNavigationService
+	themeService              services.ThemeService
+	displayService            services.DisplayService
+	queryService              services.QueryService
+	analyzerRulesService      services.AnalyzerRulesService
+	deterministicRulesService services.DeterministicRulesService
+	threadService             services.ThreadService
+	undoService               services.UndoService
+	preloaderService          services.MessagePreloader
+	autoRefreshService        services.AutoRefreshService
+	speechService             services.SpeechService
+	currentTheme              *config.ColorsConfig // Current theme cache for helper functions
+	errorHandler              *ErrorHandler
 
 	// Serializes writes to the reader TextView. Message renders build content in a
 	// background goroutine and some write a placeholder directly (off the event loop);
@@ -509,7 +511,7 @@ func (a *App) reinitializeServices() {
 			// Try to get account email, use fallback if not available
 			email := a.getActiveAccountEmail()
 			if email == "" {
-				email = "user@example.com" // Safe fallback
+				email = services.FallbackAccountEmail // Safe fallback
 			}
 			queryServiceImpl.SetAccountEmail(email)
 			if a.logger != nil {
@@ -532,6 +534,25 @@ func (a *App) reinitializeServices() {
 		a.analyzerRulesService = svc
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: analyzer rules service initialized: %v", a.analyzerRulesService != nil)
+		}
+	}
+
+	// Initialize deterministic rules service if database store is available
+	if a.dbStore != nil && a.deterministicRulesService == nil {
+		rulesStore := db.NewDeterministicRulesStore(a.dbStore)
+		// a.Client may be nil in degraded startups — the service treats a nil filter API
+		// as "sync unavailable" while CRUD and sweeps keep working.
+		var filters services.GmailFilterAPI
+		if a.Client != nil {
+			filters = a.Client
+		}
+		svc := services.NewDeterministicRulesService(rulesStore, a.repository, a.labelService, filters)
+		if email := a.getActiveAccountEmail(); email != "" {
+			svc.SetAccountEmail(email)
+		}
+		a.deterministicRulesService = svc
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: deterministic rules service initialized: %v", a.deterministicRulesService != nil)
 		}
 	}
 
@@ -1444,6 +1465,25 @@ func (a *App) GetAnalyzerRulesService() services.AnalyzerRulesService {
 	return a.analyzerRulesService
 }
 
+// GetDeterministicRulesService returns the deterministic rules service (nil when the
+// account has no DB — callers must nil-check, like GetAnalyzerRulesService).
+func (a *App) GetDeterministicRulesService() services.DeterministicRulesService {
+	svc := a.deterministicRulesService
+	// The service captured the account email at init, but the Gmail profile may not
+	// have resolved yet at that point — rules would silently key to the
+	// FallbackAccountEmail placeholder and "disappear" on the next launch. Refresh
+	// the email on every access and adopt any rules orphaned under the placeholder.
+	if impl, ok := svc.(*services.DeterministicRulesServiceImpl); ok && a.Client != nil {
+		if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
+			impl.SetAccountEmail(email)
+			if aerr := impl.AdoptOrphanRules(a.ctx); aerr != nil && a.logger != nil {
+				a.logger.Printf("deterministic rules: orphan adoption failed: %v", aerr)
+			}
+		}
+	}
+	return svc
+}
+
 // GetSpeechService returns the text-to-speech service (may be unconfigured).
 func (a *App) GetSpeechService() services.SpeechService {
 	return a.speechService
@@ -2330,6 +2370,13 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧠  Open inbox Action Plan (alias :plan, :ap)\n", ":action-plan")
 	fmt.Fprintf(&help, "    %-18s 🧠  Manage analyzer rules/interests (e.g. 'interested in AI')\n", ":plan rules")
 	fmt.Fprintf(&help, "    %-18s 🧠  Apply the whole plan (same as '%s' in the panel; press twice to confirm)\n", ":plan apply", a.Keys.ConfirmPlan)
+	fmt.Fprintf(&help, "    %-18s ⚡  Deterministic rules manager (alias :ru; ☁️ = also in Gmail)\n", ":rules")
+	fmt.Fprintf(&help, "    %-18s ⚡  Gmail filters sync in automatically on open (added/removed to match Gmail)\n", "")
+	fmt.Fprintf(&help, "    %-18s ⚡  New rule — pre-fills the active search (or '%s' from the list)\n", ":rules new", a.Keys.RuleFromQuery)
+	fmt.Fprintf(&help, "    %-18s ⚡  In the rule form: Preview shows the query's matches in the list\n", "")
+	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")
+	fmt.Fprintf(&help, "    %-18s ⚡  Mirror rule <n> to Gmail / remove the mirror\n", ":rules sync <n>")
+	fmt.Fprintf(&help, "    %-18s ⚡  Rules pre-filter the AI :plan (config: inbox_analyzer.deterministic_prefilter)\n", "")
 	fmt.Fprintf(&help, "    %-18s ⟳   Toggle inbox auto-refresh (alias :arr; :arr 2m sets interval; Slack notify+AI summary via config)\n", ":autorefresh")
 	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
 	if a.Keys.Speak != "" {
@@ -2433,7 +2480,7 @@ func (a *App) getActiveAccountEmail() string {
 	if email, err := a.Client.ActiveAccountEmail(a.ctx); err == nil && email != "" {
 		return email
 	}
-	return "user@example.com" // fallback for when account email can't be retrieved
+	return services.FallbackAccountEmail // fallback for when account email can't be retrieved
 }
 
 // (moved to keys.go) bindKeys
@@ -2886,6 +2933,18 @@ func (a *App) generatePromptStatsContent(stats *services.UsageStats) string {
 
 // performSearch executes the search query
 func (a *App) performSearch(query string) {
+	a.performSearchInternal(query, false)
+}
+
+// performSearchPreview runs the query as a search shown in the message list WITHOUT
+// stealing focus and WITHOUT the implicit inbox scoping — used by the rule form's
+// Preview button, where the query must mean exactly what the rule will match and the
+// user's focus must stay on the form.
+func (a *App) performSearchPreview(query string) {
+	a.performSearchInternal(query, true)
+}
+
+func (a *App) performSearchInternal(query string, preview bool) {
 	if strings.TrimSpace(query) == "" {
 		a.showError("Search query cannot be empty")
 		return
@@ -2899,10 +2958,11 @@ func (a *App) performSearch(query string) {
 		}
 	})
 
-	// Build effective query
+	// Build effective query. Previews search the query verbatim — what you see is
+	// exactly what the rule's query means, with no hidden scoping.
 	originalQuery := strings.TrimSpace(query)
 	q := originalQuery
-	if !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
+	if !preview && !strings.Contains(q, "in:") && !strings.Contains(q, "label:") {
 		q = q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
 	}
 
@@ -2924,6 +2984,7 @@ func (a *App) performSearch(query string) {
 	a.nextPageToken = next
 	a.search.SetMode("remote")
 	a.search.SetQuery(q)
+	a.search.SetOriginal(originalQuery)
 
 	var spinnerStop chan struct{}
 	if _, ok := a.views["list"].(*tview.Table); ok {
@@ -3024,9 +3085,12 @@ func (a *App) performSearch(query string) {
 		// Keep policy for system labels on list while user is in search mode
 		a.emailRenderer.SetShowSystemLabelsInList(true)
 
-		// Set focus to list and update focus indicators after search results are loaded
-		a.markFocus("list")
-		a.SetFocus(a.views["list"])
+		// Set focus to list and update focus indicators after search results are loaded.
+		// Previews keep focus where it is (the rule form).
+		if !preview {
+			a.markFocus("list")
+			a.SetFocus(a.views["list"])
+		}
 	})
 }
 
@@ -3307,6 +3371,11 @@ func (a *App) isPromptConfiguratorActive() bool {
 // isActionPlanActive returns true if the Action Plan panel is currently active.
 func (a *App) isActionPlanActive() bool {
 	return a.currentActivePicker == PickerActionPlan
+}
+
+// isRulesPickerActive returns true if the deterministic rules manager is currently active.
+func (a *App) isRulesPickerActive() bool {
+	return a.currentActivePicker == PickerRules
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging

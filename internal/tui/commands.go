@@ -411,6 +411,10 @@ func (a *App) executeCommand(cmd string) {
 		a.executePromptSaveCommand(args)
 	case "action-plan", "plan", "ap":
 		a.executeActionPlanCommand(args)
+	case "rules", "ru":
+		a.executeRulesCommand(args)
+	case "rp": // shortcut for :rules plan
+		a.executeRulesCommand(append([]string{"plan"}, args...))
 	case "markdown", "md":
 		a.toggleMarkdown()
 	case "touch-up", "touchup":
@@ -2216,6 +2220,73 @@ func (a *App) executeActionPlanCommand(args []string) {
 		return
 	}
 	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
+}
+
+// executeRulesCommand handles :rules / :ru [new [query]|plan|sync <n>|unsync <n>].
+// <n> is the 1-based position in the :rules list (creation order).
+func (a *App) executeRulesCommand(args []string) {
+	if len(args) == 0 {
+		a.openRulesManager()
+		return
+	}
+	svc := a.GetDeterministicRulesService()
+	if svc == nil {
+		a.GetErrorHandler().ShowWarning(a.ctx, "Rules unavailable — check account/DB")
+		return
+	}
+	sub := strings.ToLower(args[0])
+	switch sub {
+	case "new", "add":
+		// Query priority: explicit args > the active search > blank form.
+		prefill := strings.TrimSpace(strings.Join(args[1:], " "))
+		if prefill == "" {
+			prefill = a.activeSearchPrefill()
+		}
+		a.openRulesManagerNewRule(prefill)
+	case "plan":
+		go a.openDeterministicPlan()
+	case "sync", "unsync":
+		if len(args) < 2 {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
+			return
+		}
+		n, err := strconv.Atoi(args[1])
+		if err != nil || n < 1 {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Usage: :rules %s <number> (position in the :rules list)", sub))
+			return
+		}
+		go func() {
+			rules, lerr := svc.ListRules(a.ctx)
+			if lerr != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("List rules failed: %v", lerr))
+				return
+			}
+			if n > len(rules) {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Rule %d not found — :rules lists %d rule(s)", n, len(rules)))
+				return
+			}
+			r := rules[n-1]
+			if sub == "sync" {
+				if r.Action == "prompt" {
+					a.GetErrorHandler().ShowWarning(a.ctx, "Prompt rules can't be mirrored to Gmail")
+					return
+				}
+				if serr := svc.SyncRule(a.ctx, r.ID); serr != nil {
+					a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Sync failed: %v", serr))
+					return
+				}
+				a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Rule mirrored to Gmail")
+				return
+			}
+			if serr := svc.UnsyncRule(a.ctx, r.ID); serr != nil {
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("Could not remove the Gmail filter: %v", serr))
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Gmail filter removed — rule kept locally")
+		}()
+	default:
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown rules option: %s", args[0]))
+	}
 }
 
 // executeConfigCommand handles :config [migrate]. Without a subcommand it prints usage.

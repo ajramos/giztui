@@ -14,7 +14,8 @@ import (
 type searchState struct {
 	mu          sync.RWMutex
 	mode        string // "" | "remote" | "local"
-	query       string // current query
+	query       string // current effective query (may include auto-appended scoping)
+	original    string // what the user actually typed (rule prefill, re-running a search)
 	localFilter string // event-loop only
 
 	// Local-filter base snapshot (event-loop only).
@@ -48,6 +49,18 @@ func (s *searchState) SetQuery(q string) {
 	s.query = q
 }
 
+func (s *searchState) Original() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.original
+}
+
+func (s *searchState) SetOriginal(q string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.original = q
+}
+
 // clear resets mode, query, and localFilter to empty (used when exiting a search/filter). All three
 // are cleared under the lock so clear() is atomic — localFilter is event-loop-only today, but this
 // avoids a latent split-unlock footgun if it ever gains a cross-goroutine reader.
@@ -56,6 +69,7 @@ func (s *searchState) clear() {
 	defer s.mu.Unlock()
 	s.mode = ""
 	s.query = ""
+	s.original = ""
 	s.localFilter = ""
 }
 

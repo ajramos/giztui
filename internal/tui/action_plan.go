@@ -158,6 +158,8 @@ func actionVerbLabel(action string) string {
 		return "Label"
 	case "summarize":
 		return "summarize"
+	case "prompt":
+		return "Prompt"
 	default:
 		// action "none" (and anything unknown): no bulk action — the user handles these
 		// emails by hand. "No action" avoids reading like a distinct action next to the
@@ -179,6 +181,8 @@ func (a *App) actionKeyHint(action string) string {
 		return a.Keys.ManageLabels
 	case "summarize":
 		return a.Keys.Summarize
+	case "prompt":
+		return a.Keys.Summarize
 	default:
 		return ""
 	}
@@ -187,6 +191,96 @@ func (a *App) actionKeyHint(action string) string {
 // openActionPlanPanel opens the Action Plan panel using the built-in default prompt.
 func (a *App) openActionPlanPanel() {
 	a.openActionPlanWithText("")
+}
+
+// buildActionPlanPanelState constructs the Action Plan panel widgets (tree, footer,
+// container) and state, shared by the AI plan (openActionPlanWithText) and the
+// deterministic rules plan (:rules plan). analyzing=true shows the "Analyzing…"
+// placeholder + spinner title; false builds an idle panel the caller renders into.
+func (a *App) buildActionPlanPanelState(customPromptText, scopeLabel string, metaByID map[string]*gmailapi.Message, analyzing bool) *actionPlanState {
+	colors := a.GetComponentColors("ai")
+	bg := colors.Background.Color()
+
+	state := &actionPlanState{
+		selectedCategory: 0,
+		customPromptText: customPromptText,
+		scopeLabel:       scopeLabel,
+		excluded:         make(map[string]bool),
+		expanded:         make(map[string]bool),
+		metaByID:         metaByID,
+	}
+	state.analyzing.Store(analyzing)
+
+	state.root = tview.NewTreeNode("")
+	state.tree = tview.NewTreeView().SetRoot(state.root).SetCurrentNode(state.root)
+	state.tree.SetTopLevel(1) // hide the empty root; categories are the visible top level
+	state.tree.SetBackgroundColor(bg)
+	state.tree.SetGraphics(true)
+	state.tree.SetChangedFunc(func(node *tview.TreeNode) {
+		if node == nil {
+			return
+		}
+		switch ref := node.GetReference().(type) {
+		case int:
+			state.selectedCategory = ref
+			state.selectedMsgID = ""
+		case emailRef:
+			state.selectedCategory = ref.catIndex
+			state.selectedMsgID = ref.msgID
+		}
+		a.updateActionPlanFooter(state)
+		// tview postpones cursor movement to draw time (process()), and Flex defers the
+		// FOCUSED item's Draw to last — so this callback runs AFTER the footer already
+		// painted this frame, leaving it one keystroke behind the cursor. Force one more
+		// repaint so the footer tracks the highlighted node live. (go avoids QueueUpdateDraw
+		// deadlocking when invoked from the UI goroutine mid-draw.)
+		go a.QueueUpdateDraw(func() {})
+	})
+
+	// Footer matches the other pickers: right-aligned, " X to Y | … " phrasing.
+	state.footer = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignRight)
+	state.footer.SetBackgroundColor(bg)
+	state.footer.SetTextColor(colors.Text.Color())
+
+	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
+	state.container.SetBackgroundColor(bg)
+	state.container.SetBorder(true)
+	// The status/summary lives in the border title (no separate header row).
+	state.container.SetTitle(actionPlanTitleText(scopeLabel, 0, 0, 0, analyzing))
+	state.container.SetTitleColor(colors.Title.Color())
+	state.container.SetBorderColor(colors.Border.Color())
+	state.container.AddItem(state.tree, 0, 1, true)
+	state.container.AddItem(state.footer, 1, 0, false)
+
+	if analyzing {
+		// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
+		state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
+			SetSelectable(false).SetColor(colors.Text.Color()))
+	}
+	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
+	return state
+}
+
+// mountActionPlanPanel mounts the panel into the content split, focuses it and
+// activates the picker. Must run on the UI thread; both entry points are invoked
+// on background goroutines, so QueueUpdateDraw marshals AND forces a redraw
+// (the same pattern openLinkPicker uses).
+func (a *App) mountActionPlanPanel(state *actionPlanState) {
+	a.QueueUpdateDraw(func() {
+		a.actionPlanState = state
+		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+			if a.labelsView != nil {
+				split.RemoveItem(a.labelsView)
+			}
+			a.labelsView = state.container
+			split.AddItem(a.labelsView, 0, 1, true)
+			split.ResizeItem(a.labelsView, 0, 1)
+		}
+		a.SetFocus(state.tree)
+		a.updateActionPlanFooter(state)
+		a.markFocus("action_plan")
+		a.setActivePicker(PickerActionPlan)
+	})
 }
 
 // openActionPlanWithText opens the panel; customPromptText=="" uses the default prompt.
@@ -224,9 +318,6 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		return
 	}
 
-	colors := a.GetComponentColors("ai")
-	bg := colors.Background.Color()
-
 	// Build metaByID lookup for subject/from display in email child nodes.
 	metaByID := make(map[string]*gmailapi.Message, len(metas))
 	for _, m := range metas {
@@ -235,82 +326,49 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		}
 	}
 
-	state := &actionPlanState{
-		selectedCategory: 0,
-		customPromptText: customPromptText,
-		scopeLabel:       scopeLabel,
-		excluded:         make(map[string]bool),
-		expanded:         make(map[string]bool),
-		metaByID:         metaByID,
-	}
-	state.analyzing.Store(true)
-
-	state.root = tview.NewTreeNode("")
-	state.tree = tview.NewTreeView().SetRoot(state.root).SetCurrentNode(state.root)
-	state.tree.SetTopLevel(1) // hide the empty root; categories are the visible top level
-	state.tree.SetBackgroundColor(bg)
-	state.tree.SetGraphics(true)
-	state.tree.SetChangedFunc(func(node *tview.TreeNode) {
-		if node == nil {
-			return
-		}
-		switch ref := node.GetReference().(type) {
-		case int:
-			state.selectedCategory = ref
-			state.selectedMsgID = ""
-		case emailRef:
-			state.selectedCategory = ref.catIndex
-			state.selectedMsgID = ref.msgID
-		}
-		a.updateActionPlanFooter(state)
-		// tview postpones cursor movement to draw time (process()), and Flex defers the
-		// FOCUSED item's Draw to last — so this callback runs AFTER the footer already
-		// painted this frame, leaving it one keystroke behind the cursor. Force one more
-		// repaint so the footer tracks the highlighted node live. (go avoids QueueUpdateDraw
-		// deadlocking when invoked from the UI goroutine mid-draw.)
-		go a.QueueUpdateDraw(func() {})
-	})
-
-	// Footer matches the other pickers: right-aligned, " X to Y | … " phrasing.
-	state.footer = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignRight)
-	state.footer.SetBackgroundColor(bg)
-	state.footer.SetTextColor(colors.Text.Color())
-
-	state.container = tview.NewFlex().SetDirection(tview.FlexRow)
-	state.container.SetBackgroundColor(bg)
-	state.container.SetBorder(true)
-	// The status/summary lives in the border title (no separate header row).
-	state.container.SetTitle(actionPlanTitleText(scopeLabel, 0, 0, 0, true))
-	state.container.SetTitleColor(colors.Title.Color())
-	state.container.SetBorderColor(colors.Border.Color())
-	state.container.AddItem(state.tree, 0, 1, true)
-	state.container.AddItem(state.footer, 1, 0, false)
-
-	// Immediate "analyzing" feedback so the panel isn't blank before the first batch.
-	state.root.AddChild(tview.NewTreeNode("⏳ Analyzing your messages…").
-		SetSelectable(false).SetColor(colors.Text.Color()))
-	state.tree.SetInputCapture(a.actionPlanInputCapture(state))
-
-	// Mount, focus and activation must run on the UI thread. openActionPlanWithText is
-	// invoked via `go a.openActionPlanPanel()`, so doing these directly would mutate the
-	// live layout off-thread and nothing would repaint until the next input event — the
-	// panel would be invisible and unfocused until a stray keypress. QueueUpdateDraw
-	// marshals onto the UI thread AND forces a redraw, the same pattern openLinkPicker uses.
-	a.QueueUpdateDraw(func() {
-		a.actionPlanState = state
-		if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-			if a.labelsView != nil {
-				split.RemoveItem(a.labelsView)
+	var preResolved []services.ActionPlanCategory
+	if a.Config.InboxAnalyzer.DeterministicPrefilter {
+		if svc := a.GetDeterministicRulesService(); svc != nil {
+			scopeQuery := "in:inbox is:unread"
+			if len(selected) > 0 {
+				scopeQuery = "in:inbox"
 			}
-			a.labelsView = state.container
-			split.AddItem(a.labelsView, 0, 1, true)
-			split.ResizeItem(a.labelsView, 0, 1)
+			candidates := make([]string, len(messages))
+			for i := range messages {
+				candidates[i] = messages[i].ID
+			}
+			a.GetErrorHandler().ShowProgress(a.ctx, "Matching inbox against your rules…")
+			matches, remaining, err := svc.Partition(a.ctx, scopeQuery, candidates)
+			a.GetErrorHandler().ClearPersistentMessage()
+			if err == nil && len(matches) > 0 {
+				plan := buildDeterministicPlan(matches)
+				preResolved = plan.Categories
+				resolved := len(messages) - len(remaining)
+				messages = applyPrefilterToMessages(messages, remaining)
+				go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⚡ %d resolved by rules · %d sent to AI", resolved, len(messages)))
+				if len(messages) == 0 {
+					// Rules resolved everything — mount the plan with no AI involvement.
+					state := a.buildActionPlanPanelState(customPromptText, fmt.Sprintf("⚡ %d by rules (no AI)", resolved), metaByID, false)
+					state.plan = plan
+					a.mountActionPlanPanel(state)
+					a.QueueUpdateDraw(func() {
+						if a.actionPlanState == state {
+							a.renderActionPlanPanel(state)
+						}
+					})
+					return
+				}
+				if resolved > 0 {
+					scopeLabel = fmt.Sprintf("%s · ⚡%d by rules", scopeLabel, resolved)
+				}
+			} else if err != nil {
+				go a.GetErrorHandler().ShowWarning(a.ctx, "Rules prefilter skipped — check your rules")
+			}
 		}
-		a.SetFocus(state.tree)
-		a.updateActionPlanFooter(state)
-		a.markFocus("action_plan")
-		a.setActivePicker(PickerActionPlan)
-	})
+	}
+
+	state := a.buildActionPlanPanelState(customPromptText, scopeLabel, metaByID, true)
+	a.mountActionPlanPanel(state)
 
 	// Launch analysis in the background. ctx cancel is registered both on the state
 	// (for closeActionPlanPanel) and on the App (for the global ESC handler in keys.go).
@@ -398,7 +456,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 					if a.actionPlanState != state {
 						return
 					}
-					state.plan = p
+					state.plan = mergePreResolved(p, preResolved)
 					a.renderActionPlanPanel(state)
 				})
 			})
@@ -409,10 +467,16 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 		state.analyzing.Store(false)
 		if err != nil {
 			if state.plan == nil {
-				a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
-				return
+				if len(preResolved) > 0 {
+					state.plan = &services.ActionPlan{Categories: preResolved}
+					a.GetErrorHandler().ShowWarning(a.ctx, "LLM unavailable — showing rule-resolved groups only")
+				} else {
+					a.GetErrorHandler().ShowError(a.ctx, "⚠ LLM unavailable. Try again later.")
+					return
+				}
+			} else {
+				a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
 			}
-			a.GetErrorHandler().ShowWarning(a.ctx, "Analysis interrupted — showing partial plan.")
 		}
 		// Final render on the UI thread so the completed plan is actually painted.
 		a.QueueUpdateDraw(func() {
@@ -433,7 +497,7 @@ func (a *App) openActionPlanWithText(customPromptText string) {
 // Before the first batch (batchesTotal==0) it shows "analyzing…"; while batches run it
 // shows progress; when done it summarizes the number of groups.
 func actionPlanTitleText(scopeLabel string, batchesDone, batchesTotal, groups int, analyzing bool) string {
-	if batchesTotal == 0 {
+	if batchesTotal == 0 && analyzing {
 		return fmt.Sprintf(" 📋 Action Plan · %s · analyzing… ", scopeLabel)
 	}
 	if analyzing {
@@ -666,6 +730,8 @@ func actionRuleVerbShort(action string) string {
 		return "label"
 	case "summarize":
 		return "digest"
+	case "prompt":
+		return "prompt"
 	default:
 		return "act"
 	}
@@ -869,6 +935,10 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			a.executeActionPlanAction(state, "label")
 			return nil
 		case a.Keys.Summarize:
+			if cat := a.currentActionPlanCategory(state); cat != nil && cat.Action == "prompt" {
+				a.dispatchActionPlanPrompt(state)
+				return nil
+			}
 			a.dispatchActionPlanSummarize(state)
 			return nil
 		}

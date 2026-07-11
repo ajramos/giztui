@@ -294,12 +294,13 @@ func (a AutoRefreshConfig) ResolvedInterval() time.Duration {
 
 // InboxAnalyzerConfig configures the AI inbox Action Plan analyzer.
 type InboxAnalyzerConfig struct {
-	BatchSize       int    `json:"batch_size"`        // messages per LLM batch (default 50)
-	MaxBatches      int    `json:"max_batches"`       // safety cap on batches (default 10)
-	DefaultPromptID string `json:"default_prompt_id"` // optional saved-prompt override (name or id)
-	IncludeBody     bool   `json:"include_body"`      // include plain-text body in analyzer context (default true)
-	BodyCharLimit   int    `json:"body_char_limit"`   // max body chars per email (default 1000)
-	StrictLabels    bool   `json:"strict_labels"`     // analyzer uses only existing labels; no creating new ones (default true)
+	BatchSize              int    `json:"batch_size"`              // messages per LLM batch (default 50)
+	MaxBatches             int    `json:"max_batches"`             // safety cap on batches (default 10)
+	DefaultPromptID        string `json:"default_prompt_id"`       // optional saved-prompt override (name or id)
+	IncludeBody            bool   `json:"include_body"`            // include plain-text body in analyzer context (default true)
+	BodyCharLimit          int    `json:"body_char_limit"`         // max body chars per email (default 1000)
+	StrictLabels           bool   `json:"strict_labels"`           // analyzer uses only existing labels; no creating new ones (default true)
+	DeterministicPrefilter bool   `json:"deterministic_prefilter"` // resolve deterministic rules before sending the rest to the LLM (default true)
 }
 
 // KeyBindings defines keyboard shortcuts for the TUI
@@ -402,6 +403,7 @@ type KeyBindings struct {
 	ConfirmPlan   string `json:"confirm_plan"`       // Action plan: confirm & apply the whole plan (two-press)
 	RuleAdd       string `json:"rule_add"`           // Analyzer rules panel: add a rule
 	RuleDelete    string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
+	RuleFromQuery string `json:"rule_from_search"`   // New rule pre-filled with the active search query
 	SavedQueryDel string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
 
 	// Picker / panel actions
@@ -656,6 +658,7 @@ func DefaultKeyBindings() KeyBindings {
 		ConfirmPlan:   "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
 		RuleAdd:       "a",
 		RuleDelete:    "d",
+		RuleFromQuery: "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel: "d",
 
 		// Picker / panel actions
@@ -717,12 +720,13 @@ func DefaultThreadingConfig() ThreadingConfig {
 // DefaultInboxAnalyzerConfig returns default analyzer settings.
 func DefaultInboxAnalyzerConfig() InboxAnalyzerConfig {
 	return InboxAnalyzerConfig{
-		BatchSize:       50,
-		MaxBatches:      10,
-		DefaultPromptID: "",
-		IncludeBody:     true,
-		BodyCharLimit:   1000,
-		StrictLabels:    true,
+		BatchSize:              50,
+		MaxBatches:             10,
+		DefaultPromptID:        "",
+		IncludeBody:            true,
+		BodyCharLimit:          1000,
+		StrictLabels:           true,
+		DeterministicPrefilter: true,
 	}
 }
 
@@ -885,7 +889,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},
 		"ctrl+r": {"prompt_regenerate": true, "remember_rule": true},
-		"ctrl+s": {"save_prompt": true, "attachment_save": true},
+		"ctrl+s": {"save_prompt": true, "attachment_save": true, "rule_from_search": true},
 		"ctrl+j": {"fast_down": true, "compose_send": true},
 		"ctrl+p": {"prev_thread": true, "prompt_preview": true},
 	}

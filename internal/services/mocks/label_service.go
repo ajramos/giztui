@@ -32,17 +32,24 @@ func (_m *LabelService) ApplyLabel(ctx context.Context, messageID string, labelI
 	return r0
 }
 
-// BulkApplyLabel provides a mock function with given fields: ctx, messageIDs, labelID
-func (_m *LabelService) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string) error {
-	ret := _m.Called(ctx, messageIDs, labelID)
+// BulkApplyLabel provides a mock function with given fields: ctx, messageIDs, labelID, onProgress
+func (_m *LabelService) BulkApplyLabel(ctx context.Context, messageIDs []string, labelID string, onProgress ...func(int, int)) error {
+	_va := make([]interface{}, len(onProgress))
+	for _i := range onProgress {
+		_va[_i] = onProgress[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, messageIDs, labelID)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BulkApplyLabel")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
-		r0 = rf(ctx, messageIDs, labelID)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string, ...func(int, int)) error); ok {
+		r0 = rf(ctx, messageIDs, labelID, onProgress...)
 	} else {
 		r0 = ret.Error(0)
 	}

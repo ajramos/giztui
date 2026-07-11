@@ -280,6 +280,7 @@ test-mocks: ## Generate mocks using mockery
 		$$MOCKERY_CMD --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go; \
 		$$MOCKERY_CMD --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go; \
 		$$MOCKERY_CMD --dir=internal/services --name=PromptGeneratorService --output=internal/services/mocks --outpkg=mocks --filename=PromptGeneratorService.go; \
+		$$MOCKERY_CMD --dir=internal/services --name=DeterministicRulesService --output=internal/services/mocks --outpkg=mocks --filename=deterministic_rules_service.go; \
 		echo "$(GREEN)Mocks generated successfully$(NC)"; \
 	else \
 		echo "$(YELLOW)mockery is not installed. Install it with:$(NC)"; \

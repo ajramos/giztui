@@ -230,3 +230,17 @@ func TestExecuteActionPlanApplyCommand(t *testing.T) {
 	a.actionPlanState = nil
 	a.executeActionPlanCommand([]string{"apply"})
 }
+
+func TestBuildPlanApplySkipsPromptCategories(t *testing.T) {
+	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
+		{Name: "⚡ Prompt: from:boss", Action: "prompt", PromptID: 7, MessageIDs: []string{"p1", "p2"}},
+		{Name: "⚡ Archive: from:news", Action: "archive", MessageIDs: []string{"a1", "a2"}},
+	}}
+	s := buildPlanApply(plan, nil)
+	if s.total != 2 {
+		t.Fatalf("prompt messages must not count toward whole-plan apply: total=%d want 2", s.total)
+	}
+	if len(s.items) != 1 {
+		t.Fatalf("expected only the archive item, got %d items", len(s.items))
+	}
+}

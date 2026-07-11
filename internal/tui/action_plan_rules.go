@@ -149,7 +149,7 @@ func (a *App) openAnalyzerRulesManager() {
 			container.AddItem(list, 0, 1, true)
 			container.AddItem(footer, 1, 0, false)
 			footer.SetText(" a add · d delete · Esc close ")
-			a.focus.set("analyzer_rules")
+			a.markFocus("analyzer_rules")
 			a.SetFocus(list)
 		}
 		input.SetDoneFunc(func(key tcell.Key) {
@@ -213,7 +213,7 @@ func (a *App) openAnalyzerRulesManager() {
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
 	a.setActivePicker(PickerAnalyzerRules)
-	a.focus.set("analyzer_rules")
+	a.markFocus("analyzer_rules")
 	a.SetFocus(list)
 	// :plan rules runs during command execution; hideCommandBar()'s restoreFocusAfterModal()
 	// would otherwise re-focus the message list afterward. "keep" tells it to leave our focus.

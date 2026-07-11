@@ -21,6 +21,15 @@ A powerful **terminal Gmail client** built in **Go** that brings **AI intelligen
 - **Custom prompt library** with variable substitution and bulk analysis
 - **Local caching** to avoid re-processing with SQLite storage
 
+### ⚡ Deterministic rules (no AI)
+
+- `:rules` — manage query → action rules (archive, trash, label, mark read, prompt) stored locally
+- `:rules plan` — preview what your rules match as an Action Plan, instantly, no AI involved
+- With `inbox_analyzer.deterministic_prefilter` enabled (default), the AI Inbox Action Plan resolves rule matches first (marked ⚡) and only sends the remaining emails to the LLM
+- `:rules sync <n>` mirrors a rule as a real server-side Gmail filter (marked ☁); `:rules unsync <n>` removes the mirror
+
+> **Note:** mirroring rules to Gmail needs the `gmail.settings.basic` OAuth scope, added in this version. Existing installs must re-authenticate once (delete the token file, e.g. `~/.config/giztui/token.json`, and restart) before `:rules sync` works. Everything else keeps working with the old token.
+
 ### 🔌 **Seamless Integrations**
 - **Slack forwarding** - Send emails to configured channels with AI summaries
 - **Obsidian ingestion** - Transform emails into structured markdown notes (individual files or combined repopack)
