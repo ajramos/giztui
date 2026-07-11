@@ -407,6 +407,68 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			showRuleForm(&r)
 		}
 	})
+	// confirmDeleteRule body-swaps the list for a confirmation prompt (Enter deletes,
+	// Esc cancels). Deleting a mirrored rule (☁️) also deletes the real Gmail filter,
+	// so the warning adapts. The swap-back is synchronous — no QueueUpdateDraw on the
+	// Esc/cleanup path (project rule: it would deadlock).
+	confirmDeleteRule := func(idx int) {
+		if idx < 0 || idx >= len(rules) {
+			return
+		}
+		r := rules[idx]
+		msg := "Delete this rule? It only exists here — this can't be undone."
+		if r.GmailFilterID != "" {
+			msg = "Delete this rule? This also deletes the Gmail filter — this can't be undone."
+		}
+
+		text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+		text.SetText(msg)
+		text.SetBackgroundColor(colors.Background.Color())
+		text.SetTextColor(colors.Text.Color())
+
+		restoreList := func() {
+			container.RemoveItem(text)
+			container.RemoveItem(footer)
+			container.AddItem(list, 0, 1, true)
+			container.AddItem(footer, 1, 0, false)
+			container.SetTitle(rulesManagerTitle)
+			footer.SetText(rulesManagerFooter)
+			a.markFocus("rules_manager")
+			a.SetFocus(list)
+		}
+
+		text.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			switch e.Key() {
+			case tcell.KeyEscape:
+				restoreList()
+				return nil
+			case tcell.KeyEnter:
+				id := r.ID
+				restoreList()
+				go func() {
+					// DeleteRule also removes the mirrored Gmail filter (service layer).
+					if err := svc.DeleteRule(a.ctx, id); err != nil {
+						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Delete failed: %v", err))
+						return
+					}
+					a.QueueUpdateDraw(reload)
+					a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Rule deleted")
+				}()
+				return nil
+			}
+			return e
+		})
+
+		container.RemoveItem(list)
+		container.RemoveItem(footer)
+		container.AddItem(text, 0, 1, true)
+		container.AddItem(footer, 1, 0, false)
+		container.SetTitle(" 🗑 Delete rule ")
+		footer.SetText(" Enter to delete  |  Esc to cancel ")
+		a.markFocus("rules_manager_confirm")
+		a.SetFocus(text)
+	}
+
 	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch {
 		case ev.Key() == tcell.KeyEscape:
@@ -421,18 +483,7 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
 				return nil
 			}
-			if idx >= 0 && idx < len(rules) {
-				id := rules[idx].ID
-				go func() {
-					// DeleteRule also removes the mirrored Gmail filter (service layer).
-					if err := svc.DeleteRule(a.ctx, id); err != nil {
-						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Delete failed: %v", err))
-						return
-					}
-					a.QueueUpdateDraw(reload)
-					a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Rule deleted")
-				}()
-			}
+			confirmDeleteRule(idx)
 			return nil
 		}
 		return ev
