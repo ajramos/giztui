@@ -454,8 +454,9 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	a.cmd.focusOverride = "keep"
 
 	// Fold the account's Gmail filters into the list in the background (one-shot
-	// per open): matching filters adopt/import as rules, unrepresentable ones show
-	// as read-only rows. The panel keeps working on local rules if Gmail fails.
+	// per open) and reconcile: matching filters adopt/import as rules, unrepresentable
+	// ones show as read-only rows, and mirrored rules whose filter vanished from Gmail
+	// are dropped to follow Gmail. The panel keeps working on local rules if Gmail fails.
 	go func() {
 		res, err := svc.ImportGmailFilters(a.ctx)
 		if err != nil {
@@ -472,8 +473,14 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			gmailOnly = res.Unsupported
 			reload()
 		})
-		if res.Imported+res.Adopted > 0 {
-			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("☁️ %d Gmail filter(s) added to your rules", res.Imported+res.Adopted))
+		added := res.Imported + res.Adopted
+		switch {
+		case added > 0 && res.Removed > 0:
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("☁️ Synced with Gmail: %d added, %d removed", added, res.Removed))
+		case added > 0:
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("☁️ %d Gmail filter(s) added to your rules", added))
+		case res.Removed > 0:
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("☁️ %d rule(s) removed — no longer in Gmail", res.Removed))
 		}
 	}()
 

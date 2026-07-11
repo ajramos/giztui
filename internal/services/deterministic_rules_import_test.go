@@ -162,6 +162,43 @@ func TestImportGmailFilters(t *testing.T) {
 	}
 }
 
+// Reconcile follows Gmail: a mirrored rule whose filter vanished from Gmail is
+// dropped, while a local-only rule (never mirrored) is left untouched even though
+// it isn't in the Gmail list.
+func TestReconcileFollowsGmailDeletions(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestRulesService(t, &stubMessageRepo{})
+
+	seedRule(t, svc, "from:(mirrored)", "archive", "", 0)
+	seedRule(t, svc, "from:(localonly)", "trash", "", 0)
+	rules, err := svc.ListRules(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if err := svc.store.SetGmailFilterID(ctx, "user@example.com", rules[0].ID, "F-gone"); err != nil {
+		t.Fatalf("link: %v", err)
+	}
+
+	// Gmail no longer has F-gone (deleted or edited there — editing recreates a new ID).
+	svc.filters = &fakeFilterAPI{remote: []*gmailapi.Filter{}}
+
+	res, err := svc.ImportGmailFilters(ctx)
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if res.Removed != 1 {
+		t.Fatalf("Removed = %d, want 1", res.Removed)
+	}
+
+	after, err := svc.ListRules(ctx)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if len(after) != 1 || after[0].Query != "from:(localonly)" {
+		t.Fatalf("after reconcile = %+v, want only the local-only rule kept", after)
+	}
+}
+
 func TestImportGmailFiltersListError(t *testing.T) {
 	svc := newTestRulesService(t, &stubMessageRepo{})
 	svc.filters = &fakeFilterAPI{remoteErr: fmt.Errorf("403: insufficient scopes")}

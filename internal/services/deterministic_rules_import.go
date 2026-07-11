@@ -158,6 +158,32 @@ func (s *DeterministicRulesServiceImpl) ImportGmailFilters(ctx context.Context) 
 		return nil, err
 	}
 
+	res := &GmailImportResult{}
+
+	// Reconcile first: a rule mirrored to a Gmail filter that no longer exists
+	// follows Gmail and is dropped (the filter list was fetched successfully, so an
+	// absent ID means the user deleted or edited it away — editing recreates it under
+	// a new ID). Local-only rules (no filter ID) are never touched. The filter row is
+	// already gone, so we delete only the local record — no wasted DeleteFilter call.
+	present := map[string]bool{}
+	for _, f := range filters {
+		if f != nil && f.Id != "" {
+			present[f.Id] = true
+		}
+	}
+	surviving := rules[:0] // in-place filter — surviving index never outruns i
+	for i := range rules {
+		if rules[i].GmailFilterID != "" && !present[rules[i].GmailFilterID] {
+			if err := s.store.DeleteRule(ctx, acct, rules[i].ID); err == nil {
+				res.Removed++
+				continue
+			}
+			// deletion failed — keep the rule rather than silently lose it
+		}
+		surviving = append(surviving, rules[i])
+	}
+	rules = surviving
+
 	linked := map[string]bool{} // filter IDs already owned by a rule
 	type ruleKey struct{ query, action, label string }
 	key := func(q, a, l string) ruleKey {
@@ -175,7 +201,6 @@ func (s *DeterministicRulesServiceImpl) ImportGmailFilters(ctx context.Context) 
 	}
 
 	labelName := s.importLabelNames(ctx)
-	res := &GmailImportResult{}
 	for _, f := range filters {
 		if f == nil || f.Id == "" || linked[f.Id] {
 			continue

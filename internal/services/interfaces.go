@@ -1094,10 +1094,11 @@ type GmailOnlyFilter struct {
 	Reason      string // why it can't be imported as a rule
 }
 
-// GmailImportResult summarizes one automatic Gmail-filter import pass.
+// GmailImportResult summarizes one automatic Gmail-filter import/reconcile pass.
 type GmailImportResult struct {
 	Imported    int // new rules created from Gmail filters
 	Adopted     int // existing unmirrored rules linked to a matching filter
+	Removed     int // mirrored rules dropped because their filter no longer exists in Gmail
 	Unsupported []GmailOnlyFilter
 }
 
@@ -1122,9 +1123,11 @@ type DeterministicRulesService interface {
 	// UnsyncRule deletes the mirrored filter. Both persist gmail_filter_id.
 	SyncRule(ctx context.Context, id int64) error
 	UnsyncRule(ctx context.Context, id int64) error
-	// ImportGmailFilters fetches the account's Gmail filters and folds them into the
-	// rules list: filters matching an existing unmirrored rule are adopted (linked),
+	// ImportGmailFilters fetches the account's Gmail filters and reconciles them with
+	// the rules list: filters matching an existing unmirrored rule are adopted (linked),
 	// translatable ones become new rules born mirrored, and unrepresentable ones are
-	// returned in Unsupported for read-only display. Idempotent per filter ID.
+	// returned in Unsupported for read-only display. Mirrored rules whose filter no
+	// longer exists in Gmail follow Gmail and are removed (local-only rules, with no
+	// filter ID, are never touched). Idempotent per filter ID.
 	ImportGmailFilters(ctx context.Context) (*GmailImportResult, error)
 }
