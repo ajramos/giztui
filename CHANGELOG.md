@@ -5,6 +5,22 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-07-11
+
+### 🚀 Features — Deterministic rules (`:rules`)
+
+- **A new deterministic rules engine you manage with `:rules`.** Define plain, predictable rules — a Gmail search query plus one action (archive, mark read, trash, apply a label, or run an AI prompt) — and manage them in a dedicated side panel. Rules are matched **first-match-wins** in creation order, so each email is handled by exactly one rule. No AI guesswork: if the query matches, the action runs. Create a rule from scratch (`:rules new`), or turn your current search straight into one (Ctrl+S from the list, or `:rules new` while a search is active). A **Preview** button runs the query as a live search so you can check what it matches before saving.
+- **Rules can mirror as real Gmail filters.** Tick **"Also in Gmail"** (Space) when saving and the rule is created as an actual Gmail filter too, shown with a ☁️ in the list. This means the rule keeps working server-side even when GizTUI isn't running. Deleting a mirrored rule deletes the Gmail filter as well.
+- **Your existing Gmail filters fold into `:rules` automatically.** Every time you open `:rules`, GizTUI reads your Gmail filters and reconciles them with your rules: translatable filters become rules (mirrored, ☁️), filters that match a rule you already have are linked to it, and filters GizTUI can't represent (forwarding, combined actions, size criteria) are shown read-only so the list stays a complete picture of everything acting on your inbox.
+- **`:rules` stays in sync with Gmail.** If you delete or edit a filter over in Gmail, reopening `:rules` reflects it — a mirrored rule whose filter no longer exists is dropped to follow Gmail. Rules you created only in GizTUI (no ☁️) are never touched, and nothing is removed if Gmail can't be reached (you get a warning and your local rules stay put).
+- **Deleting a rule now asks for confirmation.** Pressing the delete key arms a two-press confirmation in the status bar (press again to confirm, Esc cancels) — consistent with the rest of the app. The prompt adapts: a local-only rule warns it exists nowhere else, a mirrored rule warns its Gmail filter goes too.
+- **The AI Action Plan runs your deterministic rules first.** With `inbox_analyzer.deterministic_prefilter` (new, default `true`), emails that match a rule are handled deterministically before the language model sees the rest — faster, cheaper, and predictable for the mail you already know how to sort. You can run a rules-only preview any time with `:rules plan`.
+
+### 🔧 Notes
+
+- Filter mirroring needs the `gmail.settings.basic` OAuth scope. New installs request it automatically; if you're upgrading, re-authenticate to enable "Also in Gmail" (everything else works without it).
+- New keys/commands are documented on the in-app `?` help screen and in `docs/KEYBOARD_SHORTCUTS.md`.
+
 ## [1.19.1] - 2026-06-28
 
 ### 🐛 Fixes
