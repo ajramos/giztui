@@ -166,6 +166,19 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 		a.markFocus("list")
 	}
 
+	// Delete uses a two-press status-bar confirmation, the same shape used across the app
+	// (Action Plan apply, bulk ops): the first RuleDelete press arms and shows a persistent
+	// prompt in the status bar, a second press on the SAME rule deletes, Esc clears it (the
+	// panel stays open — a later Esc closes it). The clear is go-wrapped because
+	// ClearPersistentMessage runs through QueueUpdateDraw.
+	deletePendingID := int64(0)
+	clearDeletePending := func() {
+		if deletePendingID != 0 {
+			deletePendingID = 0
+			go a.GetErrorHandler().ClearPersistentMessage()
+		}
+	}
+
 	// showRuleForm body-swaps the list for an add/edit form. existing == nil → new rule.
 	showRuleForm := func(existing *services.DeterministicRuleInfo) {
 		actionsDisplay := []string{"Archive", "Mark read", "Trash", "Label", "Prompt"}
@@ -403,50 +416,40 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			return
 		}
 		if idx >= 0 && idx < len(rules) {
+			clearDeletePending()
 			r := rules[idx]
 			showRuleForm(&r)
 		}
 	})
-	// confirmDeleteRule body-swaps the list for a confirmation prompt (Enter deletes,
-	// Esc cancels). Deleting a mirrored rule (☁️) also deletes the real Gmail filter,
-	// so the warning adapts. The swap-back is synchronous — no QueueUpdateDraw on the
-	// Esc/cleanup path (project rule: it would deadlock).
-	confirmDeleteRule := func(idx int) {
-		if idx < 0 || idx >= len(rules) {
-			return
-		}
-		r := rules[idx]
-		msg := "Delete this rule? It only exists here — this can't be undone."
-		if r.GmailFilterID != "" {
-			msg = "Delete this rule? This also deletes the Gmail filter — this can't be undone."
-		}
-
-		text := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-		text.SetText(msg)
-		text.SetBackgroundColor(colors.Background.Color())
-		text.SetTextColor(colors.Text.Color())
-
-		restoreList := func() {
-			container.RemoveItem(text)
-			container.RemoveItem(footer)
-			container.AddItem(list, 0, 1, true)
-			container.AddItem(footer, 1, 0, false)
-			container.SetTitle(rulesManagerTitle)
-			footer.SetText(rulesManagerFooter)
-			a.markFocus("rules_manager")
-			a.SetFocus(list)
-		}
-
-		text.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-			switch e.Key() {
-			case tcell.KeyEscape:
-				restoreList()
+	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		switch {
+		case ev.Key() == tcell.KeyEscape:
+			if deletePendingID != 0 {
+				clearDeletePending() // cancel the pending delete only; panel stays open
 				return nil
-			case tcell.KeyEnter:
+			}
+			closePicker()
+			return nil
+		case a.matchesConfiguredKey(ev, a.Keys.RuleAdd):
+			clearDeletePending()
+			showRuleForm(nil)
+			return nil
+		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
+			idx := list.GetCurrentItem()
+			if gmailOnlyRow(idx) {
+				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
+				return nil
+			}
+			if idx < 0 || idx >= len(rules) {
+				return nil
+			}
+			r := rules[idx]
+			if deletePendingID == r.ID { // second press on the armed rule → delete
 				id := r.ID
-				restoreList()
+				deletePendingID = 0
 				go func() {
 					// DeleteRule also removes the mirrored Gmail filter (service layer).
+					a.GetErrorHandler().ClearPersistentMessage()
 					if err := svc.DeleteRule(a.ctx, id); err != nil {
 						a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Delete failed: %v", err))
 						return
@@ -456,34 +459,14 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 				}()
 				return nil
 			}
-			return e
-		})
-
-		container.RemoveItem(list)
-		container.RemoveItem(footer)
-		container.AddItem(text, 0, 1, true)
-		container.AddItem(footer, 1, 0, false)
-		container.SetTitle(" 🗑 Delete rule ")
-		footer.SetText(" Enter to delete  |  Esc to cancel ")
-		a.markFocus("rules_manager_confirm")
-		a.SetFocus(text)
-	}
-
-	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		switch {
-		case ev.Key() == tcell.KeyEscape:
-			closePicker()
-			return nil
-		case a.matchesConfiguredKey(ev, a.Keys.RuleAdd):
-			showRuleForm(nil)
-			return nil
-		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
-			idx := list.GetCurrentItem()
-			if gmailOnlyRow(idx) {
-				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
-				return nil
+			// First press → arm. The prompt adapts: a mirrored rule (☁️) also drops the
+			// real Gmail filter, a local-only rule exists nowhere else.
+			deletePendingID = r.ID
+			msg := fmt.Sprintf("Delete this rule? It only exists here — press '%s' again to confirm, Esc cancels", a.Keys.RuleDelete)
+			if r.GmailFilterID != "" {
+				msg = fmt.Sprintf("Delete this rule? This also deletes the Gmail filter — press '%s' again to confirm, Esc cancels", a.Keys.RuleDelete)
 			}
-			confirmDeleteRule(idx)
+			go a.GetErrorHandler().ShowPersistentMessage(a.ctx, msg, LogLevelInfo)
 			return nil
 		}
 		return ev
