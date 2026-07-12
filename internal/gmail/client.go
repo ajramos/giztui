@@ -11,6 +11,7 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/net/html/charset"
 	"google.golang.org/api/gmail/v1"
@@ -780,6 +781,27 @@ func ExtractPlainText(msg *gmail.Message) string {
 	return extractTextFromPart(msg.Payload)
 }
 
+// decodeToUTF8 converts raw body bytes to a UTF-8 string, honoring the declared
+// charset — but only when the bytes are NOT already valid UTF-8. Many senders
+// mislabel a UTF-8 body as ISO-8859-1/windows-1252; applying the declared single-byte
+// charset to real UTF-8 bytes produces mojibake ("día" → "dÃ­as"). Valid UTF-8 is
+// therefore trusted over a conflicting label — genuine single-byte text with accents
+// is almost never valid UTF-8, so this doesn't harm correctly-labeled Latin-1 mail.
+func decodeToUTF8(raw []byte, charsetLabel string) string {
+	if charsetLabel == "" || strings.EqualFold(charsetLabel, "utf-8") || strings.EqualFold(charsetLabel, "utf8") {
+		return string(raw)
+	}
+	if utf8.Valid(raw) {
+		return string(raw) // label lies — the bytes are already UTF-8
+	}
+	if r, err := charset.NewReaderLabel(charsetLabel, bytes.NewReader(raw)); err == nil {
+		if b, err2 := io.ReadAll(r); err2 == nil {
+			return string(b)
+		}
+	}
+	return string(raw)
+}
+
 func extractTextFromPart(part *gmail.MessagePart) string {
 	if part == nil {
 		return ""
@@ -813,14 +835,7 @@ func extractTextFromPart(part *gmail.MessagePart) string {
 				raw = decoded
 			}
 		}
-		if charsetLabel != "" && !strings.EqualFold(charsetLabel, "utf-8") && !strings.EqualFold(charsetLabel, "utf8") {
-			if r, err := charset.NewReaderLabel(charsetLabel, bytes.NewReader(raw)); err == nil {
-				if b, err2 := io.ReadAll(r); err2 == nil {
-					return string(b)
-				}
-			}
-		}
-		return string(raw)
+		return decodeToUTF8(raw, charsetLabel)
 	}
 
 	// Recursively check parts
@@ -871,14 +886,7 @@ func extractHTMLFromPart(part *gmail.MessagePart) string {
 				raw = decoded
 			}
 		}
-		if charsetLabel != "" && !strings.EqualFold(charsetLabel, "utf-8") && !strings.EqualFold(charsetLabel, "utf8") {
-			if r, err := charset.NewReaderLabel(charsetLabel, bytes.NewReader(raw)); err == nil {
-				if b, err2 := io.ReadAll(r); err2 == nil {
-					return string(b)
-				}
-			}
-		}
-		return string(raw)
+		return decodeToUTF8(raw, charsetLabel)
 	}
 
 	// Recursively check parts
