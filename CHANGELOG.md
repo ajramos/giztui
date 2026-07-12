@@ -5,6 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.1] - 2026-07-12
+
+### 🐛 Fixes
+
+- **Accented text no longer shows as mojibake in some emails.** Certain senders (e.g. corporate systems) declare an ISO-8859-1/windows-1252 charset on a message body that is actually UTF-8. GizTUI trusted the label and re-decoded the bytes, turning `Buenos días` into `Buenos dÃas` and `Quirónprevención` into `QuirÃ³nprevenciÃ³n`. The body decoder now trusts valid UTF-8 over a conflicting charset label, so mislabeled UTF-8 renders correctly while genuine Latin-1 mail is unaffected.
+- **`:` commands no longer freeze the app on an error or usage message.** Several command handlers (`:rules <unknown>`, `:action-plan with-prompt`/unknown option, `:prompt refine`/`save` guards, `:load` when the list isn't focused) showed their error message directly on the UI event loop, which deadlocked the whole app — e.g. typing `:rules apply` and pressing Enter froze GizTUI. Those status messages are now dispatched off the event loop, so the command reports the problem and stays responsive.
+
 ## [1.20.0] - 2026-07-11
 
 ### 🚀 Features — Deterministic rules (`:rules`)
