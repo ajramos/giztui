@@ -1243,7 +1243,7 @@ func (a *App) executeLoadMoreCommand(args []string) {
 	if a.focus.is("list") {
 		go a.loadMoreMessages()
 	} else {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Load more only available when message list is focused")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Load more only available when message list is focused")
 	}
 }
 
@@ -2171,17 +2171,17 @@ func (a *App) executePromptNewCommand(args []string) {
 // Usage: :prompt refine make the output JSON
 func (a *App) executePromptRefineCommand(args []string) {
 	if a.promptConfiguratorState == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt new)")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt new)")
 		return
 	}
 	if len(args) == 0 {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Usage: :prompt refine <refinement instruction>")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Usage: :prompt refine <refinement instruction>")
 		return
 	}
 	refinement := strings.Join(args, " ")
 	current := a.promptConfiguratorState.promptArea.GetText()
 	if current == "" {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Generate a prompt first before refining")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Generate a prompt first before refining")
 		return
 	}
 	go a.refineConfiguratorPrompt(current, refinement)
@@ -2190,7 +2190,7 @@ func (a *App) executePromptRefineCommand(args []string) {
 // executePromptSaveCommand triggers the save dialog for the active configurator prompt.
 func (a *App) executePromptSaveCommand(args []string) {
 	if a.promptConfiguratorState == nil {
-		a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt new)")
+		go a.GetErrorHandler().ShowWarning(a.ctx, "Open the configurator first (:prompt new)")
 		return
 	}
 	a.savePromptFromConfigurator()
@@ -2204,7 +2204,7 @@ func (a *App) executeActionPlanCommand(args []string) {
 	}
 	if strings.ToLower(args[0]) == "with-prompt" {
 		if len(args) < 2 {
-			a.GetErrorHandler().ShowError(a.ctx, "Usage: :action-plan with-prompt <name-or-id>")
+			go a.GetErrorHandler().ShowError(a.ctx, "Usage: :action-plan with-prompt <name-or-id>")
 			return
 		}
 		nameOrID := strings.Join(args[1:], " ")
@@ -2219,7 +2219,7 @@ func (a *App) executeActionPlanCommand(args []string) {
 		a.openAnalyzerRulesManager()
 		return
 	}
-	a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
+	go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Unknown action-plan option: %s", args[0]))
 }
 
 // executeRulesCommand handles :rules / :ru [new [query]|plan|sync <n>|unsync <n>].
