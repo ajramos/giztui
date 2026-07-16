@@ -63,7 +63,75 @@ func extractJSONArrayAssist(raw string) string {
 	return raw
 }
 
-// AssistReadManually is implemented in the next task; stub keeps the package compiling.
+// buildAssistPrompt renders the assist prompt for one batch: the existing labels are
+// injected at {{labels}} and the batch is rendered at {{messages}} (one line per email,
+// keyed by concrete message ID so the model echoes it back).
+func buildAssistPrompt(batch []AnalyzerMessage, opts InboxAnalyzerOptions) string {
+	prompt := assistReadManuallyPrompt
+	prompt = strings.ReplaceAll(prompt, "{{labels}}", strings.Join(opts.AvailableLabels, ", "))
+
+	var b strings.Builder
+	for _, m := range batch {
+		subject := strings.TrimSpace(strings.ReplaceAll(m.Subject, "\n", " "))
+		if subject == "" {
+			subject = "(no subject)"
+		}
+		body := m.Body
+		if strings.TrimSpace(body) == "" {
+			body = m.Snippet
+		}
+		fmt.Fprintf(&b, "- id: %s | from: %s | subject: %s | %s\n",
+			m.ID, m.From, subject, truncateForAnalyzer(body, opts.BodyCharLimit))
+	}
+	payload := b.String()
+
+	if strings.Contains(prompt, "{{messages}}") {
+		return strings.ReplaceAll(prompt, "{{messages}}", payload)
+	}
+	return prompt + "\n\n" + payload
+}
+
+// AssistReadManually enriches read-manually messages on demand: one suggestion per input
+// message, in input order. It streams each batch through the AIService and reconciles the
+// reply against the batch IDs. A batch whose LLM call fails degrades to {Action:"read"} for
+// each of its messages rather than failing the whole pass.
 func (s *InboxAnalyzerServiceImpl) AssistReadManually(ctx context.Context, msgs []AnalyzerMessage, opts InboxAnalyzerOptions) ([]ReadManuallySuggestion, error) {
-	return nil, fmt.Errorf("not implemented")
+	if s.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
+	}
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+
+	available := make(map[string]string, len(opts.AvailableLabels))
+	for _, name := range opts.AvailableLabels {
+		available[strings.ToLower(strings.TrimSpace(name))] = name
+	}
+
+	batches := splitBatches(msgs, opts.BatchSize, opts.MaxBatches)
+	out := make([]ReadManuallySuggestion, 0, len(msgs))
+
+	for _, batch := range batches {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		batchIDs := make([]string, len(batch))
+		for i, m := range batch {
+			batchIDs[i] = m.ID
+		}
+
+		prompt := buildAssistPrompt(batch, opts)
+		raw, err := s.aiService.ApplyCustomPromptStream(ctx, prompt, nil, nil)
+		if err != nil {
+			// Degrade this batch: surface every message as read-manually so nothing is lost.
+			for _, id := range batchIDs {
+				out = append(out, ReadManuallySuggestion{ID: id, Action: "read"})
+			}
+			continue
+		}
+		out = append(out, parseAssistResponse(raw, batchIDs, available, opts.StrictLabels)...)
+	}
+
+	return out, nil
 }
