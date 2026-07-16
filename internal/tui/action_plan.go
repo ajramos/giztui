@@ -906,6 +906,11 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		if a.matchesConfiguredKey(ev, a.Keys.AssistReadManually) {
+			a.assistReadManually(a.actionPlanState)
+			return nil
+		}
+
 		if a.matchesConfiguredKey(ev, a.Keys.RememberRule) {
 			from, action, negate := "", "none", false
 			if cat := a.currentActionPlanCategory(state); cat != nil {

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"net/mail"
 	"sort"
 	"strings"
@@ -72,4 +73,47 @@ func readManuallyLeafLabel(m services.AnalyzerMessage, sug services.ReadManually
 		out += " — 💡 " + sug.Hint
 	}
 	return out + " · suggests: " + verb
+}
+
+// assistReadManually runs the on-demand AI pass over the current read-manually bucket and
+// re-renders with hints/suggested actions. Called on the event loop; work runs in a goroutine.
+func (a *App) assistReadManually(state *actionPlanState) {
+	if state == nil || state.plan == nil || len(state.plan.ReadManually) == 0 {
+		go a.GetErrorHandler().ShowInfo(a.ctx, "Nothing in Read manually to assist")
+		return
+	}
+	analyzer := a.GetInboxAnalyzerService()
+	if analyzer == nil {
+		go a.GetErrorHandler().ShowWarning(a.ctx, "AI analyzer not available")
+		return
+	}
+	msgs := append([]services.AnalyzerMessage(nil), state.plan.ReadManually...)
+	opts := services.InboxAnalyzerOptions{
+		BatchSize:       a.Config.InboxAnalyzer.BatchSize,
+		MaxBatches:      a.Config.InboxAnalyzer.MaxBatches,
+		BodyCharLimit:   a.Config.InboxAnalyzer.BodyCharLimit,
+		AvailableLabels: a.userLabelNames(),
+		StrictLabels:    a.Config.InboxAnalyzer.StrictLabels,
+	}
+	go func() {
+		a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("Assisting %d email(s)…", len(msgs)))
+		sug, err := analyzer.AssistReadManually(a.ctx, msgs, opts)
+		a.GetErrorHandler().ClearProgress()
+		if err != nil {
+			a.GetErrorHandler().ShowWarning(a.ctx, "Could not get AI suggestions — showing the list only")
+			return
+		}
+		m := make(map[string]services.ReadManuallySuggestion, len(sug))
+		for _, s := range sug {
+			m[s.ID] = s
+		}
+		a.QueueUpdateDraw(func() {
+			if a.actionPlanState != state {
+				return
+			}
+			state.rmSuggestions = m
+			a.rebuildActionPlanTree(state)
+		})
+		a.GetErrorHandler().ShowSuccess(a.ctx, "AI suggestions ready")
+	}()
 }

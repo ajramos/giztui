@@ -397,14 +397,15 @@ type KeyBindings struct {
 	PromptPreview string `json:"prompt_preview"` // Preview the selected prompt in a picker
 
 	// Inbox Action Plan
-	ActionPlan    string `json:"action_plan"`        // Open the AI inbox Action Plan panel
-	RememberRule  string `json:"remember_rule"`      // Action plan: remember a rule/interest
-	ViewPrompt    string `json:"view_prompt"`        // Action plan: view the effective analyzer prompt
-	ConfirmPlan   string `json:"confirm_plan"`       // Action plan: confirm & apply the whole plan (two-press)
-	RuleAdd       string `json:"rule_add"`           // Analyzer rules panel: add a rule
-	RuleDelete    string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
-	RuleFromQuery string `json:"rule_from_search"`   // New rule pre-filled with the active search query
-	SavedQueryDel string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
+	ActionPlan         string `json:"action_plan"`          // Open the AI inbox Action Plan panel
+	RememberRule       string `json:"remember_rule"`        // Action plan: remember a rule/interest
+	AssistReadManually string `json:"assist_read_manually"` // Action plan: AI-assist the Read manually bucket
+	ViewPrompt         string `json:"view_prompt"`          // Action plan: view the effective analyzer prompt
+	ConfirmPlan        string `json:"confirm_plan"`         // Action plan: confirm & apply the whole plan (two-press)
+	RuleAdd            string `json:"rule_add"`             // Analyzer rules panel: add a rule
+	RuleDelete         string `json:"rule_delete"`          // Analyzer rules panel: delete the selected rule
+	RuleFromQuery      string `json:"rule_from_search"`     // New rule pre-filled with the active search query
+	SavedQueryDel      string `json:"saved_query_delete"`   // Saved-queries picker: delete the selected query
 
 	// Picker / panel actions
 	AttachmentSave string `json:"attachment_save"` // Attachments picker: save the selected attachment
@@ -652,14 +653,15 @@ func DefaultKeyBindings() KeyBindings {
 		PromptPreview: "ctrl+p",
 
 		// Inbox Action Plan
-		ActionPlan:    "P", // capital P (A is taken by Attachments)
-		RememberRule:  "ctrl+r",
-		ViewPrompt:    "i", // inspect the effective analyzer prompt (avoids clash with bulk_mode "v")
-		ConfirmPlan:   "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
-		RuleAdd:       "a",
-		RuleDelete:    "d",
-		RuleFromQuery: "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
-		SavedQueryDel: "d",
+		ActionPlan:         "P", // capital P (A is taken by Attachments)
+		RememberRule:       "ctrl+r",
+		AssistReadManually: "g",
+		ViewPrompt:         "i", // inspect the effective analyzer prompt (avoids clash with bulk_mode "v")
+		ConfirmPlan:        "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
+		RuleAdd:            "a",
+		RuleDelete:         "d",
+		RuleFromQuery:      "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
+		SavedQueryDel:      "d",
 
 		// Picker / panel actions
 		AttachmentSave: "ctrl+s",
@@ -884,6 +886,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 	// listed here) is still warned — this allowlist suppresses only these verified-safe overlaps.
 	contextSeparated := map[string]map[string]bool{
 		"a":      {"archive": true, "rule_add": true},
+		"g":      {"generate_reply": true, "assist_read_manually": true},
 		"c":      {"compose": true, "confirm_plan": true},
 		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true},
 		"N":      {"load_more": true, "search_prev": true},
