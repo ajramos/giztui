@@ -50,3 +50,26 @@ func groupReadManuallyBySender(msgs []services.AnalyzerMessage) []readManuallyGr
 func senderExpandKey(senderKey string) string {
 	return "\x00read-manually:" + senderKey
 }
+
+// readManuallyLeafLabel renders one email leaf, appending the AI hint/suggestion when present.
+func readManuallyLeafLabel(m services.AnalyzerMessage, sug services.ReadManuallySuggestion, hasSug bool) string {
+	subject := strings.TrimSpace(m.Subject)
+	if subject == "" {
+		subject = "(no subject)"
+	}
+	if !hasSug || (sug.Hint == "" && sug.Action == "read") {
+		return subject
+	}
+	if sug.Action == "read" {
+		return subject + " — 💡 " + sug.Hint
+	}
+	verb := actionVerbLabel(sug.Action)
+	if sug.Action == "label" && sug.Label != "" {
+		verb = verb + " " + sug.Label
+	}
+	out := subject
+	if sug.Hint != "" {
+		out += " — 💡 " + sug.Hint
+	}
+	return out + " · suggests: " + verb
+}
