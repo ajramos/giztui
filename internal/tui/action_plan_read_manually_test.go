@@ -34,3 +34,39 @@ func TestSenderExpandKey(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestDropReadManually(t *testing.T) {
+	plan := &services.ActionPlan{ReadManually: []services.AnalyzerMessage{
+		{ID: "1", From: "a@x"}, {ID: "2", From: "a@x"}, {ID: "3", From: "b@y"},
+	}}
+	dropReadManually(plan, []string{"1", "3"})
+	if len(plan.ReadManually) != 1 || plan.ReadManually[0].ID != "2" {
+		t.Fatalf("bucket after drop = %+v", plan.ReadManually)
+	}
+}
+
+func TestReadManuallyLeafLabel(t *testing.T) {
+	m := services.AnalyzerMessage{Subject: "Hello"}
+	// no suggestion -> plain subject
+	if got := readManuallyLeafLabel(m, services.ReadManuallySuggestion{}, false); got != "Hello" {
+		t.Fatalf("plain: %q", got)
+	}
+	// read action with hint -> hint only, no "suggests:"
+	if got := readManuallyLeafLabel(m, services.ReadManuallySuggestion{Hint: "fyi", Action: "read"}, true); got != "Hello — 💡 fyi" {
+		t.Fatalf("read+hint: %q", got)
+	}
+	// archive suggestion -> hint + suggests
+	got := readManuallyLeafLabel(m, services.ReadManuallySuggestion{Hint: "promo", Action: "archive"}, true)
+	if got != "Hello — 💡 promo · suggests: "+actionVerbLabel("archive") {
+		t.Fatalf("archive: %q", got)
+	}
+	// label suggestion -> appends label name
+	gl := readManuallyLeafLabel(m, services.ReadManuallySuggestion{Hint: "hr", Action: "label", Label: "Work"}, true)
+	if gl != "Hello — 💡 hr · suggests: "+actionVerbLabel("label")+" Work" {
+		t.Fatalf("label: %q", gl)
+	}
+	// empty subject -> (no subject)
+	if got := readManuallyLeafLabel(services.AnalyzerMessage{}, services.ReadManuallySuggestion{}, false); got != "(no subject)" {
+		t.Fatalf("empty: %q", got)
+	}
+}

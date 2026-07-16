@@ -93,6 +93,8 @@ type actionPlanState struct {
 	streamingCancel context.CancelFunc
 
 	confirmPending bool // whole-plan apply armed (first press of keys.confirm_plan); UI goroutine only
+
+	rmAcceptPending string // sender-group expand key armed for accept (first press of keys.accept_suggestion); UI goroutine only
 }
 
 // checkedIDs returns the subset of ids not present in excluded, preserving order.
@@ -861,6 +863,37 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			}
 		}
 
+		// Two-press accept state (sender group): while armed, the accept key applies the group,
+		// Esc cancels the confirmation ONLY (panel stays open), and any other key disarms then
+		// does its normal job. Mirrors the confirmPending handling above.
+		if state.rmAcceptPending != "" {
+			switch {
+			case a.matchesConfiguredKey(ev, a.Keys.AcceptSuggestion):
+				armed := state.rmAcceptPending
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				var groupIDs []string
+				for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+					if senderExpandKey(g.senderKey) == armed {
+						for _, m := range g.msgs {
+							groupIDs = append(groupIDs, m.ID)
+						}
+						break
+					}
+				}
+				a.acceptReadManuallySuggestions(state, groupIDs)
+				return nil
+			case ev.Key() == tcell.KeyEscape:
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				return nil
+			default:
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				// fall through: the key still performs its normal action below
+			}
+		}
+
 		// ESC: synchronous close (no QueueUpdateDraw).
 		if ev.Key() == tcell.KeyEscape {
 			a.closeActionPlanPanel()
@@ -909,6 +942,29 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		if a.matchesConfiguredKey(ev, a.Keys.AssistReadManually) {
 			a.assistReadManually(a.actionPlanState)
 			return nil
+		}
+
+		// Accept the AI-suggested action. On a read-manually email leaf (catIndex == -1) apply
+		// that one email directly; on a sender-group header, arm a two-press confirm for the group.
+		if a.matchesConfiguredKey(ev, a.Keys.AcceptSuggestion) && cur != nil {
+			switch ref := cur.GetReference().(type) {
+			case emailRef:
+				if ref.catIndex == -1 {
+					a.acceptReadManuallySuggestions(state, []string{ref.msgID})
+				}
+				return nil
+			case string: // read-manually sender-group header → two-press confirm
+				senderDisp := ref
+				for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+					if senderExpandKey(g.senderKey) == ref {
+						senderDisp = g.senderDisp
+						break
+					}
+				}
+				state.rmAcceptPending = ref
+				go a.GetErrorHandler().ShowPersistentMessage(a.ctx, fmt.Sprintf("Accept suggestions from %s? Press %s again, Esc cancels", senderDisp, a.Keys.AcceptSuggestion), LogLevelInfo)
+				return nil
+			}
 		}
 
 		if a.matchesConfiguredKey(ev, a.Keys.RememberRule) {
@@ -969,7 +1025,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 		// 'm' moves: on an email node, that one email; on a category or read-manually header,
-		// the whole group.
+		// the whole group; on a read-manually sender-group header, just that sender's emails.
 		if a.matchesConfiguredKey(ev, a.Keys.Move) && cur != nil {
 			switch ref := cur.GetReference().(type) {
 			case emailRef:
@@ -977,6 +1033,9 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				return nil
 			case int:
 				a.showActionPlanBulkMoveInline(state, ref)
+				return nil
+			case string: // read-manually sender-group header
+				a.showActionPlanGroupMoveInline(state, ref)
 				return nil
 			}
 		}

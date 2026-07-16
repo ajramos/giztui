@@ -400,6 +400,7 @@ type KeyBindings struct {
 	ActionPlan         string `json:"action_plan"`          // Open the AI inbox Action Plan panel
 	RememberRule       string `json:"remember_rule"`        // Action plan: remember a rule/interest
 	AssistReadManually string `json:"assist_read_manually"` // Action plan: AI-assist the Read manually bucket
+	AcceptSuggestion   string `json:"accept_suggestion"`    // Action plan: accept the AI-suggested action (read-manually email or sender group)
 	ViewPrompt         string `json:"view_prompt"`          // Action plan: view the effective analyzer prompt
 	ConfirmPlan        string `json:"confirm_plan"`         // Action plan: confirm & apply the whole plan (two-press)
 	RuleAdd            string `json:"rule_add"`             // Analyzer rules panel: add a rule
@@ -656,6 +657,7 @@ func DefaultKeyBindings() KeyBindings {
 		ActionPlan:         "P", // capital P (A is taken by Attachments)
 		RememberRule:       "ctrl+r",
 		AssistReadManually: "g",
+		AcceptSuggestion:   ".", // accept the AI suggestion (panel-only; context-separated)
 		ViewPrompt:         "i", // inspect the effective analyzer prompt (avoids clash with bulk_mode "v")
 		ConfirmPlan:        "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
 		RuleAdd:            "a",

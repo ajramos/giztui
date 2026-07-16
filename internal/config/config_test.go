@@ -92,6 +92,10 @@ func TestDefaultConfig_AssistReadManually(t *testing.T) {
 	assert.Equal(t, "g", DefaultConfig().Keys.AssistReadManually)
 }
 
+func TestDefaultConfig_AcceptSuggestion(t *testing.T) {
+	assert.Equal(t, ".", DefaultConfig().Keys.AcceptSuggestion)
+}
+
 func TestDefaultLayoutConfig(t *testing.T) {
 	layout := DefaultLayoutConfig()
 

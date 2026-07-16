@@ -117,3 +117,53 @@ func (a *App) assistReadManually(state *actionPlanState) {
 		a.GetErrorHandler().ShowSuccess(a.ctx, "AI suggestions ready")
 	}()
 }
+
+// dropReadManually removes every id in ids from plan.ReadManually.
+func dropReadManually(plan *services.ActionPlan, ids []string) {
+	for _, id := range ids {
+		plan.ReadManually = removeReadManuallyByID(plan.ReadManually, id)
+	}
+}
+
+// acceptReadManuallySuggestions applies the AI-suggested action to the given read-manually email
+// IDs. It buckets ids by (action,label) from state.rmSuggestions, skips "read"/missing suggestions,
+// runs one bulk op per bucket in a worker goroutine, then drops the applied ids and re-renders.
+// Called on the event loop; work runs in a goroutine (threading rules apply).
+func (a *App) acceptReadManuallySuggestions(state *actionPlanState, ids []string) {
+	if state == nil || state.rmSuggestions == nil {
+		go a.GetErrorHandler().ShowInfo(a.ctx, "Press the assist key first to get suggestions")
+		return
+	}
+	type key struct{ action, label string }
+	buckets := map[key][]string{}
+	for _, id := range ids {
+		s, ok := state.rmSuggestions[id]
+		if !ok || s.Action == "read" {
+			continue
+		}
+		buckets[key{s.Action, s.Label}] = append(buckets[key{s.Action, s.Label}], id)
+	}
+	if len(buckets) == 0 {
+		go a.GetErrorHandler().ShowInfo(a.ctx, "No actionable suggestions here")
+		return
+	}
+	emailService, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	go func() {
+		var applied []string
+		for k, kids := range buckets {
+			if err := a.runActionPlanBulkOp(emailService, labelService, k.action, kids, k.label); err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("%s failed: %v", k.action, err))
+				continue
+			}
+			applied = append(applied, kids...)
+		}
+		a.QueueUpdateDraw(func() {
+			if a.actionPlanState != state {
+				return
+			}
+			dropReadManually(state.plan, applied)
+			a.rebuildActionPlanTree(state)
+		})
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Applied %d suggestion(s)", len(applied)))
+	}()
+}
