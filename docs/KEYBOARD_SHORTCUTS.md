@@ -222,7 +222,7 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | `Enter` / `→` | Expand category | Show the emails inside the highlighted category |
 | `←` | Collapse category | Hide the email children of the highlighted category |
 | `space` | Exclude / include email | When on an email node, toggle it off (`[ ]`) or back on (`[x]`); actions apply only to checked emails (reuses `keys.bulk_select`) |
-| `m` | Move | Move the highlighted email (or whole category) to another label (reuses `keys.move`) |
+| `m` | Move | Move the highlighted email, whole category, or (in Read manually) a whole sender group to another label / action (reuses `keys.move`) |
 | `i` | View prompt | Open the effective analyzer prompt viewer (`keys.view_prompt`) |
 | archive key | Archive | Archive the highlighted category's checked emails |
 | trash key | Trash | Trash the highlighted category's checked emails |
@@ -230,9 +230,13 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | toggle-read key | Mark read | Mark the highlighted category's checked emails as read |
 | `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses (`keys.remember_rule`) |
 | `c` | Confirm whole plan | Press once to see a summary of everything the plan will do (e.g. `Apply plan: 12 archive, 3 trash, 5 label`), press `c` again to apply every category's suggested action to its checked emails; `Esc` cancels the confirmation without closing the panel (`keys.confirm_plan`) |
-| `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
+| `g` | Assist Read manually | On the "Read manually" bucket, ask the AI (on demand) for a one-line hint + suggested action per email; costs nothing until pressed (`keys.assist_read_manually`) |
+| `.` | Accept suggestion | Accept the AI's suggested action — on an email, just that one; on a sender group header, all of the group's suggestions (two-press confirm; `Esc` cancels) (`keys.accept_suggestion`) |
+| `Esc` | Close / Cancel | Cancel an in-progress analysis, a pending confirmation, or close the panel |
 
-The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18). A "Read manually" bucket lists messages the LLM declined to categorize.
+The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18).
+
+**Read manually.** Messages the LLM declined to categorize land in a "Read manually" bucket, grouped by sender (noisiest senders first) so you can triage them fast. Press `g` (`keys.assist_read_manually`) to have the AI annotate each email on demand with a short hint and a suggested action (Archive / Mark read / Trash / a label you already have / Read); it costs nothing until you ask. Then press `.` (`keys.accept_suggestion`) to accept the suggestion — on a single email it applies that one; on a sender-group header it applies every suggestion in the group (a two-press confirm, `Esc` cancels). `m` on a sender-group header applies one chosen action to the whole group. If the AI is unavailable, the bucket still works as a plain sender-grouped list.
 
 ### Learning Rules
 
