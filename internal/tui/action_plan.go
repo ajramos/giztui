@@ -902,6 +902,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		// Show the panel key cheat-sheet ('?'). Available even during analysis (read-only
+		// help, no plan interaction). Consumed here so it never reaches the global help
+		// toggle while the panel is focused.
+		if a.matchesConfiguredKey(ev, a.Keys.Help) {
+			a.showActionPlanKeyHelp(state)
+			return nil
+		}
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
 			return nil
@@ -926,12 +933,6 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 		// Open the effective-prompt viewer (configurable; default "i"). Blocked during analysis.
 		if a.matchesConfiguredKey(ev, a.Keys.ViewPrompt) {
 			a.showActionPlanPromptView(state)
-			return nil
-		}
-		// Show the panel key cheat-sheet ('?'). Consumed here so it never reaches the
-		// global help toggle while the panel is focused.
-		if a.matchesConfiguredKey(ev, a.Keys.Help) {
-			a.showActionPlanKeyHelp(state)
 			return nil
 		}
 		switch key {

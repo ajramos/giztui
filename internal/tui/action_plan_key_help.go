@@ -52,7 +52,7 @@ func (a *App) showActionPlanKeyHelp(state *actionPlanState) {
 	state.container.RemoveItem(state.footer)
 	state.container.AddItem(view, 0, 1, true)
 	state.container.AddItem(state.footer, 1, 0, false)
-	state.container.SetTitle(" ⌨️  Action Plan keys ")
+	state.container.SetTitle(" ⌨️  Action Plan keys — Esc to go back ")
 	state.footer.SetText(" ↑/↓ scroll  |  Esc to go back ")
 	a.focus.set("action_plan_key_help")
 	a.SetFocus(view)
