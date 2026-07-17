@@ -130,6 +130,10 @@ func (a *App) safeRemoveCurrentSelection(removedMessageID string) {
 	if removedMessageID != "" {
 		a.baseRemoveByID(removedMessageID)
 	}
+
+	// Keep an open Action Plan in sync: an email acted on from the list/reader must
+	// also leave the plan (no-op when the plan panel isn't open).
+	a.syncActionPlanRemovedIDs(removedMessageID)
 }
 
 // removeIDsFromCurrentList removes all messages with the provided IDs from the
@@ -206,4 +210,8 @@ func (a *App) removeIDsFromCurrentList(ids []string) {
 
 	// Propagate to base snapshot if in local filter
 	a.baseRemoveByIDs(ids)
+
+	// Keep an open Action Plan in sync: bulk-acted emails must also leave the plan
+	// (no-op when the plan panel isn't open).
+	a.syncActionPlanRemovedIDs(ids...)
 }
