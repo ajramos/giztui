@@ -728,7 +728,9 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 // actionPlanFooterKeys holds the configurable bindings advertised in the footer, so the hints
 // always reflect the user's config (not hardcoded letters).
 type actionPlanFooterKeys struct {
-	viewPrompt, remember, move, skip string
+	viewPrompt, remember, move, skip           string
+	archive, trash, label, toggleRead, confirm string
+	assist, accept                             string
 }
 
 // prettyKeyLabel renders a config binding for display in footers (e.g. "ctrl+r" → "Ctrl+R",
@@ -804,12 +806,20 @@ func (a *App) updateActionPlanFooter(state *actionPlanState) {
 		key = a.actionKeyHint(cat.Action)
 		count = len(checkedIDs(cat.MessageIDs, state.excluded))
 	}
-	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, actionPlanFooterKeys{
+	fk := actionPlanFooterKeys{
 		viewPrompt: a.Keys.ViewPrompt,
 		remember:   a.Keys.RememberRule,
 		move:       a.Keys.Move,
 		skip:       a.Keys.BulkSelect,
-	}))
+		archive:    a.Keys.Archive,
+		trash:      a.Keys.Trash,
+		label:      a.Keys.ManageLabels,
+		toggleRead: a.Keys.ToggleRead,
+		confirm:    a.Keys.ConfirmPlan,
+		assist:     a.Keys.AssistReadManually,
+		accept:     a.Keys.AcceptSuggestion,
+	}
+	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, fk))
 }
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
@@ -1015,6 +1025,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		// Show the panel key cheat-sheet ('?'). Available even during analysis (read-only
+		// help, no plan interaction). Consumed here so it never reaches the global help
+		// toggle while the panel is focused.
+		if a.matchesConfiguredKey(ev, a.Keys.Help) {
+			a.showActionPlanKeyHelp(state)
+			return nil
+		}
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
 			return nil

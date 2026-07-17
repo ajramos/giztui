@@ -232,7 +232,10 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | `c` | Confirm whole plan | Press once to see a summary of everything the plan will do (e.g. `Apply plan: 12 archive, 3 trash, 5 label`), press `c` again to apply every category's suggested action to its checked emails; `Esc` cancels the confirmation without closing the panel (`keys.confirm_plan`) |
 | `g` | Assist Read manually | On the "Read manually" bucket, ask the AI (on demand) for a one-line hint + suggested action per email; costs nothing until pressed (`keys.assist_read_manually`) |
 | `.` | Accept suggestion | Accept the AI's suggested action — on an email, just that one; on a sender group header, all of the group's suggestions (two-press confirm; `Esc` cancels) (`keys.accept_suggestion`) |
+| `?` | Key cheat-sheet | Show all of this panel's keys in a read-only overlay; `↑/↓` scrolls, `Esc` returns to the tree (`keys.help`) |
 | `Esc` | Close / Cancel | Cancel an in-progress analysis, a pending confirmation, or close the panel |
+
+> `?` is context-aware: inside a panel it shows that panel's cheat-sheet; on the main message list it opens the global help screen.
 
 The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18).
 
