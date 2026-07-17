@@ -676,7 +676,8 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 // actionPlanFooterKeys holds the configurable bindings advertised in the footer, so the hints
 // always reflect the user's config (not hardcoded letters).
 type actionPlanFooterKeys struct {
-	viewPrompt, remember, move, skip string
+	viewPrompt, remember, move, skip           string
+	archive, trash, label, toggleRead, confirm string
 }
 
 // prettyKeyLabel renders a config binding for display in footers (e.g. "ctrl+r" → "Ctrl+R",
@@ -752,12 +753,18 @@ func (a *App) updateActionPlanFooter(state *actionPlanState) {
 		key = a.actionKeyHint(cat.Action)
 		count = len(checkedIDs(cat.MessageIDs, state.excluded))
 	}
-	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, actionPlanFooterKeys{
+	fk := actionPlanFooterKeys{
 		viewPrompt: a.Keys.ViewPrompt,
 		remember:   a.Keys.RememberRule,
 		move:       a.Keys.Move,
 		skip:       a.Keys.BulkSelect,
-	}))
+		archive:    a.Keys.Archive,
+		trash:      a.Keys.Trash,
+		label:      a.Keys.ManageLabels,
+		toggleRead: a.Keys.ToggleRead,
+		confirm:    a.Keys.ConfirmPlan,
+	}
+	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, fk))
 }
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
