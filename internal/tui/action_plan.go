@@ -928,6 +928,12 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			a.showActionPlanPromptView(state)
 			return nil
 		}
+		// Show the panel key cheat-sheet ('?'). Consumed here so it never reaches the
+		// global help toggle while the panel is focused.
+		if a.matchesConfiguredKey(ev, a.Keys.Help) {
+			a.showActionPlanKeyHelp(state)
+			return nil
+		}
 		switch key {
 		case a.Keys.Archive:
 			a.executeActionPlanAction(state, "archive")

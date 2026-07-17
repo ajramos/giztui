@@ -2335,7 +2335,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-8s  📋  Toggle Markdown rendering (rendered ↔ raw)\n", a.Keys.Markdown)
 	fmt.Fprintf(&help, "    %-8s  👤  Account picker (switch accounts)\n", a.Keys.Accounts)
 	fmt.Fprintf(&help, "    %-8s  🧠  Open inbox Action Plan (AI)\n", a.Keys.ActionPlan)
-	fmt.Fprintf(&help, "      └ in panel: Enter open in reader · %s remember rule · %s view prompt · %s move · %s exclude · %s confirm whole plan (press twice)\n\n", a.Keys.RememberRule, a.Keys.ViewPrompt, a.Keys.Move, a.Keys.BulkSelect, a.Keys.ConfirmPlan)
+	fmt.Fprintf(&help, "      └ in panel: Enter open in reader · %s remember rule · %s view prompt · %s move · %s exclude · %s confirm whole plan (press twice)\n", a.Keys.RememberRule, a.Keys.ViewPrompt, a.Keys.Move, a.Keys.BulkSelect, a.Keys.ConfirmPlan)
+	fmt.Fprintf(&help, "      └ press '%s' inside a panel to see that panel's full key cheat-sheet\n\n", a.Keys.Help)
 
 	// Command Equivalents
 	help.WriteString("💻 COMMAND EQUIVALENTS\n\n")

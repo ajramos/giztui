@@ -230,7 +230,10 @@ The panel is a two-level tree. **Category nodes** are the top level (e.g. `[a] A
 | toggle-read key | Mark read | Mark the highlighted category's checked emails as read |
 | `Ctrl+R` | Remember rule | Open an editable modal pre-seeded with a preference rule suggestion; editing + `Enter` saves it for future analyses (`keys.remember_rule`) |
 | `c` | Confirm whole plan | Press once to see a summary of everything the plan will do (e.g. `Apply plan: 12 archive, 3 trash, 5 label`), press `c` again to apply every category's suggested action to its checked emails; `Esc` cancels the confirmation without closing the panel (`keys.confirm_plan`) |
+| `?` | Key cheat-sheet | Show all of this panel's keys in a read-only overlay; `↑/↓` scrolls, `Esc` returns to the tree (`keys.help`) |
 | `Esc` | Close / Cancel | Cancel an in-progress analysis, or close the panel |
+
+> `?` is context-aware: inside a panel it shows that panel's cheat-sheet; on the main message list it opens the global help screen.
 
 The action keys (archive / trash / label / toggle-read) reuse your configured bindings from the message list. Each category shows its suggested action's key and checked count in brackets, e.g. `[a] Archive 5/18 Newsletters` (5 checked out of 18). A "Read manually" bucket lists messages the LLM declined to categorize.
 
