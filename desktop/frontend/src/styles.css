@@ -101,6 +101,7 @@ button {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  white-space: nowrap;
 }
 button:hover {
   filter: brightness(1.08);
@@ -208,11 +209,15 @@ button.danger {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 .row .date {
   color: var(--text-muted);
   font-size: 12px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 .row .subject {
   overflow: hidden;
@@ -268,7 +273,15 @@ button.danger {
 .reader-head .actions {
   margin-top: 14px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+.reader-head .actions button {
+  padding: 7px 12px;
+  font-size: 12.5px;
+}
+.reader-labels {
+  margin-top: 8px;
 }
 .reader-body {
   flex: 1;

@@ -63,6 +63,39 @@ export interface AccountInfo {
   active: boolean;
 }
 
+export interface KeyMap {
+  summarize: string;
+  prompt: string;
+  archive: string;
+  trash: string;
+  toggleRead: string;
+  manageLabels: string;
+  compose: string;
+  reply: string;
+  forward: string;
+  search: string;
+  refresh: string;
+  loadMore: string;
+  drafts: string;
+  openGmail: string;
+  bulkMode: string;
+  bulkSelect: string;
+  markdown: string;
+  attachments: string;
+  help: string;
+  gotoTop: string;
+  gotoBottom: string;
+  vimTimeoutMs: number;
+}
+
+export const DEFAULT_KEYMAP: KeyMap = {
+  summarize: "y", prompt: "p", archive: "a", trash: "d", toggleRead: "t",
+  manageLabels: "l", compose: "c", reply: "r", forward: "f", search: "s",
+  refresh: "R", loadMore: "N", drafts: "D", openGmail: "O", bulkMode: "v",
+  bulkSelect: "space", markdown: "M", attachments: "A", help: "?",
+  gotoTop: "gg", gotoBottom: "G", vimTimeoutMs: 1000,
+};
+
 export interface DraftSummary {
   id: string;
   to: string;
@@ -111,6 +144,7 @@ interface Backend {
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
+  KeyMap(): Promise<KeyMap>;
   OpenGmailWeb(messageID: string): Promise<void>;
   ListDrafts(): Promise<DraftSummary[]>;
   GetDraft(draftID: string): Promise<DraftDetail>;
@@ -381,6 +415,9 @@ const mockBackend: Backend = {
   async SwitchAccount(id: string) {
     await new Promise((r) => setTimeout(r, 250));
     mockActiveAccount = id;
+  },
+  async KeyMap() {
+    return DEFAULT_KEYMAP;
   },
   async OpenGmailWeb() {
     /* mock: no-op (would open the system browser) */

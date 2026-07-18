@@ -13,6 +13,7 @@ import (
 	"context"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -68,6 +69,9 @@ type API struct {
 	draft        draftClient
 	accountEmail string
 	logger       *log.Logger
+
+	labelsOnce sync.Once
+	labelNames map[string]string // Gmail label ID -> human name
 }
 
 // NewAPI wires an API from already-constructed services. Use NewSession when you
@@ -223,7 +227,7 @@ func (a *API) hydrate(page *services.MessagePage) (*MessageList, error) {
 			Snippet:  m.Snippet,
 			Date:     a.mail.ExtractDate(m),
 			Unread:   containsLabel(rawLabels, "UNREAD"),
-			Labels:   userLabels(rawLabels),
+			Labels:   a.resolveLabels(rawLabels),
 		})
 	}
 	return result, nil
@@ -233,6 +237,39 @@ func (a *API) hydrate(page *services.MessagePage) (*MessageList, error) {
 var systemLabels = map[string]struct{}{
 	"INBOX": {}, "UNREAD": {}, "SENT": {}, "DRAFT": {}, "TRASH": {},
 	"SPAM": {}, "CHAT": {}, "IMPORTANT": {}, "STARRED": {},
+}
+
+// resolveLabels maps raw Gmail label IDs to human names (lazily loading the
+// account's label list once) and drops system/category labels. Used for list
+// summaries, whose metadata only carries label IDs.
+func (a *API) resolveLabels(ids []string) []string {
+	a.labelsOnce.Do(func() {
+		a.labelNames = map[string]string{}
+		if a.labels != nil {
+			if ls, err := a.labels.ListLabels(context.Background()); err == nil {
+				for _, l := range ls {
+					if l != nil {
+						a.labelNames[l.Id] = l.Name
+					}
+				}
+			}
+		}
+	})
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, sys := systemLabels[id]; sys {
+			continue
+		}
+		if strings.HasPrefix(id, "CATEGORY_") {
+			continue
+		}
+		if name, ok := a.labelNames[id]; ok && name != "" {
+			out = append(out, name)
+		} else {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // userLabels filters out system/category labels, leaving only labels a user

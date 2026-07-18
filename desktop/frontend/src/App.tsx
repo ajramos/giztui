@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   applyPromptStream,
   backend,
+  DEFAULT_KEYMAP,
   isWails,
   summarizeStream,
   type AccountInfo,
   type Attachment,
   type DraftSummary,
+  type KeyMap,
   type MessageDetail,
   type MessageSummary,
   type Prompt,
@@ -57,6 +59,7 @@ export default function App() {
   const [draftsView, setDraftsView] = useState(false);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -143,6 +146,11 @@ export default function App() {
         setAccounts(await backend.ListAccounts());
       } catch {
         /* non-fatal */
+      }
+      try {
+        setKeymap(await backend.KeyMap());
+      } catch {
+        /* non-fatal — defaults already set */
       }
       void load("");
     })();
@@ -424,33 +432,61 @@ export default function App() {
     [detail, showToast],
   );
 
-  // Keyboard shortcuts mirroring the GizTUI TUI defaults.
+  // Invert the (config-driven) keymap into a chord → action lookup. gotoTop is
+  // handled separately (it may be the "gg" vim sequence).
+  const chordAction = useMemo(() => {
+    const m: Record<string, string> = {};
+    const add = (key: string, action: string) => {
+      if (key && key !== "gg") m[key] = action;
+    };
+    add(keymap.summarize, "summarize");
+    add(keymap.prompt, "prompt");
+    add(keymap.archive, "archive");
+    add(keymap.trash, "trash");
+    add(keymap.toggleRead, "toggleRead");
+    add(keymap.manageLabels, "manageLabels");
+    add(keymap.compose, "compose");
+    add(keymap.reply, "reply");
+    add(keymap.forward, "forward");
+    add(keymap.search, "search");
+    add(keymap.refresh, "refresh");
+    add(keymap.loadMore, "loadMore");
+    add(keymap.drafts, "drafts");
+    add(keymap.openGmail, "openGmail");
+    add(keymap.bulkMode, "bulkMode");
+    add(keymap.bulkSelect, "bulkSelect");
+    add(keymap.markdown, "markdown");
+    add(keymap.help, "help");
+    return m;
+  }, [keymap]);
+
+  // Global keyboard shortcuts, driven by the user's GizTUI keybindings. List
+  // navigation (j/k/arrows/Enter/Esc) mirrors the TUI's native table: j/k move a
+  // cursor without opening; Enter opens. This avoids marking mail read while
+  // just scanning.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
+      const chord = e.key === " " ? "space" : e.key;
 
-      // Modals own their keys; the global handler only helps Help close.
       if (showHelp) {
-        if (e.key === "Escape" || e.key === "?") {
+        if (e.key === "Escape" || chord === keymap.help) {
           setShowHelp(false);
           e.preventDefault();
         }
         return;
       }
       if (compose || labelsFor || bulkLabels || promptsOpen) return;
-
       if (typing) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
       }
-
-      // Drafts view has its own minimal key set.
       if (draftsView) {
-        if (e.key === "Escape" || e.key === "D") {
+        if (e.key === "Escape" || chord === keymap.drafts) {
           setDraftsView(false);
           e.preventDefault();
-        } else if (e.key === "?") {
+        } else if (chord === keymap.help) {
           setShowHelp(true);
         }
         return;
@@ -459,56 +495,132 @@ export default function App() {
       const idx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
-      // In bulk mode j/k move a cursor (highlight) without opening the message.
-      const goTo = (i: number) => {
-        if (i < 0 || i >= messages.length) return;
-        if (bulkMode) setSelectedId(messages[i].id);
-        else void openMessage(messages[i]);
+      const moveCursor = (i: number) => {
+        if (i >= 0 && i < messages.length) setSelectedId(messages[i].id);
       };
       const hasSel = bulkMode && selected.size > 0;
 
-      // Prevent handled shortcut keys from also typing into freshly-focused
-      // inputs (e.g. 'l' opening the labels picker must not seed its filter).
-      const HANDLED = "jkGgNRadtlcrfyvpMODs/?*";
-      if (
-        HANDLED.includes(e.key) ||
-        e.key === " " ||
-        e.key === "ArrowDown" ||
-        e.key === "ArrowUp" ||
-        e.key === "Enter"
-      ) {
+      // --- list navigation (not remappable, like the TUI table) ---
+      if (chord === "j" || chord === "ArrowDown") {
         e.preventDefault();
+        moveCursor(idx < 0 ? 0 : Math.min(messages.length - 1, idx + 1));
+        return;
+      }
+      if (chord === "k" || chord === "ArrowUp") {
+        e.preventDefault();
+        moveCursor(idx <= 0 ? 0 : idx - 1);
+        return;
+      }
+      if (chord === "Enter") {
+        e.preventDefault();
+        if (idx >= 0) {
+          if (bulkMode) toggleSelect(messages[idx].id);
+          else void openMessage(messages[idx]);
+        }
+        return;
+      }
+      if (chord === "Escape") {
+        if (bulkMode) exitBulk();
+        else if (detail) {
+          setSelectedId(null);
+          setDetail(null);
+        }
+        return;
+      }
+      if (chord === "*") {
+        if (bulkMode) {
+          e.preventDefault();
+          setSelected(new Set(messages.map((m) => m.id)));
+        }
+        return;
+      }
+      if (chord === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
       }
 
-      switch (e.key) {
-        case "j":
-        case "ArrowDown":
-          goTo(Math.min(messages.length - 1, idx + 1) || 0);
-          break;
-        case "k":
-        case "ArrowUp":
-          goTo(Math.max(0, idx <= 0 ? 0 : idx - 1));
-          break;
-        case "Enter":
-          if (idx >= 0) {
-            if (bulkMode) toggleSelect(messages[idx].id);
-            else void openMessage(messages[idx]);
-          }
-          break;
-        case "G":
-          goTo(messages.length - 1);
-          break;
-        case "g": {
+      // --- goto top/bottom ---
+      if (chord === keymap.gotoBottom) {
+        e.preventDefault();
+        moveCursor(messages.length - 1);
+        return;
+      }
+      if (keymap.gotoTop === "gg") {
+        if (chord === "g") {
+          e.preventDefault();
           const now = Date.now();
-          if (now - gPressedAt.current < 500) {
-            goTo(0);
+          if (now - gPressedAt.current < (keymap.vimTimeoutMs || 1000)) {
+            moveCursor(0);
             gPressedAt.current = 0;
           } else {
             gPressedAt.current = now;
           }
-          break;
+          return;
         }
-        case "v":
+      } else if (chord === keymap.gotoTop) {
+        e.preventDefault();
+        moveCursor(0);
+        return;
+      }
+
+      // --- config-driven actions ---
+      const action = chordAction[chord];
+      if (!action) return;
+      e.preventDefault();
+      switch (action) {
+        case "summarize":
+          if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
+          break;
+        case "prompt":
+          if (detail && aiPromptsEnabled && !bulkMode) setPromptsOpen(true);
+          break;
+        case "archive":
+          if (hasSel) void bulkAction("archive");
+          else if (detail) void doAction("archive", detail.id);
+          break;
+        case "trash":
+          if (hasSel) void bulkAction("trash");
+          else if (detail) void doAction("trash", detail.id);
+          break;
+        case "toggleRead":
+          if (hasSel) void bulkAction("unread");
+          else if (detail)
+            void doAction(detail.unread ? "read" : "unread", detail.id);
+          break;
+        case "manageLabels":
+          if (hasSel) setBulkLabels(true);
+          else if (detail) setLabelsFor(detail.id);
+          break;
+        case "compose":
+          setCompose({ mode: "new" });
+          break;
+        case "reply":
+          if (detail && !bulkMode) setCompose(replyInit(detail));
+          break;
+        case "forward":
+          if (detail && !bulkMode) setCompose(forwardInit(detail));
+          break;
+        case "search":
+          searchRef.current?.focus();
+          break;
+        case "refresh":
+          void load(activeQuery);
+          break;
+        case "loadMore":
+          void loadMore();
+          break;
+        case "drafts":
+          openDrafts();
+          break;
+        case "openGmail":
+          if (detail) openInGmail(detail.id);
+          break;
+        case "markdown":
+          if (detail && detail.html && detail.html.trim())
+            setViewHtml((v) => !v);
+          break;
+        case "bulkMode":
           if (bulkMode) exitBulk();
           else {
             setBulkMode(true);
@@ -516,71 +628,10 @@ export default function App() {
               setSelectedId(messages[0].id);
           }
           break;
-        case " ":
+        case "bulkSelect":
           if (bulkMode && selectedId) toggleSelect(selectedId);
           break;
-        case "*":
-          if (bulkMode) setSelected(new Set(messages.map((m) => m.id)));
-          break;
-        case "N":
-          void loadMore();
-          break;
-        case "R":
-          void load(activeQuery);
-          break;
-        case "Escape":
-          if (bulkMode) exitBulk();
-          else if (detail) {
-            setSelectedId(null);
-            setDetail(null);
-          }
-          break;
-        case "a":
-          if (hasSel) void bulkAction("archive");
-          else if (detail) void doAction("archive", detail.id);
-          break;
-        case "d":
-          if (hasSel) void bulkAction("trash");
-          else if (detail) void doAction("trash", detail.id);
-          break;
-        case "t":
-          if (hasSel) void bulkAction("unread");
-          else if (detail)
-            void doAction(detail.unread ? "read" : "unread", detail.id);
-          break;
-        case "l":
-          if (hasSel) setBulkLabels(true);
-          else if (detail) setLabelsFor(detail.id);
-          break;
-        case "c":
-          setCompose({ mode: "new" });
-          break;
-        case "r":
-          if (detail && !bulkMode) setCompose(replyInit(detail));
-          break;
-        case "f":
-          if (detail && !bulkMode) setCompose(forwardInit(detail));
-          break;
-        case "y":
-          if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
-          break;
-        case "p":
-          if (detail && aiPromptsEnabled && !bulkMode) setPromptsOpen(true);
-          break;
-        case "M":
-          if (detail && detail.html && detail.html.trim()) setViewHtml((v) => !v);
-          break;
-        case "D":
-          openDrafts();
-          break;
-        case "O":
-          if (detail) openInGmail(detail.id);
-          break;
-        case "s":
-        case "/":
-          searchRef.current?.focus();
-          break;
-        case "?":
+        case "help":
           setShowHelp(true);
           break;
       }
@@ -588,6 +639,8 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [
+    keymap,
+    chordAction,
     messages,
     selectedId,
     detail,
@@ -878,6 +931,15 @@ export default function App() {
                   </div>
                   <div className="muted">to {detail.to}</div>
                   <div className="muted">{formatFull(detail.date)}</div>
+                  {detail.labels.length > 0 && (
+                    <div className="labels reader-labels">
+                      {detail.labels.map((l) => (
+                        <span key={l} className="label-chip">
+                          {l}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="actions">
                   <button onClick={() => setCompose(replyInit(detail))}>

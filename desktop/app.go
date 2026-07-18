@@ -142,6 +142,14 @@ func (a *App) DeleteDraft(draftID string) error {
 	return api.DeleteDraft(a.ctx, draftID)
 }
 
+// KeyMap returns the user's configured keyboard shortcuts (or defaults).
+func (a *App) KeyMap() desktop.KeyMap {
+	if a.session == nil {
+		return desktop.DefaultKeyMap()
+	}
+	return a.session.KeyMap()
+}
+
 // ListAccounts returns all configured accounts for the account switcher.
 func (a *App) ListAccounts() ([]desktop.AccountInfo, error) {
 	if a.session == nil {
