@@ -193,6 +193,7 @@ interface Backend {
   PromptsEnabled(): Promise<boolean>;
   ListPrompts(): Promise<Prompt[]>;
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
+  ApplyBulkPromptStream(ids: string[], promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
   KeyMap(): Promise<KeyMap>;
@@ -306,6 +307,19 @@ export function applyPromptStream(
   return streamViaEvent(
     "prompt:token",
     () => backend.ApplyPromptStream(id, promptId),
+    onToken,
+  );
+}
+
+// applyBulkPromptStream streams the result of a prompt applied across messages.
+export function applyBulkPromptStream(
+  ids: string[],
+  promptId: number,
+  onToken: (token: string) => void,
+): Promise<string> {
+  return streamViaEvent(
+    "prompt:token",
+    () => backend.ApplyBulkPromptStream(ids, promptId),
     onToken,
   );
 }
@@ -479,6 +493,10 @@ const mockBackend: Backend = {
       { id: 3, name: "Draft a polite reply", description: "Suggest a response", category: "compose" },
       { id: 4, name: "Translate to Spanish", description: "Translate the email", category: "language" },
     ];
+  },
+  async ApplyBulkPromptStream(ids: string[], _promptID: number) {
+    await new Promise((r) => setTimeout(r, 400));
+    return `Applied to ${ids.length} messages:\n\n• Combined key points across the selection\n• (mock bulk prompt result)`;
   },
   async ApplyPromptStream(_id: string, promptID: number) {
     const names: Record<number, string> = {

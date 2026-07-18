@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  applyBulkPromptStream,
   applyPromptStream,
   backend,
   DEFAULT_KEYMAP,
@@ -112,6 +113,8 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
+  const [bulkPromptText, setBulkPromptText] = useState<string | null>(null);
+  const [bulkPromptLabel, setBulkPromptLabel] = useState("");
   const [actionPlanOn, setActionPlanOn] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [plan, setPlan] = useState<ActionPlanResult | null>(null);
@@ -481,27 +484,39 @@ export default function App() {
 
   const runPrompt = useCallback(
     async (prompt: Prompt) => {
-      if (!detail) return;
+      const bulk = bulkMode && selected.size > 0;
+      if (!bulk && !detail) return;
       setPromptsOpen(false);
-      setPromptLabel(prompt.name);
       setPromptRunning(true);
-      setPromptResult("");
       setError("");
+      if (bulk) {
+        setBulkPromptLabel(`${prompt.name} · ${selected.size} messages`);
+        setBulkPromptText("");
+      } else {
+        setPromptLabel(prompt.name);
+        setPromptResult("");
+      }
       try {
         let acc = "";
-        const final = await applyPromptStream(detail.id, prompt.id, (tok) => {
+        const onTok = (tok: string) => {
           acc += tok;
-          setPromptResult(acc);
-        });
-        setPromptResult(final);
+          if (bulk) setBulkPromptText(acc);
+          else setPromptResult(acc);
+        };
+        const final = bulk
+          ? await applyBulkPromptStream([...selected], prompt.id, onTok)
+          : await applyPromptStream(detail!.id, prompt.id, onTok);
+        if (bulk) setBulkPromptText(final);
+        else setPromptResult(final);
       } catch (e) {
         setError(String(e));
-        setPromptResult(null);
+        if (bulk) setBulkPromptText(null);
+        else setPromptResult(null);
       } finally {
         setPromptRunning(false);
       }
     },
-    [detail],
+    [detail, bulkMode, selected],
   );
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
@@ -781,7 +796,8 @@ export default function App() {
           if (d && aiEnabled) void summarize(d.id);
           break;
         case "prompt":
-          if (d && aiPromptsEnabled) setPromptsOpen(true);
+          if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0)))
+            setPromptsOpen(true);
           break;
         case "suggest":
           if (d && aiEnabled) void openSuggest(d.id);
@@ -834,6 +850,8 @@ export default function App() {
       savedQueriesOn,
       runActionPlan,
       actionPlanOn,
+      bulkMode,
+      selected,
       showToast,
     ],
   );
@@ -932,7 +950,8 @@ export default function App() {
         cmdOpen ||
         queriesOpen ||
         saveQueryOpen ||
-        planOpen
+        planOpen ||
+        bulkPromptText !== null
       )
         return;
       if (typing) {
@@ -1034,7 +1053,11 @@ export default function App() {
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
           break;
         case "prompt":
-          if (detail && aiPromptsEnabled && !bulkMode) setPromptsOpen(true);
+          if (
+            aiPromptsEnabled &&
+            ((detail && !bulkMode) || (bulkMode && selected.size > 0))
+          )
+            setPromptsOpen(true);
           break;
         case "archive":
           if (hasSel) void bulkAction("archive");
@@ -1155,6 +1178,8 @@ export default function App() {
     savedQueriesOn,
     queriesOpen,
     saveQueryOpen,
+    planOpen,
+    bulkPromptText,
     actionPlanOn,
     activeQuery,
     bulkMode,
@@ -1853,6 +1878,31 @@ export default function App() {
               <button onClick={doSaveQuery} disabled={!saveQueryName.trim()}>
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {bulkPromptText !== null && (
+        <div className="modal-overlay" onClick={() => setBulkPromptText(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>✦ {bulkPromptLabel}</h3>
+              <button className="ghost" onClick={() => setBulkPromptText(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {promptRunning && !bulkPromptText ? (
+                <div className="placeholder">Generating…</div>
+              ) : (
+                <pre className="summary-text">
+                  {bulkPromptText}
+                  {promptRunning && <span className="caret">▍</span>}
+                </pre>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => setBulkPromptText(null)}>Done</button>
             </div>
           </div>
         </div>

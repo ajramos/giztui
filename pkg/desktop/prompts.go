@@ -57,3 +57,19 @@ func (a *API) ApplyPromptStream(ctx context.Context, messageID string, promptID 
 	}
 	return res.ResultText, nil
 }
+
+// ApplyBulkPromptStream applies a saved prompt across many messages, streaming
+// the combined result.
+func (a *API) ApplyBulkPromptStream(ctx context.Context, ids []string, promptID int, onToken func(string)) (string, error) {
+	if a.prompts == nil {
+		return "", fmt.Errorf("prompts are not available")
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("no messages selected")
+	}
+	res, err := a.prompts.ApplyBulkPromptStream(ctx, a.accountEmail, ids, promptID, nil, onToken)
+	if err != nil {
+		return "", err
+	}
+	return res.Summary, nil
+}

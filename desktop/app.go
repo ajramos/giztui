@@ -83,6 +83,18 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ApplyBulkPromptStream applies a prompt across many messages, streaming tokens
+// via the "prompt:token" event.
+func (a *App) ApplyBulkPromptStream(ids []string, promptID int) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ApplyBulkPromptStream(a.ctx, ids, promptID, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, promptTokenEvent, tok)
+	})
+}
+
 // ActionPlanEnabled reports whether the AI inbox action plan is available.
 func (a *App) ActionPlanEnabled() bool {
 	return a.session != nil && a.session.API.ActionPlanEnabled()
