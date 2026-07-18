@@ -40,6 +40,8 @@ const PAGE_SIZE = 50;
 const COMMANDS: CommandDef[] = [
   { names: ["search", "s"], desc: "Gmail search", arg: "<query>" },
   { names: ["unread"], desc: "Show unread only" },
+  { names: ["advanced", "adv"], desc: "Advanced search builder" },
+  { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["archive", "a"], desc: "Archive message" },
   { names: ["trash", "d"], desc: "Trash message" },
   { names: ["read"], desc: "Mark read" },
@@ -72,6 +74,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["subject"], desc: "Search this subject" },
   { names: ["headers"], desc: "Toggle headers" },
   { names: ["toolbar"], desc: "Show/hide reader toolbar" },
+  { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
@@ -125,6 +128,7 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [threadingOn, setThreadingOn] = useState(false);
   const [threadMsgs, setThreadMsgs] = useState<MessageDetail[] | null>(null);
+  const [collapsedMsgs, setCollapsedMsgs] = useState<Set<string>>(new Set());
   const [loadingThread, setLoadingThread] = useState(false);
   const [savedQueriesOn, setSavedQueriesOn] = useState(false);
   const [queriesOpen, setQueriesOpen] = useState(false);
@@ -148,6 +152,8 @@ export default function App() {
   const [themeNames, setThemeNames] = useState<string[]>([]);
   const [currentTheme, setCurrentTheme] = useState("");
   const [generatingReply, setGeneratingReply] = useState(false);
+  const [touchUpText, setTouchUpText] = useState<string | null>(null);
+  const [touchingUp, setTouchingUp] = useState(false);
   const [headersExpanded, setHeadersExpanded] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [moveName, setMoveName] = useState("");
@@ -160,6 +166,20 @@ export default function App() {
   const [showToolbar, setShowToolbar] = useState(
     () => localStorage.getItem("giztui.toolbar") !== "off",
   );
+  // Local filter mode: narrow the already-loaded list client-side instead of
+  // running a remote Gmail search (the TUI's search_toggle_mode).
+  const [localFilter, setLocalFilter] = useState(false);
+  const [advOpen, setAdvOpen] = useState(false);
+  const [adv, setAdv] = useState({
+    from: "",
+    to: "",
+    subject: "",
+    hasAttachment: false,
+    unreadOnly: false,
+    after: "",
+    before: "",
+  });
+  const fullMessagesRef = useRef<MessageSummary[]>([]);
   const toggleToolbar = useCallback(() => {
     setShowToolbar((v) => {
       const next = !v;
@@ -241,6 +261,7 @@ export default function App() {
         : await backend.ListInbox("", PAGE_SIZE);
       const msgs = list.messages ?? [];
       setMessages(msgs);
+      fullMessagesRef.current = msgs;
       setNextToken(list.nextPageToken ?? "");
       // Select + preview the first message so the app opens ready to read.
       if (msgs.length > 0) previewRef.current(msgs[0]);
@@ -262,7 +283,9 @@ export default function App() {
       const list = activeQuery
         ? await backend.Search(activeQuery, nextToken, PAGE_SIZE)
         : await backend.ListInbox(nextToken, PAGE_SIZE);
-      setMessages((prev) => [...prev, ...(list.messages ?? [])]);
+      const more = list.messages ?? [];
+      fullMessagesRef.current = [...fullMessagesRef.current, ...more];
+      setMessages((prev) => [...prev, ...more]);
       setNextToken(list.nextPageToken ?? "");
     } catch (e) {
       setError(String(e));
@@ -270,6 +293,41 @@ export default function App() {
       setLoadingMore(false);
     }
   }, [nextToken, loadingMore, activeQuery]);
+
+  // applyLocalFilter narrows the loaded list client-side (subject/from/snippet)
+  // without hitting the network; an empty query restores the full list.
+  const applyLocalFilter = useCallback((q: string) => {
+    const needle = q.trim().toLowerCase();
+    const full = fullMessagesRef.current;
+    const next = needle
+      ? full.filter(
+          (m) =>
+            m.subject.toLowerCase().includes(needle) ||
+            m.from.toLowerCase().includes(needle) ||
+            m.snippet.toLowerCase().includes(needle),
+        )
+      : full;
+    setMessages(next);
+    if (next.length > 0) previewRef.current(next[0]);
+    else {
+      setSelectedId(null);
+      setDetail(null);
+    }
+  }, []);
+
+  // buildAdvancedQuery assembles a Gmail search string from the builder fields.
+  const buildAdvancedQuery = useCallback((): string => {
+    const parts: string[] = [];
+    if (adv.from.trim()) parts.push(`from:${adv.from.trim()}`);
+    if (adv.to.trim()) parts.push(`to:${adv.to.trim()}`);
+    if (adv.subject.trim()) parts.push(`subject:(${adv.subject.trim()})`);
+    if (adv.hasAttachment) parts.push("has:attachment");
+    if (adv.unreadOnly) parts.push("is:unread");
+    if (adv.after.trim()) parts.push(`after:${adv.after.trim().replace(/-/g, "/")}`);
+    if (adv.before.trim())
+      parts.push(`before:${adv.before.trim().replace(/-/g, "/")}`);
+    return parts.join(" ");
+  }, [adv]);
 
   useEffect(() => {
     void (async () => {
@@ -381,6 +439,9 @@ export default function App() {
       setPromptResult(null);
       setAttachments([]);
       setThreadMsgs(null);
+      setCollapsedMsgs(new Set());
+      setTouchUpText(null);
+      setCsOpen(false);
       // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
       // keep working while reading.
       requestAnimationFrame(() => {
@@ -584,6 +645,20 @@ export default function App() {
     },
     [],
   );
+
+  // touchUp reformats the open message's body with the AI and shows the cleaned
+  // version in place of the raw text (revertable).
+  const touchUp = useCallback(async (id: string) => {
+    setTouchingUp(true);
+    setError("");
+    try {
+      setTouchUpText(await backend.TouchUp(id));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setTouchingUp(false);
+    }
+  }, []);
 
   // doMove applies a label and archives the message (Gmail "move to folder").
   const doMove = useCallback(
@@ -1073,6 +1148,26 @@ export default function App() {
         case "toolbar":
           toggleToolbar();
           break;
+        case "advanced":
+        case "adv":
+          setAdvOpen(true);
+          break;
+        case "local":
+          if (localFilter) {
+            setLocalFilter(false);
+            setMessages(fullMessagesRef.current);
+          } else {
+            setLocalFilter(true);
+            applyLocalFilter(query);
+          }
+          break;
+        case "touch-up":
+        case "touchup":
+          if (d && aiEnabled) {
+            if (touchUpText !== null) setTouchUpText(null);
+            else void touchUp(d.id);
+          }
+          break;
         case "replyai":
         case "draft":
           if (d && aiEnabled) void generateReply(d);
@@ -1149,6 +1244,11 @@ export default function App() {
       rulesEnabled,
       openRules,
       toggleToolbar,
+      touchUp,
+      touchUpText,
+      localFilter,
+      applyLocalFilter,
+      query,
     ],
   );
 
@@ -1264,6 +1364,7 @@ export default function App() {
         themePickerOpen ||
         rulesOpen ||
         promptPreview !== null ||
+        advOpen ||
         moveFor ||
         bulkPromptText !== null
       )
@@ -1539,6 +1640,7 @@ export default function App() {
     themePickerOpen,
     rulesOpen,
     promptPreview,
+    advOpen,
     moveFor,
     bulkPromptText,
     actionPlanOn,
@@ -1595,33 +1697,62 @@ export default function App() {
             e.preventDefault();
             const q = query.trim();
             searchRef.current?.blur();
-            void load(q);
+            if (localFilter) applyLocalFilter(q);
+            else void load(q);
           }}
         >
+          <IconBtn
+            icon={localFilter ? Icon.filter : Icon.search}
+            label={
+              localFilter
+                ? "Local filter — click for Gmail search"
+                : "Gmail search — click to filter loaded list"
+            }
+            primary={localFilter}
+            onClick={() => {
+              const next = !localFilter;
+              setLocalFilter(next);
+              if (next) applyLocalFilter(query);
+              else setMessages(fullMessagesRef.current);
+            }}
+          />
           <input
             ref={searchRef}
             type="text"
-            placeholder="Search mail (press / or s) — Gmail operators supported: from:, has:attachment…"
+            placeholder={
+              localFilter
+                ? "Filter loaded messages…"
+                : "Search mail (press / or s) — Gmail operators: from:, has:attachment…"
+            }
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (localFilter) applyLocalFilter(e.target.value);
+            }}
           />
-          {/* Icon buttons to match the rest of the app's button language. The
-              submit stays a real submit button so Enter/click search. */}
-          <button
-            type="submit"
-            className="icon-btn primary"
-            aria-label="Search"
-            data-tip="Search"
-          >
-            {Icon.search}
-          </button>
-          {activeQuery && (
+          {!localFilter && (
+            <button
+              type="submit"
+              className="icon-btn primary"
+              aria-label="Search"
+              data-tip="Search"
+            >
+              {Icon.search}
+            </button>
+          )}
+          <IconBtn
+            icon={Icon.sliders}
+            label="Advanced search"
+            onClick={() => setAdvOpen(true)}
+          />
+          {(activeQuery || (localFilter && query)) && (
             <IconBtn
               icon={Icon.x}
               label="Clear search"
               onClick={() => {
                 setQuery("");
-                void load("");
+                if (localFilter) setMessages(fullMessagesRef.current);
+                else void load("");
               }}
             />
           )}
@@ -1975,6 +2106,20 @@ export default function App() {
                         onClick: () => void generateReply(detail),
                       },
                       {
+                        icon: Icon.summarize,
+                        label: touchingUp
+                          ? "Reformatting…"
+                          : touchUpText !== null
+                            ? "Show original"
+                            : "Touch-up (AI)",
+                        disabled: touchingUp,
+                        hidden: !aiEnabled,
+                        onClick: () =>
+                          touchUpText !== null
+                            ? setTouchUpText(null)
+                            : void touchUp(detail.id),
+                      },
+                      {
                         icon: Icon.tag2,
                         label: "Suggest labels (AI)",
                         hidden: !aiEnabled,
@@ -2180,34 +2325,94 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                {loadingThread ? (
+                {touchUpText !== null ? (
+                  <div className="touchup">
+                    <div className="touchup-head">
+                      <span>✦ Reformatted by AI</span>
+                      <button
+                        className="ghost tiny"
+                        onClick={() => setTouchUpText(null)}
+                      >
+                        show original
+                      </button>
+                    </div>
+                    <pre className="plain">{touchUpText}</pre>
+                  </div>
+                ) : loadingThread ? (
                   <div className="placeholder">Loading conversation…</div>
                 ) : threadMsgs ? (
                   <div className="conversation">
                     <div className="conv-head">
                       <span>Conversation · {threadMsgs.length} messages</span>
-                      {aiEnabled && (
+                      <span className="summary-head-actions">
                         <button
-                          className="tiny"
-                          disabled={summarizing}
-                          onClick={() => void summarizeThread()}
+                          className="ghost tiny"
+                          onClick={() => setCollapsedMsgs(new Set())}
                         >
-                          {summarizing ? "Summarizing…" : "✦ Summarize conversation"}
+                          Expand all
                         </button>
-                      )}
+                        <button
+                          className="ghost tiny"
+                          onClick={() =>
+                            setCollapsedMsgs(
+                              new Set(threadMsgs.map((m) => m.id)),
+                            )
+                          }
+                        >
+                          Collapse all
+                        </button>
+                        {aiEnabled && (
+                          <button
+                            className="tiny"
+                            disabled={summarizing}
+                            onClick={() => void summarizeThread()}
+                          >
+                            {summarizing ? "Summarizing…" : "✦ Summarize"}
+                          </button>
+                        )}
+                      </span>
                     </div>
-                    {threadMsgs.map((m) => (
-                      <div
-                        key={m.id}
-                        className={"conv-msg" + (m.unread ? " unread" : "")}
-                      >
-                        <div className="conv-msg-head">
-                          <strong>{displayName(m.from)}</strong>
-                          <span className="muted">{formatFull(m.date)}</span>
+                    {threadMsgs.map((m) => {
+                      const collapsed = collapsedMsgs.has(m.id);
+                      return (
+                        <div
+                          key={m.id}
+                          className={
+                            "conv-msg" +
+                            (m.unread ? " unread" : "") +
+                            (collapsed ? " collapsed" : "")
+                          }
+                        >
+                          <button
+                            className="conv-msg-head"
+                            onClick={() =>
+                              setCollapsedMsgs((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(m.id)) next.delete(m.id);
+                                else next.add(m.id);
+                                return next;
+                              })
+                            }
+                          >
+                            <span className="conv-caret">
+                              {collapsed ? "▸" : "▾"}
+                            </span>
+                            <strong>{displayName(m.from)}</strong>
+                            {collapsed && (
+                              <span className="conv-snippet">
+                                {(m.plainText || "").slice(0, 80)}
+                              </span>
+                            )}
+                            <span className="conv-date muted">
+                              {formatFull(m.date)}
+                            </span>
+                          </button>
+                          {!collapsed && (
+                            <pre className="plain">{m.plainText || "(empty)"}</pre>
+                          )}
                         </div>
-                        <pre className="plain">{m.plainText || "(empty)"}</pre>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : loadingDetail ? (
                   <div className="placeholder">Loading…</div>
@@ -2706,6 +2911,115 @@ export default function App() {
                 disabled={!moveName.trim()}
               >
                 Move
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {advOpen && (
+        <div className="modal-overlay" onClick={() => setAdvOpen(false)}>
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setAdvOpen(false);
+            }}
+          >
+            <div className="modal-head">
+              <h3>Advanced search</h3>
+              <button className="ghost" onClick={() => setAdvOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="field">
+                <label>From</label>
+                <input
+                  value={adv.from}
+                  onChange={(e) => setAdv({ ...adv, from: e.target.value })}
+                  placeholder="sender@example.com"
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>To</label>
+                <input
+                  value={adv.to}
+                  onChange={(e) => setAdv({ ...adv, to: e.target.value })}
+                  placeholder="recipient@example.com"
+                />
+              </div>
+              <div className="field">
+                <label>Subject</label>
+                <input
+                  value={adv.subject}
+                  onChange={(e) => setAdv({ ...adv, subject: e.target.value })}
+                  placeholder="words in the subject"
+                />
+              </div>
+              <div className="adv-row">
+                <label className="adv-check">
+                  <input
+                    type="checkbox"
+                    checked={adv.hasAttachment}
+                    onChange={(e) =>
+                      setAdv({ ...adv, hasAttachment: e.target.checked })
+                    }
+                  />
+                  Has attachment
+                </label>
+                <label className="adv-check">
+                  <input
+                    type="checkbox"
+                    checked={adv.unreadOnly}
+                    onChange={(e) =>
+                      setAdv({ ...adv, unreadOnly: e.target.checked })
+                    }
+                  />
+                  Unread only
+                </label>
+              </div>
+              <div className="adv-row">
+                <div className="field">
+                  <label>After</label>
+                  <input
+                    type="date"
+                    value={adv.after}
+                    onChange={(e) => setAdv({ ...adv, after: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Before</label>
+                  <input
+                    type="date"
+                    value={adv.before}
+                    onChange={(e) => setAdv({ ...adv, before: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="field readonly">
+                <label>Query preview</label>
+                <div className="ro-value">
+                  {buildAdvancedQuery() || "(empty)"}
+                </div>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="ghost" onClick={() => setAdvOpen(false)}>
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const q = buildAdvancedQuery();
+                  if (!q) return;
+                  setLocalFilter(false);
+                  setQuery(q);
+                  setAdvOpen(false);
+                  void load(q);
+                }}
+                disabled={!buildAdvancedQuery()}
+              >
+                Search
               </button>
             </div>
           </div>

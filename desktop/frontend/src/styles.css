@@ -502,6 +502,27 @@ button.danger {
   color: var(--text);
 }
 
+/* Advanced search builder */
+.adv-row {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+}
+.adv-row .field {
+  flex: 1;
+}
+.adv-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.adv-check input {
+  width: auto;
+}
+
 /* Theme picker list */
 .theme-list {
   display: flex;
@@ -998,13 +1019,60 @@ button.danger {
 }
 .conv-msg-head {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
   margin-bottom: 8px;
-  gap: 12px;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+.conv-msg.collapsed .conv-msg-head {
+  margin-bottom: 0;
+}
+.conv-caret {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.conv-date {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.conv-snippet {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-weight: 400;
 }
 .conv-msg .plain {
   font-size: 13.5px;
+}
+
+/* AI touch-up (reformatted body) */
+.touchup {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.touchup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 12px;
+}
+.touchup .plain {
+  padding: 12px 14px;
+  margin: 0;
 }
 
 /* Command palette */

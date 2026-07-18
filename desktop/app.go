@@ -521,6 +521,15 @@ func (a *App) GenerateReply(id string) (string, error) {
 	return api.GenerateReply(a.ctx, id)
 }
 
+// TouchUp reformats a message's body with the AI for readability.
+func (a *App) TouchUp(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.TouchUp(a.ctx, id)
+}
+
 // SendMail sends a new message from the active account.
 func (a *App) SendMail(to, subject, body string, cc, bcc []string) error {
 	api, err := a.api()

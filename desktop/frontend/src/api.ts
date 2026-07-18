@@ -224,6 +224,7 @@ interface Backend {
   OpenAttachment(path: string): Promise<void>;
   SummarizeStream(id: string, force: boolean): Promise<string>;
   GenerateReply(id: string): Promise<string>;
+  TouchUp(id: string): Promise<string>;
   MoveToLabel(messageID: string, name: string): Promise<void>;
   BulkArchive(ids: string[]): Promise<void>;
   BulkTrash(ids: string[]): Promise<void>;
@@ -530,6 +531,11 @@ const mockBackend: Backend = {
     const m = mockMessages.find((x) => x.id === id) ?? mockMessages[0];
     await new Promise((r) => setTimeout(r, 400));
     return `Hi,\n\nThanks for your message about "${m.subject}". (mock AI draft) In the packaged app this reply is drafted by your configured LLM — edit it before sending.\n\nBest,`;
+  },
+  async TouchUp(id: string) {
+    const m = mockMessages.find((x) => x.id === id) ?? mockMessages[0];
+    await new Promise((r) => setTimeout(r, 400));
+    return `## ${m.subject}\n\nHi there,\n\nThis is the message body, **reformatted** by the AI for readability — tidy paragraphs, fixed wrapping and clean markdown.\n\n- Point one\n- Point two\n\nBest,\n${m.from}`;
   },
   async MoveToLabel() {
     await new Promise((r) => setTimeout(r, 200));

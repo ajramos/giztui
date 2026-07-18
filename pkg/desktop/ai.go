@@ -71,6 +71,30 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	return res.Summary, nil
 }
 
+// TouchUp reformats a message's body with the AI for readability (fixing broken
+// wrapping, spacing and markdown), returning the cleaned-up text. Mirrors the
+// TUI's ":touch-up".
+func (a *API) TouchUp(ctx context.Context, id string) (string, error) {
+	if a.ai == nil {
+		return "", fmt.Errorf("AI is not configured; enable an LLM provider in your GizTUI config")
+	}
+	msg, err := a.repo.GetMessage(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	content := msg.PlainText
+	if strings.TrimSpace(content) == "" {
+		content = msg.HTML
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("message has no readable content to reformat")
+	}
+	return a.ai.FormatContent(ctx, content, services.FormatOptions{
+		EnableMarkdown: true,
+		TouchUpMode:    true,
+	})
+}
+
 // GenerateReply asks the AI to draft a reply to a message and returns the draft
 // body text (the UI opens it in the composer, prefilled, for the user to edit
 // before sending).
