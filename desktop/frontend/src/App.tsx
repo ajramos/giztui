@@ -71,6 +71,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["to"], desc: "Search to this recipient" },
   { names: ["subject"], desc: "Search this subject" },
   { names: ["headers"], desc: "Toggle headers" },
+  { names: ["toolbar"], desc: "Show/hide reader toolbar" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
@@ -99,6 +100,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState("");
   const [bulkLabels, setBulkLabels] = useState(false);
   const [aiPromptsEnabled, setAiPromptsEnabled] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
@@ -153,6 +155,18 @@ export default function App() {
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
   const [csIndex, setCsIndex] = useState(0);
+  // The reader toolbar is optional — GizTUI is keyboard-first, so users can
+  // hide it and drive everything from the keyboard. The choice is persisted.
+  const [showToolbar, setShowToolbar] = useState(
+    () => localStorage.getItem("giztui.toolbar") !== "off",
+  );
+  const toggleToolbar = useCallback(() => {
+    setShowToolbar((v) => {
+      const next = !v;
+      localStorage.setItem("giztui.toolbar", next ? "on" : "off");
+      return next;
+    });
+  }, []);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -469,31 +483,53 @@ export default function App() {
     setSelected(new Set());
   }, []);
 
+  // clearReaderIfRemoved closes the reading pane when the message it shows was
+  // just removed from the list (archived/trashed), so a stale email doesn't
+  // linger on screen.
+  const clearReaderIfRemoved = useCallback(
+    (removed: Set<string>) => {
+      setDetail((d) => {
+        if (d && removed.has(d.id)) {
+          setSelectedId(null);
+          setSummary(null);
+          setThreadMsgs(null);
+          return null;
+        }
+        return d;
+      });
+    },
+    [],
+  );
+
   const bulkAction = useCallback(
     async (action: "archive" | "trash" | "read" | "unread") => {
       const ids = [...selected];
       if (ids.length === 0) return;
+      const idSet = new Set(ids);
       setBusy(true);
+      setBulkProgress(`${labelForAction(action)} ${ids.length}…`);
       setError("");
       try {
         if (action === "archive") {
           await backend.BulkArchive(ids);
-          setMessages((prev) => prev.filter((m) => !selected.has(m.id)));
+          setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+          clearReaderIfRemoved(idSet);
           showToast(`Archived ${ids.length}`);
         } else if (action === "trash") {
           await backend.BulkTrash(ids);
-          setMessages((prev) => prev.filter((m) => !selected.has(m.id)));
+          setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+          clearReaderIfRemoved(idSet);
           showToast(`Moved ${ids.length} to trash`);
         } else if (action === "read") {
           await backend.BulkMarkRead(ids);
           setMessages((prev) =>
-            prev.map((m) => (selected.has(m.id) ? { ...m, unread: false } : m)),
+            prev.map((m) => (idSet.has(m.id) ? { ...m, unread: false } : m)),
           );
           showToast(`Marked ${ids.length} read`);
         } else if (action === "unread") {
           await backend.BulkMarkUnread(ids);
           setMessages((prev) =>
-            prev.map((m) => (selected.has(m.id) ? { ...m, unread: true } : m)),
+            prev.map((m) => (idSet.has(m.id) ? { ...m, unread: true } : m)),
           );
           showToast(`Marked ${ids.length} unread`);
         }
@@ -501,10 +537,11 @@ export default function App() {
       } catch (e) {
         setError(String(e));
       } finally {
+        setBulkProgress("");
         setBusy(false);
       }
     },
-    [selected, showToast],
+    [selected, showToast, clearReaderIfRemoved],
   );
 
   const summarize = useCallback(async (id: string, force = false) => {
@@ -847,9 +884,11 @@ export default function App() {
         if (cat.action === "archive") {
           await backend.BulkArchive(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+          clearReaderIfRemoved(idSet);
         } else if (cat.action === "trash") {
           await backend.BulkTrash(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+          clearReaderIfRemoved(idSet);
         } else if (cat.action === "mark_read") {
           await backend.BulkMarkRead(ids);
           setMessages((prev) =>
@@ -870,7 +909,7 @@ export default function App() {
         setError(String(e));
       }
     },
-    [showToast],
+    [showToast, clearReaderIfRemoved],
   );
 
   // applyAllCategories runs every category's action in one go (the TUI's
@@ -1031,6 +1070,9 @@ export default function App() {
         case "headers":
           if (d) setHeadersExpanded((v) => !v);
           break;
+        case "toolbar":
+          toggleToolbar();
+          break;
         case "replyai":
         case "draft":
           if (d && aiEnabled) void generateReply(d);
@@ -1106,6 +1148,7 @@ export default function App() {
       applyTheme,
       rulesEnabled,
       openRules,
+      toggleToolbar,
     ],
   );
 
@@ -1267,6 +1310,18 @@ export default function App() {
         if (idx >= 0) {
           if (bulkMode) toggleSelect(messages[idx].id);
           else void openMessage(messages[idx]);
+        }
+        return;
+      }
+      // Bulk selection toggle (default "space"). Handled here in the list-nav
+      // block — not via the remappable action switch — so it fires reliably on
+      // the highlighted row and advances the cursor like the TUI.
+      if (bulkMode && chord === keymap.bulkSelect) {
+        e.preventDefault();
+        const i = idx >= 0 ? idx : 0;
+        if (i < messages.length) {
+          toggleSelect(messages[i].id);
+          if (i + 1 < messages.length) setSelectedId(messages[i + 1].id);
         }
         return;
       }
@@ -1572,52 +1627,65 @@ export default function App() {
             switching={switching}
             onSwitch={(a) => void switchAccount(a)}
           />
-          <button onClick={() => setCompose({ mode: "new" })} title="Compose (c)">
-            Compose
-          </button>
-          <button
-            className={draftsView ? "" : "ghost"}
-            onClick={() => {
-              if (draftsView) setDraftsView(false);
-              else openDrafts();
-            }}
-            title="Drafts (D)"
-          >
-            Drafts
-          </button>
-          <button
-            className={bulkMode ? "" : "ghost"}
-            onClick={() => {
-              if (bulkMode) exitBulk();
-              else {
-                setBulkMode(true);
-                if (!selectedId && messages.length > 0)
-                  setSelectedId(messages[0].id);
+          {/* Same IconBtn format as the reader/bulk toolbars for one consistent
+              button language across the app. */}
+          <div className="actions topbar-actions">
+            <IconBtn
+              icon={Icon.edit}
+              label="Compose (c)"
+              primary
+              onClick={() => setCompose({ mode: "new" })}
+            />
+            <IconBtn
+              icon={Icon.drafts}
+              label="Drafts (D)"
+              primary={draftsView}
+              onClick={() => {
+                if (draftsView) setDraftsView(false);
+                else openDrafts();
+              }}
+            />
+            <IconBtn
+              icon={Icon.checkAll}
+              label="Select mode (v)"
+              primary={bulkMode}
+              onClick={() => {
+                if (bulkMode) exitBulk();
+                else {
+                  setBulkMode(true);
+                  if (!selectedId && messages.length > 0)
+                    setSelectedId(messages[0].id);
+                }
+              }}
+            />
+            {savedQueriesOn && (
+              <IconBtn
+                icon={Icon.bookmark}
+                label="Saved searches (Q)"
+                onClick={() => void openQueries()}
+              />
+            )}
+            <IconBtn
+              icon={Icon.layout}
+              label={
+                showToolbar
+                  ? "Hide reader toolbar (:toolbar)"
+                  : "Show reader toolbar (:toolbar)"
               }
-            }}
-            title="Select mode (v)"
-          >
-            Select
-          </button>
-          {savedQueriesOn && (
-            <button
-              className="ghost"
-              onClick={() => void openQueries()}
-              title="Saved searches (Q)"
-            >
-              ★
-            </button>
-          )}
-          <button className="ghost" onClick={() => setShowHelp(true)} title="Shortcuts (?)">
-            ?
-          </button>
-          <button
-            className="ghost"
-            onClick={() => void load(activeQuery)}
-            title="Refresh (R)"
-          >
-            ⟳
-          </button>
+              primary={showToolbar}
+              onClick={toggleToolbar}
+            />
+            <IconBtn
+              icon={Icon.help}
+              label="Shortcuts (?)"
+              onClick={() => setShowHelp(true)}
+            />
+            <IconBtn
+              icon={Icon.refresh}
+              label="Refresh (R)"
+              onClick={() => void load(activeQuery)}
+            />
+          </div>
         </div>
       </header>
 
@@ -1667,53 +1735,64 @@ export default function App() {
             <>
           {bulkMode && (
             <div className="bulk-bar">
-              <span className="bulk-count">{selected.size} selected</span>
-              <div className="bulk-actions">
-                <button
-                  className="tiny"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => void bulkAction("archive")}
-                >
-                  Archive
-                </button>
-                <button
-                  className="tiny danger"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => void bulkAction("trash")}
-                >
-                  Trash
-                </button>
-                <button
-                  className="tiny ghost"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => void bulkAction("read")}
-                >
-                  Read
-                </button>
-                <button
-                  className="tiny ghost"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => void bulkAction("unread")}
-                >
-                  Unread
-                </button>
-                <button
-                  className="tiny ghost"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => setBulkLabels(true)}
-                >
-                  Label…
-                </button>
-                <button
-                  className="tiny ghost"
-                  onClick={() => setSelected(new Set(messages.map((m) => m.id)))}
-                >
-                  All
-                </button>
-                <button className="tiny ghost" onClick={exitBulk}>
-                  Done
-                </button>
+              <div className="bulk-top">
+                <span className="bulk-count">{selected.size} selected</span>
+                {/* Same IconBtn format as the reader toolbar for consistency. */}
+                <div className="actions">
+                  <IconBtn
+                    icon={Icon.archive}
+                    label="Archive"
+                    disabled={busy || selected.size === 0}
+                    onClick={() => void bulkAction("archive")}
+                  />
+                  <IconBtn
+                    icon={Icon.trash}
+                    label="Trash"
+                    danger
+                    disabled={busy || selected.size === 0}
+                    onClick={() => void bulkAction("trash")}
+                  />
+                  <IconBtn
+                    icon={Icon.mailOpen}
+                    label="Mark read"
+                    disabled={busy || selected.size === 0}
+                    onClick={() => void bulkAction("read")}
+                  />
+                  <IconBtn
+                    icon={Icon.mail}
+                    label="Mark unread"
+                    disabled={busy || selected.size === 0}
+                    onClick={() => void bulkAction("unread")}
+                  />
+                  <IconBtn
+                    icon={Icon.label}
+                    label="Label…"
+                    disabled={busy || selected.size === 0}
+                    onClick={() => setBulkLabels(true)}
+                  />
+                  <span className="actions-sep" />
+                  <IconBtn
+                    icon={Icon.checkAll}
+                    label="Select all"
+                    disabled={busy}
+                    onClick={() =>
+                      setSelected(new Set(messages.map((m) => m.id)))
+                    }
+                  />
+                  <IconBtn
+                    icon={Icon.check}
+                    label="Done"
+                    primary
+                    onClick={exitBulk}
+                  />
+                </div>
               </div>
+              {bulkProgress && (
+                <div className="bulk-progress">
+                  <div className="bulk-progress-bar" />
+                  <span className="bulk-progress-label">{bulkProgress}</span>
+                </div>
+              )}
             </div>
           )}
           {loadingList ? (
@@ -1805,9 +1884,12 @@ export default function App() {
                     </div>
                   )}
                 </div>
+                {showToolbar && (
                 <div className="actions">
                   {/* Primary actions stay visible; everything else collapses
-                      into the "⋯" overflow so the toolbar never wraps. */}
+                      into the "⋯" overflow so the toolbar never wraps.
+                      The whole bar is optional (keyboard-first) — hide it from
+                      the topbar ▤ toggle or :toolbar. */}
                   <IconBtn
                     icon={Icon.reply}
                     label="Reply"
@@ -1939,6 +2021,7 @@ export default function App() {
                     ]}
                   />
                 </div>
+                )}
                 {attachments.length > 0 && (
                   <div className="attach-bar">
                     {attachments.map((att) => (
@@ -2637,6 +2720,22 @@ function displayName(from: string): string {
 function emailAddr(from: string): string {
   const m = from.match(/<([^>]+)>/);
   return m ? m[1] : from;
+}
+
+// labelForAction is the present-participle verb shown while a bulk action runs.
+function labelForAction(action: string): string {
+  switch (action) {
+    case "archive":
+      return "Archiving";
+    case "trash":
+      return "Trashing";
+    case "read":
+      return "Marking read";
+    case "unread":
+      return "Marking unread";
+    default:
+      return "Working on";
+  }
 }
 
 // cleanSubject strips Re:/Fwd: prefixes so a subject search matches the thread.

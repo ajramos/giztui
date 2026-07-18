@@ -145,6 +145,47 @@ export const Icon = {
   folder: svg(
     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
   ),
+  checkAll: svg(
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <polyline points="8 12 11 15 16 9" />
+    </>,
+  ),
+  check: svg(<polyline points="20 6 9 17 4 12" />),
+  edit: svg(
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </>,
+  ),
+  drafts: svg(
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="14" y2="13" />
+      <line x1="8" y1="17" x2="12" y2="17" />
+    </>,
+  ),
+  help: svg(
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </>,
+  ),
+  refresh: svg(
+    <>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </>,
+  ),
+  layout: svg(
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+    </>,
+  ),
   search: svg(
     <>
       <circle cx="11" cy="11" r="8" />

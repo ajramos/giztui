@@ -83,6 +83,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["Q", "Saved searches"],
       ["Z", "Save current search"],
       ["H", "Theme picker"],
+      [":toolbar", "Show/hide reader toolbar"],
     ],
   },
 ];
