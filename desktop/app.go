@@ -174,3 +174,58 @@ func (a *App) Reply(originalID, body string, cc []string) error {
 	}
 	return api.Reply(a.ctx, originalID, body, cc)
 }
+
+// MessageLabelIDs returns the label IDs currently applied to a message.
+func (a *App) MessageLabelIDs(id string) ([]string, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.MessageLabelIDs(a.ctx, id)
+}
+
+// ApplyLabel adds a label to a message.
+func (a *App) ApplyLabel(messageID, labelID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.ApplyLabel(a.ctx, messageID, labelID)
+}
+
+// RemoveLabel removes a label from a message.
+func (a *App) RemoveLabel(messageID, labelID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.RemoveLabel(a.ctx, messageID, labelID)
+}
+
+// ListAttachments returns the attachments of a message.
+func (a *App) ListAttachments(id string) ([]desktop.Attachment, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListAttachments(a.ctx, id)
+}
+
+// DownloadAttachment saves an attachment to the download directory and returns
+// the resulting path.
+func (a *App) DownloadAttachment(messageID, attachmentID, filename string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.DownloadAttachment(a.ctx, messageID, attachmentID, filename)
+}
+
+// OpenAttachment opens a downloaded attachment with the system default app.
+func (a *App) OpenAttachment(path string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.OpenAttachment(a.ctx, path)
+}

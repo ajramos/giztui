@@ -73,6 +73,8 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 	renderer := render.NewEmailRenderer(cfg)
 	emailService := services.NewEmailService(repo, client, renderer)
 
+	attachmentService := services.NewAttachmentService(client, cfg)
+
 	// AIService is optional: only wired when an LLM provider is configured.
 	aiService := buildAIService(cfg, logger)
 
@@ -85,6 +87,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		Labels:       labelService,
 		Mail:         client,
 		AI:           aiService,
+		Attach:       attachmentService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

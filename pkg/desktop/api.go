@@ -42,8 +42,9 @@ type Deps struct {
 	Email        services.EmailService
 	Labels       services.LabelService
 	Mail         mailClient
-	AI           services.AIService // optional; nil when no LLM is configured
-	AccountEmail string             // active account address, used as the "from" for sends
+	AI           services.AIService         // optional; nil when no LLM is configured
+	Attach       services.AttachmentService // optional
+	AccountEmail string                     // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
 
@@ -56,6 +57,7 @@ type API struct {
 	labels       services.LabelService
 	mail         mailClient
 	ai           services.AIService
+	attach       services.AttachmentService
 	accountEmail string
 	logger       *log.Logger
 }
@@ -69,6 +71,7 @@ func NewAPI(d Deps) *API {
 		labels:       d.Labels,
 		mail:         d.Mail,
 		ai:           d.AI,
+		attach:       d.Attach,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

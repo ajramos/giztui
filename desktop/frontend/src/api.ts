@@ -40,6 +40,15 @@ export interface Label {
   name: string;
 }
 
+export interface Attachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  type: string;
+  inline: boolean;
+}
+
 interface Backend {
   InitError(): Promise<string>;
   AccountEmail(): Promise<string>;
@@ -55,6 +64,12 @@ interface Backend {
   Summarize(id: string): Promise<string>;
   SendMail(to: string, subject: string, body: string, cc: string[], bcc: string[]): Promise<void>;
   Reply(originalID: string, body: string, cc: string[]): Promise<void>;
+  MessageLabelIDs(id: string): Promise<string[]>;
+  ApplyLabel(messageID: string, labelID: string): Promise<void>;
+  RemoveLabel(messageID: string, labelID: string): Promise<void>;
+  ListAttachments(id: string): Promise<Attachment[]>;
+  DownloadAttachment(messageID: string, attachmentID: string, filename: string): Promise<string>;
+  OpenAttachment(path: string): Promise<void>;
 }
 
 declare global {
@@ -161,4 +176,39 @@ const mockBackend: Backend = {
   async Reply() {
     await new Promise((r) => setTimeout(r, 300));
   },
+  async MessageLabelIDs(id: string) {
+    return mockAppliedLabels[id] ?? ["1"];
+  },
+  async ApplyLabel(messageID: string, labelID: string) {
+    const cur = new Set(mockAppliedLabels[messageID] ?? ["1"]);
+    cur.add(labelID);
+    mockAppliedLabels[messageID] = [...cur];
+  },
+  async RemoveLabel(messageID: string, labelID: string) {
+    const cur = new Set(mockAppliedLabels[messageID] ?? ["1"]);
+    cur.delete(labelID);
+    mockAppliedLabels[messageID] = [...cur];
+  },
+  async ListAttachments(id: string) {
+    if (id.endsWith("3") || id.endsWith("0")) {
+      return [
+        {
+          attachmentId: "att1",
+          filename: "invoice-2043.pdf",
+          mimeType: "application/pdf",
+          size: 84213,
+          type: "document",
+          inline: false,
+        },
+      ];
+    }
+    return [];
+  },
+  async DownloadAttachment(_m: string, _a: string, filename: string) {
+    await new Promise((r) => setTimeout(r, 300));
+    return `~/Downloads/gmail-attachments/${filename}`;
+  },
+  async OpenAttachment() {},
 };
+
+const mockAppliedLabels: Record<string, string[]> = {};

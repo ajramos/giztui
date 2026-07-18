@@ -6,6 +6,7 @@ export interface ComposeInit {
   originalId?: string;
   to?: string;
   subject?: string;
+  body?: string;
 }
 
 export default function Compose({
@@ -20,7 +21,7 @@ export default function Compose({
   const [to, setTo] = useState(init.to ?? "");
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState(init.subject ?? "");
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(init.body ?? "");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,7 +50,13 @@ export default function Compose({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
         <div className="modal-head">
           <h3>{isReply ? "Reply" : "New message"}</h3>
           <button className="ghost" onClick={onClose}>

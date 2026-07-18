@@ -109,6 +109,39 @@ func (f *fakeAI) GenerateSummary(ctx context.Context, content string, options se
 	return &services.SummaryResult{Summary: f.summary}, nil
 }
 
+type fakeLabels struct {
+	services.LabelService
+	messageLabels []string
+	applied       [2]string
+	removed       [2]string
+}
+
+func (f *fakeLabels) GetMessageLabels(ctx context.Context, messageID string) ([]string, error) {
+	return f.messageLabels, nil
+}
+func (f *fakeLabels) ApplyLabel(ctx context.Context, messageID, labelID string) error {
+	f.applied = [2]string{messageID, labelID}
+	return nil
+}
+func (f *fakeLabels) RemoveLabel(ctx context.Context, messageID, labelID string) error {
+	f.removed = [2]string{messageID, labelID}
+	return nil
+}
+
+type fakeAttach struct {
+	services.AttachmentService
+	infos        []services.AttachmentInfo
+	downloadArgs [3]string
+}
+
+func (f *fakeAttach) GetMessageAttachments(ctx context.Context, messageID string) ([]services.AttachmentInfo, error) {
+	return f.infos, nil
+}
+func (f *fakeAttach) DownloadAttachmentWithFilename(ctx context.Context, messageID, attachmentID, savePath, suggestedFilename string) (string, error) {
+	f.downloadArgs = [3]string{messageID, attachmentID, suggestedFilename}
+	return "/downloads/" + suggestedFilename, nil
+}
+
 func rawMsg(id, subject, from string, labels []string) *gmail_v1.Message {
 	return &gmail_v1.Message{
 		Id:       id,
@@ -283,6 +316,56 @@ func TestReply(t *testing.T) {
 	}
 	if email.replied == nil || email.replied.id != "orig" || email.replied.body != "my reply" || !email.replied.send {
 		t.Errorf("unexpected reply: %+v", email.replied)
+	}
+}
+
+func TestLabelsForward(t *testing.T) {
+	labels := &fakeLabels{messageLabels: []string{"Work", "UNREAD"}}
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}, Labels: labels})
+	ctx := context.Background()
+
+	ids, err := api.MessageLabelIDs(ctx, "m1")
+	if err != nil || len(ids) != 2 {
+		t.Fatalf("MessageLabelIDs: %v %v", ids, err)
+	}
+	_ = api.ApplyLabel(ctx, "m1", "L1")
+	_ = api.RemoveLabel(ctx, "m1", "L2")
+	if labels.applied != [2]string{"m1", "L1"} {
+		t.Errorf("apply not forwarded: %v", labels.applied)
+	}
+	if labels.removed != [2]string{"m1", "L2"} {
+		t.Errorf("remove not forwarded: %v", labels.removed)
+	}
+}
+
+func TestAttachments(t *testing.T) {
+	attach := &fakeAttach{infos: []services.AttachmentInfo{
+		{AttachmentID: "a1", Filename: "doc.pdf", MimeType: "application/pdf", Size: 1234, Type: "document"},
+	}}
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}, Attach: attach})
+	ctx := context.Background()
+
+	list, err := api.ListAttachments(ctx, "m1")
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListAttachments: %v %v", list, err)
+	}
+	if list[0].Filename != "doc.pdf" || list[0].Size != 1234 {
+		t.Errorf("unexpected attachment: %+v", list[0])
+	}
+	path, err := api.DownloadAttachment(ctx, "m1", "a1", "doc.pdf")
+	if err != nil || path != "/downloads/doc.pdf" {
+		t.Fatalf("Download: %q %v", path, err)
+	}
+	if attach.downloadArgs != [3]string{"m1", "a1", "doc.pdf"} {
+		t.Errorf("download args: %v", attach.downloadArgs)
+	}
+}
+
+func TestAttachmentsNilService(t *testing.T) {
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}})
+	list, err := api.ListAttachments(context.Background(), "m1")
+	if err != nil || len(list) != 0 {
+		t.Errorf("expected empty list without attach service, got %v %v", list, err)
 	}
 }
 

@@ -41,3 +41,15 @@ type Label struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// Attachment is a JSON-serializable message attachment. It mirrors the fields of
+// services.AttachmentInfo but lives in this public package so the nested Wails
+// module (which cannot import internal/...) can consume it.
+type Attachment struct {
+	AttachmentID string `json:"attachmentId"`
+	Filename     string `json:"filename"`
+	MimeType     string `json:"mimeType"`
+	Size         int64  `json:"size"`
+	Type         string `json:"type"`
+	Inline       bool   `json:"inline"`
+}

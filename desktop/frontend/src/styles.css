@@ -296,6 +296,130 @@ button.danger {
   padding: 24px;
 }
 
+.load-more {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+}
+.load-more:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Attachments bar */
+.attach-bar {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.attach-chip {
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.attach-chip:hover {
+  border-color: var(--accent);
+  filter: none;
+}
+.attach-size {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Labels picker */
+.modal.narrow {
+  width: 420px;
+}
+.label-filter {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  outline: none;
+  width: 100%;
+}
+.label-filter:focus {
+  border-color: var(--accent);
+}
+.label-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.label-row {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.label-row:hover {
+  background: var(--bg-row-hover);
+  filter: none;
+}
+.label-row.on {
+  color: #fff;
+}
+.label-row .check {
+  width: 14px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Help overlay */
+.help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+}
+.help-col h4 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.help-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  min-width: 44px;
+  text-align: center;
+  color: var(--text);
+}
+.help-row span {
+  color: var(--text-muted);
+}
+
 /* AI summary panel */
 .summary-panel {
   background: #1a2233;
