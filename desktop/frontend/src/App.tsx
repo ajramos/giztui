@@ -5,6 +5,7 @@ import {
   DEFAULT_KEYMAP,
   isWails,
   summarizeStream,
+  threadSummaryStream,
   type AccountInfo,
   type Attachment,
   type DraftSummary,
@@ -96,6 +97,9 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [threadingOn, setThreadingOn] = useState(false);
+  const [threadMsgs, setThreadMsgs] = useState<MessageDetail[] | null>(null);
+  const [loadingThread, setLoadingThread] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -205,6 +209,7 @@ export default function App() {
       try {
         setObsidianOn(await backend.ObsidianEnabled());
         setSlackOn(await backend.SlackEnabled());
+        setThreadingOn(await backend.ThreadingEnabled());
       } catch {
         /* non-fatal */
       }
@@ -256,6 +261,7 @@ export default function App() {
       setSummary(null);
       setPromptResult(null);
       setAttachments([]);
+      setThreadMsgs(null);
       // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
       // keep working while reading.
       requestAnimationFrame(() => {
@@ -560,6 +566,44 @@ export default function App() {
     [suggestFor, showToast],
   );
 
+  const toggleThread = useCallback(async () => {
+    if (!detail) return;
+    if (threadMsgs) {
+      setThreadMsgs(null);
+      return;
+    }
+    setLoadingThread(true);
+    setError("");
+    try {
+      const msgs = await backend.GetThread(detail.threadId);
+      setThreadMsgs(msgs);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingThread(false);
+    }
+  }, [detail, threadMsgs]);
+
+  const summarizeThread = useCallback(async () => {
+    if (!detail) return;
+    setSummarizing(true);
+    setSummary("");
+    setError("");
+    try {
+      let acc = "";
+      const final = await threadSummaryStream(detail.threadId, (tok) => {
+        acc += tok;
+        setSummary(acc);
+      });
+      setSummary(final);
+    } catch (e) {
+      setError(String(e));
+      setSummary(null);
+    } finally {
+      setSummarizing(false);
+    }
+  }, [detail]);
+
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
     (input: string) => {
@@ -727,6 +771,7 @@ export default function App() {
     add(keymap.obsidian, "obsidian");
     add(keymap.slack, "slack");
     add(keymap.commandMode, "commandMode");
+    add(keymap.threading, "threading");
     return m;
   }, [keymap]);
 
@@ -938,6 +983,9 @@ export default function App() {
         case "commandMode":
           setCmdOpen(true);
           break;
+        case "threading":
+          if (detail && threadingOn) void toggleThread();
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -960,6 +1008,8 @@ export default function App() {
     cmdOpen,
     obsidianOn,
     slackOn,
+    threadingOn,
+    threadMsgs,
     activeQuery,
     bulkMode,
     selected,
@@ -971,6 +1021,7 @@ export default function App() {
     toggleSelect,
     exitBulk,
     summarize,
+    toggleThread,
     saveMessage,
     sendObsidian,
     forwardSlack,
@@ -1349,6 +1400,14 @@ export default function App() {
                       onClick={() => setViewHtml((v) => !v)}
                     />
                   )}
+                  {threadingOn && (
+                    <IconBtn
+                      icon={Icon.thread}
+                      label={threadMsgs ? "Hide conversation" : "Show conversation"}
+                      primary={!!threadMsgs}
+                      onClick={() => void toggleThread()}
+                    />
+                  )}
                   <IconBtn
                     icon={Icon.external}
                     label="Open in Gmail"
@@ -1419,7 +1478,36 @@ export default function App() {
                     )}
                   </div>
                 )}
-                {loadingDetail ? (
+                {loadingThread ? (
+                  <div className="placeholder">Loading conversation…</div>
+                ) : threadMsgs ? (
+                  <div className="conversation">
+                    <div className="conv-head">
+                      <span>Conversation · {threadMsgs.length} messages</span>
+                      {aiEnabled && (
+                        <button
+                          className="tiny"
+                          disabled={summarizing}
+                          onClick={() => void summarizeThread()}
+                        >
+                          {summarizing ? "Summarizing…" : "✦ Summarize conversation"}
+                        </button>
+                      )}
+                    </div>
+                    {threadMsgs.map((m) => (
+                      <div
+                        key={m.id}
+                        className={"conv-msg" + (m.unread ? " unread" : "")}
+                      >
+                        <div className="conv-msg-head">
+                          <strong>{displayName(m.from)}</strong>
+                          <span className="muted">{formatFull(m.date)}</span>
+                        </div>
+                        <pre className="plain">{m.plainText || "(empty)"}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : loadingDetail ? (
                   <div className="placeholder">Loading…</div>
                 ) : viewHtml && detail.html && detail.html.trim() ? (
                   <div className="html-wrap">

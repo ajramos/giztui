@@ -34,6 +34,7 @@ type KeyMap struct {
 	Obsidian     string `json:"obsidian"`
 	Slack        string `json:"slack"`
 	CommandMode  string `json:"commandMode"`
+	Threading    string `json:"threading"`
 	VimTimeoutMs int    `json:"vimTimeoutMs"`
 }
 
@@ -47,7 +48,7 @@ func DefaultKeyMap() KeyMap {
 		BulkSelect: "space", Markdown: "M", Attachments: "A", Help: "?",
 		GotoTop: "gg", GotoBottom: "G", LinkPicker: "L", ReplyAll: "E",
 		SaveMessage: "w", SuggestLabel: "o", Obsidian: "O", Slack: "K",
-		CommandMode: ":", VimTimeoutMs: 1000,
+		CommandMode: ":", Threading: "T", VimTimeoutMs: 1000,
 	}
 }
 
@@ -87,6 +88,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.Obsidian = orDefault(k.Obsidian, km.Obsidian)
 	km.Slack = orDefault(k.Slack, km.Slack)
 	km.CommandMode = orDefault(k.CommandMode, km.CommandMode)
+	km.Threading = orDefault(k.ToggleThreading, km.Threading)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}

@@ -152,6 +152,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		slackService = services.NewSlackService(client, cfg, aiService)
 	}
 
+	// Threading needs the local database.
+	var threadService services.ThreadService
+	if dbStore != nil {
+		threadService = services.NewThreadService(client, dbStore, aiService)
+	}
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -166,6 +172,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Link:         linkService,
 		Obsidian:     obsidianService,
 		Slack:        slackService,
+		Thread:       threadService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

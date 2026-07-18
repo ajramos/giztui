@@ -645,6 +645,43 @@ button.danger {
   color: #6ee7a0;
 }
 
+/* Conversation (thread) view */
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.conv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.conv-msg {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--bg);
+}
+.conv-msg.unread {
+  border-left: 3px solid var(--accent);
+}
+.conv-msg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+.conv-msg .plain {
+  font-size: 13.5px;
+}
+
 /* Command palette */
 .cmd-overlay {
   align-items: flex-start;

@@ -99,6 +99,7 @@ export interface KeyMap {
   obsidian: string;
   slack: string;
   commandMode: string;
+  threading: string;
   vimTimeoutMs: number;
 }
 
@@ -109,7 +110,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   bulkSelect: "space", markdown: "M", attachments: "A", help: "?",
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
-  commandMode: ":", vimTimeoutMs: 1000,
+  commandMode: ":", threading: "T", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -161,6 +162,9 @@ interface Backend {
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
   KeyMap(): Promise<KeyMap>;
+  ThreadingEnabled(): Promise<boolean>;
+  GetThread(threadID: string): Promise<MessageDetail[]>;
+  ThreadSummaryStream(threadID: string): Promise<string>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
@@ -237,6 +241,18 @@ export function summarizeStream(
   onToken: (token: string) => void,
 ): Promise<string> {
   return streamViaEvent("summary:token", () => backend.SummarizeStream(id), onToken);
+}
+
+// threadSummaryStream streams an AI summary of a conversation.
+export function threadSummaryStream(
+  threadId: string,
+  onToken: (token: string) => void,
+): Promise<string> {
+  return streamViaEvent(
+    "summary:token",
+    () => backend.ThreadSummaryStream(threadId),
+    onToken,
+  );
 }
 
 // applyPromptStream streams the result of applying a saved prompt to a message.
@@ -443,6 +459,37 @@ const mockBackend: Backend = {
   },
   async KeyMap() {
     return DEFAULT_KEYMAP;
+  },
+  async ThreadingEnabled() {
+    return true;
+  },
+  async GetThread(_id: string) {
+    const mk = (i: number, from: string, unread: boolean): MessageDetail => ({
+      id: `t${i}`,
+      threadId: "thread-1",
+      subject: "Re: Project roadmap Q3",
+      from,
+      to: "you@example.com",
+      cc: "",
+      date: new Date(Date.now() - (3 - i) * 3600_000).toISOString(),
+      unread,
+      labels: ["Work"],
+      plainText:
+        i === 0
+          ? "Hi team,\n\nHere is the first pass at the Q3 roadmap. Thoughts?"
+          : i === 1
+            ? "Looks great — I'd move the analytics milestone earlier though."
+            : "Agreed. Let's lock it in for the Friday review.",
+      html: "",
+    });
+    return [
+      mk(0, "Ada Lovelace <ada@compute.org>", false),
+      mk(1, "you <you@example.com>", false),
+      mk(2, "Grace Hopper <grace@navy.mil>", true),
+    ];
+  },
+  async ThreadSummaryStream() {
+    return "• Ada shared the Q3 roadmap draft\n• Team agreed to move the analytics milestone earlier\n• Locked in for the Friday review";
   },
   async ListLinks(_id: string) {
     return [

@@ -83,6 +83,32 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ThreadingEnabled reports whether conversation features are available.
+func (a *App) ThreadingEnabled() bool {
+	return a.session != nil && a.session.API.ThreadingEnabled()
+}
+
+// GetThread returns all messages in a thread for the conversation view.
+func (a *App) GetThread(threadID string) ([]desktop.MessageDetail, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.GetThread(a.ctx, threadID)
+}
+
+// ThreadSummaryStream streams an AI summary of a conversation via the
+// "summary:token" runtime event.
+func (a *App) ThreadSummaryStream(threadID string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ThreadSummaryStream(a.ctx, threadID, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, summaryTokenEvent, tok)
+	})
+}
+
 // ObsidianEnabled reports whether the Obsidian integration is available.
 func (a *App) ObsidianEnabled() bool {
 	return a.session != nil && a.session.API.ObsidianEnabled()
