@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/ajramos/giztui/pkg/desktop"
@@ -80,6 +81,65 @@ func (a *App) AccountEmail() (string, error) {
 		return "", &startupError{a.initErr}
 	}
 	return a.session.AccountEmail(a.ctx)
+}
+
+// OpenGmailWeb opens the message in Gmail's web interface in the system browser.
+func (a *App) OpenGmailWeb(messageID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	url := api.GmailWebURL(messageID)
+	if url == "" {
+		return fmt.Errorf("could not build a Gmail web URL")
+	}
+	wailsruntime.BrowserOpenURL(a.ctx, url)
+	return nil
+}
+
+// ListDrafts returns the account's drafts.
+func (a *App) ListDrafts() ([]desktop.DraftSummary, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListDrafts(a.ctx)
+}
+
+// GetDraft loads a draft for editing.
+func (a *App) GetDraft(draftID string) (*desktop.DraftDetail, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.GetDraft(a.ctx, draftID)
+}
+
+// SaveDraft creates a new draft and returns its ID.
+func (a *App) SaveDraft(to, subject, body string, cc []string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.SaveDraft(a.ctx, to, subject, body, cc)
+}
+
+// UpdateDraft overwrites an existing draft.
+func (a *App) UpdateDraft(draftID, to, subject, body string, cc []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.UpdateDraft(a.ctx, draftID, to, subject, body, cc)
+}
+
+// DeleteDraft removes a draft.
+func (a *App) DeleteDraft(draftID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeleteDraft(a.ctx, draftID)
 }
 
 // ListAccounts returns all configured accounts for the account switcher.

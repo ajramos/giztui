@@ -42,6 +42,23 @@ type Label struct {
 	Name string `json:"name"`
 }
 
+// DraftSummary is a lightweight draft for the drafts list.
+type DraftSummary struct {
+	ID      string `json:"id"`
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Snippet string `json:"snippet"`
+}
+
+// DraftDetail is a draft loaded for editing.
+type DraftDetail struct {
+	ID      string `json:"id"`
+	To      string `json:"to"`
+	Cc      string `json:"cc"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}
+
 // AccountInfo is a JSON-serializable account for the account switcher.
 type AccountInfo struct {
 	ID          string `json:"id"`

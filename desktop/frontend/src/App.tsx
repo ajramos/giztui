@@ -6,6 +6,7 @@ import {
   summarizeStream,
   type AccountInfo,
   type Attachment,
+  type DraftSummary,
   type MessageDetail,
   type MessageSummary,
   type Prompt,
@@ -53,6 +54,9 @@ export default function App() {
   const [switching, setSwitching] = useState(false);
   const [viewHtml, setViewHtml] = useState(false);
   const [loadRemote, setLoadRemote] = useState(false);
+  const [draftsView, setDraftsView] = useState(false);
+  const [drafts, setDrafts] = useState<DraftSummary[]>([]);
+  const [loadingDrafts, setLoadingDrafts] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const gPressedAt = useRef(0);
@@ -309,6 +313,46 @@ export default function App() {
     }
   }, []);
 
+  const loadDrafts = useCallback(async () => {
+    setLoadingDrafts(true);
+    setError("");
+    try {
+      setDrafts(await backend.ListDrafts());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingDrafts(false);
+    }
+  }, []);
+
+  const openDrafts = useCallback(() => {
+    setDraftsView(true);
+    setSelectedId(null);
+    setDetail(null);
+    void loadDrafts();
+  }, [loadDrafts]);
+
+  const openDraft = useCallback(async (d: DraftSummary) => {
+    setError("");
+    try {
+      const det = await backend.GetDraft(d.id);
+      setCompose({
+        mode: "draft",
+        draftId: det.id,
+        to: det.to,
+        cc: det.cc,
+        subject: det.subject,
+        body: det.body,
+      });
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const openInGmail = useCallback((id: string) => {
+    void backend.OpenGmailWeb(id).catch((e) => setError(String(e)));
+  }, []);
+
   const runPrompt = useCallback(
     async (prompt: Prompt) => {
       if (!detail) return;
@@ -387,6 +431,17 @@ export default function App() {
         return;
       }
 
+      // Drafts view has its own minimal key set.
+      if (draftsView) {
+        if (e.key === "Escape" || e.key === "D") {
+          setDraftsView(false);
+          e.preventDefault();
+        } else if (e.key === "?") {
+          setShowHelp(true);
+        }
+        return;
+      }
+
       const idx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
@@ -400,7 +455,7 @@ export default function App() {
 
       // Prevent handled shortcut keys from also typing into freshly-focused
       // inputs (e.g. 'l' opening the labels picker must not seed its filter).
-      const HANDLED = "jkGgNRadtlcrfyvpMs/?*";
+      const HANDLED = "jkGgNRadtlcrfyvpMODs/?*";
       if (
         HANDLED.includes(e.key) ||
         e.key === " " ||
@@ -501,6 +556,12 @@ export default function App() {
         case "M":
           if (detail && detail.html && detail.html.trim()) setViewHtml((v) => !v);
           break;
+        case "D":
+          openDrafts();
+          break;
+        case "O":
+          if (detail) openInGmail(detail.id);
+          break;
         case "s":
         case "/":
           searchRef.current?.focus();
@@ -526,12 +587,15 @@ export default function App() {
     activeQuery,
     bulkMode,
     selected,
+    draftsView,
     openMessage,
     doAction,
     bulkAction,
     toggleSelect,
     exitBulk,
     summarize,
+    openDrafts,
+    openInGmail,
     load,
     loadMore,
   ]);
@@ -599,6 +663,16 @@ export default function App() {
             Compose
           </button>
           <button
+            className={draftsView ? "" : "ghost"}
+            onClick={() => {
+              if (draftsView) setDraftsView(false);
+              else openDrafts();
+            }}
+            title="Drafts (D)"
+          >
+            Drafts
+          </button>
+          <button
             className={bulkMode ? "" : "ghost"}
             onClick={() => {
               if (bulkMode) exitBulk();
@@ -630,6 +704,45 @@ export default function App() {
 
       <div className="body">
         <aside className="list">
+          {draftsView ? (
+            <>
+              <div className="bulk-bar">
+                <span className="bulk-count">Drafts</span>
+                <div className="bulk-actions">
+                  <button className="tiny ghost" onClick={() => void loadDrafts()}>
+                    Refresh
+                  </button>
+                  <button className="tiny ghost" onClick={() => setDraftsView(false)}>
+                    Back to inbox
+                  </button>
+                </div>
+              </div>
+              {loadingDrafts ? (
+                <div className="placeholder">Loading…</div>
+              ) : drafts.length === 0 ? (
+                <div className="placeholder">No drafts</div>
+              ) : (
+                <ul>
+                  {drafts.map((d) => (
+                    <li
+                      key={d.id}
+                      className="row"
+                      onClick={() => void openDraft(d)}
+                    >
+                      <div className="row-top">
+                        <span className="from">
+                          {d.to ? `To: ${d.to}` : "(no recipient)"}
+                        </span>
+                      </div>
+                      <div className="subject">{d.subject || "(no subject)"}</div>
+                      <div className="snippet">{d.snippet}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <>
           {bulkMode && (
             <div className="bulk-bar">
               <span className="bulk-count">{selected.size} selected</span>
@@ -735,6 +848,8 @@ export default function App() {
               )}
             </>
           )}
+            </>
+          )}
         </aside>
 
         <main className="reader">
@@ -812,6 +927,13 @@ export default function App() {
                       {viewHtml ? "Text" : "HTML"}
                     </button>
                   )}
+                  <button
+                    className="ghost"
+                    onClick={() => openInGmail(detail.id)}
+                    title="Open in Gmail (O)"
+                  >
+                    Open in Gmail
+                  </button>
                 </div>
                 {attachments.length > 0 && (
                   <div className="attach-bar">
@@ -917,6 +1039,7 @@ export default function App() {
           onSent={(msg) => {
             setCompose(null);
             showToast(msg);
+            if (draftsView) void loadDrafts();
           }}
         />
       )}

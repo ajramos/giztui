@@ -63,6 +63,21 @@ export interface AccountInfo {
   active: boolean;
 }
 
+export interface DraftSummary {
+  id: string;
+  to: string;
+  subject: string;
+  snippet: string;
+}
+
+export interface DraftDetail {
+  id: string;
+  to: string;
+  cc: string;
+  subject: string;
+  body: string;
+}
+
 interface Backend {
   InitError(): Promise<string>;
   AccountEmail(): Promise<string>;
@@ -96,6 +111,12 @@ interface Backend {
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
+  OpenGmailWeb(messageID: string): Promise<void>;
+  ListDrafts(): Promise<DraftSummary[]>;
+  GetDraft(draftID: string): Promise<DraftDetail>;
+  SaveDraft(to: string, subject: string, body: string, cc: string[]): Promise<string>;
+  UpdateDraft(draftID: string, to: string, subject: string, body: string, cc: string[]): Promise<void>;
+  DeleteDraft(draftID: string): Promise<void>;
 }
 
 // Wails runtime surface we use (event streaming).
@@ -361,8 +382,41 @@ const mockBackend: Backend = {
     await new Promise((r) => setTimeout(r, 250));
     mockActiveAccount = id;
   },
+  async OpenGmailWeb() {
+    /* mock: no-op (would open the system browser) */
+  },
+  async ListDrafts() {
+    return mockDrafts;
+  },
+  async GetDraft(draftID: string) {
+    const d = mockDrafts.find((x) => x.id === draftID) ?? mockDrafts[0];
+    return {
+      id: d.id,
+      to: d.to,
+      cc: "",
+      subject: d.subject,
+      body: `${d.snippet}\n\n(draft body loaded from the mock backend)`,
+    };
+  },
+  async SaveDraft(to: string, subject: string) {
+    await new Promise((r) => setTimeout(r, 200));
+    const id = "draft-" + (mockDrafts.length + 1);
+    mockDrafts = [{ id, to, subject, snippet: "New draft" }, ...mockDrafts];
+    return id;
+  },
+  async UpdateDraft() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
+  async DeleteDraft(draftID: string) {
+    await new Promise((r) => setTimeout(r, 200));
+    mockDrafts = mockDrafts.filter((x) => x.id !== draftID);
+  },
 };
 
 let mockActiveAccount = "personal";
+let mockDrafts: DraftSummary[] = [
+  { id: "d1", to: "ada@compute.org", subject: "Re: Project roadmap Q3", snippet: "Thanks Ada, I think we should…" },
+  { id: "d2", to: "team@giztui.dev", subject: "Release notes draft", snippet: "Here's a first pass at the notes…" },
+];
 
 const mockAppliedLabels: Record<string, string[]> = {};

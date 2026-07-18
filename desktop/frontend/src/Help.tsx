@@ -30,6 +30,8 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["c", "Compose new"],
       ["r", "Reply"],
       ["f", "Forward"],
+      ["D", "Drafts"],
+      ["O", "Open in Gmail"],
     ],
   },
   {

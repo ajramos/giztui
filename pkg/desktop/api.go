@@ -42,10 +42,13 @@ type Deps struct {
 	Email        services.EmailService
 	Labels       services.LabelService
 	Mail         mailClient
-	AI           services.AIService         // optional; nil when no LLM is configured
-	Attach       services.AttachmentService // optional
-	Prompts      services.PromptService     // optional; nil without LLM+DB
-	AccountEmail string                     // active account address, used as the "from" for sends
+	AI           services.AIService          // optional; nil when no LLM is configured
+	Attach       services.AttachmentService  // optional
+	Prompts      services.PromptService      // optional; nil without LLM+DB
+	Web          services.GmailWebService    // optional
+	Composition  services.CompositionService // optional; used to load drafts
+	Draft        draftClient                 // optional; draft CRUD (usually *gmail.Client)
+	AccountEmail string                      // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
 
@@ -60,6 +63,9 @@ type API struct {
 	ai           services.AIService
 	attach       services.AttachmentService
 	prompts      services.PromptService
+	web          services.GmailWebService
+	composition  services.CompositionService
+	draft        draftClient
 	accountEmail string
 	logger       *log.Logger
 }
@@ -75,6 +81,9 @@ func NewAPI(d Deps) *API {
 		ai:           d.AI,
 		attach:       d.Attach,
 		prompts:      d.Prompts,
+		web:          d.Web,
+		composition:  d.Composition,
+		draft:        d.Draft,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

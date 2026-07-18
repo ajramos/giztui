@@ -94,11 +94,16 @@ wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
 - **HTML email rendering** — rich HTML bodies render in a locked-down sandboxed
   iframe (no scripts; remote images/trackers blocked until you click "Load
   images"). Toggle HTML/plain-text with the `M` key
+- **Drafts** (`D`) — list, open/edit, save, update, and delete drafts; sending a
+  draft removes it. Compose can save any message as a draft
+- **Open in Gmail web** (`O`) — open the current message in Gmail in the system
+  browser
 - **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the list):
   `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d` trash,
   `t` toggle read, `l` labels, `c` compose, `r` reply, `f` forward, `y`
-  summarize, `p` prompt, `s`/`/` search, `R` refresh, `N` load more, `M` toggle
-  HTML/text, `v` select mode, `Space`/`*` select, `Esc` back.
+  summarize, `p` prompt, `D` drafts, `O` open in Gmail, `s`/`/` search, `R`
+  refresh, `N` load more, `M` toggle HTML/text, `v` select mode, `Space`/`*`
+  select, `Esc` back.
 
 ### Keyboard parity note
 
@@ -107,6 +112,6 @@ parity. The desktop client keeps that muscle memory: the shortcuts above use the
 same default keys as the TUI (`internal/config/config.go` `DefaultKeyBindings`).
 The in-app `?` overlay is the discoverable reference.
 
-Not yet ported from the TUI: bulk prompts, Obsidian, Slack, drafts management,
-threading view, RSVP/calendar, open-in-Gmail-web. These map cleanly onto the
-same service layer and can be added incrementally by extending `pkg/desktop`.
+Not yet ported from the TUI: bulk prompts, Obsidian, Slack, threading view,
+RSVP/calendar. These map cleanly onto the same service layer and can be added
+incrementally by extending `pkg/desktop`.

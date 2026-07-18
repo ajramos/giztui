@@ -706,10 +706,14 @@ button.tiny {
 }
 .modal-foot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 18px;
   border-top: 1px solid var(--border);
+}
+.foot-spacer {
+  flex: 1;
 }
 
 /* Fatal / init error */

@@ -186,6 +186,46 @@ func (f *fakePrompts) ApplyPromptStream(ctx context.Context, messageContent stri
 	return &services.PromptResult{PromptID: promptID, ResultText: f.result}, nil
 }
 
+type fakeDraft struct {
+	created   *sendRecord
+	updatedID string
+	deletedID string
+	drafts    []*gmail_v1.Draft
+}
+
+func (f *fakeDraft) ListDrafts(maxResults int64) ([]*gmail_v1.Draft, error) {
+	return f.drafts, nil
+}
+func (f *fakeDraft) CreateDraft(to, subject, body string, cc []string) (string, error) {
+	f.created = &sendRecord{to: to, subject: subject, body: body, cc: cc}
+	return "draft-new", nil
+}
+func (f *fakeDraft) UpdateDraft(draftID, to, subject, body string, cc []string) error {
+	f.updatedID = draftID
+	return nil
+}
+func (f *fakeDraft) DeleteDraft(draftID string) error {
+	f.deletedID = draftID
+	return nil
+}
+
+type fakeComposition struct {
+	services.CompositionService
+	comp *services.Composition
+}
+
+func (f *fakeComposition) LoadDraftComposition(ctx context.Context, draftID string) (*services.Composition, error) {
+	return f.comp, nil
+}
+
+type fakeWeb struct {
+	services.GmailWebService
+}
+
+func (f *fakeWeb) GenerateGmailWebURL(messageID string) string {
+	return "https://mail.google.com/mail/u/0/#inbox/" + messageID
+}
+
 type fakeAttach struct {
 	services.AttachmentService
 	infos        []services.AttachmentInfo
@@ -536,6 +576,72 @@ func TestPromptsDisabled(t *testing.T) {
 	}
 	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, func(string) {}); err == nil {
 		t.Error("expected error when prompts disabled")
+	}
+}
+
+func TestGmailWebURL(t *testing.T) {
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}, Web: &fakeWeb{}})
+	if url := api.GmailWebURL("abc"); url != "https://mail.google.com/mail/u/0/#inbox/abc" {
+		t.Errorf("GmailWebURL = %q", url)
+	}
+	// Without a web service it returns empty.
+	api2 := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}})
+	if url := api2.GmailWebURL("abc"); url != "" {
+		t.Errorf("expected empty url, got %q", url)
+	}
+}
+
+func TestDrafts(t *testing.T) {
+	draft := &fakeDraft{drafts: []*gmail_v1.Draft{
+		{Id: "d1", Message: rawMsg("m1", "Draft subject", "", nil)},
+	}}
+	// rawMsg sets a From header, not To; add a To header for the list test.
+	draft.drafts[0].Message.Payload.Headers = append(
+		draft.drafts[0].Message.Payload.Headers,
+		&gmail_v1.MessagePartHeader{Name: "To", Value: "bob@x.com"},
+	)
+	comp := &fakeComposition{comp: &services.Composition{
+		To:      []services.Recipient{{Email: "bob@x.com"}, {Email: "eve@x.com"}},
+		Subject: "Draft subject",
+		Body:    "draft body",
+	}}
+	api := NewAPI(Deps{
+		Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{},
+		Draft: draft, Composition: comp,
+	})
+	ctx := context.Background()
+
+	list, err := api.ListDrafts(ctx)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListDrafts: %v %v", list, err)
+	}
+	if list[0].ID != "d1" || list[0].Subject != "Draft subject" || list[0].To != "bob@x.com" {
+		t.Errorf("unexpected draft summary: %+v", list[0])
+	}
+
+	det, err := api.GetDraft(ctx, "d1")
+	if err != nil {
+		t.Fatalf("GetDraft: %v", err)
+	}
+	if det.To != "bob@x.com, eve@x.com" || det.Body != "draft body" {
+		t.Errorf("unexpected draft detail: %+v", det)
+	}
+
+	id, err := api.SaveDraft(ctx, "to@x.com", "S", "B", []string{"cc@x.com"})
+	if err != nil || id != "draft-new" {
+		t.Fatalf("SaveDraft: %q %v", id, err)
+	}
+	if draft.created == nil || draft.created.to != "to@x.com" {
+		t.Errorf("create not forwarded: %+v", draft.created)
+	}
+	if err := api.UpdateDraft(ctx, "d1", "to@x.com", "S", "B", nil); err != nil || draft.updatedID != "d1" {
+		t.Errorf("UpdateDraft: %v %q", err, draft.updatedID)
+	}
+	if err := api.UpdateDraft(ctx, "", "to", "S", "B", nil); err == nil {
+		t.Error("expected error for empty draft id")
+	}
+	if err := api.DeleteDraft(ctx, "d1"); err != nil || draft.deletedID != "d1" {
+		t.Errorf("DeleteDraft: %v %q", err, draft.deletedID)
 	}
 }
 

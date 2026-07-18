@@ -108,6 +108,9 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	renderer := render.NewEmailRenderer(cfg)
 	emailService := services.NewEmailService(repo, client, renderer)
 	attachmentService := services.NewAttachmentService(client, cfg)
+	linkService := services.NewLinkService(client, renderer)
+	webService := services.NewGmailWebService(linkService)
+	compositionService := services.NewCompositionService(emailService, client, repo)
 
 	// Capture the active account address so composed messages have a "from".
 	accountEmail, _ := client.ActiveAccountEmail(ctx)
@@ -145,6 +148,9 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		AI:           aiService,
 		Attach:       attachmentService,
 		Prompts:      promptService,
+		Web:          webService,
+		Composition:  compositionService,
+		Draft:        client,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

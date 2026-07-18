@@ -2,11 +2,13 @@ import { useState } from "react";
 import { backend } from "./api";
 
 export interface ComposeInit {
-  mode: "new" | "reply";
+  mode: "new" | "reply" | "draft";
   originalId?: string;
+  draftId?: string;
   to?: string;
   subject?: string;
   body?: string;
+  cc?: string;
 }
 
 export default function Compose({
@@ -19,34 +21,75 @@ export default function Compose({
   onSent: (msg: string) => void;
 }) {
   const [to, setTo] = useState(init.to ?? "");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(init.cc ?? "");
   const [subject, setSubject] = useState(init.subject ?? "");
   const [body, setBody] = useState(init.body ?? "");
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const isReply = init.mode === "reply";
+  const isDraft = init.mode === "draft";
+  const canSaveDraft = !isReply; // new or draft
+
+  const ccList = () =>
+    cc
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   const send = async () => {
-    setSending(true);
+    setBusy(true);
     setError("");
     try {
-      const ccList = cc
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
       if (isReply && init.originalId) {
-        await backend.Reply(init.originalId, body, ccList);
+        await backend.Reply(init.originalId, body, ccList());
       } else {
-        await backend.SendMail(to, subject, body, ccList, []);
+        await backend.SendMail(to, subject, body, ccList(), []);
+        // A sent draft is no longer a draft.
+        if (isDraft && init.draftId) {
+          await backend.DeleteDraft(init.draftId).catch(() => undefined);
+        }
       }
       onSent(isReply ? "Reply sent" : "Message sent");
     } catch (e) {
       setError(String(e));
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   };
+
+  const saveDraft = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      if (init.draftId) {
+        await backend.UpdateDraft(init.draftId, to, subject, body, ccList());
+      } else {
+        await backend.SaveDraft(to, subject, body, ccList());
+      }
+      onSent("Draft saved");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!init.draftId) return;
+    setBusy(true);
+    setError("");
+    try {
+      await backend.DeleteDraft(init.draftId);
+      onSent("Draft deleted");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const title = isReply ? "Reply" : isDraft ? "Edit draft" : "New message";
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -58,7 +101,7 @@ export default function Compose({
         }}
       >
         <div className="modal-head">
-          <h3>{isReply ? "Reply" : "New message"}</h3>
+          <h3>{title}</h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>
@@ -105,11 +148,26 @@ export default function Compose({
           </div>
         </div>
         <div className="modal-foot">
-          <button className="ghost" onClick={onClose} disabled={sending}>
+          {isDraft && (
+            <button className="danger" onClick={() => void remove()} disabled={busy}>
+              Delete
+            </button>
+          )}
+          <span className="foot-spacer" />
+          <button className="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button onClick={() => void send()} disabled={sending || !body.trim()}>
-            {sending ? "Sending…" : "Send"}
+          {canSaveDraft && (
+            <button
+              className="ghost"
+              onClick={() => void saveDraft()}
+              disabled={busy || (!body.trim() && !subject.trim())}
+            >
+              Save draft
+            </button>
+          )}
+          <button onClick={() => void send()} disabled={busy || !body.trim()}>
+            {busy ? "Working…" : "Send"}
           </button>
         </div>
       </div>
