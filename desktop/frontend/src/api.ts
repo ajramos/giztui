@@ -170,6 +170,7 @@ export interface KeyMap {
   searchTo: string;
   searchSubject: string;
   contentSearch: string;
+  undo: string;
   vimTimeoutMs: number;
 }
 
@@ -183,7 +184,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
   actionPlan: "P", themePicker: "H", generateReply: "g", move: "m",
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
-  contentSearch: "/", vimTimeoutMs: 1000,
+  contentSearch: "/", undo: "U", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -211,6 +212,10 @@ interface Backend {
   Trash(id: string): Promise<void>;
   MarkRead(id: string): Promise<void>;
   MarkUnread(id: string): Promise<void>;
+  Unarchive(id: string): Promise<void>;
+  Untrash(id: string): Promise<void>;
+  BulkUnarchive(ids: string[]): Promise<void>;
+  BulkUntrash(ids: string[]): Promise<void>;
   ListLabels(): Promise<Label[]>;
   AIEnabled(): Promise<boolean>;
   Summarize(id: string): Promise<string>;
@@ -467,6 +472,10 @@ const mockBackend: Backend = {
   async Trash() {},
   async MarkRead() {},
   async MarkUnread() {},
+  async Unarchive() {},
+  async Untrash() {},
+  async BulkUnarchive() {},
+  async BulkUntrash() {},
   async ListLabels() {
     return [
       { id: "1", name: "Work" },

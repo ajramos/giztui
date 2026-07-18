@@ -22,6 +22,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["d", "Trash"],
       ["t", "Toggle read / unread"],
       ["l", "Labels"],
+      ["U", "Undo last action"],
     ],
   },
   {

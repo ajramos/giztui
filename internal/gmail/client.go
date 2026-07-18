@@ -585,6 +585,16 @@ func (c *Client) TrashMessage(messageID string) error {
 	return nil
 }
 
+// UntrashMessage restores a message from the trash (undo of TrashMessage).
+func (c *Client) UntrashMessage(messageID string) error {
+	user := "me"
+	_, err := c.Service.Users.Messages.Untrash(user, messageID).Do()
+	if err != nil {
+		return fmt.Errorf("could not restore from trash: %w", err)
+	}
+	return nil
+}
+
 // ArchiveMessage archives a message
 func (c *Client) ArchiveMessage(messageID string) error {
 	user := "me"

@@ -46,6 +46,7 @@ type KeyMap struct {
 	SearchTo      string `json:"searchTo"`
 	SearchSubject string `json:"searchSubject"`
 	ContentSearch string `json:"contentSearch"`
+	Undo          string `json:"undo"`
 	VimTimeoutMs  int    `json:"vimTimeoutMs"`
 }
 
@@ -62,7 +63,7 @@ func DefaultKeyMap() KeyMap {
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
 		ActionPlan: "P", ThemePicker: "H", GenerateReply: "g", Move: "m",
 		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
-		ContentSearch: "/", VimTimeoutMs: 1000,
+		ContentSearch: "/", Undo: "U", VimTimeoutMs: 1000,
 	}
 }
 
@@ -114,6 +115,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.SearchTo = orDefault(k.SearchTo, km.SearchTo)
 	km.SearchSubject = orDefault(k.SearchSubject, km.SearchSubject)
 	km.ContentSearch = orDefault(k.ContentSearch, km.ContentSearch)
+	km.Undo = orDefault(k.Undo, km.Undo)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}

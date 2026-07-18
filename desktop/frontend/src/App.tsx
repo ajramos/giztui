@@ -44,6 +44,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["archive", "a"], desc: "Archive message" },
   { names: ["trash", "d"], desc: "Trash message" },
+  { names: ["undo"], desc: "Undo last action" },
   { names: ["read"], desc: "Mark read" },
   { names: ["markunread"], desc: "Mark unread" },
   { names: ["labels", "l"], desc: "Manage labels" },
@@ -495,18 +496,72 @@ export default function App() {
     [selectedId],
   );
 
+  // insertMessage restores a summary at (roughly) its old position — used by undo
+  // to bring an archived/trashed message back into the list.
+  const insertMessage = useCallback((msg: MessageSummary, index: number) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      const next = [...prev];
+      next.splice(Math.max(0, Math.min(index, next.length)), 0, msg);
+      return next;
+    });
+  }, []);
+
+  // Undo stack: each mutating action pushes a reversal closure; the undo key runs
+  // the most recent one (GizTUI's "U").
+  const undoRef = useRef<{ label: string; run: () => Promise<void> }[]>([]);
+  const [undoLabel, setUndoLabel] = useState("");
+  const pushUndo = useCallback(
+    (label: string, run: () => Promise<void>) => {
+      undoRef.current.push({ label, run });
+      if (undoRef.current.length > 25) undoRef.current.shift();
+      setUndoLabel(label);
+    },
+    [],
+  );
+  const runUndo = useCallback(async () => {
+    const entry = undoRef.current.pop();
+    setUndoLabel(
+      undoRef.current.length
+        ? undoRef.current[undoRef.current.length - 1].label
+        : "",
+    );
+    if (!entry) {
+      showToast("Nothing to undo");
+      return;
+    }
+    try {
+      await entry.run();
+      showToast(`Undone: ${entry.label}`);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [showToast]);
+
   const doAction = useCallback(
     async (action: "archive" | "trash" | "read" | "unread", id: string) => {
+      const msg = messages.find((m) => m.id === id);
+      const index = messages.findIndex((m) => m.id === id);
       setBusy(true);
       setError("");
       try {
         if (action === "archive") {
           await backend.Archive(id);
           removeFromList(id);
+          if (msg)
+            pushUndo("archive", async () => {
+              await backend.Unarchive(id);
+              insertMessage(msg, index);
+            });
           showToast("Archived");
         } else if (action === "trash") {
           await backend.Trash(id);
           removeFromList(id);
+          if (msg)
+            pushUndo("trash", async () => {
+              await backend.Untrash(id);
+              insertMessage(msg, index);
+            });
           showToast("Moved to trash");
         } else if (action === "read") {
           await backend.MarkRead(id);
@@ -514,12 +569,26 @@ export default function App() {
             prev.map((x) => (x.id === id ? { ...x, unread: false } : x)),
           );
           setDetail((d) => (d && d.id === id ? { ...d, unread: false } : d));
+          pushUndo("mark read", async () => {
+            await backend.MarkUnread(id);
+            setMessages((prev) =>
+              prev.map((x) => (x.id === id ? { ...x, unread: true } : x)),
+            );
+            setDetail((d) => (d && d.id === id ? { ...d, unread: true } : d));
+          });
         } else if (action === "unread") {
           await backend.MarkUnread(id);
           setMessages((prev) =>
             prev.map((x) => (x.id === id ? { ...x, unread: true } : x)),
           );
           setDetail((d) => (d && d.id === id ? { ...d, unread: true } : d));
+          pushUndo("mark unread", async () => {
+            await backend.MarkRead(id);
+            setMessages((prev) =>
+              prev.map((x) => (x.id === id ? { ...x, unread: false } : x)),
+            );
+            setDetail((d) => (d && d.id === id ? { ...d, unread: false } : d));
+          });
         }
       } catch (e) {
         setError(String(e));
@@ -527,7 +596,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [removeFromList, showToast],
+    [messages, removeFromList, showToast, pushUndo, insertMessage],
   );
 
   const toggleSelect = useCallback((id: string) => {
@@ -567,6 +636,10 @@ export default function App() {
       const ids = [...selected];
       if (ids.length === 0) return;
       const idSet = new Set(ids);
+      // Snapshot the affected rows (with positions) so undo can restore them.
+      const removed = messages
+        .map((m, i) => ({ m, i }))
+        .filter(({ m }) => idSet.has(m.id));
       setBusy(true);
       setBulkProgress(`${labelForAction(action)} ${ids.length}…`);
       setError("");
@@ -575,11 +648,19 @@ export default function App() {
           await backend.BulkArchive(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
           clearReaderIfRemoved(idSet);
+          pushUndo(`archive ${ids.length}`, async () => {
+            await backend.BulkUnarchive(ids);
+            removed.forEach(({ m, i }) => insertMessage(m, i));
+          });
           showToast(`Archived ${ids.length}`);
         } else if (action === "trash") {
           await backend.BulkTrash(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
           clearReaderIfRemoved(idSet);
+          pushUndo(`trash ${ids.length}`, async () => {
+            await backend.BulkUntrash(ids);
+            removed.forEach(({ m, i }) => insertMessage(m, i));
+          });
           showToast(`Moved ${ids.length} to trash`);
         } else if (action === "read") {
           await backend.BulkMarkRead(ids);
@@ -602,7 +683,14 @@ export default function App() {
         setBusy(false);
       }
     },
-    [selected, showToast, clearReaderIfRemoved],
+    [
+      selected,
+      messages,
+      showToast,
+      clearReaderIfRemoved,
+      pushUndo,
+      insertMessage,
+    ],
   );
 
   const summarize = useCallback(async (id: string, force = false) => {
@@ -1148,6 +1236,9 @@ export default function App() {
         case "toolbar":
           toggleToolbar();
           break;
+        case "undo":
+          void runUndo();
+          break;
         case "advanced":
         case "adv":
           setAdvOpen(true);
@@ -1249,6 +1340,7 @@ export default function App() {
       localFilter,
       applyLocalFilter,
       query,
+      runUndo,
     ],
   );
 
@@ -1329,6 +1421,7 @@ export default function App() {
     // "⋯" menu and the :reply-ai command instead.
     add(keymap.move, "move");
     add(keymap.toggleHeaders, "toggleHeaders");
+    add(keymap.undo, "undo");
     return m;
   }, [keymap]);
 
@@ -1416,13 +1509,20 @@ export default function App() {
       }
       // Bulk selection toggle (default "space"). Handled here in the list-nav
       // block — not via the remappable action switch — so it fires reliably on
-      // the highlighted row and advances the cursor like the TUI.
-      if (bulkMode && chord === keymap.bulkSelect) {
+      // the highlighted row. Outside bulk mode it enters bulk mode and selects
+      // the current row; inside, it toggles and advances like the TUI.
+      if (chord === keymap.bulkSelect && messages.length > 0) {
         e.preventDefault();
         const i = idx >= 0 ? idx : 0;
         if (i < messages.length) {
-          toggleSelect(messages[i].id);
-          if (i + 1 < messages.length) setSelectedId(messages[i + 1].id);
+          if (!bulkMode) {
+            setBulkMode(true);
+            toggleSelect(messages[i].id);
+            setSelectedId(messages[i].id);
+          } else {
+            toggleSelect(messages[i].id);
+            if (i + 1 < messages.length) setSelectedId(messages[i + 1].id);
+          }
         }
         return;
       }
@@ -1608,6 +1708,9 @@ export default function App() {
         case "searchSubject":
           if (detail) quickSearch("subject", detail);
           break;
+        case "undo":
+          void runUndo();
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1657,6 +1760,7 @@ export default function App() {
     exitBulk,
     summarize,
     quickSearch,
+    runUndo,
     toggleThread,
     openQueries,
     runActionPlan,
@@ -1768,6 +1872,13 @@ export default function App() {
           {/* Same IconBtn format as the reader/bulk toolbars for one consistent
               button language across the app. */}
           <div className="actions topbar-actions">
+            {undoLabel && (
+              <IconBtn
+                icon={Icon.undo}
+                label={`Undo ${undoLabel} (U)`}
+                onClick={() => void runUndo()}
+              />
+            )}
             <IconBtn
               icon={Icon.edit}
               label="Compose (c)"

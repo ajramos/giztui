@@ -208,6 +208,7 @@ func (f *fakeDraft) DeleteDraft(draftID string) error {
 	f.deletedID = draftID
 	return nil
 }
+func (f *fakeDraft) UntrashMessage(messageID string) error { return nil }
 
 type fakeComposition struct {
 	services.CompositionService

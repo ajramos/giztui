@@ -302,6 +302,42 @@ func (a *App) MoveToLabel(messageID, name string) error {
 	return api.MoveToLabel(a.ctx, messageID, name)
 }
 
+// Unarchive puts a message back in the inbox (undo of Archive).
+func (a *App) Unarchive(id string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.Unarchive(a.ctx, id)
+}
+
+// Untrash restores a message from the trash (undo of Trash).
+func (a *App) Untrash(id string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.Untrash(a.ctx, id)
+}
+
+// BulkUnarchive re-applies INBOX to many messages (undo of a bulk archive).
+func (a *App) BulkUnarchive(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkUnarchive(a.ctx, ids)
+}
+
+// BulkUntrash restores many messages from the trash (undo of a bulk trash).
+func (a *App) BulkUntrash(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkUntrash(a.ctx, ids)
+}
+
 // ListLinks returns the links found in a message body.
 func (a *App) ListLinks(id string) ([]desktop.Link, error) {
 	api, err := a.api()
