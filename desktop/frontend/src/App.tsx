@@ -63,6 +63,11 @@ export default function App() {
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
   const [linksFor, setLinksFor] = useState<string | null>(null);
+  const [obsidianOn, setObsidianOn] = useState(false);
+  const [slackOn, setSlackOn] = useState(false);
+  const [suggestFor, setSuggestFor] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -168,6 +173,12 @@ export default function App() {
         setKeymap(await backend.KeyMap());
       } catch {
         /* non-fatal — defaults already set */
+      }
+      try {
+        setObsidianOn(await backend.ObsidianEnabled());
+        setSlackOn(await backend.SlackEnabled());
+      } catch {
+        /* non-fatal */
       }
       void load("");
     })();
@@ -473,6 +484,54 @@ export default function App() {
     [showToast],
   );
 
+  const sendObsidian = useCallback(
+    (id: string) => {
+      showToast("Sending to Obsidian…");
+      void backend
+        .SendToObsidian(id)
+        .then((p) => showToast(p ? `Saved to Obsidian: ${p}` : "Saved to Obsidian"))
+        .catch((e) => setError(String(e)));
+    },
+    [showToast],
+  );
+
+  const forwardSlack = useCallback(
+    (id: string) => {
+      showToast("Forwarding to Slack…");
+      void backend
+        .ForwardToSlack(id)
+        .then(() => showToast("Forwarded to Slack"))
+        .catch((e) => setError(String(e)));
+    },
+    [showToast],
+  );
+
+  const openSuggest = useCallback(async (id: string) => {
+    setSuggestFor(id);
+    setSuggestions([]);
+    setLoadingSuggest(true);
+    setError("");
+    try {
+      setSuggestions(await backend.SuggestLabels(id));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingSuggest(false);
+    }
+  }, []);
+
+  const applySuggestion = useCallback(
+    (name: string) => {
+      if (!suggestFor) return;
+      void backend
+        .ApplyLabelByName(suggestFor, name)
+        .then(() => showToast(`Applied "${name}"`))
+        .catch((e) => setError(String(e)));
+      setSuggestions((prev) => prev.filter((s) => s !== name));
+    },
+    [suggestFor, showToast],
+  );
+
   const forwardInit = (d: MessageDetail): ComposeInit => ({
     mode: "new",
     subject: d.subject.startsWith("Fwd:") ? d.subject : `Fwd: ${d.subject}`,
@@ -503,8 +562,10 @@ export default function App() {
   // handled separately (it may be the "gg" vim sequence).
   const chordAction = useMemo(() => {
     const m: Record<string, string> = {};
+    // First binding wins (mirrors the TUI's first-matching-case behavior when
+    // two actions share a default key, e.g. open_gmail vs obsidian).
     const add = (key: string, action: string) => {
-      if (key && key !== "gg") m[key] = action;
+      if (key && key !== "gg" && !m[key]) m[key] = action;
     };
     add(keymap.summarize, "summarize");
     add(keymap.prompt, "prompt");
@@ -527,6 +588,9 @@ export default function App() {
     add(keymap.linkPicker, "links");
     add(keymap.replyAll, "replyAll");
     add(keymap.saveMessage, "saveMessage");
+    add(keymap.suggestLabel, "suggestLabel");
+    add(keymap.obsidian, "obsidian");
+    add(keymap.slack, "slack");
     return m;
   }, [keymap]);
 
@@ -547,7 +611,15 @@ export default function App() {
         }
         return;
       }
-      if (compose || labelsFor || bulkLabels || promptsOpen || linksFor) return;
+      if (
+        compose ||
+        labelsFor ||
+        bulkLabels ||
+        promptsOpen ||
+        linksFor ||
+        suggestFor
+      )
+        return;
       if (typing) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
@@ -717,6 +789,15 @@ export default function App() {
         case "saveMessage":
           if (detail) saveMessage(detail.id);
           break;
+        case "suggestLabel":
+          if (detail && aiEnabled && !bulkMode) void openSuggest(detail.id);
+          break;
+        case "obsidian":
+          if (detail && obsidianOn) sendObsidian(detail.id);
+          break;
+        case "slack":
+          if (detail && slackOn) forwardSlack(detail.id);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -735,6 +816,9 @@ export default function App() {
     promptsOpen,
     showHelp,
     linksFor,
+    suggestFor,
+    obsidianOn,
+    slackOn,
     activeQuery,
     bulkMode,
     selected,
@@ -747,6 +831,9 @@ export default function App() {
     exitBulk,
     summarize,
     saveMessage,
+    sendObsidian,
+    forwardSlack,
+    openSuggest,
     openDrafts,
     openInGmail,
     load,
@@ -1060,6 +1147,13 @@ export default function App() {
                       onClick={() => setPromptsOpen(true)}
                     />
                   )}
+                  {aiEnabled && (
+                    <IconBtn
+                      icon={Icon.tag2}
+                      label="Suggest labels (AI)"
+                      onClick={() => void openSuggest(detail.id)}
+                    />
+                  )}
                   <span className="actions-sep" />
                   <IconBtn
                     icon={Icon.archive}
@@ -1087,6 +1181,20 @@ export default function App() {
                     label="Links"
                     onClick={() => setLinksFor(detail.id)}
                   />
+                  {obsidianOn && (
+                    <IconBtn
+                      icon={Icon.obsidian}
+                      label="Send to Obsidian"
+                      onClick={() => sendObsidian(detail.id)}
+                    />
+                  )}
+                  {slackOn && (
+                    <IconBtn
+                      icon={Icon.slack}
+                      label="Forward to Slack"
+                      onClick={() => forwardSlack(detail.id)}
+                    />
+                  )}
                   <IconBtn
                     icon={Icon.save}
                     label="Save to file"
@@ -1238,6 +1346,40 @@ export default function App() {
       )}
       {linksFor && (
         <LinksPicker messageId={linksFor} onClose={() => setLinksFor(null)} />
+      )}
+      {suggestFor && (
+        <div className="modal-overlay" onClick={() => setSuggestFor(null)}>
+          <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>✦ Suggested labels</h3>
+              <button className="ghost" onClick={() => setSuggestFor(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {loadingSuggest ? (
+                <div className="placeholder">Thinking…</div>
+              ) : suggestions.length === 0 ? (
+                <div className="placeholder">No suggestions</div>
+              ) : (
+                <div className="labels">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      className="label-chip suggest-chip"
+                      onClick={() => applySuggestion(s)}
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => setSuggestFor(null)}>Done</button>
+            </div>
+          </div>
+        </div>
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>

@@ -83,6 +83,52 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ObsidianEnabled reports whether the Obsidian integration is available.
+func (a *App) ObsidianEnabled() bool {
+	return a.session != nil && a.session.API.ObsidianEnabled()
+}
+
+// SendToObsidian ingests a message into the Obsidian vault.
+func (a *App) SendToObsidian(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.SendToObsidian(a.ctx, id)
+}
+
+// SlackEnabled reports whether the Slack integration is available.
+func (a *App) SlackEnabled() bool {
+	return a.session != nil && a.session.API.SlackEnabled()
+}
+
+// ForwardToSlack forwards a message to the default Slack channel.
+func (a *App) ForwardToSlack(id string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.ForwardToSlack(a.ctx, id)
+}
+
+// SuggestLabels returns AI-suggested labels for a message.
+func (a *App) SuggestLabels(id string) ([]string, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.SuggestLabels(a.ctx, id)
+}
+
+// ApplyLabelByName applies a label by name, creating it if needed.
+func (a *App) ApplyLabelByName(messageID, name string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.ApplyLabelByName(a.ctx, messageID, name)
+}
+
 // ListLinks returns the links found in a message body.
 func (a *App) ListLinks(id string) ([]desktop.Link, error) {
 	api, err := a.api()

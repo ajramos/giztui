@@ -1,6 +1,61 @@
 package desktop
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// SuggestLabels asks the AI to suggest labels for a message, given the account's
+// existing labels as candidates.
+func (a *API) SuggestLabels(ctx context.Context, id string) ([]string, error) {
+	if a.ai == nil {
+		return nil, fmt.Errorf("AI is not configured")
+	}
+	msg, err := a.repo.GetMessage(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	content := msg.PlainText
+	if strings.TrimSpace(content) == "" {
+		content = msg.HTML
+	}
+	var available []string
+	if ls, err := a.labels.ListLabels(ctx); err == nil {
+		for _, l := range ls {
+			if l == nil {
+				continue
+			}
+			if _, sys := systemLabels[l.Id]; sys || strings.HasPrefix(l.Id, "CATEGORY_") {
+				continue
+			}
+			available = append(available, l.Name)
+		}
+	}
+	return a.ai.SuggestLabels(ctx, content, available)
+}
+
+// ApplyLabelByName applies a label by its display name, creating it if needed.
+func (a *API) ApplyLabelByName(ctx context.Context, messageID, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("label name is required")
+	}
+	ls, err := a.labels.ListLabels(ctx)
+	if err != nil {
+		return err
+	}
+	for _, l := range ls {
+		if l != nil && strings.EqualFold(l.Name, name) {
+			return a.labels.ApplyLabel(ctx, messageID, l.Id)
+		}
+	}
+	created, err := a.labels.CreateLabel(ctx, name)
+	if err != nil {
+		return err
+	}
+	return a.labels.ApplyLabel(ctx, messageID, created.Id)
+}
 
 // MessageLabelIDs returns the raw Gmail label IDs currently applied to a
 // message, so the UI can show which labels are checked in the label picker.

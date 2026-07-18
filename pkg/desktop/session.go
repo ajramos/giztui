@@ -140,6 +140,18 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		promptService = services.NewPromptService(db.NewPromptStore(dbStore), aiService, nil)
 	}
 
+	// Obsidian needs the local database and an enabled config.
+	var obsidianService services.ObsidianService
+	if dbStore != nil && cfg.Obsidian != nil && cfg.Obsidian.Enabled {
+		obsidianService = services.NewObsidianService(db.NewObsidianStore(dbStore), cfg.Obsidian, logger)
+	}
+
+	// Slack forwarding (optional; gated on config).
+	var slackService services.SlackService
+	if cfg.Slack.Enabled {
+		slackService = services.NewSlackService(client, cfg, aiService)
+	}
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -152,6 +164,8 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Composition:  compositionService,
 		Draft:        client,
 		Link:         linkService,
+		Obsidian:     obsidianService,
+		Slack:        slackService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

@@ -105,6 +105,26 @@ export const Icon = {
       <line x1="12" y1="15" x2="12" y2="3" />
     </>,
   ),
+  obsidian: svg(
+    <>
+      <path d="M12 2l7 5-2.5 13H7.5L5 7z" />
+      <path d="M12 2v18" />
+    </>,
+  ),
+  slack: svg(
+    <>
+      <line x1="4" y1="9" x2="20" y2="9" />
+      <line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" />
+      <line x1="16" y1="3" x2="14" y2="21" />
+    </>,
+  ),
+  tag2: svg(
+    <>
+      <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z" />
+      <path d="M20 20l-3-3M4 20l3-3" />
+    </>,
+  ),
 };
 
 export function IconBtn({

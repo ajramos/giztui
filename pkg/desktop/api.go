@@ -50,6 +50,8 @@ type Deps struct {
 	Composition  services.CompositionService // optional; used to load drafts
 	Draft        draftClient                 // optional; draft CRUD (usually *gmail.Client)
 	Link         services.LinkService        // optional
+	Obsidian     services.ObsidianService    // optional
+	Slack        services.SlackService       // optional
 	AccountEmail string                      // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -69,6 +71,8 @@ type API struct {
 	composition  services.CompositionService
 	draft        draftClient
 	link         services.LinkService
+	obsidian     services.ObsidianService
+	slack        services.SlackService
 	accountEmail string
 	logger       *log.Logger
 
@@ -91,6 +95,8 @@ func NewAPI(d Deps) *API {
 		composition:  d.Composition,
 		draft:        d.Draft,
 		link:         d.Link,
+		obsidian:     d.Obsidian,
+		slack:        d.Slack,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

@@ -163,6 +163,12 @@ interface Backend {
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
+  ObsidianEnabled(): Promise<boolean>;
+  SendToObsidian(messageID: string): Promise<string>;
+  SlackEnabled(): Promise<boolean>;
+  ForwardToSlack(messageID: string): Promise<void>;
+  SuggestLabels(messageID: string): Promise<string[]>;
+  ApplyLabelByName(messageID: string, name: string): Promise<void>;
   OpenGmailWeb(messageID: string): Promise<void>;
   ListDrafts(): Promise<DraftSummary[]>;
   GetDraft(draftID: string): Promise<DraftDetail>;
@@ -449,6 +455,26 @@ const mockBackend: Backend = {
   async SaveMessage() {
     await new Promise((r) => setTimeout(r, 200));
     return "~/Downloads/gmail-attachments/message.txt";
+  },
+  async ObsidianEnabled() {
+    return true;
+  },
+  async SendToObsidian() {
+    await new Promise((r) => setTimeout(r, 300));
+    return "00-Inbox/2026-07-18_welcome.md";
+  },
+  async SlackEnabled() {
+    return true;
+  },
+  async ForwardToSlack() {
+    await new Promise((r) => setTimeout(r, 300));
+  },
+  async SuggestLabels() {
+    await new Promise((r) => setTimeout(r, 400));
+    return ["Work", "Finance", "Follow-up"];
+  },
+  async ApplyLabelByName() {
+    await new Promise((r) => setTimeout(r, 150));
   },
   async OpenGmailWeb() {
     /* mock: no-op (would open the system browser) */
