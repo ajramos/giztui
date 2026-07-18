@@ -66,6 +66,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       [":prompts", "Manage prompts (new/edit/refine)"],
       ["o", "Suggest labels (AI)"],
       ["P", "AI inbox action plan"],
+      [":rules", "Analyzer preference rules"],
       ["s", "Search inbox"],
       [":", "Command mode"],
       ["?", "This help"],

@@ -19,6 +19,7 @@ import {
   type AnalyzerInput,
   type ActionPlanResult,
   type PlanCategory,
+  type AnalyzerRule,
 } from "./api";
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
@@ -62,6 +63,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
+  { names: ["rules"], desc: "Analyzer preference rules" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
   { names: ["find"], desc: "Find in message", arg: "<text>" },
@@ -133,6 +135,12 @@ export default function App() {
   const [planOpen, setPlanOpen] = useState(false);
   const [plan, setPlan] = useState<ActionPlanResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [rulesEnabled, setRulesEnabled] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rules, setRules] = useState<AnalyzerRule[]>([]);
+  const [newRule, setNewRule] = useState("");
+  const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [themesOn, setThemesOn] = useState(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeNames, setThemeNames] = useState<string[]>([]);
@@ -291,6 +299,7 @@ export default function App() {
         setThreadingOn(await backend.ThreadingEnabled());
         setSavedQueriesOn(await backend.SavedQueriesEnabled());
         setActionPlanOn(await backend.ActionPlanEnabled());
+        setRulesEnabled(await backend.AnalyzerRulesEnabled());
       } catch {
         /* non-fatal */
       }
@@ -864,6 +873,59 @@ export default function App() {
     [showToast],
   );
 
+  // applyAllCategories runs every category's action in one go (the TUI's
+  // "confirm & apply the whole plan").
+  const applyAllCategories = useCallback(async () => {
+    if (!plan) return;
+    setApplyingAll(true);
+    try {
+      for (const c of [...plan.categories]) {
+        await applyCategory(c);
+      }
+      showToast("Applied the whole plan");
+    } finally {
+      setApplyingAll(false);
+    }
+  }, [plan, applyCategory, showToast]);
+
+  const openRules = useCallback(async () => {
+    setRulesOpen(true);
+    try {
+      setRules(await backend.ListAnalyzerRules());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const addRule = useCallback(async () => {
+    const text = newRule.trim();
+    if (!text) return;
+    try {
+      await backend.SaveAnalyzerRule(text);
+      setNewRule("");
+      setRules(await backend.ListAnalyzerRules());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [newRule]);
+
+  const deleteRule = useCallback(async (id: number) => {
+    try {
+      await backend.DeleteAnalyzerRule(id);
+      setRules(await backend.ListAnalyzerRules());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const viewAnalyzerPrompt = useCallback(async () => {
+    try {
+      setPromptPreview(await backend.ViewAnalyzerPrompt());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
     (input: string) => {
@@ -1004,6 +1066,9 @@ export default function App() {
         case "prompt-new":
           if (aiPromptsEnabled) setPromptManagerOpen(true);
           break;
+        case "rules":
+          if (rulesEnabled) void openRules();
+          break;
         case "help":
           setShowHelp(true);
           break;
@@ -1039,6 +1104,8 @@ export default function App() {
       quickSearch,
       themesOn,
       applyTheme,
+      rulesEnabled,
+      openRules,
     ],
   );
 
@@ -1152,6 +1219,8 @@ export default function App() {
         saveQueryOpen ||
         planOpen ||
         themePickerOpen ||
+        rulesOpen ||
+        promptPreview !== null ||
         moveFor ||
         bulkPromptText !== null
       )
@@ -1413,6 +1482,8 @@ export default function App() {
     saveQueryOpen,
     planOpen,
     themePickerOpen,
+    rulesOpen,
+    promptPreview,
     moveFor,
     bulkPromptText,
     actionPlanOn,
@@ -2298,9 +2369,22 @@ export default function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h3>✦ Inbox action plan</h3>
-              <button className="ghost" onClick={() => setPlanOpen(false)}>
-                ✕
-              </button>
+              <span className="summary-head-actions">
+                {rulesEnabled && (
+                  <button className="ghost tiny" onClick={() => void openRules()}>
+                    ⚙ Rules
+                  </button>
+                )}
+                <button
+                  className="ghost tiny"
+                  onClick={() => void viewAnalyzerPrompt()}
+                >
+                  View prompt
+                </button>
+                <button className="ghost" onClick={() => setPlanOpen(false)}>
+                  ✕
+                </button>
+              </span>
             </div>
             <div className="modal-body">
               {analyzing ? (
@@ -2348,7 +2432,90 @@ export default function App() {
               )}
             </div>
             <div className="modal-foot">
+              {plan && plan.categories.length > 0 && (
+                <button
+                  className="ghost"
+                  disabled={applyingAll}
+                  onClick={() => void applyAllCategories()}
+                >
+                  {applyingAll ? "Applying…" : "Apply all"}
+                </button>
+              )}
               <button onClick={() => setPlanOpen(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {rulesOpen && (
+        <div className="modal-overlay" onClick={() => setRulesOpen(false)}>
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setRulesOpen(false);
+            }}
+          >
+            <div className="modal-head">
+              <h3>Analyzer rules</h3>
+              <button className="ghost" onClick={() => setRulesOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="muted plan-summary">
+                Natural-language preferences the analyzer follows when planning.
+              </div>
+              <div className="label-list">
+                {rules.length === 0 ? (
+                  <div className="placeholder">No rules yet</div>
+                ) : (
+                  rules.map((r) => (
+                    <div key={r.id} className="prompt-manage-row">
+                      <span className="rule-text">{r.text}</span>
+                      <button
+                        className="ghost tiny danger"
+                        title="Delete"
+                        onClick={() => void deleteRule(r.id)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="field">
+                <input
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  placeholder="e.g. Always archive newsletters"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void addRule();
+                  }}
+                />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => void addRule()} disabled={!newRule.trim()}>
+                Add rule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {promptPreview !== null && (
+        <div className="modal-overlay" onClick={() => setPromptPreview(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Analyzer prompt</h3>
+              <button className="ghost" onClick={() => setPromptPreview(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <pre className="summary-text">{promptPreview}</pre>
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => setPromptPreview(null)}>Close</button>
             </div>
           </div>
         </div>

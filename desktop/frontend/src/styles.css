@@ -481,6 +481,13 @@ button.danger {
   border-color: var(--accent);
 }
 
+.rule-text {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* Theme picker list */
 .theme-list {
   display: flex;

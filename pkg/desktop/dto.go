@@ -136,6 +136,12 @@ type Prompt struct {
 	Category    string `json:"category"`
 }
 
+// AnalyzerRule is a free-text preference rule for the inbox analyzer.
+type AnalyzerRule struct {
+	ID   int64  `json:"id"`
+	Text string `json:"text"`
+}
+
 // PromptDetail carries the full prompt template, including its editable text.
 type PromptDetail struct {
 	ID          int    `json:"id"`

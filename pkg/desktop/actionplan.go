@@ -24,22 +24,12 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput) (*Action
 			ID: in.ID, Subject: in.Subject, From: in.From, Snippet: in.Snippet,
 		})
 	}
-	var available []string
-	if ls, err := a.labels.ListLabels(ctx); err == nil {
-		for _, l := range ls {
-			if l == nil {
-				continue
-			}
-			if _, sys := systemLabels[l.Id]; sys || strings.HasPrefix(l.Id, "CATEGORY_") {
-				continue
-			}
-			available = append(available, l.Name)
-		}
-	}
+	available := a.availableLabelNames(ctx)
 	plan, err := a.analyzer.Analyze(ctx, msgs, services.InboxAnalyzerOptions{
 		BatchSize:       50,
 		MaxBatches:      5,
 		AvailableLabels: available,
+		UserRules:       a.userRuleTexts(ctx),
 	}, nil)
 	if err != nil {
 		return nil, err
@@ -55,6 +45,98 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput) (*Action
 		})
 	}
 	return res, nil
+}
+
+// availableLabelNames returns the user's non-system label names for the analyzer.
+func (a *API) availableLabelNames(ctx context.Context) []string {
+	var available []string
+	if ls, err := a.labels.ListLabels(ctx); err == nil {
+		for _, l := range ls {
+			if l == nil {
+				continue
+			}
+			if _, sys := systemLabels[l.Id]; sys || strings.HasPrefix(l.Id, "CATEGORY_") {
+				continue
+			}
+			available = append(available, l.Name)
+		}
+	}
+	return available
+}
+
+// userRuleTexts returns the stored analyzer preference rules as plain strings.
+func (a *API) userRuleTexts(ctx context.Context) []string {
+	if a.rules == nil {
+		return nil
+	}
+	rs, err := a.rules.ListRules(ctx)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, r.RuleText)
+	}
+	return out
+}
+
+// AnalyzerRulesEnabled reports whether analyzer preference rules are available.
+func (a *API) AnalyzerRulesEnabled() bool { return a.rules != nil }
+
+// ListAnalyzerRules returns the stored analyzer preference rules.
+func (a *API) ListAnalyzerRules(ctx context.Context) ([]AnalyzerRule, error) {
+	if a.rules == nil {
+		return []AnalyzerRule{}, nil
+	}
+	rs, err := a.rules.ListRules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AnalyzerRule, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, AnalyzerRule{ID: r.ID, Text: r.RuleText})
+	}
+	return out, nil
+}
+
+// SaveAnalyzerRule persists a new free-text analyzer preference rule.
+func (a *API) SaveAnalyzerRule(ctx context.Context, text string) error {
+	if a.rules == nil {
+		return fmt.Errorf("analyzer rules are not available")
+	}
+	if strings.TrimSpace(text) == "" {
+		return fmt.Errorf("rule text is required")
+	}
+	return a.rules.SaveRule(ctx, text)
+}
+
+// DeleteAnalyzerRule removes a stored analyzer preference rule.
+func (a *API) DeleteAnalyzerRule(ctx context.Context, id int64) error {
+	if a.rules == nil {
+		return fmt.Errorf("analyzer rules are not available")
+	}
+	return a.rules.DeleteRule(ctx, id)
+}
+
+// SuggestAnalyzerRule builds an editable default rule string from a sender and
+// action (e.g. "Always archive emails from tldr.tech").
+func (a *API) SuggestAnalyzerRule(from, action string, negate bool) string {
+	if a.rules == nil {
+		return ""
+	}
+	return a.rules.SuggestRuleFromContext(from, action, negate)
+}
+
+// ViewAnalyzerPrompt returns the effective analyzer prompt (rules block + base
+// prompt) that Analyze would send, for inspection.
+func (a *API) ViewAnalyzerPrompt(ctx context.Context) (string, error) {
+	if a.analyzer == nil {
+		return "", fmt.Errorf("the inbox action plan needs an LLM provider")
+	}
+	return a.analyzer.BuildPromptPreview(services.InboxAnalyzerOptions{
+		AvailableLabels: a.availableLabelNames(ctx),
+		UserRules:       a.userRuleTexts(ctx),
+	}), nil
 }
 
 // BulkApplyLabelByName applies a label (by name, creating it if needed) to many

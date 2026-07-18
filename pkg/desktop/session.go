@@ -170,6 +170,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		analyzerService = services.NewInboxAnalyzerService(aiService)
 	}
 
+	// Analyzer preference rules need the local database.
+	var rulesService services.AnalyzerRulesService
+	if dbStore != nil {
+		rulesService = services.NewAnalyzerRulesService(db.NewAnalyzerRulesStore(dbStore))
+	}
+
 	// Theming: read the user's theme from config (best-effort).
 	themeService := buildThemeService(cfg)
 
@@ -190,6 +196,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Thread:       threadService,
 		Query:        queryService,
 		Analyzer:     analyzerService,
+		Rules:        rulesService,
 		Theme:        themeService,
 		AccountEmail: accountEmail,
 		Logger:       logger,

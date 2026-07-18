@@ -141,6 +141,47 @@ func (a *App) BulkApplyLabelByName(ids []string, name string) error {
 	return api.BulkApplyLabelByName(a.ctx, ids, name)
 }
 
+// AnalyzerRulesEnabled reports whether analyzer preference rules are available.
+func (a *App) AnalyzerRulesEnabled() bool {
+	return a.session != nil && a.session.API.AnalyzerRulesEnabled()
+}
+
+// ListAnalyzerRules returns the stored analyzer preference rules.
+func (a *App) ListAnalyzerRules() ([]desktop.AnalyzerRule, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListAnalyzerRules(a.ctx)
+}
+
+// SaveAnalyzerRule persists a new analyzer preference rule.
+func (a *App) SaveAnalyzerRule(text string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.SaveAnalyzerRule(a.ctx, text)
+}
+
+// DeleteAnalyzerRule removes a stored analyzer preference rule.
+func (a *App) DeleteAnalyzerRule(id int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeleteAnalyzerRule(a.ctx, id)
+}
+
+// ViewAnalyzerPrompt returns the effective analyzer prompt for inspection.
+func (a *App) ViewAnalyzerPrompt() (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ViewAnalyzerPrompt(a.ctx)
+}
+
 // SavedQueriesEnabled reports whether saved searches are available.
 func (a *App) SavedQueriesEnabled() bool {
 	return a.session != nil && a.session.API.SavedQueriesEnabled()

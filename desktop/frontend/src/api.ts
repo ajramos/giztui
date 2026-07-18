@@ -101,6 +101,11 @@ export interface ActionPlanResult {
   readManually: number;
 }
 
+export interface AnalyzerRule {
+  id: number;
+  text: string;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -249,6 +254,11 @@ interface Backend {
   ActionPlanEnabled(): Promise<boolean>;
   AnalyzeInbox(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
   BulkApplyLabelByName(ids: string[], name: string): Promise<void>;
+  AnalyzerRulesEnabled(): Promise<boolean>;
+  ListAnalyzerRules(): Promise<AnalyzerRule[]>;
+  SaveAnalyzerRule(text: string): Promise<void>;
+  DeleteAnalyzerRule(id: number): Promise<void>;
+  ViewAnalyzerPrompt(): Promise<string>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
@@ -667,6 +677,25 @@ const mockBackend: Backend = {
   async BulkApplyLabelByName() {
     await new Promise((r) => setTimeout(r, 200));
   },
+  async AnalyzerRulesEnabled() {
+    return true;
+  },
+  async ListAnalyzerRules() {
+    return mockRules;
+  },
+  async SaveAnalyzerRule(text: string) {
+    const id = Math.max(0, ...mockRules.map((r) => r.id)) + 1;
+    mockRules = [...mockRules, { id, text }];
+  },
+  async DeleteAnalyzerRule(id: number) {
+    mockRules = mockRules.filter((r) => r.id !== id);
+  },
+  async ViewAnalyzerPrompt() {
+    const rulesBlock = mockRules.length
+      ? "User preferences:\n" + mockRules.map((r) => `- ${r.text}`).join("\n") + "\n\n"
+      : "";
+    return `${rulesBlock}You are an inbox assistant. Group the following emails into actionable categories (archive, mark_read, trash, label) and return JSON.\n\n{{messages}}`;
+  },
   async ListLinks(_id: string) {
     return [
       { index: 1, url: "https://example.com/expenses", text: "página de gastos", type: "html" },
@@ -755,6 +784,10 @@ const mockBackend: Backend = {
 };
 
 let mockActiveAccount = "personal";
+let mockRules: AnalyzerRule[] = [
+  { id: 1, text: "Always archive newsletters and weekly digests" },
+  { id: 2, text: "Never trash anything from my bank" },
+];
 let mockPrompts: PromptDetail[] = [
   { id: 1, name: "Summarize concisely", description: "3-bullet summary", category: "general", text: "Summarize the following email in 3 bullets:\n\n{{body}}" },
   { id: 2, name: "Extract action items", description: "List to-dos & owners", category: "productivity", text: "List the action items and owners in this email:\n\n{{body}}" },
