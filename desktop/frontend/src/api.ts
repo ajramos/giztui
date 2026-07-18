@@ -120,6 +120,30 @@ export interface Invite {
   dtEnd: string;
 }
 
+export interface UsageStat {
+  name: string;
+  category: string;
+  usageCount: number;
+}
+
+export interface UsageStats {
+  totalUsage: number;
+  uniquePrompts: number;
+  topPrompts: UsageStat[];
+}
+
+export interface ConfigInfo {
+  configPath: string;
+  account: string;
+  llmProvider: string;
+  llmModel: string;
+  theme: string;
+  obsidianOn: boolean;
+  slackOn: boolean;
+  autoRefresh: boolean;
+  downloadPath: string;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -287,6 +311,9 @@ interface Backend {
   RSVPEnabled(): Promise<boolean>;
   InviteInfo(messageID: string): Promise<Invite>;
   RespondInvite(messageID: string, status: string): Promise<void>;
+  UsageStats(): Promise<UsageStats>;
+  ClearCaches(): Promise<void>;
+  ConfigInfo(): Promise<ConfigInfo>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
@@ -767,6 +794,34 @@ const mockBackend: Backend = {
   },
   async RespondInvite() {
     await new Promise((r) => setTimeout(r, 300));
+  },
+  async UsageStats() {
+    return {
+      totalUsage: 42,
+      uniquePrompts: 4,
+      topPrompts: [
+        { name: "Summarize concisely", category: "general", usageCount: 21 },
+        { name: "Extract action items", category: "productivity", usageCount: 12 },
+        { name: "Translate to Spanish", category: "language", usageCount: 6 },
+        { name: "Draft a polite reply", category: "compose", usageCount: 3 },
+      ],
+    };
+  },
+  async ClearCaches() {
+    await new Promise((r) => setTimeout(r, 250));
+  },
+  async ConfigInfo() {
+    return {
+      configPath: "~/.config/giztui/config.json",
+      account: "you@example.com (mock)",
+      llmProvider: "ollama",
+      llmModel: "llama3.1",
+      theme: "slate-blue",
+      obsidianOn: true,
+      slackOn: true,
+      autoRefresh: false,
+      downloadPath: "~/Downloads/gmail-attachments",
+    };
   },
   async ObsidianEnabled() {
     return true;

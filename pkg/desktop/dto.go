@@ -136,6 +136,34 @@ type Prompt struct {
 	Category    string `json:"category"`
 }
 
+// UsageStat is a single prompt's usage count for the stats panel.
+type UsageStat struct {
+	Name       string `json:"name"`
+	Category   string `json:"category"`
+	UsageCount int    `json:"usageCount"`
+}
+
+// UsageStats summarizes AI prompt usage.
+type UsageStats struct {
+	TotalUsage    int         `json:"totalUsage"`
+	UniquePrompts int         `json:"uniquePrompts"`
+	TopPrompts    []UsageStat `json:"topPrompts"`
+}
+
+// ConfigInfo is a read-only snapshot of the effective configuration, shown by
+// the desktop's ":config" panel.
+type ConfigInfo struct {
+	ConfigPath   string `json:"configPath"`
+	Account      string `json:"account"`
+	LLMProvider  string `json:"llmProvider"`
+	LLMModel     string `json:"llmModel"`
+	Theme        string `json:"theme"`
+	ObsidianOn   bool   `json:"obsidianOn"`
+	SlackOn      bool   `json:"slackOn"`
+	AutoRefresh  bool   `json:"autoRefresh"`
+	DownloadPath string `json:"downloadPath"`
+}
+
 // Invite describes a calendar invitation detected in a message, so the reader
 // can offer Accept / Tentative / Decline.
 type Invite struct {

@@ -13,6 +13,8 @@ import {
   type KeyMap,
   type Label,
   type Invite,
+  type UsageStats,
+  type ConfigInfo,
   type MessageDetail,
   type MessageSummary,
   type Prompt,
@@ -43,6 +45,9 @@ const COMMANDS: CommandDef[] = [
   { names: ["unread"], desc: "Show unread only" },
   { names: ["advanced", "adv"], desc: "Advanced search builder" },
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
+  { names: ["stats", "usage"], desc: "AI prompt usage stats" },
+  { names: ["config", "cfg"], desc: "Show configuration" },
+  { names: ["cache"], desc: "Clear AI caches" },
   { names: ["archive", "a"], desc: "Archive message" },
   { names: ["trash", "d"], desc: "Trash message" },
   { names: ["undo"], desc: "Undo last action" },
@@ -164,6 +169,10 @@ export default function App() {
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [stats, setStats] = useState<UsageStats | null>(null);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configInfo, setConfigInfo] = useState<ConfigInfo | null>(null);
   // Ref mirror so loadMessage (stable, no deps) can read the latest value.
   const rsvpEnabledRef = useRef(false);
   useEffect(() => {
@@ -837,6 +846,33 @@ export default function App() {
     [showToast],
   );
 
+  const openStats = useCallback(async () => {
+    setStatsOpen(true);
+    try {
+      setStats(await backend.UsageStats());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const openConfig = useCallback(async () => {
+    setConfigOpen(true);
+    try {
+      setConfigInfo(await backend.ConfigInfo());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const clearCaches = useCallback(async () => {
+    try {
+      await backend.ClearCaches();
+      showToast("Caches cleared");
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [showToast]);
+
   // doMove applies a label and archives the message (Gmail "move to folder").
   const doMove = useCallback(
     async (id: string, name: string) => {
@@ -1360,6 +1396,17 @@ export default function App() {
         case "adv":
           setAdvOpen(true);
           break;
+        case "stats":
+        case "usage":
+          void openStats();
+          break;
+        case "config":
+        case "cfg":
+          void openConfig();
+          break;
+        case "cache":
+          void clearCaches();
+          break;
         case "local":
           if (localFilter) {
             setLocalFilter(false);
@@ -1462,6 +1509,9 @@ export default function App() {
       saveRawMessage,
       invite,
       respondInvite,
+      openStats,
+      openConfig,
+      clearCaches,
     ],
   );
 
@@ -1579,6 +1629,8 @@ export default function App() {
         rulesOpen ||
         promptPreview !== null ||
         advOpen ||
+        statsOpen ||
+        configOpen ||
         moveFor ||
         bulkPromptText !== null
       )
@@ -1865,6 +1917,8 @@ export default function App() {
     rulesOpen,
     promptPreview,
     advOpen,
+    statsOpen,
+    configOpen,
     moveFor,
     bulkPromptText,
     actionPlanOn,
@@ -3303,6 +3357,113 @@ export default function App() {
               >
                 Search
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {statsOpen && (
+        <div className="modal-overlay" onClick={() => setStatsOpen(false)}>
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setStatsOpen(false);
+            }}
+          >
+            <div className="modal-head">
+              <h3>AI usage</h3>
+              <button className="ghost" onClick={() => setStatsOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {!stats ? (
+                <div className="placeholder">Loading…</div>
+              ) : (
+                <>
+                  <div className="stats-summary">
+                    <div className="stat-tile">
+                      <span className="stat-num">{stats.totalUsage}</span>
+                      <span className="stat-label muted">total runs</span>
+                    </div>
+                    <div className="stat-tile">
+                      <span className="stat-num">{stats.uniquePrompts}</span>
+                      <span className="stat-label muted">prompts used</span>
+                    </div>
+                  </div>
+                  <div className="label-list">
+                    {stats.topPrompts.length === 0 ? (
+                      <div className="placeholder">No usage yet</div>
+                    ) : (
+                      stats.topPrompts.map((p) => (
+                        <div key={p.name} className="stat-row">
+                          <span className="stat-row-name">{p.name}</span>
+                          {p.category && (
+                            <span className="stat-row-cat muted">
+                              {p.category}
+                            </span>
+                          )}
+                          <span className="stat-row-count">{p.usageCount}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {configOpen && (
+        <div className="modal-overlay" onClick={() => setConfigOpen(false)}>
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setConfigOpen(false);
+            }}
+          >
+            <div className="modal-head">
+              <h3>Configuration</h3>
+              <button className="ghost" onClick={() => setConfigOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {!configInfo ? (
+                <div className="placeholder">Loading…</div>
+              ) : (
+                <div className="config-list">
+                  {(
+                    [
+                      ["Account", configInfo.account],
+                      ["Config file", configInfo.configPath],
+                      [
+                        "LLM",
+                        configInfo.llmModel
+                          ? `${configInfo.llmProvider} · ${configInfo.llmModel}`
+                          : "disabled",
+                      ],
+                      ["Theme", configInfo.theme || "default"],
+                      ["Downloads", configInfo.downloadPath],
+                      ["Obsidian", configInfo.obsidianOn ? "on" : "off"],
+                      ["Slack", configInfo.slackOn ? "on" : "off"],
+                      ["Auto-refresh", configInfo.autoRefresh ? "on" : "off"],
+                    ] as [string, string][]
+                  ).map(([k, v]) => (
+                    <div key={k} className="config-row">
+                      <span className="config-key muted">{k}</span>
+                      <span className="config-val">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button className="ghost" onClick={() => void clearCaches()}>
+                Clear AI caches
+              </button>
+              <button onClick={() => setConfigOpen(false)}>Close</button>
             </div>
           </div>
         </div>

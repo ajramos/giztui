@@ -59,6 +59,7 @@ type Deps struct {
 	Theme        services.ThemeService         // optional
 	Invite       inviteClient                  // optional; calendar invite detection (gmail client)
 	Cal          calClient                     // optional; calendar RSVP responder
+	Cache        services.CacheService         // optional; summary cache (for clearing)
 	AccountEmail string                        // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -87,6 +88,7 @@ type API struct {
 	theme        services.ThemeService
 	invite       inviteClient
 	cal          calClient
+	cache        services.CacheService
 	accountEmail string
 	logger       *log.Logger
 
@@ -118,6 +120,7 @@ func NewAPI(d Deps) *API {
 		theme:        d.Theme,
 		invite:       d.Invite,
 		cal:          d.Cal,
+		cache:        d.Cache,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

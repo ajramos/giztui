@@ -91,6 +91,9 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["Z", "Save current search"],
       ["H", "Theme picker"],
       [":toolbar", "Show/hide reader toolbar"],
+      [":stats", "AI usage stats"],
+      [":config", "Show configuration"],
+      [":cache", "Clear AI caches"],
     ],
   },
 ];

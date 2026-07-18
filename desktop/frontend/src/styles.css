@@ -1054,6 +1054,69 @@ button.danger {
   font-size: 13.5px;
 }
 
+/* AI usage stats */
+.stats-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stat-tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  align-items: center;
+}
+.stat-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-label {
+  font-size: 12px;
+}
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.stat-row-name {
+  flex: 1;
+}
+.stat-row-cat {
+  font-size: 12px;
+}
+.stat-row-count {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Config panel */
+.config-list {
+  display: flex;
+  flex-direction: column;
+}
+.config-row {
+  display: flex;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.config-key {
+  width: 110px;
+  flex-shrink: 0;
+}
+.config-val {
+  word-break: break-all;
+}
+
 /* Calendar RSVP bar */
 .rsvp-bar {
   display: flex;

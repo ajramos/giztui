@@ -55,6 +55,9 @@ func (a *API) SaveRawMessage(ctx context.Context, id string) (string, error) {
 	return path, nil
 }
 
+// DownloadDir is the exported accessor for the download directory.
+func (a *API) DownloadDir() string { return a.downloadDir() }
+
 // downloadDir returns the configured attachment download directory (or a sane
 // default) to reuse for saved messages.
 func (a *API) downloadDir() string {

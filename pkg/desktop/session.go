@@ -68,6 +68,7 @@ type Session struct {
 	accountService   services.AccountService
 	currentAccountID string
 	cal              calClient
+	configPath       string
 	logger           *log.Logger
 }
 
@@ -123,6 +124,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		dbManager:      dbManager,
 		accountService: accountService,
 		cal:            cal,
+		configPath:     configPath,
 		logger:         logger,
 	}
 	if active, err := accountService.GetActiveAccount(ctx); err == nil && active != nil {
@@ -232,10 +234,14 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Theme:        themeService,
 		Invite:       client,
 		Cal:          cal,
+		Cache:        cacheService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})
 }
+
+// ConfigPath returns the path of the config file this session loaded.
+func (s *Session) ConfigPath() string { return s.configPath }
 
 // AccountEmail returns the active account's email address.
 func (s *Session) AccountEmail(ctx context.Context) (string, error) {

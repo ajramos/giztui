@@ -580,6 +580,50 @@ func (a *App) RSVPEnabled() bool {
 	return a.session != nil && a.session.API.RSVPEnabled()
 }
 
+// UsageStats returns AI prompt usage statistics.
+func (a *App) UsageStats() (*desktop.UsageStats, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.UsageStats(a.ctx)
+}
+
+// ClearCaches clears the AI summary and prompt caches for the active account.
+func (a *App) ClearCaches() error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.ClearCaches(a.ctx)
+}
+
+// ConfigInfo returns a read-only snapshot of the effective configuration.
+func (a *App) ConfigInfo() desktop.ConfigInfo {
+	if a.session == nil || a.session.Config == nil {
+		return desktop.ConfigInfo{}
+	}
+	cfg := a.session.Config
+	info := desktop.ConfigInfo{
+		ConfigPath:  a.session.ConfigPath(),
+		LLMProvider: cfg.LLM.Provider,
+		LLMModel:    cfg.LLM.Model,
+		Theme:       cfg.Theme.Current,
+		SlackOn:     cfg.Slack.Enabled,
+		AutoRefresh: cfg.AutoRefresh.Enabled,
+	}
+	if cfg.Obsidian != nil {
+		info.ObsidianOn = cfg.Obsidian.Enabled
+	}
+	if email, err := a.session.AccountEmail(a.ctx); err == nil {
+		info.Account = email
+	}
+	if api, err := a.api(); err == nil {
+		info.DownloadPath = api.DownloadDir()
+	}
+	return info
+}
+
 // InviteInfo returns calendar-invite details for a message (IsInvite=false when
 // the message isn't an invitation).
 func (a *App) InviteInfo(id string) (*desktop.Invite, error) {
