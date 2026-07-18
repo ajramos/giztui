@@ -63,7 +63,8 @@ npm run dev
 
 ```sh
 cd desktop
-wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
+wails build          # → desktop/build/bin/giztui-desktop.app (on macOS)
+open "build/bin/giztui-desktop.app"
 ```
 
 ## Current scope
