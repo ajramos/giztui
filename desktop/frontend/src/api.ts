@@ -150,6 +150,13 @@ export interface KeyMap {
   saveQuery: string;
   actionPlan: string;
   themePicker: string;
+  generateReply: string;
+  move: string;
+  toggleHeaders: string;
+  searchFrom: string;
+  searchTo: string;
+  searchSubject: string;
+  contentSearch: string;
   vimTimeoutMs: number;
 }
 
@@ -161,7 +168,9 @@ export const DEFAULT_KEYMAP: KeyMap = {
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
-  actionPlan: "P", themePicker: "H", vimTimeoutMs: 1000,
+  actionPlan: "P", themePicker: "H", generateReply: "g", move: "m",
+  toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
+  contentSearch: "/", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -200,7 +209,9 @@ interface Backend {
   ListAttachments(id: string): Promise<Attachment[]>;
   DownloadAttachment(messageID: string, attachmentID: string, filename: string): Promise<string>;
   OpenAttachment(path: string): Promise<void>;
-  SummarizeStream(id: string): Promise<string>;
+  SummarizeStream(id: string, force: boolean): Promise<string>;
+  GenerateReply(id: string): Promise<string>;
+  MoveToLabel(messageID: string, name: string): Promise<void>;
   BulkArchive(ids: string[]): Promise<void>;
   BulkTrash(ids: string[]): Promise<void>;
   BulkMarkRead(ids: string[]): Promise<void>;
@@ -298,12 +309,18 @@ async function streamViaEvent(
   return full;
 }
 
-// summarizeStream streams an AI summary of a message.
+// summarizeStream streams an AI summary of a message. When force is true it
+// bypasses the cache and regenerates the summary.
 export function summarizeStream(
   id: string,
   onToken: (token: string) => void,
+  force = false,
 ): Promise<string> {
-  return streamViaEvent("summary:token", () => backend.SummarizeStream(id), onToken);
+  return streamViaEvent(
+    "summary:token",
+    () => backend.SummarizeStream(id, force),
+    onToken,
+  );
 }
 
 // threadSummaryStream streams an AI summary of a conversation.
@@ -480,10 +497,19 @@ const mockBackend: Backend = {
     return `~/Downloads/gmail-attachments/${filename}`;
   },
   async OpenAttachment() {},
-  async SummarizeStream(id: string) {
+  async SummarizeStream(id: string, force: boolean) {
     // In the browser mock the streaming helper drives token delivery; this is
     // only the fallback that returns the full text.
-    return this.Summarize(id);
+    const s = await this.Summarize(id);
+    return force ? s + "\n\n(regenerated)" : s;
+  },
+  async GenerateReply(id: string) {
+    const m = mockMessages.find((x) => x.id === id) ?? mockMessages[0];
+    await new Promise((r) => setTimeout(r, 400));
+    return `Hi,\n\nThanks for your message about "${m.subject}". (mock AI draft) In the packaged app this reply is drafted by your configured LLM — edit it before sending.\n\nBest,`;
+  },
+  async MoveToLabel() {
+    await new Promise((r) => setTimeout(r, 200));
   },
   async BulkArchive() {
     await new Promise((r) => setTimeout(r, 250));

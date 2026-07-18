@@ -57,6 +57,16 @@ func (a *API) ApplyLabelByName(ctx context.Context, messageID, name string) erro
 	return a.labels.ApplyLabel(ctx, messageID, created.Id)
 }
 
+// MoveToLabel moves a message to a label: it applies the label (creating it if
+// needed) and archives the message (removes it from the inbox), mirroring the
+// TUI's ":move" behavior.
+func (a *API) MoveToLabel(ctx context.Context, messageID, name string) error {
+	if err := a.ApplyLabelByName(ctx, messageID, name); err != nil {
+		return err
+	}
+	return a.email.ArchiveMessage(ctx, messageID)
+}
+
 // MessageLabelIDs returns the raw Gmail label IDs currently applied to a
 // message, so the UI can show which labels are checked in the label picker.
 func (a *API) MessageLabelIDs(ctx context.Context, id string) ([]string, error) {

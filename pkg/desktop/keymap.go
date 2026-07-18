@@ -6,40 +6,47 @@ import "strings"
 // client implements, read from the user's GizTUI config (with the same defaults
 // as the TUI). Keys use TUI notation: single chars ("a"), "space", "gg", etc.
 type KeyMap struct {
-	Summarize    string `json:"summarize"`
-	Prompt       string `json:"prompt"`
-	Archive      string `json:"archive"`
-	Trash        string `json:"trash"`
-	ToggleRead   string `json:"toggleRead"`
-	ManageLabels string `json:"manageLabels"`
-	Compose      string `json:"compose"`
-	Reply        string `json:"reply"`
-	Forward      string `json:"forward"`
-	Search       string `json:"search"`
-	Refresh      string `json:"refresh"`
-	LoadMore     string `json:"loadMore"`
-	Drafts       string `json:"drafts"`
-	OpenGmail    string `json:"openGmail"`
-	BulkMode     string `json:"bulkMode"`
-	BulkSelect   string `json:"bulkSelect"`
-	Markdown     string `json:"markdown"`
-	Attachments  string `json:"attachments"`
-	Help         string `json:"help"`
-	GotoTop      string `json:"gotoTop"`
-	GotoBottom   string `json:"gotoBottom"`
-	LinkPicker   string `json:"linkPicker"`
-	ReplyAll     string `json:"replyAll"`
-	SaveMessage  string `json:"saveMessage"`
-	SuggestLabel string `json:"suggestLabel"`
-	Obsidian     string `json:"obsidian"`
-	Slack        string `json:"slack"`
-	CommandMode  string `json:"commandMode"`
-	Threading    string `json:"threading"`
-	SavedQueries string `json:"savedQueries"`
-	SaveQuery    string `json:"saveQuery"`
-	ActionPlan   string `json:"actionPlan"`
-	ThemePicker  string `json:"themePicker"`
-	VimTimeoutMs int    `json:"vimTimeoutMs"`
+	Summarize     string `json:"summarize"`
+	Prompt        string `json:"prompt"`
+	Archive       string `json:"archive"`
+	Trash         string `json:"trash"`
+	ToggleRead    string `json:"toggleRead"`
+	ManageLabels  string `json:"manageLabels"`
+	Compose       string `json:"compose"`
+	Reply         string `json:"reply"`
+	Forward       string `json:"forward"`
+	Search        string `json:"search"`
+	Refresh       string `json:"refresh"`
+	LoadMore      string `json:"loadMore"`
+	Drafts        string `json:"drafts"`
+	OpenGmail     string `json:"openGmail"`
+	BulkMode      string `json:"bulkMode"`
+	BulkSelect    string `json:"bulkSelect"`
+	Markdown      string `json:"markdown"`
+	Attachments   string `json:"attachments"`
+	Help          string `json:"help"`
+	GotoTop       string `json:"gotoTop"`
+	GotoBottom    string `json:"gotoBottom"`
+	LinkPicker    string `json:"linkPicker"`
+	ReplyAll      string `json:"replyAll"`
+	SaveMessage   string `json:"saveMessage"`
+	SuggestLabel  string `json:"suggestLabel"`
+	Obsidian      string `json:"obsidian"`
+	Slack         string `json:"slack"`
+	CommandMode   string `json:"commandMode"`
+	Threading     string `json:"threading"`
+	SavedQueries  string `json:"savedQueries"`
+	SaveQuery     string `json:"saveQuery"`
+	ActionPlan    string `json:"actionPlan"`
+	ThemePicker   string `json:"themePicker"`
+	GenerateReply string `json:"generateReply"`
+	Move          string `json:"move"`
+	ToggleHeaders string `json:"toggleHeaders"`
+	SearchFrom    string `json:"searchFrom"`
+	SearchTo      string `json:"searchTo"`
+	SearchSubject string `json:"searchSubject"`
+	ContentSearch string `json:"contentSearch"`
+	VimTimeoutMs  int    `json:"vimTimeoutMs"`
 }
 
 // DefaultKeyMap returns the built-in defaults, matching the TUI's
@@ -53,7 +60,9 @@ func DefaultKeyMap() KeyMap {
 		GotoTop: "gg", GotoBottom: "G", LinkPicker: "L", ReplyAll: "E",
 		SaveMessage: "w", SuggestLabel: "o", Obsidian: "O", Slack: "K",
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
-		ActionPlan: "P", ThemePicker: "H", VimTimeoutMs: 1000,
+		ActionPlan: "P", ThemePicker: "H", GenerateReply: "g", Move: "m",
+		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
+		ContentSearch: "/", VimTimeoutMs: 1000,
 	}
 }
 
@@ -98,6 +107,13 @@ func (s *Session) KeyMap() KeyMap {
 	km.SaveQuery = orDefault(k.SaveQuery, km.SaveQuery)
 	km.ActionPlan = orDefault(k.ActionPlan, km.ActionPlan)
 	km.ThemePicker = orDefault(k.ThemePicker, km.ThemePicker)
+	km.GenerateReply = orDefault(k.GenerateReply, km.GenerateReply)
+	km.Move = orDefault(k.Move, km.Move)
+	km.ToggleHeaders = orDefault(k.ToggleHeaders, km.ToggleHeaders)
+	km.SearchFrom = orDefault(k.SearchFrom, km.SearchFrom)
+	km.SearchTo = orDefault(k.SearchTo, km.SearchTo)
+	km.SearchSubject = orDefault(k.SearchSubject, km.SearchSubject)
+	km.ContentSearch = orDefault(k.ContentSearch, km.ContentSearch)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}

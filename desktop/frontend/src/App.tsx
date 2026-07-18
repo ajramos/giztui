@@ -11,6 +11,7 @@ import {
   type Attachment,
   type DraftSummary,
   type KeyMap,
+  type Label,
   type MessageDetail,
   type MessageSummary,
   type Prompt,
@@ -25,6 +26,7 @@ import PromptsPicker from "./PromptsPicker";
 import LinksPicker from "./LinksPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
+import HighlightedText from "./HighlightedText";
 import Help from "./Help";
 import CommandBar, { type CommandDef } from "./CommandBar";
 import MoreMenu from "./MoreMenu";
@@ -58,6 +60,14 @@ const COMMANDS: CommandDef[] = [
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
+  { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
+  { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
+  { names: ["find"], desc: "Find in message", arg: "<text>" },
+  { names: ["from"], desc: "Search from this sender" },
+  { names: ["to"], desc: "Search to this recipient" },
+  { names: ["subject"], desc: "Search this subject" },
+  { names: ["headers"], desc: "Toggle headers" },
+  { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
 
@@ -124,6 +134,14 @@ export default function App() {
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeNames, setThemeNames] = useState<string[]>([]);
   const [currentTheme, setCurrentTheme] = useState("");
+  const [generatingReply, setGeneratingReply] = useState(false);
+  const [headersExpanded, setHeadersExpanded] = useState(false);
+  const [moveFor, setMoveFor] = useState<string | null>(null);
+  const [moveName, setMoveName] = useState("");
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [csOpen, setCsOpen] = useState(false);
+  const [csQuery, setCsQuery] = useState("");
+  const [csIndex, setCsIndex] = useState(0);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -280,6 +298,11 @@ export default function App() {
           setThemeNames(await backend.ListThemes());
           await applyTheme(""); // apply the configured theme
         }
+      } catch {
+        /* non-fatal */
+      }
+      try {
+        setLabels(await backend.ListLabels());
       } catch {
         /* non-fatal */
       }
@@ -472,16 +495,20 @@ export default function App() {
     [selected, showToast],
   );
 
-  const summarize = useCallback(async (id: string) => {
+  const summarize = useCallback(async (id: string, force = false) => {
     setSummarizing(true);
     setSummary("");
     setError("");
     try {
       let acc = "";
-      const final = await summarizeStream(id, (tok) => {
-        acc += tok;
-        setSummary(acc);
-      });
+      const final = await summarizeStream(
+        id,
+        (tok) => {
+          acc += tok;
+          setSummary(acc);
+        },
+        force,
+      );
       setSummary(final);
     } catch (e) {
       setError(String(e));
@@ -490,6 +517,60 @@ export default function App() {
       setSummarizing(false);
     }
   }, []);
+
+  // generateReply asks the AI to draft a reply, then opens the composer with the
+  // draft prefilled so the user can edit before sending.
+  const generateReply = useCallback(
+    async (d: MessageDetail) => {
+      setGeneratingReply(true);
+      setError("");
+      try {
+        const draft = await backend.GenerateReply(d.id);
+        setCompose({ mode: "reply", originalId: d.id, to: d.from, body: draft });
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setGeneratingReply(false);
+      }
+    },
+    [],
+  );
+
+  // doMove applies a label and archives the message (Gmail "move to folder").
+  const doMove = useCallback(
+    async (id: string, name: string) => {
+      const label = name.trim();
+      if (!label) return;
+      setMoveFor(null);
+      setMoveName("");
+      try {
+        await backend.MoveToLabel(id, label);
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+        if (selectedId === id) {
+          setSelectedId(null);
+          setDetail(null);
+        }
+        showToast(`Moved to ${label}`);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [selectedId, showToast],
+  );
+
+  // quickSearch runs a Gmail search derived from the current message (sender,
+  // recipient, or subject), mirroring the TUI's F / T / S shortcuts.
+  const quickSearch = useCallback(
+    (kind: "from" | "to" | "subject", d: MessageDetail) => {
+      let q = "";
+      if (kind === "from") q = `from:${emailAddr(d.from) || d.from}`;
+      else if (kind === "to") q = `to:${emailAddr(d.to) || d.to}`;
+      else q = `subject:${JSON.stringify(cleanSubject(d.subject))}`;
+      setQuery(q);
+      void load(q);
+    },
+    [load],
+  );
 
   const loadDrafts = useCallback(async () => {
     setLoadingDrafts(true);
@@ -872,6 +953,49 @@ export default function App() {
         case "savequery":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
+        case "move":
+        case "mv":
+          if (d) {
+            if (arg) void doMove(d.id, arg);
+            else {
+              setMoveName("");
+              setMoveFor(d.id);
+            }
+          }
+          break;
+        case "headers":
+          if (d) setHeadersExpanded((v) => !v);
+          break;
+        case "replyai":
+        case "draft":
+          if (d && aiEnabled) void generateReply(d);
+          break;
+        case "from":
+          if (d) quickSearch("from", d);
+          break;
+        case "to":
+          if (d) quickSearch("to", d);
+          break;
+        case "subject":
+          if (d) quickSearch("subject", d);
+          break;
+        case "find":
+          if (d) {
+            setViewHtml(false);
+            setCsQuery(arg);
+            setCsIndex(0);
+            setCsOpen(true);
+          }
+          break;
+        case "theme":
+        case "th":
+          if (themesOn) {
+            if (arg) {
+              void applyTheme(arg);
+              showToast(`Theme: ${arg}`);
+            } else setThemePickerOpen(true);
+          }
+          break;
         case "help":
           setShowHelp(true);
           break;
@@ -902,6 +1026,11 @@ export default function App() {
       bulkMode,
       selected,
       showToast,
+      doMove,
+      generateReply,
+      quickSearch,
+      themesOn,
+      applyTheme,
     ],
   );
 
@@ -965,11 +1094,23 @@ export default function App() {
     add(keymap.obsidian, "obsidian");
     add(keymap.slack, "slack");
     add(keymap.commandMode, "commandMode");
+    // Quick searches derived from the current message. Registered before
+    // threading so "T" resolves to search-to (matching the TUI, where
+    // toggle_threading is unbound by default); threading stays on its toolbar
+    // button and the :threads command.
+    add(keymap.searchFrom, "searchFrom");
+    add(keymap.searchTo, "searchTo");
+    add(keymap.searchSubject, "searchSubject");
     add(keymap.threading, "threading");
     add(keymap.savedQueries, "savedQueries");
     add(keymap.saveQuery, "saveQuery");
     add(keymap.actionPlan, "actionPlan");
     add(keymap.themePicker, "themePicker");
+    // generateReply ("g") is intentionally not registered here: the "gg" goto-top
+    // sequence intercepts "g" first, so it would be dead. It lives in the reader's
+    // "⋯" menu and the :reply-ai command instead.
+    add(keymap.move, "move");
+    add(keymap.toggleHeaders, "toggleHeaders");
     return m;
   }, [keymap]);
 
@@ -1002,6 +1143,7 @@ export default function App() {
         saveQueryOpen ||
         planOpen ||
         themePickerOpen ||
+        moveFor ||
         bulkPromptText !== null
       )
         return;
@@ -1065,9 +1207,18 @@ export default function App() {
         }
         return;
       }
-      if (chord === "/") {
+      if (chord === keymap.contentSearch) {
         e.preventDefault();
-        searchRef.current?.focus();
+        // With a message open, "/" searches within its body (like the TUI).
+        // Otherwise it focuses the inbox search box.
+        if (detail && !bulkMode) {
+          setViewHtml(false); // content search runs over the plain-text body
+          setCsOpen(true);
+          setCsQuery("");
+          setCsIndex(0);
+        } else {
+          searchRef.current?.focus();
+        }
         return;
       }
 
@@ -1205,6 +1356,24 @@ export default function App() {
         case "themePicker":
           if (themesOn) setThemePickerOpen(true);
           break;
+        case "move":
+          if (detail && !bulkMode) {
+            setMoveName("");
+            setMoveFor(detail.id);
+          }
+          break;
+        case "toggleHeaders":
+          if (detail) setHeadersExpanded((v) => !v);
+          break;
+        case "searchFrom":
+          if (detail) quickSearch("from", detail);
+          break;
+        case "searchTo":
+          if (detail) quickSearch("to", detail);
+          break;
+        case "searchSubject":
+          if (detail) quickSearch("subject", detail);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1234,6 +1403,7 @@ export default function App() {
     saveQueryOpen,
     planOpen,
     themePickerOpen,
+    moveFor,
     bulkPromptText,
     actionPlanOn,
     themesOn,
@@ -1248,6 +1418,7 @@ export default function App() {
     toggleSelect,
     exitBulk,
     summarize,
+    quickSearch,
     toggleThread,
     openQueries,
     runActionPlan,
@@ -1534,6 +1705,15 @@ export default function App() {
                   </div>
                   <div className="muted">to {detail.to}</div>
                   <div className="muted">{formatFull(detail.date)}</div>
+                  {headersExpanded && (
+                    <div className="headers-detail">
+                      {detail.cc && (
+                        <div className="muted">cc {detail.cc}</div>
+                      )}
+                      <div className="muted">thread {detail.threadId}</div>
+                      <div className="muted">id {detail.id}</div>
+                    </div>
+                  )}
                   {detail.labels.length > 0 && (
                     <div className="labels reader-labels">
                       {detail.labels.map((l) => (
@@ -1618,10 +1798,30 @@ export default function App() {
                         onClick: () => setPromptsOpen(true),
                       },
                       {
+                        icon: Icon.reply,
+                        label: generatingReply ? "Drafting…" : "Draft reply (AI)",
+                        disabled: generatingReply,
+                        hidden: !aiEnabled,
+                        onClick: () => void generateReply(detail),
+                      },
+                      {
                         icon: Icon.tag2,
                         label: "Suggest labels (AI)",
                         hidden: !aiEnabled,
                         onClick: () => void openSuggest(detail.id),
+                      },
+                      {
+                        icon: Icon.folder,
+                        label: "Move to…",
+                        onClick: () => {
+                          setMoveName("");
+                          setMoveFor(detail.id);
+                        },
+                      },
+                      {
+                        icon: Icon.search,
+                        label: "Search from sender",
+                        onClick: () => quickSearch("from", detail),
                       },
                       {
                         icon: Icon.link,
@@ -1644,6 +1844,11 @@ export default function App() {
                         icon: Icon.save,
                         label: "Save to file",
                         onClick: () => saveMessage(detail.id),
+                      },
+                      {
+                        icon: Icon.text,
+                        label: headersExpanded ? "Hide headers" : "Show headers",
+                        onClick: () => setHeadersExpanded((v) => !v),
                       },
                       {
                         icon: Icon.external,
@@ -1675,14 +1880,25 @@ export default function App() {
                   <div className="summary-panel">
                     <div className="summary-head">
                       <span>✦ AI summary</span>
-                      {summary && (
-                        <button
-                          className="ghost tiny"
-                          onClick={() => setSummary(null)}
-                        >
-                          dismiss
-                        </button>
-                      )}
+                      <span className="summary-head-actions">
+                        {summary && !summarizing && (
+                          <button
+                            className="ghost tiny"
+                            title="Regenerate (ignore cache)"
+                            onClick={() => void summarize(detail.id, true)}
+                          >
+                            regenerate
+                          </button>
+                        )}
+                        {summary && (
+                          <button
+                            className="ghost tiny"
+                            onClick={() => setSummary(null)}
+                          >
+                            dismiss
+                          </button>
+                        )}
+                      </span>
                     </div>
                     {summarizing && !summary ? (
                       <div className="muted">Generating…</div>
@@ -1715,6 +1931,82 @@ export default function App() {
                         {promptRunning && <span className="caret">▍</span>}
                       </pre>
                     )}
+                  </div>
+                )}
+                {csOpen && (
+                  <div className="content-search">
+                    <input
+                      autoFocus
+                      value={csQuery}
+                      placeholder="Find in message…"
+                      onChange={(e) => {
+                        setCsQuery(e.target.value);
+                        setCsIndex(0);
+                      }}
+                      onKeyDown={(e) => {
+                        const total = countMatches(
+                          detail.plainText || "",
+                          csQuery,
+                        );
+                        if (e.key === "Escape") {
+                          setCsOpen(false);
+                          setCsQuery("");
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (total > 0)
+                            setCsIndex((i) =>
+                              e.shiftKey
+                                ? (i - 1 + total) % total
+                                : (i + 1) % total,
+                            );
+                        }
+                      }}
+                    />
+                    <span className="cs-count">
+                      {csQuery
+                        ? `${
+                            countMatches(detail.plainText || "", csQuery) === 0
+                              ? 0
+                              : csIndex + 1
+                          }/${countMatches(detail.plainText || "", csQuery)}`
+                        : ""}
+                    </span>
+                    <button
+                      className="tiny"
+                      title="Previous (Shift+Enter)"
+                      onClick={() => {
+                        const total = countMatches(
+                          detail.plainText || "",
+                          csQuery,
+                        );
+                        if (total > 0)
+                          setCsIndex((i) => (i - 1 + total) % total);
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="tiny"
+                      title="Next (Enter)"
+                      onClick={() => {
+                        const total = countMatches(
+                          detail.plainText || "",
+                          csQuery,
+                        );
+                        if (total > 0) setCsIndex((i) => (i + 1) % total);
+                      }}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="ghost tiny"
+                      onClick={() => {
+                        setCsOpen(false);
+                        setCsQuery("");
+                      }}
+                    >
+                      ✕
+                    </button>
                   </div>
                 )}
                 {loadingThread ? (
@@ -1764,7 +2056,17 @@ export default function App() {
                     <HtmlBody html={detail.html} loadRemote={loadRemote} />
                   </div>
                 ) : (
-                  <pre className="plain">{detail.plainText || "(empty body)"}</pre>
+                  <pre className="plain">
+                    {csOpen && csQuery ? (
+                      <HighlightedText
+                        text={detail.plainText || "(empty body)"}
+                        query={csQuery}
+                        activeIndex={csIndex}
+                      />
+                    ) : (
+                      detail.plainText || "(empty body)"
+                    )}
+                  </pre>
                 )}
               </div>
             </>
@@ -2075,6 +2377,56 @@ export default function App() {
           </div>
         </div>
       )}
+      {moveFor && (
+        <div
+          className="modal-overlay"
+          onClick={() => setMoveFor(null)}
+        >
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setMoveFor(null);
+              else if (e.key === "Enter") void doMove(moveFor, moveName);
+            }}
+          >
+            <div className="modal-head">
+              <h3>Move to folder</h3>
+              <button className="ghost" onClick={() => setMoveFor(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="field">
+                <label>Label (applies it and archives the message)</label>
+                <input
+                  value={moveName}
+                  onChange={(e) => setMoveName(e.target.value)}
+                  placeholder="e.g. Work / Receipts"
+                  list="move-label-list"
+                  autoFocus
+                />
+                <datalist id="move-label-list">
+                  {labels.map((l) => (
+                    <option key={l.id} value={l.name} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="ghost" onClick={() => setMoveFor(null)}>
+                Cancel
+              </button>
+              <button
+                onClick={() => void doMove(moveFor, moveName)}
+                disabled={!moveName.trim()}
+              >
+                Move
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>
   );
@@ -2091,6 +2443,25 @@ function displayName(from: string): string {
 function emailAddr(from: string): string {
   const m = from.match(/<([^>]+)>/);
   return m ? m[1] : from;
+}
+
+// cleanSubject strips Re:/Fwd: prefixes so a subject search matches the thread.
+function cleanSubject(subject: string): string {
+  return subject.replace(/^(\s*(re|fwd|fw)\s*:\s*)+/i, "").trim() || subject;
+}
+
+// countMatches returns how many times query occurs in text (case-insensitive).
+function countMatches(text: string, query: string): number {
+  if (!query) return 0;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  let n = 0;
+  let i = t.indexOf(q);
+  while (i !== -1) {
+    n++;
+    i = t.indexOf(q, i + q.length);
+  }
+  return n;
 }
 
 function formatDate(iso: string): string {

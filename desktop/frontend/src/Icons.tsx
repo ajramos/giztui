@@ -142,6 +142,15 @@ export const Icon = {
       <path d="M20 20l-3-3M4 20l3-3" />
     </>,
   ),
+  folder: svg(
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
+  ),
+  search: svg(
+    <>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </>,
+  ),
 };
 
 export function IconBtn({

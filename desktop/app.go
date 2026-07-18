@@ -252,6 +252,15 @@ func (a *App) ApplyLabelByName(messageID, name string) error {
 	return api.ApplyLabelByName(a.ctx, messageID, name)
 }
 
+// MoveToLabel moves a message to a label (apply label + archive).
+func (a *App) MoveToLabel(messageID, name string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.MoveToLabel(a.ctx, messageID, name)
+}
+
 // ListLinks returns the links found in a message body.
 func (a *App) ListLinks(id string) ([]desktop.Link, error) {
 	api, err := a.api()
@@ -450,15 +459,25 @@ func (a *App) Summarize(id string) (string, error) {
 }
 
 // SummarizeStream generates a summary and emits each token as a "summary:token"
-// Wails runtime event; it returns the complete summary when done.
-func (a *App) SummarizeStream(id string) (string, error) {
+// Wails runtime event; it returns the complete summary when done. When force is
+// true it bypasses the cache and regenerates the summary.
+func (a *App) SummarizeStream(id string, force bool) (string, error) {
 	api, err := a.api()
 	if err != nil {
 		return "", err
 	}
-	return api.SummarizeStream(a.ctx, id, func(tok string) {
+	return api.SummarizeStream(a.ctx, id, force, func(tok string) {
 		wailsruntime.EventsEmit(a.ctx, summaryTokenEvent, tok)
 	})
+}
+
+// GenerateReply drafts an AI reply to a message and returns the draft body.
+func (a *App) GenerateReply(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.GenerateReply(a.ctx, id)
 }
 
 // SendMail sends a new message from the active account.

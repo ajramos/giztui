@@ -399,6 +399,63 @@ button.danger {
   color: var(--accent);
 }
 
+/* Expanded header detail (toggle with "h") */
+.headers-detail {
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+
+/* Summary panel head: regenerate / dismiss buttons */
+.summary-head-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* In-message content search bar */
+.content-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 6px 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.content-search input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.content-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.cs-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 40px;
+  text-align: center;
+}
+.cs-hit {
+  background: #6b5d18;
+  color: inherit;
+  border-radius: 2px;
+}
+.cs-hit.active {
+  background: var(--accent);
+  color: #0b0d11;
+}
+
 /* Theme picker list */
 .theme-list {
   display: flex;

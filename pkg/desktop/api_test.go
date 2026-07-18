@@ -476,7 +476,7 @@ func TestSummarizeStream(t *testing.T) {
 	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}, AI: ai})
 
 	var got string
-	final, err := api.SummarizeStream(context.Background(), "1", func(tok string) {
+	final, err := api.SummarizeStream(context.Background(), "1", false, func(tok string) {
 		got += tok
 	})
 	if err != nil {
