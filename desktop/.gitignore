@@ -3,3 +3,7 @@ build/bin/
 
 # Wails build output binary
 giztui-desktop
+
+# Wails-generated frontend bindings & build markers (regenerated on `wails build`)
+frontend/wailsjs/
+frontend/package.json.md5
