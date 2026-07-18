@@ -63,6 +63,14 @@ export interface Link {
   type: string;
 }
 
+export interface PromptDetail {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  text: string;
+}
+
 export interface SavedQuery {
   id: number;
   name: string;
@@ -220,6 +228,11 @@ interface Backend {
   BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
   PromptsEnabled(): Promise<boolean>;
   ListPrompts(): Promise<Prompt[]>;
+  GetPrompt(id: number): Promise<PromptDetail>;
+  CreatePrompt(name: string, description: string, text: string, category: string): Promise<number>;
+  UpdatePrompt(id: number, name: string, description: string, text: string, category: string): Promise<void>;
+  DeletePrompt(id: number): Promise<void>;
+  RefinePromptText(text: string): Promise<string>;
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
   ApplyBulkPromptStream(ids: string[], promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
@@ -533,12 +546,34 @@ const mockBackend: Backend = {
     return true;
   },
   async ListPrompts() {
-    return [
-      { id: 1, name: "Summarize concisely", description: "3-bullet summary", category: "general" },
-      { id: 2, name: "Extract action items", description: "List to-dos & owners", category: "productivity" },
-      { id: 3, name: "Draft a polite reply", description: "Suggest a response", category: "compose" },
-      { id: 4, name: "Translate to Spanish", description: "Translate the email", category: "language" },
-    ];
+    return mockPrompts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+    }));
+  },
+  async GetPrompt(id: number) {
+    return (
+      mockPrompts.find((p) => p.id === id) ?? mockPrompts[0]
+    );
+  },
+  async CreatePrompt(name: string, description: string, text: string, category: string) {
+    const id = Math.max(0, ...mockPrompts.map((p) => p.id)) + 1;
+    mockPrompts = [...mockPrompts, { id, name, description, text, category }];
+    return id;
+  },
+  async UpdatePrompt(id: number, name: string, description: string, text: string, category: string) {
+    mockPrompts = mockPrompts.map((p) =>
+      p.id === id ? { id, name, description, text, category } : p,
+    );
+  },
+  async DeletePrompt(id: number) {
+    mockPrompts = mockPrompts.filter((p) => p.id !== id);
+  },
+  async RefinePromptText(text: string) {
+    await new Promise((r) => setTimeout(r, 400));
+    return `${text.trim()}\n\nBe concise and use {{body}} for the email content. (refined by mock AI)`;
   },
   async ApplyBulkPromptStream(ids: string[], _promptID: number) {
     await new Promise((r) => setTimeout(r, 400));
@@ -720,6 +755,12 @@ const mockBackend: Backend = {
 };
 
 let mockActiveAccount = "personal";
+let mockPrompts: PromptDetail[] = [
+  { id: 1, name: "Summarize concisely", description: "3-bullet summary", category: "general", text: "Summarize the following email in 3 bullets:\n\n{{body}}" },
+  { id: 2, name: "Extract action items", description: "List to-dos & owners", category: "productivity", text: "List the action items and owners in this email:\n\n{{body}}" },
+  { id: 3, name: "Draft a polite reply", description: "Suggest a response", category: "compose", text: "Draft a polite reply to:\n\n{{body}}" },
+  { id: 4, name: "Translate to Spanish", description: "Translate the email", category: "language", text: "Translate this email to Spanish:\n\n{{body}}" },
+];
 let mockQueries: SavedQuery[] = [
   { id: 1, name: "Unread from team", query: "is:unread from:team", description: "", category: "" },
   { id: 2, name: "Has attachments", query: "has:attachment newer_than:7d", description: "", category: "" },

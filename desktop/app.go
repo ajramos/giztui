@@ -570,6 +570,51 @@ func (a *App) ListPrompts() ([]desktop.Prompt, error) {
 	return api.ListPrompts(a.ctx)
 }
 
+// GetPrompt returns a prompt template including its editable text.
+func (a *App) GetPrompt(id int) (*desktop.PromptDetail, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.GetPrompt(a.ctx, id)
+}
+
+// CreatePrompt saves a new prompt template and returns its id.
+func (a *App) CreatePrompt(name, description, text, category string) (int, error) {
+	api, err := a.api()
+	if err != nil {
+		return 0, err
+	}
+	return api.CreatePrompt(a.ctx, name, description, text, category)
+}
+
+// UpdatePrompt edits an existing prompt template.
+func (a *App) UpdatePrompt(id int, name, description, text, category string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.UpdatePrompt(a.ctx, id, name, description, text, category)
+}
+
+// DeletePrompt removes a prompt template.
+func (a *App) DeletePrompt(id int) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeletePrompt(a.ctx, id)
+}
+
+// RefinePromptText asks the AI to improve a prompt's text.
+func (a *App) RefinePromptText(text string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.RefinePromptText(a.ctx, text)
+}
+
 // ApplyPromptStream applies a prompt to a message, emitting each token as a
 // "prompt:token" runtime event, and returns the full result.
 func (a *App) ApplyPromptStream(messageID string, promptID int) (string, error) {

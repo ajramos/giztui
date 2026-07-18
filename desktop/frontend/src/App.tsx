@@ -23,6 +23,7 @@ import {
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
 import PromptsPicker from "./PromptsPicker";
+import PromptManager from "./PromptManager";
 import LinksPicker from "./LinksPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
@@ -53,6 +54,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["save"], desc: "Save to file" },
   { names: ["summarize", "sum"], desc: "AI summary" },
   { names: ["prompt"], desc: "Apply a prompt" },
+  { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian"], desc: "Send to Obsidian" },
   { names: ["slack"], desc: "Forward to Slack" },
@@ -98,6 +100,7 @@ export default function App() {
   const [bulkLabels, setBulkLabels] = useState(false);
   const [aiPromptsEnabled, setAiPromptsEnabled] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
+  const [promptManagerOpen, setPromptManagerOpen] = useState(false);
   const [promptResult, setPromptResult] = useState<string | null>(null);
   const [promptLabel, setPromptLabel] = useState("");
   const [promptRunning, setPromptRunning] = useState(false);
@@ -996,6 +999,11 @@ export default function App() {
             } else setThemePickerOpen(true);
           }
           break;
+        case "prompts":
+        case "prompt-manage":
+        case "prompt-new":
+          if (aiPromptsEnabled) setPromptManagerOpen(true);
+          break;
         case "help":
           setShowHelp(true);
           break;
@@ -1136,6 +1144,7 @@ export default function App() {
         labelsFor ||
         bulkLabels ||
         promptsOpen ||
+        promptManagerOpen ||
         linksFor ||
         suggestFor ||
         cmdOpen ||
@@ -1390,6 +1399,7 @@ export default function App() {
     labelsFor,
     bulkLabels,
     promptsOpen,
+    promptManagerOpen,
     showHelp,
     linksFor,
     suggestFor,
@@ -2112,6 +2122,23 @@ export default function App() {
         <PromptsPicker
           onClose={() => setPromptsOpen(false)}
           onPick={(p) => void runPrompt(p)}
+          onManage={
+            aiPromptsEnabled
+              ? () => {
+                  setPromptsOpen(false);
+                  setPromptManagerOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+      {promptManagerOpen && (
+        <PromptManager
+          aiEnabled={aiEnabled}
+          onClose={() => setPromptManagerOpen(false)}
+          onChanged={() => {
+            /* prompts reload themselves inside the manager */
+          }}
         />
       )}
       {linksFor && (

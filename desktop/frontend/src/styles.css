@@ -456,6 +456,31 @@ button.danger {
   color: #0b0d11;
 }
 
+/* Prompt manager */
+.prompt-manage-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.prompt-manage-row .prompt-row {
+  flex: 1;
+}
+.prompt-text-area {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+.prompt-text-area:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* Theme picker list */
 .theme-list {
   display: flex;

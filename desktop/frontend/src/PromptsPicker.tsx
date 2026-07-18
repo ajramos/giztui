@@ -4,9 +4,11 @@ import { backend, type Prompt } from "./api";
 export default function PromptsPicker({
   onClose,
   onPick,
+  onManage,
 }: {
   onClose: () => void;
   onPick: (prompt: Prompt) => void;
+  onManage?: () => void;
 }) {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filter, setFilter] = useState("");
@@ -59,9 +61,16 @@ export default function PromptsPicker({
       >
         <div className="modal-head">
           <h3>Apply a prompt</h3>
-          <button className="ghost" onClick={onClose}>
-            ✕
-          </button>
+          <span className="summary-head-actions">
+            {onManage && (
+              <button className="ghost tiny" onClick={onManage}>
+                ⚙ Manage
+              </button>
+            )}
+            <button className="ghost" onClick={onClose}>
+              ✕
+            </button>
+          </span>
         </div>
         {error && <div className="error-banner">{error}</div>}
         <div className="modal-body">

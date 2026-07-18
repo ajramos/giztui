@@ -136,6 +136,15 @@ type Prompt struct {
 	Category    string `json:"category"`
 }
 
+// PromptDetail carries the full prompt template, including its editable text.
+type PromptDetail struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Text        string `json:"text"`
+}
+
 // Attachment is a JSON-serializable message attachment. It mirrors the fields of
 // services.AttachmentInfo but lives in this public package so the nested Wails
 // module (which cannot import internal/...) can consume it.
