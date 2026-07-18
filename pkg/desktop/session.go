@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ajramos/giztui/internal/config"
+	"github.com/ajramos/giztui/internal/db"
 	"github.com/ajramos/giztui/internal/gmail"
 	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/render"
@@ -41,8 +42,17 @@ type Session struct {
 	API    *API
 	Config *config.Config
 
-	client *gmail.Client
-	logger *log.Logger
+	client    *gmail.Client
+	dbManager services.DatabaseManager
+	logger    *log.Logger
+}
+
+// Close releases the session's resources (e.g. the local database).
+func (s *Session) Close() error {
+	if s.dbManager != nil {
+		return s.dbManager.Close()
+	}
+	return nil
 }
 
 // NewSession builds the full Gmail/LLM/service stack from config and OAuth
@@ -75,11 +85,36 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 
 	attachmentService := services.NewAttachmentService(client, cfg)
 
-	// AIService is optional: only wired when an LLM provider is configured.
-	aiService := buildAIService(cfg, logger)
-
 	// Capture the active account address so composed messages have a "from".
 	accountEmail, _ := client.ActiveAccountEmail(ctx)
+
+	// Open the per-account local database (best-effort). It powers summary
+	// caching and the prompt library; without it those features are simply off.
+	dbManager := services.NewDatabaseManager(cfg, logger)
+	var dbStore *db.Store
+	if accountEmail != "" {
+		if err := dbManager.SwitchToAccountDatabase(ctx, accountEmail); err != nil {
+			if logger != nil {
+				logger.Printf("desktop: could not open local database: %v", err)
+			}
+		} else {
+			dbStore = dbManager.GetCurrentStore()
+		}
+	}
+
+	var cacheService services.CacheService
+	if dbStore != nil {
+		cacheService = services.NewCacheService(db.NewCacheStore(dbStore))
+	}
+
+	// AIService is optional: only wired when an LLM provider is configured.
+	aiService := buildAIService(cfg, cacheService, logger)
+
+	// PromptService needs both an LLM (aiService) and the local database.
+	var promptService services.PromptService
+	if aiService != nil && dbStore != nil {
+		promptService = services.NewPromptService(db.NewPromptStore(dbStore), aiService, nil)
+	}
 
 	api := NewAPI(Deps{
 		Repo:         repo,
@@ -88,15 +123,17 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		Mail:         client,
 		AI:           aiService,
 		Attach:       attachmentService,
+		Prompts:      promptService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})
 
 	return &Session{
-		API:    api,
-		Config: cfg,
-		client: client,
-		logger: logger,
+		API:       api,
+		Config:    cfg,
+		client:    client,
+		dbManager: dbManager,
+		logger:    logger,
 	}, nil
 }
 
@@ -111,7 +148,7 @@ func (s *Session) AccountEmail(ctx context.Context) (string, error) {
 // buildAIService constructs an AIService from config, mirroring the TUI's LLM
 // wiring. Returns nil (not an error) when AI is disabled or misconfigured, so
 // the rest of the app still works without AI.
-func buildAIService(cfg *config.Config, logger *log.Logger) services.AIService {
+func buildAIService(cfg *config.Config, cacheService services.CacheService, logger *log.Logger) services.AIService {
 	if !cfg.LLM.Enabled || cfg.LLM.Model == "" {
 		return nil
 	}
@@ -134,8 +171,7 @@ func buildAIService(cfg *config.Config, logger *log.Logger) services.AIService {
 		}
 		return nil
 	}
-	// cacheService is nil here; summaries generate but are not persisted yet.
-	return services.NewAIService(provider, nil, cfg)
+	return services.NewAIService(provider, cacheService, cfg)
 }
 
 // resolvePath applies the standard priority: explicit value, then environment

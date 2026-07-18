@@ -83,11 +83,16 @@ wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
   powered by your configured LLM through the same `AIService` the TUI uses.
   Tokens stream into the panel live via a Wails runtime event (only shown when
   an LLM provider is configured)
+- **AI prompt library** (`p`) — apply any of your saved prompts to the open
+  message via the same `PromptService` the TUI uses; the result streams into a
+  panel (requires an LLM provider and the local database)
+- **Summary caching** — summaries are cached in the per-account local database,
+  same as the TUI
 - **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the list):
   `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d` trash,
   `t` toggle read, `l` labels, `c` compose, `r` reply, `f` forward, `y`
-  summarize, `s`/`/` search, `R` refresh, `N` load more, `v` select mode,
-  `Space`/`*` select, `Esc` back.
+  summarize, `p` prompt, `s`/`/` search, `R` refresh, `N` load more, `v` select
+  mode, `Space`/`*` select, `Esc` back.
 
 ### Keyboard parity note
 
@@ -96,7 +101,7 @@ parity. The desktop client keeps that muscle memory: the shortcuts above use the
 same default keys as the TUI (`internal/config/config.go` `DefaultKeyBindings`).
 The in-app `?` overlay is the discoverable reference.
 
-Not yet ported from the TUI: custom AI prompts, Obsidian, Slack, drafts
-management, threading view, RSVP, multi-account switching, HTML body rendering.
-These map cleanly onto the same service layer and can be added incrementally by
-extending `pkg/desktop`.
+Not yet ported from the TUI: bulk prompts, Obsidian, Slack, drafts management,
+threading view, RSVP, multi-account switching, HTML body rendering. These map
+cleanly onto the same service layer and can be added incrementally by extending
+`pkg/desktop`.

@@ -49,6 +49,13 @@ export interface Attachment {
   inline: boolean;
 }
 
+export interface Prompt {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+}
+
 interface Backend {
   InitError(): Promise<string>;
   AccountEmail(): Promise<string>;
@@ -77,6 +84,9 @@ interface Backend {
   BulkMarkUnread(ids: string[]): Promise<void>;
   BulkApplyLabel(ids: string[], labelID: string): Promise<void>;
   BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
+  PromptsEnabled(): Promise<boolean>;
+  ListPrompts(): Promise<Prompt[]>;
+  ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
 }
 
 // Wails runtime surface we use (event streaming).
@@ -98,37 +108,59 @@ function realBackend(): Backend | null {
 
 export const isWails = (): boolean => realBackend() !== null;
 
-// summarizeStream wires the streaming AI summary. In the packaged app it
-// subscribes to the "summary:token" Wails event and forwards each token; in the
-// browser mock it chunks the mock summary so the UI streams identically.
-export async function summarizeStream(
-  id: string,
+// streamViaEvent runs a backend call that emits tokens as a Wails runtime event,
+// forwarding each token to onToken and returning the final text. When the Wails
+// runtime is absent (browser dev), it falls back to chunking the resolved
+// result so the UI streams identically against the mock backend.
+async function streamViaEvent(
+  eventName: string,
+  run: () => Promise<string>,
   onToken: (token: string) => void,
 ): Promise<string> {
-  const real = realBackend();
   const rt = window.runtime;
-  if (real && rt) {
+  if (realBackend() && rt) {
     let acc = "";
-    const off = rt.EventsOn("summary:token", (...data: unknown[]) => {
+    const off = rt.EventsOn(eventName, (...data: unknown[]) => {
       const tok = String(data[0] ?? "");
       acc += tok;
       onToken(tok);
     });
     try {
-      const final = await real.SummarizeStream(id);
+      const final = await run();
       return final || acc;
     } finally {
       if (typeof off === "function") off();
-      else rt.EventsOff("summary:token");
+      else rt.EventsOff(eventName);
     }
   }
-  // Mock streaming.
-  const full = await backend.Summarize(id);
+  // Mock streaming: run() resolves the full text, then we chunk it.
+  const full = await run();
   for (const chunk of full.match(/[\s\S]{1,6}/g) ?? [full]) {
     await new Promise((r) => setTimeout(r, 35));
     onToken(chunk);
   }
   return full;
+}
+
+// summarizeStream streams an AI summary of a message.
+export function summarizeStream(
+  id: string,
+  onToken: (token: string) => void,
+): Promise<string> {
+  return streamViaEvent("summary:token", () => backend.SummarizeStream(id), onToken);
+}
+
+// applyPromptStream streams the result of applying a saved prompt to a message.
+export function applyPromptStream(
+  id: string,
+  promptId: number,
+  onToken: (token: string) => void,
+): Promise<string> {
+  return streamViaEvent(
+    "prompt:token",
+    () => backend.ApplyPromptStream(id, promptId),
+    onToken,
+  );
 }
 
 // backend proxies to the real Wails bindings when present, otherwise to a mock
@@ -278,6 +310,26 @@ const mockBackend: Backend = {
   },
   async BulkRemoveLabel() {
     await new Promise((r) => setTimeout(r, 200));
+  },
+  async PromptsEnabled() {
+    return true;
+  },
+  async ListPrompts() {
+    return [
+      { id: 1, name: "Summarize concisely", description: "3-bullet summary", category: "general" },
+      { id: 2, name: "Extract action items", description: "List to-dos & owners", category: "productivity" },
+      { id: 3, name: "Draft a polite reply", description: "Suggest a response", category: "compose" },
+      { id: 4, name: "Translate to Spanish", description: "Translate the email", category: "language" },
+    ];
+  },
+  async ApplyPromptStream(_id: string, promptID: number) {
+    const names: Record<number, string> = {
+      1: "• Key point one\n• Key point two\n• Key point three",
+      2: "1. Reply to Ada by Friday (owner: you)\n2. Review the Q3 roadmap draft",
+      3: "Hi,\n\nThanks for the update — Friday works for me. See you then!\n\nBest,",
+      4: "Hola,\n\nEste es el cuerpo del correo traducido al español por tu LLM.",
+    };
+    return names[promptID] ?? "(mock prompt result)";
   },
 };
 

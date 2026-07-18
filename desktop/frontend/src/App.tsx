@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  applyPromptStream,
   backend,
   isWails,
   summarizeStream,
   type Attachment,
   type MessageDetail,
   type MessageSummary,
+  type Prompt,
 } from "./api";
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
+import PromptsPicker from "./PromptsPicker";
 import Help from "./Help";
 
 const PAGE_SIZE = 50;
@@ -38,6 +41,11 @@ export default function App() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLabels, setBulkLabels] = useState(false);
+  const [aiPromptsEnabled, setAiPromptsEnabled] = useState(false);
+  const [promptsOpen, setPromptsOpen] = useState(false);
+  const [promptResult, setPromptResult] = useState<string | null>(null);
+  const [promptLabel, setPromptLabel] = useState("");
+  const [promptRunning, setPromptRunning] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const gPressedAt = useRef(0);
@@ -101,6 +109,11 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
+      try {
+        setAiPromptsEnabled(await backend.PromptsEnabled());
+      } catch {
+        /* non-fatal */
+      }
       void load("");
     })();
   }, [load]);
@@ -110,6 +123,7 @@ export default function App() {
     setLoadingDetail(true);
     setError("");
     setSummary(null);
+    setPromptResult(null);
     setAttachments([]);
     try {
       const d = await backend.GetMessage(m.id);
@@ -248,6 +262,31 @@ export default function App() {
     }
   }, []);
 
+  const runPrompt = useCallback(
+    async (prompt: Prompt) => {
+      if (!detail) return;
+      setPromptsOpen(false);
+      setPromptLabel(prompt.name);
+      setPromptRunning(true);
+      setPromptResult("");
+      setError("");
+      try {
+        let acc = "";
+        const final = await applyPromptStream(detail.id, prompt.id, (tok) => {
+          acc += tok;
+          setPromptResult(acc);
+        });
+        setPromptResult(final);
+      } catch (e) {
+        setError(String(e));
+        setPromptResult(null);
+      } finally {
+        setPromptRunning(false);
+      }
+    },
+    [detail],
+  );
+
   const replyInit = (d: MessageDetail): ComposeInit => ({
     mode: "reply",
     originalId: d.id,
@@ -286,7 +325,7 @@ export default function App() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
 
-      // Modals own their keys; the global handler only helps them close.
+      // Modals own their keys; the global handler only helps Help close.
       if (showHelp) {
         if (e.key === "Escape" || e.key === "?") {
           setShowHelp(false);
@@ -294,11 +333,7 @@ export default function App() {
         }
         return;
       }
-      if (labelsFor) {
-        if (e.key === "Escape") setLabelsFor(null);
-        return;
-      }
-      if (compose) return;
+      if (compose || labelsFor || bulkLabels || promptsOpen) return;
 
       if (typing) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
@@ -318,7 +353,7 @@ export default function App() {
 
       // Prevent handled shortcut keys from also typing into freshly-focused
       // inputs (e.g. 'l' opening the labels picker must not seed its filter).
-      const HANDLED = "jkGgNRadtlcrfyvs/?*";
+      const HANDLED = "jkGgNRadtlcrfyvps/?*";
       if (
         HANDLED.includes(e.key) ||
         e.key === " " ||
@@ -413,6 +448,9 @@ export default function App() {
         case "y":
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
           break;
+        case "p":
+          if (detail && aiPromptsEnabled && !bulkMode) setPromptsOpen(true);
+          break;
         case "s":
         case "/":
           searchRef.current?.focus();
@@ -429,8 +467,11 @@ export default function App() {
     selectedId,
     detail,
     aiEnabled,
+    aiPromptsEnabled,
     compose,
     labelsFor,
+    bulkLabels,
+    promptsOpen,
     showHelp,
     activeQuery,
     bulkMode,
@@ -676,6 +717,15 @@ export default function App() {
                       {summarizing ? "Summarizing…" : "✦ Summarize"}
                     </button>
                   )}
+                  {aiPromptsEnabled && (
+                    <button
+                      className="ghost"
+                      disabled={promptRunning}
+                      onClick={() => setPromptsOpen(true)}
+                    >
+                      {promptRunning ? "Running…" : "✦ Prompt"}
+                    </button>
+                  )}
                   <button
                     disabled={busy}
                     onClick={() => void doAction("archive", detail.id)}
@@ -740,6 +790,29 @@ export default function App() {
                     )}
                   </div>
                 )}
+                {(promptRunning || promptResult) && (
+                  <div className="summary-panel prompt-panel">
+                    <div className="summary-head">
+                      <span>✦ {promptLabel}</span>
+                      {promptResult && !promptRunning && (
+                        <button
+                          className="ghost tiny"
+                          onClick={() => setPromptResult(null)}
+                        >
+                          dismiss
+                        </button>
+                      )}
+                    </div>
+                    {promptRunning && !promptResult ? (
+                      <div className="muted">Generating…</div>
+                    ) : (
+                      <pre className="summary-text">
+                        {promptResult}
+                        {promptRunning && <span className="caret">▍</span>}
+                      </pre>
+                    )}
+                  </div>
+                )}
                 {loadingDetail ? (
                   <div className="placeholder">Loading…</div>
                 ) : (
@@ -782,6 +855,12 @@ export default function App() {
           bulkIds={[...selected]}
           onClose={() => setBulkLabels(false)}
           onChanged={() => undefined}
+        />
+      )}
+      {promptsOpen && (
+        <PromptsPicker
+          onClose={() => setPromptsOpen(false)}
+          onPick={(p) => void runPrompt(p)}
         />
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}

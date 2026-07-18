@@ -42,6 +42,14 @@ type Label struct {
 	Name string `json:"name"`
 }
 
+// Prompt is a JSON-serializable AI prompt template.
+type Prompt struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+}
+
 // Attachment is a JSON-serializable message attachment. It mirrors the fields of
 // services.AttachmentInfo but lives in this public package so the nested Wails
 // module (which cannot import internal/...) can consume it.

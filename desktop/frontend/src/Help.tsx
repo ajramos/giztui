@@ -46,6 +46,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
     group: "AI & search",
     keys: [
       ["y", "Summarize (AI)"],
+      ["p", "Apply a prompt"],
       ["s /  /", "Search"],
       ["?", "This help"],
     ],

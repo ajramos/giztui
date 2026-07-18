@@ -166,6 +166,26 @@ func (f *fakeLabels) BulkRemoveLabel(ctx context.Context, ids []string, labelID 
 	return nil
 }
 
+type fakePrompts struct {
+	services.PromptService
+	templates  []*services.PromptTemplate
+	gotContent string
+	gotID      int
+	result     string
+}
+
+func (f *fakePrompts) ListPrompts(ctx context.Context, category string) ([]*services.PromptTemplate, error) {
+	return f.templates, nil
+}
+func (f *fakePrompts) ApplyPromptStream(ctx context.Context, messageContent string, promptID int, variables map[string]string, onToken func(string)) (*services.PromptResult, error) {
+	f.gotContent = messageContent
+	f.gotID = promptID
+	if len(f.result) > 0 {
+		onToken(f.result)
+	}
+	return &services.PromptResult{PromptID: promptID, ResultText: f.result}, nil
+}
+
 type fakeAttach struct {
 	services.AttachmentService
 	infos        []services.AttachmentInfo
@@ -462,6 +482,60 @@ func TestBulkForward(t *testing.T) {
 	}
 	if empty.bulkArchived != nil {
 		t.Errorf("empty BulkArchive should not call service")
+	}
+}
+
+func TestPrompts(t *testing.T) {
+	repo := &fakeRepo{detail: &gmail.Message{
+		Message:   &gmail_v1.Message{Id: "1"},
+		PlainText: "email content",
+	}}
+	prompts := &fakePrompts{
+		templates: []*services.PromptTemplate{
+			{ID: 1, Name: "Summarize", Description: "d", Category: "general"},
+			{ID: 2, Name: "Extract actions", Category: "general"},
+			nil,
+		},
+		result: "prompt output",
+	}
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}, Prompts: prompts})
+
+	if !api.PromptsEnabled() {
+		t.Fatal("PromptsEnabled should be true")
+	}
+	list, err := api.ListPrompts(context.Background())
+	if err != nil || len(list) != 2 {
+		t.Fatalf("ListPrompts: %v %v", list, err)
+	}
+	if list[0].Name != "Summarize" || list[1].Name != "Extract actions" {
+		t.Errorf("unexpected prompts: %+v", list)
+	}
+
+	var streamed string
+	out, err := api.ApplyPromptStream(context.Background(), "1", 2, func(tok string) {
+		streamed += tok
+	})
+	if err != nil {
+		t.Fatalf("ApplyPromptStream: %v", err)
+	}
+	if out != "prompt output" || streamed != "prompt output" {
+		t.Errorf("out=%q streamed=%q", out, streamed)
+	}
+	if prompts.gotContent != "email content" || prompts.gotID != 2 {
+		t.Errorf("prompt got content=%q id=%d", prompts.gotContent, prompts.gotID)
+	}
+}
+
+func TestPromptsDisabled(t *testing.T) {
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}})
+	if api.PromptsEnabled() {
+		t.Fatal("PromptsEnabled should be false without prompt service")
+	}
+	if list, err := api.ListPrompts(context.Background()); err != nil || len(list) != 0 {
+		t.Errorf("expected empty list, got %v %v", list, err)
+	}
+	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, func(string) {}); err == nil {
+		t.Error("expected error when prompts disabled")
 	}
 }
 

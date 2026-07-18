@@ -8,9 +8,11 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// summaryTokenEvent is the Wails event the frontend subscribes to for streaming
-// AI summary tokens.
-const summaryTokenEvent = "summary:token"
+// Wails events the frontend subscribes to for streaming AI output.
+const (
+	summaryTokenEvent = "summary:token"
+	promptTokenEvent  = "prompt:token"
+)
 
 // App is the Wails-bound backend. Its exported methods are callable from the
 // frontend (window.go.main.App.*). It is intentionally a thin wrapper: all real
@@ -245,6 +247,35 @@ func (a *App) OpenAttachment(path string) error {
 		return err
 	}
 	return api.OpenAttachment(a.ctx, path)
+}
+
+// PromptsEnabled reports whether the AI prompt library is available.
+func (a *App) PromptsEnabled() bool {
+	if a.session == nil {
+		return false
+	}
+	return a.session.API.PromptsEnabled()
+}
+
+// ListPrompts returns the saved AI prompt templates.
+func (a *App) ListPrompts() ([]desktop.Prompt, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListPrompts(a.ctx)
+}
+
+// ApplyPromptStream applies a prompt to a message, emitting each token as a
+// "prompt:token" runtime event, and returns the full result.
+func (a *App) ApplyPromptStream(messageID string, promptID int) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ApplyPromptStream(a.ctx, messageID, promptID, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, promptTokenEvent, tok)
+	})
 }
 
 // BulkArchive archives every message in ids.

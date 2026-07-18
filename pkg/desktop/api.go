@@ -44,6 +44,7 @@ type Deps struct {
 	Mail         mailClient
 	AI           services.AIService         // optional; nil when no LLM is configured
 	Attach       services.AttachmentService // optional
+	Prompts      services.PromptService     // optional; nil without LLM+DB
 	AccountEmail string                     // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -58,6 +59,7 @@ type API struct {
 	mail         mailClient
 	ai           services.AIService
 	attach       services.AttachmentService
+	prompts      services.PromptService
 	accountEmail string
 	logger       *log.Logger
 }
@@ -72,6 +74,7 @@ func NewAPI(d Deps) *API {
 		mail:         d.Mail,
 		ai:           d.AI,
 		attach:       d.Attach,
+		prompts:      d.Prompts,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}
