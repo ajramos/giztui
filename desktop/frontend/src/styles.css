@@ -724,9 +724,14 @@ button.danger {
   white-space: nowrap;
 }
 /* Slightly smaller icon buttons in the slim topbar */
-.topbar-actions .icon-btn {
+.topbar .icon-btn {
   width: 28px;
   height: 28px;
+}
+/* Topbar tooltips must open downward — there's no room above the window edge. */
+.topbar .icon-btn::after {
+  bottom: auto;
+  top: calc(100% + 6px);
 }
 .row.checked {
   background: #1e2a3f;

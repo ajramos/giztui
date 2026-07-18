@@ -1605,18 +1605,25 @@ export default function App() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button type="submit">Search</button>
+          {/* Icon buttons to match the rest of the app's button language. The
+              submit stays a real submit button so Enter/click search. */}
+          <button
+            type="submit"
+            className="icon-btn primary"
+            aria-label="Search"
+            data-tip="Search"
+          >
+            {Icon.search}
+          </button>
           {activeQuery && (
-            <button
-              type="button"
-              className="ghost"
+            <IconBtn
+              icon={Icon.x}
+              label="Clear search"
               onClick={() => {
                 setQuery("");
                 void load("");
               }}
-            >
-              Clear
-            </button>
+            />
           )}
         </form>
         <div className="account">
