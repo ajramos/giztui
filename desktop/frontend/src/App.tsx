@@ -12,6 +12,7 @@ import {
   type DraftSummary,
   type KeyMap,
   type Label,
+  type Invite,
   type MessageDetail,
   type MessageSummary,
   type Prompt,
@@ -57,6 +58,9 @@ const COMMANDS: CommandDef[] = [
   { names: ["links"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
+  { names: ["accept"], desc: "RSVP: accept invite" },
+  { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
+  { names: ["decline"], desc: "RSVP: decline invite" },
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
   { names: ["summarize", "sum"], desc: "AI summary" },
   { names: ["prompt"], desc: "Apply a prompt" },
@@ -157,6 +161,14 @@ export default function App() {
   const [generatingReply, setGeneratingReply] = useState(false);
   const [touchUpText, setTouchUpText] = useState<string | null>(null);
   const [touchingUp, setTouchingUp] = useState(false);
+  const [rsvpEnabled, setRsvpEnabled] = useState(false);
+  const [invite, setInvite] = useState<Invite | null>(null);
+  const [rsvpBusy, setRsvpBusy] = useState("");
+  // Ref mirror so loadMessage (stable, no deps) can read the latest value.
+  const rsvpEnabledRef = useRef(false);
+  useEffect(() => {
+    rsvpEnabledRef.current = rsvpEnabled;
+  }, [rsvpEnabled]);
   const [headersExpanded, setHeadersExpanded] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [moveName, setMoveName] = useState("");
@@ -430,6 +442,11 @@ export default function App() {
         /* non-fatal */
       }
       try {
+        setRsvpEnabled(await backend.RSVPEnabled());
+      } catch {
+        /* non-fatal */
+      }
+      try {
         const ar = await backend.AutoRefreshSettings();
         if (ar.intervalSeconds > 0) setAutoRefreshSecs(ar.intervalSeconds);
         // localStorage overrides the config default once the user has chosen.
@@ -489,6 +506,7 @@ export default function App() {
       setThreadMsgs(null);
       setCollapsedMsgs(new Set());
       setTouchUpText(null);
+      setInvite(null);
       setCsOpen(false);
       // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
       // keep working while reading.
@@ -505,6 +523,12 @@ export default function App() {
           .ListAttachments(m.id)
           .then(setAttachments)
           .catch(() => undefined);
+        if (rsvpEnabledRef.current) {
+          void backend
+            .InviteInfo(m.id)
+            .then((inv) => setInvite(inv.isInvite ? inv : null))
+            .catch(() => undefined);
+        }
         if (markRead && m.unread) {
           void backend.MarkRead(m.id).catch(() => undefined);
           setMessages((prev) =>
@@ -794,6 +818,24 @@ export default function App() {
       setTouchingUp(false);
     }
   }, []);
+
+  // respondInvite sends an RSVP (accepted/tentative/declined) for the open
+  // message's calendar invite.
+  const respondInvite = useCallback(
+    async (id: string, status: "accepted" | "tentative" | "declined") => {
+      setRsvpBusy(status);
+      setError("");
+      try {
+        await backend.RespondInvite(id, status);
+        showToast(`RSVP: ${status}`);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setRsvpBusy("");
+      }
+    },
+    [showToast],
+  );
 
   // doMove applies a label and archives the message (Gmail "move to folder").
   const doMove = useCallback(
@@ -1301,6 +1343,16 @@ export default function App() {
         case "saveraw":
           if (d) saveRawMessage(d.id);
           break;
+        case "accept":
+          if (d && invite?.isInvite) void respondInvite(d.id, "accepted");
+          break;
+        case "tentative":
+        case "maybe":
+          if (d && invite?.isInvite) void respondInvite(d.id, "tentative");
+          break;
+        case "decline":
+          if (d && invite?.isInvite) void respondInvite(d.id, "declined");
+          break;
         case "undo":
           void runUndo();
           break;
@@ -1408,6 +1460,8 @@ export default function App() {
       runUndo,
       toggleAutoRefresh,
       saveRawMessage,
+      invite,
+      respondInvite,
     ],
   );
 
@@ -2385,6 +2439,41 @@ export default function App() {
                 )}
               </div>
               <div className="reader-body">
+                {invite?.isInvite && (
+                  <div className="rsvp-bar">
+                    <div className="rsvp-info">
+                      <span className="rsvp-title">📅 {invite.summary || "Calendar invite"}</span>
+                      {invite.dtStart && (
+                        <span className="rsvp-when muted">
+                          {formatICSDate(invite.dtStart)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="rsvp-actions">
+                      <button
+                        className="tiny"
+                        disabled={!!rsvpBusy}
+                        onClick={() => void respondInvite(detail.id, "accepted")}
+                      >
+                        {rsvpBusy === "accepted" ? "…" : "Accept"}
+                      </button>
+                      <button
+                        className="tiny ghost"
+                        disabled={!!rsvpBusy}
+                        onClick={() => void respondInvite(detail.id, "tentative")}
+                      >
+                        {rsvpBusy === "tentative" ? "…" : "Maybe"}
+                      </button>
+                      <button
+                        className="tiny danger"
+                        disabled={!!rsvpBusy}
+                        onClick={() => void respondInvite(detail.id, "declined")}
+                      >
+                        {rsvpBusy === "declined" ? "…" : "Decline"}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {(summarizing || summary) && (
                   <div className="summary-panel">
                     <div className="summary-head">
@@ -3250,6 +3339,31 @@ function labelForAction(action: string): string {
     default:
       return "Working on";
   }
+}
+
+// formatICSDate turns an iCalendar date-time (optionally with a ;TZID= prefix,
+// e.g. "20260720T150000" or ";TZID=Europe/Madrid:20260720T150000") into a
+// human-readable local string.
+function formatICSDate(raw: string): string {
+  const v = raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw;
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?Z?)?/);
+  if (!m) return raw;
+  const [, y, mo, d, hh = "00", mm = "00"] = m;
+  const dt = new Date(
+    Number(y),
+    Number(mo) - 1,
+    Number(d),
+    Number(hh),
+    Number(mm),
+  );
+  if (Number.isNaN(dt.getTime())) return raw;
+  return dt.toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 // cleanSubject strips Re:/Fwd: prefixes so a subject search matches the thread.

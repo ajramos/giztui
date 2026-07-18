@@ -136,6 +136,17 @@ type Prompt struct {
 	Category    string `json:"category"`
 }
 
+// Invite describes a calendar invitation detected in a message, so the reader
+// can offer Accept / Tentative / Decline.
+type Invite struct {
+	IsInvite  bool   `json:"isInvite"`
+	UID       string `json:"uid"`
+	Summary   string `json:"summary"`
+	Organizer string `json:"organizer"`
+	DtStart   string `json:"dtStart"`
+	DtEnd     string `json:"dtEnd"`
+}
+
 // AutoRefreshSettings tells the frontend whether to poll the inbox for new mail
 // and how often, mirroring the user's auto_refresh config.
 type AutoRefreshSettings struct {

@@ -1054,6 +1054,35 @@ button.danger {
   font-size: 13.5px;
 }
 
+/* Calendar RSVP bar */
+.rsvp-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.rsvp-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rsvp-title {
+  font-weight: 600;
+}
+.rsvp-when {
+  font-size: 12px;
+}
+.rsvp-actions {
+  display: flex;
+  gap: 6px;
+}
+
 /* AI touch-up (reformatted body) */
 .touchup {
   border: 1px solid var(--border);

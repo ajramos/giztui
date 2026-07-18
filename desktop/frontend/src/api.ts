@@ -111,6 +111,15 @@ export interface AutoRefreshSettings {
   intervalSeconds: number;
 }
 
+export interface Invite {
+  isInvite: boolean;
+  uid: string;
+  summary: string;
+  organizer: string;
+  dtStart: string;
+  dtEnd: string;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -275,6 +284,9 @@ interface Backend {
   SaveMessage(messageID: string): Promise<string>;
   SaveRawMessage(messageID: string): Promise<string>;
   AutoRefreshSettings(): Promise<AutoRefreshSettings>;
+  RSVPEnabled(): Promise<boolean>;
+  InviteInfo(messageID: string): Promise<Invite>;
+  RespondInvite(messageID: string, status: string): Promise<void>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
@@ -737,6 +749,24 @@ const mockBackend: Backend = {
   },
   async AutoRefreshSettings() {
     return { enabled: false, intervalSeconds: 60 };
+  },
+  async RSVPEnabled() {
+    return true;
+  },
+  async InviteInfo(messageID: string) {
+    // Mock: treat every 5th message as a calendar invite so the RSVP bar shows.
+    const isInvite = Number(messageID.replace(/\D/g, "") || "0") % 5 === 0;
+    return {
+      isInvite,
+      uid: isInvite ? "mock-uid-123" : "",
+      summary: "Weekly sync: AllFunds · AWS · DoiT",
+      organizer: "mailto:ada@compute.org",
+      dtStart: "20260720T150000",
+      dtEnd: "20260720T153000",
+    };
+  },
+  async RespondInvite() {
+    await new Promise((r) => setTimeout(r, 300));
   },
   async ObsidianEnabled() {
     return true;

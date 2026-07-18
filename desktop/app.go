@@ -575,6 +575,30 @@ func (a *App) SaveRawMessage(id string) (string, error) {
 	return api.SaveRawMessage(a.ctx, id)
 }
 
+// RSVPEnabled reports whether calendar RSVP is available.
+func (a *App) RSVPEnabled() bool {
+	return a.session != nil && a.session.API.RSVPEnabled()
+}
+
+// InviteInfo returns calendar-invite details for a message (IsInvite=false when
+// the message isn't an invitation).
+func (a *App) InviteInfo(id string) (*desktop.Invite, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.InviteInfo(a.ctx, id)
+}
+
+// RespondInvite sets the account's attendance (accepted/declined/tentative).
+func (a *App) RespondInvite(id, status string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.RespondInvite(a.ctx, id, status)
+}
+
 // AutoRefreshSettings returns the configured inbox auto-refresh preference.
 func (a *App) AutoRefreshSettings() desktop.AutoRefreshSettings {
 	if a.session == nil || a.session.Config == nil {

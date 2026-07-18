@@ -57,6 +57,8 @@ type Deps struct {
 	Analyzer     services.InboxAnalyzerService // optional
 	Rules        services.AnalyzerRulesService // optional; analyzer preference rules
 	Theme        services.ThemeService         // optional
+	Invite       inviteClient                  // optional; calendar invite detection (gmail client)
+	Cal          calClient                     // optional; calendar RSVP responder
 	AccountEmail string                        // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -83,6 +85,8 @@ type API struct {
 	analyzer     services.InboxAnalyzerService
 	rules        services.AnalyzerRulesService
 	theme        services.ThemeService
+	invite       inviteClient
+	cal          calClient
 	accountEmail string
 	logger       *log.Logger
 
@@ -112,6 +116,8 @@ func NewAPI(d Deps) *API {
 		analyzer:     d.Analyzer,
 		rules:        d.Rules,
 		theme:        d.Theme,
+		invite:       d.Invite,
+		cal:          d.Cal,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

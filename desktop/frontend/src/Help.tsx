@@ -23,6 +23,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["t", "Toggle read / unread"],
       ["l", "Labels"],
       ["U", "Undo last action"],
+      [":accept / :decline", "RSVP to invites"],
     ],
   },
   {

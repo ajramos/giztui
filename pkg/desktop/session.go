@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ajramos/giztui/internal/calendar"
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/db"
 	"github.com/ajramos/giztui/internal/gmail"
@@ -16,6 +17,26 @@ import (
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/ajramos/giztui/pkg/auth"
 )
+
+// calendarScope is the extra OAuth scope needed to respond to invites. It is
+// requested by the TUI too, so a token created there already carries it.
+const calendarScope = "https://www.googleapis.com/auth/calendar.events"
+
+// calAdapter wraps internal/calendar.Client to satisfy the calClient interface
+// without leaking the calendar package's types into the public API.
+type calAdapter struct{ c *calendar.Client }
+
+func (a calAdapter) FindEventID(ctx context.Context, iCalUID string) (string, error) {
+	evt, err := a.c.FindByICalUID(ctx, iCalUID)
+	if err != nil {
+		return "", err
+	}
+	return evt.Id, nil
+}
+
+func (a calAdapter) RespondToInvite(ctx context.Context, eventID, attendeeEmail, status string) error {
+	return a.c.RespondToInvite(ctx, eventID, attendeeEmail, status, true)
+}
 
 // gmailScopes mirrors the OAuth scopes requested by the TUI so the desktop
 // client can reuse the same token without re-consent.
@@ -46,6 +67,7 @@ type Session struct {
 	dbManager        services.DatabaseManager
 	accountService   services.AccountService
 	currentAccountID string
+	cal              calClient
 	logger           *log.Logger
 }
 
@@ -83,7 +105,16 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 	dbManager := services.NewDatabaseManager(cfg, logger)
 	accountService := services.NewAccountService(cfg, logger)
 
-	api := buildAPI(ctx, cfg, client, dbManager, logger)
+	// Calendar RSVP is best-effort: the token (created by the TUI) usually carries
+	// the calendar.events scope. If it doesn't, RSVP stays disabled.
+	var cal calClient
+	if calSvc, err := auth.NewCalendarService(ctx, credPath, tokenPath, calendarScope); err == nil {
+		cal = calAdapter{c: calendar.NewClient(calSvc)}
+	} else if logger != nil {
+		logger.Printf("desktop: calendar RSVP disabled: %v", err)
+	}
+
+	api := buildAPI(ctx, cfg, client, dbManager, cal, logger)
 
 	sess := &Session{
 		API:            api,
@@ -91,6 +122,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		client:         client,
 		dbManager:      dbManager,
 		accountService: accountService,
+		cal:            cal,
 		logger:         logger,
 	}
 	if active, err := accountService.GetActiveAccount(ctx); err == nil && active != nil {
@@ -102,7 +134,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 // buildAPI constructs the full service stack for a given Gmail client and wraps
 // it in an API. It opens the per-account local database (best-effort; powers
 // summary caching and prompts) and is reused verbatim when switching accounts.
-func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbManager services.DatabaseManager, logger *log.Logger) *API {
+func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbManager services.DatabaseManager, cal calClient, logger *log.Logger) *API {
 	repo := services.NewMessageRepository(client)
 	labelService := services.NewLabelService(client)
 	renderer := render.NewEmailRenderer(cfg)
@@ -198,6 +230,8 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Analyzer:     analyzerService,
 		Rules:        rulesService,
 		Theme:        themeService,
+		Invite:       client,
+		Cal:          cal,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})
@@ -249,7 +283,7 @@ func (s *Session) SwitchAccount(ctx context.Context, accountID string) error {
 		return err
 	}
 	s.client = client
-	s.API = buildAPI(ctx, s.Config, client, s.dbManager, s.logger)
+	s.API = buildAPI(ctx, s.Config, client, s.dbManager, s.cal, s.logger)
 	s.currentAccountID = accountID
 	return nil
 }
