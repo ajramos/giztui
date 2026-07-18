@@ -274,14 +274,76 @@ button.danger {
   margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-.reader-head .actions button {
-  padding: 7px 12px;
-  font-size: 12.5px;
+  align-items: center;
+  gap: 6px;
 }
 .reader-labels {
-  margin-top: 8px;
+  margin-top: 10px;
+}
+
+/* Icon action buttons with hover tooltips */
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  position: relative;
+}
+.icon-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--bg-row-hover);
+  filter: none;
+}
+.icon-btn.primary {
+  color: #fff;
+  background: var(--accent-strong);
+  border-color: transparent;
+}
+.icon-btn.primary:hover {
+  color: #fff;
+}
+.icon-btn.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.icon-btn:disabled {
+  opacity: 0.45;
+}
+.icon-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0b0d11;
+  color: #fff;
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease 0.15s;
+  z-index: 40;
+}
+.icon-btn:hover::after {
+  opacity: 1;
+}
+.actions-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 22px;
+  background: var(--border);
+  margin: 0 4px;
 }
 .reader-body {
   flex: 1;

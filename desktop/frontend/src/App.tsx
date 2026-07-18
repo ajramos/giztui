@@ -19,6 +19,7 @@ import PromptsPicker from "./PromptsPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import Help from "./Help";
+import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
 
@@ -78,6 +79,13 @@ export default function App() {
     return () => window.removeEventListener("focus", focusApp);
   }, []);
 
+  // Keep the selected row visible when navigating by keyboard.
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = document.querySelector(".row.selected");
+    el?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
+
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
@@ -91,8 +99,15 @@ export default function App() {
       const list = q
         ? await backend.Search(q, "", PAGE_SIZE)
         : await backend.ListInbox("", PAGE_SIZE);
-      setMessages(list.messages ?? []);
+      const msgs = list.messages ?? [];
+      setMessages(msgs);
       setNextToken(list.nextPageToken ?? "");
+      // Select + preview the first message so the app opens ready to read.
+      if (msgs.length > 0) previewRef.current(msgs[0]);
+      else {
+        setSelectedId(null);
+        setDetail(null);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -189,34 +204,58 @@ export default function App() {
     [load],
   );
 
-  const openMessage = useCallback(async (m: MessageSummary) => {
-    setSelectedId(m.id);
-    setLoadingDetail(true);
-    setError("");
-    setSummary(null);
-    setPromptResult(null);
-    setAttachments([]);
-    try {
-      const d = await backend.GetMessage(m.id);
-      setDetail(d);
-      setViewHtml(!!(d.html && d.html.trim()));
-      setLoadRemote(false);
-      void backend
-        .ListAttachments(m.id)
-        .then(setAttachments)
-        .catch(() => undefined);
-      if (m.unread) {
-        void backend.MarkRead(m.id).catch(() => undefined);
-        setMessages((prev) =>
-          prev.map((x) => (x.id === m.id ? { ...x, unread: false } : x)),
-        );
+  // loadMessage shows a message in the reading pane. markRead=false is used for
+  // cursor navigation (preview) so scanning the inbox never marks mail read;
+  // markRead=true is used for a deliberate open (Enter / click).
+  const loadMessage = useCallback(
+    async (m: MessageSummary, markRead: boolean) => {
+      setSelectedId(m.id);
+      setLoadingDetail(true);
+      setError("");
+      setSummary(null);
+      setPromptResult(null);
+      setAttachments([]);
+      // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
+      // keep working while reading.
+      requestAnimationFrame(() => {
+        const active = document.activeElement?.tagName;
+        if (active !== "INPUT" && active !== "TEXTAREA") rootRef.current?.focus();
+      });
+      try {
+        const d = await backend.GetMessage(m.id);
+        setDetail(d);
+        setViewHtml(!!(d.html && d.html.trim()));
+        setLoadRemote(false);
+        void backend
+          .ListAttachments(m.id)
+          .then(setAttachments)
+          .catch(() => undefined);
+        if (markRead && m.unread) {
+          void backend.MarkRead(m.id).catch(() => undefined);
+          setMessages((prev) =>
+            prev.map((x) => (x.id === m.id ? { ...x, unread: false } : x)),
+          );
+        }
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoadingDetail(false);
       }
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingDetail(false);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const previewMessage = useCallback(
+    (m: MessageSummary) => void loadMessage(m, false),
+    [loadMessage],
+  );
+  const openMessage = useCallback(
+    (m: MessageSummary) => void loadMessage(m, true),
+    [loadMessage],
+  );
+  // Ref so load() can preview the first message without a declaration-order cycle.
+  const previewRef = useRef<(m: MessageSummary) => void>(() => {});
+  previewRef.current = previewMessage;
 
   const removeFromList = useCallback(
     (id: string) => {
@@ -495,8 +534,12 @@ export default function App() {
       const idx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
+      // Navigation previews the message (shows content, scrolls to it) without
+      // marking it read. In bulk mode it only moves the highlight.
       const moveCursor = (i: number) => {
-        if (i >= 0 && i < messages.length) setSelectedId(messages[i].id);
+        if (i < 0 || i >= messages.length) return;
+        if (bulkMode) setSelectedId(messages[i].id);
+        else previewMessage(messages[i]);
       };
       const hasSel = bulkMode && selected.size > 0;
 
@@ -656,6 +699,7 @@ export default function App() {
     selected,
     draftsView,
     openMessage,
+    previewMessage,
     doAction,
     bulkAction,
     toggleSelect,
@@ -942,74 +986,73 @@ export default function App() {
                   )}
                 </div>
                 <div className="actions">
-                  <button onClick={() => setCompose(replyInit(detail))}>
-                    Reply
-                  </button>
-                  <button
-                    className="ghost"
+                  <IconBtn
+                    icon={Icon.reply}
+                    label="Reply"
+                    primary
+                    onClick={() => setCompose(replyInit(detail))}
+                  />
+                  <IconBtn
+                    icon={Icon.forward}
+                    label="Forward"
                     onClick={() => setCompose(forwardInit(detail))}
-                  >
-                    Forward
-                  </button>
-                  <button className="ghost" onClick={() => setLabelsFor(detail.id)}>
-                    Labels
-                  </button>
+                  />
+                  <IconBtn
+                    icon={Icon.label}
+                    label="Labels"
+                    onClick={() => setLabelsFor(detail.id)}
+                  />
                   {aiEnabled && (
-                    <button
-                      className="ghost"
+                    <IconBtn
+                      icon={Icon.summarize}
+                      label={summarizing ? "Summarizing…" : "Summarize (AI)"}
                       disabled={summarizing}
                       onClick={() => void summarize(detail.id)}
-                    >
-                      {summarizing ? "Summarizing…" : "✦ Summarize"}
-                    </button>
+                    />
                   )}
                   {aiPromptsEnabled && (
-                    <button
-                      className="ghost"
+                    <IconBtn
+                      icon={Icon.prompt}
+                      label={promptRunning ? "Running…" : "Apply a prompt"}
                       disabled={promptRunning}
                       onClick={() => setPromptsOpen(true)}
-                    >
-                      {promptRunning ? "Running…" : "✦ Prompt"}
-                    </button>
+                    />
                   )}
-                  <button
+                  <span className="actions-sep" />
+                  <IconBtn
+                    icon={Icon.archive}
+                    label="Archive"
                     disabled={busy}
                     onClick={() => void doAction("archive", detail.id)}
-                  >
-                    Archive
-                  </button>
-                  <button
+                  />
+                  <IconBtn
+                    icon={Icon.trash}
+                    label="Trash"
+                    danger
                     disabled={busy}
-                    className="danger"
                     onClick={() => void doAction("trash", detail.id)}
-                  >
-                    Trash
-                  </button>
-                  <button
+                  />
+                  <IconBtn
+                    icon={detail.unread ? Icon.mailOpen : Icon.mail}
+                    label={detail.unread ? "Mark read" : "Mark unread"}
                     disabled={busy}
-                    className="ghost"
                     onClick={() =>
                       void doAction(detail.unread ? "read" : "unread", detail.id)
                     }
-                  >
-                    Mark {detail.unread ? "read" : "unread"}
-                  </button>
+                  />
+                  <span className="actions-sep" />
                   {detail.html && detail.html.trim() && (
-                    <button
-                      className="ghost"
+                    <IconBtn
+                      icon={viewHtml ? Icon.text : Icon.code}
+                      label={viewHtml ? "Show plain text" : "Show HTML"}
                       onClick={() => setViewHtml((v) => !v)}
-                      title="Toggle HTML / text (M)"
-                    >
-                      {viewHtml ? "Text" : "HTML"}
-                    </button>
+                    />
                   )}
-                  <button
-                    className="ghost"
+                  <IconBtn
+                    icon={Icon.external}
+                    label="Open in Gmail"
                     onClick={() => openInGmail(detail.id)}
-                    title="Open in Gmail (O)"
-                  >
-                    Open in Gmail
-                  </button>
+                  />
                 </div>
                 {attachments.length > 0 && (
                   <div className="attach-bar">
@@ -1162,11 +1205,14 @@ function emailAddr(from: string): string {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  return sameDay
-    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function formatFull(iso: string): string {

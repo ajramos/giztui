@@ -1,0 +1,126 @@
+import type { ReactNode } from "react";
+
+// Minimal stroke icons (Feather-style), sized to the current font.
+const svg = (children: ReactNode) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+);
+
+export const Icon = {
+  reply: svg(
+    <>
+      <polyline points="9 17 4 12 9 7" />
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+    </>,
+  ),
+  forward: svg(
+    <>
+      <polyline points="15 17 20 12 15 7" />
+      <path d="M4 18v-2a4 4 0 0 1 4-4h12" />
+    </>,
+  ),
+  label: svg(
+    <>
+      <path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </>,
+  ),
+  summarize: svg(
+    <>
+      <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+      <path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8L16.5 17.5l1.8-.7z" />
+    </>,
+  ),
+  prompt: svg(
+    <>
+      <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M15 9h0M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5" />
+    </>,
+  ),
+  archive: svg(
+    <>
+      <polyline points="21 8 21 21 3 21 3 8" />
+      <rect x="1" y="3" width="22" height="5" />
+      <line x1="10" y1="12" x2="14" y2="12" />
+    </>,
+  ),
+  trash: svg(
+    <>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </>,
+  ),
+  mailOpen: svg(
+    <>
+      <path d="M22 13V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6l10-6z" />
+      <polyline points="22 13 12 20 2 13" />
+    </>,
+  ),
+  mail: svg(
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <polyline points="22 6 12 13 2 6" />
+    </>,
+  ),
+  code: svg(
+    <>
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </>,
+  ),
+  text: svg(
+    <>
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="14" y2="17" />
+    </>,
+  ),
+  external: svg(
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </>,
+  ),
+};
+
+export function IconBtn({
+  icon,
+  label,
+  onClick,
+  disabled,
+  danger,
+  primary,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        "icon-btn" + (danger ? " danger" : "") + (primary ? " primary" : "")
+      }
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      data-tip={label}
+    >
+      {icon}
+    </button>
+  );
+}
