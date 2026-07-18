@@ -214,6 +214,12 @@ export const Icon = {
       <line x1="3" y1="9" x2="21" y2="9" />
     </>,
   ),
+  clock: svg(
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </>,
+  ),
   search: svg(
     <>
       <circle cx="11" cy="11" r="8" />

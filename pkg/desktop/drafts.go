@@ -17,6 +17,7 @@ type draftClient interface {
 	UpdateDraft(draftID, to, subject, body string, cc []string) error
 	DeleteDraft(draftID string) error
 	UntrashMessage(messageID string) error
+	GetMessageRaw(messageID string) ([]byte, error)
 }
 
 // ListDrafts returns the account's drafts as lightweight summaries.

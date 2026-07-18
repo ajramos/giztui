@@ -566,6 +566,27 @@ func (a *App) TouchUp(id string) (string, error) {
 	return api.TouchUp(a.ctx, id)
 }
 
+// SaveRawMessage writes the full raw message (.eml) to disk and returns the path.
+func (a *App) SaveRawMessage(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.SaveRawMessage(a.ctx, id)
+}
+
+// AutoRefreshSettings returns the configured inbox auto-refresh preference.
+func (a *App) AutoRefreshSettings() desktop.AutoRefreshSettings {
+	if a.session == nil || a.session.Config == nil {
+		return desktop.AutoRefreshSettings{Enabled: false, IntervalSeconds: 300}
+	}
+	cfg := a.session.Config.AutoRefresh
+	return desktop.AutoRefreshSettings{
+		Enabled:         cfg.Enabled,
+		IntervalSeconds: int(cfg.ResolvedInterval().Seconds()),
+	}
+}
+
 // SendMail sends a new message from the active account.
 func (a *App) SendMail(to, subject, body string, cc, bcc []string) error {
 	api, err := a.api()

@@ -136,6 +136,13 @@ type Prompt struct {
 	Category    string `json:"category"`
 }
 
+// AutoRefreshSettings tells the frontend whether to poll the inbox for new mail
+// and how often, mirroring the user's auto_refresh config.
+type AutoRefreshSettings struct {
+	Enabled         bool `json:"enabled"`
+	IntervalSeconds int  `json:"intervalSeconds"`
+}
+
 // AnalyzerRule is a free-text preference rule for the inbox analyzer.
 type AnalyzerRule struct {
 	ID   int64  `json:"id"`

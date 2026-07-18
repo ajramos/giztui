@@ -81,6 +81,8 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
     keys: [
       ["L", "Links in message"],
       ["w", "Save to file"],
+      [":save-raw", "Save raw .eml"],
+      [":autorefresh", "Toggle inbox auto-refresh"],
       ["O", "Send to Obsidian"],
       ["K", "Forward to Slack"],
       ["⋯ / :threads", "Toggle conversation"],

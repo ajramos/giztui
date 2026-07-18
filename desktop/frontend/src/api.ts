@@ -106,6 +106,11 @@ export interface AnalyzerRule {
   text: string;
 }
 
+export interface AutoRefreshSettings {
+  enabled: boolean;
+  intervalSeconds: number;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -268,6 +273,8 @@ interface Backend {
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
+  SaveRawMessage(messageID: string): Promise<string>;
+  AutoRefreshSettings(): Promise<AutoRefreshSettings>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
@@ -723,6 +730,13 @@ const mockBackend: Backend = {
   async SaveMessage() {
     await new Promise((r) => setTimeout(r, 200));
     return "~/Downloads/gmail-attachments/message.txt";
+  },
+  async SaveRawMessage() {
+    await new Promise((r) => setTimeout(r, 200));
+    return "~/Downloads/gmail-attachments/message.eml";
+  },
+  async AutoRefreshSettings() {
+    return { enabled: false, intervalSeconds: 60 };
   },
   async ObsidianEnabled() {
     return true;

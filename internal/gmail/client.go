@@ -100,6 +100,23 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 	return msg, nil
 }
 
+// GetMessageRaw retrieves a message in RFC 822 raw form (the full .eml), decoded
+// from Gmail's URL-safe base64 encoding.
+func (c *Client) GetMessageRaw(id string) ([]byte, error) {
+	if c.Service == nil {
+		return nil, fmt.Errorf("gmail client not initialized")
+	}
+	msg, err := c.Service.Users.Messages.Get("me", id).Format("raw").Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not get raw message: %w", err)
+	}
+	data, err := base64.URLEncoding.DecodeString(msg.Raw)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode raw message: %w", err)
+	}
+	return data, nil
+}
+
 // GetMessageMetadata retrieves only message metadata (headers, labels) for efficient list display
 // This is significantly faster and uses less bandwidth than GetMessage() for list operations
 func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {

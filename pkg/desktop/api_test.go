@@ -209,6 +209,9 @@ func (f *fakeDraft) DeleteDraft(draftID string) error {
 	return nil
 }
 func (f *fakeDraft) UntrashMessage(messageID string) error { return nil }
+func (f *fakeDraft) GetMessageRaw(messageID string) ([]byte, error) {
+	return []byte("From: x@y.com\r\nSubject: raw\r\n\r\nbody"), nil
+}
 
 type fakeComposition struct {
 	services.CompositionService

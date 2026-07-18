@@ -56,6 +56,8 @@ const COMMANDS: CommandDef[] = [
   { names: ["drafts"], desc: "Drafts" },
   { names: ["links"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
+  { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
+  { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
   { names: ["summarize", "sum"], desc: "AI summary" },
   { names: ["prompt"], desc: "Apply a prompt" },
   { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
@@ -181,6 +183,9 @@ export default function App() {
     before: "",
   });
   const fullMessagesRef = useRef<MessageSummary[]>([]);
+  // Background inbox auto-refresh (opt-in; seeded from config, then remembered).
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefreshSecs, setAutoRefreshSecs] = useState(60);
   const toggleToolbar = useCallback(() => {
     setShowToolbar((v) => {
       const next = !v;
@@ -330,6 +335,39 @@ export default function App() {
     return parts.join(" ");
   }, [adv]);
 
+  const toggleAutoRefresh = useCallback(() => {
+    setAutoRefresh((v) => {
+      const next = !v;
+      localStorage.setItem("giztui.autorefresh", next ? "on" : "off");
+      showToast(next ? "Auto-refresh on" : "Auto-refresh off");
+      return next;
+    });
+  }, [showToast]);
+
+  // checkNewMail polls the inbox's first page and prepends any messages we don't
+  // already have. Only runs on the plain inbox (no active search / drafts view).
+  const checkNewMail = useCallback(async () => {
+    if (activeQuery || draftsView || localFilter) return;
+    try {
+      const list = await backend.ListInbox("", PAGE_SIZE);
+      const known = new Set(fullMessagesRef.current.map((m) => m.id));
+      const fresh = (list.messages ?? []).filter((m) => !known.has(m.id));
+      if (fresh.length === 0) return;
+      fullMessagesRef.current = [...fresh, ...fullMessagesRef.current];
+      setMessages((prev) => [...fresh, ...prev]);
+      showToast(`${fresh.length} new message${fresh.length > 1 ? "s" : ""}`);
+    } catch {
+      /* transient; try again next tick */
+    }
+  }, [activeQuery, draftsView, localFilter, showToast]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const ms = Math.max(30, autoRefreshSecs) * 1000;
+    const timer = setInterval(() => void checkNewMail(), ms);
+    return () => clearInterval(timer);
+  }, [autoRefresh, autoRefreshSecs, checkNewMail]);
+
   useEffect(() => {
     void (async () => {
       try {
@@ -388,6 +426,15 @@ export default function App() {
       }
       try {
         setLabels(await backend.ListLabels());
+      } catch {
+        /* non-fatal */
+      }
+      try {
+        const ar = await backend.AutoRefreshSettings();
+        if (ar.intervalSeconds > 0) setAutoRefreshSecs(ar.intervalSeconds);
+        // localStorage overrides the config default once the user has chosen.
+        const saved = localStorage.getItem("giztui.autorefresh");
+        setAutoRefresh(saved === null ? ar.enabled : saved === "on");
       } catch {
         /* non-fatal */
       }
@@ -893,6 +940,16 @@ export default function App() {
     [showToast],
   );
 
+  const saveRawMessage = useCallback(
+    (id: string) => {
+      void backend
+        .SaveRawMessage(id)
+        .then((path) => showToast(`Saved .eml to ${path}`))
+        .catch((e) => setError(String(e)));
+    },
+    [showToast],
+  );
+
   const sendObsidian = useCallback(
     (id: string) => {
       showToast("Sending to Obsidian…");
@@ -1236,6 +1293,14 @@ export default function App() {
         case "toolbar":
           toggleToolbar();
           break;
+        case "autorefresh":
+        case "arr":
+          toggleAutoRefresh();
+          break;
+        case "save-raw":
+        case "saveraw":
+          if (d) saveRawMessage(d.id);
+          break;
         case "undo":
           void runUndo();
           break;
@@ -1341,6 +1406,8 @@ export default function App() {
       applyLocalFilter,
       query,
       runUndo,
+      toggleAutoRefresh,
+      saveRawMessage,
     ],
   );
 
@@ -1925,6 +1992,16 @@ export default function App() {
               onClick={toggleToolbar}
             />
             <IconBtn
+              icon={Icon.clock}
+              label={
+                autoRefresh
+                  ? `Auto-refresh on (${autoRefreshSecs}s) — :autorefresh`
+                  : "Auto-refresh off — :autorefresh"
+              }
+              primary={autoRefresh}
+              onClick={toggleAutoRefresh}
+            />
+            <IconBtn
               icon={Icon.help}
               label="Shortcuts (?)"
               onClick={() => setShowHelp(true)}
@@ -2270,6 +2347,11 @@ export default function App() {
                         icon: Icon.save,
                         label: "Save to file",
                         onClick: () => saveMessage(detail.id),
+                      },
+                      {
+                        icon: Icon.save,
+                        label: "Save raw (.eml)",
+                        onClick: () => saveRawMessage(detail.id),
                       },
                       {
                         icon: Icon.text,
