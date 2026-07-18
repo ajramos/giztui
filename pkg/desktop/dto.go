@@ -67,6 +67,15 @@ type AccountInfo struct {
 	Active      bool   `json:"active"`
 }
 
+// SavedQuery is a JSON-serializable saved Gmail search.
+type SavedQuery struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Query       string `json:"query"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+}
+
 // Link is a JSON-serializable link extracted from a message body.
 type Link struct {
 	Index int    `json:"index"`

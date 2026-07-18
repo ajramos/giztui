@@ -645,6 +645,29 @@ button.danger {
   color: #6ee7a0;
 }
 
+/* Saved queries */
+.query-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.query-main {
+  flex: 1;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 7px;
+  padding: 8px 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.query-main:hover {
+  background: var(--bg-selected);
+  filter: none;
+}
+
 /* Conversation (thread) view */
 .conversation {
   display: flex;

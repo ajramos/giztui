@@ -83,6 +83,45 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// SavedQueriesEnabled reports whether saved searches are available.
+func (a *App) SavedQueriesEnabled() bool {
+	return a.session != nil && a.session.API.SavedQueriesEnabled()
+}
+
+// ListSavedQueries returns the saved searches.
+func (a *App) ListSavedQueries() ([]desktop.SavedQuery, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListSavedQueries(a.ctx)
+}
+
+// SaveQuery persists a named Gmail search.
+func (a *App) SaveQuery(name, query string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.SaveQuery(a.ctx, name, query)
+}
+
+// DeleteSavedQuery removes a saved search.
+func (a *App) DeleteSavedQuery(id int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeleteSavedQuery(a.ctx, id)
+}
+
+// RecordQueryUse bumps a saved query's usage counter.
+func (a *App) RecordQueryUse(id int64) {
+	if api, err := a.api(); err == nil {
+		api.RecordQueryUse(a.ctx, id)
+	}
+}
+
 // ThreadingEnabled reports whether conversation features are available.
 func (a *App) ThreadingEnabled() bool {
 	return a.session != nil && a.session.API.ThreadingEnabled()

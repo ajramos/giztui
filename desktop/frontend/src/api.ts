@@ -63,6 +63,14 @@ export interface Link {
   type: string;
 }
 
+export interface SavedQuery {
+  id: number;
+  name: string;
+  query: string;
+  description: string;
+  category: string;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -100,6 +108,8 @@ export interface KeyMap {
   slack: string;
   commandMode: string;
   threading: string;
+  savedQueries: string;
+  saveQuery: string;
   vimTimeoutMs: number;
 }
 
@@ -110,7 +120,8 @@ export const DEFAULT_KEYMAP: KeyMap = {
   bulkSelect: "space", markdown: "M", attachments: "A", help: "?",
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
-  commandMode: ":", threading: "T", vimTimeoutMs: 1000,
+  commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
+  vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -165,6 +176,11 @@ interface Backend {
   ThreadingEnabled(): Promise<boolean>;
   GetThread(threadID: string): Promise<MessageDetail[]>;
   ThreadSummaryStream(threadID: string): Promise<string>;
+  SavedQueriesEnabled(): Promise<boolean>;
+  ListSavedQueries(): Promise<SavedQuery[]>;
+  SaveQuery(name: string, query: string): Promise<void>;
+  DeleteSavedQuery(id: number): Promise<void>;
+  RecordQueryUse(id: number): Promise<void>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
@@ -491,6 +507,22 @@ const mockBackend: Backend = {
   async ThreadSummaryStream() {
     return "• Ada shared the Q3 roadmap draft\n• Team agreed to move the analytics milestone earlier\n• Locked in for the Friday review";
   },
+  async SavedQueriesEnabled() {
+    return true;
+  },
+  async ListSavedQueries() {
+    return mockQueries;
+  },
+  async SaveQuery(name: string, query: string) {
+    mockQueries = [
+      { id: mockQueries.length + 1, name, query, description: "", category: "" },
+      ...mockQueries,
+    ];
+  },
+  async DeleteSavedQuery(id: number) {
+    mockQueries = mockQueries.filter((q) => q.id !== id);
+  },
+  async RecordQueryUse() {},
   async ListLinks(_id: string) {
     return [
       { index: 1, url: "https://example.com/expenses", text: "página de gastos", type: "html" },
@@ -556,6 +588,10 @@ const mockBackend: Backend = {
 };
 
 let mockActiveAccount = "personal";
+let mockQueries: SavedQuery[] = [
+  { id: 1, name: "Unread from team", query: "is:unread from:team", description: "", category: "" },
+  { id: 2, name: "Has attachments", query: "has:attachment newer_than:7d", description: "", category: "" },
+];
 let mockDrafts: DraftSummary[] = [
   { id: "d1", to: "ada@compute.org", subject: "Re: Project roadmap Q3", snippet: "Thanks Ada, I think we should…" },
   { id: "d2", to: "team@giztui.dev", subject: "Release notes draft", snippet: "Here's a first pass at the notes…" },

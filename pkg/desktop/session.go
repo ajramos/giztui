@@ -158,6 +158,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		threadService = services.NewThreadService(client, dbStore, aiService)
 	}
 
+	// Saved queries need the local database.
+	var queryService services.QueryService
+	if dbStore != nil {
+		queryService = services.NewQueryService(db.NewQueryStore(dbStore), cfg)
+	}
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -173,6 +179,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Obsidian:     obsidianService,
 		Slack:        slackService,
 		Thread:       threadService,
+		Query:        queryService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

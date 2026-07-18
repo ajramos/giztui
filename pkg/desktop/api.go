@@ -53,6 +53,7 @@ type Deps struct {
 	Obsidian     services.ObsidianService    // optional
 	Slack        services.SlackService       // optional
 	Thread       services.ThreadService      // optional
+	Query        services.QueryService       // optional
 	AccountEmail string                      // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -75,6 +76,7 @@ type API struct {
 	obsidian     services.ObsidianService
 	slack        services.SlackService
 	thread       services.ThreadService
+	query        services.QueryService
 	accountEmail string
 	logger       *log.Logger
 
@@ -100,6 +102,7 @@ func NewAPI(d Deps) *API {
 		obsidian:     d.Obsidian,
 		slack:        d.Slack,
 		thread:       d.Thread,
+		query:        d.Query,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

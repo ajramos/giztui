@@ -13,6 +13,7 @@ import {
   type MessageDetail,
   type MessageSummary,
   type Prompt,
+  type SavedQuery,
 } from "./api";
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
@@ -49,6 +50,8 @@ const COMMANDS: CommandDef[] = [
   { names: ["obsidian"], desc: "Send to Obsidian" },
   { names: ["slack"], desc: "Forward to Slack" },
   { names: ["gmail", "web"], desc: "Open in Gmail" },
+  { names: ["queries", "q"], desc: "Saved searches" },
+  { names: ["savequery"], desc: "Save current search" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
 
@@ -100,6 +103,11 @@ export default function App() {
   const [threadingOn, setThreadingOn] = useState(false);
   const [threadMsgs, setThreadMsgs] = useState<MessageDetail[] | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
+  const [savedQueriesOn, setSavedQueriesOn] = useState(false);
+  const [queriesOpen, setQueriesOpen] = useState(false);
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  const [saveQueryOpen, setSaveQueryOpen] = useState(false);
+  const [saveQueryName, setSaveQueryName] = useState("");
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -210,6 +218,7 @@ export default function App() {
         setObsidianOn(await backend.ObsidianEnabled());
         setSlackOn(await backend.SlackEnabled());
         setThreadingOn(await backend.ThreadingEnabled());
+        setSavedQueriesOn(await backend.SavedQueriesEnabled());
       } catch {
         /* non-fatal */
       }
@@ -604,6 +613,45 @@ export default function App() {
     }
   }, [detail]);
 
+  const openQueries = useCallback(async () => {
+    setQueriesOpen(true);
+    try {
+      setSavedQueries(await backend.ListSavedQueries());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const runQuery = useCallback(
+    (q: SavedQuery) => {
+      setQueriesOpen(false);
+      void backend.RecordQueryUse(q.id).catch(() => undefined);
+      setQuery(q.query);
+      void load(q.query);
+    },
+    [load],
+  );
+
+  const deleteQuery = useCallback(async (id: number) => {
+    try {
+      await backend.DeleteSavedQuery(id);
+      setSavedQueries(await backend.ListSavedQueries());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const doSaveQuery = useCallback(() => {
+    const name = saveQueryName.trim();
+    if (!name || !activeQuery) return;
+    void backend
+      .SaveQuery(name, activeQuery)
+      .then(() => showToast(`Saved query "${name}"`))
+      .catch((e) => setError(String(e)));
+    setSaveQueryOpen(false);
+    setSaveQueryName("");
+  }, [saveQueryName, activeQuery, showToast]);
+
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
     (input: string) => {
@@ -684,6 +732,13 @@ export default function App() {
         case "web":
           if (d) openInGmail(d.id);
           break;
+        case "queries":
+        case "q":
+          if (savedQueriesOn) void openQueries();
+          break;
+        case "savequery":
+          if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
+          break;
         case "help":
           setShowHelp(true);
           break;
@@ -707,6 +762,8 @@ export default function App() {
       summarize,
       openSuggest,
       openInGmail,
+      openQueries,
+      savedQueriesOn,
       showToast,
     ],
   );
@@ -772,6 +829,8 @@ export default function App() {
     add(keymap.slack, "slack");
     add(keymap.commandMode, "commandMode");
     add(keymap.threading, "threading");
+    add(keymap.savedQueries, "savedQueries");
+    add(keymap.saveQuery, "saveQuery");
     return m;
   }, [keymap]);
 
@@ -799,7 +858,9 @@ export default function App() {
         promptsOpen ||
         linksFor ||
         suggestFor ||
-        cmdOpen
+        cmdOpen ||
+        queriesOpen ||
+        saveQueryOpen
       )
         return;
       if (typing) {
@@ -986,6 +1047,12 @@ export default function App() {
         case "threading":
           if (detail && threadingOn) void toggleThread();
           break;
+        case "savedQueries":
+          if (savedQueriesOn) void openQueries();
+          break;
+        case "saveQuery":
+          if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1010,6 +1077,9 @@ export default function App() {
     slackOn,
     threadingOn,
     threadMsgs,
+    savedQueriesOn,
+    queriesOpen,
+    saveQueryOpen,
     activeQuery,
     bulkMode,
     selected,
@@ -1022,6 +1092,7 @@ export default function App() {
     exitBulk,
     summarize,
     toggleThread,
+    openQueries,
     saveMessage,
     sendObsidian,
     forwardSlack,
@@ -1118,6 +1189,15 @@ export default function App() {
           >
             Select
           </button>
+          {savedQueriesOn && (
+            <button
+              className="ghost"
+              onClick={() => void openQueries()}
+              title="Saved searches (Q)"
+            >
+              ★
+            </button>
+          )}
           <button className="ghost" onClick={() => setShowHelp(true)} title="Shortcuts (?)">
             ?
           </button>
@@ -1606,6 +1686,96 @@ export default function App() {
             </div>
             <div className="modal-foot">
               <button onClick={() => setSuggestFor(null)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {queriesOpen && (
+        <div className="modal-overlay" onClick={() => setQueriesOpen(false)}>
+          <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Saved searches</h3>
+              <button className="ghost" onClick={() => setQueriesOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="label-list">
+                {savedQueries.length === 0 ? (
+                  <div className="placeholder">No saved searches</div>
+                ) : (
+                  savedQueries.map((q) => (
+                    <div key={q.id} className="query-row">
+                      <button className="query-main" onClick={() => runQuery(q)}>
+                        <span className="prompt-name">{q.name}</span>
+                        <span className="prompt-desc">{q.query}</span>
+                      </button>
+                      <button
+                        className="ghost tiny"
+                        onClick={() => void deleteQuery(q.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="modal-foot">
+              {activeQuery && (
+                <button
+                  className="ghost"
+                  onClick={() => {
+                    setQueriesOpen(false);
+                    setSaveQueryOpen(true);
+                  }}
+                >
+                  Save current search
+                </button>
+              )}
+              <button onClick={() => setQueriesOpen(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {saveQueryOpen && (
+        <div className="modal-overlay" onClick={() => setSaveQueryOpen(false)}>
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSaveQueryOpen(false);
+              else if (e.key === "Enter") doSaveQuery();
+            }}
+          >
+            <div className="modal-head">
+              <h3>Save search</h3>
+              <button className="ghost" onClick={() => setSaveQueryOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="field">
+                <label>Name</label>
+                <input
+                  value={saveQueryName}
+                  onChange={(e) => setSaveQueryName(e.target.value)}
+                  placeholder="e.g. Unread from team"
+                  autoFocus
+                />
+              </div>
+              <div className="field readonly">
+                <label>Query</label>
+                <div className="ro-value">{activeQuery}</div>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="ghost" onClick={() => setSaveQueryOpen(false)}>
+                Cancel
+              </button>
+              <button onClick={doSaveQuery} disabled={!saveQueryName.trim()}>
+                Save
+              </button>
             </div>
           </div>
         </div>
