@@ -40,6 +40,9 @@ body {
   flex-direction: column;
   height: 100vh;
 }
+.app:focus {
+  outline: none;
+}
 
 /* Topbar */
 .topbar {

@@ -59,7 +59,21 @@ export default function App() {
   const [loadingDrafts, setLoadingDrafts] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const gPressedAt = useRef(0);
+
+  // macOS WKWebView does not give the web content keyboard focus until it is
+  // clicked, so global shortcuts appear dead on launch. Focus the app shell on
+  // mount and whenever the window regains focus.
+  useEffect(() => {
+    const focusApp = () => {
+      const active = document.activeElement?.tagName;
+      if (active !== "INPUT" && active !== "TEXTAREA") rootRef.current?.focus();
+    };
+    focusApp();
+    window.addEventListener("focus", focusApp);
+    return () => window.removeEventListener("focus", focusApp);
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -615,7 +629,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" ref={rootRef} tabIndex={-1}>
       <header className="topbar">
         <div className="brand">
           <span className="logo">✦</span> GizTUI
