@@ -56,6 +56,13 @@ export interface Prompt {
   category: string;
 }
 
+export interface Link {
+  index: number;
+  url: string;
+  text: string;
+  type: string;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -85,6 +92,12 @@ export interface KeyMap {
   help: string;
   gotoTop: string;
   gotoBottom: string;
+  linkPicker: string;
+  replyAll: string;
+  saveMessage: string;
+  suggestLabel: string;
+  obsidian: string;
+  slack: string;
   vimTimeoutMs: number;
 }
 
@@ -93,7 +106,9 @@ export const DEFAULT_KEYMAP: KeyMap = {
   manageLabels: "l", compose: "c", reply: "r", forward: "f", search: "s",
   refresh: "R", loadMore: "N", drafts: "D", openGmail: "O", bulkMode: "v",
   bulkSelect: "space", markdown: "M", attachments: "A", help: "?",
-  gotoTop: "gg", gotoBottom: "G", vimTimeoutMs: 1000,
+  gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
+  saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
+  vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -145,6 +160,9 @@ interface Backend {
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
   KeyMap(): Promise<KeyMap>;
+  ListLinks(messageID: string): Promise<Link[]>;
+  OpenURL(url: string): Promise<void>;
+  SaveMessage(messageID: string): Promise<string>;
   OpenGmailWeb(messageID: string): Promise<void>;
   ListDrafts(): Promise<DraftSummary[]>;
   GetDraft(draftID: string): Promise<DraftDetail>;
@@ -418,6 +436,19 @@ const mockBackend: Backend = {
   },
   async KeyMap() {
     return DEFAULT_KEYMAP;
+  },
+  async ListLinks(_id: string) {
+    return [
+      { index: 1, url: "https://example.com/expenses", text: "página de gastos", type: "html" },
+      { index: 2, url: "https://example.com/open", text: "Open in Expensify", type: "html" },
+    ];
+  },
+  async OpenURL() {
+    /* mock: no-op */
+  },
+  async SaveMessage() {
+    await new Promise((r) => setTimeout(r, 200));
+    return "~/Downloads/gmail-attachments/message.txt";
   },
   async OpenGmailWeb() {
     /* mock: no-op (would open the system browser) */

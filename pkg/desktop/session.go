@@ -151,6 +151,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Web:          webService,
 		Composition:  compositionService,
 		Draft:        client,
+		Link:         linkService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

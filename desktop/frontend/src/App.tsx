@@ -16,6 +16,7 @@ import {
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
 import PromptsPicker from "./PromptsPicker";
+import LinksPicker from "./LinksPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import Help from "./Help";
@@ -61,6 +62,7 @@ export default function App() {
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
+  const [linksFor, setLinksFor] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -445,6 +447,32 @@ export default function App() {
     to: d.from,
   });
 
+  // Reply-all: reply threaded, adding the original To/Cc recipients as Cc.
+  const replyAllInit = (d: MessageDetail): ComposeInit => {
+    const extra = [d.to, d.cc]
+      .filter(Boolean)
+      .join(", ")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s && !d.from.includes(s));
+    return {
+      mode: "reply",
+      originalId: d.id,
+      to: d.from,
+      cc: [...new Set(extra)].join(", "),
+    };
+  };
+
+  const saveMessage = useCallback(
+    (id: string) => {
+      void backend
+        .SaveMessage(id)
+        .then((path) => showToast(`Saved to ${path}`))
+        .catch((e) => setError(String(e)));
+    },
+    [showToast],
+  );
+
   const forwardInit = (d: MessageDetail): ComposeInit => ({
     mode: "new",
     subject: d.subject.startsWith("Fwd:") ? d.subject : `Fwd: ${d.subject}`,
@@ -496,6 +524,9 @@ export default function App() {
     add(keymap.bulkSelect, "bulkSelect");
     add(keymap.markdown, "markdown");
     add(keymap.help, "help");
+    add(keymap.linkPicker, "links");
+    add(keymap.replyAll, "replyAll");
+    add(keymap.saveMessage, "saveMessage");
     return m;
   }, [keymap]);
 
@@ -516,7 +547,7 @@ export default function App() {
         }
         return;
       }
-      if (compose || labelsFor || bulkLabels || promptsOpen) return;
+      if (compose || labelsFor || bulkLabels || promptsOpen || linksFor) return;
       if (typing) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
@@ -677,6 +708,15 @@ export default function App() {
         case "help":
           setShowHelp(true);
           break;
+        case "links":
+          if (detail) setLinksFor(detail.id);
+          break;
+        case "replyAll":
+          if (detail && !bulkMode) setCompose(replyAllInit(detail));
+          break;
+        case "saveMessage":
+          if (detail) saveMessage(detail.id);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -694,6 +734,7 @@ export default function App() {
     bulkLabels,
     promptsOpen,
     showHelp,
+    linksFor,
     activeQuery,
     bulkMode,
     selected,
@@ -705,6 +746,7 @@ export default function App() {
     toggleSelect,
     exitBulk,
     summarize,
+    saveMessage,
     openDrafts,
     openInGmail,
     load,
@@ -1040,6 +1082,16 @@ export default function App() {
                       void doAction(detail.unread ? "read" : "unread", detail.id)
                     }
                   />
+                  <IconBtn
+                    icon={Icon.link}
+                    label="Links"
+                    onClick={() => setLinksFor(detail.id)}
+                  />
+                  <IconBtn
+                    icon={Icon.save}
+                    label="Save to file"
+                    onClick={() => saveMessage(detail.id)}
+                  />
                   <span className="actions-sep" />
                   {detail.html && detail.html.trim() && (
                     <IconBtn
@@ -1183,6 +1235,9 @@ export default function App() {
           onClose={() => setPromptsOpen(false)}
           onPick={(p) => void runPrompt(p)}
         />
+      )}
+      {linksFor && (
+        <LinksPicker messageId={linksFor} onClose={() => setLinksFor(null)} />
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>

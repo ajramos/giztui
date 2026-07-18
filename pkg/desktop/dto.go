@@ -67,6 +67,14 @@ type AccountInfo struct {
 	Active      bool   `json:"active"`
 }
 
+// Link is a JSON-serializable link extracted from a message body.
+type Link struct {
+	Index int    `json:"index"`
+	URL   string `json:"url"`
+	Text  string `json:"text"`
+	Type  string `json:"type"`
+}
+
 // Prompt is a JSON-serializable AI prompt template.
 type Prompt struct {
 	ID          int    `json:"id"`

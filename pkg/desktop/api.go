@@ -49,6 +49,7 @@ type Deps struct {
 	Web          services.GmailWebService    // optional
 	Composition  services.CompositionService // optional; used to load drafts
 	Draft        draftClient                 // optional; draft CRUD (usually *gmail.Client)
+	Link         services.LinkService        // optional
 	AccountEmail string                      // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -67,6 +68,7 @@ type API struct {
 	web          services.GmailWebService
 	composition  services.CompositionService
 	draft        draftClient
+	link         services.LinkService
 	accountEmail string
 	logger       *log.Logger
 
@@ -88,6 +90,7 @@ func NewAPI(d Deps) *API {
 		web:          d.Web,
 		composition:  d.Composition,
 		draft:        d.Draft,
+		link:         d.Link,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

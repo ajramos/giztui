@@ -83,6 +83,31 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ListLinks returns the links found in a message body.
+func (a *App) ListLinks(id string) ([]desktop.Link, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListLinks(a.ctx, id)
+}
+
+// OpenURL opens an arbitrary URL in the system browser.
+func (a *App) OpenURL(url string) {
+	if url != "" {
+		wailsruntime.BrowserOpenURL(a.ctx, url)
+	}
+}
+
+// SaveMessage saves a message to a text file and returns the path.
+func (a *App) SaveMessage(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.SaveMessage(a.ctx, id)
+}
+
 // OpenGmailWeb opens the message in Gmail's web interface in the system browser.
 func (a *App) OpenGmailWeb(messageID string) error {
 	api, err := a.api()

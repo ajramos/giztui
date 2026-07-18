@@ -27,6 +27,12 @@ type KeyMap struct {
 	Help         string `json:"help"`
 	GotoTop      string `json:"gotoTop"`
 	GotoBottom   string `json:"gotoBottom"`
+	LinkPicker   string `json:"linkPicker"`
+	ReplyAll     string `json:"replyAll"`
+	SaveMessage  string `json:"saveMessage"`
+	SuggestLabel string `json:"suggestLabel"`
+	Obsidian     string `json:"obsidian"`
+	Slack        string `json:"slack"`
 	VimTimeoutMs int    `json:"vimTimeoutMs"`
 }
 
@@ -38,7 +44,9 @@ func DefaultKeyMap() KeyMap {
 		ManageLabels: "l", Compose: "c", Reply: "r", Forward: "f", Search: "s",
 		Refresh: "R", LoadMore: "N", Drafts: "D", OpenGmail: "O", BulkMode: "v",
 		BulkSelect: "space", Markdown: "M", Attachments: "A", Help: "?",
-		GotoTop: "gg", GotoBottom: "G", VimTimeoutMs: 1000,
+		GotoTop: "gg", GotoBottom: "G", LinkPicker: "L", ReplyAll: "E",
+		SaveMessage: "w", SuggestLabel: "o", Obsidian: "O", Slack: "K",
+		VimTimeoutMs: 1000,
 	}
 }
 
@@ -71,6 +79,12 @@ func (s *Session) KeyMap() KeyMap {
 	km.Help = orDefault(k.Help, km.Help)
 	km.GotoTop = orDefault(k.GotoTop, km.GotoTop)
 	km.GotoBottom = orDefault(k.GotoBottom, km.GotoBottom)
+	km.LinkPicker = orDefault(k.LinkPicker, km.LinkPicker)
+	km.ReplyAll = orDefault(k.ReplyAll, km.ReplyAll)
+	km.SaveMessage = orDefault(k.SaveMessage, km.SaveMessage)
+	km.SuggestLabel = orDefault(k.SuggestLabel, km.SuggestLabel)
+	km.Obsidian = orDefault(k.Obsidian, km.Obsidian)
+	km.Slack = orDefault(k.Slack, km.Slack)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}
