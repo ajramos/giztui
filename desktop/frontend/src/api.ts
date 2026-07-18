@@ -71,6 +71,28 @@ export interface SavedQuery {
   category: string;
 }
 
+export interface AnalyzerInput {
+  id: string;
+  subject: string;
+  from: string;
+  snippet: string;
+}
+
+export interface PlanCategory {
+  name: string;
+  priority: string;
+  description: string;
+  action: string;
+  label: string;
+  messageIds: string[];
+}
+
+export interface ActionPlanResult {
+  categories: PlanCategory[];
+  totalAnalyzed: number;
+  readManually: number;
+}
+
 export interface AccountInfo {
   id: string;
   email: string;
@@ -110,6 +132,7 @@ export interface KeyMap {
   threading: string;
   savedQueries: string;
   saveQuery: string;
+  actionPlan: string;
   vimTimeoutMs: number;
 }
 
@@ -121,7 +144,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
-  vimTimeoutMs: 1000,
+  actionPlan: "P", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -181,6 +204,9 @@ interface Backend {
   SaveQuery(name: string, query: string): Promise<void>;
   DeleteSavedQuery(id: number): Promise<void>;
   RecordQueryUse(id: number): Promise<void>;
+  ActionPlanEnabled(): Promise<boolean>;
+  AnalyzeInbox(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
+  BulkApplyLabelByName(ids: string[], name: string): Promise<void>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   SaveMessage(messageID: string): Promise<string>;
@@ -523,6 +549,25 @@ const mockBackend: Backend = {
     mockQueries = mockQueries.filter((q) => q.id !== id);
   },
   async RecordQueryUse() {},
+  async ActionPlanEnabled() {
+    return true;
+  },
+  async AnalyzeInbox(inputs: AnalyzerInput[]) {
+    await new Promise((r) => setTimeout(r, 700));
+    const ids = inputs.map((i) => i.id);
+    return {
+      totalAnalyzed: inputs.length,
+      readManually: 1,
+      categories: [
+        { name: "Newsletters", priority: "low", description: "Digests and weekly roundups", action: "archive", label: "", messageIds: ids.slice(0, 2) },
+        { name: "Calendar invites", priority: "medium", description: "Accepted meeting notifications", action: "mark_read", label: "", messageIds: ids.slice(2, 4) },
+        { name: "Finance", priority: "high", description: "Invoices and expenses to review", action: "label", label: "Finance", messageIds: ids.slice(4, 5) },
+      ],
+    };
+  },
+  async BulkApplyLabelByName() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
   async ListLinks(_id: string) {
     return [
       { index: 1, url: "https://example.com/expenses", text: "página de gastos", type: "html" },

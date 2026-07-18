@@ -43,18 +43,19 @@ type Deps struct {
 	Email        services.EmailService
 	Labels       services.LabelService
 	Mail         mailClient
-	AI           services.AIService          // optional; nil when no LLM is configured
-	Attach       services.AttachmentService  // optional
-	Prompts      services.PromptService      // optional; nil without LLM+DB
-	Web          services.GmailWebService    // optional
-	Composition  services.CompositionService // optional; used to load drafts
-	Draft        draftClient                 // optional; draft CRUD (usually *gmail.Client)
-	Link         services.LinkService        // optional
-	Obsidian     services.ObsidianService    // optional
-	Slack        services.SlackService       // optional
-	Thread       services.ThreadService      // optional
-	Query        services.QueryService       // optional
-	AccountEmail string                      // active account address, used as the "from" for sends
+	AI           services.AIService            // optional; nil when no LLM is configured
+	Attach       services.AttachmentService    // optional
+	Prompts      services.PromptService        // optional; nil without LLM+DB
+	Web          services.GmailWebService      // optional
+	Composition  services.CompositionService   // optional; used to load drafts
+	Draft        draftClient                   // optional; draft CRUD (usually *gmail.Client)
+	Link         services.LinkService          // optional
+	Obsidian     services.ObsidianService      // optional
+	Slack        services.SlackService         // optional
+	Thread       services.ThreadService        // optional
+	Query        services.QueryService         // optional
+	Analyzer     services.InboxAnalyzerService // optional
+	AccountEmail string                        // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
 
@@ -77,6 +78,7 @@ type API struct {
 	slack        services.SlackService
 	thread       services.ThreadService
 	query        services.QueryService
+	analyzer     services.InboxAnalyzerService
 	accountEmail string
 	logger       *log.Logger
 
@@ -103,6 +105,7 @@ func NewAPI(d Deps) *API {
 		slack:        d.Slack,
 		thread:       d.Thread,
 		query:        d.Query,
+		analyzer:     d.Analyzer,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

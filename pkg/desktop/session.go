@@ -164,6 +164,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		queryService = services.NewQueryService(db.NewQueryStore(dbStore), cfg)
 	}
 
+	// Inbox action plan needs an LLM.
+	var analyzerService services.InboxAnalyzerService
+	if aiService != nil {
+		analyzerService = services.NewInboxAnalyzerService(aiService)
+	}
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -180,6 +186,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Slack:        slackService,
 		Thread:       threadService,
 		Query:        queryService,
+		Analyzer:     analyzerService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})

@@ -83,6 +83,29 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ActionPlanEnabled reports whether the AI inbox action plan is available.
+func (a *App) ActionPlanEnabled() bool {
+	return a.session != nil && a.session.API.ActionPlanEnabled()
+}
+
+// AnalyzeInbox runs the AI inbox analyzer and returns an action plan.
+func (a *App) AnalyzeInbox(inputs []desktop.AnalyzerInput) (*desktop.ActionPlanResult, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.AnalyzeInbox(a.ctx, inputs)
+}
+
+// BulkApplyLabelByName applies a label by name to many messages.
+func (a *App) BulkApplyLabelByName(ids []string, name string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkApplyLabelByName(a.ctx, ids, name)
+}
+
 // SavedQueriesEnabled reports whether saved searches are available.
 func (a *App) SavedQueriesEnabled() bool {
 	return a.session != nil && a.session.API.SavedQueriesEnabled()

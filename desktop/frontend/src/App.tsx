@@ -14,6 +14,9 @@ import {
   type MessageSummary,
   type Prompt,
   type SavedQuery,
+  type AnalyzerInput,
+  type ActionPlanResult,
+  type PlanCategory,
 } from "./api";
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
@@ -52,6 +55,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["gmail", "web"], desc: "Open in Gmail" },
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
+  { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
 
@@ -108,6 +112,10 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
+  const [actionPlanOn, setActionPlanOn] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [plan, setPlan] = useState<ActionPlanResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -219,6 +227,7 @@ export default function App() {
         setSlackOn(await backend.SlackEnabled());
         setThreadingOn(await backend.ThreadingEnabled());
         setSavedQueriesOn(await backend.SavedQueriesEnabled());
+        setActionPlanOn(await backend.ActionPlanEnabled());
       } catch {
         /* non-fatal */
       }
@@ -652,6 +661,61 @@ export default function App() {
     setSaveQueryName("");
   }, [saveQueryName, activeQuery, showToast]);
 
+  const runActionPlan = useCallback(async () => {
+    setPlanOpen(true);
+    setAnalyzing(true);
+    setPlan(null);
+    setError("");
+    try {
+      const inputs: AnalyzerInput[] = messages.map((m) => ({
+        id: m.id,
+        subject: m.subject,
+        from: m.from,
+        snippet: m.snippet,
+      }));
+      setPlan(await backend.AnalyzeInbox(inputs));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [messages]);
+
+  const applyCategory = useCallback(
+    async (cat: PlanCategory) => {
+      const ids = cat.messageIds;
+      if (!ids.length) return;
+      const idSet = new Set(ids);
+      try {
+        if (cat.action === "archive") {
+          await backend.BulkArchive(ids);
+          setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+        } else if (cat.action === "trash") {
+          await backend.BulkTrash(ids);
+          setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+        } else if (cat.action === "mark_read") {
+          await backend.BulkMarkRead(ids);
+          setMessages((prev) =>
+            prev.map((m) => (idSet.has(m.id) ? { ...m, unread: false } : m)),
+          );
+        } else if (cat.action === "label") {
+          await backend.BulkApplyLabelByName(ids, cat.label);
+        } else {
+          return;
+        }
+        showToast(`${cat.name}: ${cat.action.replace("_", " ")} · ${ids.length}`);
+        setPlan((prev) =>
+          prev
+            ? { ...prev, categories: prev.categories.filter((c) => c !== cat) }
+            : prev,
+        );
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [showToast],
+  );
+
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
     (input: string) => {
@@ -736,6 +800,10 @@ export default function App() {
         case "q":
           if (savedQueriesOn) void openQueries();
           break;
+        case "plan":
+        case "actionplan":
+          if (actionPlanOn) void runActionPlan();
+          break;
         case "savequery":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
@@ -764,6 +832,8 @@ export default function App() {
       openInGmail,
       openQueries,
       savedQueriesOn,
+      runActionPlan,
+      actionPlanOn,
       showToast,
     ],
   );
@@ -831,6 +901,7 @@ export default function App() {
     add(keymap.threading, "threading");
     add(keymap.savedQueries, "savedQueries");
     add(keymap.saveQuery, "saveQuery");
+    add(keymap.actionPlan, "actionPlan");
     return m;
   }, [keymap]);
 
@@ -860,7 +931,8 @@ export default function App() {
         suggestFor ||
         cmdOpen ||
         queriesOpen ||
-        saveQueryOpen
+        saveQueryOpen ||
+        planOpen
       )
         return;
       if (typing) {
@@ -1053,6 +1125,9 @@ export default function App() {
         case "saveQuery":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
+        case "actionPlan":
+          if (actionPlanOn) void runActionPlan();
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1080,6 +1155,7 @@ export default function App() {
     savedQueriesOn,
     queriesOpen,
     saveQueryOpen,
+    actionPlanOn,
     activeQuery,
     bulkMode,
     selected,
@@ -1093,6 +1169,7 @@ export default function App() {
     summarize,
     toggleThread,
     openQueries,
+    runActionPlan,
     saveMessage,
     sendObsidian,
     forwardSlack,
@@ -1776,6 +1853,66 @@ export default function App() {
               <button onClick={doSaveQuery} disabled={!saveQueryName.trim()}>
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {planOpen && (
+        <div className="modal-overlay" onClick={() => setPlanOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>✦ Inbox action plan</h3>
+              <button className="ghost" onClick={() => setPlanOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {analyzing ? (
+                <div className="placeholder">Analyzing your inbox…</div>
+              ) : !plan || plan.categories.length === 0 ? (
+                <div className="placeholder">
+                  {plan ? "Nothing to act on" : "No plan"}
+                </div>
+              ) : (
+                <>
+                  <div className="plan-summary muted">
+                    Analyzed {plan.totalAnalyzed} · {plan.readManually} to read
+                    manually
+                  </div>
+                  <div className="plan-list">
+                    {plan.categories.map((c) => (
+                      <div key={c.name} className="plan-cat">
+                        <div className="plan-cat-main">
+                          <div className="plan-cat-title">
+                            <span className={"prio prio-" + c.priority}>
+                              {c.priority}
+                            </span>
+                            <strong>{c.name}</strong>
+                            <span className="plan-count">
+                              {c.messageIds.length}
+                            </span>
+                          </div>
+                          <div className="plan-cat-desc muted">
+                            {c.description}
+                          </div>
+                        </div>
+                        <button
+                          className="tiny"
+                          disabled={c.action === "none" || c.action === "prompt"}
+                          onClick={() => void applyCategory(c)}
+                        >
+                          {c.action === "label"
+                            ? `Label "${c.label}"`
+                            : c.action.replace("_", " ")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => setPlanOpen(false)}>Done</button>
             </div>
           </div>
         </div>

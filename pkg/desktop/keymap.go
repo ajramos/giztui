@@ -37,6 +37,7 @@ type KeyMap struct {
 	Threading    string `json:"threading"`
 	SavedQueries string `json:"savedQueries"`
 	SaveQuery    string `json:"saveQuery"`
+	ActionPlan   string `json:"actionPlan"`
 	VimTimeoutMs int    `json:"vimTimeoutMs"`
 }
 
@@ -51,7 +52,7 @@ func DefaultKeyMap() KeyMap {
 		GotoTop: "gg", GotoBottom: "G", LinkPicker: "L", ReplyAll: "E",
 		SaveMessage: "w", SuggestLabel: "o", Obsidian: "O", Slack: "K",
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
-		VimTimeoutMs: 1000,
+		ActionPlan: "P", VimTimeoutMs: 1000,
 	}
 }
 
@@ -94,6 +95,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.Threading = orDefault(k.ToggleThreading, km.Threading)
 	km.SavedQueries = orDefault(k.QueryBookmarks, km.SavedQueries)
 	km.SaveQuery = orDefault(k.SaveQuery, km.SaveQuery)
+	km.ActionPlan = orDefault(k.ActionPlan, km.ActionPlan)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}

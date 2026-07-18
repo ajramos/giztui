@@ -67,6 +67,32 @@ type AccountInfo struct {
 	Active      bool   `json:"active"`
 }
 
+// AnalyzerInput is the lightweight message data the inbox analyzer needs,
+// passed from the frontend (which already has it) to avoid re-fetching.
+type AnalyzerInput struct {
+	ID      string `json:"id"`
+	Subject string `json:"subject"`
+	From    string `json:"from"`
+	Snippet string `json:"snippet"`
+}
+
+// PlanCategory is one category of the AI inbox action plan.
+type PlanCategory struct {
+	Name        string   `json:"name"`
+	Priority    string   `json:"priority"`
+	Description string   `json:"description"`
+	Action      string   `json:"action"`
+	Label       string   `json:"label"`
+	MessageIDs  []string `json:"messageIds"`
+}
+
+// ActionPlanResult is the AI inbox action plan.
+type ActionPlanResult struct {
+	Categories    []PlanCategory `json:"categories"`
+	TotalAnalyzed int            `json:"totalAnalyzed"`
+	ReadManually  int            `json:"readManually"`
+}
+
 // SavedQuery is a JSON-serializable saved Gmail search.
 type SavedQuery struct {
 	ID          int64  `json:"id"`

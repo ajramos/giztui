@@ -645,6 +645,58 @@ button.danger {
   color: #6ee7a0;
 }
 
+/* Action plan */
+.plan-summary {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.plan-cat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.plan-cat-desc {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.prio {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+.prio-high {
+  background: #3a1d1d;
+  color: #ff9b9b;
+}
+.prio-medium {
+  background: #3a3115;
+  color: #ffd479;
+}
+.prio-low {
+  background: #1e2a3f;
+  color: #9ec1ff;
+}
+
 /* Saved queries */
 .query-row {
   display: flex;
