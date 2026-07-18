@@ -38,3 +38,32 @@ func (a *API) Summarize(ctx context.Context, id string) (string, error) {
 	}
 	return res.Summary, nil
 }
+
+// SummarizeStream is like Summarize but streams tokens through onToken as they
+// are generated, returning the complete summary at the end. The caller (e.g.
+// the Wails layer) forwards tokens to the UI, typically via a runtime event.
+func (a *API) SummarizeStream(ctx context.Context, id string, onToken func(string)) (string, error) {
+	if a.ai == nil {
+		return "", fmt.Errorf("AI is not configured; enable an LLM provider in your GizTUI config")
+	}
+	msg, err := a.repo.GetMessage(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	content := msg.PlainText
+	if strings.TrimSpace(content) == "" {
+		content = msg.HTML
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("message has no readable content to summarize")
+	}
+	res, err := a.ai.GenerateSummaryStream(ctx, content, services.SummaryOptions{
+		MessageID:     id,
+		AccountEmail:  a.accountEmail,
+		StreamEnabled: true,
+	}, onToken)
+	if err != nil {
+		return "", err
+	}
+	return res.Summary, nil
+}

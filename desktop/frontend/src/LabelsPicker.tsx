@@ -14,15 +14,19 @@ const HIDDEN = new Set([
   "STARRED",
 ]);
 
+// Provide exactly one of messageId (single message) or bulkIds (many messages).
 export default function LabelsPicker({
   messageId,
+  bulkIds,
   onClose,
   onChanged,
 }: {
-  messageId: string;
+  messageId?: string;
+  bulkIds?: string[];
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const bulk = bulkIds !== undefined;
   const [labels, setLabels] = useState<Label[]>([]);
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
@@ -33,23 +37,23 @@ export default function LabelsPicker({
   useEffect(() => {
     void (async () => {
       try {
-        const [all, mine] = await Promise.all([
-          backend.ListLabels(),
-          backend.MessageLabelIDs(messageId),
-        ]);
+        const all = await backend.ListLabels();
         setLabels(
           all
             .filter((l) => !HIDDEN.has(l.id) && !l.id.startsWith("CATEGORY_"))
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
-        setApplied(new Set(mine));
+        // For a single message we can show which labels are already applied.
+        if (!bulk && messageId) {
+          setApplied(new Set(await backend.MessageLabelIDs(messageId)));
+        }
       } catch (e) {
         setError(String(e));
       } finally {
         setLoading(false);
       }
     })();
-  }, [messageId]);
+  }, [messageId, bulk]);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -62,12 +66,22 @@ export default function LabelsPicker({
     setError("");
     const isApplied = applied.has(label.id);
     try {
-      if (isApplied) {
-        await backend.RemoveLabel(messageId, label.id);
-        applied.delete(label.id);
-      } else {
-        await backend.ApplyLabel(messageId, label.id);
-        applied.add(label.id);
+      if (bulk && bulkIds) {
+        if (isApplied) {
+          await backend.BulkRemoveLabel(bulkIds, label.id);
+          applied.delete(label.id);
+        } else {
+          await backend.BulkApplyLabel(bulkIds, label.id);
+          applied.add(label.id);
+        }
+      } else if (messageId) {
+        if (isApplied) {
+          await backend.RemoveLabel(messageId, label.id);
+          applied.delete(label.id);
+        } else {
+          await backend.ApplyLabel(messageId, label.id);
+          applied.add(label.id);
+        }
       }
       setApplied(new Set(applied));
       onChanged();
@@ -78,11 +92,19 @@ export default function LabelsPicker({
     }
   };
 
+  const title = bulk ? `Labels · ${bulkIds?.length ?? 0} selected` : "Labels";
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal narrow"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
         <div className="modal-head">
-          <h3>Labels</h3>
+          <h3>{title}</h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>

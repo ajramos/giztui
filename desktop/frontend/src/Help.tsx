@@ -32,6 +32,17 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
     ],
   },
   {
+    group: "Select / bulk",
+    keys: [
+      ["v", "Toggle select mode"],
+      ["Space", "Toggle selection"],
+      ["*", "Select all"],
+      ["a / d", "Bulk archive / trash"],
+      ["t", "Bulk mark unread"],
+      ["l", "Bulk label"],
+    ],
+  },
+  {
     group: "AI & search",
     keys: [
       ["y", "Summarize (AI)"],

@@ -77,13 +77,17 @@ wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
 - **Labels** — apply/remove via a filterable picker
 - **Attachments** — listed in the reader, one-click download to the configured
   download directory
-- **AI summaries** — one-click summary of the open message, powered by your
-  configured LLM through the same `AIService` the TUI uses (only shown when an
-  LLM provider is configured)
+- **Bulk / selection mode** (`v`) — select messages (`Space`, `*`) and
+  archive/trash/mark/label them in one go via the service layer's `Bulk*` methods
+- **AI summaries with streaming** — one-click summary of the open message,
+  powered by your configured LLM through the same `AIService` the TUI uses.
+  Tokens stream into the panel live via a Wails runtime event (only shown when
+  an LLM provider is configured)
 - **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the list):
   `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d` trash,
   `t` toggle read, `l` labels, `c` compose, `r` reply, `f` forward, `y`
-  summarize, `s`/`/` search, `R` refresh, `N` load more, `Esc` back.
+  summarize, `s`/`/` search, `R` refresh, `N` load more, `v` select mode,
+  `Space`/`*` select, `Esc` back.
 
 ### Keyboard parity note
 
@@ -92,7 +96,7 @@ parity. The desktop client keeps that muscle memory: the shortcuts above use the
 same default keys as the TUI (`internal/config/config.go` `DefaultKeyBindings`).
 The in-app `?` overlay is the discoverable reference.
 
-Not yet ported from the TUI: custom AI prompts, bulk/selection mode, Obsidian,
-Slack, drafts management, threading view, RSVP, multi-account switching, HTML
-body rendering. These map cleanly onto the same service layer and can be added
-incrementally by extending `pkg/desktop`.
+Not yet ported from the TUI: custom AI prompts, Obsidian, Slack, drafts
+management, threading view, RSVP, multi-account switching, HTML body rendering.
+These map cleanly onto the same service layer and can be added incrementally by
+extending `pkg/desktop`.

@@ -70,6 +70,8 @@ type fakeEmail struct {
 	archived, trashed, read, unread string
 	sent                            *sendRecord
 	replied                         *replyRecord
+	bulkArchived, bulkTrashed       []string
+	bulkRead, bulkUnread            []string
 }
 
 func (f *fakeEmail) ArchiveMessage(ctx context.Context, id string) error { f.archived = id; return nil }
@@ -96,6 +98,22 @@ func (f *fakeEmail) ReplyToMessage(ctx context.Context, originalID, replyBody st
 	f.replied = &replyRecord{id: originalID, body: replyBody, send: send, cc: cc}
 	return nil
 }
+func (f *fakeEmail) BulkArchive(ctx context.Context, ids []string, onProgress ...func(done, total int)) error {
+	f.bulkArchived = ids
+	return nil
+}
+func (f *fakeEmail) BulkTrash(ctx context.Context, ids []string, onProgress ...func(done, total int)) error {
+	f.bulkTrashed = ids
+	return nil
+}
+func (f *fakeEmail) BulkMarkAsRead(ctx context.Context, ids []string, onProgress ...func(done, total int)) error {
+	f.bulkRead = ids
+	return nil
+}
+func (f *fakeEmail) BulkMarkAsUnread(ctx context.Context, ids []string, onProgress ...func(done, total int)) error {
+	f.bulkUnread = ids
+	return nil
+}
 
 // fakeAI records the content it was asked to summarize.
 type fakeAI struct {
@@ -108,12 +126,24 @@ func (f *fakeAI) GenerateSummary(ctx context.Context, content string, options se
 	f.gotContent = content
 	return &services.SummaryResult{Summary: f.summary}, nil
 }
+func (f *fakeAI) GenerateSummaryStream(ctx context.Context, content string, options services.SummaryOptions, onToken func(string)) (*services.SummaryResult, error) {
+	f.gotContent = content
+	// Emit the summary in two chunks to exercise the streaming path.
+	if len(f.summary) > 0 {
+		mid := len(f.summary) / 2
+		onToken(f.summary[:mid])
+		onToken(f.summary[mid:])
+	}
+	return &services.SummaryResult{Summary: f.summary}, nil
+}
 
 type fakeLabels struct {
 	services.LabelService
 	messageLabels []string
 	applied       [2]string
 	removed       [2]string
+	bulkApplied   [2]interface{}
+	bulkRemoved   [2]interface{}
 }
 
 func (f *fakeLabels) GetMessageLabels(ctx context.Context, messageID string) ([]string, error) {
@@ -125,6 +155,14 @@ func (f *fakeLabels) ApplyLabel(ctx context.Context, messageID, labelID string) 
 }
 func (f *fakeLabels) RemoveLabel(ctx context.Context, messageID, labelID string) error {
 	f.removed = [2]string{messageID, labelID}
+	return nil
+}
+func (f *fakeLabels) BulkApplyLabel(ctx context.Context, ids []string, labelID string, onProgress ...func(done, total int)) error {
+	f.bulkApplied = [2]interface{}{ids, labelID}
+	return nil
+}
+func (f *fakeLabels) BulkRemoveLabel(ctx context.Context, ids []string, labelID string) error {
+	f.bulkRemoved = [2]interface{}{ids, labelID}
 	return nil
 }
 
@@ -366,6 +404,64 @@ func TestAttachmentsNilService(t *testing.T) {
 	list, err := api.ListAttachments(context.Background(), "m1")
 	if err != nil || len(list) != 0 {
 		t.Errorf("expected empty list without attach service, got %v %v", list, err)
+	}
+}
+
+func TestSummarizeStream(t *testing.T) {
+	repo := &fakeRepo{detail: &gmail.Message{
+		Message:   &gmail_v1.Message{Id: "1"},
+		PlainText: "body text",
+	}}
+	ai := &fakeAI{summary: "streamed summary"}
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}, AI: ai})
+
+	var got string
+	final, err := api.SummarizeStream(context.Background(), "1", func(tok string) {
+		got += tok
+	})
+	if err != nil {
+		t.Fatalf("SummarizeStream: %v", err)
+	}
+	if final != "streamed summary" {
+		t.Errorf("final = %q", final)
+	}
+	if got != "streamed summary" {
+		t.Errorf("streamed tokens reassembled to %q", got)
+	}
+}
+
+func TestBulkForward(t *testing.T) {
+	email := &fakeEmail{}
+	labels := &fakeLabels{}
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: email, Mail: &fakeMail{}, Labels: labels})
+	ctx := context.Background()
+	ids := []string{"a", "b", "c"}
+
+	_ = api.BulkArchive(ctx, ids)
+	_ = api.BulkTrash(ctx, ids)
+	_ = api.BulkMarkRead(ctx, ids)
+	_ = api.BulkMarkUnread(ctx, ids)
+	_ = api.BulkApplyLabel(ctx, ids, "L1")
+	_ = api.BulkRemoveLabel(ctx, ids, "L2")
+
+	if len(email.bulkArchived) != 3 || len(email.bulkTrashed) != 3 {
+		t.Errorf("bulk archive/trash not forwarded")
+	}
+	if len(email.bulkRead) != 3 || len(email.bulkUnread) != 3 {
+		t.Errorf("bulk read/unread not forwarded")
+	}
+	if labels.bulkApplied[1] != "L1" || labels.bulkRemoved[1] != "L2" {
+		t.Errorf("bulk labels not forwarded: %v %v", labels.bulkApplied, labels.bulkRemoved)
+	}
+
+	// Empty ids are a no-op that never touches the service.
+	empty := &fakeEmail{}
+	api2 := NewAPI(Deps{Repo: &fakeRepo{}, Email: empty, Mail: &fakeMail{}})
+	if err := api2.BulkArchive(ctx, nil); err != nil {
+		t.Errorf("empty BulkArchive should be nil, got %v", err)
+	}
+	if empty.bulkArchived != nil {
+		t.Errorf("empty BulkArchive should not call service")
 	}
 }
 

@@ -5,7 +5,12 @@ import (
 	"log"
 
 	"github.com/ajramos/giztui/pkg/desktop"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// summaryTokenEvent is the Wails event the frontend subscribes to for streaming
+// AI summary tokens.
+const summaryTokenEvent = "summary:token"
 
 // App is the Wails-bound backend. Its exported methods are callable from the
 // frontend (window.go.main.App.*). It is intentionally a thin wrapper: all real
@@ -157,6 +162,18 @@ func (a *App) Summarize(id string) (string, error) {
 	return api.Summarize(a.ctx, id)
 }
 
+// SummarizeStream generates a summary and emits each token as a "summary:token"
+// Wails runtime event; it returns the complete summary when done.
+func (a *App) SummarizeStream(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.SummarizeStream(a.ctx, id, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, summaryTokenEvent, tok)
+	})
+}
+
 // SendMail sends a new message from the active account.
 func (a *App) SendMail(to, subject, body string, cc, bcc []string) error {
 	api, err := a.api()
@@ -228,4 +245,58 @@ func (a *App) OpenAttachment(path string) error {
 		return err
 	}
 	return api.OpenAttachment(a.ctx, path)
+}
+
+// BulkArchive archives every message in ids.
+func (a *App) BulkArchive(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkArchive(a.ctx, ids)
+}
+
+// BulkTrash trashes every message in ids.
+func (a *App) BulkTrash(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkTrash(a.ctx, ids)
+}
+
+// BulkMarkRead marks every message in ids as read.
+func (a *App) BulkMarkRead(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkMarkRead(a.ctx, ids)
+}
+
+// BulkMarkUnread marks every message in ids as unread.
+func (a *App) BulkMarkUnread(ids []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkMarkUnread(a.ctx, ids)
+}
+
+// BulkApplyLabel applies a label to every message in ids.
+func (a *App) BulkApplyLabel(ids []string, labelID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkApplyLabel(a.ctx, ids, labelID)
+}
+
+// BulkRemoveLabel removes a label from every message in ids.
+func (a *App) BulkRemoveLabel(ids []string, labelID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkRemoveLabel(a.ctx, ids, labelID)
 }

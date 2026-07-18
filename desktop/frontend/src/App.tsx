@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   backend,
   isWails,
+  summarizeStream,
   type Attachment,
   type MessageDetail,
   type MessageSummary,
@@ -34,6 +35,9 @@ export default function App() {
   const [labelsFor, setLabelsFor] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState("");
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLabels, setBulkLabels] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const gPressedAt = useRef(0);
@@ -173,14 +177,72 @@ export default function App() {
     [removeFromList, showToast],
   );
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitBulk = useCallback(() => {
+    setBulkMode(false);
+    setSelected(new Set());
+  }, []);
+
+  const bulkAction = useCallback(
+    async (action: "archive" | "trash" | "read" | "unread") => {
+      const ids = [...selected];
+      if (ids.length === 0) return;
+      setBusy(true);
+      setError("");
+      try {
+        if (action === "archive") {
+          await backend.BulkArchive(ids);
+          setMessages((prev) => prev.filter((m) => !selected.has(m.id)));
+          showToast(`Archived ${ids.length}`);
+        } else if (action === "trash") {
+          await backend.BulkTrash(ids);
+          setMessages((prev) => prev.filter((m) => !selected.has(m.id)));
+          showToast(`Moved ${ids.length} to trash`);
+        } else if (action === "read") {
+          await backend.BulkMarkRead(ids);
+          setMessages((prev) =>
+            prev.map((m) => (selected.has(m.id) ? { ...m, unread: false } : m)),
+          );
+          showToast(`Marked ${ids.length} read`);
+        } else if (action === "unread") {
+          await backend.BulkMarkUnread(ids);
+          setMessages((prev) =>
+            prev.map((m) => (selected.has(m.id) ? { ...m, unread: true } : m)),
+          );
+          showToast(`Marked ${ids.length} unread`);
+        }
+        setSelected(new Set());
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [selected, showToast],
+  );
+
   const summarize = useCallback(async (id: string) => {
     setSummarizing(true);
-    setSummary(null);
+    setSummary("");
     setError("");
     try {
-      setSummary(await backend.Summarize(id));
+      let acc = "";
+      const final = await summarizeStream(id, (tok) => {
+        acc += tok;
+        setSummary(acc);
+      });
+      setSummary(final);
     } catch (e) {
       setError(String(e));
+      setSummary(null);
     } finally {
       setSummarizing(false);
     }
@@ -246,15 +308,20 @@ export default function App() {
       const idx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
-      const openAt = (i: number) => {
-        if (i >= 0 && i < messages.length) void openMessage(messages[i]);
+      // In bulk mode j/k move a cursor (highlight) without opening the message.
+      const goTo = (i: number) => {
+        if (i < 0 || i >= messages.length) return;
+        if (bulkMode) setSelectedId(messages[i].id);
+        else void openMessage(messages[i]);
       };
+      const hasSel = bulkMode && selected.size > 0;
 
       // Prevent handled shortcut keys from also typing into freshly-focused
       // inputs (e.g. 'l' opening the labels picker must not seed its filter).
-      const HANDLED = "jkGgNRadtlcrfys/?";
+      const HANDLED = "jkGgNRadtlcrfyvs/?*";
       if (
         HANDLED.includes(e.key) ||
+        e.key === " " ||
         e.key === "ArrowDown" ||
         e.key === "ArrowUp" ||
         e.key === "Enter"
@@ -265,28 +332,45 @@ export default function App() {
       switch (e.key) {
         case "j":
         case "ArrowDown":
-          openAt(Math.min(messages.length - 1, idx + 1) || 0);
+          goTo(Math.min(messages.length - 1, idx + 1) || 0);
           break;
         case "k":
         case "ArrowUp":
-          openAt(Math.max(0, idx <= 0 ? 0 : idx - 1));
+          goTo(Math.max(0, idx <= 0 ? 0 : idx - 1));
           break;
         case "Enter":
-          if (idx >= 0) openAt(idx);
+          if (idx >= 0) {
+            if (bulkMode) toggleSelect(messages[idx].id);
+            else void openMessage(messages[idx]);
+          }
           break;
         case "G":
-          openAt(messages.length - 1);
+          goTo(messages.length - 1);
           break;
         case "g": {
           const now = Date.now();
           if (now - gPressedAt.current < 500) {
-            openAt(0);
+            goTo(0);
             gPressedAt.current = 0;
           } else {
             gPressedAt.current = now;
           }
           break;
         }
+        case "v":
+          if (bulkMode) exitBulk();
+          else {
+            setBulkMode(true);
+            if (!selectedId && messages.length > 0)
+              setSelectedId(messages[0].id);
+          }
+          break;
+        case " ":
+          if (bulkMode && selectedId) toggleSelect(selectedId);
+          break;
+        case "*":
+          if (bulkMode) setSelected(new Set(messages.map((m) => m.id)));
+          break;
         case "N":
           void loadMore();
           break;
@@ -294,38 +378,43 @@ export default function App() {
           void load(activeQuery);
           break;
         case "Escape":
-          if (detail) {
+          if (bulkMode) exitBulk();
+          else if (detail) {
             setSelectedId(null);
             setDetail(null);
           }
           break;
         case "a":
-          if (detail) void doAction("archive", detail.id);
+          if (hasSel) void bulkAction("archive");
+          else if (detail) void doAction("archive", detail.id);
           break;
         case "d":
-          if (detail) void doAction("trash", detail.id);
+          if (hasSel) void bulkAction("trash");
+          else if (detail) void doAction("trash", detail.id);
           break;
         case "t":
-          if (detail) void doAction(detail.unread ? "read" : "unread", detail.id);
+          if (hasSel) void bulkAction("unread");
+          else if (detail)
+            void doAction(detail.unread ? "read" : "unread", detail.id);
           break;
         case "l":
-          if (detail) setLabelsFor(detail.id);
+          if (hasSel) setBulkLabels(true);
+          else if (detail) setLabelsFor(detail.id);
           break;
         case "c":
           setCompose({ mode: "new" });
           break;
         case "r":
-          if (detail) setCompose(replyInit(detail));
+          if (detail && !bulkMode) setCompose(replyInit(detail));
           break;
         case "f":
-          if (detail) setCompose(forwardInit(detail));
+          if (detail && !bulkMode) setCompose(forwardInit(detail));
           break;
         case "y":
-          if (detail && aiEnabled) void summarize(detail.id);
+          if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
           break;
         case "s":
         case "/":
-          e.preventDefault();
           searchRef.current?.focus();
           break;
         case "?":
@@ -344,8 +433,13 @@ export default function App() {
     labelsFor,
     showHelp,
     activeQuery,
+    bulkMode,
+    selected,
     openMessage,
     doAction,
+    bulkAction,
+    toggleSelect,
+    exitBulk,
     summarize,
     load,
     loadMore,
@@ -408,6 +502,20 @@ export default function App() {
           <button onClick={() => setCompose({ mode: "new" })} title="Compose (c)">
             Compose
           </button>
+          <button
+            className={bulkMode ? "" : "ghost"}
+            onClick={() => {
+              if (bulkMode) exitBulk();
+              else {
+                setBulkMode(true);
+                if (!selectedId && messages.length > 0)
+                  setSelectedId(messages[0].id);
+              }
+            }}
+            title="Select mode (v)"
+          >
+            Select
+          </button>
           <button className="ghost" onClick={() => setShowHelp(true)} title="Shortcuts (?)">
             ?
           </button>
@@ -426,6 +534,57 @@ export default function App() {
 
       <div className="body">
         <aside className="list">
+          {bulkMode && (
+            <div className="bulk-bar">
+              <span className="bulk-count">{selected.size} selected</span>
+              <div className="bulk-actions">
+                <button
+                  className="tiny"
+                  disabled={busy || selected.size === 0}
+                  onClick={() => void bulkAction("archive")}
+                >
+                  Archive
+                </button>
+                <button
+                  className="tiny danger"
+                  disabled={busy || selected.size === 0}
+                  onClick={() => void bulkAction("trash")}
+                >
+                  Trash
+                </button>
+                <button
+                  className="tiny ghost"
+                  disabled={busy || selected.size === 0}
+                  onClick={() => void bulkAction("read")}
+                >
+                  Read
+                </button>
+                <button
+                  className="tiny ghost"
+                  disabled={busy || selected.size === 0}
+                  onClick={() => void bulkAction("unread")}
+                >
+                  Unread
+                </button>
+                <button
+                  className="tiny ghost"
+                  disabled={busy || selected.size === 0}
+                  onClick={() => setBulkLabels(true)}
+                >
+                  Label…
+                </button>
+                <button
+                  className="tiny ghost"
+                  onClick={() => setSelected(new Set(messages.map((m) => m.id)))}
+                >
+                  All
+                </button>
+                <button className="tiny ghost" onClick={exitBulk}>
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
           {loadingList ? (
             <div className="placeholder">Loading…</div>
           ) : messages.length === 0 ? (
@@ -439,11 +598,19 @@ export default function App() {
                     className={
                       "row" +
                       (m.id === selectedId ? " selected" : "") +
-                      (m.unread ? " unread" : "")
+                      (m.unread ? " unread" : "") +
+                      (bulkMode && selected.has(m.id) ? " checked" : "")
                     }
-                    onClick={() => void openMessage(m)}
+                    onClick={() =>
+                      bulkMode ? toggleSelect(m.id) : void openMessage(m)
+                    }
                   >
                     <div className="row-top">
+                      {bulkMode && (
+                        <span className="row-check">
+                          {selected.has(m.id) ? "☑" : "☐"}
+                        </span>
+                      )}
                       <span className="from">{displayName(m.from)}</span>
                       <span className="date">{formatDate(m.date)}</span>
                     </div>
@@ -563,10 +730,13 @@ export default function App() {
                         </button>
                       )}
                     </div>
-                    {summarizing ? (
+                    {summarizing && !summary ? (
                       <div className="muted">Generating…</div>
                     ) : (
-                      <pre className="summary-text">{summary}</pre>
+                      <pre className="summary-text">
+                        {summary}
+                        {summarizing && <span className="caret">▍</span>}
+                      </pre>
                     )}
                   </div>
                 )}
@@ -605,6 +775,13 @@ export default function App() {
           onChanged={() => {
             if (selectedId === labelsFor) void openMessage({ id: labelsFor } as MessageSummary);
           }}
+        />
+      )}
+      {bulkLabels && (
+        <LabelsPicker
+          bulkIds={[...selected]}
+          onClose={() => setBulkLabels(false)}
+          onChanged={() => undefined}
         />
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}

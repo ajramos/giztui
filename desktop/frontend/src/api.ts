@@ -70,11 +70,25 @@ interface Backend {
   ListAttachments(id: string): Promise<Attachment[]>;
   DownloadAttachment(messageID: string, attachmentID: string, filename: string): Promise<string>;
   OpenAttachment(path: string): Promise<void>;
+  SummarizeStream(id: string): Promise<string>;
+  BulkArchive(ids: string[]): Promise<void>;
+  BulkTrash(ids: string[]): Promise<void>;
+  BulkMarkRead(ids: string[]): Promise<void>;
+  BulkMarkUnread(ids: string[]): Promise<void>;
+  BulkApplyLabel(ids: string[], labelID: string): Promise<void>;
+  BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
+}
+
+// Wails runtime surface we use (event streaming).
+interface WailsRuntime {
+  EventsOn(name: string, cb: (...data: unknown[]) => void): () => void;
+  EventsOff(name: string): void;
 }
 
 declare global {
   interface Window {
     go?: { main?: { App?: Backend } };
+    runtime?: WailsRuntime;
   }
 }
 
@@ -83,6 +97,39 @@ function realBackend(): Backend | null {
 }
 
 export const isWails = (): boolean => realBackend() !== null;
+
+// summarizeStream wires the streaming AI summary. In the packaged app it
+// subscribes to the "summary:token" Wails event and forwards each token; in the
+// browser mock it chunks the mock summary so the UI streams identically.
+export async function summarizeStream(
+  id: string,
+  onToken: (token: string) => void,
+): Promise<string> {
+  const real = realBackend();
+  const rt = window.runtime;
+  if (real && rt) {
+    let acc = "";
+    const off = rt.EventsOn("summary:token", (...data: unknown[]) => {
+      const tok = String(data[0] ?? "");
+      acc += tok;
+      onToken(tok);
+    });
+    try {
+      const final = await real.SummarizeStream(id);
+      return final || acc;
+    } finally {
+      if (typeof off === "function") off();
+      else rt.EventsOff("summary:token");
+    }
+  }
+  // Mock streaming.
+  const full = await backend.Summarize(id);
+  for (const chunk of full.match(/[\s\S]{1,6}/g) ?? [full]) {
+    await new Promise((r) => setTimeout(r, 35));
+    onToken(chunk);
+  }
+  return full;
+}
 
 // backend proxies to the real Wails bindings when present, otherwise to a mock
 // so the UI is fully explorable in a normal browser during development.
@@ -209,6 +256,29 @@ const mockBackend: Backend = {
     return `~/Downloads/gmail-attachments/${filename}`;
   },
   async OpenAttachment() {},
+  async SummarizeStream(id: string) {
+    // In the browser mock the streaming helper drives token delivery; this is
+    // only the fallback that returns the full text.
+    return this.Summarize(id);
+  },
+  async BulkArchive() {
+    await new Promise((r) => setTimeout(r, 250));
+  },
+  async BulkTrash() {
+    await new Promise((r) => setTimeout(r, 250));
+  },
+  async BulkMarkRead() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
+  async BulkMarkUnread() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
+  async BulkApplyLabel() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
+  async BulkRemoveLabel() {
+    await new Promise((r) => setTimeout(r, 200));
+  },
 };
 
 const mockAppliedLabels: Record<string, string[]> = {};
