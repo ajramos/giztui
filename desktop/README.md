@@ -88,11 +88,17 @@ wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
   panel (requires an LLM provider and the local database)
 - **Summary caching** — summaries are cached in the per-account local database,
   same as the TUI
+- **Multi-account** — switch between configured accounts from the header; the
+  whole service stack (Gmail client, database, AI, prompts) rebuilds for the
+  selected account via the existing `AccountService`
+- **HTML email rendering** — rich HTML bodies render in a locked-down sandboxed
+  iframe (no scripts; remote images/trackers blocked until you click "Load
+  images"). Toggle HTML/plain-text with the `M` key
 - **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the list):
   `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d` trash,
   `t` toggle read, `l` labels, `c` compose, `r` reply, `f` forward, `y`
-  summarize, `p` prompt, `s`/`/` search, `R` refresh, `N` load more, `v` select
-  mode, `Space`/`*` select, `Esc` back.
+  summarize, `p` prompt, `s`/`/` search, `R` refresh, `N` load more, `M` toggle
+  HTML/text, `v` select mode, `Space`/`*` select, `Esc` back.
 
 ### Keyboard parity note
 
@@ -102,6 +108,5 @@ same default keys as the TUI (`internal/config/config.go` `DefaultKeyBindings`).
 The in-app `?` overlay is the discoverable reference.
 
 Not yet ported from the TUI: bulk prompts, Obsidian, Slack, drafts management,
-threading view, RSVP, multi-account switching, HTML body rendering. These map
-cleanly onto the same service layer and can be added incrementally by extending
-`pkg/desktop`.
+threading view, RSVP/calendar, open-in-Gmail-web. These map cleanly onto the
+same service layer and can be added incrementally by extending `pkg/desktop`.

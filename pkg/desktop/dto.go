@@ -42,6 +42,14 @@ type Label struct {
 	Name string `json:"name"`
 }
 
+// AccountInfo is a JSON-serializable account for the account switcher.
+type AccountInfo struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	Active      bool   `json:"active"`
+}
+
 // Prompt is a JSON-serializable AI prompt template.
 type Prompt struct {
 	ID          int    `json:"id"`

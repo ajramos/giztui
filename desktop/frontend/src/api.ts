@@ -56,6 +56,13 @@ export interface Prompt {
   category: string;
 }
 
+export interface AccountInfo {
+  id: string;
+  email: string;
+  displayName: string;
+  active: boolean;
+}
+
 interface Backend {
   InitError(): Promise<string>;
   AccountEmail(): Promise<string>;
@@ -87,6 +94,8 @@ interface Backend {
   PromptsEnabled(): Promise<boolean>;
   ListPrompts(): Promise<Prompt[]>;
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
+  ListAccounts(): Promise<AccountInfo[]>;
+  SwitchAccount(id: string): Promise<void>;
 }
 
 // Wails runtime surface we use (event streaming).
@@ -208,7 +217,9 @@ const mockBackend: Backend = {
     return "";
   },
   async AccountEmail() {
-    return "you@example.com (mock)";
+    return mockActiveAccount === "work"
+      ? "you@company.com (mock)"
+      : "you@example.com (mock)";
   },
   async ListInbox(_pageToken: string, pageSize: number) {
     return { messages: mockMessages.slice(0, pageSize || 50), nextPageToken: "" };
@@ -222,13 +233,22 @@ const mockBackend: Backend = {
   },
   async GetMessage(id: string) {
     const m = mockMessages.find((x) => x.id === id) ?? mockMessages[0];
-    return {
-      ...m,
-      to: "you@example.com",
-      cc: "",
-      plainText: `${m.snippet}\n\nHi there,\n\nThis is the full body of "${m.subject}" rendered in the reading pane. In the packaged Wails app this content comes straight from Gmail via the GizTUI service layer.\n\nBest,\n${m.from}`,
-      html: "",
-    };
+    const plain = `${m.snippet}\n\nHi there,\n\nThis is the full body of "${m.subject}" rendered in the reading pane. In the packaged Wails app this content comes straight from Gmail via the GizTUI service layer.\n\nBest,\n${m.from}`;
+    // Give some messages an HTML body so the HTML renderer is demonstrable.
+    const html =
+      Number(id.replace(/\D/g, "") || "0") % 2 === 0
+        ? `<div style="font-family:Arial,sans-serif">
+             <h2 style="color:#1a56db">${m.subject}</h2>
+             <p>Hi there,</p>
+             <p>This is a <strong>rich HTML</strong> version of the email, with
+             <a href="https://example.com">a link</a>, a list:</p>
+             <ul><li>First point</li><li>Second point</li><li>Third point</li></ul>
+             <p style="background:#f0f4ff;padding:12px;border-radius:8px">
+               A highlighted callout box rendered from the email's own inline styles.</p>
+             <p>Best,<br>${m.from}</p>
+           </div>`
+        : "";
+    return { ...m, to: "you@example.com", cc: "", plainText: plain, html };
   },
   async Archive() {},
   async Trash() {},
@@ -331,6 +351,18 @@ const mockBackend: Backend = {
     };
     return names[promptID] ?? "(mock prompt result)";
   },
+  async ListAccounts() {
+    return [
+      { id: "personal", email: "you@example.com", displayName: "Personal", active: mockActiveAccount === "personal" },
+      { id: "work", email: "you@company.com", displayName: "Work", active: mockActiveAccount === "work" },
+    ];
+  },
+  async SwitchAccount(id: string) {
+    await new Promise((r) => setTimeout(r, 250));
+    mockActiveAccount = id;
+  },
 };
+
+let mockActiveAccount = "personal";
 
 const mockAppliedLabels: Record<string, string[]> = {};

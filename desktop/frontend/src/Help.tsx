@@ -11,6 +11,7 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
       ["G", "Go to bottom"],
       ["N", "Load more"],
       ["R", "Refresh inbox"],
+      ["M", "Toggle HTML / text"],
       ["Esc", "Close panel / back"],
     ],
   },

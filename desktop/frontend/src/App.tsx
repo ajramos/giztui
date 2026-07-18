@@ -4,6 +4,7 @@ import {
   backend,
   isWails,
   summarizeStream,
+  type AccountInfo,
   type Attachment,
   type MessageDetail,
   type MessageSummary,
@@ -12,6 +13,8 @@ import {
 import Compose, { type ComposeInit } from "./Compose";
 import LabelsPicker from "./LabelsPicker";
 import PromptsPicker from "./PromptsPicker";
+import AccountSwitcher from "./AccountSwitcher";
+import HtmlBody from "./HtmlBody";
 import Help from "./Help";
 
 const PAGE_SIZE = 50;
@@ -46,6 +49,10 @@ export default function App() {
   const [promptResult, setPromptResult] = useState<string | null>(null);
   const [promptLabel, setPromptLabel] = useState("");
   const [promptRunning, setPromptRunning] = useState(false);
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  const [switching, setSwitching] = useState(false);
+  const [viewHtml, setViewHtml] = useState(false);
+  const [loadRemote, setLoadRemote] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const gPressedAt = useRef(0);
@@ -114,9 +121,47 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
+      try {
+        setAccounts(await backend.ListAccounts());
+      } catch {
+        /* non-fatal */
+      }
       void load("");
     })();
   }, [load]);
+
+  const switchAccount = useCallback(
+    async (a: AccountInfo) => {
+      setSwitching(true);
+      setError("");
+      try {
+        await backend.SwitchAccount(a.id);
+        setSelectedId(null);
+        setDetail(null);
+        setSummary(null);
+        setPromptResult(null);
+        setBulkMode(false);
+        setSelected(new Set());
+        setQuery("");
+        const [email, ai, prompts, accs] = await Promise.all([
+          backend.AccountEmail().catch(() => ""),
+          backend.AIEnabled().catch(() => false),
+          backend.PromptsEnabled().catch(() => false),
+          backend.ListAccounts().catch(() => [] as AccountInfo[]),
+        ]);
+        setAccount(email);
+        setAiEnabled(ai);
+        setAiPromptsEnabled(prompts);
+        if (accs.length) setAccounts(accs);
+        await load("");
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setSwitching(false);
+      }
+    },
+    [load],
+  );
 
   const openMessage = useCallback(async (m: MessageSummary) => {
     setSelectedId(m.id);
@@ -128,6 +173,8 @@ export default function App() {
     try {
       const d = await backend.GetMessage(m.id);
       setDetail(d);
+      setViewHtml(!!(d.html && d.html.trim()));
+      setLoadRemote(false);
       void backend
         .ListAttachments(m.id)
         .then(setAttachments)
@@ -353,7 +400,7 @@ export default function App() {
 
       // Prevent handled shortcut keys from also typing into freshly-focused
       // inputs (e.g. 'l' opening the labels picker must not seed its filter).
-      const HANDLED = "jkGgNRadtlcrfyvps/?*";
+      const HANDLED = "jkGgNRadtlcrfyvpMs/?*";
       if (
         HANDLED.includes(e.key) ||
         e.key === " " ||
@@ -451,6 +498,9 @@ export default function App() {
         case "p":
           if (detail && aiPromptsEnabled && !bulkMode) setPromptsOpen(true);
           break;
+        case "M":
+          if (detail && detail.html && detail.html.trim()) setViewHtml((v) => !v);
+          break;
         case "s":
         case "/":
           searchRef.current?.focus();
@@ -539,7 +589,12 @@ export default function App() {
         </form>
         <div className="account">
           {!isWails() && <span className="badge">mock</span>}
-          <span className="email">{account}</span>
+          <AccountSwitcher
+            accounts={accounts}
+            email={account}
+            switching={switching}
+            onSwitch={(a) => void switchAccount(a)}
+          />
           <button onClick={() => setCompose({ mode: "new" })} title="Compose (c)">
             Compose
           </button>
@@ -748,6 +803,15 @@ export default function App() {
                   >
                     Mark {detail.unread ? "read" : "unread"}
                   </button>
+                  {detail.html && detail.html.trim() && (
+                    <button
+                      className="ghost"
+                      onClick={() => setViewHtml((v) => !v)}
+                      title="Toggle HTML / text (M)"
+                    >
+                      {viewHtml ? "Text" : "HTML"}
+                    </button>
+                  )}
                 </div>
                 {attachments.length > 0 && (
                   <div className="attach-bar">
@@ -815,6 +879,21 @@ export default function App() {
                 )}
                 {loadingDetail ? (
                   <div className="placeholder">Loading…</div>
+                ) : viewHtml && detail.html && detail.html.trim() ? (
+                  <div className="html-wrap">
+                    {!loadRemote && (
+                      <div className="remote-bar">
+                        Remote images blocked for privacy.
+                        <button
+                          className="tiny"
+                          onClick={() => setLoadRemote(true)}
+                        >
+                          Load images
+                        </button>
+                      </div>
+                    )}
+                    <HtmlBody html={detail.html} loadRemote={loadRemote} />
+                  </div>
                 ) : (
                   <pre className="plain">{detail.plainText || "(empty body)"}</pre>
                 )}

@@ -42,9 +42,11 @@ type Session struct {
 	API    *API
 	Config *config.Config
 
-	client    *gmail.Client
-	dbManager services.DatabaseManager
-	logger    *log.Logger
+	client           *gmail.Client
+	dbManager        services.DatabaseManager
+	accountService   services.AccountService
+	currentAccountID string
+	logger           *log.Logger
 }
 
 // Close releases the session's resources (e.g. the local database).
@@ -78,19 +80,38 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 	}
 	client := gmail.NewClient(service)
 
+	dbManager := services.NewDatabaseManager(cfg, logger)
+	accountService := services.NewAccountService(cfg, logger)
+
+	api := buildAPI(ctx, cfg, client, dbManager, logger)
+
+	sess := &Session{
+		API:            api,
+		Config:         cfg,
+		client:         client,
+		dbManager:      dbManager,
+		accountService: accountService,
+		logger:         logger,
+	}
+	if active, err := accountService.GetActiveAccount(ctx); err == nil && active != nil {
+		sess.currentAccountID = active.ID
+	}
+	return sess, nil
+}
+
+// buildAPI constructs the full service stack for a given Gmail client and wraps
+// it in an API. It opens the per-account local database (best-effort; powers
+// summary caching and prompts) and is reused verbatim when switching accounts.
+func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbManager services.DatabaseManager, logger *log.Logger) *API {
 	repo := services.NewMessageRepository(client)
 	labelService := services.NewLabelService(client)
 	renderer := render.NewEmailRenderer(cfg)
 	emailService := services.NewEmailService(repo, client, renderer)
-
 	attachmentService := services.NewAttachmentService(client, cfg)
 
 	// Capture the active account address so composed messages have a "from".
 	accountEmail, _ := client.ActiveAccountEmail(ctx)
 
-	// Open the per-account local database (best-effort). It powers summary
-	// caching and the prompt library; without it those features are simply off.
-	dbManager := services.NewDatabaseManager(cfg, logger)
 	var dbStore *db.Store
 	if accountEmail != "" {
 		if err := dbManager.SwitchToAccountDatabase(ctx, accountEmail); err != nil {
@@ -116,7 +137,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		promptService = services.NewPromptService(db.NewPromptStore(dbStore), aiService, nil)
 	}
 
-	api := NewAPI(Deps{
+	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
 		Labels:       labelService,
@@ -127,14 +148,6 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})
-
-	return &Session{
-		API:       api,
-		Config:    cfg,
-		client:    client,
-		dbManager: dbManager,
-		logger:    logger,
-	}, nil
 }
 
 // AccountEmail returns the active account's email address.
@@ -143,6 +156,49 @@ func (s *Session) AccountEmail(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("gmail client not initialized")
 	}
 	return s.client.ActiveAccountEmail(ctx)
+}
+
+// ListAccounts returns all configured accounts for the account switcher.
+func (s *Session) ListAccounts(ctx context.Context) ([]AccountInfo, error) {
+	if s.accountService == nil {
+		return []AccountInfo{}, nil
+	}
+	accounts, err := s.accountService.ListAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AccountInfo, 0, len(accounts))
+	for _, a := range accounts {
+		if a == nil {
+			continue
+		}
+		out = append(out, AccountInfo{
+			ID:          a.ID,
+			Email:       a.Email,
+			DisplayName: a.DisplayName,
+			Active:      a.ID == s.currentAccountID,
+		})
+	}
+	return out, nil
+}
+
+// SwitchAccount rebuilds the service stack for a different account and makes it
+// current. Subsequent API calls operate on the newly-selected account.
+func (s *Session) SwitchAccount(ctx context.Context, accountID string) error {
+	if s.accountService == nil {
+		return fmt.Errorf("account service not available")
+	}
+	client, err := s.accountService.GetAccountClient(ctx, accountID)
+	if err != nil {
+		return fmt.Errorf("failed to get client for account %q: %w", accountID, err)
+	}
+	if err := s.accountService.SwitchAccount(ctx, accountID); err != nil {
+		return err
+	}
+	s.client = client
+	s.API = buildAPI(ctx, s.Config, client, s.dbManager, s.logger)
+	s.currentAccountID = accountID
+	return nil
 }
 
 // buildAIService constructs an AIService from config, mirroring the TUI's LLM

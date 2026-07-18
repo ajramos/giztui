@@ -46,6 +46,13 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
+// shutdown is invoked by Wails on exit; it releases the local database.
+func (a *App) shutdown(_ context.Context) {
+	if a.session != nil {
+		_ = a.session.Close()
+	}
+}
+
 // api returns the shared API or an error describing why startup failed.
 func (a *App) api() (*desktop.API, error) {
 	if a.session == nil {
@@ -73,6 +80,22 @@ func (a *App) AccountEmail() (string, error) {
 		return "", &startupError{a.initErr}
 	}
 	return a.session.AccountEmail(a.ctx)
+}
+
+// ListAccounts returns all configured accounts for the account switcher.
+func (a *App) ListAccounts() ([]desktop.AccountInfo, error) {
+	if a.session == nil {
+		return nil, &startupError{a.initErr}
+	}
+	return a.session.ListAccounts(a.ctx)
+}
+
+// SwitchAccount switches the active account and rebuilds the service stack.
+func (a *App) SwitchAccount(id string) error {
+	if a.session == nil {
+		return &startupError{a.initErr}
+	}
+	return a.session.SwitchAccount(a.ctx, id)
 }
 
 // ListInbox returns a page of inbox summaries.
