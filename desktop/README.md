@@ -66,16 +66,18 @@ cd desktop
 wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
 ```
 
-## MVP scope (current)
-
-Reading-focused first cut:
+## Current scope
 
 - Inbox list with sender, subject, snippet, date, unread state, and label chips
 - Reading pane (plain-text body + headers)
 - Gmail search (full operator syntax: `from:`, `has:attachment`, …)
 - Per-message actions: archive, trash, mark read/unread
+- **Compose & reply** (new message and threaded reply, with cc)
+- **AI summaries** — one-click summary of the open message, powered by your
+  configured LLM through the same `AIService` the TUI uses (the "✦ Summarize"
+  button only appears when an LLM provider is configured)
 
-Not yet ported from the TUI: compose/reply, AI summaries & prompts, Obsidian,
-Slack, attachments, drafts, threading, RSVP, multi-account switching. These map
+Not yet ported from the TUI: custom AI prompts, Obsidian, Slack, attachments,
+drafts management, threading view, RSVP, multi-account switching. These map
 cleanly onto the same service layer and can be added incrementally by extending
 `pkg/desktop`.

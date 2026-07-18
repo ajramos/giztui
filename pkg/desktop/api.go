@@ -35,21 +35,43 @@ type mailClient interface {
 	ExtractLabels(msg *gmail_v1.Message) []string
 }
 
+// Deps bundles everything an API needs. Using a struct keeps the constructor
+// stable as the surface grows (AI, compose, …).
+type Deps struct {
+	Repo         services.MessageRepository
+	Email        services.EmailService
+	Labels       services.LabelService
+	Mail         mailClient
+	AI           services.AIService // optional; nil when no LLM is configured
+	AccountEmail string             // active account address, used as the "from" for sends
+	Logger       *log.Logger
+}
+
 // API is the front-end-agnostic entry point. Every method returns
 // JSON-serializable DTOs and plain errors, making it trivial to bind from Wails
 // or serve over HTTP.
 type API struct {
-	repo   services.MessageRepository
-	email  services.EmailService
-	labels services.LabelService
-	mail   mailClient
-	logger *log.Logger
+	repo         services.MessageRepository
+	email        services.EmailService
+	labels       services.LabelService
+	mail         mailClient
+	ai           services.AIService
+	accountEmail string
+	logger       *log.Logger
 }
 
 // NewAPI wires an API from already-constructed services. Use NewSession when you
 // want the whole stack built from config/credentials on disk.
-func NewAPI(repo services.MessageRepository, email services.EmailService, labels services.LabelService, mail mailClient, logger *log.Logger) *API {
-	return &API{repo: repo, email: email, labels: labels, mail: mail, logger: logger}
+func NewAPI(d Deps) *API {
+	return &API{
+		repo:         d.Repo,
+		email:        d.Email,
+		labels:       d.Labels,
+		mail:         d.Mail,
+		ai:           d.AI,
+		accountEmail: d.AccountEmail,
+		logger:       d.Logger,
+	}
 }
 
 func (a *API) logf(format string, args ...interface{}) {

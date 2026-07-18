@@ -5,6 +5,7 @@ import {
   type MessageDetail,
   type MessageSummary,
 } from "./api";
+import Compose, { type ComposeInit } from "./Compose";
 
 const PAGE_SIZE = 50;
 
@@ -19,6 +20,11 @@ export default function App() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [compose, setCompose] = useState<ComposeInit | null>(null);
+  const [toast, setToast] = useState("");
 
   const loadInbox = useCallback(async () => {
     setLoadingList(true);
@@ -67,14 +73,25 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
+      try {
+        setAiEnabled(await backend.AIEnabled());
+      } catch {
+        /* non-fatal */
+      }
       void loadInbox();
     })();
   }, [loadInbox]);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  }, []);
 
   const openMessage = useCallback(async (m: MessageSummary) => {
     setSelectedId(m.id);
     setLoadingDetail(true);
     setError("");
+    setSummary(null);
     try {
       const d = await backend.GetMessage(m.id);
       setDetail(d);
@@ -133,6 +150,19 @@ export default function App() {
     [removeFromList],
   );
 
+  const summarize = useCallback(async (id: string) => {
+    setSummarizing(true);
+    setSummary(null);
+    setError("");
+    try {
+      setSummary(await backend.Summarize(id));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSummarizing(false);
+    }
+  }, []);
+
   if (initError) {
     return (
       <div className="fatal">
@@ -184,6 +214,9 @@ export default function App() {
         <div className="account">
           {!isWails() && <span className="badge">mock</span>}
           <span className="email">{account}</span>
+          <button onClick={() => setCompose({ mode: "new" })} title="New message">
+            Compose
+          </button>
           <button className="ghost" onClick={() => void loadInbox()} title="Refresh">
             ⟳
           </button>
@@ -191,6 +224,7 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {toast && <div className="toast">{toast}</div>}
 
       <div className="body">
         <aside className="list">
@@ -246,6 +280,26 @@ export default function App() {
                 </div>
                 <div className="actions">
                   <button
+                    onClick={() =>
+                      setCompose({
+                        mode: "reply",
+                        originalId: detail.id,
+                        to: detail.from,
+                      })
+                    }
+                  >
+                    Reply
+                  </button>
+                  {aiEnabled && (
+                    <button
+                      className="ghost"
+                      disabled={summarizing}
+                      onClick={() => void summarize(detail.id)}
+                    >
+                      {summarizing ? "Summarizing…" : "✦ Summarize"}
+                    </button>
+                  )}
+                  <button
                     disabled={busy}
                     onClick={() => void doAction("archive", detail.id)}
                   >
@@ -260,6 +314,7 @@ export default function App() {
                   </button>
                   <button
                     disabled={busy}
+                    className="ghost"
                     onClick={() =>
                       void doAction(detail.unread ? "read" : "unread", detail.id)
                     }
@@ -269,6 +324,26 @@ export default function App() {
                 </div>
               </div>
               <div className="reader-body">
+                {(summarizing || summary) && (
+                  <div className="summary-panel">
+                    <div className="summary-head">
+                      <span>✦ AI summary</span>
+                      {summary && (
+                        <button
+                          className="ghost tiny"
+                          onClick={() => setSummary(null)}
+                        >
+                          dismiss
+                        </button>
+                      )}
+                    </div>
+                    {summarizing ? (
+                      <div className="muted">Generating…</div>
+                    ) : (
+                      <pre className="summary-text">{summary}</pre>
+                    )}
+                  </div>
+                )}
                 {loadingDetail ? (
                   <div className="placeholder">Loading…</div>
                 ) : (
@@ -283,6 +358,17 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {compose && (
+        <Compose
+          init={compose}
+          onClose={() => setCompose(null)}
+          onSent={(msg) => {
+            setCompose(null);
+            showToast(msg);
+          }}
+        />
+      )}
     </div>
   );
 }

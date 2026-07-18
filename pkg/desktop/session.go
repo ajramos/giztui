@@ -10,6 +10,7 @@ import (
 
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/ajramos/giztui/pkg/auth"
@@ -72,7 +73,21 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 	renderer := render.NewEmailRenderer(cfg)
 	emailService := services.NewEmailService(repo, client, renderer)
 
-	api := NewAPI(repo, emailService, labelService, client, logger)
+	// AIService is optional: only wired when an LLM provider is configured.
+	aiService := buildAIService(cfg, logger)
+
+	// Capture the active account address so composed messages have a "from".
+	accountEmail, _ := client.ActiveAccountEmail(ctx)
+
+	api := NewAPI(Deps{
+		Repo:         repo,
+		Email:        emailService,
+		Labels:       labelService,
+		Mail:         client,
+		AI:           aiService,
+		AccountEmail: accountEmail,
+		Logger:       logger,
+	})
 
 	return &Session{
 		API:    api,
@@ -88,6 +103,36 @@ func (s *Session) AccountEmail(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("gmail client not initialized")
 	}
 	return s.client.ActiveAccountEmail(ctx)
+}
+
+// buildAIService constructs an AIService from config, mirroring the TUI's LLM
+// wiring. Returns nil (not an error) when AI is disabled or misconfigured, so
+// the rest of the app still works without AI.
+func buildAIService(cfg *config.Config, logger *log.Logger) services.AIService {
+	if !cfg.LLM.Enabled || cfg.LLM.Model == "" {
+		return nil
+	}
+	providerName := cfg.LLM.Provider
+	if providerName == "" {
+		providerName = "ollama"
+	}
+	arg := cfg.LLM.Endpoint
+	if providerName == "bedrock" {
+		region := cfg.LLM.Region
+		if region == "" {
+			region = os.Getenv("AWS_REGION")
+		}
+		arg = region
+	}
+	provider, err := llm.NewProviderFromConfig(providerName, arg, cfg.LLM.Model, cfg.GetLLMTimeout(), cfg.LLM.APIKey)
+	if err != nil {
+		if logger != nil {
+			logger.Printf("desktop: LLM provider (%s) init failed: %v", providerName, err)
+		}
+		return nil
+	}
+	// cacheService is nil here; summaries generate but are not persisted yet.
+	return services.NewAIService(provider, nil, cfg)
 }
 
 // resolvePath applies the standard priority: explicit value, then environment

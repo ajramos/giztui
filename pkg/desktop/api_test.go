@@ -68,12 +68,46 @@ func (f *fakeMail) ExtractLabels(msg *gmail_v1.Message) []string { return msg.La
 type fakeEmail struct {
 	services.EmailService
 	archived, trashed, read, unread string
+	sent                            *sendRecord
+	replied                         *replyRecord
 }
 
 func (f *fakeEmail) ArchiveMessage(ctx context.Context, id string) error { f.archived = id; return nil }
 func (f *fakeEmail) TrashMessage(ctx context.Context, id string) error   { f.trashed = id; return nil }
 func (f *fakeEmail) MarkAsRead(ctx context.Context, id string) error     { f.read = id; return nil }
 func (f *fakeEmail) MarkAsUnread(ctx context.Context, id string) error   { f.unread = id; return nil }
+
+// records send/reply calls forwarded by the compose API.
+type sendRecord struct {
+	from, to, subject, body string
+	cc, bcc                 []string
+}
+type replyRecord struct {
+	id, body string
+	send     bool
+	cc       []string
+}
+
+func (f *fakeEmail) SendMessage(ctx context.Context, from, to, subject, body string, cc, bcc []string) error {
+	f.sent = &sendRecord{from: from, to: to, subject: subject, body: body, cc: cc, bcc: bcc}
+	return nil
+}
+func (f *fakeEmail) ReplyToMessage(ctx context.Context, originalID, replyBody string, send bool, cc []string) error {
+	f.replied = &replyRecord{id: originalID, body: replyBody, send: send, cc: cc}
+	return nil
+}
+
+// fakeAI records the content it was asked to summarize.
+type fakeAI struct {
+	services.AIService
+	gotContent string
+	summary    string
+}
+
+func (f *fakeAI) GenerateSummary(ctx context.Context, content string, options services.SummaryOptions) (*services.SummaryResult, error) {
+	f.gotContent = content
+	return &services.SummaryResult{Summary: f.summary}, nil
+}
 
 func rawMsg(id, subject, from string, labels []string) *gmail_v1.Message {
 	return &gmail_v1.Message{
@@ -101,7 +135,7 @@ func TestListInboxHydratesSummaries(t *testing.T) {
 		rawMsg("1", "Hello", "a@x.com", []string{"INBOX", "UNREAD", "Work"}),
 		rawMsg("2", "World", "b@x.com", []string{"INBOX"}),
 	}}
-	api := NewAPI(repo, &fakeEmail{}, nil, mail, nil)
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: mail})
 
 	list, err := api.ListInbox(context.Background(), "", 0)
 	if err != nil {
@@ -133,7 +167,7 @@ func TestListInboxHydratesSummaries(t *testing.T) {
 
 func TestSearchPassesQuery(t *testing.T) {
 	repo := &fakeRepo{page: &services.MessagePage{}}
-	api := NewAPI(repo, &fakeEmail{}, nil, &fakeMail{}, nil)
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}})
 	if _, err := api.Search(context.Background(), "from:x has:attachment", "tok", 10); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -151,7 +185,7 @@ func TestGetMessageDetail(t *testing.T) {
 		Subject: "Subj", From: "f@x.com", To: "t@x.com", PlainText: "body",
 		Labels: []string{"UNREAD", "Work"},
 	}}
-	api := NewAPI(repo, &fakeEmail{}, nil, &fakeMail{}, nil)
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}})
 	d, err := api.GetMessage(context.Background(), "9")
 	if err != nil {
 		t.Fatalf("GetMessage: %v", err)
@@ -169,7 +203,7 @@ func TestGetMessageDetail(t *testing.T) {
 
 func TestActionsForward(t *testing.T) {
 	email := &fakeEmail{}
-	api := NewAPI(&fakeRepo{}, email, nil, &fakeMail{}, nil)
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: email, Mail: &fakeMail{}})
 	ctx := context.Background()
 	_ = api.Archive(ctx, "a")
 	_ = api.Trash(ctx, "b")
@@ -177,6 +211,78 @@ func TestActionsForward(t *testing.T) {
 	_ = api.MarkUnread(ctx, "d")
 	if email.archived != "a" || email.trashed != "b" || email.read != "c" || email.unread != "d" {
 		t.Errorf("actions not forwarded: %+v", email)
+	}
+}
+
+func TestSummarize(t *testing.T) {
+	repo := &fakeRepo{detail: &gmail.Message{
+		Message:   &gmail_v1.Message{Id: "1"},
+		PlainText: "the full email body",
+	}}
+	ai := &fakeAI{summary: "a short summary"}
+	api := NewAPI(Deps{Repo: repo, Email: &fakeEmail{}, Mail: &fakeMail{}, AI: ai, AccountEmail: "me@x.com"})
+
+	if !api.AIEnabled() {
+		t.Fatal("AIEnabled should be true when AI dep is set")
+	}
+	got, err := api.Summarize(context.Background(), "1")
+	if err != nil {
+		t.Fatalf("Summarize: %v", err)
+	}
+	if got != "a short summary" {
+		t.Errorf("summary = %q", got)
+	}
+	if ai.gotContent != "the full email body" {
+		t.Errorf("AI got wrong content: %q", ai.gotContent)
+	}
+}
+
+func TestSummarizeWithoutAI(t *testing.T) {
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}})
+	if api.AIEnabled() {
+		t.Fatal("AIEnabled should be false without AI dep")
+	}
+	if _, err := api.Summarize(context.Background(), "1"); err == nil {
+		t.Fatal("expected error when AI not configured")
+	}
+}
+
+func TestSendMail(t *testing.T) {
+	email := &fakeEmail{}
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: email, Mail: &fakeMail{}, AccountEmail: "me@x.com"})
+
+	if err := api.SendMail(context.Background(), "", "s", "b", nil, nil); err == nil {
+		t.Error("expected error for empty recipient")
+	}
+	if err := api.SendMail(context.Background(), "to@x.com", "Hi", "Body", []string{" ", "cc@x.com"}, nil); err != nil {
+		t.Fatalf("SendMail: %v", err)
+	}
+	if email.sent == nil {
+		t.Fatal("send not forwarded")
+	}
+	if email.sent.from != "me@x.com" || email.sent.to != "to@x.com" || email.sent.subject != "Hi" {
+		t.Errorf("unexpected send: %+v", email.sent)
+	}
+	if len(email.sent.cc) != 1 || email.sent.cc[0] != "cc@x.com" {
+		t.Errorf("cc not cleaned: %v", email.sent.cc)
+	}
+}
+
+func TestReply(t *testing.T) {
+	email := &fakeEmail{}
+	api := NewAPI(Deps{Repo: &fakeRepo{}, Email: email, Mail: &fakeMail{}})
+
+	if err := api.Reply(context.Background(), "", "body", nil); err == nil {
+		t.Error("expected error for empty original id")
+	}
+	if err := api.Reply(context.Background(), "orig", "", nil); err == nil {
+		t.Error("expected error for empty body")
+	}
+	if err := api.Reply(context.Background(), "orig", "my reply", nil); err != nil {
+		t.Fatalf("Reply: %v", err)
+	}
+	if email.replied == nil || email.replied.id != "orig" || email.replied.body != "my reply" || !email.replied.send {
+		t.Errorf("unexpected reply: %+v", email.replied)
 	}
 }
 

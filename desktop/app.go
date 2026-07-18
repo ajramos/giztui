@@ -139,3 +139,38 @@ func (a *App) ListLabels() ([]desktop.Label, error) {
 	}
 	return api.ListLabels(a.ctx)
 }
+
+// AIEnabled reports whether an LLM provider is configured.
+func (a *App) AIEnabled() bool {
+	if a.session == nil {
+		return false
+	}
+	return a.session.API.AIEnabled()
+}
+
+// Summarize returns an AI-generated summary of a message.
+func (a *App) Summarize(id string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.Summarize(a.ctx, id)
+}
+
+// SendMail sends a new message from the active account.
+func (a *App) SendMail(to, subject, body string, cc, bcc []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.SendMail(a.ctx, to, subject, body, cc, bcc)
+}
+
+// Reply sends a reply to an existing message.
+func (a *App) Reply(originalID, body string, cc []string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.Reply(a.ctx, originalID, body, cc)
+}
