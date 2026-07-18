@@ -50,8 +50,24 @@ export const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
     keys: [
       ["y", "Summarize (AI)"],
       ["p", "Apply a prompt"],
+      ["o", "Suggest labels (AI)"],
+      ["P", "AI inbox action plan"],
       ["s /  /", "Search"],
+      [":", "Command mode"],
       ["?", "This help"],
+    ],
+  },
+  {
+    group: "Tools & view",
+    keys: [
+      ["L", "Links in message"],
+      ["w", "Save to file"],
+      ["O", "Send to Obsidian"],
+      ["K", "Forward to Slack"],
+      ["T", "Toggle conversation"],
+      ["Q", "Saved searches"],
+      ["Z", "Save current search"],
+      ["H", "Theme picker"],
     ],
   },
 ];

@@ -119,6 +119,13 @@ export const Icon = {
       <line x1="16" y1="3" x2="14" y2="21" />
     </>,
   ),
+  more: svg(
+    <>
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </>,
+  ),
   bookmark: svg(
     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
   ),

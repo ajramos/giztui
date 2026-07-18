@@ -55,6 +55,7 @@ type Deps struct {
 	Thread       services.ThreadService        // optional
 	Query        services.QueryService         // optional
 	Analyzer     services.InboxAnalyzerService // optional
+	Theme        services.ThemeService         // optional
 	AccountEmail string                        // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
@@ -79,6 +80,7 @@ type API struct {
 	thread       services.ThreadService
 	query        services.QueryService
 	analyzer     services.InboxAnalyzerService
+	theme        services.ThemeService
 	accountEmail string
 	logger       *log.Logger
 
@@ -106,6 +108,7 @@ func NewAPI(d Deps) *API {
 		thread:       d.Thread,
 		query:        d.Query,
 		analyzer:     d.Analyzer,
+		theme:        d.Theme,
 		accountEmail: d.AccountEmail,
 		logger:       d.Logger,
 	}

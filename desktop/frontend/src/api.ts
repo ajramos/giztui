@@ -100,6 +100,22 @@ export interface AccountInfo {
   active: boolean;
 }
 
+export interface ThemeColors {
+  name: string;
+  bg: string;
+  fg: string;
+  border: string;
+  accent: string;
+  primary: string;
+  danger: string;
+  warning: string;
+  success: string;
+  selectionBg: string;
+  inputBg: string;
+  unread: string;
+  muted: string;
+}
+
 export interface KeyMap {
   summarize: string;
   prompt: string;
@@ -133,6 +149,7 @@ export interface KeyMap {
   savedQueries: string;
   saveQuery: string;
   actionPlan: string;
+  themePicker: string;
   vimTimeoutMs: number;
 }
 
@@ -144,7 +161,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
-  actionPlan: "P", vimTimeoutMs: 1000,
+  actionPlan: "P", themePicker: "H", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {
@@ -223,6 +240,9 @@ interface Backend {
   SaveDraft(to: string, subject: string, body: string, cc: string[]): Promise<string>;
   UpdateDraft(draftID: string, to: string, subject: string, body: string, cc: string[]): Promise<void>;
   DeleteDraft(draftID: string): Promise<void>;
+  ThemesEnabled(): Promise<boolean>;
+  ListThemes(): Promise<string[]>;
+  GetThemeColors(name: string): Promise<ThemeColors | null>;
 }
 
 // Wails runtime surface we use (event streaming).
@@ -647,6 +667,29 @@ const mockBackend: Backend = {
   async DeleteDraft(draftID: string) {
     await new Promise((r) => setTimeout(r, 200));
     mockDrafts = mockDrafts.filter((x) => x.id !== draftID);
+  },
+  async ThemesEnabled() {
+    return true;
+  },
+  async ListThemes() {
+    return ["gmail-dark", "slate-blue", "dracula", "solarized-dark", "gruvbox"];
+  },
+  async GetThemeColors(name: string) {
+    const themes: Record<string, ThemeColors> = {
+      "slate-blue": {
+        name: "slate-blue", bg: "#0f172a", fg: "#e2e8f0", border: "#334155",
+        accent: "#38bdf8", primary: "#7dd3fc", danger: "#f87171", warning: "#fbbf24",
+        success: "#4ade80", selectionBg: "#1e293b", inputBg: "#1e293b",
+        unread: "#7dd3fc", muted: "#64748b",
+      },
+      dracula: {
+        name: "dracula", bg: "#282a36", fg: "#f8f8f2", border: "#44475a",
+        accent: "#bd93f9", primary: "#ff79c6", danger: "#ff5555", warning: "#f1fa8c",
+        success: "#50fa7b", selectionBg: "#44475a", inputBg: "#21222c",
+        unread: "#8be9fd", muted: "#6272a4",
+      },
+    };
+    return themes[name] ?? themes["slate-blue"];
   },
 };
 

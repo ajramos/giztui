@@ -67,6 +67,24 @@ type AccountInfo struct {
 	Active      bool   `json:"active"`
 }
 
+// ThemeColors is a flattened theme palette for the frontend to apply as CSS
+// variables.
+type ThemeColors struct {
+	Name        string `json:"name"`
+	Bg          string `json:"bg"`
+	Fg          string `json:"fg"`
+	Border      string `json:"border"`
+	Accent      string `json:"accent"`
+	Primary     string `json:"primary"`
+	Danger      string `json:"danger"`
+	Warning     string `json:"warning"`
+	Success     string `json:"success"`
+	SelectionBg string `json:"selectionBg"`
+	InputBg     string `json:"inputBg"`
+	Unread      string `json:"unread"`
+	Muted       string `json:"muted"`
+}
+
 // AnalyzerInput is the lightweight message data the inbox analyzer needs,
 // passed from the frontend (which already has it) to avoid re-fetching.
 type AnalyzerInput struct {

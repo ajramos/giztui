@@ -27,6 +27,7 @@ import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import Help from "./Help";
 import CommandBar, { type CommandDef } from "./CommandBar";
+import MoreMenu from "./MoreMenu";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -119,6 +120,10 @@ export default function App() {
   const [planOpen, setPlanOpen] = useState(false);
   const [plan, setPlan] = useState<ActionPlanResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [themesOn, setThemesOn] = useState(false);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [themeNames, setThemeNames] = useState<string[]>([]);
+  const [currentTheme, setCurrentTheme] = useState("");
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -147,6 +152,40 @@ export default function App() {
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
+  }, []);
+
+  // applyTheme fetches a theme's palette from the backend and maps it onto the
+  // CSS custom properties the stylesheet reads. Empty name = the configured
+  // (current) theme, resolved on startup.
+  const applyTheme = useCallback(async (name: string) => {
+    try {
+      const c = await backend.GetThemeColors(name);
+      if (!c) return;
+      const root = document.documentElement.style;
+      const set = (k: string, v: string) => {
+        if (v) root.setProperty(k, v);
+      };
+      // Map the theme palette onto the CSS custom properties the stylesheet
+      // actually reads. Elevated surfaces reuse the input background when the
+      // theme provides one, otherwise they fall back to the base background.
+      const elev = c.inputBg || c.bg;
+      set("--bg", c.bg);
+      set("--bg-elev", elev);
+      set("--bg-row", c.bg);
+      set("--bg-selected", c.selectionBg);
+      set("--border", c.border);
+      set("--text", c.fg);
+      set("--text-muted", c.muted);
+      set("--accent", c.accent);
+      set("--accent-strong", c.primary || c.accent);
+      set("--danger", c.danger);
+      set("--chip-bg", c.selectionBg || elev);
+      set("--chip-text", c.fg);
+      set("--unread-dot", c.unread || c.accent);
+      if (c.name) setCurrentTheme(c.name);
+    } catch {
+      /* non-fatal: keep the default palette */
+    }
   }, []);
 
   const load = useCallback(async (q: string) => {
@@ -234,9 +273,19 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
+      try {
+        const on = await backend.ThemesEnabled();
+        setThemesOn(on);
+        if (on) {
+          setThemeNames(await backend.ListThemes());
+          await applyTheme(""); // apply the configured theme
+        }
+      } catch {
+        /* non-fatal */
+      }
       void load("");
     })();
-  }, [load]);
+  }, [load, applyTheme]);
 
   const switchAccount = useCallback(
     async (a: AccountInfo) => {
@@ -920,6 +969,7 @@ export default function App() {
     add(keymap.savedQueries, "savedQueries");
     add(keymap.saveQuery, "saveQuery");
     add(keymap.actionPlan, "actionPlan");
+    add(keymap.themePicker, "themePicker");
     return m;
   }, [keymap]);
 
@@ -951,6 +1001,7 @@ export default function App() {
         queriesOpen ||
         saveQueryOpen ||
         planOpen ||
+        themePickerOpen ||
         bulkPromptText !== null
       )
         return;
@@ -1151,6 +1202,9 @@ export default function App() {
         case "actionPlan":
           if (actionPlanOn) void runActionPlan();
           break;
+        case "themePicker":
+          if (themesOn) setThemePickerOpen(true);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1179,8 +1233,10 @@ export default function App() {
     queriesOpen,
     saveQueryOpen,
     planOpen,
+    themePickerOpen,
     bulkPromptText,
     actionPlanOn,
+    themesOn,
     activeQuery,
     bulkMode,
     selected,
@@ -1489,6 +1545,8 @@ export default function App() {
                   )}
                 </div>
                 <div className="actions">
+                  {/* Primary actions stay visible; everything else collapses
+                      into the "⋯" overflow so the toolbar never wraps. */}
                   <IconBtn
                     icon={Icon.reply}
                     label="Reply"
@@ -1505,29 +1563,6 @@ export default function App() {
                     label="Labels"
                     onClick={() => setLabelsFor(detail.id)}
                   />
-                  {aiEnabled && (
-                    <IconBtn
-                      icon={Icon.summarize}
-                      label={summarizing ? "Summarizing…" : "Summarize (AI)"}
-                      disabled={summarizing}
-                      onClick={() => void summarize(detail.id)}
-                    />
-                  )}
-                  {aiPromptsEnabled && (
-                    <IconBtn
-                      icon={Icon.prompt}
-                      label={promptRunning ? "Running…" : "Apply a prompt"}
-                      disabled={promptRunning}
-                      onClick={() => setPromptsOpen(true)}
-                    />
-                  )}
-                  {aiEnabled && (
-                    <IconBtn
-                      icon={Icon.tag2}
-                      label="Suggest labels (AI)"
-                      onClick={() => void openSuggest(detail.id)}
-                    />
-                  )}
                   <span className="actions-sep" />
                   <IconBtn
                     icon={Icon.archive}
@@ -1550,31 +1585,6 @@ export default function App() {
                       void doAction(detail.unread ? "read" : "unread", detail.id)
                     }
                   />
-                  <IconBtn
-                    icon={Icon.link}
-                    label="Links"
-                    onClick={() => setLinksFor(detail.id)}
-                  />
-                  {obsidianOn && (
-                    <IconBtn
-                      icon={Icon.obsidian}
-                      label="Send to Obsidian"
-                      onClick={() => sendObsidian(detail.id)}
-                    />
-                  )}
-                  {slackOn && (
-                    <IconBtn
-                      icon={Icon.slack}
-                      label="Forward to Slack"
-                      onClick={() => forwardSlack(detail.id)}
-                    />
-                  )}
-                  <IconBtn
-                    icon={Icon.save}
-                    label="Save to file"
-                    onClick={() => saveMessage(detail.id)}
-                  />
-                  <span className="actions-sep" />
                   {detail.html && detail.html.trim() && (
                     <IconBtn
                       icon={viewHtml ? Icon.text : Icon.code}
@@ -1590,10 +1600,57 @@ export default function App() {
                       onClick={() => void toggleThread()}
                     />
                   )}
-                  <IconBtn
-                    icon={Icon.external}
-                    label="Open in Gmail"
-                    onClick={() => openInGmail(detail.id)}
+                  <span className="actions-sep" />
+                  <MoreMenu
+                    items={[
+                      {
+                        icon: Icon.summarize,
+                        label: summarizing ? "Summarizing…" : "Summarize (AI)",
+                        disabled: summarizing,
+                        hidden: !aiEnabled,
+                        onClick: () => void summarize(detail.id),
+                      },
+                      {
+                        icon: Icon.prompt,
+                        label: promptRunning ? "Running…" : "Apply a prompt",
+                        disabled: promptRunning,
+                        hidden: !aiPromptsEnabled,
+                        onClick: () => setPromptsOpen(true),
+                      },
+                      {
+                        icon: Icon.tag2,
+                        label: "Suggest labels (AI)",
+                        hidden: !aiEnabled,
+                        onClick: () => void openSuggest(detail.id),
+                      },
+                      {
+                        icon: Icon.link,
+                        label: "Links",
+                        onClick: () => setLinksFor(detail.id),
+                      },
+                      {
+                        icon: Icon.obsidian,
+                        label: "Send to Obsidian",
+                        hidden: !obsidianOn,
+                        onClick: () => sendObsidian(detail.id),
+                      },
+                      {
+                        icon: Icon.slack,
+                        label: "Forward to Slack",
+                        hidden: !slackOn,
+                        onClick: () => forwardSlack(detail.id),
+                      },
+                      {
+                        icon: Icon.save,
+                        label: "Save to file",
+                        onClick: () => saveMessage(detail.id),
+                      },
+                      {
+                        icon: Icon.external,
+                        label: "Open in Gmail",
+                        onClick: () => openInGmail(detail.id),
+                      },
+                    ]}
                   />
                 </div>
                 {attachments.length > 0 && (
@@ -1973,6 +2030,50 @@ export default function App() {
           onRun={executeCommand}
           onClose={() => setCmdOpen(false)}
         />
+      )}
+      {themePickerOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setThemePickerOpen(false)}
+        >
+          <div
+            className="modal narrow"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setThemePickerOpen(false);
+            }}
+          >
+            <div className="modal-head">
+              <h3>Theme</h3>
+              <button className="ghost" onClick={() => setThemePickerOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="theme-list">
+                {themeNames.map((name) => (
+                  <button
+                    key={name}
+                    className={
+                      "theme-item" + (name === currentTheme ? " active" : "")
+                    }
+                    onClick={() => {
+                      void applyTheme(name);
+                      setThemePickerOpen(false);
+                      showToast(`Theme: ${name}`);
+                    }}
+                  >
+                    <span className="theme-dot" />
+                    {name}
+                    {name === currentTheme && (
+                      <span className="theme-check">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>

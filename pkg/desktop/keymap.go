@@ -38,6 +38,7 @@ type KeyMap struct {
 	SavedQueries string `json:"savedQueries"`
 	SaveQuery    string `json:"saveQuery"`
 	ActionPlan   string `json:"actionPlan"`
+	ThemePicker  string `json:"themePicker"`
 	VimTimeoutMs int    `json:"vimTimeoutMs"`
 }
 
@@ -52,7 +53,7 @@ func DefaultKeyMap() KeyMap {
 		GotoTop: "gg", GotoBottom: "G", LinkPicker: "L", ReplyAll: "E",
 		SaveMessage: "w", SuggestLabel: "o", Obsidian: "O", Slack: "K",
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
-		ActionPlan: "P", VimTimeoutMs: 1000,
+		ActionPlan: "P", ThemePicker: "H", VimTimeoutMs: 1000,
 	}
 }
 
@@ -96,6 +97,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.SavedQueries = orDefault(k.QueryBookmarks, km.SavedQueries)
 	km.SaveQuery = orDefault(k.SaveQuery, km.SaveQuery)
 	km.ActionPlan = orDefault(k.ActionPlan, km.ActionPlan)
+	km.ThemePicker = orDefault(k.ThemePicker, km.ThemePicker)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}

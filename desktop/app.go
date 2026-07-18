@@ -83,6 +83,29 @@ func (a *App) AccountEmail() (string, error) {
 	return a.session.AccountEmail(a.ctx)
 }
 
+// ThemesEnabled reports whether theming is available.
+func (a *App) ThemesEnabled() bool {
+	return a.session != nil && a.session.API.ThemesEnabled()
+}
+
+// ListThemes returns the available theme names.
+func (a *App) ListThemes() ([]string, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListThemes(a.ctx)
+}
+
+// GetThemeColors returns a theme's palette (empty name = current theme).
+func (a *App) GetThemeColors(name string) (*desktop.ThemeColors, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.GetThemeColors(a.ctx, name)
+}
+
 // ApplyBulkPromptStream applies a prompt across many messages, streaming tokens
 // via the "prompt:token" event.
 func (a *App) ApplyBulkPromptStream(ids []string, promptID int) (string, error) {

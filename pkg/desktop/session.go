@@ -170,6 +170,9 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		analyzerService = services.NewInboxAnalyzerService(aiService)
 	}
 
+	// Theming: read the user's theme from config (best-effort).
+	themeService := buildThemeService(cfg)
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -187,6 +190,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Thread:       threadService,
 		Query:        queryService,
 		Analyzer:     analyzerService,
+		Theme:        themeService,
 		AccountEmail: accountEmail,
 		Logger:       logger,
 	})
@@ -306,4 +310,25 @@ func expandPath(path string) string {
 		return home
 	}
 	return filepath.Join(home, path[2:])
+}
+
+// buildThemeService resolves the built-in + custom theme directories the same
+// way the TUI does and returns a ThemeService (apply is a no-op; the desktop
+// applies colors in the frontend).
+func buildThemeService(cfg *config.Config) services.ThemeService {
+	customThemeDir := expandPath(cfg.Theme.CustomDir)
+	builtin := "themes"
+	if _, err := os.Stat(builtin); os.IsNotExist(err) {
+		builtin = "../themes"
+		if _, err := os.Stat(builtin); os.IsNotExist(err) {
+			if exe, err := os.Executable(); err == nil {
+				exeDir := filepath.Dir(exe)
+				builtin = filepath.Join(exeDir, "..", "themes")
+				if _, err := os.Stat(builtin); os.IsNotExist(err) {
+					builtin = filepath.Join(exeDir, "themes")
+				}
+			}
+		}
+	}
+	return services.NewThemeService(builtin, customThemeDir, func(*config.ColorsConfig) error { return nil })
 }
