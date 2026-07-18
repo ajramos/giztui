@@ -98,6 +98,7 @@ export interface KeyMap {
   suggestLabel: string;
   obsidian: string;
   slack: string;
+  commandMode: string;
   vimTimeoutMs: number;
 }
 
@@ -108,7 +109,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   bulkSelect: "space", markdown: "M", attachments: "A", help: "?",
   gotoTop: "gg", gotoBottom: "G", linkPicker: "L", replyAll: "E",
   saveMessage: "w", suggestLabel: "o", obsidian: "O", slack: "K",
-  vimTimeoutMs: 1000,
+  commandMode: ":", vimTimeoutMs: 1000,
 };
 
 export interface DraftSummary {

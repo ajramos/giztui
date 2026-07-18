@@ -20,9 +20,36 @@ import LinksPicker from "./LinksPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import Help from "./Help";
+import CommandBar, { type CommandDef } from "./CommandBar";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
+
+// Command palette entries (`:` command mode), mirroring the TUI's command set.
+const COMMANDS: CommandDef[] = [
+  { names: ["search", "s"], desc: "Gmail search", arg: "<query>" },
+  { names: ["unread"], desc: "Show unread only" },
+  { names: ["archive", "a"], desc: "Archive message" },
+  { names: ["trash", "d"], desc: "Trash message" },
+  { names: ["read"], desc: "Mark read" },
+  { names: ["markunread"], desc: "Mark unread" },
+  { names: ["labels", "l"], desc: "Manage labels" },
+  { names: ["compose", "c"], desc: "New message" },
+  { names: ["reply", "r"], desc: "Reply" },
+  { names: ["replyall"], desc: "Reply all" },
+  { names: ["forward", "f"], desc: "Forward" },
+  { names: ["refresh"], desc: "Refresh inbox" },
+  { names: ["drafts"], desc: "Drafts" },
+  { names: ["links"], desc: "Links in message" },
+  { names: ["save"], desc: "Save to file" },
+  { names: ["summarize", "sum"], desc: "AI summary" },
+  { names: ["prompt"], desc: "Apply a prompt" },
+  { names: ["suggest"], desc: "Suggest labels (AI)" },
+  { names: ["obsidian"], desc: "Send to Obsidian" },
+  { names: ["slack"], desc: "Forward to Slack" },
+  { names: ["gmail", "web"], desc: "Open in Gmail" },
+  { names: ["help"], desc: "Keyboard shortcuts" },
+];
 
 export default function App() {
   const [account, setAccount] = useState("");
@@ -68,6 +95,7 @@ export default function App() {
   const [suggestFor, setSuggestFor] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -532,6 +560,113 @@ export default function App() {
     [suggestFor, showToast],
   );
 
+  // Command palette dispatcher (`:` command mode).
+  const executeCommand = useCallback(
+    (input: string) => {
+      const parts = input.trim().split(/\s+/);
+      const cmd = (parts[0] || "").toLowerCase();
+      const arg = parts.slice(1).join(" ");
+      const d = detail;
+      switch (cmd) {
+        case "search":
+        case "s":
+          void load(arg);
+          break;
+        case "unread":
+          void load("is:unread");
+          break;
+        case "archive":
+        case "a":
+          if (d) void doAction("archive", d.id);
+          break;
+        case "trash":
+        case "d":
+          if (d) void doAction("trash", d.id);
+          break;
+        case "read":
+          if (d) void doAction("read", d.id);
+          break;
+        case "markunread":
+          if (d) void doAction("unread", d.id);
+          break;
+        case "labels":
+        case "l":
+          if (d) setLabelsFor(d.id);
+          break;
+        case "compose":
+        case "c":
+          setCompose({ mode: "new" });
+          break;
+        case "reply":
+        case "r":
+          if (d) setCompose(replyInit(d));
+          break;
+        case "replyall":
+          if (d) setCompose(replyAllInit(d));
+          break;
+        case "forward":
+        case "f":
+          if (d) setCompose(forwardInit(d));
+          break;
+        case "refresh":
+          void load(activeQuery);
+          break;
+        case "drafts":
+          openDrafts();
+          break;
+        case "links":
+          if (d) setLinksFor(d.id);
+          break;
+        case "save":
+          if (d) saveMessage(d.id);
+          break;
+        case "summarize":
+        case "sum":
+          if (d && aiEnabled) void summarize(d.id);
+          break;
+        case "prompt":
+          if (d && aiPromptsEnabled) setPromptsOpen(true);
+          break;
+        case "suggest":
+          if (d && aiEnabled) void openSuggest(d.id);
+          break;
+        case "obsidian":
+          if (d && obsidianOn) sendObsidian(d.id);
+          break;
+        case "slack":
+          if (d && slackOn) forwardSlack(d.id);
+          break;
+        case "gmail":
+        case "web":
+          if (d) openInGmail(d.id);
+          break;
+        case "help":
+          setShowHelp(true);
+          break;
+        default:
+          showToast(`Unknown command: ${cmd}`);
+      }
+    },
+    [
+      detail,
+      load,
+      doAction,
+      activeQuery,
+      openDrafts,
+      saveMessage,
+      sendObsidian,
+      forwardSlack,
+      obsidianOn,
+      slackOn,
+      aiEnabled,
+      aiPromptsEnabled,
+      summarize,
+      openSuggest,
+      openInGmail,
+      showToast,
+    ],
+  );
+
   const forwardInit = (d: MessageDetail): ComposeInit => ({
     mode: "new",
     subject: d.subject.startsWith("Fwd:") ? d.subject : `Fwd: ${d.subject}`,
@@ -591,6 +726,7 @@ export default function App() {
     add(keymap.suggestLabel, "suggestLabel");
     add(keymap.obsidian, "obsidian");
     add(keymap.slack, "slack");
+    add(keymap.commandMode, "commandMode");
     return m;
   }, [keymap]);
 
@@ -617,7 +753,8 @@ export default function App() {
         bulkLabels ||
         promptsOpen ||
         linksFor ||
-        suggestFor
+        suggestFor ||
+        cmdOpen
       )
         return;
       if (typing) {
@@ -798,6 +935,9 @@ export default function App() {
         case "slack":
           if (detail && slackOn) forwardSlack(detail.id);
           break;
+        case "commandMode":
+          setCmdOpen(true);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -817,6 +957,7 @@ export default function App() {
     showHelp,
     linksFor,
     suggestFor,
+    cmdOpen,
     obsidianOn,
     slackOn,
     activeQuery,
@@ -1380,6 +1521,13 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+      {cmdOpen && (
+        <CommandBar
+          commands={COMMANDS}
+          onRun={executeCommand}
+          onClose={() => setCmdOpen(false)}
+        />
       )}
       {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>
