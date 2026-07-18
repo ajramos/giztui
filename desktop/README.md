@@ -63,9 +63,12 @@ npm run dev
 
 ```sh
 cd desktop
-wails build          # → desktop/build/bin/giztui-desktop.app (on macOS)
-open "build/bin/giztui-desktop.app"
+wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
+open "build/bin/GizTUI Desktop.app"
 ```
+
+> **Architecture:** see [docs/DESKTOP.md](../docs/DESKTOP.md).
+> **Test plan:** see [docs/DESKTOP_TEST_PLAN.md](../docs/DESKTOP_TEST_PLAN.md).
 
 ## Current scope
 
@@ -99,12 +102,39 @@ open "build/bin/giztui-desktop.app"
   draft removes it. Compose can save any message as a draft
 - **Open in Gmail web** (`O`) — open the current message in Gmail in the system
   browser
-- **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the list):
-  `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d` trash,
-  `t` toggle read, `l` labels, `c` compose, `r` reply, `f` forward, `y`
-  summarize, `p` prompt, `D` drafts, `O` open in Gmail, `s`/`/` search, `R`
-  refresh, `N` load more, `M` toggle HTML/text, `v` select mode, `Space`/`*`
-  select, `Esc` back.
+- **Bulk prompts** — apply a prompt across a bulk selection (streamed result)
+- **Obsidian** & **Slack** — send the open message to your vault / a channel
+- **Threading** — full conversation view with per-message and all expand/collapse
+  and a streamed thread summary
+- **Saved searches** (`Q`) and **save current search** (`Z`)
+- **Inbox action plan** (`P`) — AI triage with categories, apply-all, a rules
+  manager, and an effective-prompt viewer
+- **Move to folder** (`m`), **quick searches** (`F`/`T`/`S`), **content search**
+  (`/`), **toggle headers** (`h`)
+- **Draft reply (AI)**, **touch-up (AI)**, **regenerate summary**, **prompt
+  manager** (create/edit/refine/delete)
+- **Advanced search** builder and a **local filter** toggle
+- **Undo** (`U`) for archive/trash/read/unread (single & bulk)
+- **Auto-refresh** (background inbox polling), **save raw `.eml`**
+- **Calendar RSVP** — Accept / Tentative / Decline on invites (needs the
+  `calendar.events` scope, granted by the TUI)
+- **Themes** — live theme switching (`H`) mapping your YAML themes to the UI
+- **Stats / config / cache** — AI usage panel, a read-only config view, and cache
+  clearing
+- **Optional, unified toolbar** — the reader toolbar can be hidden
+  (keyboard-first); the topbar, reader, and bulk bars share one button style
+- **Keyboard shortcuts** mirroring the TUI defaults (press `?` for the full
+  list): `j/k` navigate, `Enter` open, `gg`/`G` top/bottom, `a` archive, `d`
+  trash, `t` toggle read, `U` undo, `l` labels, `m` move, `c` compose, `r`
+  reply, `E` reply-all, `f` forward, `g`* draft-reply, `y` summarize, `p`
+  prompt, `o` suggest labels, `P` action plan, `D` drafts, `O` open in Gmail,
+  `s`/`F`/`T`/`S` search, `/` find-in-message, `R` refresh, `N` load more, `M`
+  HTML/text, `h` headers, `L` links, `w` save, `Q` saved searches, `H` theme,
+  `v` select mode, `Space`/`*` select, `Esc` back. Every shortcut has a `:`
+  command equivalent.
+
+\* `g` draft-reply is on the `⋯` menu / `:draft` (the `gg` goto-top sequence
+claims a bare `g`).
 
 ### Keyboard parity note
 
@@ -113,6 +143,13 @@ parity. The desktop client keeps that muscle memory: the shortcuts above use the
 same default keys as the TUI (`internal/config/config.go` `DefaultKeyBindings`).
 The in-app `?` overlay is the discoverable reference.
 
-Not yet ported from the TUI: bulk prompts, Obsidian, Slack, threading view,
-RSVP/calendar. These map cleanly onto the same service layer and can be added
-incrementally by extending `pkg/desktop`.
+Two deliberate deviations (see `pkg/desktop/keymap.go`): `T` is search-to
+(matching the TUI, where `toggle_threading` is unbound by default — the
+conversation toggle is a toolbar button + `:threads`), and `g` draft-reply is
+menu/command-only because `gg` goto-top claims a bare `g`.
+
+### Not ported (by design)
+
+`TTS` (read-aloud), vim ranges (`d3d`), and thread-grouped list navigation are
+intentionally left out — they don't map well to a GUI. See the "Known non-goals"
+section of [docs/DESKTOP_TEST_PLAN.md](../docs/DESKTOP_TEST_PLAN.md).
