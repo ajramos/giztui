@@ -8,6 +8,13 @@ import { backend } from "./api";
 // - allow-same-origin lets THIS component (not the email) read the frame so it
 //   can (a) open links in the system browser and (b) forward keystrokes back to
 //   the app, so GizTUI's keyboard shortcuts keep working while reading.
+//
+// We do NOT use the `srcdoc` attribute: WKWebView (the macOS engine) gives a
+// srcdoc document an opaque origin even with allow-same-origin, so the parent
+// cannot read it — link interception and keystroke forwarding silently die once
+// an email renders. Writing the HTML into the frame's about:blank document via
+// document.write keeps it same-origin on every engine, so our listeners bind to
+// the real rendered document.
 // Emails are authored for light backgrounds, so the frame renders on white.
 export default function HtmlBody({
   html,
@@ -27,7 +34,7 @@ export default function HtmlBody({
     "media-src data:",
   ].join("; ");
 
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8">
+  const fullHtml = `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <style>
   html,body{margin:0;padding:16px;background:#fff;color:#111;
@@ -41,13 +48,6 @@ export default function HtmlBody({
   useEffect(() => {
     const iframe = ref.current;
     if (!iframe) return;
-    // Cleanup for whichever document we last attached to. wire() is idempotent:
-    // it detaches the previous listeners and re-attaches to the CURRENT
-    // contentDocument. This matters because a srcDoc iframe first exposes an
-    // empty about:blank document and then swaps in a fresh document once the
-    // srcDoc content parses — we must end up bound to that final document, not
-    // the throwaway about:blank (the earlier bug: shortcuts/links were wired to
-    // the stale doc, so nothing forwarded once the email rendered).
     let detach: (() => void) | null = null;
 
     // Open links in the system browser instead of navigating the frame.
@@ -87,32 +87,45 @@ export default function HtmlBody({
       if (!scrollKeys.includes(e.key)) e.preventDefault();
     };
 
-    const wire = () => {
+    // Write the email into the frame's own (same-origin) document and bind the
+    // click/key listeners to it. Idempotent: safe to run more than once.
+    const render = (): boolean => {
       const doc = iframe.contentDocument;
-      if (!doc || !doc.body) return;
-      // Re-attach to the current document (detach any prior binding first).
+      if (!doc) return false;
+      try {
+        doc.open();
+        doc.write(fullHtml);
+        doc.close();
+      } catch {
+        return false;
+      }
       detach?.();
+      // Bind at the document only. keydown targets the focused element and
+      // bubbles up to the document, so one document listener catches every key
+      // exactly once — binding the window too would double-fire and cancel out
+      // toggle shortcuts.
       doc.addEventListener("click", onClick);
       doc.addEventListener("keydown", onKey);
       detach = () => {
         doc.removeEventListener("click", onClick);
         doc.removeEventListener("keydown", onKey);
       };
+      return true;
     };
 
-    // The load event fires once the srcDoc's final document is in place — the
-    // authoritative moment to bind. The delayed retries cover engines where the
-    // load event already fired before this effect ran, or fires late.
-    iframe.addEventListener("load", wire);
-    const t1 = window.setTimeout(wire, 120);
-    const t2 = window.setTimeout(wire, 400);
+    // contentDocument is normally the ready about:blank on mount; retry a couple
+    // of times in case the frame element isn't attached for a tick.
+    const timers: number[] = [];
+    if (!render()) {
+      timers.push(window.setTimeout(render, 40));
+      timers.push(window.setTimeout(render, 150));
+      timers.push(window.setTimeout(render, 400));
+    }
     return () => {
-      iframe.removeEventListener("load", wire);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      timers.forEach((t) => window.clearTimeout(t));
       detach?.();
     };
-  }, [html, loadRemote]);
+  }, [fullHtml]);
 
   return (
     <iframe
@@ -120,7 +133,6 @@ export default function HtmlBody({
       className="html-body"
       title="Email content"
       sandbox="allow-same-origin allow-popups"
-      srcDoc={srcDoc}
     />
   );
 }
