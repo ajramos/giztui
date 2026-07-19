@@ -219,17 +219,31 @@ export default function App() {
   const rootRef = useRef<HTMLDivElement>(null);
   const gPressedAt = useRef(0);
 
-  // macOS WKWebView does not give the web content keyboard focus until it is
-  // clicked, so global shortcuts appear dead on launch. Focus the app shell on
-  // mount and whenever the window regains focus.
+  // macOS WKWebView does not reliably give the web content keyboard focus until
+  // it is clicked, so global shortcuts (space, etc.) appear dead on launch.
+  // Focus the app shell on mount — with a few retries, since the webview may not
+  // accept focus on the very first tick — on any pointer down, and whenever the
+  // window regains focus.
   useEffect(() => {
     const focusApp = () => {
       const active = document.activeElement?.tagName;
       if (active !== "INPUT" && active !== "TEXTAREA") rootRef.current?.focus();
     };
+    // On pointer down, only grab focus when the click isn't on a control that
+    // needs it (input, textarea, button, link) — so text fields still work.
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest("input, textarea, button, a, select")) return;
+      focusApp();
+    };
     focusApp();
+    [60, 200, 500].forEach((ms) => setTimeout(focusApp, ms));
     window.addEventListener("focus", focusApp);
-    return () => window.removeEventListener("focus", focusApp);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("focus", focusApp);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
   }, []);
 
   // Keep the selected row visible when navigating by keyboard.
@@ -256,22 +270,33 @@ export default function App() {
         if (v) root.setProperty(k, v);
       };
       // Map the theme palette onto the CSS custom properties the stylesheet
-      // actually reads. Elevated surfaces reuse the input background when the
-      // theme provides one, otherwise they fall back to the base background.
-      const elev = c.inputBg || c.bg;
-      set("--bg", c.bg);
+      // reads. Elevated/hover surfaces are derived from the base background so
+      // the UI keeps its layering even when a theme only defines a few colors.
+      // The accent (focus color) — never the title color — drives buttons, so
+      // primary buttons stay in the theme's accent hue instead of turning into
+      // a loud title color (e.g. bright green).
+      const bg = c.bg || "#14161b";
+      const fg = c.fg || "#e6e8ec";
+      const accent = c.accent || "#6ea8fe";
+      const distinct = (v: string) =>
+        v && v.toLowerCase() !== bg.toLowerCase() ? v : "";
+      const elev = distinct(c.inputBg) || mixHex(bg, fg, 0.06);
+      const rowHover = distinct(c.selectionBg) || mixHex(bg, fg, 0.1);
+      const selected = distinct(c.selectionBg) || mixHex(bg, accent, 0.22);
+      set("--bg", bg);
       set("--bg-elev", elev);
-      set("--bg-row", c.bg);
-      set("--bg-selected", c.selectionBg);
-      set("--border", c.border);
-      set("--text", c.fg);
-      set("--text-muted", c.muted);
-      set("--accent", c.accent);
-      set("--accent-strong", c.primary || c.accent);
-      set("--danger", c.danger);
-      set("--chip-bg", c.selectionBg || elev);
-      set("--chip-text", c.fg);
-      set("--unread-dot", c.unread || c.accent);
+      set("--bg-row", bg);
+      set("--bg-row-hover", rowHover);
+      set("--bg-selected", selected);
+      set("--border", c.border || mixHex(bg, fg, 0.16));
+      set("--text", fg);
+      set("--text-muted", c.muted || mixHex(fg, bg, 0.4));
+      set("--accent", accent);
+      set("--accent-strong", accent);
+      set("--danger", c.danger || "#ff6b6b");
+      set("--chip-bg", mixHex(bg, fg, 0.12));
+      set("--chip-text", fg);
+      set("--unread-dot", accent);
       if (c.name) setCurrentTheme(c.name);
     } catch {
       /* non-fatal: keep the default palette */
@@ -1684,7 +1709,10 @@ export default function App() {
       // block — not via the remappable action switch — so it fires reliably on
       // the highlighted row. Outside bulk mode it enters bulk mode and selects
       // the current row; inside, it toggles and advances like the TUI.
-      if (chord === keymap.bulkSelect && messages.length > 0) {
+      // Normalize the binding: a literal " " in config means the space key.
+      const bulkKey =
+        keymap.bulkSelect === " " ? "space" : keymap.bulkSelect || "space";
+      if (chord === bulkKey && messages.length > 0) {
         e.preventDefault();
         const i = idx >= 0 ? idx : 0;
         if (i < messages.length) {
@@ -3438,6 +3466,7 @@ export default function App() {
                     [
                       ["Account", configInfo.account],
                       ["Config file", configInfo.configPath],
+                      ["Log file", configInfo.logPath],
                       [
                         "LLM",
                         configInfo.llmModel
@@ -3525,6 +3554,29 @@ function formatICSDate(raw: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// mixHex blends hex color `a` toward `b` by t∈[0,1]. Falls back to `a` when
+// either isn't a parseable #rgb / #rrggbb string, so theme mapping never breaks.
+function mixHex(a: string, b: string, t: number): string {
+  const parse = (h: string): [number, number, number] | null => {
+    let s = h.trim().replace(/^#/, "");
+    if (s.length === 3) s = s.replace(/(.)/g, "$1$1");
+    if (s.length !== 6 || /[^0-9a-fA-F]/.test(s)) return null;
+    return [
+      parseInt(s.slice(0, 2), 16),
+      parseInt(s.slice(2, 4), 16),
+      parseInt(s.slice(4, 6), 16),
+    ];
+  };
+  const ca = parse(a);
+  const cb = parse(b);
+  if (!ca || !cb) return a;
+  const mix = (x: number, y: number) =>
+    Math.round(x + (y - x) * t)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${mix(ca[0], cb[0])}${mix(ca[1], cb[1])}${mix(ca[2], cb[2])}`;
 }
 
 // cleanSubject strips Re:/Fwd: prefixes so a subject search matches the thread.

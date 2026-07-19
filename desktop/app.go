@@ -35,6 +35,9 @@ func NewApp() *App {
 // stack from the user's existing GizTUI config and OAuth token.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if path, err := desktop.SetupFileLogging(); err == nil {
+		log.Printf("desktop: logging to %s", path)
+	}
 	sess, err := desktop.NewSession(ctx, desktop.Options{Logger: log.Default()})
 	if err != nil {
 		a.initErr = err.Error()
@@ -606,6 +609,7 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 	cfg := a.session.Config
 	info := desktop.ConfigInfo{
 		ConfigPath:  a.session.ConfigPath(),
+		LogPath:     desktop.DefaultLogPath(),
 		LLMProvider: cfg.LLM.Provider,
 		LLMModel:    cfg.LLM.Model,
 		Theme:       cfg.Theme.Current,

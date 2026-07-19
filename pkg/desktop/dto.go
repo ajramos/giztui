@@ -154,6 +154,7 @@ type UsageStats struct {
 // the desktop's ":config" panel.
 type ConfigInfo struct {
 	ConfigPath   string `json:"configPath"`
+	LogPath      string `json:"logPath"`
 	Account      string `json:"account"`
 	LLMProvider  string `json:"llmProvider"`
 	LLMModel     string `json:"llmModel"`

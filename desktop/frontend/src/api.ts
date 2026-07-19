@@ -134,6 +134,7 @@ export interface UsageStats {
 
 export interface ConfigInfo {
   configPath: string;
+  logPath: string;
   account: string;
   llmProvider: string;
   llmModel: string;
@@ -813,6 +814,7 @@ const mockBackend: Backend = {
   async ConfigInfo() {
     return {
       configPath: "~/.config/giztui/config.json",
+      logPath: "~/.config/giztui/desktop.log",
       account: "you@example.com (mock)",
       llmProvider: "ollama",
       llmModel: "llama3.1",
