@@ -33,6 +33,7 @@ import ThemePicker from "./ThemePicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
+import PlainBody from "./PlainBody";
 import HighlightedText from "./HighlightedText";
 import Help from "./Help";
 import CommandBar, { type CommandDef } from "./CommandBar";
@@ -3128,18 +3129,16 @@ export default function App() {
                     )}
                     <HtmlBody html={detail.html} loadRemote={loadRemote} />
                   </div>
-                ) : (
+                ) : csOpen && csQuery ? (
                   <pre className="plain">
-                    {csOpen && csQuery ? (
-                      <HighlightedText
-                        text={detail.plainText || "(empty body)"}
-                        query={csQuery}
-                        activeIndex={csIndex}
-                      />
-                    ) : (
-                      detail.plainText || "(empty body)"
-                    )}
+                    <HighlightedText
+                      text={detail.plainText || "(empty body)"}
+                      query={csQuery}
+                      activeIndex={csIndex}
+                    />
                   </pre>
+                ) : (
+                  <PlainBody text={detail.plainText || "(empty body)"} />
                 )}
               </div>
             </>

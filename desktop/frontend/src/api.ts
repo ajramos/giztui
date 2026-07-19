@@ -507,7 +507,7 @@ const mockBackend: Backend = {
   },
   async GetMessage(id: string) {
     const m = mockMessages.find((x) => x.id === id) ?? mockMessages[0];
-    const plain = `${m.snippet}\n\nHi there,\n\nThis is the full body of "${m.subject}" rendered in the reading pane. In the packaged Wails app this content comes straight from Gmail via the GizTUI service layer.\n\nBest,\n${m.from}`;
+    const plain = `${m.snippet}\n\nHi there,\n\nThis is the full body of "${m.subject}" rendered in the reading pane. In the packaged Wails app this content comes straight from Gmail via the GizTUI service layer.\n\nSee https://example.com/expenses for details (or www.example.org).\n\nBest,\n${m.from}`;
     // Give some messages an HTML body so the HTML renderer is demonstrable.
     const html =
       Number(id.replace(/\D/g, "") || "0") % 2 === 0

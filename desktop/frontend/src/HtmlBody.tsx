@@ -41,62 +41,76 @@ export default function HtmlBody({
   useEffect(() => {
     const iframe = ref.current;
     if (!iframe) return;
+    // Cleanup for whichever document we last attached to. wire() is idempotent:
+    // it detaches the previous listeners and re-attaches to the CURRENT
+    // contentDocument. This matters because a srcDoc iframe first exposes an
+    // empty about:blank document and then swaps in a fresh document once the
+    // srcDoc content parses — we must end up bound to that final document, not
+    // the throwaway about:blank (the earlier bug: shortcuts/links were wired to
+    // the stale doc, so nothing forwarded once the email rendered).
+    let detach: (() => void) | null = null;
+
+    // Open links in the system browser instead of navigating the frame.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      const href = a?.getAttribute("href");
+      if (href && /^https?:/i.test(href)) {
+        e.preventDefault();
+        void backend.OpenURL(href);
+      }
+    };
+    // Forward keystrokes to the app so shortcuts work while the iframe (which
+    // steals focus once clicked) has focus. Re-dispatch a copy on the parent
+    // and swallow the original so the email doesn't also scroll/act on it.
+    const onKey = (e: KeyboardEvent) => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: e.key,
+          code: e.code,
+          shiftKey: e.shiftKey,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          bubbles: true,
+        }),
+      );
+      // Let native scrolling keys still scroll the email; swallow the rest so
+      // a shortcut key doesn't also do something inside the frame.
+      const scrollKeys = [
+        "ArrowUp",
+        "ArrowDown",
+        "PageUp",
+        "PageDown",
+        "Home",
+        "End",
+      ];
+      if (!scrollKeys.includes(e.key)) e.preventDefault();
+    };
+
     const wire = () => {
       const doc = iframe.contentDocument;
-      if (!doc) return;
-
-      // Open links in the system browser instead of navigating the frame.
-      const onClick = (e: MouseEvent) => {
-        const a = (e.target as HTMLElement | null)?.closest?.("a");
-        const href = a?.getAttribute("href");
-        if (href && /^https?:/i.test(href)) {
-          e.preventDefault();
-          void backend.OpenURL(href);
-        }
-      };
-      // Forward keystrokes to the app so shortcuts work while the iframe (which
-      // steals focus once clicked) has focus. Re-dispatch a copy on the parent
-      // and swallow the original so the email doesn't also scroll/act on it.
-      const onKey = (e: KeyboardEvent) => {
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: e.key,
-            code: e.code,
-            shiftKey: e.shiftKey,
-            ctrlKey: e.ctrlKey,
-            metaKey: e.metaKey,
-            altKey: e.altKey,
-            bubbles: true,
-          }),
-        );
-        // Let native scrolling keys still scroll the email; swallow the rest so
-        // a shortcut key doesn't also do something inside the frame.
-        const scrollKeys = [
-          "ArrowUp",
-          "ArrowDown",
-          "PageUp",
-          "PageDown",
-          "Home",
-          "End",
-        ];
-        if (!scrollKeys.includes(e.key)) e.preventDefault();
-      };
-
+      if (!doc || !doc.body) return;
+      // Re-attach to the current document (detach any prior binding first).
+      detach?.();
       doc.addEventListener("click", onClick);
       doc.addEventListener("keydown", onKey);
-      // Store cleanup on the element for the next load/unmount.
-      (iframe as unknown as { _cleanup?: () => void })._cleanup = () => {
+      detach = () => {
         doc.removeEventListener("click", onClick);
         doc.removeEventListener("keydown", onKey);
       };
     };
 
+    // The load event fires once the srcDoc's final document is in place — the
+    // authoritative moment to bind. The delayed retries cover engines where the
+    // load event already fired before this effect ran, or fires late.
     iframe.addEventListener("load", wire);
-    // srcDoc may already be parsed by the time the effect runs.
-    if (iframe.contentDocument?.readyState === "complete") wire();
+    const t1 = window.setTimeout(wire, 120);
+    const t2 = window.setTimeout(wire, 400);
     return () => {
       iframe.removeEventListener("load", wire);
-      (iframe as unknown as { _cleanup?: () => void })._cleanup?.();
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      detach?.();
     };
   }, [html, loadRemote]);
 

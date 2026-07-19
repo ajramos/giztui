@@ -575,6 +575,11 @@ button.danger {
   line-height: 1.6;
   color: var(--text);
 }
+.plain a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /* HTML email rendering */
 .html-wrap {
