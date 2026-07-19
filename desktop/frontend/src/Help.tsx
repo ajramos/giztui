@@ -79,6 +79,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
     title: "Reading a message",
     rows: [
       { icon: "🔍", keys: fmtKey(k.contentSearch), desc: "Find in message" },
+      { icon: "⤵️", keys: "n / N", desc: "Next / previous match" },
       { icon: "🔀", keys: fmtKey(k.markdown), desc: "Toggle HTML / text" },
       { icon: "📄", keys: fmtKey(k.toggleHeaders), desc: "Hide / show header block" },
       { icon: "📎", keys: fmtKey(k.attachments), desc: "Focus attachments" },
@@ -148,11 +149,12 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       icon: "🧵",
       title: "Conversation",
       rows: [
-        { icon: "🔄", keys: "⋯ / :threads", desc: "Toggle conversation" },
+        { icon: "🔄", keys: `${fmtKey(k.threading)} / :threads`, desc: "Toggle conversation" },
         { icon: "📂", keys: "click", desc: "Expand / collapse a message" },
-        { icon: "📤", keys: "Expand all", desc: "Expand / collapse all" },
+        { icon: "📤", keys: ":expand-all", desc: "Expand all messages" },
+        { icon: "📥", keys: ":collapse-all", desc: "Collapse all messages" },
         ...(f.ai
-          ? [{ icon: "🧵", keys: "✦ Summarize", desc: "Summarize thread" }]
+          ? [{ icon: "🧵", keys: ":thread-summary", desc: "Summarize thread" }]
           : []),
       ],
     });
@@ -164,7 +166,10 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   ];
   if (f.obsidian) tools.push({ icon: "📝", keys: fmtKey(k.obsidian), desc: "Send to Obsidian" });
   if (f.slack) tools.push({ icon: "💬", keys: fmtKey(k.slack), desc: "Forward to Slack" });
-  if (f.rsvp) tools.push({ icon: "📅", keys: ":accept / :decline", desc: "RSVP to invites" });
+  if (f.rsvp) {
+    tools.push({ icon: "📅", keys: `${fmtKey(k.rsvp)} · :accept/:decline`, desc: "RSVP to invites" });
+  }
+  tools.push({ icon: "👤", keys: "Ctrl+A", desc: "Switch account" });
   if (f.themes) tools.push({ icon: "🎨", keys: fmtKey(k.themePicker), desc: "Theme picker" });
   tools.push({ icon: "🕐", keys: ":autorefresh", desc: "Toggle auto-refresh" });
   tools.push({ icon: "▤", keys: ":toolbar", desc: "Show / hide reader toolbar" });

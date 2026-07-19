@@ -6,13 +6,23 @@ export default function AccountSwitcher({
   email,
   switching,
   onSwitch,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   accounts: AccountInfo[];
   email: string;
   switching: boolean;
   onSwitch: (a: AccountInfo) => void;
+  // Optional controlled open state so a keyboard shortcut (Ctrl+A) can drive it.
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolled, setUncontrolled] = useState(false);
+  const open = controlledOpen ?? uncontrolled;
+  const setOpen = (v: boolean) => {
+    setUncontrolled(v);
+    onOpenChange?.(v);
+  };
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +43,7 @@ export default function AccountSwitcher({
       <button
         className="ghost acct-btn"
         disabled={switching}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         title="Switch account"
       >
         {switching ? "Switching…" : email} ▾

@@ -213,6 +213,7 @@ export interface KeyMap {
   unread: string;
   archived: string;
   saveRaw: string;
+  rsvp: string;
   vimTimeoutMs: number;
   vimRangeTimeoutMs: number;
 }
@@ -228,7 +229,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   actionPlan: "P", themePicker: "H", generateReply: "g", move: "m",
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
-  vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
+  rsvp: "V", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
 export interface DraftSummary {

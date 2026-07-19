@@ -77,6 +77,15 @@ const COMMANDS: CommandDef[] = [
   { names: ["obsidian"], desc: "Send to Obsidian" },
   { names: ["slack"], desc: "Forward to Slack" },
   { names: ["gmail", "web"], desc: "Open in Gmail" },
+  { names: ["threads", "thr"], desc: "Toggle conversation view" },
+  { names: ["expand-all", "expand", "flatten"], desc: "Expand all in thread" },
+  { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
+  { names: ["thread-summary", "th-sum"], desc: "Summarize thread (AI)" },
+  { names: ["inbox", "i"], desc: "Back to inbox" },
+  { names: ["archived", "b"], desc: "Archived messages" },
+  { names: ["markdown", "md"], desc: "Toggle HTML / text" },
+  { names: ["load", "more", "next"], desc: "Load more messages" },
+  { names: ["attachments", "attach"], desc: "Focus attachments" },
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
@@ -128,6 +137,7 @@ export default function App() {
   const [promptLabel, setPromptLabel] = useState("");
   const [promptRunning, setPromptRunning] = useState(false);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [viewHtml, setViewHtml] = useState(false);
   const [loadRemote, setLoadRemote] = useState(false);
@@ -193,6 +203,8 @@ export default function App() {
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
   const [csIndex, setCsIndex] = useState(0);
+  // The RSVP bar auto-shows for invites; V hides/shows it (TUI's RSVP toggle).
+  const [rsvpHidden, setRsvpHidden] = useState(false);
   // The reader toolbar is optional — GizTUI is keyboard-first, so users can
   // hide it and drive everything from the keyboard. The choice is persisted.
   const [showToolbar, setShowToolbar] = useState(
@@ -1563,6 +1575,25 @@ export default function App() {
             el?.focus();
           }
           break;
+        case "threads":
+        case "thr":
+          if (d && threadingOn) void toggleThread();
+          break;
+        case "flatten":
+        case "flat":
+        case "expand-all":
+        case "expand":
+          if (threadMsgs) setCollapsedMsgs(new Set());
+          break;
+        case "collapse-all":
+        case "collapse":
+          if (threadMsgs)
+            setCollapsedMsgs(new Set(threadMsgs.map((m) => m.id)));
+          break;
+        case "thread-summary":
+        case "th-sum":
+          if (threadMsgs && aiEnabled) void summarizeThread();
+          break;
         case "toolbar":
           toggleToolbar();
           break;
@@ -1709,6 +1740,10 @@ export default function App() {
       clearCaches,
       loadMore,
       attachments,
+      threadingOn,
+      toggleThread,
+      threadMsgs,
+      summarizeThread,
     ],
   );
 
@@ -1802,6 +1837,7 @@ export default function App() {
     add(keymap.unread, "unread");
     add(keymap.archived, "archived");
     add(keymap.attachments, "attachments");
+    add(keymap.rsvp, "rsvp");
     return m;
   }, [keymap, obsidianOn]);
 
@@ -1855,6 +1891,31 @@ export default function App() {
         } else if (chord === keymap.help) {
           setShowHelp(true);
         }
+        return;
+      }
+
+      // Ctrl/Cmd+A opens the account switcher (TUI's accounts shortcut). Placed
+      // after the typing guard so it never hijacks select-all inside inputs.
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "a" || e.key === "A") &&
+        accounts.length > 1
+      ) {
+        e.preventDefault();
+        setAccountsOpen((v) => !v);
+        return;
+      }
+
+      // Content-search match navigation: once a find is active, n = next match,
+      // N = previous (the TUI's in-message n/N). Typing in the search box is
+      // handled by the typing guard above, so this only fires from the reader.
+      if (csOpen && csQuery && detail && (chord === "n" || chord === "N")) {
+        e.preventDefault();
+        const total = countMatches(detail.plainText || "", csQuery);
+        if (total > 0)
+          setCsIndex((i) =>
+            chord === "n" ? (i + 1) % total : (i - 1 + total) % total,
+          );
         return;
       }
 
@@ -2197,6 +2258,11 @@ export default function App() {
             el?.focus();
           }
           break;
+        case "rsvp":
+          // Toggle the invite panel for the current message (TUI's V). Only
+          // meaningful when the open message is a calendar invite.
+          if (detail && invite?.isInvite) setRsvpHidden((v) => !v);
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -2266,6 +2332,10 @@ export default function App() {
     attachments,
     headersHidden,
     showToast,
+    csOpen,
+    csQuery,
+    invite,
+    accounts,
     load,
     loadMore,
   ]);
@@ -2389,6 +2459,8 @@ export default function App() {
             email={account}
             switching={switching}
             onSwitch={(a) => void switchAccount(a)}
+            open={accountsOpen}
+            onOpenChange={setAccountsOpen}
           />
           {/* Same IconBtn format as the reader/bulk toolbars for one consistent
               button language across the app. */}
@@ -2852,7 +2924,7 @@ export default function App() {
                 )}
               </div>
               <div className="reader-body">
-                {invite?.isInvite && (
+                {invite?.isInvite && !rsvpHidden && (
                   <div className="rsvp-bar">
                     <div className="rsvp-info">
                       <span className="rsvp-title">📅 {invite.summary || "Calendar invite"}</span>
