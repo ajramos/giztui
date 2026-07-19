@@ -1705,14 +1705,16 @@ export default function App() {
         }
         return;
       }
-      // Bulk selection toggle (default "space"). Handled here in the list-nav
-      // block — not via the remappable action switch — so it fires reliably on
-      // the highlighted row. Outside bulk mode it enters bulk mode and selects
-      // the current row; inside, it toggles and advances like the TUI.
-      // Normalize the binding: a literal " " in config means the space key.
+      // Bulk selection toggle. Handled here in the list-nav block — not via the
+      // remappable action switch — so it fires reliably on the highlighted row.
+      // Outside bulk mode it enters bulk mode and selects the current row;
+      // inside, it toggles and advances like the TUI.
+      // Space always works (the TUI default and what everyone reaches for), in
+      // addition to the configured bulk_select key (a literal " " also means
+      // space). Space isn't a remappable action here, so this never clashes.
       const bulkKey =
         keymap.bulkSelect === " " ? "space" : keymap.bulkSelect || "space";
-      if (chord === bulkKey && messages.length > 0) {
+      if ((chord === bulkKey || chord === "space") && messages.length > 0) {
         e.preventDefault();
         const i = idx >= 0 ? idx : 0;
         if (i < messages.length) {
@@ -2533,24 +2535,27 @@ export default function App() {
                     </div>
                     <div className="rsvp-actions">
                       <button
-                        className="tiny"
+                        className="rsvp-btn accept"
                         disabled={!!rsvpBusy}
                         onClick={() => void respondInvite(detail.id, "accepted")}
                       >
+                        <span className="rsvp-ico">{Icon.check}</span>
                         {rsvpBusy === "accepted" ? "…" : "Accept"}
                       </button>
                       <button
-                        className="tiny ghost"
+                        className="rsvp-btn maybe"
                         disabled={!!rsvpBusy}
                         onClick={() => void respondInvite(detail.id, "tentative")}
                       >
+                        <span className="rsvp-ico">{Icon.help}</span>
                         {rsvpBusy === "tentative" ? "…" : "Maybe"}
                       </button>
                       <button
-                        className="tiny danger"
+                        className="rsvp-btn decline"
                         disabled={!!rsvpBusy}
                         onClick={() => void respondInvite(detail.id, "declined")}
                       >
+                        <span className="rsvp-ico">{Icon.x}</span>
                         {rsvpBusy === "declined" ? "…" : "Decline"}
                       </button>
                     </div>

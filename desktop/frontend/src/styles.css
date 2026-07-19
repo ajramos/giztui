@@ -1145,6 +1145,47 @@ button.danger {
   display: flex;
   gap: 6px;
 }
+.rsvp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface, var(--bg-elev));
+  color: var(--text);
+  cursor: pointer;
+}
+.rsvp-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.rsvp-ico {
+  display: inline-flex;
+}
+.rsvp-ico svg {
+  width: 15px;
+  height: 15px;
+}
+.rsvp-btn.accept {
+  background: var(--accent-strong);
+  border-color: transparent;
+  color: #fff;
+}
+.rsvp-btn.accept:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.rsvp-btn.maybe:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.rsvp-btn.decline {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+.rsvp-btn.decline:hover:not(:disabled) {
+  border-color: var(--danger);
+}
 
 /* AI touch-up (reformatted body) */
 .touchup {
