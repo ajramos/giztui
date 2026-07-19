@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { backend, type Label } from "./api";
+import { useListNav } from "./useListNav";
 
 // System labels the user cannot meaningfully toggle from here.
 const HIDDEN = new Set([
@@ -24,7 +25,9 @@ export default function LabelsPicker({
   messageId?: string;
   bulkIds?: string[];
   onClose: () => void;
-  onChanged: () => void;
+  // Reports the label NAME just added/removed so callers can update the list
+  // and reader chips in place (no refetch).
+  onChanged: (change: { added?: string; removed?: string }) => void;
 }) {
   const bulk = bulkIds !== undefined;
   const [labels, setLabels] = useState<Label[]>([]);
@@ -61,6 +64,11 @@ export default function LabelsPicker({
     return labels.filter((l) => l.name.toLowerCase().includes(q));
   }, [labels, filter]);
 
+  const nav = useListNav(visible, {
+    onEnter: (l) => void toggle(l),
+    onEscape: onClose,
+  });
+
   const toggle = async (label: Label) => {
     setPending(label.id);
     setError("");
@@ -84,7 +92,7 @@ export default function LabelsPicker({
         }
       }
       setApplied(new Set(applied));
-      onChanged();
+      onChanged(isApplied ? { removed: label.name } : { added: label.name });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -96,13 +104,7 @@ export default function LabelsPicker({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal narrow"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
+      <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
           <button className="ghost" onClick={onClose}>
@@ -113,24 +115,33 @@ export default function LabelsPicker({
         <div className="modal-body">
           <input
             className="label-filter"
-            placeholder="Filter labels…"
+            placeholder="Filter labels… (↑↓ move · Enter toggle · Esc close)"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              nav.setActive(0);
+            }}
+            onKeyDown={nav.onKeyDown}
             autoFocus
           />
-          <div className="label-list">
+          <div className="label-list" ref={nav.listRef}>
             {loading ? (
               <div className="placeholder">Loading…</div>
             ) : visible.length === 0 ? (
               <div className="placeholder">No labels</div>
             ) : (
-              visible.map((l) => {
+              visible.map((l, i) => {
                 const on = applied.has(l.id);
                 return (
                   <button
                     key={l.id}
-                    className={"label-row" + (on ? " on" : "")}
+                    className={
+                      "label-row" +
+                      (on ? " on" : "") +
+                      (i === nav.active ? " nav-active" : "")
+                    }
                     disabled={pending === l.id}
+                    onMouseEnter={() => nav.setActive(i)}
                     onClick={() => void toggle(l)}
                   >
                     <span className="check">{on ? "✓" : ""}</span>

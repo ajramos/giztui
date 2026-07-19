@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { backend, type Link } from "./api";
+import { useListNav } from "./useListNav";
 
 export default function LinksPicker({
   messageId,
@@ -11,7 +12,7 @@ export default function LinksPicker({
   const [links, setLinks] = useState<Link[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [active, setActive] = useState(0);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void (async () => {
@@ -25,30 +26,30 @@ export default function LinksPicker({
     })();
   }, [messageId]);
 
+  // Focus the modal so its keyboard handler fires without a click first.
+  useEffect(() => {
+    modalRef.current?.focus();
+  }, []);
+
   const open = (l: Link) => {
     void backend.OpenURL(l.url).catch(() => undefined);
   };
 
+  const nav = useListNav(links, { onEnter: open, onEscape: onClose });
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={modalRef}
         className="modal narrow"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-          else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setActive((i) => Math.min(links.length - 1, i + 1));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActive((i) => Math.max(0, i - 1));
-          } else if (e.key === "Enter") {
-            e.preventDefault();
-            if (links[active]) open(links[active]);
-          } else if (/^[1-9]$/.test(e.key)) {
+          if (/^[1-9]$/.test(e.key)) {
             const i = Number(e.key) - 1;
             if (links[i]) open(links[i]);
+            return;
           }
+          nav.onKeyDown(e);
         }}
         tabIndex={-1}
       >
@@ -60,7 +61,7 @@ export default function LinksPicker({
         </div>
         {error && <div className="error-banner">{error}</div>}
         <div className="modal-body">
-          <div className="label-list">
+          <div className="label-list" ref={nav.listRef}>
             {loading ? (
               <div className="placeholder">Loading…</div>
             ) : links.length === 0 ? (
@@ -69,8 +70,8 @@ export default function LinksPicker({
               links.map((l, i) => (
                 <button
                   key={l.index}
-                  className={"prompt-row" + (i === active ? " active" : "")}
-                  onMouseEnter={() => setActive(i)}
+                  className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
+                  onMouseEnter={() => nav.setActive(i)}
                   onClick={() => open(l)}
                 >
                   <span className="prompt-name">
@@ -83,7 +84,7 @@ export default function LinksPicker({
           </div>
         </div>
         <div className="modal-foot">
-          <span className="foot-hint">Enter / 1-9 to open · Esc to close</span>
+          <span className="foot-hint">↑↓ move · Enter / 1-9 open · Esc close</span>
         </div>
       </div>
     </div>

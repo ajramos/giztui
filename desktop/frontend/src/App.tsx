@@ -29,6 +29,8 @@ import LabelsPicker from "./LabelsPicker";
 import PromptsPicker from "./PromptsPicker";
 import PromptManager from "./PromptManager";
 import LinksPicker from "./LinksPicker";
+import ThemePicker from "./ThemePicker";
+import SavedQueriesPicker from "./SavedQueriesPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import HighlightedText from "./HighlightedText";
@@ -715,6 +717,26 @@ export default function App() {
       }
     },
     [messages, removeFromList, showToast, pushUndo, insertMessage],
+  );
+
+  // applyLabelChange updates the label chips of the affected messages (in the
+  // list and the reader) in place after a labels-picker toggle — no refetch, so
+  // it shows immediately and doesn't mark anything read.
+  const applyLabelChange = useCallback(
+    (ids: Set<string>, change: { added?: string; removed?: string }) => {
+      const upd = (labs: string[]): string[] => {
+        let next = labs;
+        if (change.added && !next.includes(change.added))
+          next = [...next, change.added];
+        if (change.removed) next = next.filter((x) => x !== change.removed);
+        return next;
+      };
+      setMessages((prev) =>
+        prev.map((m) => (ids.has(m.id) ? { ...m, labels: upd(m.labels) } : m)),
+      );
+      setDetail((d) => (d && ids.has(d.id) ? { ...d, labels: upd(d.labels) } : d));
+    },
+    [],
   );
 
   const toggleSelect = useCallback((id: string) => {
@@ -2861,16 +2883,14 @@ export default function App() {
         <LabelsPicker
           messageId={labelsFor}
           onClose={() => setLabelsFor(null)}
-          onChanged={() => {
-            if (selectedId === labelsFor) void openMessage({ id: labelsFor } as MessageSummary);
-          }}
+          onChanged={(c) => applyLabelChange(new Set([labelsFor]), c)}
         />
       )}
       {bulkLabels && (
         <LabelsPicker
           bulkIds={[...selected]}
           onClose={() => setBulkLabels(false)}
-          onChanged={() => undefined}
+          onChanged={(c) => applyLabelChange(new Set(selected), c)}
         />
       )}
       {promptsOpen && (
@@ -2934,52 +2954,17 @@ export default function App() {
         </div>
       )}
       {queriesOpen && (
-        <div className="modal-overlay" onClick={() => setQueriesOpen(false)}>
-          <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>Saved searches</h3>
-              <button className="ghost" onClick={() => setQueriesOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="label-list">
-                {savedQueries.length === 0 ? (
-                  <div className="placeholder">No saved searches</div>
-                ) : (
-                  savedQueries.map((q) => (
-                    <div key={q.id} className="query-row">
-                      <button className="query-main" onClick={() => runQuery(q)}>
-                        <span className="prompt-name">{q.name}</span>
-                        <span className="prompt-desc">{q.query}</span>
-                      </button>
-                      <button
-                        className="ghost tiny"
-                        onClick={() => void deleteQuery(q.id)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-            <div className="modal-foot">
-              {activeQuery && (
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    setQueriesOpen(false);
-                    setSaveQueryOpen(true);
-                  }}
-                >
-                  Save current search
-                </button>
-              )}
-              <button onClick={() => setQueriesOpen(false)}>Done</button>
-            </div>
-          </div>
-        </div>
+        <SavedQueriesPicker
+          queries={savedQueries}
+          canSaveCurrent={!!activeQuery}
+          onRun={runQuery}
+          onDelete={(id) => void deleteQuery(id)}
+          onSaveCurrent={() => {
+            setQueriesOpen(false);
+            setSaveQueryOpen(true);
+          }}
+          onClose={() => setQueriesOpen(false)}
+        />
       )}
       {saveQueryOpen && (
         <div className="modal-overlay" onClick={() => setSaveQueryOpen(false)}>
@@ -3212,48 +3197,16 @@ export default function App() {
         />
       )}
       {themePickerOpen && (
-        <div
-          className="modal-overlay"
-          onClick={() => setThemePickerOpen(false)}
-        >
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setThemePickerOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Theme</h3>
-              <button className="ghost" onClick={() => setThemePickerOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="theme-list">
-                {themeNames.map((name) => (
-                  <button
-                    key={name}
-                    className={
-                      "theme-item" + (name === currentTheme ? " active" : "")
-                    }
-                    onClick={() => {
-                      void applyTheme(name);
-                      setThemePickerOpen(false);
-                      showToast(`Theme: ${name}`);
-                    }}
-                  >
-                    <span className="theme-dot" />
-                    {name}
-                    {name === currentTheme && (
-                      <span className="theme-check">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ThemePicker
+          themes={themeNames}
+          current={currentTheme}
+          onPick={(name) => {
+            void applyTheme(name);
+            setThemePickerOpen(false);
+            showToast(`Theme: ${name}`);
+          }}
+          onClose={() => setThemePickerOpen(false)}
+        />
       )}
       {moveFor && (
         <div

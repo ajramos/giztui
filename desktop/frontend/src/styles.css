@@ -854,12 +854,19 @@ button.danger {
   filter: none;
 }
 .label-row.on {
-  color: #fff;
+  color: var(--text);
+  font-weight: 600;
 }
 .label-row .check {
   width: 14px;
   color: var(--accent);
   font-weight: 700;
+}
+
+/* Keyboard-focused row in any picker (↑↓ navigation) */
+.nav-active {
+  background: var(--bg-selected) !important;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* Prompts picker */
