@@ -124,7 +124,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       title: "AI",
       rows: [
         { icon: "📝", keys: fmtKey(k.summarize), desc: "Summarize" },
-        { icon: "🔄", keys: "regenerate", desc: "Regenerate (ignore cache)" },
+        { icon: "🔄", keys: fmtKey(k.summarize.toUpperCase()), desc: "Regenerate (ignore cache)" },
         ...(f.prompts
           ? [{ icon: "🎯", keys: fmtKey(k.prompt), desc: "Apply a prompt" }]
           : []),

@@ -59,6 +59,9 @@ export default function CommandBar({
             );
             if (exact) submit(input);
             else if (matches[active]) submit(matches[active].names[0]);
+            // No suggestion matched (e.g. a numeric jump like ":5" or ":$") —
+            // run the raw input so the dispatcher can still handle it.
+            else submit(input);
           }
         }}
       >

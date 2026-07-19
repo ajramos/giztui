@@ -86,6 +86,11 @@ const COMMANDS: CommandDef[] = [
   { names: ["markdown", "md"], desc: "Toggle HTML / text" },
   { names: ["load", "more", "next"], desc: "Load more messages" },
   { names: ["attachments", "attach"], desc: "Focus attachments" },
+  { names: ["accounts", "acc"], desc: "Switch account" },
+  { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
+  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "<n|a-b>" },
+  { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
+  { names: ["bottom", "end"], desc: "Go to last row" },
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
@@ -1450,6 +1455,13 @@ export default function App() {
       const cmd = (parts[0] || "").toLowerCase();
       const arg = parts.slice(1).join(" ");
       const d = detail;
+      // Move the cursor/preview to a 1-based row (shared by :g, :$ and :N).
+      const gotoRow = (n1: number) => {
+        const i = Math.min(Math.max(0, n1 - 1), messages.length - 1);
+        if (!messages[i]) return;
+        if (bulkMode) setSelectedId(messages[i].id);
+        else previewMessage(messages[i]);
+      };
       switch (cmd) {
         case "search":
         case "s":
@@ -1487,6 +1499,7 @@ export default function App() {
           break;
         case "compose":
         case "c":
+        case "new":
           setCompose({ mode: "new" });
           break;
         case "reply":
@@ -1494,6 +1507,7 @@ export default function App() {
           if (d) setCompose(replyInit(d));
           break;
         case "replyall":
+        case "ra":
           if (d) setCompose(replyAllInit(d));
           break;
         case "forward":
@@ -1504,6 +1518,7 @@ export default function App() {
           void load(activeQuery);
           break;
         case "drafts":
+        case "dr":
           openDrafts();
           break;
         case "links":
@@ -1525,23 +1540,70 @@ export default function App() {
           if (d && aiEnabled) void openSuggest(d.id);
           break;
         case "obsidian":
+        case "obs":
           if (d && obsidianOn) sendObsidian(d.id);
           break;
         case "slack":
+        case "sl":
           if (d && slackOn) forwardSlack(d.id);
           break;
         case "gmail":
         case "web":
+        case "o":
           if (d) openInGmail(d.id);
           break;
         case "queries":
         case "q":
           if (savedQueriesOn) void openQueries();
           break;
+        case "accounts":
+        case "acc":
+          if (accounts.length > 1) setAccountsOpen(true);
+          break;
         case "plan":
         case "actionplan":
+        case "action-plan":
+        case "ap":
           if (actionPlanOn) void runActionPlan();
           break;
+        case "label":
+        case "lbl":
+          // Add a label by name to the current message (the picker handles
+          // removal). Reflects the chip in place without a refetch.
+          if (d && arg) {
+            const name = arg;
+            void backend
+              .ApplyLabelByName(d.id, name)
+              .then(() => {
+                applyLabelChange(new Set([d.id]), { added: name });
+                showToast(`Labeled: ${name}`);
+              })
+              .catch((e) => setError(String(e)));
+          }
+          break;
+        case "select":
+        case "sel": {
+          // Bulk-select by 1-based number or range, e.g. ":select 3" or
+          // ":select 2-6". Enters bulk mode and selects those rows.
+          const spec = arg.trim();
+          const m = spec.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+          if (m) {
+            const a = Math.max(1, Number(m[1]));
+            const b = m[2] ? Number(m[2]) : a;
+            const lo = Math.min(a, b);
+            const hi = Math.max(a, b);
+            const ids = messages
+              .slice(lo - 1, hi)
+              .map((x) => x.id);
+            if (ids.length > 0) {
+              setBulkMode(true);
+              setSelected((prev) => new Set([...prev, ...ids]));
+              setSelectedId(ids[0]);
+              showToast(`Selected ${ids.length}`);
+            }
+          }
+          break;
+        }
         case "savequery":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
@@ -1690,8 +1752,25 @@ export default function App() {
         case "help":
           setShowHelp(true);
           break;
+        case "g":
+        case "goto": {
+          // :g <n> jumps to row n (1-based); :g with no arg goes to the top.
+          const n = arg ? Number(arg) : 1;
+          if (Number.isFinite(n)) gotoRow(n);
+          break;
+        }
+        case "bottom":
+        case "end":
+        case "$":
+          gotoRow(messages.length);
+          break;
         default:
-          showToast(`Unknown command: ${cmd}`);
+          if (/^\d+$/.test(cmd)) {
+            // Bare numeric command (:5) jumps to that row, like the TUI.
+            gotoRow(Number(cmd));
+          } else {
+            showToast(`Unknown command: ${cmd}`);
+          }
       }
     },
     [
@@ -1744,6 +1823,10 @@ export default function App() {
       toggleThread,
       threadMsgs,
       summarizeThread,
+      messages,
+      previewMessage,
+      accounts,
+      applyLabelChange,
     ],
   );
 
@@ -1838,6 +1921,10 @@ export default function App() {
     add(keymap.archived, "archived");
     add(keymap.attachments, "attachments");
     add(keymap.rsvp, "rsvp");
+    // Uppercase of the summarize key force-regenerates the summary (ignoring the
+    // cache), mirroring the TUI's y → Y. Registered last so a user's own binding
+    // for that key wins.
+    add(keymap.summarize.toUpperCase(), "regenerateSummary");
     return m;
   }, [keymap, obsidianOn]);
 
@@ -2113,6 +2200,9 @@ export default function App() {
       switch (action) {
         case "summarize":
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
+          break;
+        case "regenerateSummary":
+          if (detail && aiEnabled && !bulkMode) void summarize(detail.id, true);
           break;
         case "prompt":
           if (
