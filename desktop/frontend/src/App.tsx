@@ -3525,7 +3525,23 @@ export default function App() {
           </div>
         </div>
       )}
-      {showHelp && <Help onClose={() => setShowHelp(false)} />}
+      {showHelp && (
+        <Help
+          keymap={keymap}
+          flags={{
+            ai: aiEnabled,
+            prompts: aiPromptsEnabled,
+            obsidian: obsidianOn,
+            slack: slackOn,
+            threading: threadingOn,
+            savedQueries: savedQueriesOn,
+            actionPlan: actionPlanOn,
+            rsvp: rsvpEnabled,
+            themes: themesOn,
+          }}
+          onClose={() => setShowHelp(false)}
+        />
+      )}
     </div>
   );
 }

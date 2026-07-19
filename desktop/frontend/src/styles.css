@@ -1285,25 +1285,6 @@ button.danger {
 }
 
 /* Help overlay */
-.help-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 28px;
-}
-.help-col h4 {
-  margin: 0 0 8px;
-  color: var(--accent);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.help-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 3px 0;
-  font-size: 13px;
-}
 kbd {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1312,12 +1293,83 @@ kbd {
   padding: 1px 7px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  min-width: 44px;
   text-align: center;
   color: var(--text);
 }
-.help-row span {
+.help-modal {
+  width: min(1080px, 94vw);
+  max-width: 94vw;
+}
+.help-head-actions,
+.help-hint {
+  margin-left: auto;
+}
+.help-hint {
+  font-size: 12px;
+}
+.help-hint kbd {
+  min-width: 0;
+  padding: 0 5px;
+}
+.help-body {
+  max-height: 74vh;
+  overflow-y: auto;
+}
+.help-masonry {
+  column-count: 3;
+  column-gap: 16px;
+}
+@media (max-width: 900px) {
+  .help-masonry { column-count: 2; }
+}
+@media (max-width: 620px) {
+  .help-masonry { column-count: 1; }
+}
+.help-card {
+  break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+.help-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.help-card-ico {
+  font-size: 15px;
+}
+.help-line {
+  display: grid;
+  grid-template-columns: 18px auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12.5px;
+}
+.help-ico {
+  text-align: center;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+.help-key {
+  justify-self: start;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+.help-desc {
   color: var(--text-muted);
+  line-height: 1.35;
 }
 
 /* AI summary panel */
