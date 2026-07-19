@@ -1731,14 +1731,11 @@ export default function App() {
         e.preventDefault();
         const i = idx >= 0 ? idx : 0;
         if (i < messages.length) {
-          if (!bulkMode) {
-            setBulkMode(true);
-            toggleSelect(messages[i].id);
-            setSelectedId(messages[i].id);
-          } else {
-            toggleSelect(messages[i].id);
-            if (i + 1 < messages.length) setSelectedId(messages[i + 1].id);
-          }
+          // Toggle the highlighted message in place — never auto-advance
+          // (matches the TUI; you move with j/k). Entering bulk selects it.
+          if (!bulkMode) setBulkMode(true);
+          toggleSelect(messages[i].id);
+          setSelectedId(messages[i].id);
         }
         return;
       }
