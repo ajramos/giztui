@@ -1869,6 +1869,16 @@ export default function App() {
         else if (detail) {
           setSelectedId(null);
           setDetail(null);
+        } else if (activeQuery || localFilter) {
+          // No reader/bulk open: Escape exits the active search back to the
+          // default inbox (TUI parity).
+          setQuery("");
+          if (localFilter) {
+            setLocalFilter(false);
+            setMessages(fullMessagesRef.current);
+          } else {
+            void load("");
+          }
         }
         return;
       }
@@ -2160,6 +2170,7 @@ export default function App() {
     actionPlanOn,
     themesOn,
     activeQuery,
+    localFilter,
     bulkMode,
     selected,
     draftsView,
@@ -2256,6 +2267,21 @@ export default function App() {
             onChange={(e) => {
               setQuery(e.target.value);
               if (localFilter) applyLocalFilter(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              // Escape from the search box exits the search entirely (back to
+              // the default inbox), matching the TUI — not just a blur.
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setQuery("");
+                if (localFilter) {
+                  setLocalFilter(false);
+                  setMessages(fullMessagesRef.current);
+                } else if (activeQuery) {
+                  void load("");
+                }
+                (e.target as HTMLElement).blur();
+              }
             }}
           />
           {!localFilter && (
