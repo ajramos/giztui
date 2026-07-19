@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync/atomic"
 
 	"github.com/ajramos/giztui/pkg/desktop"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -21,8 +22,9 @@ const (
 // TUI's service layer.
 type App struct {
 	ctx     context.Context
-	session *desktop.Session
-	initErr string
+	session atomic.Pointer[desktop.Session]
+	initErr atomic.Pointer[string]
+	ready   atomic.Bool
 }
 
 // NewApp creates the App in an unstarted state. Startup wiring happens in
@@ -32,40 +34,53 @@ func NewApp() *App {
 }
 
 // startup is invoked by Wails when the app launches. It builds the Gmail/service
-// stack from the user's existing GizTUI config and OAuth token.
+// stack off the main thread: NewSession does OAuth + network + disk I/O, and
+// doing that synchronously here blocks the WKWebView's first paint on macOS,
+// which shows as a black window on the first (cold) launch. Building it in a
+// goroutine lets the window paint immediately; the frontend waits on Ready().
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	if path, err := desktop.SetupFileLogging(); err == nil {
 		log.Printf("desktop: logging to %s", path)
 	}
-	sess, err := desktop.NewSession(ctx, desktop.Options{Logger: log.Default()})
-	if err != nil {
-		a.initErr = err.Error()
-		log.Printf("desktop: session init failed: %v", err)
-		return
-	}
-	a.session = sess
-	if email, err := sess.AccountEmail(ctx); err == nil {
-		log.Printf("desktop: signed in as %s", email)
-	}
+	go func() {
+		sess, err := desktop.NewSession(ctx, desktop.Options{Logger: log.Default()})
+		if err != nil {
+			msg := err.Error()
+			a.initErr.Store(&msg)
+			a.ready.Store(true)
+			log.Printf("desktop: session init failed: %v", err)
+			return
+		}
+		a.session.Store(sess)
+		a.ready.Store(true)
+		if email, err := sess.AccountEmail(ctx); err == nil {
+			log.Printf("desktop: signed in as %s", email)
+		}
+	}()
 }
 
 // shutdown is invoked by Wails on exit; it releases the local database.
 func (a *App) shutdown(_ context.Context) {
-	if a.session != nil {
-		_ = a.session.Close()
+	if s := a.session.Load(); s != nil {
+		_ = s.Close()
 	}
 }
 
-// api returns the shared API or an error describing why startup failed.
+// Ready reports whether the session has finished initializing (successfully or
+// not). The frontend polls this before its first backend calls.
+func (a *App) Ready() bool { return a.ready.Load() }
+
+// api returns the shared API or an error describing why startup failed / is
+// still in progress.
 func (a *App) api() (*desktop.API, error) {
-	if a.session == nil {
-		if a.initErr != "" {
-			return nil, &startupError{a.initErr}
-		}
-		return nil, &startupError{"session not initialized"}
+	if s := a.session.Load(); s != nil {
+		return s.API, nil
 	}
-	return a.session.API, nil
+	if e := a.initErr.Load(); e != nil {
+		return nil, &startupError{*e}
+	}
+	return nil, &startupError{"connecting to Gmail…"}
 }
 
 type startupError struct{ msg string }
@@ -76,19 +91,41 @@ func (e *startupError) Error() string { return e.msg }
 
 // InitError returns the startup error, if any, so the UI can surface config or
 // auth problems instead of silently showing an empty inbox.
-func (a *App) InitError() string { return a.initErr }
+func (a *App) InitError() string {
+	if e := a.initErr.Load(); e != nil {
+		return *e
+	}
+	return ""
+}
 
 // AccountEmail returns the active account's email address.
 func (a *App) AccountEmail() (string, error) {
-	if a.session == nil {
-		return "", &startupError{a.initErr}
+	s := a.session.Load()
+	if s == nil {
+		return "", a.notReady()
 	}
-	return a.session.AccountEmail(a.ctx)
+	return s.AccountEmail(a.ctx)
+}
+
+// notReady returns the startup error if init failed, else a "connecting" error.
+func (a *App) notReady() error {
+	if e := a.initErr.Load(); e != nil {
+		return &startupError{*e}
+	}
+	return &startupError{"connecting to Gmail…"}
+}
+
+// enabled reports a feature flag, returning false until the session is ready.
+func (a *App) enabled(fn func(*desktop.API) bool) bool {
+	if s := a.session.Load(); s != nil {
+		return fn(s.API)
+	}
+	return false
 }
 
 // ThemesEnabled reports whether theming is available.
 func (a *App) ThemesEnabled() bool {
-	return a.session != nil && a.session.API.ThemesEnabled()
+	return a.enabled((*desktop.API).ThemesEnabled)
 }
 
 // ListThemes returns the available theme names.
@@ -123,7 +160,7 @@ func (a *App) ApplyBulkPromptStream(ids []string, promptID int) (string, error) 
 
 // ActionPlanEnabled reports whether the AI inbox action plan is available.
 func (a *App) ActionPlanEnabled() bool {
-	return a.session != nil && a.session.API.ActionPlanEnabled()
+	return a.enabled((*desktop.API).ActionPlanEnabled)
 }
 
 // AnalyzeInbox runs the AI inbox analyzer and returns an action plan.
@@ -146,7 +183,7 @@ func (a *App) BulkApplyLabelByName(ids []string, name string) error {
 
 // AnalyzerRulesEnabled reports whether analyzer preference rules are available.
 func (a *App) AnalyzerRulesEnabled() bool {
-	return a.session != nil && a.session.API.AnalyzerRulesEnabled()
+	return a.enabled((*desktop.API).AnalyzerRulesEnabled)
 }
 
 // ListAnalyzerRules returns the stored analyzer preference rules.
@@ -187,7 +224,7 @@ func (a *App) ViewAnalyzerPrompt() (string, error) {
 
 // SavedQueriesEnabled reports whether saved searches are available.
 func (a *App) SavedQueriesEnabled() bool {
-	return a.session != nil && a.session.API.SavedQueriesEnabled()
+	return a.enabled((*desktop.API).SavedQueriesEnabled)
 }
 
 // ListSavedQueries returns the saved searches.
@@ -226,7 +263,7 @@ func (a *App) RecordQueryUse(id int64) {
 
 // ThreadingEnabled reports whether conversation features are available.
 func (a *App) ThreadingEnabled() bool {
-	return a.session != nil && a.session.API.ThreadingEnabled()
+	return a.enabled((*desktop.API).ThreadingEnabled)
 }
 
 // GetThread returns all messages in a thread for the conversation view.
@@ -252,7 +289,7 @@ func (a *App) ThreadSummaryStream(threadID string) (string, error) {
 
 // ObsidianEnabled reports whether the Obsidian integration is available.
 func (a *App) ObsidianEnabled() bool {
-	return a.session != nil && a.session.API.ObsidianEnabled()
+	return a.enabled((*desktop.API).ObsidianEnabled)
 }
 
 // SendToObsidian ingests a message into the Obsidian vault.
@@ -266,7 +303,7 @@ func (a *App) SendToObsidian(id string) (string, error) {
 
 // SlackEnabled reports whether the Slack integration is available.
 func (a *App) SlackEnabled() bool {
-	return a.session != nil && a.session.API.SlackEnabled()
+	return a.enabled((*desktop.API).SlackEnabled)
 }
 
 // ForwardToSlack forwards a message to the default Slack channel.
@@ -427,26 +464,28 @@ func (a *App) DeleteDraft(draftID string) error {
 
 // KeyMap returns the user's configured keyboard shortcuts (or defaults).
 func (a *App) KeyMap() desktop.KeyMap {
-	if a.session == nil {
-		return desktop.DefaultKeyMap()
+	if s := a.session.Load(); s != nil {
+		return s.KeyMap()
 	}
-	return a.session.KeyMap()
+	return desktop.DefaultKeyMap()
 }
 
 // ListAccounts returns all configured accounts for the account switcher.
 func (a *App) ListAccounts() ([]desktop.AccountInfo, error) {
-	if a.session == nil {
-		return nil, &startupError{a.initErr}
+	s := a.session.Load()
+	if s == nil {
+		return nil, a.notReady()
 	}
-	return a.session.ListAccounts(a.ctx)
+	return s.ListAccounts(a.ctx)
 }
 
 // SwitchAccount switches the active account and rebuilds the service stack.
 func (a *App) SwitchAccount(id string) error {
-	if a.session == nil {
-		return &startupError{a.initErr}
+	s := a.session.Load()
+	if s == nil {
+		return a.notReady()
 	}
-	return a.session.SwitchAccount(a.ctx, id)
+	return s.SwitchAccount(a.ctx, id)
 }
 
 // ListInbox returns a page of inbox summaries.
@@ -523,10 +562,7 @@ func (a *App) ListLabels() ([]desktop.Label, error) {
 
 // AIEnabled reports whether an LLM provider is configured.
 func (a *App) AIEnabled() bool {
-	if a.session == nil {
-		return false
-	}
-	return a.session.API.AIEnabled()
+	return a.enabled((*desktop.API).AIEnabled)
 }
 
 // Summarize returns an AI-generated summary of a message.
@@ -580,7 +616,7 @@ func (a *App) SaveRawMessage(id string) (string, error) {
 
 // RSVPEnabled reports whether calendar RSVP is available.
 func (a *App) RSVPEnabled() bool {
-	return a.session != nil && a.session.API.RSVPEnabled()
+	return a.enabled((*desktop.API).RSVPEnabled)
 }
 
 // UsageStats returns AI prompt usage statistics.
@@ -603,12 +639,13 @@ func (a *App) ClearCaches() error {
 
 // ConfigInfo returns a read-only snapshot of the effective configuration.
 func (a *App) ConfigInfo() desktop.ConfigInfo {
-	if a.session == nil || a.session.Config == nil {
+	s := a.session.Load()
+	if s == nil || s.Config == nil {
 		return desktop.ConfigInfo{}
 	}
-	cfg := a.session.Config
+	cfg := s.Config
 	info := desktop.ConfigInfo{
-		ConfigPath:  a.session.ConfigPath(),
+		ConfigPath:  s.ConfigPath(),
 		LogPath:     desktop.DefaultLogPath(),
 		LLMProvider: cfg.LLM.Provider,
 		LLMModel:    cfg.LLM.Model,
@@ -619,10 +656,10 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 	if cfg.Obsidian != nil {
 		info.ObsidianOn = cfg.Obsidian.Enabled
 	}
-	if email, err := a.session.AccountEmail(a.ctx); err == nil {
+	if email, err := s.AccountEmail(a.ctx); err == nil {
 		info.Account = email
 	}
-	if api, err := a.api(); err == nil {
+	if api := s.API; api != nil {
 		info.DownloadPath = api.DownloadDir()
 	}
 	return info
@@ -649,10 +686,11 @@ func (a *App) RespondInvite(id, status string) error {
 
 // AutoRefreshSettings returns the configured inbox auto-refresh preference.
 func (a *App) AutoRefreshSettings() desktop.AutoRefreshSettings {
-	if a.session == nil || a.session.Config == nil {
+	s := a.session.Load()
+	if s == nil || s.Config == nil {
 		return desktop.AutoRefreshSettings{Enabled: false, IntervalSeconds: 300}
 	}
-	cfg := a.session.Config.AutoRefresh
+	cfg := s.Config.AutoRefresh
 	return desktop.AutoRefreshSettings{
 		Enabled:         cfg.Enabled,
 		IntervalSeconds: int(cfg.ResolvedInterval().Seconds()),
@@ -734,10 +772,7 @@ func (a *App) OpenAttachment(path string) error {
 
 // PromptsEnabled reports whether the AI prompt library is available.
 func (a *App) PromptsEnabled() bool {
-	if a.session == nil {
-		return false
-	}
-	return a.session.API.PromptsEnabled()
+	return a.enabled((*desktop.API).PromptsEnabled)
 }
 
 // ListPrompts returns the saved AI prompt templates.

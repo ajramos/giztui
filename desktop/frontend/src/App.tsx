@@ -94,6 +94,7 @@ const COMMANDS: CommandDef[] = [
 export default function App() {
   const [account, setAccount] = useState("");
   const [initError, setInitError] = useState("");
+  const [connecting, setConnecting] = useState(true);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
@@ -416,6 +417,18 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
+      // The backend builds the Gmail/service session off the main thread so the
+      // window paints immediately; wait for it to be ready before the first
+      // calls (up to ~45s for a cold OAuth) instead of erroring.
+      for (let i = 0; i < 300; i++) {
+        try {
+          if (await backend.Ready()) break;
+        } catch {
+          break; // mock / no backend
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      setConnecting(false);
       try {
         const ie = await backend.InitError();
         if (ie) {
@@ -1989,6 +2002,16 @@ export default function App() {
           Make sure GizTUI is configured (run <code>giztui --setup</code>) and
           that <code>~/.config/giztui/</code> holds valid credentials and token.
         </p>
+      </div>
+    );
+  }
+
+  if (connecting) {
+    return (
+      <div className="connecting">
+        <span className="logo">✦</span>
+        <h1>GizTUI Desktop</h1>
+        <p className="muted">Connecting to Gmail…</p>
       </div>
     );
   }

@@ -242,6 +242,7 @@ export interface DraftDetail {
 }
 
 interface Backend {
+  Ready(): Promise<boolean>;
   InitError(): Promise<string>;
   AccountEmail(): Promise<string>;
   ListInbox(pageToken: string, pageSize: number): Promise<MessageList>;
@@ -478,6 +479,9 @@ const mockMessages: MessageSummary[] = Array.from({ length: 24 }, (_, i) => ({
 }));
 
 const mockBackend: Backend = {
+  async Ready() {
+    return true;
+  },
   async InitError() {
     return "";
   },
