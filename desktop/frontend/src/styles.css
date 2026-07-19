@@ -585,7 +585,6 @@ button.danger {
 .html-wrap {
   display: flex;
   flex-direction: column;
-  height: 100%;
   gap: 8px;
 }
 .remote-bar {
@@ -600,12 +599,11 @@ button.danger {
   padding: 6px 10px;
 }
 .html-body {
-  flex: 1;
   width: 100%;
-  min-height: 400px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
+  overflow: hidden;
 }
 
 /* Account switcher */

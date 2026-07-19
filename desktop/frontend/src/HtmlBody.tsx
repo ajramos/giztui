@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import DOMPurify from "dompurify";
 import { backend } from "./api";
 
-// HtmlBody renders an email's HTML in a locked-down sandboxed iframe.
-// See the git history for the WKWebView srcdoc origin issue; we write the HTML
-// into the frame's own document to keep it same-origin.
+// HtmlBody renders an email's HTML directly in the page inside a Shadow DOM.
 //
-// TEMPORARY DIAGNOSTIC: a small badge in the corner reports whether the app can
-// read the frame's document and whether click/key events reach our listeners.
-// This is here to pin down why links/shortcuts fail on macOS WKWebView.
+// Why not an iframe? On macOS WKWebView, click and keydown events that happen
+// INSIDE a sandboxed iframe are never delivered to listeners the app attaches to
+// the frame's document (verified: the frame is readable and renders, yet no
+// events fire). That broke link opening and every keyboard shortcut while the
+// reader had focus. Rendering in the page means events fire normally and the
+// app's global shortcuts keep working; a Shadow DOM keeps the email's CSS from
+// leaking into (or inheriting from) the app. Because a Shadow DOM is NOT a
+// security boundary, the HTML is sanitized with DOMPurify first so no script,
+// event handler, or javascript: URL from the untrusted email can run.
 export default function HtmlBody({
   html,
   loadRemote,
@@ -15,134 +20,74 @@ export default function HtmlBody({
   html: string;
   loadRemote: boolean;
 }) {
-  const ref = useRef<HTMLIFrameElement>(null);
-  const [diag, setDiag] = useState({ doc: "…", body: 0, keys: 0, clicks: 0 });
-
-  const imgSrc = loadRemote ? "* data: cid: blob:" : "data: cid:";
-  const csp = [
-    "default-src 'none'",
-    `img-src ${imgSrc}`,
-    "style-src 'unsafe-inline'",
-    `font-src ${loadRemote ? "* data:" : "data:"}`,
-    "media-src data:",
-  ].join("; ");
-
-  const fullHtml = `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="${csp}">
-<style>
-  html,body{margin:0;padding:16px;background:#fff;color:#111;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-    font-size:14px;line-height:1.5;word-break:break-word;}
-  img{max-width:100%;height:auto;}
-  a{color:#1a56db;}
-  table{max-width:100%;}
-</style></head><body>${html}</body></html>`;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<ShadowRoot | null>(null);
 
   useEffect(() => {
-    const iframe = ref.current;
-    if (!iframe) return;
-    let detach: (() => void) | null = null;
+    const host = hostRef.current;
+    if (!host) return;
+    if (!shadowRef.current) {
+      shadowRef.current = host.attachShadow({ mode: "open" });
+    }
+    const shadow = shadowRef.current;
 
+    // Block remote images (tracking pixels) until the user opts in. Scoped to
+    // this sanitize call by adding/removing the hook around it.
+    const hook = (node: Element) => {
+      if (node.nodeName === "IMG") {
+        const src = node.getAttribute("src") || "";
+        if (!loadRemote && /^https?:/i.test(src)) node.removeAttribute("src");
+      }
+    };
+    DOMPurify.addHook("afterSanitizeAttributes", hook);
+    const clean = DOMPurify.sanitize(html, {
+      FORBID_TAGS: [
+        "script",
+        "iframe",
+        "object",
+        "embed",
+        "form",
+        "base",
+        "meta",
+        "link",
+        "noscript",
+      ],
+      FORBID_ATTR: ["ping"],
+    });
+    DOMPurify.removeHook("afterSanitizeAttributes");
+
+    // Emails expect a light background; render on white with the app-neutral
+    // font. All styling lives inside the shadow so it can't affect the app.
+    shadow.innerHTML = `<style>
+      :host{ display:block; }
+      .wrap{ background:#fff; color:#111; padding:16px; border-radius:8px;
+        font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+        word-break:break-word; }
+      .wrap a{ color:#1a56db; cursor:pointer; }
+      .wrap img{ max-width:100%; height:auto; }
+      .wrap table{ max-width:100%; }
+    </style><div class="wrap">${clean}</div>`;
+  }, [html, loadRemote]);
+
+  // Open links in the system browser. Clicks inside the shadow tree are composed,
+  // so a listener on the host sees them and composedPath() reveals the anchor.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
     const onClick = (e: MouseEvent) => {
-      setDiag((d) => ({ ...d, clicks: d.clicks + 1 }));
-      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      const path = (e.composedPath?.() ?? []) as HTMLElement[];
+      const a = path.find(
+        (el) => el && el.nodeType === 1 && el.tagName === "A",
+      ) as HTMLAnchorElement | undefined;
       const href = a?.getAttribute("href");
       if (href && /^https?:/i.test(href)) {
         e.preventDefault();
-        void backend.OpenURL(href);
+        void backend.OpenURL(href).catch(() => undefined);
       }
     };
-    const onKey = (e: KeyboardEvent) => {
-      setDiag((d) => ({ ...d, keys: d.keys + 1 }));
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: e.key,
-          code: e.code,
-          shiftKey: e.shiftKey,
-          ctrlKey: e.ctrlKey,
-          metaKey: e.metaKey,
-          altKey: e.altKey,
-          bubbles: true,
-        }),
-      );
-      const scrollKeys = [
-        "ArrowUp",
-        "ArrowDown",
-        "PageUp",
-        "PageDown",
-        "Home",
-        "End",
-      ];
-      if (!scrollKeys.includes(e.key)) e.preventDefault();
-    };
+    host.addEventListener("click", onClick);
+    return () => host.removeEventListener("click", onClick);
+  }, []);
 
-    const render = (): boolean => {
-      let doc: Document | null = null;
-      try {
-        doc = iframe.contentDocument;
-      } catch {
-        setDiag((d) => ({ ...d, doc: "THREW" }));
-        return false;
-      }
-      if (!doc) {
-        setDiag((d) => ({ ...d, doc: "null" }));
-        return false;
-      }
-      try {
-        doc.open();
-        doc.write(fullHtml);
-        doc.close();
-      } catch {
-        setDiag((d) => ({ ...d, doc: "write-fail" }));
-        return false;
-      }
-      detach?.();
-      doc.addEventListener("click", onClick);
-      doc.addEventListener("keydown", onKey);
-      detach = () => {
-        doc?.removeEventListener("click", onClick);
-        doc?.removeEventListener("keydown", onKey);
-      };
-      setDiag((d) => ({ ...d, doc: "ok", body: doc?.body?.innerHTML.length ?? 0 }));
-      return true;
-    };
-
-    const timers: number[] = [];
-    if (!render()) {
-      timers.push(window.setTimeout(render, 40));
-      timers.push(window.setTimeout(render, 150));
-      timers.push(window.setTimeout(render, 400));
-    }
-    return () => {
-      timers.forEach((t) => window.clearTimeout(t));
-      detach?.();
-    };
-  }, [fullHtml]);
-
-  return (
-    <div style={{ position: "relative", height: "100%" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: 4,
-          right: 4,
-          zIndex: 5,
-          font: "11px/1.4 monospace",
-          background: "rgba(0,0,0,.72)",
-          color: "#fff",
-          padding: "2px 6px",
-          borderRadius: 4,
-          pointerEvents: "none",
-        }}
-      >
-        doc:{diag.doc} body:{diag.body} keys:{diag.keys} clicks:{diag.clicks}
-      </div>
-      <iframe
-        ref={ref}
-        className="html-body"
-        title="Email content"
-        sandbox="allow-same-origin allow-popups"
-      />
-    </div>
-  );
+  return <div ref={hostRef} className="html-body" />;
 }
