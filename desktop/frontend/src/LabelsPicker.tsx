@@ -67,6 +67,7 @@ export default function LabelsPicker({
   const nav = useListNav(visible, {
     onEnter: (l) => void toggle(l),
     onEscape: onClose,
+    windowKeys: true,
   });
 
   const toggle = async (label: Label) => {
@@ -121,7 +122,6 @@ export default function LabelsPicker({
               setFilter(e.target.value);
               nav.setActive(0);
             }}
-            onKeyDown={nav.onKeyDown}
             autoFocus
           />
           <div className="label-list" ref={nav.listRef}>

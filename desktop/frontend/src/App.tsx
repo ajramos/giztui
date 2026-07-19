@@ -38,6 +38,7 @@ import HighlightedText from "./HighlightedText";
 import Help from "./Help";
 import CommandBar, { type CommandDef } from "./CommandBar";
 import MoreMenu from "./MoreMenu";
+import { useListNav } from "./useListNav";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -57,12 +58,12 @@ const COMMANDS: CommandDef[] = [
   { names: ["read"], desc: "Mark read" },
   { names: ["markunread"], desc: "Mark unread" },
   { names: ["labels", "l"], desc: "Manage labels" },
-  { names: ["compose", "c"], desc: "New message" },
+  { names: ["compose", "c", "new"], desc: "New message" },
   { names: ["reply", "r"], desc: "Reply" },
-  { names: ["replyall"], desc: "Reply all" },
+  { names: ["replyall", "ra"], desc: "Reply all" },
   { names: ["forward", "f"], desc: "Forward" },
   { names: ["refresh"], desc: "Refresh inbox" },
-  { names: ["drafts"], desc: "Drafts" },
+  { names: ["drafts", "dr"], desc: "Drafts" },
   { names: ["links"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
@@ -74,9 +75,9 @@ const COMMANDS: CommandDef[] = [
   { names: ["prompt"], desc: "Apply a prompt" },
   { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
-  { names: ["obsidian"], desc: "Send to Obsidian" },
-  { names: ["slack"], desc: "Forward to Slack" },
-  { names: ["gmail", "web"], desc: "Open in Gmail" },
+  { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
+  { names: ["slack", "sl"], desc: "Forward to Slack" },
+  { names: ["gmail", "web", "o"], desc: "Open in Gmail" },
   { names: ["threads", "thr"], desc: "Toggle conversation view" },
   { names: ["expand-all", "expand", "flatten"], desc: "Expand all in thread" },
   { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
@@ -93,7 +94,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["bottom", "end"], desc: "Go to last row" },
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
-  { names: ["plan", "actionplan"], desc: "AI inbox action plan" },
+  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
   { names: ["rules"], desc: "Analyzer preference rules" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
@@ -1409,6 +1410,17 @@ export default function App() {
       setApplyingAll(false);
     }
   }, [plan, applyCategory, showToast]);
+
+  // Keyboard nav for the action-plan categories. Enter applies the highlighted
+  // category's action. windowKeys is gated on planOpen because this hook lives
+  // in the always-mounted App, unlike the standalone pickers.
+  const planNav = useListNav(plan?.categories ?? [], {
+    onEnter: (c) => {
+      if (c.action !== "none" && c.action !== "prompt") void applyCategory(c);
+    },
+    onEscape: () => setPlanOpen(false),
+    windowKeys: planOpen,
+  });
 
   const openRules = useCallback(async () => {
     setRulesOpen(true);
@@ -3515,9 +3527,15 @@ export default function App() {
                     Analyzed {plan.totalAnalyzed} · {plan.readManually} to read
                     manually
                   </div>
-                  <div className="plan-list">
-                    {plan.categories.map((c) => (
-                      <div key={c.name} className="plan-cat">
+                  <div className="plan-list" ref={planNav.listRef}>
+                    {plan.categories.map((c, i) => (
+                      <div
+                        key={c.name}
+                        className={
+                          "plan-cat" + (i === planNav.active ? " nav-active" : "")
+                        }
+                        onMouseEnter={() => planNav.setActive(i)}
+                      >
                         <div className="plan-cat-main">
                           <div className="plan-cat-title">
                             <span className={"prio prio-" + c.priority}>

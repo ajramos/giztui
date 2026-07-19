@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { useListNav } from "./useListNav";
 import type { SavedQuery } from "./api";
 
@@ -17,22 +16,15 @@ export default function SavedQueriesPicker({
   onSaveCurrent: () => void;
   onClose: () => void;
 }) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    modalRef.current?.focus();
-  }, []);
-
-  const nav = useListNav(queries, { onEnter: onRun, onEscape: onClose });
+  const nav = useListNav(queries, {
+    onEnter: onRun,
+    onEscape: onClose,
+    windowKeys: true,
+  });
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        ref={modalRef}
-        className="modal narrow"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={nav.onKeyDown}
-        tabIndex={-1}
-      >
+      <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>Saved searches</h3>
           <span className="help-hint muted">↑↓ · Enter · Esc</span>

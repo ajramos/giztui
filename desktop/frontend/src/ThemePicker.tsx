@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { useListNav } from "./useListNav";
 
 export default function ThemePicker({
@@ -12,22 +11,15 @@ export default function ThemePicker({
   onPick: (name: string) => void;
   onClose: () => void;
 }) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    modalRef.current?.focus();
-  }, []);
-
-  const nav = useListNav(themes, { onEnter: onPick, onEscape: onClose });
+  const nav = useListNav(themes, {
+    onEnter: onPick,
+    onEscape: onClose,
+    windowKeys: true,
+  });
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        ref={modalRef}
-        className="modal narrow"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={nav.onKeyDown}
-        tabIndex={-1}
-      >
+      <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>Theme</h3>
           <span className="help-hint muted">↑↓ · Enter · Esc</span>

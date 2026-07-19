@@ -10,10 +10,17 @@ export function useListNav<T>(
   opts: {
     onEnter?: (item: T, index: number) => void;
     onEscape?: () => void;
+    // Bind the keyboard handler at the window instead of (only) an element.
+    // WKWebView won't reliably focus a bare div, so pickers without a text input
+    // must not depend on element focus. Gate it on the picker being open so the
+    // listener isn't live when the picker is closed (matters for pickers whose
+    // hook lives in a always-mounted parent).
+    windowKeys?: boolean;
   } = {},
 ) {
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const windowKeys = opts.windowKeys ?? false;
 
   // Keep the active index within bounds as the (filtered) list changes.
   useEffect(() => {
@@ -46,6 +53,19 @@ export function useListNav<T>(
       opts.onEscape?.();
     }
   };
+
+  // Window-level binding for focus-less pickers. A ref keeps the listener bound
+  // once while always calling the freshest handler (which closes over `active`
+  // and `items`), so arrow/enter stay correct without re-subscribing.
+  const handlerRef = useRef(onKeyDown);
+  handlerRef.current = onKeyDown;
+  useEffect(() => {
+    if (!windowKeys) return;
+    const h = (e: globalThis.KeyboardEvent) =>
+      handlerRef.current(e as unknown as KeyboardEvent);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [windowKeys]);
 
   return { active, setActive, onKeyDown, listRef };
 }
