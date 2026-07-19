@@ -211,6 +211,7 @@ export interface KeyMap {
   contentSearch: string;
   undo: string;
   vimTimeoutMs: number;
+  vimRangeTimeoutMs: number;
 }
 
 export const DEFAULT_KEYMAP: KeyMap = {
@@ -223,7 +224,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
   actionPlan: "P", themePicker: "H", generateReply: "g", move: "m",
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
-  contentSearch: "/", undo: "U", vimTimeoutMs: 1000,
+  contentSearch: "/", undo: "U", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
 export interface DraftSummary {

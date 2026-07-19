@@ -6,48 +6,49 @@ import "strings"
 // client implements, read from the user's GizTUI config (with the same defaults
 // as the TUI). Keys use TUI notation: single chars ("a"), "space", "gg", etc.
 type KeyMap struct {
-	Summarize     string `json:"summarize"`
-	Prompt        string `json:"prompt"`
-	Archive       string `json:"archive"`
-	Trash         string `json:"trash"`
-	ToggleRead    string `json:"toggleRead"`
-	ManageLabels  string `json:"manageLabels"`
-	Compose       string `json:"compose"`
-	Reply         string `json:"reply"`
-	Forward       string `json:"forward"`
-	Search        string `json:"search"`
-	Refresh       string `json:"refresh"`
-	LoadMore      string `json:"loadMore"`
-	Drafts        string `json:"drafts"`
-	OpenGmail     string `json:"openGmail"`
-	BulkMode      string `json:"bulkMode"`
-	BulkSelect    string `json:"bulkSelect"`
-	Markdown      string `json:"markdown"`
-	Attachments   string `json:"attachments"`
-	Help          string `json:"help"`
-	GotoTop       string `json:"gotoTop"`
-	GotoBottom    string `json:"gotoBottom"`
-	LinkPicker    string `json:"linkPicker"`
-	ReplyAll      string `json:"replyAll"`
-	SaveMessage   string `json:"saveMessage"`
-	SuggestLabel  string `json:"suggestLabel"`
-	Obsidian      string `json:"obsidian"`
-	Slack         string `json:"slack"`
-	CommandMode   string `json:"commandMode"`
-	Threading     string `json:"threading"`
-	SavedQueries  string `json:"savedQueries"`
-	SaveQuery     string `json:"saveQuery"`
-	ActionPlan    string `json:"actionPlan"`
-	ThemePicker   string `json:"themePicker"`
-	GenerateReply string `json:"generateReply"`
-	Move          string `json:"move"`
-	ToggleHeaders string `json:"toggleHeaders"`
-	SearchFrom    string `json:"searchFrom"`
-	SearchTo      string `json:"searchTo"`
-	SearchSubject string `json:"searchSubject"`
-	ContentSearch string `json:"contentSearch"`
-	Undo          string `json:"undo"`
-	VimTimeoutMs  int    `json:"vimTimeoutMs"`
+	Summarize         string `json:"summarize"`
+	Prompt            string `json:"prompt"`
+	Archive           string `json:"archive"`
+	Trash             string `json:"trash"`
+	ToggleRead        string `json:"toggleRead"`
+	ManageLabels      string `json:"manageLabels"`
+	Compose           string `json:"compose"`
+	Reply             string `json:"reply"`
+	Forward           string `json:"forward"`
+	Search            string `json:"search"`
+	Refresh           string `json:"refresh"`
+	LoadMore          string `json:"loadMore"`
+	Drafts            string `json:"drafts"`
+	OpenGmail         string `json:"openGmail"`
+	BulkMode          string `json:"bulkMode"`
+	BulkSelect        string `json:"bulkSelect"`
+	Markdown          string `json:"markdown"`
+	Attachments       string `json:"attachments"`
+	Help              string `json:"help"`
+	GotoTop           string `json:"gotoTop"`
+	GotoBottom        string `json:"gotoBottom"`
+	LinkPicker        string `json:"linkPicker"`
+	ReplyAll          string `json:"replyAll"`
+	SaveMessage       string `json:"saveMessage"`
+	SuggestLabel      string `json:"suggestLabel"`
+	Obsidian          string `json:"obsidian"`
+	Slack             string `json:"slack"`
+	CommandMode       string `json:"commandMode"`
+	Threading         string `json:"threading"`
+	SavedQueries      string `json:"savedQueries"`
+	SaveQuery         string `json:"saveQuery"`
+	ActionPlan        string `json:"actionPlan"`
+	ThemePicker       string `json:"themePicker"`
+	GenerateReply     string `json:"generateReply"`
+	Move              string `json:"move"`
+	ToggleHeaders     string `json:"toggleHeaders"`
+	SearchFrom        string `json:"searchFrom"`
+	SearchTo          string `json:"searchTo"`
+	SearchSubject     string `json:"searchSubject"`
+	ContentSearch     string `json:"contentSearch"`
+	Undo              string `json:"undo"`
+	VimTimeoutMs      int    `json:"vimTimeoutMs"`
+	VimRangeTimeoutMs int    `json:"vimRangeTimeoutMs"`
 }
 
 // DefaultKeyMap returns the built-in defaults, matching the TUI's
@@ -63,7 +64,7 @@ func DefaultKeyMap() KeyMap {
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
 		ActionPlan: "P", ThemePicker: "H", GenerateReply: "g", Move: "m",
 		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
-		ContentSearch: "/", Undo: "U", VimTimeoutMs: 1000,
+		ContentSearch: "/", Undo: "U", VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
 	}
 }
 
@@ -118,6 +119,9 @@ func (s *Session) KeyMap() KeyMap {
 	km.Undo = orDefault(k.Undo, km.Undo)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
+	}
+	if k.VimRangeTimeoutMs > 0 {
+		km.VimRangeTimeoutMs = k.VimRangeTimeoutMs
 	}
 	return km
 }

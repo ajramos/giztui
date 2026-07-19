@@ -221,6 +221,19 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const gPressedAt = useRef(0);
+  // VIM range-operation state machine (a3a, d2d, t5t, l2l). Held in a ref so the
+  // pending count/timer survive re-renders without re-registering the key
+  // handler. `op` is the pending operation key; `count` accumulates digits;
+  // `startId` is the message under the cursor when the sequence began (so a
+  // stray cursor move during the wait doesn't change the target); `timer` fires
+  // the single-message fallback if no second key completes the range.
+  const vimRange = useRef<{
+    key: string;
+    op: "archive" | "trash" | "toggleRead" | "manageLabels";
+    count: number;
+    startId: string;
+    timer: number;
+  } | null>(null);
 
   // macOS WKWebView does not reliably give the web content keyboard focus until
   // it is clicked, so global shortcuts (space, etc.) appear dead on launch.
@@ -771,9 +784,15 @@ export default function App() {
     [],
   );
 
-  const bulkAction = useCallback(
-    async (action: "archive" | "trash" | "read" | "unread") => {
-      const ids = [...selected];
+  // bulkActionIds runs a bulk operation on an explicit list of ids. It is the
+  // shared core behind both the selection-driven bulkAction and the VIM range
+  // operations (a3a, d2d, …), so undo/removal logic lives in exactly one place.
+  // It does NOT touch the `selected` set — callers decide whether to clear it.
+  const bulkActionIds = useCallback(
+    async (
+      action: "archive" | "trash" | "read" | "unread",
+      ids: string[],
+    ) => {
       if (ids.length === 0) return;
       const idSet = new Set(ids);
       // Snapshot the affected rows (with positions) so undo can restore them.
@@ -815,7 +834,6 @@ export default function App() {
           );
           showToast(`Marked ${ids.length} unread`);
         }
-        setSelected(new Set());
       } catch (e) {
         setError(String(e));
       } finally {
@@ -823,15 +841,100 @@ export default function App() {
         setBusy(false);
       }
     },
-    [
-      selected,
-      messages,
-      showToast,
-      clearReaderIfRemoved,
-      pushUndo,
-      insertMessage,
-    ],
+    [messages, showToast, clearReaderIfRemoved, pushUndo, insertMessage],
   );
+
+  const bulkAction = useCallback(
+    async (action: "archive" | "trash" | "read" | "unread") => {
+      const ids = [...selected];
+      if (ids.length === 0) return;
+      await bulkActionIds(action, ids);
+      setSelected(new Set());
+    },
+    [selected, bulkActionIds],
+  );
+
+  // --- VIM range operations (a3a, d2d, t5t, l2l) ---------------------------
+  // The operation keys these cover. A single press fires the normal
+  // single-message action after a short timeout; press-count-press applies it to
+  // the next N messages, exactly like the TUI's "VIM Power Operations".
+  type VimOp = "archive" | "trash" | "toggleRead" | "manageLabels";
+
+  // runVimSingle fires the single-message fallback when a range never completes.
+  // It respects an active bulk selection (matching the TUI's "VIM BULK FIX").
+  const runVimSingle = useCallback(
+    (op: VimOp, startId: string) => {
+      const hasSel = bulkMode && selected.size > 0;
+      switch (op) {
+        case "archive":
+          if (hasSel) void bulkAction("archive");
+          else void doAction("archive", startId);
+          break;
+        case "trash":
+          if (hasSel) void bulkAction("trash");
+          else void doAction("trash", startId);
+          break;
+        case "toggleRead": {
+          if (hasSel) {
+            void bulkAction("unread");
+          } else {
+            const m = messages.find((x) => x.id === startId);
+            void doAction(m?.unread ? "read" : "unread", startId);
+          }
+          break;
+        }
+        case "manageLabels":
+          if (hasSel) setBulkLabels(true);
+          else setLabelsFor(startId);
+          break;
+      }
+    },
+    [bulkMode, selected, bulkAction, doAction, messages],
+  );
+
+  // runVimRange applies an operation to `count` messages starting at the row that
+  // was under the cursor when the sequence began.
+  const runVimRange = useCallback(
+    (op: VimOp, count: number, startId: string) => {
+      const startIdx = messages.findIndex((m) => m.id === startId);
+      if (startIdx < 0) return;
+      const slice = messages.slice(startIdx, startIdx + count);
+      const ids = slice.map((m) => m.id);
+      if (ids.length === 0) return;
+      switch (op) {
+        case "archive":
+          void bulkActionIds("archive", ids);
+          break;
+        case "trash":
+          void bulkActionIds("trash", ids);
+          break;
+        case "toggleRead": {
+          // Toggle each message by its own current state (unread → read and
+          // vice-versa), like the TUI's toggleReadRange.
+          const toRead = slice.filter((m) => m.unread).map((m) => m.id);
+          const toUnread = slice.filter((m) => !m.unread).map((m) => m.id);
+          if (toRead.length) void bulkActionIds("read", toRead);
+          if (toUnread.length) void bulkActionIds("unread", toUnread);
+          break;
+        }
+        case "manageLabels":
+          // Select the range into bulk mode and open the bulk labels picker.
+          setBulkMode(true);
+          setSelected(new Set(ids));
+          setSelectedId(ids[0]);
+          setBulkLabels(true);
+          break;
+      }
+    },
+    [messages, bulkActionIds],
+  );
+
+  // clearVimRange cancels any pending range sequence and its fallback timer.
+  const clearVimRange = useCallback(() => {
+    if (vimRange.current?.timer) window.clearTimeout(vimRange.current.timer);
+    vimRange.current = null;
+    setBulkProgress("");
+  }, []);
 
   const summarize = useCallback(async (id: string, force = false) => {
     setSummarizing(true);
@@ -1815,6 +1918,77 @@ export default function App() {
         return;
       }
 
+      // --- VIM range operations (a3a, d2d, t5t, l2l) ---
+      // A single press of a range-op key fires the normal single-message action
+      // after vimRangeTimeoutMs; key-count-key applies it to the next N rows.
+      // This mirrors the TUI, where the same keys buffer before acting.
+      const rangeOps: Record<
+        string,
+        "archive" | "trash" | "toggleRead" | "manageLabels"
+      > = {};
+      if (keymap.archive) rangeOps[keymap.archive] = "archive";
+      if (keymap.trash) rangeOps[keymap.trash] = "trash";
+      if (keymap.toggleRead) rangeOps[keymap.toggleRead] = "toggleRead";
+      if (keymap.manageLabels) rangeOps[keymap.manageLabels] = "manageLabels";
+      const rangeTimeout = keymap.vimRangeTimeoutMs || 2000;
+
+      // Accumulate a count while a range operation is pending.
+      if (vimRange.current && chord >= "0" && chord <= "9") {
+        e.preventDefault();
+        const st = vimRange.current;
+        st.count = st.count * 10 + Number(chord);
+        if (st.timer) window.clearTimeout(st.timer);
+        st.timer = window.setTimeout(() => {
+          if (vimRange.current === st) {
+            runVimSingle(st.op, st.startId);
+            clearVimRange();
+          }
+        }, rangeTimeout);
+        setBulkProgress(`${st.key}${st.count}… (press ${st.key})`);
+        return;
+      }
+
+      const rop = rangeOps[chord];
+      if (rop) {
+        e.preventDefault();
+        const pending = vimRange.current;
+        if (pending && pending.key === chord) {
+          // Second press of the same key completes the range.
+          const count = pending.count || 1;
+          const startId = pending.startId;
+          clearVimRange();
+          runVimRange(rop, count, startId);
+          return;
+        }
+        // A different pending op: fire its single fallback now, then start fresh.
+        if (pending) {
+          const ps = pending;
+          clearVimRange();
+          runVimSingle(ps.op, ps.startId);
+        }
+        // Start a new sequence, capturing the row under the cursor as the target.
+        const startId = selectedId ?? messages[0]?.id ?? null;
+        if (!startId) return;
+        const st = { key: chord, op: rop, count: 0, startId, timer: 0 };
+        vimRange.current = st;
+        st.timer = window.setTimeout(() => {
+          if (vimRange.current === st) {
+            runVimSingle(rop, startId);
+            clearVimRange();
+          }
+        }, rangeTimeout);
+        setBulkProgress(`${chord}… (count then ${chord})`);
+        return;
+      }
+
+      // Any other key while a range is pending: fire the pending single on its
+      // original target, then fall through to handle this key normally.
+      if (vimRange.current) {
+        const ps = vimRange.current;
+        clearVimRange();
+        runVimSingle(ps.op, ps.startId);
+      }
+
       // --- config-driven actions ---
       const action = chordAction[chord];
       if (!action) return;
@@ -1993,6 +2167,9 @@ export default function App() {
     previewMessage,
     doAction,
     bulkAction,
+    runVimSingle,
+    runVimRange,
+    clearVimRange,
     toggleSelect,
     exitBulk,
     summarize,
