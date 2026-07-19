@@ -57,6 +57,9 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "🔄", keys: fmtKey(k.refresh), desc: "Refresh inbox" },
       { icon: "⏬", keys: fmtKey(k.loadMore), desc: "Load more" },
       { icon: "🔍", keys: fmtKey(k.search), desc: "Search mail (Gmail)" },
+      { icon: "📬", keys: fmtKey(k.unread), desc: "Unread messages" },
+      { icon: "🗄️", keys: fmtKey(k.archived), desc: "Archived messages" },
+      { icon: "📥", keys: ":inbox", desc: "Back to inbox" },
       { icon: "📫", keys: fmtKey(k.searchFrom), desc: "Search from this sender" },
       { icon: "📤", keys: fmtKey(k.searchTo), desc: "Search to this recipient" },
       { icon: "🧵", keys: fmtKey(k.searchSubject), desc: "Search this subject" },
@@ -77,7 +80,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
     rows: [
       { icon: "🔍", keys: fmtKey(k.contentSearch), desc: "Find in message" },
       { icon: "🔀", keys: fmtKey(k.markdown), desc: "Toggle HTML / text" },
-      { icon: "📄", keys: fmtKey(k.toggleHeaders), desc: "Toggle headers" },
+      { icon: "📄", keys: fmtKey(k.toggleHeaders), desc: "Hide / show header block" },
+      { icon: "📎", keys: fmtKey(k.attachments), desc: "Focus attachments" },
       { icon: "🔗", keys: fmtKey(k.linkPicker), desc: "Links in message" },
       { icon: "↪️", keys: fmtKey(k.reply), desc: "Reply" },
       { icon: "↩️", keys: fmtKey(k.replyAll), desc: "Reply all" },
@@ -97,6 +101,19 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },
       { icon: "❌", keys: "Esc", desc: "Exit bulk mode" },
+    ],
+  });
+
+  // VIM-style range operations: key, count, same key → act on the next N rows.
+  secs.push({
+    icon: "⚡",
+    title: "Power ops (VIM ranges)",
+    rows: [
+      { icon: "📁", keys: `${k.archive}3${k.archive}`, desc: "Archive next 3" },
+      { icon: "🗑️", keys: `${k.trash}2${k.trash}`, desc: "Trash next 2" },
+      { icon: "👁️", keys: `${k.toggleRead}5${k.toggleRead}`, desc: "Toggle read on next 5" },
+      { icon: "🔖", keys: `${k.manageLabels}2${k.manageLabels}`, desc: "Label next 2" },
+      { icon: "💡", keys: "key · N · key", desc: "One press = single message" },
     ],
   });
 
@@ -143,7 +160,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
 
   const tools: Row[] = [
     { icon: "💾", keys: fmtKey(k.saveMessage), desc: "Save to file" },
-    { icon: "📄", keys: ":save-raw", desc: "Save raw .eml" },
+    { icon: "📄", keys: fmtKey(k.saveRaw), desc: "Save raw .eml" },
   ];
   if (f.obsidian) tools.push({ icon: "📝", keys: fmtKey(k.obsidian), desc: "Send to Obsidian" });
   if (f.slack) tools.push({ icon: "💬", keys: fmtKey(k.slack), desc: "Forward to Slack" });

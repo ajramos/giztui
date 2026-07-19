@@ -181,7 +181,11 @@ export default function App() {
   useEffect(() => {
     rsvpEnabledRef.current = rsvpEnabled;
   }, [rsvpEnabled]);
+  // headersExpanded reveals the extra cc/thread/id detail (via the ⋯ menu).
+  // headersHidden collapses the whole From/To/Date block for more body room and
+  // is what the `h` key toggles, matching the TUI's toggle_headers.
   const [headersExpanded, setHeadersExpanded] = useState(false);
+  const [headersHidden, setHeadersHidden] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [moveName, setMoveName] = useState("");
   const [labels, setLabels] = useState<Label[]>([]);
@@ -1438,8 +1442,17 @@ export default function App() {
         case "s":
           void load(arg);
           break;
+        case "inbox":
+        case "i":
+          void load("");
+          break;
         case "unread":
           void load("is:unread");
+          break;
+        case "archived":
+        case "arch-search":
+        case "b":
+          void load("in:archive");
           break;
         case "archive":
         case "a":
@@ -1488,6 +1501,7 @@ export default function App() {
           break;
         case "summarize":
         case "sum":
+        case "summary":
           if (d && aiEnabled) void summarize(d.id);
           break;
         case "prompt":
@@ -1529,7 +1543,24 @@ export default function App() {
           }
           break;
         case "headers":
-          if (d) setHeadersExpanded((v) => !v);
+        case "h":
+          if (d) setHeadersHidden((v) => !v);
+          break;
+        case "markdown":
+        case "md":
+          if (d && d.html && d.html.trim()) setViewHtml((v) => !v);
+          break;
+        case "load":
+        case "more":
+        case "next":
+          void loadMore();
+          break;
+        case "attachments":
+        case "attach":
+          if (d && attachments.length > 0) {
+            const el = document.querySelector<HTMLElement>(".attach-chip");
+            el?.focus();
+          }
           break;
         case "toolbar":
           toggleToolbar();
@@ -1675,6 +1706,8 @@ export default function App() {
       openStats,
       openConfig,
       clearCaches,
+      loadMore,
+      attachments,
     ],
   );
 
@@ -1726,7 +1759,16 @@ export default function App() {
     add(keymap.refresh, "refresh");
     add(keymap.loadMore, "loadMore");
     add(keymap.drafts, "drafts");
-    add(keymap.openGmail, "openGmail");
+    // "O" defaults to both obsidian and open-in-gmail. The TUI checks obsidian
+    // first (first-match wins), so when Obsidian is enabled register it first to
+    // match; otherwise fall through to open-in-gmail so the key is still useful.
+    if (obsidianOn) {
+      add(keymap.obsidian, "obsidian");
+      add(keymap.openGmail, "openGmail");
+    } else {
+      add(keymap.openGmail, "openGmail");
+      add(keymap.obsidian, "obsidian");
+    }
     add(keymap.bulkMode, "bulkMode");
     add(keymap.bulkSelect, "bulkSelect");
     add(keymap.markdown, "markdown");
@@ -1734,8 +1776,8 @@ export default function App() {
     add(keymap.linkPicker, "links");
     add(keymap.replyAll, "replyAll");
     add(keymap.saveMessage, "saveMessage");
+    add(keymap.saveRaw, "saveRaw");
     add(keymap.suggestLabel, "suggestLabel");
-    add(keymap.obsidian, "obsidian");
     add(keymap.slack, "slack");
     add(keymap.commandMode, "commandMode");
     // Quick searches derived from the current message. Registered before
@@ -1756,8 +1798,11 @@ export default function App() {
     add(keymap.move, "move");
     add(keymap.toggleHeaders, "toggleHeaders");
     add(keymap.undo, "undo");
+    add(keymap.unread, "unread");
+    add(keymap.archived, "archived");
+    add(keymap.attachments, "attachments");
     return m;
-  }, [keymap]);
+  }, [keymap, obsidianOn]);
 
   // Global keyboard shortcuts, driven by the user's GizTUI keybindings. List
   // navigation (j/k/arrows/Enter/Esc) mirrors the TUI's native table: j/k move a
@@ -2116,7 +2161,10 @@ export default function App() {
           }
           break;
         case "toggleHeaders":
-          if (detail) setHeadersExpanded((v) => !v);
+          if (detail) {
+            setHeadersHidden(!headersHidden);
+            showToast(headersHidden ? "Headers visible" : "Headers hidden");
+          }
           break;
         case "searchFrom":
           if (detail) quickSearch("from", detail);
@@ -2129,6 +2177,24 @@ export default function App() {
           break;
         case "undo":
           void runUndo();
+          break;
+        case "unread":
+          void load("is:unread");
+          break;
+        case "archived":
+          void load("in:archive");
+          break;
+        case "saveRaw":
+          if (detail) saveRawMessage(detail.id);
+          break;
+        case "attachments":
+          // No standalone picker on the desktop — attachments render inline in
+          // the reader. Jump focus to the first attachment chip so it's
+          // keyboard-reachable (mirrors the TUI opening its attachments view).
+          if (detail && attachments.length > 0) {
+            const el = document.querySelector<HTMLElement>(".attach-chip");
+            el?.focus();
+          }
           break;
       }
     };
@@ -2195,6 +2261,10 @@ export default function App() {
     openSuggest,
     openDrafts,
     openInGmail,
+    saveRawMessage,
+    attachments,
+    headersHidden,
+    showToast,
     load,
     loadMore,
   ]);
@@ -2568,20 +2638,24 @@ export default function App() {
               <div className="reader-head">
                 <h2>{detail.subject || "(no subject)"}</h2>
                 <div className="meta">
-                  <div>
-                    <strong>{displayName(detail.from)}</strong>{" "}
-                    <span className="muted">{emailAddr(detail.from)}</span>
-                  </div>
-                  <div className="muted">to {detail.to}</div>
-                  <div className="muted">{formatFull(detail.date)}</div>
-                  {headersExpanded && (
-                    <div className="headers-detail">
-                      {detail.cc && (
-                        <div className="muted">cc {detail.cc}</div>
+                  {!headersHidden && (
+                    <>
+                      <div>
+                        <strong>{displayName(detail.from)}</strong>{" "}
+                        <span className="muted">{emailAddr(detail.from)}</span>
+                      </div>
+                      <div className="muted">to {detail.to}</div>
+                      <div className="muted">{formatFull(detail.date)}</div>
+                      {headersExpanded && (
+                        <div className="headers-detail">
+                          {detail.cc && (
+                            <div className="muted">cc {detail.cc}</div>
+                          )}
+                          <div className="muted">thread {detail.threadId}</div>
+                          <div className="muted">id {detail.id}</div>
+                        </div>
                       )}
-                      <div className="muted">thread {detail.threadId}</div>
-                      <div className="muted">id {detail.id}</div>
-                    </div>
+                    </>
                   )}
                   {detail.labels.length > 0 && (
                     <div className="labels reader-labels">
@@ -2738,7 +2812,16 @@ export default function App() {
                       },
                       {
                         icon: Icon.text,
-                        label: headersExpanded ? "Hide headers" : "Show headers",
+                        label: headersHidden
+                          ? "Show header block (h)"
+                          : "Hide header block (h)",
+                        onClick: () => setHeadersHidden((v) => !v),
+                      },
+                      {
+                        icon: Icon.text,
+                        label: headersExpanded
+                          ? "Hide full headers"
+                          : "Show full headers",
                         onClick: () => setHeadersExpanded((v) => !v),
                       },
                       {

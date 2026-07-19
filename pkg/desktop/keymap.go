@@ -47,6 +47,9 @@ type KeyMap struct {
 	SearchSubject     string `json:"searchSubject"`
 	ContentSearch     string `json:"contentSearch"`
 	Undo              string `json:"undo"`
+	Unread            string `json:"unread"`
+	Archived          string `json:"archived"`
+	SaveRaw           string `json:"saveRaw"`
 	VimTimeoutMs      int    `json:"vimTimeoutMs"`
 	VimRangeTimeoutMs int    `json:"vimRangeTimeoutMs"`
 }
@@ -64,7 +67,8 @@ func DefaultKeyMap() KeyMap {
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
 		ActionPlan: "P", ThemePicker: "H", GenerateReply: "g", Move: "m",
 		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
-		ContentSearch: "/", Undo: "U", VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
+		ContentSearch: "/", Undo: "U", Unread: "u", Archived: "B", SaveRaw: "W",
+		VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
 	}
 }
 
@@ -117,6 +121,9 @@ func (s *Session) KeyMap() KeyMap {
 	km.SearchSubject = orDefault(k.SearchSubject, km.SearchSubject)
 	km.ContentSearch = orDefault(k.ContentSearch, km.ContentSearch)
 	km.Undo = orDefault(k.Undo, km.Undo)
+	km.Unread = orDefault(k.Unread, km.Unread)
+	km.Archived = orDefault(k.Archived, km.Archived)
+	km.SaveRaw = orDefault(k.SaveRaw, km.SaveRaw)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs
 	}
