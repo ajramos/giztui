@@ -1,21 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { backend } from "./api";
 
-// HtmlBody renders an email's HTML in a locked-down sandboxed iframe:
-// - no scripts (sandbox omits allow-scripts), so the email can't run JS,
-// - a strict CSP that blocks all remote content by default (privacy: no tracking
-//   pixels or remote images) until the user opts in via loadRemote,
-// - allow-same-origin lets THIS component (not the email) read the frame so it
-//   can (a) open links in the system browser and (b) forward keystrokes back to
-//   the app, so GizTUI's keyboard shortcuts keep working while reading.
+// HtmlBody renders an email's HTML in a locked-down sandboxed iframe.
+// See the git history for the WKWebView srcdoc origin issue; we write the HTML
+// into the frame's own document to keep it same-origin.
 //
-// We do NOT use the `srcdoc` attribute: WKWebView (the macOS engine) gives a
-// srcdoc document an opaque origin even with allow-same-origin, so the parent
-// cannot read it — link interception and keystroke forwarding silently die once
-// an email renders. Writing the HTML into the frame's about:blank document via
-// document.write keeps it same-origin on every engine, so our listeners bind to
-// the real rendered document.
-// Emails are authored for light backgrounds, so the frame renders on white.
+// TEMPORARY DIAGNOSTIC: a small badge in the corner reports whether the app can
+// read the frame's document and whether click/key events reach our listeners.
+// This is here to pin down why links/shortcuts fail on macOS WKWebView.
 export default function HtmlBody({
   html,
   loadRemote,
@@ -24,6 +16,7 @@ export default function HtmlBody({
   loadRemote: boolean;
 }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  const [diag, setDiag] = useState({ doc: "…", body: 0, keys: 0, clicks: 0 });
 
   const imgSrc = loadRemote ? "* data: cid: blob:" : "data: cid:";
   const csp = [
@@ -50,8 +43,8 @@ export default function HtmlBody({
     if (!iframe) return;
     let detach: (() => void) | null = null;
 
-    // Open links in the system browser instead of navigating the frame.
     const onClick = (e: MouseEvent) => {
+      setDiag((d) => ({ ...d, clicks: d.clicks + 1 }));
       const a = (e.target as HTMLElement | null)?.closest?.("a");
       const href = a?.getAttribute("href");
       if (href && /^https?:/i.test(href)) {
@@ -59,10 +52,8 @@ export default function HtmlBody({
         void backend.OpenURL(href);
       }
     };
-    // Forward keystrokes to the app so shortcuts work while the iframe (which
-    // steals focus once clicked) has focus. Re-dispatch a copy on the parent
-    // and swallow the original so the email doesn't also scroll/act on it.
     const onKey = (e: KeyboardEvent) => {
+      setDiag((d) => ({ ...d, keys: d.keys + 1 }));
       window.dispatchEvent(
         new KeyboardEvent("keydown", {
           key: e.key,
@@ -74,8 +65,6 @@ export default function HtmlBody({
           bubbles: true,
         }),
       );
-      // Let native scrolling keys still scroll the email; swallow the rest so
-      // a shortcut key doesn't also do something inside the frame.
       const scrollKeys = [
         "ArrowUp",
         "ArrowDown",
@@ -87,34 +76,37 @@ export default function HtmlBody({
       if (!scrollKeys.includes(e.key)) e.preventDefault();
     };
 
-    // Write the email into the frame's own (same-origin) document and bind the
-    // click/key listeners to it. Idempotent: safe to run more than once.
     const render = (): boolean => {
-      const doc = iframe.contentDocument;
-      if (!doc) return false;
+      let doc: Document | null = null;
+      try {
+        doc = iframe.contentDocument;
+      } catch {
+        setDiag((d) => ({ ...d, doc: "THREW" }));
+        return false;
+      }
+      if (!doc) {
+        setDiag((d) => ({ ...d, doc: "null" }));
+        return false;
+      }
       try {
         doc.open();
         doc.write(fullHtml);
         doc.close();
       } catch {
+        setDiag((d) => ({ ...d, doc: "write-fail" }));
         return false;
       }
       detach?.();
-      // Bind at the document only. keydown targets the focused element and
-      // bubbles up to the document, so one document listener catches every key
-      // exactly once — binding the window too would double-fire and cancel out
-      // toggle shortcuts.
       doc.addEventListener("click", onClick);
       doc.addEventListener("keydown", onKey);
       detach = () => {
-        doc.removeEventListener("click", onClick);
-        doc.removeEventListener("keydown", onKey);
+        doc?.removeEventListener("click", onClick);
+        doc?.removeEventListener("keydown", onKey);
       };
+      setDiag((d) => ({ ...d, doc: "ok", body: doc?.body?.innerHTML.length ?? 0 }));
       return true;
     };
 
-    // contentDocument is normally the ready about:blank on mount; retry a couple
-    // of times in case the frame element isn't attached for a tick.
     const timers: number[] = [];
     if (!render()) {
       timers.push(window.setTimeout(render, 40));
@@ -128,11 +120,29 @@ export default function HtmlBody({
   }, [fullHtml]);
 
   return (
-    <iframe
-      ref={ref}
-      className="html-body"
-      title="Email content"
-      sandbox="allow-same-origin allow-popups"
-    />
+    <div style={{ position: "relative", height: "100%" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 4,
+          right: 4,
+          zIndex: 5,
+          font: "11px/1.4 monospace",
+          background: "rgba(0,0,0,.72)",
+          color: "#fff",
+          padding: "2px 6px",
+          borderRadius: 4,
+          pointerEvents: "none",
+        }}
+      >
+        doc:{diag.doc} body:{diag.body} keys:{diag.keys} clicks:{diag.clicks}
+      </div>
+      <iframe
+        ref={ref}
+        className="html-body"
+        title="Email content"
+        sandbox="allow-same-origin allow-popups"
+      />
+    </div>
   );
 }
