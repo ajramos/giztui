@@ -308,14 +308,22 @@ button.danger {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
-  width: 34px;
-  height: 34px;
+  width: 31px;
+  height: 31px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   position: relative;
+}
+/* Force a single glyph size everywhere and stop flexbox from squishing the
+   icon horizontally (topbar buttons were rendering the svg at ~11px wide, which
+   made header icons look smaller/thinner than the bulk-bar ones). */
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 .icon-btn:hover {
   color: var(--text);
@@ -755,11 +763,8 @@ button.danger {
   color: var(--text-muted);
   white-space: nowrap;
 }
-/* Slightly smaller icon buttons in the slim topbar */
-.topbar .icon-btn {
-  width: 28px;
-  height: 28px;
-}
+/* The topbar shares the same icon-button size as the reader/bulk toolbars so
+   every icon in the app reads at one consistent size (no smaller header icons). */
 /* Topbar tooltips must open downward — there's no room above the window edge. */
 .topbar .icon-btn::after {
   bottom: auto;

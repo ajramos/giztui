@@ -1110,17 +1110,15 @@ export default function App() {
       setMoveFor(null);
       try {
         await backend.MoveToLabel(id, label);
-        setMessages((prev) => prev.filter((m) => m.id !== id));
-        if (selectedId === id) {
-          setSelectedId(null);
-          setDetail(null);
-        }
+        // Advance the cursor to the next row (like the TUI / archive / trash)
+        // instead of leaving the selection blank.
+        removeFromList(id);
         showToast(`Moved to ${label}`);
       } catch (e) {
         setError(String(e));
       }
     },
-    [selectedId, showToast],
+    [removeFromList, showToast],
   );
 
   // quickSearch runs a Gmail search derived from the current message (sender,
@@ -1456,19 +1454,48 @@ export default function App() {
   // Keyboard nav for the action-plan categories. Enter applies the highlighted
   // category's action. windowKeys is gated on planOpen because this hook lives
   // in the always-mounted App, unlike the standalone pickers.
-  const planNav = useListNav(plan?.categories ?? [], {
-    onEnter: (c) => {
-      if (c.action !== "none" && c.action !== "prompt") void applyCategory(c);
+  //
+  // The plan is a TREE like the TUI: arrows move through a flattened list of
+  // visible nodes — every category, plus the emails of any expanded category —
+  // so you can descend into a bucket and open individual messages.
+  type PlanNode =
+    | { type: "cat"; catIdx: number }
+    | { type: "email"; catIdx: number; id: string };
+  const planNodes = useMemo<PlanNode[]>(() => {
+    const nodes: PlanNode[] = [];
+    (plan?.categories ?? []).forEach((c, ci) => {
+      nodes.push({ type: "cat", catIdx: ci });
+      if (expandedCats.has(c.name)) {
+        c.messageIds.forEach((id) => nodes.push({ type: "email", catIdx: ci, id }));
+      }
+    });
+    return nodes;
+  }, [plan, expandedCats]);
+  const planNav = useListNav(planNodes, {
+    onEnter: (node) => {
+      if (node.type === "email") {
+        const m = messages.find((x) => x.id === node.id);
+        if (m) {
+          setPlanOpen(false);
+          void openMessage(m);
+        }
+        return;
+      }
+      const c = plan?.categories[node.catIdx];
+      if (c && c.action !== "none" && c.action !== "prompt") void applyCategory(c);
     },
     onEscape: () => setPlanOpen(false),
     // Only drive the plan while it's the topmost modal — otherwise its Escape
     // would also fire and close the plan when a sub-modal (rules/prompt) is up.
     windowKeys: planOpen && !rulesOpen && promptPreview === null,
   });
-  // Ref so the key handler can expand the active plan category without the huge
-  // onKey effect depending on planNav.active (which changes on every arrow).
+  // Ref so the key handler can act on the active node without the huge onKey
+  // effect depending on planNav.active (which changes on every arrow).
+  const planNodesRef = useRef(planNodes);
+  planNodesRef.current = planNodes;
   const planActiveRef = useRef(planNav.active);
   planActiveRef.current = planNav.active;
+  const planActiveNode = planNodes[planNav.active];
 
   const openRules = useCallback(async () => {
     setRulesOpen(true);
@@ -2118,14 +2145,17 @@ export default function App() {
             void viewAnalyzerPrompt();
             return;
           }
-          // Space / →  expand the active category to see its emails; ← collapses.
+          // Space / →  expand the category of the active node to reveal its
+          // emails; ← collapses it. An email node acts on its parent category.
           if (e.key === " " || e.key === "ArrowRight" || e.key === "ArrowLeft") {
-            const cat = plan?.categories[planActiveRef.current];
+            const node = planNodesRef.current[planActiveRef.current];
+            const cat = node ? plan?.categories[node.catIdx] : undefined;
             if (cat) {
               e.preventDefault();
               setExpandedCats((prev) => {
                 const n = new Set(prev);
                 if (e.key === "ArrowLeft") n.delete(cat.name);
+                else if (node.type === "email") n.add(cat.name);
                 else if (n.has(cat.name)) n.delete(cat.name);
                 else n.add(cat.name);
                 return n;
@@ -3707,9 +3737,19 @@ export default function App() {
                       <div
                         key={c.name}
                         className={
-                          "plan-cat" + (i === planNav.active ? " nav-active" : "")
+                          "plan-cat" +
+                          (planActiveNode?.type === "cat" &&
+                          planActiveNode.catIdx === i
+                            ? " nav-active"
+                            : "")
                         }
-                        onMouseEnter={() => planNav.setActive(i)}
+                        onMouseEnter={() =>
+                          planNav.setActive(
+                            planNodes.findIndex(
+                              (n) => n.type === "cat" && n.catIdx === i,
+                            ),
+                          )
+                        }
                       >
                         <button
                           className="plan-cat-main"
@@ -3764,6 +3804,23 @@ export default function App() {
                               return (
                                 <li
                                   key={id}
+                                  className={
+                                    planActiveNode?.type === "email" &&
+                                    planActiveNode.catIdx === i &&
+                                    planActiveNode.id === id
+                                      ? "nav-active"
+                                      : ""
+                                  }
+                                  onMouseEnter={() =>
+                                    planNav.setActive(
+                                      planNodes.findIndex(
+                                        (n) =>
+                                          n.type === "email" &&
+                                          n.catIdx === i &&
+                                          n.id === id,
+                                      ),
+                                    )
+                                  }
                                   onClick={() => {
                                     if (m) {
                                       setPlanOpen(false);
