@@ -662,13 +662,24 @@ export default function App() {
 
   const removeFromList = useCallback(
     (id: string) => {
+      const idx = messages.findIndex((x) => x.id === id);
       setMessages((prev) => prev.filter((x) => x.id !== id));
-      if (selectedId === id) {
+      if (selectedId !== id) return;
+      // When the message being read is removed (archive/trash), advance to the
+      // neighbour and preview it — same index is now the next message, or the
+      // previous one if we removed the last row — instead of going blank. This
+      // matches the TUI, which keeps the cursor moving down the list.
+      const rest = messages.filter((x) => x.id !== id);
+      const nextMsg = rest[idx] ?? rest[idx - 1];
+      if (nextMsg && !bulkMode) {
+        setSelectedId(nextMsg.id);
+        previewRef.current(nextMsg);
+      } else {
         setSelectedId(null);
         setDetail(null);
       }
     },
-    [selectedId],
+    [messages, selectedId, bulkMode],
   );
 
   // insertMessage restores a summary at (roughly) its old position — used by undo
