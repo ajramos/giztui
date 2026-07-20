@@ -951,10 +951,52 @@ button.danger {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
+}
+.plan-cat-main {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.plan-cat-emails {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border);
+}
+.plan-cat-emails li {
+  display: flex;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.plan-cat-emails li:hover {
+  background: var(--bg-row-hover);
+}
+.plan-cat-emails .pe-from {
+  flex: 0 0 34%;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plan-cat-emails .pe-subject {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .plan-cat-title {
   display: flex;
@@ -1014,6 +1056,32 @@ button.danger {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.rule-ico svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+.rule-sync {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+.rule-sync.on {
+  color: var(--accent);
+  opacity: 1;
+}
+.rule-sync svg,
+.row-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.row-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .rule-row .rule-query {
   flex: 1;

@@ -226,6 +226,29 @@ export const Icon = {
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </>,
   ),
+  cloud: svg(
+    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />,
+  ),
+  mailOpened: svg(
+    <>
+      <path d="M22 13V7a2 2 0 0 0-1-1.73L12 1 3 5.27A2 2 0 0 0 2 7v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z" />
+      <polyline points="2 7 12 13 22 7" />
+    </>,
+  ),
+  bolt: svg(<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />),
+  download: svg(
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </>,
+  ),
+  plus: svg(
+    <>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </>,
+  ),
 };
 
 export function IconBtn({

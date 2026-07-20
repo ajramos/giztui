@@ -187,6 +187,8 @@ export default function App() {
   const [rulesEnabled, setRulesEnabled] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [detRulesOpen, setDetRulesOpen] = useState(false);
+  // Action-plan categories the user has expanded to see their emails.
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
@@ -1463,6 +1465,10 @@ export default function App() {
     // would also fire and close the plan when a sub-modal (rules/prompt) is up.
     windowKeys: planOpen && !rulesOpen && promptPreview === null,
   });
+  // Ref so the key handler can expand the active plan category without the huge
+  // onKey effect depending on planNav.active (which changes on every arrow).
+  const planActiveRef = useRef(planNav.active);
+  planActiveRef.current = planNav.active;
 
   const openRules = useCallback(async () => {
     setRulesOpen(true);
@@ -2101,7 +2107,7 @@ export default function App() {
           return;
         }
         // Action-plan reachable-by-keyboard shortcuts for its header buttons.
-        if (planOpen && !rulesOpen && promptPreview === null) {
+        if (planOpen && !rulesOpen && !detRulesOpen && promptPreview === null) {
           if (e.key === "r") {
             e.preventDefault();
             if (rulesEnabled) void openRules();
@@ -2111,6 +2117,21 @@ export default function App() {
             e.preventDefault();
             void viewAnalyzerPrompt();
             return;
+          }
+          // Space / →  expand the active category to see its emails; ← collapses.
+          if (e.key === " " || e.key === "ArrowRight" || e.key === "ArrowLeft") {
+            const cat = plan?.categories[planActiveRef.current];
+            if (cat) {
+              e.preventDefault();
+              setExpandedCats((prev) => {
+                const n = new Set(prev);
+                if (e.key === "ArrowLeft") n.delete(cat.name);
+                else if (n.has(cat.name)) n.delete(cat.name);
+                else n.add(cat.name);
+                return n;
+              });
+              return;
+            }
           }
         }
         return;
@@ -2580,6 +2601,7 @@ export default function App() {
     rulesEnabled,
     openRules,
     viewAnalyzerPrompt,
+    plan,
     load,
     loadMore,
   ]);
@@ -3689,8 +3711,22 @@ export default function App() {
                         }
                         onMouseEnter={() => planNav.setActive(i)}
                       >
-                        <div className="plan-cat-main">
+                        <button
+                          className="plan-cat-main"
+                          title="Show emails in this category"
+                          onClick={() =>
+                            setExpandedCats((prev) => {
+                              const n = new Set(prev);
+                              if (n.has(c.name)) n.delete(c.name);
+                              else n.add(c.name);
+                              return n;
+                            })
+                          }
+                        >
                           <div className="plan-cat-title">
+                            <span className="conv-caret">
+                              {expandedCats.has(c.name) ? "▾" : "▸"}
+                            </span>
                             <span className={"prio prio-" + c.priority}>
                               {c.priority}
                             </span>
@@ -3702,7 +3738,7 @@ export default function App() {
                           <div className="plan-cat-desc muted">
                             {c.description}
                           </div>
-                        </div>
+                        </button>
                         <button
                           className="tiny"
                           disabled={c.action === "none" || c.action === "prompt"}
@@ -3712,6 +3748,31 @@ export default function App() {
                             ? `Label "${c.label}"`
                             : c.action.replace("_", " ")}
                         </button>
+                        {expandedCats.has(c.name) && (
+                          <ul className="plan-cat-emails">
+                            {c.messageIds.map((id) => {
+                              const m = messages.find((x) => x.id === id);
+                              return (
+                                <li
+                                  key={id}
+                                  onClick={() => {
+                                    if (m) {
+                                      setPlanOpen(false);
+                                      void openMessage(m);
+                                    }
+                                  }}
+                                >
+                                  <span className="pe-from">
+                                    {m ? displayName(m.from) : id}
+                                  </span>
+                                  <span className="pe-subject muted">
+                                    {m?.subject || ""}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </div>
                     ))}
                   </div>

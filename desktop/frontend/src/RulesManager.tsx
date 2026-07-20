@@ -1,15 +1,18 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { backend, type DeterministicRule, type Prompt } from "./api";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 
 const ACTIONS = ["archive", "mark_read", "trash", "label", "prompt"] as const;
-const ACTION_ICON: Record<string, string> = {
-  archive: "📁",
-  mark_read: "👁️",
-  trash: "🗑️",
-  label: "🔖",
-  prompt: "🎯",
+const ACTION_ICON: Record<string, ReactNode> = {
+  archive: Icon.archive,
+  mark_read: Icon.mailOpened,
+  trash: Icon.trash,
+  label: Icon.label,
+  prompt: Icon.prompt,
 };
+const actionLabel = (a: string) =>
+  a === "mark_read" ? "Mark read" : a.charAt(0).toUpperCase() + a.slice(1);
 
 type FormState = {
   id: number | null;
@@ -176,20 +179,20 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>⚡ Deterministic rules</h3>
+          <h3>Deterministic rules</h3>
           <span className="summary-head-actions">
             {!form && (
               <>
-                <button className="ghost tiny" disabled={busy} onClick={() => setForm({ ...EMPTY })}>
-                  + Add
+                <button className="ghost tiny row-icon" disabled={busy} onClick={() => setForm({ ...EMPTY })}>
+                  {Icon.plus} Add
                 </button>
-                <button className="ghost tiny" disabled={busy} onClick={() => void doImport()}>
-                  ⬇ Import Gmail
+                <button className="ghost tiny row-icon" disabled={busy} onClick={() => void doImport()}>
+                  {Icon.download} Import
                 </button>
               </>
             )}
             <button className="ghost" onClick={onClose}>
-              ✕
+              {Icon.x}
             </button>
           </span>
         </div>
@@ -218,7 +221,7 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
               >
                 {ACTIONS.map((a) => (
                   <option key={a} value={a}>
-                    {ACTION_ICON[a]} {a}
+                    {actionLabel(a)}
                   </option>
                 ))}
               </select>
@@ -277,23 +280,23 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
                       }
                     >
                       <span className="rule-action">
-                        {ACTION_ICON[r.action] ?? "•"}{" "}
+                        <span className="rule-ico">{ACTION_ICON[r.action]}</span>
                         {r.action === "label"
                           ? `Label “${r.label}”`
                           : r.action === "prompt"
                             ? `Prompt ${promptName(r.promptId)}`
-                            : r.action.replace("_", " ")}
+                            : actionLabel(r.action)}
                       </span>
                       <span className="rule-query">{r.query}</span>
                       <button
-                        className="ghost tiny"
+                        className={"ghost tiny rule-sync" + (r.synced ? " on" : "")}
                         title={r.synced ? "Synced to Gmail — click to unsync" : "Sync as a Gmail filter"}
                         onClick={(e) => {
                           e.stopPropagation();
                           void toggleSync(r);
                         }}
                       >
-                        {r.synced ? "☁︎" : "○"}
+                        {Icon.cloud}
                       </button>
                       <button
                         className="ghost tiny"
@@ -303,7 +306,7 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
                           void del(r.id);
                         }}
                       >
-                        ✕
+                        {Icon.x}
                       </button>
                     </div>
                   ))
@@ -312,7 +315,7 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                a add · Enter edit · d delete · s sync (☁) · i import · Esc close
+                a add · Enter edit · d delete · s sync · i import · Esc close
               </span>
             </div>
           </>
