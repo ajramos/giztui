@@ -60,12 +60,12 @@ export default function SavedQueriesPicker({
           </div>
         </div>
         <div className="modal-foot">
+          <span className="foot-hint">↑↓ move · Enter run · Esc close</span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>
               Save current search
             </button>
           )}
-          <button onClick={onClose}>Done</button>
         </div>
       </div>
     </div>

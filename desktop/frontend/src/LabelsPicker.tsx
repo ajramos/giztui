@@ -153,7 +153,9 @@ export default function LabelsPicker({
           </div>
         </div>
         <div className="modal-foot">
-          <button onClick={onClose}>Done</button>
+          <span className="foot-hint">
+            type to filter · ↑↓ move · Enter toggle · Esc close
+          </span>
         </div>
       </div>
     </div>

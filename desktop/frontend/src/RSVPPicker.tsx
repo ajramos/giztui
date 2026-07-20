@@ -1,12 +1,13 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 
 type Status = "accepted" | "tentative" | "declined";
 
-const OPTS: { key: Status; icon: string; label: string; desc: string }[] = [
-  { key: "accepted", icon: "✅", label: "Accept", desc: "I'll be there" },
-  { key: "tentative", icon: "🤔", label: "Maybe", desc: "Maybe attending" },
-  { key: "declined", icon: "❌", label: "Decline", desc: "Cannot attend" },
+const OPTS: { key: Status; icon: ReactNode; label: string; desc: string }[] = [
+  { key: "accepted", icon: Icon.check, label: "Accept", desc: "I'll be there" },
+  { key: "tentative", icon: Icon.help2, label: "Maybe", desc: "Maybe attending" },
+  { key: "declined", icon: Icon.x, label: "Decline", desc: "Cannot attend" },
 ];
 
 // A keyboard-navigable RSVP picker (the TUI's RSVP panel). Arrows/Enter or 1-3
@@ -51,7 +52,10 @@ export default function RSVPPicker({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>📅 {summary || "Calendar invite"}</h3>
+          <h3 className="head-with-ico">
+            <span className="head-ico">{Icon.calendar}</span>
+            {summary || "Calendar invite"}
+          </h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>
@@ -68,7 +72,8 @@ export default function RSVPPicker({
                 onClick={() => onRespond(o.key)}
               >
                 <span className="prompt-name">
-                  <span className="link-idx">[{i + 1}]</span> {o.icon} {o.label}
+                  <span className="link-idx">[{i + 1}]</span>
+                  <span className="rule-ico">{o.icon}</span> {o.label}
                 </span>
                 <span className="prompt-desc">
                   {busy === o.key ? "Sending…" : o.desc}

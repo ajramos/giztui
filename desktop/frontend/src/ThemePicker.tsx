@@ -47,6 +47,9 @@ export default function ThemePicker({
             ))}
           </div>
         </div>
+        <div className="modal-foot">
+          <span className="foot-hint">↑↓ move · Enter apply · Esc close</span>
+        </div>
       </div>
     </div>
   );

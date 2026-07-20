@@ -107,7 +107,9 @@ export default function MovePicker({
           </div>
         </div>
         <div className="modal-foot">
-          <button onClick={onClose}>Cancel</button>
+          <span className="foot-hint">
+            type to filter · ↑↓ move · Enter move · Esc close
+          </span>
         </div>
       </div>
     </div>
