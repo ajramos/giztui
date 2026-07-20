@@ -1457,7 +1457,9 @@ export default function App() {
       if (c.action !== "none" && c.action !== "prompt") void applyCategory(c);
     },
     onEscape: () => setPlanOpen(false),
-    windowKeys: planOpen,
+    // Only drive the plan while it's the topmost modal — otherwise its Escape
+    // would also fire and close the plan when a sub-modal (rules/prompt) is up.
+    windowKeys: planOpen && !rulesOpen && promptPreview === null,
   });
 
   const openRules = useCallback(async () => {
@@ -2039,7 +2041,7 @@ export default function App() {
         }
         return;
       }
-      if (
+      const anyModal =
         compose ||
         labelsFor ||
         bulkLabels ||
@@ -2059,9 +2061,52 @@ export default function App() {
         configOpen ||
         moveFor ||
         rsvpPickerOpen ||
-        bulkPromptText !== null
-      )
+        bulkPromptText !== null;
+      if (anyModal) {
+        // Escape closes the topmost modal from the window (WKWebView won't focus
+        // a bare div, so per-modal Escape handlers on divs are unreliable). Order
+        // = last-opened first, so a sub-modal (e.g. rules over the plan) closes
+        // before its parent. Pickers also self-close via their own listener;
+        // double-closing is harmless.
+        if (e.key === "Escape") {
+          e.preventDefault();
+          if (promptPreview !== null) setPromptPreview(null);
+          else if (rulesOpen) setRulesOpen(false);
+          else if (bulkPromptText !== null) setBulkPromptText(null);
+          else if (saveQueryOpen) setSaveQueryOpen(false);
+          else if (moveFor) setMoveFor(null);
+          else if (suggestFor) setSuggestFor(null);
+          else if (advOpen) setAdvOpen(false);
+          else if (statsOpen) setStatsOpen(false);
+          else if (configOpen) setConfigOpen(false);
+          else if (planOpen) setPlanOpen(false);
+          else if (themePickerOpen) setThemePickerOpen(false);
+          else if (queriesOpen) setQueriesOpen(false);
+          else if (rsvpPickerOpen) setRsvpPickerOpen(false);
+          else if (linksFor) setLinksFor(null);
+          else if (bulkLabels) setBulkLabels(false);
+          else if (labelsFor) setLabelsFor(null);
+          else if (promptsOpen) setPromptsOpen(false);
+          else if (promptManagerOpen) setPromptManagerOpen(false);
+          else if (cmdOpen) setCmdOpen(false);
+          else if (compose) setCompose(null);
+          return;
+        }
+        // Action-plan reachable-by-keyboard shortcuts for its header buttons.
+        if (planOpen && !rulesOpen && promptPreview === null) {
+          if (e.key === "r") {
+            e.preventDefault();
+            if (rulesEnabled) void openRules();
+            return;
+          }
+          if (e.key === "p") {
+            e.preventDefault();
+            void viewAnalyzerPrompt();
+            return;
+          }
+        }
         return;
+      }
       if (typing) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
@@ -2524,6 +2569,9 @@ export default function App() {
     bumpZoom,
     resetZoom,
     rsvpPickerOpen,
+    rulesEnabled,
+    openRules,
+    viewAnalyzerPrompt,
     load,
     loadMore,
   ]);
