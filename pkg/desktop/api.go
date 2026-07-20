@@ -150,11 +150,26 @@ func (a *API) ListInbox(ctx context.Context, pageToken string, pageSize int64) (
 
 // Search returns a page of message summaries matching a Gmail search query
 // (supports the full Gmail operator syntax, e.g. "from:x has:attachment").
+// scopeSearch mirrors the TUI: unless the query already targets a location
+// (in:) or a label (label:), constrain it to the inbox and drop sent/draft/
+// chat/spam/trash. Without this, a bare "from:x" would return archived mail and
+// every folder, which the terminal never shows.
+func scopeSearch(query string) string {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		return q
+	}
+	if strings.Contains(q, "in:") || strings.Contains(q, "label:") {
+		return q
+	}
+	return q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
+}
+
 func (a *API) Search(ctx context.Context, query, pageToken string, pageSize int64) (*MessageList, error) {
 	if pageSize <= 0 {
 		pageSize = defaultPageSize
 	}
-	page, err := a.repo.SearchMessages(ctx, query, services.QueryOptions{
+	page, err := a.repo.SearchMessages(ctx, scopeSearch(query), services.QueryOptions{
 		MaxResults: pageSize,
 		PageToken:  pageToken,
 	})

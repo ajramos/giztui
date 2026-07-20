@@ -306,11 +306,20 @@ func TestSearchPassesQuery(t *testing.T) {
 	if _, err := api.Search(context.Background(), "from:x has:attachment", "tok", 10); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	if repo.lastQ != "from:x has:attachment" {
-		t.Errorf("query not forwarded: %q", repo.lastQ)
+	// A query without in:/label: is scoped to the inbox (matching the TUI), so
+	// searches don't surface archived/sent/trash mail.
+	if repo.lastQ != "from:x has:attachment -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox" {
+		t.Errorf("query not scoped as expected: %q", repo.lastQ)
 	}
 	if repo.lastOpts.PageToken != "tok" || repo.lastOpts.MaxResults != 10 {
 		t.Errorf("opts not forwarded: %+v", repo.lastOpts)
+	}
+	// A query that already targets a location or label is passed through as-is.
+	if _, err := api.Search(context.Background(), "in:archive from:x", "", 10); err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if repo.lastQ != "in:archive from:x" {
+		t.Errorf("scoped query should pass through: %q", repo.lastQ)
 	}
 }
 
