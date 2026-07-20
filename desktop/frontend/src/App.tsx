@@ -104,6 +104,10 @@ const COMMANDS: CommandDef[] = [
   { names: ["subject"], desc: "Search this subject" },
   { names: ["headers"], desc: "Toggle headers" },
   { names: ["toolbar"], desc: "Show/hide reader toolbar" },
+  { names: ["zoom-in", "zi"], desc: "Bigger UI text (Cmd/Ctrl +)" },
+  { names: ["zoom-out", "zo"], desc: "Smaller UI text (Cmd/Ctrl -)" },
+  { names: ["zoom-reset"], desc: "Reset UI zoom (Cmd/Ctrl 0)" },
+  { names: ["zoom"], desc: "Set UI zoom", arg: "<0.6-2.4>" },
   { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
   { names: ["help"], desc: "Keyboard shortcuts" },
@@ -216,6 +220,21 @@ export default function App() {
   const [showToolbar, setShowToolbar] = useState(
     () => localStorage.getItem("giztui.toolbar") !== "off",
   );
+  // UI zoom: WKWebView doesn't honour Cmd+/- to scale the app, so we drive it
+  // ourselves via CSS zoom on the root and remember the choice. Cmd/Ctrl +/-/0.
+  const [uiZoom, setUiZoom] = useState(() => {
+    const v = Number(localStorage.getItem("giztui.zoom"));
+    return v >= 0.6 && v <= 2.4 ? v : 1;
+  });
+  useEffect(() => {
+    (document.documentElement.style as unknown as { zoom: string }).zoom =
+      String(uiZoom);
+    localStorage.setItem("giztui.zoom", String(uiZoom));
+  }, [uiZoom]);
+  const bumpZoom = useCallback((delta: number) => {
+    setUiZoom((z) => Math.min(2.4, Math.max(0.6, Math.round((z + delta) * 10) / 10)));
+  }, []);
+  const resetZoom = useCallback(() => setUiZoom(1), []);
   // Local filter mode: narrow the already-loaded list client-side instead of
   // running a remote Gmail search (the TUI's search_toggle_mode).
   const [localFilter, setLocalFilter] = useState(false);
@@ -1671,6 +1690,23 @@ export default function App() {
         case "toolbar":
           toggleToolbar();
           break;
+        case "zoom-in":
+        case "zi":
+          bumpZoom(0.1);
+          break;
+        case "zoom-out":
+        case "zo":
+          bumpZoom(-0.1);
+          break;
+        case "zoom-reset":
+          resetZoom();
+          break;
+        case "zoom": {
+          const n = Number(arg);
+          if (arg && n >= 0.6 && n <= 2.4) setUiZoom(n);
+          else if (!arg) resetZoom();
+          break;
+        }
         case "autorefresh":
         case "arr":
           toggleAutoRefresh();
@@ -1839,6 +1875,8 @@ export default function App() {
       previewMessage,
       accounts,
       applyLabelChange,
+      bumpZoom,
+      resetZoom,
     ],
   );
 
@@ -1949,6 +1987,26 @@ export default function App() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
       const chord = e.key === " " ? "space" : e.key;
+
+      // UI zoom (Cmd/Ctrl +/-/0) — handled first so it works everywhere, even
+      // over modals or while typing. WKWebView ignores native zoom.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+        if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          bumpZoom(0.1);
+          return;
+        }
+        if (e.key === "-" || e.key === "_") {
+          e.preventDefault();
+          bumpZoom(-0.1);
+          return;
+        }
+        if (e.key === "0") {
+          e.preventDefault();
+          resetZoom();
+          return;
+        }
+      }
 
       if (showHelp) {
         if (e.key === "Escape" || chord === keymap.help) {
@@ -2438,6 +2496,8 @@ export default function App() {
     csQuery,
     invite,
     accounts,
+    bumpZoom,
+    resetZoom,
     load,
     loadMore,
   ]);
