@@ -217,6 +217,7 @@ export default function App() {
   const [headersExpanded, setHeadersExpanded] = useState(false);
   const [headersHidden, setHeadersHidden] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
+  const [bulkMove, setBulkMove] = useState(false);
   const [labels, setLabels] = useState<Label[]>([]);
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
@@ -850,6 +851,44 @@ export default function App() {
     [],
   );
 
+  // advanceAfterBulk moves the cursor to the nearest surviving message (next,
+  // else previous) after a bulk mutation removes `removed`, and previews it —
+  // like the TUI, which keeps the cursor on the list instead of going blank.
+  // Falls back to clearing the reader when nothing survives.
+  const advanceAfterBulk = useCallback(
+    (removed: Set<string>) => {
+      const curIdx = selectedId
+        ? messages.findIndex((m) => m.id === selectedId)
+        : -1;
+      let next: MessageSummary | null = null;
+      if (curIdx >= 0) {
+        for (let i = curIdx; i < messages.length; i++) {
+          if (!removed.has(messages[i].id)) {
+            next = messages[i];
+            break;
+          }
+        }
+        if (!next) {
+          for (let i = curIdx - 1; i >= 0; i--) {
+            if (!removed.has(messages[i].id)) {
+              next = messages[i];
+              break;
+            }
+          }
+        }
+      }
+      if (next) {
+        previewRef.current(next);
+      } else {
+        setSelectedId(null);
+        setDetail(null);
+        setSummary(null);
+        setThreadMsgs(null);
+      }
+    },
+    [messages, selectedId],
+  );
+
   // bulkActionIds runs a bulk operation on an explicit list of ids. It is the
   // shared core behind both the selection-driven bulkAction and the VIM range
   // operations (a3a, d2d, …), so undo/removal logic lives in exactly one place.
@@ -872,7 +911,7 @@ export default function App() {
         if (action === "archive") {
           await backend.BulkArchive(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
-          clearReaderIfRemoved(idSet);
+          advanceAfterBulk(idSet);
           pushUndo(`archive ${ids.length}`, async () => {
             await backend.BulkUnarchive(ids);
             removed.forEach(({ m, i }) => insertMessage(m, i));
@@ -881,7 +920,7 @@ export default function App() {
         } else if (action === "trash") {
           await backend.BulkTrash(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
-          clearReaderIfRemoved(idSet);
+          advanceAfterBulk(idSet);
           pushUndo(`trash ${ids.length}`, async () => {
             await backend.BulkUntrash(ids);
             removed.forEach(({ m, i }) => insertMessage(m, i));
@@ -907,7 +946,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [messages, showToast, clearReaderIfRemoved, pushUndo, insertMessage],
+    [messages, showToast, advanceAfterBulk, pushUndo, insertMessage],
   );
 
   const bulkAction = useCallback(
@@ -1119,6 +1158,49 @@ export default function App() {
       }
     },
     [removeFromList, showToast],
+  );
+
+  // doBulkMove moves every selected message to a folder (apply label + archive),
+  // the bulk form of doMove — mirrors the TUI's bulk "move to folder".
+  const doBulkMove = useCallback(
+    async (name: string) => {
+      const label = name.trim();
+      if (!label) return;
+      const ids = [...selected];
+      setBulkMove(false);
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      const removed = messages
+        .map((m, i) => ({ m, i }))
+        .filter(({ m }) => idSet.has(m.id));
+      setBusy(true);
+      setBulkProgress(`Moving ${ids.length}…`);
+      setError("");
+      try {
+        await backend.BulkMoveToLabel(ids, label);
+        setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+        advanceAfterBulk(idSet);
+        setSelected(new Set());
+        pushUndo(`move ${ids.length}`, async () => {
+          await backend.BulkUnarchive(ids);
+          removed.forEach(({ m, i }) => insertMessage(m, i));
+        });
+        showToast(`Moved ${ids.length} to ${label}`);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setBulkProgress("");
+        setBusy(false);
+      }
+    },
+    [
+      selected,
+      messages,
+      advanceAfterBulk,
+      pushUndo,
+      insertMessage,
+      showToast,
+    ],
   );
 
   // quickSearch runs a Gmail search derived from the current message (sender,
@@ -1696,11 +1778,12 @@ export default function App() {
           break;
         case "move":
         case "mv":
-          if (d) {
+          if (bulkMode && selected.size > 0) {
+            if (arg) void doBulkMove(arg);
+            else setBulkMove(true);
+          } else if (d) {
             if (arg) void doMove(d.id, arg);
-            else {
-              setMoveFor(d.id);
-            }
+            else setMoveFor(d.id);
           }
           break;
         case "headers":
@@ -1911,6 +1994,7 @@ export default function App() {
       selected,
       showToast,
       doMove,
+      doBulkMove,
       generateReply,
       quickSearch,
       themesOn,
@@ -2100,6 +2184,7 @@ export default function App() {
         statsOpen ||
         configOpen ||
         moveFor ||
+        bulkMove ||
         rsvpPickerOpen ||
         detRulesOpen ||
         bulkPromptText !== null;
@@ -2116,6 +2201,7 @@ export default function App() {
           else if (bulkPromptText !== null) setBulkPromptText(null);
           else if (saveQueryOpen) setSaveQueryOpen(false);
           else if (moveFor) setMoveFor(null);
+          else if (bulkMove) setBulkMove(false);
           else if (suggestFor) setSuggestFor(null);
           else if (advOpen) setAdvOpen(false);
           else if (statsOpen) setStatsOpen(false);
@@ -2167,7 +2253,24 @@ export default function App() {
         return;
       }
       if (typing) {
-        if (e.key === "Escape") (e.target as HTMLElement).blur();
+        if (e.key === "Escape") {
+          // preventDefault so macOS/WKWebView doesn't treat Escape as
+          // "leave fullscreen"; we handle it ourselves.
+          e.preventDefault();
+          const el = e.target as HTMLElement;
+          if (el === searchRef.current) {
+            // TUI parity: Escape in the search box clears the filter and
+            // returns to the default inbox, instead of just blurring.
+            setQuery("");
+            if (localFilter) {
+              setLocalFilter(false);
+              setMessages(fullMessagesRef.current);
+            } else if (activeQuery) {
+              void load("");
+            }
+          }
+          el.blur();
+        }
         return;
       }
       if (draftsView) {
@@ -2209,11 +2312,11 @@ export default function App() {
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
       // Navigation previews the message (shows content, scrolls to it) without
-      // marking it read. In bulk mode it only moves the highlight.
+      // marking it read — in bulk mode too, so the reader follows the cursor
+      // like the TUI (previewMessage also sets selectedId as the highlight).
       const moveCursor = (i: number) => {
         if (i < 0 || i >= messages.length) return;
-        if (bulkMode) setSelectedId(messages[i].id);
-        else previewMessage(messages[i]);
+        previewMessage(messages[i]);
       };
       const hasSel = bulkMode && selected.size > 0;
 
@@ -2258,13 +2361,19 @@ export default function App() {
         return;
       }
       if (chord === "Escape") {
-        if (bulkMode) exitBulk();
-        else if (detail) {
+        // preventDefault so WKWebView doesn't leave fullscreen on macOS when we
+        // consume Escape to close the reader / exit a search (TUI parity).
+        if (bulkMode) {
+          e.preventDefault();
+          exitBulk();
+        } else if (detail) {
+          e.preventDefault();
           setSelectedId(null);
           setDetail(null);
         } else if (activeQuery || localFilter) {
           // No reader/bulk open: Escape exits the active search back to the
           // default inbox (TUI parity).
+          e.preventDefault();
           setQuery("");
           if (localFilter) {
             setLocalFilter(false);
@@ -2506,9 +2615,8 @@ export default function App() {
           if (themesOn) setThemePickerOpen(true);
           break;
         case "move":
-          if (detail && !bulkMode) {
-            setMoveFor(detail.id);
-          }
+          if (hasSel) setBulkMove(true);
+          else if (detail && !bulkMode) setMoveFor(detail.id);
           break;
         case "toggleHeaders":
           if (detail) {
@@ -2917,6 +3025,12 @@ export default function App() {
                     label="Label…"
                     disabled={busy || selected.size === 0}
                     onClick={() => setBulkLabels(true)}
+                  />
+                  <IconBtn
+                    icon={Icon.folder}
+                    label="Move to folder…"
+                    disabled={busy || selected.size === 0}
+                    onClick={() => setBulkMove(true)}
                   />
                   <span className="actions-sep" />
                   <IconBtn
@@ -3964,6 +4078,14 @@ export default function App() {
           labels={labels}
           onMove={(name) => void doMove(moveFor, name)}
           onClose={() => setMoveFor(null)}
+        />
+      )}
+      {bulkMove && (
+        <MovePicker
+          labels={labels}
+          count={selected.size}
+          onMove={(name) => void doBulkMove(name)}
+          onClose={() => setBulkMove(false)}
         />
       )}
       {advOpen && (

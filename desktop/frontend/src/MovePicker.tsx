@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useListNav } from "./useListNav";
 import type { Label } from "./api";
 
@@ -23,10 +23,13 @@ export default function MovePicker({
   labels,
   onMove,
   onClose,
+  count,
 }: {
   labels: Label[];
   onMove: (name: string) => void;
   onClose: () => void;
+  // When set (bulk move), the header shows how many messages will be moved.
+  count?: number;
 }) {
   const [filter, setFilter] = useState("");
   const visible = useMemo(() => {
@@ -40,35 +43,44 @@ export default function MovePicker({
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [labels, filter]);
 
-  const nav = useListNav(visible, { onEscape: onClose });
-
-  // Single window listener (WKWebView won't focus a bare div): Enter moves to
-  // the active folder, or to the typed name when nothing matches; arrows/Escape
-  // delegate to the list nav.
+  // Enter moves to the active folder, or to the typed name when nothing matches
+  // (creating the label). Keys are driven at the window (WKWebView won't deliver
+  // Enter from a focused input to our handler reliably — the whole reason the
+  // other pickers use windowKeys), so we handle Enter here and let useListNav's
+  // window binding own the arrows/Escape.
   const filterRef = useRef(filter);
   filterRef.current = filter;
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
-  const navKeyRef = useRef(nav.onKeyDown);
-  navKeyRef.current = nav.onKeyDown;
-  const activeRef = useRef(nav.active);
+  const activeRef = useRef(0);
+  const nav = useListNav(visible, {
+    onEnter: (l) => onMove(l.name),
+    onEscape: onClose,
+    windowKeys: true,
+  });
   activeRef.current = nav.active;
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const chosen = visibleRef.current[activeRef.current]?.name ?? filterRef.current.trim();
-      if (chosen) onMove(chosen);
-      return;
-    }
-    navKeyRef.current(e);
-  };
+  // useListNav's onEnter only fires when there's a match; a window listener
+  // covers the empty-list case (Enter creates + moves to the typed folder).
+  useEffect(() => {
+    const h = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (visibleRef.current.length > 0) return; // handled by useListNav
+      const typed = filterRef.current.trim();
+      if (typed) {
+        e.preventDefault();
+        onMove(typed);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onMove]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>Move to folder</h3>
+          <h3>{count ? `Move ${count} to folder` : "Move to folder"}</h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>
@@ -82,7 +94,6 @@ export default function MovePicker({
               setFilter(e.target.value);
               nav.setActive(0);
             }}
-            onKeyDown={onKeyDown}
             autoFocus
           />
           <div className="label-list" ref={nav.listRef}>

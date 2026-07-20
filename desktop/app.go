@@ -415,6 +415,15 @@ func (a *App) MoveToLabel(messageID, name string) error {
 	return api.MoveToLabel(a.ctx, messageID, name)
 }
 
+// BulkMoveToLabel moves every message in ids to a label (apply label + archive).
+func (a *App) BulkMoveToLabel(ids []string, name string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.BulkMoveToLabel(a.ctx, ids, name)
+}
+
 // Unarchive puts a message back in the inbox (undo of Archive).
 func (a *App) Unarchive(id string) error {
 	api, err := a.api()

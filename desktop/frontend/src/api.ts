@@ -296,6 +296,7 @@ interface Backend {
   GenerateReply(id: string): Promise<string>;
   TouchUp(id: string): Promise<string>;
   MoveToLabel(messageID: string, name: string): Promise<void>;
+  BulkMoveToLabel(ids: string[], name: string): Promise<void>;
   BulkArchive(ids: string[]): Promise<void>;
   BulkTrash(ids: string[]): Promise<void>;
   BulkMarkRead(ids: string[]): Promise<void>;
@@ -646,6 +647,9 @@ const mockBackend: Backend = {
   },
   async MoveToLabel() {
     await new Promise((r) => setTimeout(r, 200));
+  },
+  async BulkMoveToLabel() {
+    await new Promise((r) => setTimeout(r, 250));
   },
   async BulkArchive() {
     await new Promise((r) => setTimeout(r, 250));
