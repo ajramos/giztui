@@ -31,6 +31,7 @@ import PromptManager from "./PromptManager";
 import LinksPicker from "./LinksPicker";
 import ThemePicker from "./ThemePicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
+import RSVPPicker from "./RSVPPicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import PlainBody from "./PlainBody";
@@ -85,6 +86,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["inbox", "i"], desc: "Back to inbox" },
   { names: ["archived", "b"], desc: "Archived messages" },
   { names: ["markdown", "md"], desc: "Toggle HTML / text" },
+  { names: ["images", "remote", "img"], desc: "Load / block remote images" },
   { names: ["load", "more", "next"], desc: "Load more messages" },
   { names: ["attachments", "attach"], desc: "Focus attachments" },
   { names: ["accounts", "acc"], desc: "Switch account" },
@@ -155,6 +157,7 @@ export default function App() {
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
+  const [appVersion, setAppVersion] = useState("");
   const [linksFor, setLinksFor] = useState<string | null>(null);
   const [obsidianOn, setObsidianOn] = useState(false);
   const [slackOn, setSlackOn] = useState(false);
@@ -213,8 +216,8 @@ export default function App() {
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
   const [csIndex, setCsIndex] = useState(0);
-  // The RSVP bar auto-shows for invites; V hides/shows it (TUI's RSVP toggle).
-  const [rsvpHidden, setRsvpHidden] = useState(false);
+  // The RSVP bar auto-shows for invites; V opens a keyboard-navigable picker.
+  const [rsvpPickerOpen, setRsvpPickerOpen] = useState(false);
   // The reader toolbar is optional — GizTUI is keyboard-first, so users can
   // hide it and drive everything from the keyboard. The choice is persisted.
   const [showToolbar, setShowToolbar] = useState(
@@ -519,6 +522,11 @@ export default function App() {
         setKeymap(await backend.KeyMap());
       } catch {
         /* non-fatal — defaults already set */
+      }
+      try {
+        setAppVersion(await backend.Version());
+      } catch {
+        /* non-fatal */
       }
       try {
         setObsidianOn(await backend.ObsidianEnabled());
@@ -1667,6 +1675,11 @@ export default function App() {
         case "md":
           if (d && d.html && d.html.trim()) setViewHtml((v) => !v);
           break;
+        case "images":
+        case "remote":
+        case "img":
+          setLoadRemote((v) => !v);
+          break;
         case "load":
         case "more":
         case "next":
@@ -2045,6 +2058,7 @@ export default function App() {
         statsOpen ||
         configOpen ||
         moveFor ||
+        rsvpPickerOpen ||
         bulkPromptText !== null
       )
         return;
@@ -2430,9 +2444,9 @@ export default function App() {
           }
           break;
         case "rsvp":
-          // Toggle the invite panel for the current message (TUI's V). Only
-          // meaningful when the open message is a calendar invite.
-          if (detail && invite?.isInvite) setRsvpHidden((v) => !v);
+          // Open the keyboard-navigable RSVP picker for the current invite
+          // (TUI's V). Only meaningful when the open message is an invite.
+          if (detail && invite?.isInvite) setRsvpPickerOpen(true);
           break;
       }
     };
@@ -2509,6 +2523,7 @@ export default function App() {
     accounts,
     bumpZoom,
     resetZoom,
+    rsvpPickerOpen,
     load,
     loadMore,
   ]);
@@ -3097,7 +3112,7 @@ export default function App() {
                 )}
               </div>
               <div className="reader-body">
-                {invite?.isInvite && !rsvpHidden && (
+                {invite?.isInvite && (
                   <div className="rsvp-bar">
                     <div className="rsvp-info">
                       <span className="rsvp-title">📅 {invite.summary || "Calendar invite"}</span>
@@ -3494,6 +3509,18 @@ export default function App() {
             setSaveQueryOpen(true);
           }}
           onClose={() => setQueriesOpen(false)}
+        />
+      )}
+      {rsvpPickerOpen && detail && invite?.isInvite && (
+        <RSVPPicker
+          summary={invite.summary || ""}
+          when={invite.dtStart ? formatICSDate(invite.dtStart) : ""}
+          busy={rsvpBusy}
+          onRespond={(status) => {
+            void respondInvite(detail.id, status);
+            setRsvpPickerOpen(false);
+          }}
+          onClose={() => setRsvpPickerOpen(false)}
         />
       )}
       {saveQueryOpen && (
@@ -4025,6 +4052,7 @@ export default function App() {
             rsvp: rsvpEnabled,
             themes: themesOn,
           }}
+          version={appVersion}
           onClose={() => setShowHelp(false)}
         />
       )}

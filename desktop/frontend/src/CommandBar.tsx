@@ -38,6 +38,11 @@ export default function CommandBar({
         className="cmd-bar"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          // Keep keys inside the command bar. Otherwise the Enter that runs a
+          // command bubbles to window and is caught by a picker this command
+          // just opened (its window-level nav listener), instantly selecting the
+          // first item — e.g. :theme applied a theme instead of showing the list.
+          e.stopPropagation();
           if (e.key === "Escape") {
             onClose();
           } else if (e.key === "ArrowDown") {

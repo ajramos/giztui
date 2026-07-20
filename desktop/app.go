@@ -71,6 +71,9 @@ func (a *App) shutdown(_ context.Context) {
 // not). The frontend polls this before its first backend calls.
 func (a *App) Ready() bool { return a.ready.Load() }
 
+// Version returns the desktop build version so the UI can show it (like the TUI).
+func (a *App) Version() string { return desktop.Version() }
+
 // api returns the shared API or an error describing why startup failed / is
 // still in progress.
 func (a *App) api() (*desktop.API, error) {

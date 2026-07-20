@@ -186,10 +186,12 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
 export default function Help({
   keymap,
   flags,
+  version,
   onClose,
 }: {
   keymap: KeyMap;
   flags: HelpFlags;
+  version?: string;
   onClose: () => void;
 }) {
   const sections = buildSections(keymap, flags);
@@ -197,9 +199,9 @@ export default function Help({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal help-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>Keyboard shortcuts</h3>
+          <h3>GizTUI Desktop{version ? ` · ${version}` : ""}</h3>
           <span className="help-hint muted">
-            shows your configured keys · press <kbd>Esc</kbd> to close
+            your configured keys · press <kbd>Esc</kbd> to close
           </span>
           <button className="ghost" onClick={onClose}>
             ✕

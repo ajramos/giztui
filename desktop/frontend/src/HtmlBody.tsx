@@ -31,12 +31,17 @@ export default function HtmlBody({
     }
     const shadow = shadowRef.current;
 
-    // Block remote images (tracking pixels) until the user opts in. Scoped to
-    // this sanitize call by adding/removing the hook around it.
+    // Never let a remote <img> load itself: stash the URL on a data attribute
+    // and drop src. That blocks tracking pixels by default, and — because macOS
+    // WKWebView won't load external subresources from the app origin — lets us
+    // fetch approved images through the backend as data URIs (see below).
     const hook = (node: Element) => {
       if (node.nodeName === "IMG") {
         const src = node.getAttribute("src") || "";
-        if (!loadRemote && /^https?:/i.test(src)) node.removeAttribute("src");
+        if (/^https?:/i.test(src)) {
+          node.setAttribute("data-remote-src", src);
+          node.removeAttribute("src");
+        }
       }
     };
     DOMPurify.addHook("afterSanitizeAttributes", hook);
@@ -67,6 +72,23 @@ export default function HtmlBody({
       .wrap img{ max-width:100%; height:auto; }
       .wrap table{ max-width:100%; }
     </style><div class="wrap">${clean}</div>`;
+
+    // Once the user opts in, fetch each remote image through the backend and
+    // swap in the returned data URI (WKWebView won't fetch them in-page).
+    if (loadRemote) {
+      shadow
+        .querySelectorAll<HTMLImageElement>("img[data-remote-src]")
+        .forEach((img) => {
+          const url = img.getAttribute("data-remote-src");
+          if (!url) return;
+          void backend
+            .FetchImage(url)
+            .then((uri) => {
+              if (uri) img.setAttribute("src", uri);
+            })
+            .catch(() => undefined);
+        });
+    }
   }, [html, loadRemote]);
 
   // Open links in the system browser. Clicks inside the shadow tree are composed,

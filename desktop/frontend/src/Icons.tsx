@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 // Minimal stroke icons (Feather-style), sized to the current font.
 const svg = (children: ReactNode) => (
   <svg
-    width="18"
-    height="18"
+    width="20"
+    height="20"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="2.1"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"

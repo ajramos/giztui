@@ -38,7 +38,12 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 100% (of #root, which fills the viewport) rather than 100vh: CSS zoom
+     rescales the effective viewport, and 100vh doesn't follow it — that made a
+     zoomed UI overflow and grow scrollbars. 100% cascades from html/#root and
+     tracks the zoomed viewport correctly. */
+  height: 100%;
+  overflow: hidden;
 }
 .app:focus {
   outline: none;
@@ -189,6 +194,9 @@ button.danger {
 }
 .row.selected {
   background: var(--bg-selected);
+  /* An accent bar makes the cursor row unmistakable next to hover/checked,
+     whatever the theme's selected background is. */
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .row.unread .subject {
   font-weight: 700;
@@ -299,7 +307,7 @@ button.danger {
 .icon-btn {
   background: transparent;
   border: 1px solid var(--border);
-  color: var(--text-muted);
+  color: var(--text);
   width: 34px;
   height: 34px;
   padding: 0;
@@ -758,10 +766,13 @@ button.danger {
   top: calc(100% + 6px);
 }
 .row.checked {
-  background: #1e2a3f;
+  /* Accent-tinted so it reads as "in the bulk selection" and adapts to the
+     theme, instead of a hardcoded navy that clashed with some themes. */
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
 }
 .row.checked.selected {
-  background: var(--bg-selected);
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg-selected));
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .row-check {
   color: var(--accent);

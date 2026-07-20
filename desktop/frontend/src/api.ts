@@ -313,6 +313,8 @@ interface Backend {
   ViewAnalyzerPrompt(): Promise<string>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
+  FetchImage(url: string): Promise<string>;
+  Version(): Promise<string>;
   SaveMessage(messageID: string): Promise<string>;
   SaveRawMessage(messageID: string): Promise<string>;
   AutoRefreshSettings(): Promise<AutoRefreshSettings>;
@@ -513,6 +515,7 @@ const mockBackend: Backend = {
     const html =
       Number(id.replace(/\D/g, "") || "0") % 2 === 0
         ? `<div style="font-family:Arial,sans-serif">
+             <img src="https://example.com/logo.png" alt="logo" width="120">
              <h2 style="color:#1a56db">${m.subject}</h2>
              <p>Hi there,</p>
              <p>This is a <strong>rich HTML</strong> version of the email, with
@@ -776,6 +779,14 @@ const mockBackend: Backend = {
   },
   async OpenURL() {
     /* mock: no-op */
+  },
+  async FetchImage(url: string) {
+    // Mock: echo the URL back so the browser loads it directly (real backend
+    // returns a data: URI).
+    return url;
+  },
+  async Version() {
+    return "dev (mock)";
   },
   async SaveMessage() {
     await new Promise((r) => setTimeout(r, 200));
