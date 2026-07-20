@@ -32,6 +32,7 @@ import LinksPicker from "./LinksPicker";
 import ThemePicker from "./ThemePicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
+import MovePicker from "./MovePicker";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import PlainBody from "./PlainBody";
@@ -211,7 +212,6 @@ export default function App() {
   const [headersExpanded, setHeadersExpanded] = useState(false);
   const [headersHidden, setHeadersHidden] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
-  const [moveName, setMoveName] = useState("");
   const [labels, setLabels] = useState<Label[]>([]);
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
@@ -1103,7 +1103,6 @@ export default function App() {
       const label = name.trim();
       if (!label) return;
       setMoveFor(null);
-      setMoveName("");
       try {
         await backend.MoveToLabel(id, label);
         setMessages((prev) => prev.filter((m) => m.id !== id));
@@ -1664,7 +1663,6 @@ export default function App() {
           if (d) {
             if (arg) void doMove(d.id, arg);
             else {
-              setMoveName("");
               setMoveFor(d.id);
             }
           }
@@ -2448,7 +2446,6 @@ export default function App() {
           break;
         case "move":
           if (detail && !bulkMode) {
-            setMoveName("");
             setMoveFor(detail.id);
           }
           break;
@@ -3083,7 +3080,6 @@ export default function App() {
                         icon: Icon.folder,
                         label: "Move to…",
                         onClick: () => {
-                          setMoveName("");
                           setMoveFor(detail.id);
                         },
                       },
@@ -3820,54 +3816,11 @@ export default function App() {
         />
       )}
       {moveFor && (
-        <div
-          className="modal-overlay"
-          onClick={() => setMoveFor(null)}
-        >
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setMoveFor(null);
-              else if (e.key === "Enter") void doMove(moveFor, moveName);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Move to folder</h3>
-              <button className="ghost" onClick={() => setMoveFor(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="field">
-                <label>Label (applies it and archives the message)</label>
-                <input
-                  value={moveName}
-                  onChange={(e) => setMoveName(e.target.value)}
-                  placeholder="e.g. Work / Receipts"
-                  list="move-label-list"
-                  autoFocus
-                />
-                <datalist id="move-label-list">
-                  {labels.map((l) => (
-                    <option key={l.id} value={l.name} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="ghost" onClick={() => setMoveFor(null)}>
-                Cancel
-              </button>
-              <button
-                onClick={() => void doMove(moveFor, moveName)}
-                disabled={!moveName.trim()}
-              >
-                Move
-              </button>
-            </div>
-          </div>
-        </div>
+        <MovePicker
+          labels={labels}
+          onMove={(name) => void doMove(moveFor, name)}
+          onClose={() => setMoveFor(null)}
+        />
       )}
       {advOpen && (
         <div className="modal-overlay" onClick={() => setAdvOpen(false)}>
