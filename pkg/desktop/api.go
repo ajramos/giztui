@@ -43,24 +43,25 @@ type Deps struct {
 	Email        services.EmailService
 	Labels       services.LabelService
 	Mail         mailClient
-	AI           services.AIService            // optional; nil when no LLM is configured
-	Attach       services.AttachmentService    // optional
-	Prompts      services.PromptService        // optional; nil without LLM+DB
-	Web          services.GmailWebService      // optional
-	Composition  services.CompositionService   // optional; used to load drafts
-	Draft        draftClient                   // optional; draft CRUD (usually *gmail.Client)
-	Link         services.LinkService          // optional
-	Obsidian     services.ObsidianService      // optional
-	Slack        services.SlackService         // optional
-	Thread       services.ThreadService        // optional
-	Query        services.QueryService         // optional
-	Analyzer     services.InboxAnalyzerService // optional
-	Rules        services.AnalyzerRulesService // optional; analyzer preference rules
-	Theme        services.ThemeService         // optional
-	Invite       inviteClient                  // optional; calendar invite detection (gmail client)
-	Cal          calClient                     // optional; calendar RSVP responder
-	Cache        services.CacheService         // optional; summary cache (for clearing)
-	AccountEmail string                        // active account address, used as the "from" for sends
+	AI           services.AIService                 // optional; nil when no LLM is configured
+	Attach       services.AttachmentService         // optional
+	Prompts      services.PromptService             // optional; nil without LLM+DB
+	Web          services.GmailWebService           // optional
+	Composition  services.CompositionService        // optional; used to load drafts
+	Draft        draftClient                        // optional; draft CRUD (usually *gmail.Client)
+	Link         services.LinkService               // optional
+	Obsidian     services.ObsidianService           // optional
+	Slack        services.SlackService              // optional
+	Thread       services.ThreadService             // optional
+	Query        services.QueryService              // optional
+	Analyzer     services.InboxAnalyzerService      // optional
+	Rules        services.AnalyzerRulesService      // optional; analyzer preference rules
+	DetRules     services.DeterministicRulesService // optional; deterministic rules (:rules)
+	Theme        services.ThemeService              // optional
+	Invite       inviteClient                       // optional; calendar invite detection (gmail client)
+	Cal          calClient                          // optional; calendar RSVP responder
+	Cache        services.CacheService              // optional; summary cache (for clearing)
+	AccountEmail string                             // active account address, used as the "from" for sends
 	Logger       *log.Logger
 }
 
@@ -85,6 +86,7 @@ type API struct {
 	query        services.QueryService
 	analyzer     services.InboxAnalyzerService
 	rules        services.AnalyzerRulesService
+	detRules     services.DeterministicRulesService
 	theme        services.ThemeService
 	invite       inviteClient
 	cal          calClient
@@ -117,6 +119,7 @@ func NewAPI(d Deps) *API {
 		query:        d.Query,
 		analyzer:     d.Analyzer,
 		rules:        d.Rules,
+		detRules:     d.DetRules,
 		theme:        d.Theme,
 		invite:       d.Invite,
 		cal:          d.Cal,

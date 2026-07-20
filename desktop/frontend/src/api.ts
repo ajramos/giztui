@@ -106,6 +106,24 @@ export interface AnalyzerRule {
   text: string;
 }
 
+// Deterministic rule (:rules): action applied to messages matching `query`.
+export interface DeterministicRule {
+  id: number;
+  query: string;
+  action: string; // archive | mark_read | trash | label | prompt
+  label: string;
+  promptId: number;
+  synced: boolean; // mirrored as a Gmail filter (☁)
+  createdAt: number;
+}
+
+export interface ImportResult {
+  imported: number;
+  adopted: number;
+  removed: number;
+  unsupported: { description: string; reason: string }[];
+}
+
 export interface AutoRefreshSettings {
   enabled: boolean;
   intervalSeconds: number;
@@ -310,6 +328,25 @@ interface Backend {
   ListAnalyzerRules(): Promise<AnalyzerRule[]>;
   SaveAnalyzerRule(text: string): Promise<void>;
   DeleteAnalyzerRule(id: number): Promise<void>;
+  DeterministicRulesEnabled(): Promise<boolean>;
+  ListDeterministicRules(): Promise<DeterministicRule[]>;
+  SaveDeterministicRule(
+    query: string,
+    action: string,
+    label: string,
+    promptId: number,
+  ): Promise<void>;
+  UpdateDeterministicRule(
+    id: number,
+    query: string,
+    action: string,
+    label: string,
+    promptId: number,
+  ): Promise<void>;
+  DeleteDeterministicRule(id: number): Promise<void>;
+  SyncDeterministicRule(id: number): Promise<void>;
+  UnsyncDeterministicRule(id: number): Promise<void>;
+  ImportGmailFilters(): Promise<ImportResult>;
   ViewAnalyzerPrompt(): Promise<string>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
@@ -765,6 +802,51 @@ const mockBackend: Backend = {
   async DeleteAnalyzerRule(id: number) {
     mockRules = mockRules.filter((r) => r.id !== id);
   },
+  async DeterministicRulesEnabled() {
+    return true;
+  },
+  async ListDeterministicRules() {
+    return mockDetRules;
+  },
+  async SaveDeterministicRule(
+    query: string,
+    action: string,
+    label: string,
+    promptId: number,
+  ) {
+    const id = Math.max(0, ...mockDetRules.map((r) => r.id)) + 1;
+    mockDetRules = [
+      ...mockDetRules,
+      { id, query, action, label, promptId, synced: false, createdAt: 0 },
+    ];
+  },
+  async UpdateDeterministicRule(
+    id: number,
+    query: string,
+    action: string,
+    label: string,
+    promptId: number,
+  ) {
+    mockDetRules = mockDetRules.map((r) =>
+      r.id === id ? { ...r, query, action, label, promptId } : r,
+    );
+  },
+  async DeleteDeterministicRule(id: number) {
+    mockDetRules = mockDetRules.filter((r) => r.id !== id);
+  },
+  async SyncDeterministicRule(id: number) {
+    mockDetRules = mockDetRules.map((r) =>
+      r.id === id ? { ...r, synced: true } : r,
+    );
+  },
+  async UnsyncDeterministicRule(id: number) {
+    mockDetRules = mockDetRules.map((r) =>
+      r.id === id ? { ...r, synced: false } : r,
+    );
+  },
+  async ImportGmailFilters() {
+    return { imported: 2, adopted: 1, removed: 0, unsupported: [] };
+  },
   async ViewAnalyzerPrompt() {
     const rulesBlock = mockRules.length
       ? "User preferences:\n" + mockRules.map((r) => `- ${r.text}`).join("\n") + "\n\n"
@@ -924,6 +1006,12 @@ let mockActiveAccount = "personal";
 let mockRules: AnalyzerRule[] = [
   { id: 1, text: "Always archive newsletters and weekly digests" },
   { id: 2, text: "Never trash anything from my bank" },
+];
+let mockDetRules: DeterministicRule[] = [
+  { id: 1, query: "from:github.com", action: "archive", label: "", promptId: 0, synced: true, createdAt: 0 },
+  { id: 2, query: "from:(support@zendesk.com)", action: "trash", label: "", promptId: 0, synced: false, createdAt: 0 },
+  { id: 3, query: "from:(confluence@atlassian.net)", action: "label", label: "Docs", promptId: 0, synced: true, createdAt: 0 },
+  { id: 4, query: "from:(substack.com OR medium.com)", action: "label", label: "Newsletter", promptId: 0, synced: false, createdAt: 0 },
 ];
 let mockPrompts: PromptDetail[] = [
   { id: 1, name: "Summarize concisely", description: "3-bullet summary", category: "general", text: "Summarize the following email in 3 bullets:\n\n{{body}}" },

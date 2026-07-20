@@ -33,6 +33,7 @@ import ThemePicker from "./ThemePicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
 import MovePicker from "./MovePicker";
+import RulesManager from "./RulesManager";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
 import PlainBody from "./PlainBody";
@@ -98,7 +99,8 @@ const COMMANDS: CommandDef[] = [
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
-  { names: ["rules"], desc: "Analyzer preference rules" },
+  { names: ["rules", "ru"], desc: "Deterministic rules manager" },
+  { names: ["analyzer-rules"], desc: "AI analyzer preference rules" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
   { names: ["find"], desc: "Find in message", arg: "<text>" },
@@ -184,6 +186,7 @@ export default function App() {
   const [applyingAll, setApplyingAll] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [detRulesOpen, setDetRulesOpen] = useState(false);
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
@@ -1819,6 +1822,12 @@ export default function App() {
           if (aiPromptsEnabled) setPromptManagerOpen(true);
           break;
         case "rules":
+        case "ru":
+          // Deterministic rules manager (matches the TUI's :rules). The AI
+          // analyzer's natural-language rules live on the action plan.
+          setDetRulesOpen(true);
+          break;
+        case "analyzer-rules":
           if (rulesEnabled) void openRules();
           break;
         case "help":
@@ -2059,6 +2068,7 @@ export default function App() {
         configOpen ||
         moveFor ||
         rsvpPickerOpen ||
+        detRulesOpen ||
         bulkPromptText !== null;
       if (anyModal) {
         // Escape closes the topmost modal from the window (WKWebView won't focus
@@ -2566,6 +2576,7 @@ export default function App() {
     bumpZoom,
     resetZoom,
     rsvpPickerOpen,
+    detRulesOpen,
     rulesEnabled,
     openRules,
     viewAnalyzerPrompt,
@@ -3721,6 +3732,9 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+      {detRulesOpen && (
+        <RulesManager onClose={() => setDetRulesOpen(false)} />
       )}
       {rulesOpen && (
         <div className="modal-overlay" onClick={() => setRulesOpen(false)}>

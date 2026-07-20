@@ -995,6 +995,35 @@ button.danger {
   align-items: center;
   gap: 6px;
 }
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+}
+.rule-row .rule-action {
+  flex: 0 0 42%;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rule-row .rule-query {
+  flex: 1;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .query-main {
   flex: 1;
   background: transparent;

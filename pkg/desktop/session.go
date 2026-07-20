@@ -210,9 +210,22 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		rulesService = services.NewAnalyzerRulesService(db.NewAnalyzerRulesStore(dbStore))
 	}
 
-	// Saved queries and analyzer rules are scoped per account, so they need the
-	// active email set or every call fails with "account email not set". The
-	// setter lives on the concrete types, not the interfaces.
+	// Deterministic rules (:rules): structured Archive/Trash/Label/Prompt rules
+	// with optional mirroring as real Gmail filters. Needs the DB; a nil filter
+	// API just disables sync while CRUD/sweeps keep working.
+	var detRulesService services.DeterministicRulesService
+	if dbStore != nil {
+		var filters services.GmailFilterAPI
+		if client != nil {
+			filters = client
+		}
+		detRulesService = services.NewDeterministicRulesService(
+			db.NewDeterministicRulesStore(dbStore), repo, labelService, filters)
+	}
+
+	// Saved queries, analyzer rules and deterministic rules are account-scoped,
+	// so they need the active email set or every call fails with "account email
+	// not set". The setter lives on the concrete types / this interface.
 	type accountScoped interface{ SetAccountEmail(string) }
 	if accountEmail != "" {
 		if s, ok := queryService.(accountScoped); ok {
@@ -220,6 +233,9 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		}
 		if s, ok := rulesService.(accountScoped); ok {
 			s.SetAccountEmail(accountEmail)
+		}
+		if detRulesService != nil {
+			detRulesService.SetAccountEmail(accountEmail)
 		}
 	}
 
@@ -244,6 +260,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Query:        queryService,
 		Analyzer:     analyzerService,
 		Rules:        rulesService,
+		DetRules:     detRulesService,
 		Theme:        themeService,
 		Invite:       client,
 		Cal:          cal,

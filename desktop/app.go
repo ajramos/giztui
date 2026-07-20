@@ -216,6 +216,76 @@ func (a *App) DeleteAnalyzerRule(id int64) error {
 	return api.DeleteAnalyzerRule(a.ctx, id)
 }
 
+// --- deterministic rules (:rules) -------------------------------------------
+
+// DeterministicRulesEnabled reports whether the rules subsystem is available.
+func (a *App) DeterministicRulesEnabled() bool {
+	return a.enabled((*desktop.API).DeterministicRulesEnabled)
+}
+
+// ListDeterministicRules returns all deterministic rules.
+func (a *App) ListDeterministicRules() ([]desktop.DeterministicRule, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ListDeterministicRules(a.ctx)
+}
+
+// SaveDeterministicRule creates a rule.
+func (a *App) SaveDeterministicRule(query, action, label string, promptID int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.SaveDeterministicRule(a.ctx, query, action, label, promptID)
+}
+
+// UpdateDeterministicRule edits a rule.
+func (a *App) UpdateDeterministicRule(id int64, query, action, label string, promptID int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.UpdateDeterministicRule(a.ctx, id, query, action, label, promptID)
+}
+
+// DeleteDeterministicRule removes a rule.
+func (a *App) DeleteDeterministicRule(id int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeleteDeterministicRule(a.ctx, id)
+}
+
+// SyncDeterministicRule mirrors a rule as a Gmail filter.
+func (a *App) SyncDeterministicRule(id int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.SyncDeterministicRule(a.ctx, id)
+}
+
+// UnsyncDeterministicRule removes a rule's mirrored Gmail filter.
+func (a *App) UnsyncDeterministicRule(id int64) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.UnsyncDeterministicRule(a.ctx, id)
+}
+
+// ImportGmailFilters reconciles Gmail filters into rules.
+func (a *App) ImportGmailFilters() (*desktop.ImportResult, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.ImportGmailFilters(a.ctx)
+}
+
 // ViewAnalyzerPrompt returns the effective analyzer prompt for inspection.
 func (a *App) ViewAnalyzerPrompt() (string, error) {
 	api, err := a.api()
