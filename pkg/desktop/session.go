@@ -210,6 +210,19 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		rulesService = services.NewAnalyzerRulesService(db.NewAnalyzerRulesStore(dbStore))
 	}
 
+	// Saved queries and analyzer rules are scoped per account, so they need the
+	// active email set or every call fails with "account email not set". The
+	// setter lives on the concrete types, not the interfaces.
+	type accountScoped interface{ SetAccountEmail(string) }
+	if accountEmail != "" {
+		if s, ok := queryService.(accountScoped); ok {
+			s.SetAccountEmail(accountEmail)
+		}
+		if s, ok := rulesService.(accountScoped); ok {
+			s.SetAccountEmail(accountEmail)
+		}
+	}
+
 	// Theming: read the user's theme from config (best-effort).
 	themeService := buildThemeService(cfg)
 
