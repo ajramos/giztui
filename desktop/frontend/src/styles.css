@@ -1022,6 +1022,22 @@ button.danger {
   font-size: 12px;
   margin-top: 2px;
 }
+.rule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 5px 1px 3px;
+}
+.rule-badge svg {
+  width: 11px;
+  height: 11px;
+}
 .prio {
   font-size: 10px;
   text-transform: uppercase;

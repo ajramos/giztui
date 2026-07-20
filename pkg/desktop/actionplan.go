@@ -24,27 +24,96 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput) (*Action
 			ID: in.ID, Subject: in.Subject, From: in.From, Snippet: in.Snippet,
 		})
 	}
-	available := a.availableLabelNames(ctx)
-	plan, err := a.analyzer.Analyze(ctx, msgs, services.InboxAnalyzerOptions{
-		BatchSize:       50,
-		MaxBatches:      5,
-		AvailableLabels: available,
-		UserRules:       a.userRuleTexts(ctx),
-	}, nil)
-	if err != nil {
-		return nil, err
+
+	res := &ActionPlanResult{}
+
+	// First pass: resolve messages against the deterministic rules (the TUI's
+	// DeterministicPrefilter). Matched messages become rule categories and are
+	// removed from what the LLM sees.
+	resolved := 0
+	if a.detRules != nil {
+		candidates := make([]string, len(msgs))
+		for i := range msgs {
+			candidates[i] = msgs[i].ID
+		}
+		matches, remaining, err := a.detRules.Partition(ctx, "in:inbox", candidates)
+		if err == nil && len(matches) > 0 {
+			for _, m := range matches {
+				if len(m.MessageIDs) == 0 {
+					continue
+				}
+				res.Categories = append(res.Categories, PlanCategory{
+					Name:        deterministicRuleName(m.Rule),
+					Priority:    "medium",
+					Description: "Matched by rule: " + m.Rule.Query,
+					Action:      m.Rule.Action,
+					Label:       m.Rule.Label,
+					MessageIDs:  m.MessageIDs,
+					ByRule:      true,
+				})
+			}
+			keep := make(map[string]bool, len(remaining))
+			for _, id := range remaining {
+				keep[id] = true
+			}
+			filtered := msgs[:0]
+			for _, m := range msgs {
+				if keep[m.ID] {
+					filtered = append(filtered, m)
+				}
+			}
+			resolved = len(msgs) - len(filtered)
+			msgs = filtered
+		}
 	}
-	res := &ActionPlanResult{
-		TotalAnalyzed: plan.TotalAnalyzed,
-		ReadManually:  len(plan.ReadManually),
-	}
-	for _, c := range plan.Categories {
-		res.Categories = append(res.Categories, PlanCategory{
-			Name: c.Name, Priority: c.Priority, Description: c.Description,
-			Action: c.Action, Label: c.Label, MessageIDs: c.MessageIDs,
-		})
+
+	// Second pass: LLM analyzes whatever the rules didn't resolve.
+	if len(msgs) > 0 {
+		available := a.availableLabelNames(ctx)
+		plan, err := a.analyzer.Analyze(ctx, msgs, services.InboxAnalyzerOptions{
+			BatchSize:       50,
+			MaxBatches:      5,
+			AvailableLabels: available,
+			UserRules:       a.userRuleTexts(ctx),
+		}, nil)
+		if err != nil {
+			return nil, err
+		}
+		res.TotalAnalyzed = plan.TotalAnalyzed + resolved
+		res.ReadManually = len(plan.ReadManually)
+		for _, c := range plan.Categories {
+			res.Categories = append(res.Categories, PlanCategory{
+				Name: c.Name, Priority: c.Priority, Description: c.Description,
+				Action: c.Action, Label: c.Label, MessageIDs: c.MessageIDs,
+			})
+		}
+	} else {
+		res.TotalAnalyzed = resolved
 	}
 	return res, nil
+}
+
+// deterministicRuleName renders a rule as an action-plan category name, e.g.
+// "Archive: from:github.com" (query capped), matching the TUI.
+func deterministicRuleName(r services.DeterministicRuleInfo) string {
+	verb := map[string]string{
+		"archive":   "Archive",
+		"trash":     "Trash",
+		"mark_read": "Mark read",
+		"label":     "Label",
+		"prompt":    "Prompt",
+	}[r.Action]
+	if verb == "" {
+		verb = r.Action
+	}
+	if r.Action == "label" && strings.TrimSpace(r.Label) != "" {
+		verb = "Label " + r.Label
+	}
+	q := strings.TrimSpace(r.Query)
+	if rq := []rune(q); len(rq) > 40 {
+		q = string(rq[:40]) + "…"
+	}
+	return verb + ": " + q
 }
 
 // availableLabelNames returns the user's non-system label names for the analyzer.

@@ -93,6 +93,7 @@ export interface PlanCategory {
   action: string;
   label: string;
   messageIds: string[];
+  byRule?: boolean;
 }
 
 export interface ActionPlanResult {
@@ -780,6 +781,7 @@ const mockBackend: Backend = {
       totalAnalyzed: inputs.length,
       readManually: 1,
       categories: [
+        { name: "Archive: from:github.com", priority: "medium", description: "Matched by rule: from:github.com", action: "archive", label: "", messageIds: ids.slice(0, 1), byRule: true },
         { name: "Newsletters", priority: "low", description: "Digests and weekly roundups", action: "archive", label: "", messageIds: ids.slice(0, 2) },
         { name: "Calendar invites", priority: "medium", description: "Accepted meeting notifications", action: "mark_read", label: "", messageIds: ids.slice(2, 4) },
         { name: "Finance", priority: "high", description: "Invoices and expenses to review", action: "label", label: "Finance", messageIds: ids.slice(4, 5) },

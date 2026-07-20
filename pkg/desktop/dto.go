@@ -94,7 +94,7 @@ type AnalyzerInput struct {
 	Snippet string `json:"snippet"`
 }
 
-// PlanCategory is one category of the AI inbox action plan.
+// PlanCategory is one category of the inbox action plan.
 type PlanCategory struct {
 	Name        string   `json:"name"`
 	Priority    string   `json:"priority"`
@@ -102,6 +102,9 @@ type PlanCategory struct {
 	Action      string   `json:"action"`
 	Label       string   `json:"label"`
 	MessageIDs  []string `json:"messageIds"`
+	// ByRule is true for categories resolved by a deterministic rule (the
+	// first pass), so the UI can mark them distinctly from AI categories.
+	ByRule bool `json:"byRule"`
 }
 
 // ActionPlanResult is the AI inbox action plan.

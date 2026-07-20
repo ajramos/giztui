@@ -3671,21 +3671,21 @@ export default function App() {
         <div className="modal-overlay" onClick={() => setPlanOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <h3>✦ Inbox action plan</h3>
+              <h3>Inbox action plan</h3>
               <span className="summary-head-actions">
                 {rulesEnabled && (
                   <button className="ghost tiny" onClick={() => void openRules()}>
-                    ⚙ Rules
+                    Rules (r)
                   </button>
                 )}
                 <button
                   className="ghost tiny"
                   onClick={() => void viewAnalyzerPrompt()}
                 >
-                  View prompt
+                  Prompt (p)
                 </button>
                 <button className="ghost" onClick={() => setPlanOpen(false)}>
-                  ✕
+                  {Icon.x}
                 </button>
               </span>
             </div>
@@ -3727,9 +3727,18 @@ export default function App() {
                             <span className="conv-caret">
                               {expandedCats.has(c.name) ? "▾" : "▸"}
                             </span>
-                            <span className={"prio prio-" + c.priority}>
-                              {c.priority}
-                            </span>
+                            {c.byRule ? (
+                              <span
+                                className="rule-badge"
+                                title="Resolved by a deterministic rule"
+                              >
+                                {Icon.bolt} rule
+                              </span>
+                            ) : (
+                              <span className={"prio prio-" + c.priority}>
+                                {c.priority}
+                              </span>
+                            )}
                             <strong>{c.name}</strong>
                             <span className="plan-count">
                               {c.messageIds.length}
@@ -3780,6 +3789,10 @@ export default function App() {
               )}
             </div>
             <div className="modal-foot">
+              <span className="foot-hint">
+                ↑↓ move · Space see emails · Enter apply · r rules · p prompt · Esc
+                close
+              </span>
               {plan && plan.categories.length > 0 && (
                 <button
                   className="ghost"
@@ -3789,7 +3802,6 @@ export default function App() {
                   {applyingAll ? "Applying…" : "Apply all"}
                 </button>
               )}
-              <button onClick={() => setPlanOpen(false)}>Done</button>
             </div>
           </div>
         </div>
