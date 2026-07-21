@@ -369,6 +369,12 @@ export default function App() {
       set("--border", c.border || mixHex(bg, fg, 0.16));
       set("--text", fg);
       set("--text-muted", c.muted || mixHex(fg, bg, 0.4));
+      // Readable secondary text (keyboard hints, ghost buttons, loading) —
+      // always derived from fg/bg so it stays legible regardless of how faint a
+      // theme's own muted color is. t is the weight toward bg, so a smaller value
+      // than --text-muted's 0.4 keeps this closer to the text colour (higher
+      // contrast).
+      set("--text-dim", mixHex(fg, bg, 0.2));
       set("--accent", accent);
       set("--accent-strong", accent);
       set("--danger", c.danger || "#ff6b6b");

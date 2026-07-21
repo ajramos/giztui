@@ -7,6 +7,10 @@
   --border: #2a2e37;
   --text: #e6e8ec;
   --text-muted: #9aa0ab;
+  /* Higher-contrast secondary text for functional/instructional UI (keyboard
+     hints, ghost buttons, loading text) — readable but a step below --text.
+     --text-muted stays for genuinely secondary content (dates, snippets). */
+  --text-dim: #c7ccd6;
   --accent: #6ea8fe;
   --accent-strong: #4d8bff;
   --danger: #ff6b6b;
@@ -124,7 +128,7 @@ button:disabled {
 }
 button.ghost {
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-dim);
   border: 1px solid var(--border);
 }
 button.ghost:hover {
@@ -140,7 +144,7 @@ button.danger {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--text-muted);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 .account .email {
@@ -682,7 +686,7 @@ button.danger {
 
 .empty-reader,
 .placeholder {
-  color: var(--text-muted);
+  color: var(--text-dim);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -930,7 +934,7 @@ button.danger {
   margin-right: 4px;
 }
 .foot-hint {
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-size: 12px;
   flex: 1;
 }
