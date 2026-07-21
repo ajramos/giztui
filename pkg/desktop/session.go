@@ -39,13 +39,17 @@ func (a calAdapter) RespondToInvite(ctx context.Context, eventID, attendeeEmail,
 }
 
 // gmailScopes mirrors the OAuth scopes requested by the TUI so the desktop
-// client can reuse the same token without re-consent.
+// client can reuse the same token without re-consent. calendar.events is
+// included so a token the desktop mints itself can respond to invites (RSVP) —
+// without it, any desktop-initiated auth produced a token that 403'd on the
+// Calendar API.
 var gmailScopes = []string{
 	"https://www.googleapis.com/auth/gmail.readonly",
 	"https://www.googleapis.com/auth/gmail.send",
 	"https://www.googleapis.com/auth/gmail.modify",
 	"https://www.googleapis.com/auth/gmail.compose",
 	"https://www.googleapis.com/auth/gmail.settings.basic",
+	calendarScope,
 }
 
 // Options configures how a Session resolves its config and credentials. All

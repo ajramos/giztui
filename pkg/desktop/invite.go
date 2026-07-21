@@ -64,9 +64,26 @@ func (a *API) RespondInvite(ctx context.Context, id, status string) error {
 	}
 	eventID, err := a.cal.FindEventID(ctx, inv.UID)
 	if err != nil {
-		return err
+		return rsvpError(err)
 	}
-	return a.cal.RespondToInvite(ctx, eventID, email, status)
+	return rsvpError(a.cal.RespondToInvite(ctx, eventID, email, status))
+}
+
+// rsvpError turns Google's raw "insufficient authentication scopes" 403 into an
+// actionable message. The token was minted without the calendar.events scope
+// (older tokens, or a desktop-only auth before that scope was requested), so the
+// user must re-authorize — reusing the existing token can't add a scope.
+func rsvpError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "ACCESS_TOKEN_SCOPE_INSUFFICIENT") ||
+		strings.Contains(msg, "insufficient authentication scopes") ||
+		strings.Contains(msg, "Insufficient Permission") {
+		return fmt.Errorf("calendar access not granted for this account — re-authorize to enable RSVP (remove %s and restart, or run `giztui --setup`)", "~/.config/giztui/token.json")
+	}
+	return err
 }
 
 // detectInvite walks a message's MIME parts for a text/calendar REQUEST and
