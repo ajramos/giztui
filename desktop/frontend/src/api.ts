@@ -47,6 +47,9 @@ export interface Attachment {
   size: number;
   type: string;
   inline: boolean;
+  // Content-ID (without <>) for inline attachments, used to resolve cid: image
+  // references in the HTML body.
+  contentId: string;
 }
 
 export interface Prompt {
@@ -353,6 +356,7 @@ interface Backend {
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;
   FetchImage(url: string): Promise<string>;
+  FetchInlineImage(messageID: string, attachmentID: string): Promise<string>;
   Version(): Promise<string>;
   SaveMessage(messageID: string): Promise<string>;
   SaveRawMessage(messageID: string): Promise<string>;
@@ -555,6 +559,7 @@ const mockBackend: Backend = {
       Number(id.replace(/\D/g, "") || "0") % 2 === 0
         ? `<div style="font-family:Arial,sans-serif">
              <img src="https://example.com/logo.png" alt="logo" width="120">
+             <img src="cid:inlineimg1" alt="inline attachment">
              <h2 style="color:#1a56db">${m.subject}</h2>
              <p>Hi there,</p>
              <p>This is a <strong>rich HTML</strong> version of the email, with
@@ -619,6 +624,16 @@ const mockBackend: Backend = {
           size: 84213,
           type: "document",
           inline: false,
+          contentId: "",
+        },
+        {
+          attachmentId: "att-inline",
+          filename: "image.png",
+          mimeType: "image/png",
+          size: 15210,
+          type: "image",
+          inline: true,
+          contentId: "inlineimg1",
         },
       ];
     }
@@ -872,6 +887,12 @@ const mockBackend: Backend = {
     // Mock: echo the URL back so the browser loads it directly (real backend
     // returns a data: URI).
     return url;
+  },
+  async FetchInlineImage(_m: string, attachmentID: string) {
+    // Mock: return a tiny inline SVG data URI so cid: images render in the
+    // browser (real backend returns the attachment bytes as a data URI).
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="#1a56db"/><text x="60" y="45" fill="#fff" font-size="12" text-anchor="middle">${attachmentID}</text></svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
   },
   async Version() {
     return "dev (mock)";

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import DOMPurify from "dompurify";
-import { backend } from "./api";
+import { backend, type Attachment } from "./api";
 
 // HtmlBody renders an email's HTML directly in the page inside a Shadow DOM.
 //
@@ -16,9 +16,15 @@ import { backend } from "./api";
 export default function HtmlBody({
   html,
   loadRemote,
+  messageId,
+  attachments,
 }: {
   html: string;
   loadRemote: boolean;
+  // messageId + attachments let us resolve cid: inline images to their attachment
+  // bytes (fetched via the backend and inlined as data URIs).
+  messageId?: string;
+  attachments?: Attachment[];
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRef = useRef<ShadowRoot | null>(null);
@@ -40,6 +46,11 @@ export default function HtmlBody({
         const src = node.getAttribute("src") || "";
         if (/^https?:/i.test(src)) {
           node.setAttribute("data-remote-src", src);
+          node.removeAttribute("src");
+        } else if (/^cid:/i.test(src)) {
+          // Inline image: stash the Content-ID; resolved to attachment bytes
+          // below. These are embedded email content, not remote trackers.
+          node.setAttribute("data-cid", src.slice(4).replace(/^<|>$/g, ""));
           node.removeAttribute("src");
         }
       }
@@ -73,6 +84,27 @@ export default function HtmlBody({
       .wrap table{ max-width:100%; }
     </style><div class="wrap">${clean}</div>`;
 
+    // Resolve cid: inline images to their attachment bytes (always — they're
+    // embedded content, no external server, so no "load remote" opt-in needed).
+    if (messageId && attachments && attachments.length > 0) {
+      shadow
+        .querySelectorAll<HTMLImageElement>("img[data-cid]")
+        .forEach((img) => {
+          const cid = img.getAttribute("data-cid");
+          if (!cid) return;
+          const att = attachments.find(
+            (a) => a.contentId && a.contentId === cid,
+          );
+          if (!att) return;
+          void backend
+            .FetchInlineImage(messageId, att.attachmentId)
+            .then((uri) => {
+              if (uri) img.setAttribute("src", uri);
+            })
+            .catch(() => undefined);
+        });
+    }
+
     // Once the user opts in, fetch each remote image through the backend and
     // swap in the returned data URI (WKWebView won't fetch them in-page).
     if (loadRemote) {
@@ -89,7 +121,7 @@ export default function HtmlBody({
             .catch(() => undefined);
         });
     }
-  }, [html, loadRemote]);
+  }, [html, loadRemote, messageId, attachments]);
 
   // Open links in the system browser. Clicks inside the shadow tree are composed,
   // so a listener on the host sees them and composedPath() reveals the anchor.

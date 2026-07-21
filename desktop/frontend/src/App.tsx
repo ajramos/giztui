@@ -2158,6 +2158,17 @@ export default function App() {
         }
       }
 
+      // Never let OS/browser clipboard & navigation combos (Cmd/Ctrl+C, V, X, A,
+      // Z…) fall through to single-key actions like compose ("c"). The only
+      // Cmd/Ctrl combos we act on are zoom (handled above) and the accounts
+      // switcher (Cmd/Ctrl+A, handled below), so let everything else reach the
+      // browser — otherwise selecting text and pressing Cmd+C opened the composer.
+      if (e.metaKey || e.ctrlKey) {
+        const isAccounts =
+          (e.key === "a" || e.key === "A") && accounts.length > 1;
+        if (!isAccounts) return;
+      }
+
       if (showHelp) {
         if (e.key === "Escape" || chord === keymap.help) {
           setShowHelp(false);
@@ -3608,7 +3619,12 @@ export default function App() {
                         </button>
                       </div>
                     )}
-                    <HtmlBody html={detail.html} loadRemote={loadRemote} />
+                    <HtmlBody
+                      html={detail.html}
+                      loadRemote={loadRemote}
+                      messageId={detail.id}
+                      attachments={attachments}
+                    />
                   </div>
                 ) : csOpen && csQuery ? (
                   <pre className="plain">

@@ -211,4 +211,7 @@ type Attachment struct {
 	Size         int64  `json:"size"`
 	Type         string `json:"type"`
 	Inline       bool   `json:"inline"`
+	// ContentID is the Content-ID (without <>) for inline attachments, used to
+	// resolve cid: image references in the HTML body.
+	ContentID string `json:"contentId"`
 }

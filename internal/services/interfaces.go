@@ -379,6 +379,10 @@ type LinkInfo struct {
 // AttachmentService handles attachment extraction and download operations
 type AttachmentService interface {
 	GetMessageAttachments(ctx context.Context, messageID string) ([]AttachmentInfo, error)
+	// GetAttachmentData returns an attachment's raw bytes and filename in memory,
+	// without writing to disk — used to inline images (e.g. cid: references) into
+	// a rendered HTML body.
+	GetAttachmentData(ctx context.Context, messageID, attachmentID string) ([]byte, string, error)
 	DownloadAttachment(ctx context.Context, messageID, attachmentID, savePath string) (string, error)
 	DownloadAttachmentWithFilename(ctx context.Context, messageID, attachmentID, savePath, suggestedFilename string) (string, error)
 	OpenAttachment(ctx context.Context, filePath string) error

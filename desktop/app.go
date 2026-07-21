@@ -843,6 +843,16 @@ func (a *App) DownloadAttachment(messageID, attachmentID, filename string) (stri
 	return api.DownloadAttachment(a.ctx, messageID, attachmentID, filename)
 }
 
+// FetchInlineImage returns an inline attachment as a data: URI so the reader can
+// render cid: image references embedded in the HTML body.
+func (a *App) FetchInlineImage(messageID, attachmentID string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.FetchInlineImage(a.ctx, messageID, attachmentID)
+}
+
 // OpenAttachment opens a downloaded attachment with the system default app.
 func (a *App) OpenAttachment(path string) error {
 	api, err := a.api()

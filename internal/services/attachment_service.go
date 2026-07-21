@@ -47,6 +47,15 @@ func (s *AttachmentServiceImpl) GetMessageAttachments(ctx context.Context, messa
 	return attachments, nil
 }
 
+// GetAttachmentData returns an attachment's raw bytes and filename in memory,
+// without writing to disk.
+func (s *AttachmentServiceImpl) GetAttachmentData(ctx context.Context, messageID, attachmentID string) ([]byte, string, error) {
+	if messageID == "" || attachmentID == "" {
+		return nil, "", fmt.Errorf("messageID and attachmentID cannot be empty")
+	}
+	return s.gmailClient.GetAttachment(messageID, attachmentID)
+}
+
 // DownloadAttachment downloads an attachment to the specified path
 func (s *AttachmentServiceImpl) DownloadAttachment(ctx context.Context, messageID, attachmentID, savePath string) (string, error) {
 	return s.DownloadAttachmentWithFilename(ctx, messageID, attachmentID, savePath, "")
