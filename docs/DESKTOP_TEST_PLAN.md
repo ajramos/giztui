@@ -189,14 +189,16 @@ message subject/account and what you saw.
 | # | Action | Exp |
 |---|--------|-----|
 | 10.1 | ⌨️ `P` / `:plan` | Deterministic-rules first pass, then AI; categories show priority, action, count; rule-matched ones tagged "rule" |
-| 10.2 | ⌨️ ↑↓, `Space`/→ on a category | Expands to list its emails; ↓ descends into them; `Enter` on an email opens it |
-| 10.3 | ⌨️ `Enter` on a category | Applies that category's action to its messages (archive/mark-read/label) |
-| 10.4 | ⌨️ `m` on an email | Move chooser (1-9 / ↑↓); reassigns that email to another bucket (in-memory until you apply) |
-| 10.5 | ⌨️ `m` on a category | Move chooser; reassigns the **whole** bucket; the emptied source category is pruned |
-| 10.6 | 🖱️ **Apply all** | Runs every category's action in one go |
-| 10.7 | ⌨️ `p` | Shows the effective analyzer prompt (rules block + base) |
-| 10.8 | ⌨️ `r` | Analyzer rules: add a natural-language rule; re-run `:plan` respects it |
-| 10.9 | `:rules` | Deterministic rules manager: add/edit/delete, Gmail sync, import filters |
+| 10.2 | ⌨️ →/`Space` on a category | Expands to list its emails; ↓ descends into them |
+| 10.3 | ⌨️ `Enter` on an email | Quick-view opens (peek at the body); `Esc` returns to the plan; "Open in reader" jumps to the full message |
+| 10.4 | ⌨️ `Space` on an email | Toggles selection (deselected = unchecked + struck); category apply/move act only on the still-selected subset |
+| 10.5 | ⌨️ `Enter` on a category | Applies that category's action to its **selected** messages (archive/mark-read/label) |
+| 10.6 | ⌨️ `m` on an email | Move chooser (1-9 / ↑↓); reassigns that email to another bucket (in-memory until you apply) |
+| 10.7 | ⌨️ `m` on a category | Move chooser; reassigns the still-selected emails of the bucket; an emptied source category is pruned |
+| 10.8 | 🖱️ **Apply all** | Runs every category's action in one go |
+| 10.9 | ⌨️ `p` | Shows the effective analyzer prompt (rules block + base) |
+| 10.10 | ⌨️ `r` | Analyzer rules: add a natural-language rule; re-run `:plan` respects it |
+| 10.11 | `:rules` | Deterministic rules manager: add/edit/delete, Gmail sync, import filters |
 
 ---
 

@@ -996,17 +996,33 @@ button.danger {
 }
 .plan-cat-emails li {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   padding: 4px 6px;
   border-radius: 6px;
-  cursor: pointer;
   font-size: 13px;
 }
 .plan-cat-emails li:hover {
   background: var(--bg-row-hover);
 }
+/* Fixed-width checkbox + from column so subjects line up across every category
+   (percentage widths drift because each category is its own list). */
+.plan-cat-emails .pe-check {
+  flex: 0 0 18px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--accent);
+  user-select: none;
+}
+.plan-cat-emails .pe-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+}
 .plan-cat-emails .pe-from {
-  flex: 0 0 34%;
+  flex: 0 0 240px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1014,9 +1030,18 @@ button.danger {
 }
 .plan-cat-emails .pe-subject {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Deselected email: unchecked box + dimmed, struck row. */
+.plan-cat-emails li.deselected .pe-check {
+  color: var(--text-muted);
+}
+.plan-cat-emails li.deselected .pe-body {
+  opacity: 0.5;
+  text-decoration: line-through;
 }
 .plan-cat-title {
   display: flex;
@@ -1594,6 +1619,34 @@ button.tiny {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+/* The action plan holds two-column email rows (from · subject), so it needs
+   more room than the default modal. */
+.plan-modal {
+  width: 960px;
+}
+/* Quickview: a comfortable reading width for peeking at an email. */
+.plan-preview {
+  width: 760px;
+}
+.qv-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.qv-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  color: var(--text);
+  max-height: 60vh;
+  overflow: auto;
 }
 .modal-head {
   display: flex;

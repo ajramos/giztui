@@ -200,6 +200,13 @@ export default function App() {
     catIdx: number;
     id?: string;
   } | null>(null);
+  // Action-plan emails toggled OFF (deselected). Emails are included by default;
+  // Space excludes one so category apply/move act only on the checked subset,
+  // mirroring the TUI's excluded map.
+  const [planExcluded, setPlanExcluded] = useState<Set<string>>(new Set());
+  // Quickview: peek at an email's content without leaving the action plan.
+  const [planPreview, setPlanPreview] = useState<MessageDetail | null>(null);
+  const [planPreviewLoading, setPlanPreviewLoading] = useState(false);
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
@@ -1490,6 +1497,7 @@ export default function App() {
     setPlanOpen(true);
     setAnalyzing(true);
     setPlan(null);
+    setPlanExcluded(new Set());
     setError("");
     try {
       const inputs: AnalyzerInput[] = messages.map((m) => ({
@@ -1508,7 +1516,9 @@ export default function App() {
 
   const applyCategory = useCallback(
     async (cat: PlanCategory) => {
-      const ids = cat.messageIds;
+      // Act only on the still-checked (non-deselected) emails; deselected ones
+      // stay in the category so the user can move or handle them separately.
+      const ids = cat.messageIds.filter((id) => !planExcluded.has(id));
       if (!ids.length) return;
       const idSet = new Set(ids);
       try {
@@ -1531,16 +1541,32 @@ export default function App() {
           return;
         }
         showToast(`${cat.name}: ${cat.action.replace("_", " ")} · ${ids.length}`);
+        // Drop the acted-on emails; keep the category (with any deselected ones)
+        // only if some remain, otherwise remove it entirely.
         setPlan((prev) =>
           prev
-            ? { ...prev, categories: prev.categories.filter((c) => c !== cat) }
+            ? {
+                ...prev,
+                categories: prev.categories
+                  .map((c) =>
+                    c === cat
+                      ? {
+                          ...c,
+                          messageIds: c.messageIds.filter(
+                            (id) => !idSet.has(id),
+                          ),
+                        }
+                      : c,
+                  )
+                  .filter((c) => c.messageIds.length > 0),
+              }
             : prev,
         );
       } catch (e) {
         setError(String(e));
       }
     },
-    [showToast, clearReaderIfRemoved],
+    [showToast, clearReaderIfRemoved, planExcluded],
   );
 
   // applyAllCategories runs every category's action in one go (the TUI's
@@ -1567,22 +1593,52 @@ export default function App() {
       setPlanMove(null);
       if (!mv || !plan) return;
       const src = plan.categories[mv.catIdx];
+      // A category move carries only the still-checked (non-deselected) emails,
+      // so you can deselect a few and move just the rest; a single-email move
+      // carries that one id.
       const ids =
-        mv.kind === "email" && mv.id ? [mv.id] : src ? src.messageIds : [];
+        mv.kind === "email" && mv.id
+          ? [mv.id]
+          : src
+            ? src.messageIds.filter((id) => !planExcluded.has(id))
+            : [];
       if (!ids.length) return;
       setPlan((prev) =>
         prev
           ? { ...prev, categories: applyPlanMove(prev.categories, ids, target) }
           : prev,
       );
+      // The moved emails are now in the target category (included by default).
+      if (planExcluded.size) {
+        setPlanExcluded((prev) => {
+          const n = new Set(prev);
+          ids.forEach((id) => n.delete(id));
+          return n;
+        });
+      }
       showToast(
         mv.kind === "email"
           ? `Moved email to ${target.label}`
           : `Moved ${ids.length} to ${target.label}`,
       );
     },
-    [planMove, plan, showToast],
+    [planMove, plan, planExcluded, showToast],
   );
+
+  // openPlanPreview loads an email's content into the action-plan quickview so
+  // you can peek at it (like the TUI's side-by-side reading) without leaving the
+  // plan — Escape returns to the tree.
+  const openPlanPreview = useCallback(async (id: string) => {
+    setPlanPreviewLoading(true);
+    setPlanPreview(null);
+    try {
+      setPlanPreview(await backend.GetMessage(id));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setPlanPreviewLoading(false);
+    }
+  }, []);
 
   // Keyboard nav for the action-plan categories. Enter applies the highlighted
   // category's action. windowKeys is gated on planOpen because this hook lives
@@ -1607,11 +1663,8 @@ export default function App() {
   const planNav = useListNav(planNodes, {
     onEnter: (node) => {
       if (node.type === "email") {
-        const m = messages.find((x) => x.id === node.id);
-        if (m) {
-          setPlanOpen(false);
-          void openMessage(m);
-        }
+        // Peek at the email in the quickview instead of leaving the plan.
+        void openPlanPreview(node.id);
         return;
       }
       const c = plan?.categories[node.catIdx];
@@ -1622,7 +1675,11 @@ export default function App() {
     // would also fire and close the plan when a sub-modal (rules/prompt/move
     // chooser) is up.
     windowKeys:
-      planOpen && !rulesOpen && promptPreview === null && planMove === null,
+      planOpen &&
+      !rulesOpen &&
+      promptPreview === null &&
+      planMove === null &&
+      planPreview === null,
   });
   // Ref so the key handler can act on the active node without the huge onKey
   // effect depending on planNav.active (which changes on every arrow).
@@ -2270,6 +2327,7 @@ export default function App() {
           else if (advOpen) setAdvOpen(false);
           else if (statsOpen) setStatsOpen(false);
           else if (configOpen) setConfigOpen(false);
+          else if (planPreview) setPlanPreview(null);
           else if (planMove) setPlanMove(null);
           else if (planOpen) setPlanOpen(false);
           else if (themePickerOpen) setThemePickerOpen(false);
@@ -2290,7 +2348,8 @@ export default function App() {
           !rulesOpen &&
           !detRulesOpen &&
           promptPreview === null &&
-          planMove === null
+          planMove === null &&
+          planPreview === null
         ) {
           if (e.key === "r") {
             e.preventDefault();
@@ -2320,9 +2379,35 @@ export default function App() {
               return;
             }
           }
-          // Space / →  expand the category of the active node to reveal its
-          // emails; ← collapses it. An email node acts on its parent category.
-          if (e.key === " " || e.key === "ArrowRight" || e.key === "ArrowLeft") {
+          // Space toggles selection of the active email (deselect to exclude it
+          // from the category's apply/move); on a category it expands/collapses.
+          if (e.key === " ") {
+            const node = planNodesRef.current[planActiveRef.current];
+            if (node?.type === "email") {
+              e.preventDefault();
+              setPlanExcluded((prev) => {
+                const n = new Set(prev);
+                if (n.has(node.id)) n.delete(node.id);
+                else n.add(node.id);
+                return n;
+              });
+              return;
+            }
+            const cat = node ? plan?.categories[node.catIdx] : undefined;
+            if (cat) {
+              e.preventDefault();
+              setExpandedCats((prev) => {
+                const n = new Set(prev);
+                if (n.has(cat.name)) n.delete(cat.name);
+                else n.add(cat.name);
+                return n;
+              });
+              return;
+            }
+          }
+          // → expands the active category (or the parent of the active email);
+          // ← collapses it.
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
             const node = planNodesRef.current[planActiveRef.current];
             const cat = node ? plan?.categories[node.catIdx] : undefined;
             if (cat) {
@@ -2330,8 +2415,6 @@ export default function App() {
               setExpandedCats((prev) => {
                 const n = new Set(prev);
                 if (e.key === "ArrowLeft") n.delete(cat.name);
-                else if (node.type === "email") n.add(cat.name);
-                else if (n.has(cat.name)) n.delete(cat.name);
                 else n.add(cat.name);
                 return n;
               });
@@ -2778,6 +2861,7 @@ export default function App() {
     saveQueryOpen,
     planOpen,
     planMove,
+    planPreview,
     themePickerOpen,
     rulesOpen,
     promptPreview,
@@ -3932,7 +4016,10 @@ export default function App() {
       )}
       {planOpen && (
         <div className="modal-overlay" onClick={() => setPlanOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal plan-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-head">
               <h3>Inbox action plan</h3>
               <span className="summary-head-actions">
@@ -4034,15 +4121,18 @@ export default function App() {
                           <ul className="plan-cat-emails">
                             {c.messageIds.map((id) => {
                               const m = messages.find((x) => x.id === id);
+                              const excluded = planExcluded.has(id);
                               return (
                                 <li
                                   key={id}
                                   className={
-                                    planActiveNode?.type === "email" &&
+                                    "plan-email" +
+                                    (planActiveNode?.type === "email" &&
                                     planActiveNode.catIdx === i &&
                                     planActiveNode.id === id
-                                      ? "nav-active"
-                                      : ""
+                                      ? " nav-active"
+                                      : "") +
+                                    (excluded ? " deselected" : "")
                                   }
                                   onMouseEnter={() =>
                                     planNav.setActive(
@@ -4054,18 +4144,41 @@ export default function App() {
                                       ),
                                     )
                                   }
-                                  onClick={() => {
-                                    if (m) {
-                                      setPlanOpen(false);
-                                      void openMessage(m);
-                                    }
-                                  }}
                                 >
-                                  <span className="pe-from">
-                                    {m ? displayName(m.from) : id}
+                                  <span
+                                    className="pe-check"
+                                    title={
+                                      excluded
+                                        ? "Deselected — Space to select"
+                                        : "Selected — Space to deselect"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPlanExcluded((prev) => {
+                                        const n = new Set(prev);
+                                        if (n.has(id)) n.delete(id);
+                                        else n.add(id);
+                                        return n;
+                                      });
+                                    }}
+                                  >
+                                    {excluded ? "☐" : "☑"}
                                   </span>
-                                  <span className="pe-subject muted">
-                                    {m?.subject || ""}
+                                  <span
+                                    className="pe-body"
+                                    onClick={() => {
+                                      if (m) {
+                                        setPlanOpen(false);
+                                        void openMessage(m);
+                                      }
+                                    }}
+                                  >
+                                    <span className="pe-from">
+                                      {m ? displayName(m.from) : id}
+                                    </span>
+                                    <span className="pe-subject muted">
+                                      {m?.subject || ""}
+                                    </span>
                                   </span>
                                 </li>
                               );
@@ -4080,8 +4193,8 @@ export default function App() {
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                ↑↓ move · Space see emails · Enter apply · m recategorize · r rules
-                · p prompt · Esc close
+                ↑↓ move · → expand · Space (de)select · Enter peek/apply · m
+                recategorize · r rules · p prompt · Esc close
               </span>
               {plan && plan.categories.length > 0 && (
                 <button
@@ -4112,6 +4225,56 @@ export default function App() {
           onChoose={doPlanMove}
           onClose={() => setPlanMove(null)}
         />
+      )}
+      {(planPreview || planPreviewLoading) && (
+        <div className="modal-overlay" onClick={() => setPlanPreview(null)}>
+          <div
+            className="modal plan-preview"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head">
+              <h3>{planPreview?.subject || "Quick view"}</h3>
+              <button className="ghost" onClick={() => setPlanPreview(null)}>
+                {Icon.x}
+              </button>
+            </div>
+            <div className="modal-body">
+              {planPreviewLoading || !planPreview ? (
+                <div className="placeholder">Loading…</div>
+              ) : (
+                <>
+                  <div className="qv-meta muted">
+                    <div>
+                      <strong>{displayName(planPreview.from)}</strong>{" "}
+                      {emailAddr(planPreview.from)}
+                    </div>
+                    <div>{formatFull(planPreview.date)}</div>
+                  </div>
+                  <pre className="qv-body">
+                    {planPreview.plainText?.trim() ||
+                      "(no plain-text preview — open in reader for the full HTML)"}
+                  </pre>
+                </>
+              )}
+            </div>
+            <div className="modal-foot">
+              <span className="foot-hint">Esc back to plan</span>
+              {planPreview && (
+                <button
+                  className="ghost"
+                  onClick={() => {
+                    const m = messages.find((x) => x.id === planPreview.id);
+                    setPlanPreview(null);
+                    setPlanOpen(false);
+                    if (m) void openMessage(m);
+                  }}
+                >
+                  Open in reader
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
       {detRulesOpen && (
         <RulesManager onClose={() => setDetRulesOpen(false)} />
