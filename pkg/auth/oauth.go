@@ -17,6 +17,48 @@ import (
 	"google.golang.org/api/option"
 )
 
+// authResultPage renders the branded page the browser lands on after the OAuth
+// redirect. It's a full, self-contained document (inline CSS, light/dark aware)
+// so it looks like part of GizTUI instead of a bare "Authorization successful".
+func authResultPage(ok bool) string {
+	accent, mark, title, body := "#16a34a", "✓", "You're all set",
+		"GizTUI has been authorized. You can close this tab and return to the app."
+	if !ok {
+		accent, mark, title, body = "#dc2626", "!", "Something went wrong",
+			"No authorization code was received. Close this tab and try signing in again from GizTUI."
+	}
+	return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GizTUI — ` + title + `</title>
+<style>
+:root{color-scheme:light dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#0f1115;color:#e6e8ec}
+@media (prefers-color-scheme:light){body{background:#f4f6fb;color:#1b1e24}}
+.card{max-width:440px;padding:40px 36px;border-radius:16px;text-align:center;
+  background:#171a21;border:1px solid #262b36;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+@media (prefers-color-scheme:light){.card{background:#fff;border-color:#e3e8f0;box-shadow:0 20px 60px rgba(20,30,60,.12)}}
+.logo{font-size:34px;color:#6d8bff;margin-bottom:8px}
+.mark{width:60px;height:60px;margin:6px auto 16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#fff;
+  background:` + accent + `}
+h1{margin:0 0 8px;font-size:20px}
+p{margin:0;opacity:.75}
+.hint{margin-top:18px;font-size:12px;opacity:.5}
+</style></head>
+<body><div class="card">
+<div class="logo">✦</div>
+<div class="mark">` + mark + `</div>
+<h1>` + title + `</h1>
+<p>` + body + `</p>
+<p class="hint">GizTUI · Gmail terminal &amp; desktop client</p>
+</div>
+<script>setTimeout(function(){try{window.close()}catch(e){}},2500)</script>
+</body></html>`
+}
+
 // AuthURLHook, when set, is called with the OAuth consent URL as soon as
 // interactive authorization begins. GUI front-ends (e.g. the Wails desktop) set
 // it to open the URL in the system browser and surface it in a modal, instead of
@@ -160,29 +202,16 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			code := r.URL.Query().Get("code")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if code != "" {
 				// Send success response
 				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte(`
-					<html>
-						<body>
-                            <h2>Authorization successful</h2>
-                            <p>You can close this window and return to the application.</p>
-						</body>
-					</html>
-				`))
+				_, _ = w.Write([]byte(authResultPage(true)))
 				codeChan <- code
 			} else {
 				// Send error response
 				w.WriteHeader(http.StatusBadRequest)
-				_, _ = w.Write([]byte(`
-					<html>
-						<body>
-                            <h2>Authorization error</h2>
-                            <p>Authorization code not received.</p>
-						</body>
-					</html>
-				`))
+				_, _ = w.Write([]byte(authResultPage(false)))
 				errorChan <- fmt.Errorf("authorization code not received")
 			}
 		}),
