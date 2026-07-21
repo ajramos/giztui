@@ -449,6 +449,11 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 	if len(batches) == 0 {
 		return plan, nil
 	}
+	// Report the total up front (0/N) so the UI shows how many blocks are coming
+	// before the first one finishes, instead of a blank wait.
+	if onProgress != nil {
+		onProgress(plan)
+	}
 
 	// Run batches concurrently (bounded) — the LLM call per batch is the slow part,
 	// so this cuts wall-clock roughly to the slowest batch, and lets progress land

@@ -62,7 +62,12 @@ type Deps struct {
 	Cal          calClient                          // optional; calendar RSVP responder
 	Cache        services.CacheService              // optional; summary cache (for clearing)
 	AccountEmail string                             // active account address, used as the "from" for sends
-	Logger       *log.Logger
+	// Inbox-analyzer knobs, mirrored from config.InboxAnalyzer so the desktop
+	// honors the same settings as the TUI (0 → sensible defaults).
+	AnalyzerBatchSize    int
+	AnalyzerMaxBatches   int
+	AnalyzerStrictLabels bool
+	Logger               *log.Logger
 }
 
 // API is the front-end-agnostic entry point. Every method returns
@@ -92,7 +97,12 @@ type API struct {
 	cal          calClient
 	cache        services.CacheService
 	accountEmail string
-	logger       *log.Logger
+
+	analyzerBatchSize    int
+	analyzerMaxBatches   int
+	analyzerStrictLabels bool
+
+	logger *log.Logger
 
 	labelsOnce sync.Once
 	labelNames map[string]string // Gmail label ID -> human name
@@ -125,7 +135,12 @@ func NewAPI(d Deps) *API {
 		cal:          d.Cal,
 		cache:        d.Cache,
 		accountEmail: d.AccountEmail,
-		logger:       d.Logger,
+
+		analyzerBatchSize:    d.AnalyzerBatchSize,
+		analyzerMaxBatches:   d.AnalyzerMaxBatches,
+		analyzerStrictLabels: d.AnalyzerStrictLabels,
+
+		logger: d.Logger,
 	}
 }
 

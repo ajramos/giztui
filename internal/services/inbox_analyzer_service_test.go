@@ -176,7 +176,8 @@ func TestAnalyze_HappyPath_SingleBatch(t *testing.T) {
 	// Display order: archive:"Newsletters" (m1,m2) sorts before label:"Follow up" (m3).
 	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
 	assert.Equal(t, []string{"m3"}, plan.Categories[1].MessageIDs)
-	assert.Equal(t, 1, progressCalls)
+	// One initial 0/N call + one per batch.
+	assert.Equal(t, 2, progressCalls)
 	ai.AssertExpectations(t)
 }
 

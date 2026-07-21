@@ -819,10 +819,12 @@ const mockBackend: Backend = {
     return true;
   },
   async AnalyzeInbox(inputs: AnalyzerInput[]) {
-    // Emit fake per-batch progress so the determinate bar is exercised in dev.
-    const total = 3;
+    // Emit fake per-batch progress so the determinate bar is exercised in dev:
+    // an initial 0/total (blocks known), then each block completing.
+    const total = 4;
+    mockEmit?.("plan:progress", { done: 0, total });
     for (let i = 1; i <= total; i++) {
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 350));
       mockEmit?.("plan:progress", { done: i, total });
     }
     const ids = inputs.map((i) => i.id);

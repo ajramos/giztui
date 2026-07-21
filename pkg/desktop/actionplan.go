@@ -76,11 +76,24 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgre
 		if onProgress != nil {
 			cb = func(p *services.ActionPlan) { onProgress(p.BatchesDone, p.BatchesTotal) }
 		}
+		// Batch/cap come from config (inbox_analyzer.*), same as the TUI; fall
+		// back to the shared defaults when unset. Smaller batches yield several
+		// blocks, which the bounded concurrency overlaps and the UI shows as real
+		// "Batch N/M" progress.
+		batchSize := a.analyzerBatchSize
+		if batchSize <= 0 {
+			batchSize = 50
+		}
+		maxBatches := a.analyzerMaxBatches
+		if maxBatches <= 0 {
+			maxBatches = 10
+		}
 		plan, err := a.analyzer.Analyze(ctx, msgs, services.InboxAnalyzerOptions{
-			BatchSize:       50,
-			MaxBatches:      5,
+			BatchSize:       batchSize,
+			MaxBatches:      maxBatches,
 			Concurrency:     4,
 			AvailableLabels: available,
+			StrictLabels:    a.analyzerStrictLabels,
 			UserRules:       a.userRuleTexts(ctx),
 		}, cb)
 		if err != nil {

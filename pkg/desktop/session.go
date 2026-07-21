@@ -277,7 +277,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Cal:          cal,
 		Cache:        cacheService,
 		AccountEmail: accountEmail,
-		Logger:       logger,
+		// Honor the same inbox-analyzer settings the TUI reads from config, so
+		// tuning inbox_analyzer.batch_size in config.json affects the desktop too.
+		AnalyzerBatchSize:    cfg.InboxAnalyzer.BatchSize,
+		AnalyzerMaxBatches:   cfg.InboxAnalyzer.MaxBatches,
+		AnalyzerStrictLabels: cfg.InboxAnalyzer.StrictLabels,
+		Logger:               logger,
 	})
 }
 

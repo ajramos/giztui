@@ -4083,15 +4083,21 @@ export default function App() {
                   {analyzeProgress && analyzeProgress.total > 0 ? (
                     <>
                       <div className="plan-progress">
-                        <div
-                          className="plan-progress-fill"
-                          style={{
-                            width: `${Math.round(
-                              (analyzeProgress.done / analyzeProgress.total) *
-                                100,
-                            )}%`,
-                          }}
-                        />
+                        {analyzeProgress.done > 0 ? (
+                          <div
+                            className="plan-progress-fill"
+                            style={{
+                              width: `${Math.round(
+                                (analyzeProgress.done / analyzeProgress.total) *
+                                  100,
+                              )}%`,
+                            }}
+                          />
+                        ) : (
+                          // Blocks known but none finished yet — keep animating
+                          // so it reads as "working", with the total in the label.
+                          <div className="plan-progress-bar" />
+                        )}
                       </div>
                       <div className="muted plan-analyzing-sub">
                         Batch {analyzeProgress.done}/{analyzeProgress.total} ·{" "}
