@@ -17,6 +17,8 @@ This file provides essential architectural patterns and requirements for Claude 
 - `internal/tui/` - Presentation layer (`app.go` is the central App struct, 3k+ lines)
 - `internal/gmail/`, `internal/llm/`, `internal/cache/`, `internal/db/` - External integrations
 - `pkg/auth/` - OAuth2 token handling
+- `pkg/desktop/` - Front-end-agnostic adapter for the **desktop client**: DTOs + an `API` that reuses the same `internal/services` stack (main module, can import `internal/`)
+- `desktop/` - **Wails desktop app** (nested Go module): thin `App` glue in `desktop/app.go` + a React/TS frontend in `desktop/frontend/`. Goal: feature parity with the TUI, keyboard-first. See `desktop/CLAUDE.md` for its picker/modal & WKWebView conventions before touching desktop UI, and `docs/DESKTOP.md` for architecture
 - `scripts/check-architecture.sh` - Architecture compliance validation script
 - Runtime config: `~/.config/giztui/config.json`; OAuth creds: `~/.config/giztui/credentials.json`
 - Interactive first-run setup: `giztui --setup`
