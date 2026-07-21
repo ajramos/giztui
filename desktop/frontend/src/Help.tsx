@@ -82,6 +82,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "⤵️", keys: "n / N", desc: "Next / previous match" },
       { icon: "🔀", keys: fmtKey(k.markdown), desc: "Toggle HTML / text" },
       { icon: "📄", keys: fmtKey(k.toggleHeaders), desc: "Hide / show header block" },
+      { icon: "🖼️", keys: ":images", desc: "Load remote images (inline load auto)" },
       { icon: "📎", keys: fmtKey(k.attachments), desc: "Focus attachments" },
       { icon: "🔗", keys: fmtKey(k.linkPicker), desc: "Links in message" },
       { icon: "↪️", keys: fmtKey(k.reply), desc: "Reply" },
@@ -101,6 +102,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive selected" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },
+      { icon: "📦", keys: fmtKey(k.move), desc: "Move selected to folder" },
       { icon: "❌", keys: "Esc", desc: "Exit bulk mode" },
     ],
   });
@@ -137,7 +139,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         ...(f.actionPlan
           ? [
               { icon: "🧠", keys: fmtKey(k.actionPlan), desc: "Inbox action plan" },
-              { icon: "📐", keys: ":rules", desc: "Analyzer rules" },
+              { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
+              { icon: "📐", keys: ":rules", desc: "Deterministic rules" },
             ]
           : []),
       ],

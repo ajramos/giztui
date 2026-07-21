@@ -76,7 +76,7 @@ A single-page React app. The important pieces:
 | `src/App.tsx` | The whole application shell: state, keyboard handling, command palette, all panels and modals |
 | `src/api.ts` | Typed wrapper over the Wails-bound backend **plus a full mock backend** so the UI runs in a plain browser |
 | `src/Icons.tsx` | Stroke SVG icon set + the shared `IconBtn` (one button language everywhere) |
-| `src/HtmlBody.tsx` | Sandboxed iframe renderer for HTML emails |
+| `src/HtmlBody.tsx` | Shadow-DOM renderer for HTML emails (DOMPurify-sanitized; proxied remote + inline `cid:` images) |
 | `src/Compose.tsx`, `LabelsPicker.tsx`, `PromptsPicker.tsx`, `PromptManager.tsx`, `LinksPicker.tsx`, `CommandBar.tsx`, `AccountSwitcher.tsx`, `Help.tsx`, `MoreMenu.tsx`, `HighlightedText.tsx` | Focused components/modals |
 | `src/styles.css` | CSS custom properties (theme variables) + all component styles |
 
@@ -133,14 +133,25 @@ variables — no hardcoded colors.
 
 ### HTML email safety
 
-HTML bodies render in a sandboxed iframe (`HtmlBody.tsx`):
+HTML bodies render in a **Shadow DOM**, not an iframe (`HtmlBody.tsx`). macOS
+WKWebView never delivers click/keydown events from inside a sandboxed iframe to
+the app's listeners, which broke link-opening and every shortcut while an email
+had focus. Rendering in-page (inside a Shadow DOM, so the email's CSS stays
+isolated) keeps events working:
 
-- **No scripts** — the sandbox omits `allow-scripts`, so email HTML can't run JS.
-- **Remote content blocked** by a strict CSP until the user clicks "Load images"
-  (no tracking pixels by default).
-- `allow-same-origin` (still no scripts) lets the component intercept link clicks
-  → open them in the **system browser** via `OpenURL`, and **forward keystrokes**
-  back to the app so shortcuts keep working while an email has focus.
+- **Sanitized with DOMPurify** first — no `<script>`, event handlers, or
+  `javascript:` URLs from the untrusted email can run. A Shadow DOM is not a
+  security boundary, so this sanitize pass is what makes in-page rendering safe.
+- **Remote images blocked by default** (no tracking pixels): each remote `<img>`
+  has its `src` stashed until the user opts in (`:images`). Because WKWebView
+  won't load external subresources from the app's custom-scheme origin, approved
+  images are fetched **through the Go backend** (`FetchImage` → data URI).
+- **Inline `cid:` images load automatically** — they're embedded attachment
+  content, not remote trackers, so no opt-in. `HtmlBody` resolves each `cid:`
+  reference against the message's inline attachments (by Content-ID, with a
+  positional fallback) and fetches the bytes via `FetchInlineImage`.
+- **Links** are intercepted from the shadow tree (`composedPath()`) and opened in
+  the **system browser** via `OpenURL`.
 
 ---
 
@@ -148,7 +159,11 @@ HTML bodies render in a sandboxed iframe (`HtmlBody.tsx`):
 
 1. `NewSession` loads config + OAuth token from `~/.config/giztui/` (the same
    files the TUI uses — no extra setup), builds the Gmail/LLM/DB/Calendar stack,
-   and returns an `API`.
+   and returns an `API`. On first run (no token), sign-in opens the Google
+   consent URL in the **system browser** and shows a sign-in modal (via
+   `auth.AuthURLHook` → `PendingAuthURL`); a local redirect server captures the
+   code automatically. The requested scopes include `calendar.events` so RSVP
+   works without a separate re-consent.
 2. `app.go` binds the `API`; Wails injects it as `window.go.main.App`.
 3. The frontend probes feature flags, loads the keymap + theme, and renders.
 4. User input → a `backend` call → an `API` method → the shared service → Gmail /

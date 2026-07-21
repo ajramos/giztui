@@ -18,7 +18,7 @@ message subject/account and what you saw.
 | 0.1 | The TUI already works with your account (`~/.config/giztui/`) | Config + OAuth token exist |
 | 0.2 | `cd desktop && wails build` then open `build/bin/GizTUI Desktop.app` | App launches, no blank window |
 | 0.3 | For AI tests: an LLM provider is configured (`llm.enabled`) | AI actions are visible/enabled |
-| 0.4 | For RSVP: your token has the `calendar.events` scope (granted by the TUI) | RSVP bar appears on invites |
+| 0.4 | For RSVP: your token has the `calendar.events` scope (requested at sign-in; older tokens re-authorize once) | RSVP picker (`V`) works on invites |
 
 > If a whole feature area is greyed out/absent, it's because the matching config
 > is off (AI, Obsidian, Slack, threading, saved queries, calendar). That's
@@ -30,7 +30,8 @@ message subject/account and what you saw.
 
 | # | Action | Exp |
 |---|--------|-----|
-| 1.1 | Launch the app | Slim topbar, inbox list on the left, reading pane on the right |
+| 1.0 | First launch on a machine with **no token** yet | System browser opens Google sign-in; app shows a sign-in screen ("Open sign-in in browser" / "Copy link"); after approving, it continues automatically |
+| 1.1 | Launch the app (token already present) | Slim topbar, inbox list on the left, reading pane on the right |
 | 1.2 | Observe the topbar | Icon-only buttons: search (🔍), account, compose, drafts, select, ★, toolbar toggle, auto-refresh (🕐), help, refresh. Hover shows tooltips |
 | 1.3 | Without clicking anything, press ⌨️ `j` | The list cursor moves — shortcuts work on launch (no click needed) |
 | 1.4 | ⌨️ `?` (or 🖱️ help icon) | Keyboard-shortcut overlay opens; `?`/Esc closes it |
@@ -57,8 +58,8 @@ message subject/account and what you saw.
 | # | Action | Exp |
 |---|--------|-----|
 | 3.1 | Open a plain-text email | Body renders as text; sender name + address, To, date shown |
-| 3.2 | Open an HTML email | Rich HTML renders in a white iframe; a "Remote images blocked" bar shows |
-| 3.3 | 🖱️ "Load images" | Remote images load (only after opt-in) |
+| 3.2 | Open an HTML email | Rich HTML renders (Shadow DOM, sanitized); remote images blocked by default; inline `cid:` images show automatically |
+| 3.3 | ⌨️ `:images` | Remote images load (only after opt-in), fetched via the backend |
 | 3.4 | ⌨️ `M` (HTML/text toggle in toolbar) | Switches between HTML and plain-text view |
 | 3.5 | With an HTML email, 🖱️ click **inside the body**, then press ⌨️ `a` | Archive still fires — keystrokes work while the email has focus |
 | 3.6 | 🖱️ click a **link** in an HTML email | Opens in your **system browser** (not inside the app) |
@@ -98,9 +99,10 @@ message subject/account and what you saw.
 |---|--------|-----|
 | 5.1 | ⌨️ `l` / `:labels` | Labels picker opens; current labels are checked |
 | 5.2 | Toggle a label in the picker | Label is applied/removed on the message |
-| 5.3 | ⌨️ `m` / `:move` (or `⋯` → Move to…) | Move modal opens with a label autocomplete |
-| 5.4 | Type/pick a label, confirm | Message gets the label **and** is archived (leaves the inbox); toast "Moved to …" |
-| 5.5 | `:move Receipts` (with arg) | Moves directly without the modal |
+| 5.3 | ⌨️ `m` / `:move` (or `⋯` → Move to…) | Keyboard move picker opens: filter, ↑↓, Enter |
+| 5.4 | Type/pick a folder, Enter | Message gets the label **and** is archived (leaves the inbox); cursor advances to the next row; toast "Moved to …" |
+| 5.5 | `:move Receipts` (with arg) | Moves directly without the picker |
+| 5.6 | In bulk mode, select 2+, ⌨️ `m` (or the bulk-bar Move button) | "Move N to folder" picker; Enter moves all, clears selection, advances cursor |
 
 ---
 
@@ -186,12 +188,15 @@ message subject/account and what you saw.
 
 | # | Action | Exp |
 |---|--------|-----|
-| 10.1 | ⌨️ `P` / `:plan` | Analyzes the inbox; shows categories with priority, action, and count |
-| 10.2 | 🖱️ a category's action button | Applies that action to its messages (archive/mark-read/label) |
-| 10.3 | 🖱️ **Apply all** | Runs every category's action in one go |
-| 10.4 | 🖱️ **View prompt** | Shows the effective analyzer prompt (rules block + base) |
-| 10.5 | 🖱️ ⚙ Rules / `:rules` | Rules manager: add a natural-language rule, delete one |
-| 10.6 | Add a rule, then re-run `:plan` | The plan respects the new rule |
+| 10.1 | ⌨️ `P` / `:plan` | Deterministic-rules first pass, then AI; categories show priority, action, count; rule-matched ones tagged "rule" |
+| 10.2 | ⌨️ ↑↓, `Space`/→ on a category | Expands to list its emails; ↓ descends into them; `Enter` on an email opens it |
+| 10.3 | ⌨️ `Enter` on a category | Applies that category's action to its messages (archive/mark-read/label) |
+| 10.4 | ⌨️ `m` on an email | Move chooser (1-9 / ↑↓); reassigns that email to another bucket (in-memory until you apply) |
+| 10.5 | ⌨️ `m` on a category | Move chooser; reassigns the **whole** bucket; the emptied source category is pruned |
+| 10.6 | 🖱️ **Apply all** | Runs every category's action in one go |
+| 10.7 | ⌨️ `p` | Shows the effective analyzer prompt (rules block + base) |
+| 10.8 | ⌨️ `r` | Analyzer rules: add a natural-language rule; re-run `:plan` respects it |
+| 10.9 | `:rules` | Deterministic rules manager: add/edit/delete, Gmail sync, import filters |
 
 ---
 
@@ -227,10 +232,11 @@ message subject/account and what you saw.
 | # | Action | Exp |
 |---|--------|-----|
 | 13.1 | Open a message that **is a calendar invite** | An RSVP bar shows the event summary + start time |
-| 13.2 | 🖱️ **Accept** / `:accept` | Toast "RSVP: accepted"; your status updates in Google Calendar |
-| 13.3 | 🖱️ **Maybe** / `:tentative` | Status set to tentative |
-| 13.4 | 🖱️ **Decline** / `:decline` | Status set to declined |
+| 13.2 | ⌨️ `V` | Keyboard RSVP picker opens (Accept / Tentative / Decline, 1-3) |
+| 13.3 | Pick **Accept** / `:accept` | Toast "RSVP: accepted"; your status updates in Google Calendar |
+| 13.4 | `:tentative` / `:decline` | Status set to tentative / declined |
 | 13.5 | Open a non-invite message | No RSVP bar |
+| 13.6 | With a token lacking the scope | Actionable error prompting re-authorization (not a raw 403) |
 
 ---
 

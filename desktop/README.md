@@ -28,7 +28,10 @@ desktop/            ← Wails glue (this nested module) + React frontend
   `go build ./...`, `make build`, or `make test`.
 
 It reuses your existing GizTUI configuration and OAuth token
-(`~/.config/giztui/`), so no extra setup is needed if the TUI already works.
+(`~/.config/giztui/`), so no extra setup is needed if the TUI already works. On a
+fresh machine (no token yet), first launch opens Google sign-in in your **system
+browser** and shows a sign-in screen with an "Open sign-in in browser" button;
+once you approve, the app continues automatically.
 
 ## Prerequisites
 
@@ -95,9 +98,10 @@ open "build/bin/GizTUI Desktop.app"
 - **Multi-account** — switch between configured accounts from the header; the
   whole service stack (Gmail client, database, AI, prompts) rebuilds for the
   selected account via the existing `AccountService`
-- **HTML email rendering** — rich HTML bodies render in a locked-down sandboxed
-  iframe (no scripts; remote images/trackers blocked until you click "Load
-  images"). Toggle HTML/plain-text with the `M` key
+- **HTML email rendering** — rich HTML bodies render in an isolated Shadow DOM,
+  sanitized with DOMPurify (no scripts/handlers). Remote images/trackers are
+  blocked until you load them (`:images`, fetched via the backend); inline
+  `cid:` images load automatically. Toggle HTML/plain-text with the `M` key
 - **Drafts** (`D`) — list, open/edit, save, update, and delete drafts; sending a
   draft removes it. Compose can save any message as a draft
 - **Open in Gmail web** (`O`) — open the current message in Gmail in the system
@@ -107,8 +111,10 @@ open "build/bin/GizTUI Desktop.app"
 - **Threading** — full conversation view with per-message and all expand/collapse
   and a streamed thread summary
 - **Saved searches** (`Q`) and **save current search** (`Z`)
-- **Inbox action plan** (`P`) — AI triage with categories, apply-all, a rules
-  manager, and an effective-prompt viewer
+- **Inbox action plan** (`P`) — AI triage (with a deterministic-rules first pass)
+  into categories you can expand, apply per-bucket or all at once, and
+  **recategorize** (`m` moves an email or a whole bucket to another category);
+  plus a rules manager and an effective-prompt viewer
 - **Move to folder** (`m`), **quick searches** (`F`/`T`/`S`), **content search**
   (`/`), **toggle headers** (`h`)
 - **Draft reply (AI)**, **touch-up (AI)**, **regenerate summary**, **prompt
@@ -116,8 +122,9 @@ open "build/bin/GizTUI Desktop.app"
 - **Advanced search** builder and a **local filter** toggle
 - **Undo** (`U`) for archive/trash/read/unread (single & bulk)
 - **Auto-refresh** (background inbox polling), **save raw `.eml`**
-- **Calendar RSVP** — Accept / Tentative / Decline on invites (needs the
-  `calendar.events` scope, granted by the TUI)
+- **Calendar RSVP** — Accept / Tentative / Decline on invites via a keyboard
+  picker (`V`); needs the `calendar.events` scope, requested at sign-in (older
+  tokens must re-authorize once)
 - **Themes** — live theme switching (`H`) mapping your YAML themes to the UI
 - **Stats / config / cache** — AI usage panel, a read-only config view, and cache
   clearing
