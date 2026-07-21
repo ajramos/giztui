@@ -10,10 +10,11 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// Wails events the frontend subscribes to for streaming AI output.
+// Wails events the frontend subscribes to for streaming AI output and progress.
 const (
 	summaryTokenEvent = "summary:token"
 	promptTokenEvent  = "prompt:token"
+	planProgressEvent = "plan:progress"
 )
 
 // App is the Wails-bound backend. Its exported methods are callable from the
@@ -199,13 +200,19 @@ func (a *App) ActionPlanEnabled() bool {
 	return a.enabled((*desktop.API).ActionPlanEnabled)
 }
 
-// AnalyzeInbox runs the AI inbox analyzer and returns an action plan.
+// AnalyzeInbox runs the AI inbox analyzer and returns an action plan, emitting
+// "plan:progress" {done,total} events as each batch completes so the UI shows
+// real progress.
 func (a *App) AnalyzeInbox(inputs []desktop.AnalyzerInput) (*desktop.ActionPlanResult, error) {
 	api, err := a.api()
 	if err != nil {
 		return nil, err
 	}
-	return api.AnalyzeInbox(a.ctx, inputs)
+	return api.AnalyzeInbox(a.ctx, inputs, func(done, total int) {
+		wailsruntime.EventsEmit(a.ctx, planProgressEvent, map[string]int{
+			"done": done, "total": total,
+		})
+	})
 }
 
 // BulkApplyLabelByName applies a label by name to many messages.

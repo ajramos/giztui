@@ -1650,6 +1650,13 @@ button.tiny {
   position: absolute;
   inset: 0;
 }
+/* Determinate fill (real batch progress). */
+.plan-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
 .plan-progress-bar::after {
   content: "";
   position: absolute;

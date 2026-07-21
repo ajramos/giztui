@@ -14,7 +14,9 @@ func (a *API) ActionPlanEnabled() bool { return a.analyzer != nil }
 // AnalyzeInbox runs the AI inbox analyzer over the given messages and returns a
 // categorized action plan. The frontend passes the message data it already has
 // to avoid re-fetching bodies.
-func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput) (*ActionPlanResult, error) {
+// onProgress (may be nil) is called as each AI batch completes with (done,
+// total) batch counts, so the UI can show real progress instead of a spinner.
+func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgress func(done, total int)) (*ActionPlanResult, error) {
 	if a.analyzer == nil {
 		return nil, fmt.Errorf("the inbox action plan needs an LLM provider")
 	}
@@ -70,12 +72,17 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput) (*Action
 	// Second pass: LLM analyzes whatever the rules didn't resolve.
 	if len(msgs) > 0 {
 		available := a.availableLabelNames(ctx)
+		var cb func(*services.ActionPlan)
+		if onProgress != nil {
+			cb = func(p *services.ActionPlan) { onProgress(p.BatchesDone, p.BatchesTotal) }
+		}
 		plan, err := a.analyzer.Analyze(ctx, msgs, services.InboxAnalyzerOptions{
 			BatchSize:       50,
 			MaxBatches:      5,
+			Concurrency:     4,
 			AvailableLabels: available,
 			UserRules:       a.userRuleTexts(ctx),
-		}, nil)
+		}, cb)
 		if err != nil {
 			return nil, err
 		}

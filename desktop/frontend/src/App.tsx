@@ -192,6 +192,12 @@ export default function App() {
   // looks hung.
   const [analyzeCount, setAnalyzeCount] = useState(0);
   const [analyzeElapsed, setAnalyzeElapsed] = useState(0);
+  // Real batch progress (done/total) emitted by the backend as each AI batch
+  // finishes; null until the first event (or in browser mock, which can't emit).
+  const [analyzeProgress, setAnalyzeProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [applyingAll, setApplyingAll] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -1503,9 +1509,22 @@ export default function App() {
     setAnalyzing(true);
     setAnalyzeCount(messages.length);
     setAnalyzeElapsed(0);
+    setAnalyzeProgress(null);
     setPlan(null);
     setPlanExcluded(new Set());
     setError("");
+    // Listen for real per-batch progress from the backend (no-op in the browser
+    // mock, which can't emit runtime events — the timer/indeterminate bar covers
+    // that case).
+    const off = window.runtime?.EventsOn(
+      "plan:progress",
+      (...data: unknown[]) => {
+        const d = data[0] as { done?: number; total?: number };
+        if (typeof d?.done === "number" && typeof d?.total === "number") {
+          setAnalyzeProgress({ done: d.done, total: d.total });
+        }
+      },
+    );
     try {
       const inputs: AnalyzerInput[] = messages.map((m) => ({
         id: m.id,
@@ -1518,6 +1537,7 @@ export default function App() {
       setError(String(e));
     } finally {
       setAnalyzing(false);
+      off?.();
     }
   }, [messages]);
 
@@ -4060,13 +4080,35 @@ export default function App() {
                   <div className="plan-analyzing-title">
                     Analyzing {analyzeCount || messages.length} messages…
                   </div>
-                  <div className="plan-progress">
-                    <div className="plan-progress-bar" />
-                  </div>
-                  <div className="muted plan-analyzing-sub">
-                    {analyzeElapsed}s elapsed · deterministic rules first, then AI
-                    — this can take a moment for a large inbox
-                  </div>
+                  {analyzeProgress && analyzeProgress.total > 0 ? (
+                    <>
+                      <div className="plan-progress">
+                        <div
+                          className="plan-progress-fill"
+                          style={{
+                            width: `${Math.round(
+                              (analyzeProgress.done / analyzeProgress.total) *
+                                100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="muted plan-analyzing-sub">
+                        Batch {analyzeProgress.done}/{analyzeProgress.total} ·{" "}
+                        {analyzeElapsed}s · deterministic rules first, then AI
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="plan-progress">
+                        <div className="plan-progress-bar" />
+                      </div>
+                      <div className="muted plan-analyzing-sub">
+                        {analyzeElapsed}s elapsed · deterministic rules first,
+                        then AI — this can take a moment for a large inbox
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : !plan || plan.categories.length === 0 ? (
                 <div className="placeholder">

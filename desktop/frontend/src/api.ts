@@ -404,6 +404,28 @@ function realBackend(): Backend | null {
   return window.go?.main?.App ?? null;
 }
 
+// In browser dev (no real Wails runtime), install a tiny event bus so mock
+// backend methods can emit the same progress events the UI listens for. This is
+// inert in the packaged app (a real window.runtime already exists) and never
+// activates the streaming path (that also requires realBackend()).
+let mockEmit: ((name: string, data: unknown) => void) | null = null;
+if (typeof window !== "undefined" && !window.runtime) {
+  const listeners: Record<string, Array<(...d: unknown[]) => void>> = {};
+  window.runtime = {
+    EventsOn(name, cb) {
+      (listeners[name] ||= []).push(cb);
+      return () => {
+        listeners[name] = (listeners[name] || []).filter((f) => f !== cb);
+      };
+    },
+    EventsOff(name) {
+      delete listeners[name];
+    },
+  };
+  mockEmit = (name, data) =>
+    (listeners[name] || []).forEach((f) => f(data));
+}
+
 export const isWails = (): boolean => realBackend() !== null;
 
 // streamViaEvent runs a backend call that emits tokens as a Wails runtime event,
@@ -797,7 +819,12 @@ const mockBackend: Backend = {
     return true;
   },
   async AnalyzeInbox(inputs: AnalyzerInput[]) {
-    await new Promise((r) => setTimeout(r, 700));
+    // Emit fake per-batch progress so the determinate bar is exercised in dev.
+    const total = 3;
+    for (let i = 1; i <= total; i++) {
+      await new Promise((r) => setTimeout(r, 300));
+      mockEmit?.("plan:progress", { done: i, total });
+    }
     const ids = inputs.map((i) => i.id);
     return {
       totalAnalyzed: inputs.length,

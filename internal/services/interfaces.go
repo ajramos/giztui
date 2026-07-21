@@ -1031,6 +1031,7 @@ type ActionPlan struct {
 type InboxAnalyzerOptions struct {
 	BatchSize        int      // messages per batch (default 50)
 	MaxBatches       int      // safety cap on total batches (default 10)
+	Concurrency      int      // max batches analyzed in parallel (default 4); <=1 is sequential
 	CustomPromptText string   // empty → use the built-in default analyzer prompt
 	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
 	BodyCharLimit    int      // max body chars rendered per email; <= 0 → no extra trim
