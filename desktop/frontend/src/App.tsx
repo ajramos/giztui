@@ -33,6 +33,8 @@ import ThemePicker from "./ThemePicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
 import MovePicker from "./MovePicker";
+import PlanMovePicker from "./PlanMovePicker";
+import { buildMoveTargets, applyPlanMove, type MoveTarget } from "./planMove";
 import RulesManager from "./RulesManager";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
@@ -191,6 +193,13 @@ export default function App() {
   const [detRulesOpen, setDetRulesOpen] = useState(false);
   // Action-plan categories the user has expanded to see their emails.
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  // Pending action-plan reassignment: a single email or a whole category being
+  // moved to another bucket (opens the destination chooser).
+  const [planMove, setPlanMove] = useState<{
+    kind: "email" | "category";
+    catIdx: number;
+    id?: string;
+  } | null>(null);
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
@@ -1543,6 +1552,32 @@ export default function App() {
     }
   }, [plan, applyCategory, showToast]);
 
+  // doPlanMove reassigns the pending email (or whole category) to the chosen
+  // destination, mutating the in-memory plan — nothing is applied to Gmail until
+  // you dispatch that category. Mirrors the TUI's action-plan move.
+  const doPlanMove = useCallback(
+    (target: MoveTarget) => {
+      const mv = planMove;
+      setPlanMove(null);
+      if (!mv || !plan) return;
+      const src = plan.categories[mv.catIdx];
+      const ids =
+        mv.kind === "email" && mv.id ? [mv.id] : src ? src.messageIds : [];
+      if (!ids.length) return;
+      setPlan((prev) =>
+        prev
+          ? { ...prev, categories: applyPlanMove(prev.categories, ids, target) }
+          : prev,
+      );
+      showToast(
+        mv.kind === "email"
+          ? `Moved email to ${target.label}`
+          : `Moved ${ids.length} to ${target.label}`,
+      );
+    },
+    [planMove, plan, showToast],
+  );
+
   // Keyboard nav for the action-plan categories. Enter applies the highlighted
   // category's action. windowKeys is gated on planOpen because this hook lives
   // in the always-mounted App, unlike the standalone pickers.
@@ -1578,8 +1613,10 @@ export default function App() {
     },
     onEscape: () => setPlanOpen(false),
     // Only drive the plan while it's the topmost modal — otherwise its Escape
-    // would also fire and close the plan when a sub-modal (rules/prompt) is up.
-    windowKeys: planOpen && !rulesOpen && promptPreview === null,
+    // would also fire and close the plan when a sub-modal (rules/prompt/move
+    // chooser) is up.
+    windowKeys:
+      planOpen && !rulesOpen && promptPreview === null && planMove === null,
   });
   // Ref so the key handler can act on the active node without the huge onKey
   // effect depending on planNav.active (which changes on every arrow).
@@ -2227,6 +2264,7 @@ export default function App() {
           else if (advOpen) setAdvOpen(false);
           else if (statsOpen) setStatsOpen(false);
           else if (configOpen) setConfigOpen(false);
+          else if (planMove) setPlanMove(null);
           else if (planOpen) setPlanOpen(false);
           else if (themePickerOpen) setThemePickerOpen(false);
           else if (queriesOpen) setQueriesOpen(false);
@@ -2241,7 +2279,13 @@ export default function App() {
           return;
         }
         // Action-plan reachable-by-keyboard shortcuts for its header buttons.
-        if (planOpen && !rulesOpen && !detRulesOpen && promptPreview === null) {
+        if (
+          planOpen &&
+          !rulesOpen &&
+          !detRulesOpen &&
+          promptPreview === null &&
+          planMove === null
+        ) {
           if (e.key === "r") {
             e.preventDefault();
             if (rulesEnabled) void openRules();
@@ -2251,6 +2295,24 @@ export default function App() {
             e.preventDefault();
             void viewAnalyzerPrompt();
             return;
+          }
+          // m reassigns to another bucket: on an email node, that one email; on a
+          // category node, the whole category (the TUI's action-plan move).
+          if (e.key === "m") {
+            const node = planNodesRef.current[planActiveRef.current];
+            if (node) {
+              e.preventDefault();
+              if (node.type === "email") {
+                setPlanMove({
+                  kind: "email",
+                  catIdx: node.catIdx,
+                  id: node.id,
+                });
+              } else {
+                setPlanMove({ kind: "category", catIdx: node.catIdx });
+              }
+              return;
+            }
           }
           // Space / →  expand the category of the active node to reveal its
           // emails; ← collapses it. An email node acts on its parent category.
@@ -2709,6 +2771,7 @@ export default function App() {
     queriesOpen,
     saveQueryOpen,
     planOpen,
+    planMove,
     themePickerOpen,
     rulesOpen,
     promptPreview,
@@ -4011,8 +4074,8 @@ export default function App() {
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                ↑↓ move · Space see emails · Enter apply · r rules · p prompt · Esc
-                close
+                ↑↓ move · Space see emails · Enter apply · m recategorize · r rules
+                · p prompt · Esc close
               </span>
               {plan && plan.categories.length > 0 && (
                 <button
@@ -4026,6 +4089,23 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+      {planMove && plan && (
+        <PlanMovePicker
+          title={
+            planMove.kind === "email"
+              ? "Move email to…"
+              : `Move "${plan.categories[planMove.catIdx]?.name ?? ""}" (${
+                  plan.categories[planMove.catIdx]?.messageIds.length ?? 0
+                }) to…`
+          }
+          targets={buildMoveTargets(
+            plan.categories,
+            plan.categories[planMove.catIdx]?.name ?? "",
+          )}
+          onChoose={doPlanMove}
+          onClose={() => setPlanMove(null)}
+        />
       )}
       {detRulesOpen && (
         <RulesManager onClose={() => setDetRulesOpen(false)} />
