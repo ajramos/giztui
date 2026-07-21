@@ -41,7 +41,7 @@ export default function SavedQueriesPicker({
                 <div
                   key={q.id}
                   className={"query-row" + (i === nav.active ? " nav-active" : "")}
-                  onMouseEnter={() => nav.setActive(i)}
+                  onMouseEnter={() => nav.setActiveHover(i)}
                 >
                   <button className="query-main" onClick={() => onRun(q)}>
                     <span className="prompt-name">{q.name}</span>

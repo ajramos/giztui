@@ -274,7 +274,7 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
                     <div
                       key={r.id}
                       className={"rule-row" + (i === nav.active ? " nav-active" : "")}
-                      onMouseEnter={() => nav.setActive(i)}
+                      onMouseEnter={() => nav.setActiveHover(i)}
                       onClick={() =>
                         setForm({ id: r.id, query: r.query, action: r.action, label: r.label, promptId: r.promptId })
                       }

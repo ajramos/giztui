@@ -68,7 +68,7 @@ export default function RSVPPicker({
                 key={o.key}
                 className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
                 disabled={!!busy}
-                onMouseEnter={() => nav.setActive(i)}
+                onMouseEnter={() => nav.setActiveHover(i)}
                 onClick={() => onRespond(o.key)}
               >
                 <span className="prompt-name">

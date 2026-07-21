@@ -20,7 +20,10 @@ action-plan, …) MUST follow these so they behave consistently:
      reliably) and still use `windowKeys: true` for arrows/Enter/Escape — do NOT
      also put `onKeyDown={nav.onKeyDown}` on the input (double-fires).
 2. **Highlight** the active row with the `nav-active` class; `onMouseEnter` sets
-   the active index so mouse and keyboard agree.
+   the active index so mouse and keyboard agree — but use `nav.setActiveHover(i)`,
+   NOT `nav.setActive(i)`. Keyboard nav disarms hover until the pointer genuinely
+   moves; otherwise scrolling a long list slides a row under the stationary cursor,
+   fires `mouseenter`, and snaps the selection back (the cursor gets "trapped").
 3. **Escape closes**, from anywhere. The App's global handler closes the topmost
    modal at the window level (see the `anyModal` block in `App.tsx`). A picker
    opened via the command bar must not be instantly actioned by the Enter that

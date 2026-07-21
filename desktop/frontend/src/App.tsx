@@ -4132,7 +4132,7 @@ export default function App() {
                             : "")
                         }
                         onMouseEnter={() =>
-                          planNav.setActive(
+                          planNav.setActiveHover(
                             planNodes.findIndex(
                               (n) => n.type === "cat" && n.catIdx === i,
                             ),
@@ -4203,7 +4203,7 @@ export default function App() {
                                     (excluded ? " deselected" : "")
                                   }
                                   onMouseEnter={() =>
-                                    planNav.setActive(
+                                    planNav.setActiveHover(
                                       planNodes.findIndex(
                                         (n) =>
                                           n.type === "email" &&

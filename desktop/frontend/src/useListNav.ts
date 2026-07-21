@@ -40,9 +40,11 @@ export function useListNav<T>(
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown" || (e.ctrlKey && e.key === "n")) {
       e.preventDefault();
+      hoverArmed.current = false;
       setActive((a) => (items.length ? Math.min(items.length - 1, a + 1) : 0));
     } else if (e.key === "ArrowUp" || (e.ctrlKey && e.key === "p")) {
       e.preventDefault();
+      hoverArmed.current = false;
       setActive((a) => Math.max(0, a - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -67,5 +69,22 @@ export function useListNav<T>(
     return () => window.removeEventListener("keydown", h);
   }, [windowKeys]);
 
-  return { active, setActive, onKeyDown, listRef };
+  // Keyboard nav disarms hover; a real pointer move re-arms it. Without this, a
+  // keyboard move that scrolls the list slides a row under the stationary cursor,
+  // firing mouseenter → setActive, which fights the keyboard (the cursor gets
+  // "trapped" in a long, scrolling list). setActiveHover honors hover only when
+  // the pointer has genuinely moved since the last keyboard nav.
+  const hoverArmed = useRef(true);
+  useEffect(() => {
+    const onMove = () => {
+      hoverArmed.current = true;
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+  const setActiveHover = (i: number) => {
+    if (hoverArmed.current && i >= 0) setActive(i);
+  };
+
+  return { active, setActive, setActiveHover, onKeyDown, listRef };
 }

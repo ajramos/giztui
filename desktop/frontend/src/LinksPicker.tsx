@@ -76,7 +76,7 @@ export default function LinksPicker({
                 <button
                   key={l.index}
                   className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
-                  onMouseEnter={() => nav.setActive(i)}
+                  onMouseEnter={() => nav.setActiveHover(i)}
                   onClick={() => open(l)}
                 >
                   <span className="prompt-name">

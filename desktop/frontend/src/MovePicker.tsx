@@ -108,7 +108,7 @@ export default function MovePicker({
                 <button
                   key={l.id}
                   className={"label-row" + (i === nav.active ? " nav-active" : "")}
-                  onMouseEnter={() => nav.setActive(i)}
+                  onMouseEnter={() => nav.setActiveHover(i)}
                   onClick={() => onMove(l.name)}
                 >
                   <span className="name">{l.name}</span>

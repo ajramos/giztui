@@ -141,7 +141,7 @@ export default function LabelsPicker({
                       (i === nav.active ? " nav-active" : "")
                     }
                     disabled={pending === l.id}
-                    onMouseEnter={() => nav.setActive(i)}
+                    onMouseEnter={() => nav.setActiveHover(i)}
                     onClick={() => void toggle(l)}
                   >
                     <span className="check">{on ? "✓" : ""}</span>

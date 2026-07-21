@@ -54,7 +54,7 @@ export default function PlanMovePicker({
               <button
                 key={t.label}
                 className={"label-row" + (i === nav.active ? " nav-active" : "")}
-                onMouseEnter={() => nav.setActive(i)}
+                onMouseEnter={() => nav.setActiveHover(i)}
                 onClick={() => onChoose(t)}
               >
                 <span className="name">

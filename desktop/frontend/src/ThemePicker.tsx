@@ -37,7 +37,7 @@ export default function ThemePicker({
                   (name === current ? " active" : "") +
                   (i === nav.active ? " nav-active" : "")
                 }
-                onMouseEnter={() => nav.setActive(i)}
+                onMouseEnter={() => nav.setActiveHover(i)}
                 onClick={() => onPick(name)}
               >
                 <span className="theme-dot" />
