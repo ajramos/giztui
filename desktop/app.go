@@ -25,6 +25,7 @@ type App struct {
 	session atomic.Pointer[desktop.Session]
 	initErr atomic.Pointer[string]
 	ready   atomic.Bool
+	authURL atomic.Pointer[string]
 }
 
 // NewApp creates the App in an unstarted state. Startup wiring happens in
@@ -43,8 +44,17 @@ func (a *App) startup(ctx context.Context) {
 	if path, err := desktop.SetupFileLogging(); err == nil {
 		log.Printf("desktop: logging to %s", path)
 	}
+	// When interactive sign-in is needed, open the consent URL in the system
+	// browser and expose it so the frontend can show a "Sign in" modal (the
+	// local redirect server captures the code automatically once granted).
+	desktop.SetAuthURLHook(func(url string) {
+		a.authURL.Store(&url)
+		wailsruntime.BrowserOpenURL(a.ctx, url)
+		log.Printf("desktop: opened sign-in URL in browser")
+	})
 	go func() {
 		sess, err := desktop.NewSession(ctx, desktop.Options{Logger: log.Default()})
+		a.authURL.Store(nil) // sign-in finished (or failed); clear the prompt
 		if err != nil {
 			msg := err.Error()
 			a.initErr.Store(&msg)
@@ -73,6 +83,29 @@ func (a *App) Ready() bool { return a.ready.Load() }
 
 // Version returns the desktop build version so the UI can show it (like the TUI).
 func (a *App) Version() string { return desktop.Version() }
+
+// LogUI lets the frontend write a line to desktop.log — used to diagnose things
+// that only reproduce in the packaged WKWebView (e.g. why an inline image or a
+// shortcut didn't behave), where the browser console isn't visible.
+func (a *App) LogUI(msg string) { log.Printf("ui: %s", msg) }
+
+// PendingAuthURL returns the OAuth consent URL while interactive sign-in is in
+// progress, or "" otherwise. The frontend polls it (alongside Ready) to show a
+// sign-in modal with a button to (re)open the browser.
+func (a *App) PendingAuthURL() string {
+	if u := a.authURL.Load(); u != nil {
+		return *u
+	}
+	return ""
+}
+
+// OpenAuthURL re-opens the pending sign-in URL in the system browser (the modal
+// button), in case the automatic open was blocked or the user closed the tab.
+func (a *App) OpenAuthURL() {
+	if u := a.authURL.Load(); u != nil {
+		wailsruntime.BrowserOpenURL(a.ctx, *u)
+	}
+}
 
 // api returns the shared API or an error describing why startup failed / is
 // still in progress.

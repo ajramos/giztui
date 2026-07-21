@@ -122,6 +122,8 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [initError, setInitError] = useState("");
   const [connecting, setConnecting] = useState(true);
+  // OAuth consent URL while first-run sign-in is pending (desktop only).
+  const [authUrl, setAuthUrl] = useState("");
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
@@ -492,8 +494,16 @@ export default function App() {
         } catch {
           break; // mock / no backend
         }
+        // Surface the sign-in URL (first-run OAuth) so the modal can offer a
+        // button instead of the user hunting for the URL in the logs.
+        try {
+          setAuthUrl(await backend.PendingAuthURL());
+        } catch {
+          /* mock backend has no pending auth */
+        }
         await new Promise((r) => setTimeout(r, 150));
       }
+      setAuthUrl("");
       setConnecting(false);
       try {
         const ie = await backend.InitError();
@@ -2774,7 +2784,31 @@ export default function App() {
       <div className="connecting">
         <span className="logo">✦</span>
         <h1>GizTUI Desktop</h1>
-        <p className="muted">Connecting to Gmail…</p>
+        {authUrl ? (
+          <div className="signin">
+            <p>Sign in to your Google account to continue.</p>
+            <p className="muted">
+              We opened your browser to grant access. Once you approve, this
+              window continues automatically.
+            </p>
+            <div className="signin-actions">
+              <button
+                className="primary"
+                onClick={() => void backend.OpenAuthURL()}
+              >
+                Open sign-in in browser
+              </button>
+              <button
+                onClick={() => void navigator.clipboard?.writeText(authUrl)}
+              >
+                Copy link
+              </button>
+            </div>
+            <p className="muted signin-url">{authUrl}</p>
+          </div>
+        ) : (
+          <p className="muted">Connecting to Gmail…</p>
+        )}
       </div>
     );
   }

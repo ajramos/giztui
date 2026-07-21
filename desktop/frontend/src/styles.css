@@ -1688,6 +1688,40 @@ button.tiny {
 @media (prefers-reduced-motion: reduce) {
   .connecting .logo { animation: none; }
 }
+.signin {
+  max-width: 520px;
+  text-align: center;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 20px;
+}
+.signin-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.signin-actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+}
+.signin-actions button.primary {
+  background: var(--accent-strong);
+  border-color: transparent;
+  color: #fff;
+}
+.signin-url {
+  font-size: 11px;
+  word-break: break-all;
+  opacity: 0.6;
+  margin-top: 8px;
+}
 .fatal h1 {
   color: var(--accent);
 }

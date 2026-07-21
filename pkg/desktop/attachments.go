@@ -29,6 +29,7 @@ func (a *API) ListAttachments(ctx context.Context, id string) ([]Attachment, err
 			Inline:       in.Inline,
 			ContentID:    in.ContentID,
 		})
+		a.logf("attachments[%s]: id=%s file=%q mime=%s inline=%t cid=%q", id, in.AttachmentID, in.Filename, in.MimeType, in.Inline, in.ContentID)
 	}
 	return out, nil
 }
@@ -43,15 +44,18 @@ func (a *API) FetchInlineImage(ctx context.Context, messageID, attachmentID stri
 	}
 	data, _, err := a.attach.GetAttachmentData(ctx, messageID, attachmentID)
 	if err != nil {
+		a.logf("inline image fetch failed msg=%s att=%s: %v", messageID, attachmentID, err)
 		return "", err
 	}
 	ct := http.DetectContentType(data)
 	if !strings.HasPrefix(ct, "image/") {
+		a.logf("inline image att=%s not an image (%s, %d bytes)", attachmentID, ct, len(data))
 		return "", fmt.Errorf("not an image (%s)", ct)
 	}
 	if i := strings.IndexByte(ct, ';'); i >= 0 {
 		ct = ct[:i]
 	}
+	a.logf("inline image resolved att=%s %s %d bytes", attachmentID, ct, len(data))
 	return "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 }
 

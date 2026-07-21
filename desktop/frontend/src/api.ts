@@ -357,6 +357,9 @@ interface Backend {
   OpenURL(url: string): Promise<void>;
   FetchImage(url: string): Promise<string>;
   FetchInlineImage(messageID: string, attachmentID: string): Promise<string>;
+  LogUI(msg: string): Promise<void>;
+  PendingAuthURL(): Promise<string>;
+  OpenAuthURL(): Promise<void>;
   Version(): Promise<string>;
   SaveMessage(messageID: string): Promise<string>;
   SaveRawMessage(messageID: string): Promise<string>;
@@ -894,6 +897,15 @@ const mockBackend: Backend = {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="#1a56db"/><text x="60" y="45" fill="#fff" font-size="12" text-anchor="middle">${attachmentID}</text></svg>`;
     return `data:image/svg+xml;base64,${btoa(svg)}`;
   },
+  async LogUI(msg: string) {
+    // Mock: mirror to the browser console for dev visibility.
+    console.log("[ui]", msg);
+  },
+  async PendingAuthURL() {
+    // Mock: never prompts for sign-in in the browser.
+    return "";
+  },
+  async OpenAuthURL() {},
   async Version() {
     return "dev (mock)";
   },

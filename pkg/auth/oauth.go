@@ -17,6 +17,13 @@ import (
 	"google.golang.org/api/option"
 )
 
+// AuthURLHook, when set, is called with the OAuth consent URL as soon as
+// interactive authorization begins. GUI front-ends (e.g. the Wails desktop) set
+// it to open the URL in the system browser and surface it in a modal, instead of
+// relying on the URL that authenticate() also prints to stdout. It is a no-op by
+// default, so the CLI/TUI behaviour is unchanged.
+var AuthURLHook func(url string)
+
 // OAuth2Config holds OAuth2 configuration
 type OAuth2Config struct {
 	CredentialsPath string
@@ -210,6 +217,10 @@ func (c *OAuth2Config) authenticate(ctx context.Context, config *oauth2.Config) 
 		fmt.Printf("\nWaiting for authorization for %s...\n", c.AccountName)
 	} else {
 		fmt.Printf("\nWaiting for authorization...\n")
+	}
+	// Let a GUI front-end open the URL in the browser and show it in a modal.
+	if AuthURLHook != nil {
+		AuthURLHook(authURL)
 	}
 
 	// Wait for authorization code

@@ -86,23 +86,72 @@ export default function HtmlBody({
 
     // Resolve cid: inline images to their attachment bytes (always — they're
     // embedded content, no external server, so no "load remote" opt-in needed).
-    if (messageId && attachments && attachments.length > 0) {
-      shadow
-        .querySelectorAll<HTMLImageElement>("img[data-cid]")
-        .forEach((img) => {
-          const cid = img.getAttribute("data-cid");
-          if (!cid) return;
-          const att = attachments.find(
-            (a) => a.contentId && a.contentId === cid,
-          );
-          if (!att) return;
+    const cidImgs = Array.from(
+      shadow.querySelectorAll<HTMLImageElement>("img[data-cid]"),
+    );
+    const remoteImgs = shadow.querySelectorAll("img[data-remote-src]").length;
+    if (messageId) {
+      void backend
+        .LogUI(
+          `htmlbody msg=${messageId}: cid-imgs=${cidImgs.length} remote-imgs=${remoteImgs} attachments=${
+            attachments?.length ?? 0
+          } inline-image-atts=${
+            (attachments ?? []).filter(
+              (a) => a.inline || a.mimeType.startsWith("image/"),
+            ).length
+          }`,
+        )
+        .catch(() => undefined);
+    }
+    if (messageId && attachments && attachments.length > 0 && cidImgs.length) {
+      const used = new Set<string>();
+      // First pass: exact Content-ID matches.
+      const pending: HTMLImageElement[] = [];
+      cidImgs.forEach((img) => {
+        const cid = img.getAttribute("data-cid") || "";
+        const att = attachments.find(
+          (a) => a.contentId && a.contentId === cid,
+        );
+        if (att) {
+          used.add(att.attachmentId);
+          resolve(img, att.attachmentId);
+        } else {
+          pending.push(img);
+        }
+      });
+      // Second pass: for cids no Content-ID matched (some senders omit/rewrite
+      // it), fall back to unused inline image attachments in order.
+      const fallback = attachments.filter(
+        (a) =>
+          (a.inline || a.mimeType.startsWith("image/")) &&
+          !used.has(a.attachmentId),
+      );
+      pending.forEach((img, i) => {
+        const cid = img.getAttribute("data-cid") || "";
+        const att = fallback[i];
+        if (!att) {
           void backend
-            .FetchInlineImage(messageId, att.attachmentId)
-            .then((uri) => {
-              if (uri) img.setAttribute("src", uri);
-            })
+            .LogUI(`cid ${cid} could not be resolved to any attachment`)
             .catch(() => undefined);
-        });
+          return;
+        }
+        void backend
+          .LogUI(
+            `cid ${cid} unmatched by Content-ID; falling back to att=${att.attachmentId} (${att.filename})`,
+          )
+          .catch(() => undefined);
+        resolve(img, att.attachmentId);
+      });
+    }
+
+    function resolve(img: HTMLImageElement, attachmentId: string) {
+      if (!messageId) return;
+      void backend
+        .FetchInlineImage(messageId, attachmentId)
+        .then((uri) => {
+          if (uri) img.setAttribute("src", uri);
+        })
+        .catch(() => undefined);
     }
 
     // Once the user opts in, fetch each remote image through the backend and

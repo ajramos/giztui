@@ -22,6 +22,13 @@ import (
 // requested by the TUI too, so a token created there already carries it.
 const calendarScope = "https://www.googleapis.com/auth/calendar.events"
 
+// SetAuthURLHook registers a callback invoked with the OAuth consent URL when
+// interactive sign-in begins, so a GUI can open the browser and show a modal
+// instead of the user copy/pasting the URL. Passing nil restores the default
+// (print-only) behaviour. Thin wrapper so the nested desktop module doesn't need
+// to import pkg/auth directly.
+func SetAuthURLHook(fn func(url string)) { auth.AuthURLHook = fn }
+
 // calAdapter wraps internal/calendar.Client to satisfy the calClient interface
 // without leaking the calendar package's types into the public API.
 type calAdapter struct{ c *calendar.Client }
