@@ -187,6 +187,11 @@ export default function App() {
   const [planOpen, setPlanOpen] = useState(false);
   const [plan, setPlan] = useState<ActionPlanResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  // Live feedback while the inbox analysis runs (a single, possibly slow LLM
+  // call): how many messages we're analyzing and elapsed seconds, so it never
+  // looks hung.
+  const [analyzeCount, setAnalyzeCount] = useState(0);
+  const [analyzeElapsed, setAnalyzeElapsed] = useState(0);
   const [applyingAll, setApplyingAll] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -1496,6 +1501,8 @@ export default function App() {
   const runActionPlan = useCallback(async () => {
     setPlanOpen(true);
     setAnalyzing(true);
+    setAnalyzeCount(messages.length);
+    setAnalyzeElapsed(0);
     setPlan(null);
     setPlanExcluded(new Set());
     setError("");
@@ -1513,6 +1520,14 @@ export default function App() {
       setAnalyzing(false);
     }
   }, [messages]);
+
+  // Tick the elapsed-seconds counter while the analysis runs so the user sees
+  // steady progress (the analysis is one backend call with no sub-progress).
+  useEffect(() => {
+    if (!analyzing) return;
+    const t = setInterval(() => setAnalyzeElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [analyzing]);
 
   const applyCategory = useCallback(
     async (cat: PlanCategory) => {
@@ -4041,7 +4056,18 @@ export default function App() {
             </div>
             <div className="modal-body">
               {analyzing ? (
-                <div className="placeholder">Analyzing your inbox…</div>
+                <div className="placeholder plan-analyzing">
+                  <div className="plan-analyzing-title">
+                    Analyzing {analyzeCount || messages.length} messages…
+                  </div>
+                  <div className="plan-progress">
+                    <div className="plan-progress-bar" />
+                  </div>
+                  <div className="muted plan-analyzing-sub">
+                    {analyzeElapsed}s elapsed · deterministic rules first, then AI
+                    — this can take a moment for a large inbox
+                  </div>
+                </div>
               ) : !plan || plan.categories.length === 0 ? (
                 <div className="placeholder">
                   {plan ? "Nothing to act on" : "No plan"}

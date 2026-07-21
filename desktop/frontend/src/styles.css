@@ -1629,6 +1629,42 @@ button.tiny {
 .plan-preview {
   width: 760px;
 }
+/* Analysis progress: an indeterminate bar + elapsed timer so a slow LLM pass
+   never reads as a hang (mirrors the bulk-operation progress bar). */
+.plan-analyzing {
+  gap: 12px;
+}
+.plan-analyzing-title {
+  font-size: 15px;
+  color: var(--text);
+}
+.plan-progress {
+  position: relative;
+  width: 240px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-row-hover);
+  overflow: hidden;
+}
+.plan-progress-bar {
+  position: absolute;
+  inset: 0;
+}
+.plan-progress-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: bulk-indeterminate 1s ease-in-out infinite;
+}
+.plan-analyzing-sub {
+  font-size: 12px;
+  text-align: center;
+}
 .qv-meta {
   display: flex;
   flex-direction: column;
