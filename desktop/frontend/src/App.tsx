@@ -34,7 +34,12 @@ import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
 import MovePicker from "./MovePicker";
 import PlanMovePicker from "./PlanMovePicker";
-import { buildMoveTargets, applyPlanMove, type MoveTarget } from "./planMove";
+import {
+  buildMoveTargets,
+  applyPlanMove,
+  sortPlanCategories,
+  type MoveTarget,
+} from "./planMove";
 import RulesManager from "./RulesManager";
 import AccountSwitcher from "./AccountSwitcher";
 import HtmlBody from "./HtmlBody";
@@ -1532,7 +1537,9 @@ export default function App() {
         from: m.from,
         snippet: m.snippet,
       }));
-      setPlan(await backend.AnalyzeInbox(inputs));
+      const res = await backend.AnalyzeInbox(inputs);
+      // Order by action then name (the TUI's SortCategories), read-manually last.
+      setPlan({ ...res, categories: sortPlanCategories(res.categories) });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -4383,7 +4390,10 @@ export default function App() {
             planMove.kind === "email"
               ? "Move email to…"
               : `Move "${plan.categories[planMove.catIdx]?.name ?? ""}" (${
-                  plan.categories[planMove.catIdx]?.messageIds.length ?? 0
+                  // The selected (non-deselected) count — what will actually move.
+                  (plan.categories[planMove.catIdx]?.messageIds ?? []).filter(
+                    (id) => !planExcluded.has(id),
+                  ).length
                 }) to…`
           }
           targets={buildMoveTargets(

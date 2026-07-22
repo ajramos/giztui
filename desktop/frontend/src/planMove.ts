@@ -103,8 +103,18 @@ export function applyPlanMove(
     }
   }
 
-  next = next.filter((c) => c.messageIds.length > 0);
-  const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  next.sort((a, b) => (order[a.priority] ?? 1) - (order[b.priority] ?? 1));
-  return next;
+  return sortPlanCategories(next.filter((c) => c.messageIds.length > 0));
+}
+
+// sortPlanCategories orders categories by action then name — the TUI's
+// SortCategories — with the read-manually bucket always pinned last. Keeps the
+// order stable and matching the terminal (not by priority).
+export function sortPlanCategories(cats: PlanCategory[]): PlanCategory[] {
+  return [...cats].sort((a, b) => {
+    if (!!a.readManually !== !!b.readManually) return a.readManually ? 1 : -1;
+    const aa = a.action.toLowerCase();
+    const ba = b.action.toLowerCase();
+    if (aa !== ba) return aa < ba ? -1 : 1;
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  });
 }
