@@ -2629,9 +2629,21 @@ export default function App() {
       // Space always works (the TUI default and what everyone reaches for), in
       // addition to the configured bulk_select key (a literal " " also means
       // space). Space isn't a remappable action here, so this never clashes.
+      // Exception: if bulk_select is bound to the SAME key as search (some
+      // configs put "s" on both), that key must NOT hijack search in the list —
+      // it falls through to the search action below, and bulk-select stays on
+      // Space. Otherwise the search key is silently shadowed and never searches.
       const bulkKey =
         keymap.bulkSelect === " " ? "space" : keymap.bulkSelect || "space";
-      if ((chord === bulkKey || chord === "space") && messages.length > 0) {
+      const bulkKeyShadowsSearch =
+        bulkKey !== "space" && bulkKey === keymap.search;
+      // Space ALWAYS selects. The configured bulk key selects too — unless it
+      // collides with search, in which case that key searches instead (Space
+      // still selects, so bulk is never lost).
+      if (
+        (chord === "space" || (chord === bulkKey && !bulkKeyShadowsSearch)) &&
+        messages.length > 0
+      ) {
         e.preventDefault();
         const i = idx >= 0 ? idx : 0;
         if (i < messages.length) {
@@ -3126,7 +3138,7 @@ export default function App() {
             placeholder={
               localFilter
                 ? "Filter loaded messages…"
-                : "Search mail (s · Ctrl+F advanced) — from:, has:attachment…"
+                : `Search mail (${keymap.search} · Ctrl+F advanced) — from:, has:attachment…`
             }
             value={query}
             onChange={(e) => {
@@ -3316,12 +3328,10 @@ export default function App() {
             <div className="list-head">
               <span className="list-count">
                 {localFilter
-                  ? `${messages.length} of ${fullMessagesRef.current.length}`
-                  : `${messages.length}${nextToken ? "+" : ""}`}{" "}
-                {(localFilter ? messages.length : fullMessagesRef.current.length) ===
-                1
-                  ? "email"
-                  : "emails"}
+                  ? `${messages.length} of ${fullMessagesRef.current.length} emails`
+                  : nextToken
+                    ? `${messages.length} emails loaded`
+                    : `${messages.length} ${messages.length === 1 ? "email" : "emails"}`}
               </span>
               {activeQuery && !localFilter && (
                 <span className="list-scope muted">· search</span>
@@ -3445,7 +3455,7 @@ export default function App() {
                   disabled={loadingMore}
                   onClick={() => void loadMore()}
                 >
-                  {loadingMore ? "Loading…" : "Load more (N)"}
+                  {loadingMore ? "Loading…" : `Load ${PAGE_SIZE} more`}
                 </button>
               )}
             </>
