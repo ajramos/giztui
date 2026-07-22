@@ -41,9 +41,40 @@ export default function HtmlBody({
     // and drop src. That blocks tracking pixels by default, and — because macOS
     // WKWebView won't load external subresources from the app origin — lets us
     // fetch approved images through the backend as data URIs (see below).
+    // Pull the first URL out of a srcset ("url1 1x, url2 2x" or "url 640w, …").
+    const firstSrcsetUrl = (srcset: string): string => {
+      const first = srcset.split(",")[0]?.trim() || "";
+      return first.split(/\s+/)[0] || "";
+    };
     const hook = (node: Element) => {
+      // <source> inside <picture> carries its own srcset which the browser
+      // prefers over the <img src> we proxy — neutralize it so our img wins.
+      if (node.nodeName === "SOURCE") {
+        node.removeAttribute("srcset");
+        node.removeAttribute("src");
+        return;
+      }
       if (node.nodeName === "IMG") {
-        const src = node.getAttribute("src") || "";
+        let src = node.getAttribute("src") || "";
+        // Newsletters commonly lazy-load: the real URL sits in data-src while
+        // src holds a 1x1 placeholder (often a data: URI). Prefer the lazy URL.
+        const lazy =
+          node.getAttribute("data-src") ||
+          node.getAttribute("data-original") ||
+          node.getAttribute("data-image-src") ||
+          "";
+        if ((!src || /^data:/i.test(src)) && lazy) src = lazy;
+        // Fall back to srcset when there's still no usable src.
+        if (!src || /^data:/i.test(src)) {
+          const ss = node.getAttribute("srcset") || "";
+          if (ss) src = firstSrcsetUrl(ss);
+        }
+        // srcset/sizes would otherwise override the proxied data-URI src, so
+        // strip them once we've extracted what we need.
+        node.removeAttribute("srcset");
+        node.removeAttribute("sizes");
+        // Protocol-relative //host/img.png → https.
+        if (/^\/\//.test(src)) src = "https:" + src;
         if (/^https?:/i.test(src)) {
           node.setAttribute("data-remote-src", src);
           node.removeAttribute("src");

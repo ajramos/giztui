@@ -179,10 +179,20 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	// AIService is optional: only wired when an LLM provider is configured.
 	aiService := buildAIService(cfg, cacheService, logger)
 
-	// PromptService needs both an LLM (aiService) and the local database.
+	// PromptService needs both an LLM (aiService) and the local database. Wire the
+	// bulk-prompt service too (mirroring the TUI) so "apply a prompt to many
+	// messages" works — without it ApplyBulkPrompt returns "bulk prompt service
+	// not available". Cache needs the DB, so bulk is gated on cacheService.
 	var promptService services.PromptService
 	if aiService != nil && dbStore != nil {
-		promptService = services.NewPromptService(db.NewPromptStore(dbStore), aiService, nil)
+		promptImpl := services.NewPromptService(db.NewPromptStore(dbStore), aiService, nil)
+		if cacheService != nil {
+			bulkPromptService := services.NewBulkPromptService(
+				emailService, aiService, cacheService, repo, promptImpl,
+			)
+			promptImpl.SetBulkService(bulkPromptService)
+		}
+		promptService = promptImpl
 	}
 
 	// Obsidian needs the local database and an enabled config.

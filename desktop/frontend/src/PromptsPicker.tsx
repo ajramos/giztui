@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useListNav } from "./useListNav";
 import { backend, type Prompt } from "./api";
 
 export default function PromptsPicker({
@@ -14,7 +15,6 @@ export default function PromptsPicker({
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [active, setActive] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -39,26 +39,19 @@ export default function PromptsPicker({
     );
   }, [prompts, filter]);
 
+  // Keyboard-first, focus-independent: drive arrows/Enter/Escape at the window
+  // (WKWebView won't deliver them reliably from the focused input to our
+  // handler). The filter input keeps autoFocus for typing; no onKeyDown on it,
+  // to avoid double-firing. Mirrors MovePicker / the other standardized pickers.
+  const nav = useListNav(visible, {
+    onEnter: (p) => onPick(p),
+    onEscape: onClose,
+    windowKeys: true,
+  });
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal narrow"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            onClose();
-          } else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setActive((i) => Math.min(visible.length - 1, i + 1));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActive((i) => Math.max(0, i - 1));
-          } else if (e.key === "Enter") {
-            e.preventDefault();
-            if (visible[active]) onPick(visible[active]);
-          }
-        }}
-      >
+      <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>Apply a prompt</h3>
           <span className="summary-head-actions">
@@ -76,15 +69,15 @@ export default function PromptsPicker({
         <div className="modal-body">
           <input
             className="label-filter"
-            placeholder="Filter prompts…"
+            placeholder="Filter prompts… (↑↓ · Enter apply · Esc close)"
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
-              setActive(0);
+              nav.setActive(0);
             }}
             autoFocus
           />
-          <div className="label-list">
+          <div className="label-list" ref={nav.listRef}>
             {loading ? (
               <div className="placeholder">Loading…</div>
             ) : visible.length === 0 ? (
@@ -93,8 +86,8 @@ export default function PromptsPicker({
               visible.map((p, i) => (
                 <button
                   key={p.id}
-                  className={"prompt-row" + (i === active ? " active" : "")}
-                  onMouseEnter={() => setActive(i)}
+                  className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
+                  onMouseEnter={() => nav.setActiveHover(i)}
                   onClick={() => onPick(p)}
                 >
                   <span className="prompt-name">{p.name}</span>
@@ -105,6 +98,11 @@ export default function PromptsPicker({
               ))
             )}
           </div>
+        </div>
+        <div className="modal-foot">
+          <span className="foot-hint">
+            type to filter · ↑↓ move · Enter apply · Esc close
+          </span>
         </div>
       </div>
     </div>

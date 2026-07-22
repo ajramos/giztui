@@ -30,7 +30,12 @@ func (a *App) FetchImage(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "GizTUI-Desktop")
+	// Present as a normal browser. Many newsletter image CDNs (HubSpot, beehiiv,
+	// Mailchimp, …) return 403 to unknown User-Agents, which is why an image can
+	// load in Gmail's proxy yet fail here — Gmail fetches with a browser-like UA.
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
