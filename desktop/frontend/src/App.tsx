@@ -1615,6 +1615,35 @@ export default function App() {
     [showToast, clearReaderIfRemoved, planExcluded],
   );
 
+  // dispatchPromptCategory runs the prompt attached to a "prompt" bucket (from a
+  // deterministic rule) over its selected emails, streaming the result into the
+  // shared prompt-result modal — the TUI's dispatchActionPlanPrompt.
+  const dispatchPromptCategory = useCallback(
+    async (cat: PlanCategory) => {
+      if (cat.action !== "prompt" || !cat.promptId) return;
+      const ids = cat.messageIds.filter((id) => !planExcluded.has(id));
+      if (!ids.length) return;
+      setBulkPromptLabel(`${cat.name} · ${ids.length} emails`);
+      setBulkPromptText("");
+      setPromptRunning(true);
+      setError("");
+      try {
+        let acc = "";
+        const final = await applyBulkPromptStream(ids, cat.promptId, (tok) => {
+          acc += tok;
+          setBulkPromptText(acc);
+        });
+        setBulkPromptText(final);
+      } catch (e) {
+        setError(String(e));
+        setBulkPromptText(null);
+      } finally {
+        setPromptRunning(false);
+      }
+    },
+    [planExcluded],
+  );
+
   // applyAllCategories runs every category's action in one go (the TUI's
   // "confirm & apply the whole plan").
   const applyAllCategories = useCallback(async () => {
@@ -1714,7 +1743,11 @@ export default function App() {
         return;
       }
       const c = plan?.categories[node.catIdx];
-      if (!c || c.action === "none" || c.action === "prompt") return;
+      if (!c || c.action === "none") return;
+      if (c.action === "prompt") {
+        void dispatchPromptCategory(c);
+        return;
+      }
       // For label buckets Enter does the dominant action: move to folder
       // (label + archive). Label-only stays on its button and the `l` key.
       void applyCategory(c, c.action === "label");
@@ -1728,7 +1761,8 @@ export default function App() {
       !rulesOpen &&
       promptPreview === null &&
       planMove === null &&
-      planPreview === null,
+      planPreview === null &&
+      bulkPromptText === null,
   });
   // Ref so the key handler can act on the active node without the huge onKey
   // effect depending on planNav.active (which changes on every arrow).
@@ -2398,7 +2432,8 @@ export default function App() {
           !detRulesOpen &&
           promptPreview === null &&
           planMove === null &&
-          planPreview === null
+          planPreview === null &&
+          bulkPromptText === null
         ) {
           if (e.key === "r") {
             e.preventDefault();
@@ -4233,12 +4268,18 @@ export default function App() {
                                 Label "{c.label}"
                               </button>
                             </span>
+                          ) : c.action === "prompt" ? (
+                            <button
+                              className="tiny primary"
+                              disabled={!c.promptId}
+                              onClick={() => void dispatchPromptCategory(c)}
+                            >
+                              Run prompt
+                            </button>
                           ) : (
                             <button
                               className="tiny"
-                              disabled={
-                                c.action === "none" || c.action === "prompt"
-                              }
+                              disabled={c.action === "none"}
                               onClick={() => void applyCategory(c)}
                             >
                               {c.action.replace("_", " ")}

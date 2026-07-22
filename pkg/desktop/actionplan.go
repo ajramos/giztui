@@ -52,6 +52,7 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgre
 					Label:       m.Rule.Label,
 					MessageIDs:  m.MessageIDs,
 					ByRule:      true,
+					PromptID:    int(m.Rule.PromptID),
 				})
 			}
 			keep := make(map[string]bool, len(remaining))

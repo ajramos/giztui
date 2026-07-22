@@ -99,6 +99,8 @@ export interface PlanCategory {
   byRule?: boolean;
   // The synthetic "read manually" bucket (AI left these to review).
   readManually?: boolean;
+  // Saved prompt to run when action === "prompt" (from a deterministic rule).
+  promptId?: number;
 }
 
 export interface ActionPlanResult {
@@ -838,7 +840,8 @@ const mockBackend: Backend = {
         { name: "Newsletters", priority: "low", description: "Digests and weekly roundups", action: "archive", label: "", messageIds: ids.slice(1, 3) },
         { name: "Calendar invites", priority: "medium", description: "Accepted meeting notifications", action: "mark_read", label: "", messageIds: ids.slice(3, 5) },
         { name: "Finance", priority: "high", description: "Invoices and expenses to review", action: "label", label: "Finance", messageIds: ids.slice(5, 6) },
-        { name: "Read manually", priority: "low", description: "The AI left these for you to review", action: "none", label: "", messageIds: ids.slice(6, 8), readManually: true },
+        { name: "Prompt: summarize", priority: "medium", description: "Matched by rule: label:receipts", action: "prompt", label: "", messageIds: ids.slice(6, 8), byRule: true, promptId: 1 },
+        { name: "Read manually", priority: "low", description: "The AI left these for you to review", action: "none", label: "", messageIds: ids.slice(8, 10), readManually: true },
       ],
     };
   },

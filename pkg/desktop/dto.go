@@ -108,6 +108,9 @@ type PlanCategory struct {
 	// ReadManually is true for the synthetic "read manually" bucket (the emails
 	// the AI declined to categorize), so the UI can render it distinctly.
 	ReadManually bool `json:"readManually"`
+	// PromptID is the saved prompt to run when Action == "prompt" (from a
+	// deterministic rule); 0 otherwise.
+	PromptID int `json:"promptId"`
 }
 
 // ActionPlanResult is the AI inbox action plan.
