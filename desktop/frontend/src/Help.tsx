@@ -140,7 +140,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
           ? [
               { icon: "🧠", keys: fmtKey(k.actionPlan), desc: "Inbox action plan" },
               { icon: "☑️", keys: "Space", desc: "Select / deselect an email (in plan)" },
-              { icon: "👁️", keys: "Enter", desc: "Quick-view an email (in plan)" },
+              { icon: "👁️", keys: "Enter", desc: "Peek email · apply bucket (label→move)" },
+              { icon: "🏷️", keys: "l", desc: "Apply a label bucket as label-only" },
               { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
               { icon: "📐", keys: ":rules", desc: "Deterministic rules" },
             ]

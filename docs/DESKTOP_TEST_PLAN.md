@@ -192,7 +192,9 @@ message subject/account and what you saw.
 | 10.2 | ⌨️ →/`Space` on a category | Expands to list its emails; ↓ descends into them |
 | 10.3 | ⌨️ `Enter` on an email | Quick-view opens (peek at the body); `Esc` returns to the plan; "Open in reader" jumps to the full message |
 | 10.4 | ⌨️ `Space` on an email | Toggles selection (deselected = unchecked + struck); category apply/move act only on the still-selected subset |
-| 10.5 | ⌨️ `Enter` on a category | Applies that category's action to its **selected** messages (archive/mark-read/label) |
+| 10.5 | ⌨️ `Enter` on a category | Applies that category's action to its **selected** messages (archive/mark-read; a `label` bucket does **move to folder** = label + archive) |
+| 10.5b | A `label` bucket shows two buttons | **Move to "X"** (label + archive, leaves inbox — Enter / primary) and **Label "X"** (label only — `l` key) |
+| 10.5c | A `prompt` bucket (from a rule) shows **Run prompt** | Enter / the button runs the rule's saved prompt over the selected emails; result streams into a modal |
 | 10.6 | ⌨️ `m` on an email | Move chooser (1-9 / ↑↓); reassigns that email to another bucket (in-memory until you apply) |
 | 10.7 | ⌨️ `m` on a category | Move chooser; reassigns the still-selected emails of the bucket; an emptied source category is pruned |
 | 10.7b | The **Read manually** bucket (review badge, last) | Expand/select/peek like any category; `m` recategorizes its emails into a real category; no apply button |
