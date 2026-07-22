@@ -34,6 +34,7 @@ import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
 import MovePicker from "./MovePicker";
 import PlanMovePicker from "./PlanMovePicker";
+import SuggestPicker from "./SuggestPicker";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -4040,38 +4041,12 @@ export default function App() {
         <LinksPicker messageId={linksFor} onClose={() => setLinksFor(null)} />
       )}
       {suggestFor && (
-        <div className="modal-overlay" onClick={() => setSuggestFor(null)}>
-          <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>✦ Suggested labels</h3>
-              <button className="ghost" onClick={() => setSuggestFor(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {loadingSuggest ? (
-                <div className="placeholder">Thinking…</div>
-              ) : suggestions.length === 0 ? (
-                <div className="placeholder">No suggestions</div>
-              ) : (
-                <div className="labels">
-                  {suggestions.map((s) => (
-                    <button
-                      key={s}
-                      className="label-chip suggest-chip"
-                      onClick={() => applySuggestion(s)}
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button onClick={() => setSuggestFor(null)}>Done</button>
-            </div>
-          </div>
-        </div>
+        <SuggestPicker
+          suggestions={suggestions}
+          loading={loadingSuggest}
+          onApply={applySuggestion}
+          onClose={() => setSuggestFor(null)}
+        />
       )}
       {queriesOpen && (
         <SavedQueriesPicker
