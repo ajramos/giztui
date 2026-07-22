@@ -186,20 +186,34 @@ export default function HtmlBody({
     }
 
     // Once the user opts in, fetch each remote image through the backend and
-    // swap in the returned data URI (WKWebView won't fetch them in-page).
+    // swap in the returned data URI (WKWebView won't fetch them in-page). Log the
+    // outcome per image so a failing newsletter can be diagnosed from the log
+    // (the backend logs the HTTP status / reason; here we log the swap result).
     if (loadRemote) {
-      shadow
-        .querySelectorAll<HTMLImageElement>("img[data-remote-src]")
-        .forEach((img) => {
-          const url = img.getAttribute("data-remote-src");
-          if (!url) return;
-          void backend
-            .FetchImage(url)
-            .then((uri) => {
-              if (uri) img.setAttribute("src", uri);
-            })
-            .catch(() => undefined);
-        });
+      const targets = Array.from(
+        shadow.querySelectorAll<HTMLImageElement>("img[data-remote-src]"),
+      );
+      if (targets.length && messageId) {
+        void backend.LogUI(
+          `htmlbody msg=${messageId}: loading ${targets.length} remote image(s)`,
+        );
+      }
+      targets.forEach((img) => {
+        const url = img.getAttribute("data-remote-src");
+        if (!url) return;
+        void backend
+          .FetchImage(url)
+          .then((uri) => {
+            if (uri) {
+              img.setAttribute("src", uri);
+            } else {
+              void backend.LogUI(`htmlbody: empty image result for ${url}`);
+            }
+          })
+          .catch((e) => {
+            void backend.LogUI(`htmlbody: image failed ${url} — ${String(e)}`);
+          });
+      });
     }
   }, [html, loadRemote, messageId, attachments]);
 

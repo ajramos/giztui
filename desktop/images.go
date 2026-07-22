@@ -5,10 +5,19 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 )
+
+// shortURL trims a URL for log lines so a long tracking URL doesn't flood the log.
+func shortURL(u string) string {
+	if len(u) > 120 {
+		return u[:120] + "…"
+	}
+	return u
+}
 
 // FetchImage downloads a remote image and returns it as a data: URI. Email HTML
 // is rendered in-page (Shadow DOM), and macOS WKWebView won't load external
@@ -38,15 +47,20 @@ func (a *App) FetchImage(rawURL string) (string, error) {
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Printf("image: fetch error url=%s err=%v", shortURL(rawURL), err)
 		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		// The most useful failure to see in the log: the CDN said no (403 = UA/hotlink
+		// block, 404 = gone, 3xx that didn't resolve, …).
+		log.Printf("image: HTTP %d url=%s (final=%s)", resp.StatusCode, shortURL(rawURL), shortURL(resp.Request.URL.String()))
 		return "", fmt.Errorf("image fetch failed: %s", resp.Status)
 	}
 	// Cap the payload so a rogue URL can't balloon memory / the data URI.
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 15<<20))
 	if err != nil {
+		log.Printf("image: read error url=%s err=%v", shortURL(rawURL), err)
 		return "", err
 	}
 	ct := resp.Header.Get("Content-Type")
@@ -54,10 +68,12 @@ func (a *App) FetchImage(rawURL string) (string, error) {
 		ct = http.DetectContentType(data)
 	}
 	if !strings.HasPrefix(ct, "image/") {
+		log.Printf("image: not an image url=%s content-type=%q bytes=%d", shortURL(rawURL), resp.Header.Get("Content-Type"), len(data))
 		return "", fmt.Errorf("not an image (%s)", ct)
 	}
 	if i := strings.IndexByte(ct, ';'); i >= 0 {
 		ct = ct[:i]
 	}
+	log.Printf("image: ok url=%s type=%s bytes=%d", shortURL(rawURL), ct, len(data))
 	return "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 }
