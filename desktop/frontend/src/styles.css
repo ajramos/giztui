@@ -1074,6 +1074,17 @@ button.danger {
   border-color: var(--text-muted);
   padding: 1px 5px;
 }
+/* Label buckets get two apply buttons (Move primary + Label only). */
+.plan-cat-acts {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.plan-cat-acts .tiny.primary {
+  background: var(--accent-strong);
+  border-color: transparent;
+  color: #fff;
+}
 .rule-badge svg {
   width: 11px;
   height: 11px;

@@ -1550,13 +1550,16 @@ export default function App() {
   }, [analyzing]);
 
   const applyCategory = useCallback(
-    async (cat: PlanCategory) => {
+    // asMove: for a "label" category, move to the folder (label + archive, leaves
+    // the inbox) instead of only labelling — the user's dominant workflow.
+    async (cat: PlanCategory, asMove = false) => {
       // Act only on the still-checked (non-deselected) emails; deselected ones
       // stay in the category so the user can move or handle them separately.
       const ids = cat.messageIds.filter((id) => !planExcluded.has(id));
       if (!ids.length) return;
       const idSet = new Set(ids);
       try {
+        let toast = `${cat.name}: ${cat.action.replace("_", " ")} · ${ids.length}`;
         if (cat.action === "archive") {
           await backend.BulkArchive(ids);
           setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
@@ -1571,11 +1574,19 @@ export default function App() {
             prev.map((m) => (idSet.has(m.id) ? { ...m, unread: false } : m)),
           );
         } else if (cat.action === "label") {
-          await backend.BulkApplyLabelByName(ids, cat.label);
+          if (asMove) {
+            // Move to folder = apply label + archive → leaves the inbox list.
+            await backend.BulkMoveToLabel(ids, cat.label);
+            setMessages((prev) => prev.filter((m) => !idSet.has(m.id)));
+            clearReaderIfRemoved(idSet);
+            toast = `Moved ${ids.length} to ${cat.label}`;
+          } else {
+            await backend.BulkApplyLabelByName(ids, cat.label);
+          }
         } else {
           return;
         }
-        showToast(`${cat.name}: ${cat.action.replace("_", " ")} · ${ids.length}`);
+        showToast(toast);
         // Drop the acted-on emails; keep the category (with any deselected ones)
         // only if some remain, otherwise remove it entirely.
         setPlan((prev) =>
@@ -1703,7 +1714,10 @@ export default function App() {
         return;
       }
       const c = plan?.categories[node.catIdx];
-      if (c && c.action !== "none" && c.action !== "prompt") void applyCategory(c);
+      if (!c || c.action === "none" || c.action === "prompt") return;
+      // For label buckets Enter does the dominant action: move to folder
+      // (label + archive). Label-only stays on its button and the `l` key.
+      void applyCategory(c, c.action === "label");
     },
     onEscape: () => setPlanOpen(false),
     // Only drive the plan while it's the topmost modal — otherwise its Escape
@@ -2396,6 +2410,16 @@ export default function App() {
             void viewAnalyzerPrompt();
             return;
           }
+          // l applies a label bucket as LABEL-ONLY (Enter does the move variant).
+          if (e.key === "l") {
+            const node = planNodesRef.current[planActiveRef.current];
+            const c = node ? plan?.categories[node.catIdx] : undefined;
+            if (c && c.action === "label") {
+              e.preventDefault();
+              void applyCategory(c, false);
+              return;
+            }
+          }
           // m reassigns to another bucket: on an email node, that one email; on a
           // category node, the whole category (the TUI's action-plan move).
           if (e.key === "m") {
@@ -2897,6 +2921,7 @@ export default function App() {
     planOpen,
     planMove,
     planPreview,
+    applyCategory,
     themePickerOpen,
     rulesOpen,
     promptPreview,
@@ -4190,20 +4215,35 @@ export default function App() {
                           </div>
                         </button>
                         {/* Read-manually has no action to apply — you recategorize
-                            its emails out (m); other categories get an apply button. */}
-                        {!c.readManually && (
-                          <button
-                            className="tiny"
-                            disabled={
-                              c.action === "none" || c.action === "prompt"
-                            }
-                            onClick={() => void applyCategory(c)}
-                          >
-                            {c.action === "label"
-                              ? `Label "${c.label}"`
-                              : c.action.replace("_", " ")}
-                          </button>
-                        )}
+                            its emails out (m). Label buckets get two: Move (label +
+                            archive, leaves inbox) primary, and Label (label only). */}
+                        {!c.readManually &&
+                          (c.action === "label" ? (
+                            <span className="plan-cat-acts">
+                              <button
+                                className="tiny primary"
+                                onClick={() => void applyCategory(c, true)}
+                              >
+                                Move to "{c.label}"
+                              </button>
+                              <button
+                                className="tiny"
+                                onClick={() => void applyCategory(c, false)}
+                              >
+                                Label "{c.label}"
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="tiny"
+                              disabled={
+                                c.action === "none" || c.action === "prompt"
+                              }
+                              onClick={() => void applyCategory(c)}
+                            >
+                              {c.action.replace("_", " ")}
+                            </button>
+                          ))}
                         {expandedCats.has(c.name) && (
                           <ul className="plan-cat-emails">
                             {c.messageIds.map((id) => {
@@ -4280,8 +4320,8 @@ export default function App() {
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                ↑↓ move · → expand · Space (de)select · Enter peek/apply · m
-                recategorize · r rules · p prompt · Esc close
+                ↑↓ move · → expand · Space (de)select · Enter peek/apply (label→move)
+                · l label-only · m recategorize · r rules · p prompt · Esc close
               </span>
               {plan && plan.categories.length > 0 && (
                 <button
