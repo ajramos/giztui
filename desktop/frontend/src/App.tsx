@@ -2409,6 +2409,7 @@ export default function App() {
         bulkMove ||
         rsvpPickerOpen ||
         detRulesOpen ||
+        accountsOpen ||
         bulkPromptText !== null;
       if (anyModal) {
         // Escape closes the topmost modal from the window (WKWebView won't focus
@@ -2418,7 +2419,8 @@ export default function App() {
         // double-closing is harmless.
         if (e.key === "Escape") {
           e.preventDefault();
-          if (promptPreview !== null) setPromptPreview(null);
+          if (accountsOpen) setAccountsOpen(false);
+          else if (promptPreview !== null) setPromptPreview(null);
           else if (rulesOpen) setRulesOpen(false);
           else if (bulkPromptText !== null) setBulkPromptText(null);
           else if (saveQueryOpen) setSaveQueryOpen(false);
@@ -2441,6 +2443,17 @@ export default function App() {
           else if (promptManagerOpen) setPromptManagerOpen(false);
           else if (cmdOpen) setCmdOpen(false);
           else if (compose) setCompose(null);
+          return;
+        }
+        // Ctrl/Cmd+A toggles the account menu closed too (it's what opened it),
+        // since the menu is now part of the modal guard and swallows other keys.
+        if (
+          accountsOpen &&
+          (e.ctrlKey || e.metaKey) &&
+          (e.key === "a" || e.key === "A")
+        ) {
+          e.preventDefault();
+          setAccountsOpen(false);
           return;
         }
         // Action-plan reachable-by-keyboard shortcuts for its header buttons.
