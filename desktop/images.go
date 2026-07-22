@@ -19,6 +19,27 @@ func shortURL(u string) string {
 	return u
 }
 
+// sanitizeImageURL strips ASCII control characters from an image URL. They are
+// invalid in URLs (net/url.Parse rejects them) and show up when an upstream
+// quoted-printable decode mangles a query param — e.g. a HubSpot resize URL
+// "…/PUPPET.png?width=1200&…" arrives as "…/PUPPET.png?width\x1200&…". The CDN
+// serves the image from the path regardless of the now-bogus query param, so
+// dropping the control byte recovers an image that would otherwise fail to parse.
+func sanitizeImageURL(u string) string {
+	if strings.IndexFunc(u, func(r rune) bool { return r < 0x20 || r == 0x7f }) < 0 {
+		return u
+	}
+	var b strings.Builder
+	b.Grow(len(u))
+	for _, r := range u {
+		if r < 0x20 || r == 0x7f {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // FetchImage downloads a remote image and returns it as a data: URI. Email HTML
 // is rendered in-page (Shadow DOM), and macOS WKWebView won't load external
 // subresources from the app's custom-scheme origin — so once the user opts in to
@@ -26,6 +47,7 @@ func shortURL(u string) string {
 // keeps image fetches on the app's network path (honouring the proxy) instead
 // of the webview's.
 func (a *App) FetchImage(rawURL string) (string, error) {
+	rawURL = sanitizeImageURL(strings.TrimSpace(rawURL))
 	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
 		return "", fmt.Errorf("unsupported URL scheme")
 	}

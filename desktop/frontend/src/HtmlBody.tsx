@@ -73,6 +73,12 @@ export default function HtmlBody({
         // strip them once we've extracted what we need.
         node.removeAttribute("srcset");
         node.removeAttribute("sizes");
+        // Strip ASCII control characters: an upstream quoted-printable decode
+        // can leave one in a query param (e.g. width=1200 → width\x1200), which
+        // makes the URL unparseable. The CDN serves the image from the path, so
+        // dropping the byte recovers it.
+        // eslint-disable-next-line no-control-regex
+        src = src.replace(/[\u0000-\u001f\u007f]/g, "").trim();
         // Protocol-relative //host/img.png → https.
         if (/^\/\//.test(src)) src = "https:" + src;
         if (/^https?:/i.test(src)) {
