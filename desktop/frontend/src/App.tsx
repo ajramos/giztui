@@ -2358,6 +2358,16 @@ export default function App() {
         }
       }
 
+      // Advanced search builder (default Ctrl+F / Cmd+F, from search_advanced).
+      // Handled before the generic Ctrl/Cmd early-return and the typing guard so
+      // it opens from anywhere — list, reader, or the search box — like the TUI.
+      // Only modifier combos are honored here (a bare key would hijack typing).
+      if (keymap.searchAdvanced && !advOpen && matchesCombo(e, keymap.searchAdvanced)) {
+        e.preventDefault();
+        setAdvOpen(true);
+        return;
+      }
+
       // Never let OS/browser clipboard & navigation combos (Cmd/Ctrl+C, V, X, A,
       // Z…) fall through to single-key actions like compose ("c"). The only
       // Cmd/Ctrl combos we act on are zoom (handled above) and the accounts
@@ -2736,6 +2746,16 @@ export default function App() {
       const rop = rangeOps[chord];
       if (rop) {
         e.preventDefault();
+        // With an explicit bulk selection, act on it immediately (the TUI's "VIM
+        // BULK FIX") instead of starting a count sequence. A range means "the
+        // next N rows", which is meaningless once you've hand-picked a set — and
+        // the 2s buffer made the operation look hung (progress bar appears, sits
+        // idle, then the toast + removal land seconds later).
+        if (bulkMode && selected.size > 0) {
+          if (vimRange.current) clearVimRange();
+          runVimSingle(rop, selectedId ?? messages[0]?.id ?? "");
+          return;
+        }
         const pending = vimRange.current;
         if (pending && pending.key === chord) {
           // Second press of the same key completes the range.
@@ -3106,7 +3126,7 @@ export default function App() {
             placeholder={
               localFilter
                 ? "Filter loaded messages…"
-                : "Search mail (press / or s) — Gmail operators: from:, has:attachment…"
+                : "Search mail (s · Ctrl+F advanced) — from:, has:attachment…"
             }
             value={query}
             onChange={(e) => {
@@ -3289,6 +3309,25 @@ export default function App() {
             </>
           ) : (
             <>
+          {/* Loaded-message count (TUI parity — the list title's message tally).
+              Shows how many are loaded, a trailing "+" when more can be fetched,
+              and "N of M" while a local filter narrows the loaded set. */}
+          {!loadingList && messages.length > 0 && (
+            <div className="list-head">
+              <span className="list-count">
+                {localFilter
+                  ? `${messages.length} of ${fullMessagesRef.current.length}`
+                  : `${messages.length}${nextToken ? "+" : ""}`}{" "}
+                {(localFilter ? messages.length : fullMessagesRef.current.length) ===
+                1
+                  ? "email"
+                  : "emails"}
+              </span>
+              {activeQuery && !localFilter && (
+                <span className="list-scope muted">· search</span>
+              )}
+            </div>
+          )}
           {bulkMode && (
             <div className="bulk-bar">
               <div className="bulk-top">
@@ -4814,6 +4853,24 @@ function displayName(from: string): string {
   const m = from.match(/^\s*"?([^"<]+?)"?\s*</);
   if (m) return m[1].trim();
   return from.split("@")[0] || from;
+}
+
+// matchesCombo reports whether a keyboard event matches a TUI-style modifier
+// combo like "ctrl+f" or "ctrl+shift+p". Ctrl and Cmd are treated as
+// interchangeable so a config's "ctrl+f" also fires on macOS's Cmd+F. Only
+// combos that include a modifier are matched — a bare key returns false so it
+// never hijacks normal typing/actions.
+function matchesCombo(e: KeyboardEvent, combo: string): boolean {
+  const parts = combo.toLowerCase().split("+");
+  const key = parts[parts.length - 1];
+  const wantCtrlOrMeta = parts.includes("ctrl") || parts.includes("cmd") || parts.includes("meta");
+  const wantShift = parts.includes("shift");
+  const wantAlt = parts.includes("alt") || parts.includes("option");
+  if (!wantCtrlOrMeta && !wantAlt) return false; // require a modifier
+  if (wantCtrlOrMeta !== (e.ctrlKey || e.metaKey)) return false;
+  if (wantAlt !== e.altKey) return false;
+  if (wantShift !== e.shiftKey) return false;
+  return e.key.toLowerCase() === key;
 }
 
 function emailAddr(from: string): string {

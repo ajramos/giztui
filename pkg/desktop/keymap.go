@@ -45,6 +45,7 @@ type KeyMap struct {
 	SearchFrom        string `json:"searchFrom"`
 	SearchTo          string `json:"searchTo"`
 	SearchSubject     string `json:"searchSubject"`
+	SearchAdvanced    string `json:"searchAdvanced"`
 	ContentSearch     string `json:"contentSearch"`
 	Undo              string `json:"undo"`
 	Unread            string `json:"unread"`
@@ -68,7 +69,8 @@ func DefaultKeyMap() KeyMap {
 		CommandMode: ":", Threading: "T", SavedQueries: "Q", SaveQuery: "Z",
 		ActionPlan: "P", ThemePicker: "H", GenerateReply: "g", Move: "m",
 		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
-		ContentSearch: "/", Undo: "U", Unread: "u", Archived: "B", SaveRaw: "W",
+		SearchAdvanced: "ctrl+f",
+		ContentSearch:  "/", Undo: "U", Unread: "u", Archived: "B", SaveRaw: "W",
 		RSVP: "V", VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
 	}
 }
@@ -120,6 +122,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.SearchFrom = orDefault(k.SearchFrom, km.SearchFrom)
 	km.SearchTo = orDefault(k.SearchTo, km.SearchTo)
 	km.SearchSubject = orDefault(k.SearchSubject, km.SearchSubject)
+	km.SearchAdvanced = orDefault(k.SearchAdvanced, km.SearchAdvanced)
 	km.ContentSearch = orDefault(k.ContentSearch, km.ContentSearch)
 	km.Undo = orDefault(k.Undo, km.Undo)
 	km.Unread = orDefault(k.Unread, km.Unread)

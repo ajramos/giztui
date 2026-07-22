@@ -63,7 +63,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "📫", keys: fmtKey(k.searchFrom), desc: "Search from this sender" },
       { icon: "📤", keys: fmtKey(k.searchTo), desc: "Search to this recipient" },
       { icon: "🧵", keys: fmtKey(k.searchSubject), desc: "Search this subject" },
-      { icon: "🔎", keys: ":advanced", desc: "Advanced search builder" },
+      { icon: "🔎", keys: `${fmtKey(k.searchAdvanced)} / :advanced`, desc: "Advanced search builder" },
       { icon: "🎯", keys: ":local", desc: "Local filter ↔ Gmail search" },
       ...(f.savedQueries
         ? [

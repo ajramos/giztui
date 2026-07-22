@@ -234,6 +234,7 @@ export interface KeyMap {
   searchFrom: string;
   searchTo: string;
   searchSubject: string;
+  searchAdvanced: string;
   contentSearch: string;
   undo: string;
   unread: string;
@@ -254,6 +255,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   commandMode: ":", threading: "T", savedQueries: "Q", saveQuery: "Z",
   actionPlan: "P", themePicker: "H", generateReply: "g", move: "m",
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
+  searchAdvanced: "ctrl+f",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
   rsvp: "V", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
