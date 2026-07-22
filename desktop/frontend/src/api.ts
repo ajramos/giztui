@@ -97,6 +97,8 @@ export interface PlanCategory {
   label: string;
   messageIds: string[];
   byRule?: boolean;
+  // The synthetic "read manually" bucket (AI left these to review).
+  readManually?: boolean;
 }
 
 export interface ActionPlanResult {
@@ -830,12 +832,13 @@ const mockBackend: Backend = {
     const ids = inputs.map((i) => i.id);
     return {
       totalAnalyzed: inputs.length,
-      readManually: 1,
+      readManually: 2,
       categories: [
         { name: "Archive: from:github.com", priority: "medium", description: "Matched by rule: from:github.com", action: "archive", label: "", messageIds: ids.slice(0, 1), byRule: true },
         { name: "Newsletters", priority: "low", description: "Digests and weekly roundups", action: "archive", label: "", messageIds: ids.slice(1, 3) },
         { name: "Calendar invites", priority: "medium", description: "Accepted meeting notifications", action: "mark_read", label: "", messageIds: ids.slice(3, 5) },
         { name: "Finance", priority: "high", description: "Invoices and expenses to review", action: "label", label: "Finance", messageIds: ids.slice(5, 6) },
+        { name: "Read manually", priority: "low", description: "The AI left these for you to review", action: "none", label: "", messageIds: ids.slice(6, 8), readManually: true },
       ],
     };
   },

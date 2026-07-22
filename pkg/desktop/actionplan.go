@@ -107,6 +107,23 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgre
 				Action: c.Action, Label: c.Label, MessageIDs: c.MessageIDs,
 			})
 		}
+		// Expose "read manually" as a navigable bucket (action "none"), like the
+		// TUI — so you can expand it, peek/select its emails, and recategorize
+		// them into a real category. Appended last so it sorts to the bottom.
+		if len(plan.ReadManually) > 0 {
+			ids := make([]string, len(plan.ReadManually))
+			for i, m := range plan.ReadManually {
+				ids[i] = m.ID
+			}
+			res.Categories = append(res.Categories, PlanCategory{
+				Name:         "Read manually",
+				Priority:     "low",
+				Description:  "The AI left these for you to review",
+				Action:       "none",
+				MessageIDs:   ids,
+				ReadManually: true,
+			})
+		}
 	} else {
 		res.TotalAnalyzed = resolved
 	}

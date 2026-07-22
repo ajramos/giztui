@@ -4161,7 +4161,14 @@ export default function App() {
                             <span className="conv-caret">
                               {expandedCats.has(c.name) ? "▾" : "▸"}
                             </span>
-                            {c.byRule ? (
+                            {c.readManually ? (
+                              <span
+                                className="rule-badge review-badge"
+                                title="The AI left these for you to review — recategorize with m"
+                              >
+                                review
+                              </span>
+                            ) : c.byRule ? (
                               <span
                                 className="rule-badge"
                                 title="Resolved by a deterministic rule"
@@ -4182,15 +4189,21 @@ export default function App() {
                             {c.description}
                           </div>
                         </button>
-                        <button
-                          className="tiny"
-                          disabled={c.action === "none" || c.action === "prompt"}
-                          onClick={() => void applyCategory(c)}
-                        >
-                          {c.action === "label"
-                            ? `Label "${c.label}"`
-                            : c.action.replace("_", " ")}
-                        </button>
+                        {/* Read-manually has no action to apply — you recategorize
+                            its emails out (m); other categories get an apply button. */}
+                        {!c.readManually && (
+                          <button
+                            className="tiny"
+                            disabled={
+                              c.action === "none" || c.action === "prompt"
+                            }
+                            onClick={() => void applyCategory(c)}
+                          >
+                            {c.action === "label"
+                              ? `Label "${c.label}"`
+                              : c.action.replace("_", " ")}
+                          </button>
+                        )}
                         {expandedCats.has(c.name) && (
                           <ul className="plan-cat-emails">
                             {c.messageIds.map((id) => {

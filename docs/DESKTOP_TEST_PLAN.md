@@ -195,6 +195,7 @@ message subject/account and what you saw.
 | 10.5 | ⌨️ `Enter` on a category | Applies that category's action to its **selected** messages (archive/mark-read/label) |
 | 10.6 | ⌨️ `m` on an email | Move chooser (1-9 / ↑↓); reassigns that email to another bucket (in-memory until you apply) |
 | 10.7 | ⌨️ `m` on a category | Move chooser; reassigns the still-selected emails of the bucket; an emptied source category is pruned |
+| 10.7b | The **Read manually** bucket (review badge, last) | Expand/select/peek like any category; `m` recategorizes its emails into a real category; no apply button |
 | 10.8 | 🖱️ **Apply all** | Runs every category's action in one go |
 | 10.9 | ⌨️ `p` | Shows the effective analyzer prompt (rules block + base) |
 | 10.10 | ⌨️ `r` | Analyzer rules: add a natural-language rule; re-run `:plan` respects it |

@@ -105,6 +105,9 @@ type PlanCategory struct {
 	// ByRule is true for categories resolved by a deterministic rule (the
 	// first pass), so the UI can mark them distinctly from AI categories.
 	ByRule bool `json:"byRule"`
+	// ReadManually is true for the synthetic "read manually" bucket (the emails
+	// the AI declined to categorize), so the UI can render it distinctly.
+	ReadManually bool `json:"readManually"`
 }
 
 // ActionPlanResult is the AI inbox action plan.
