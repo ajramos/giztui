@@ -1109,6 +1109,33 @@ button.danger {
   color: #9ec1ff;
 }
 
+/* Priority moved to the description line: muted, small, no chip background —
+   ordering is by action/name now, so the priority is context, not a header. */
+.prio-tag {
+  margin-left: 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.prio-tag::before {
+  content: "· ";
+  opacity: 0.6;
+}
+.prio-tag.prio-high {
+  background: none;
+  color: #d98a8a;
+}
+.prio-tag.prio-medium {
+  background: none;
+  color: #c2a860;
+}
+.prio-tag.prio-low {
+  background: none;
+  color: #7f9bc4;
+}
+
 /* Saved queries */
 .query-row {
   display: flex;

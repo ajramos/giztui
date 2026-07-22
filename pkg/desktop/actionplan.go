@@ -108,6 +108,10 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgre
 				Action: c.Action, Label: c.Label, MessageIDs: c.MessageIDs,
 			})
 		}
+		// Consolidate cross-batch fragments (small batches split one theme into
+		// "Newsletters" / "Newsletters & Marketing" / …). Rule categories are left
+		// untouched.
+		res.Categories = consolidateCategories(res.Categories)
 		// Expose "read manually" as a navigable bucket (action "none"), like the
 		// TUI — so you can expand it, peek/select its emails, and recategorize
 		// them into a real category. Appended last so it sorts to the bottom.
@@ -129,6 +133,112 @@ func (a *API) AnalyzeInbox(ctx context.Context, inputs []AnalyzerInput, onProgre
 		res.TotalAnalyzed = resolved
 	}
 	return res, nil
+}
+
+// consolidateCategories merges cross-batch fragments so a single theme split
+// across batches (e.g. "Newsletters" / "Newsletters & Marketing") collapses to
+// one bucket. This is desktop-only: the shared analyzer/TUI keep raw output, and
+// the desktop's smaller batch_size (chosen so progress is visible) is what
+// fragments a theme in the first place. Two categories merge when:
+//   - they carry the same non-empty Label (same move destination), or
+//   - they share the same Action and one Name is a word-boundary prefix of the
+//     other (the shorter, more general name wins).
+//
+// Rule-matched (ByRule) and read-manually categories are never touched; order is
+// preserved and message IDs are unioned without duplicates.
+func consolidateCategories(cats []PlanCategory) []PlanCategory {
+	out := make([]PlanCategory, 0, len(cats))
+	merged := make([]bool, len(cats))
+	for i := range cats {
+		if merged[i] {
+			continue
+		}
+		cur := cats[i]
+		// Rule / read-manually buckets pass through untouched.
+		if cur.ByRule || cur.ReadManually {
+			out = append(out, cur)
+			continue
+		}
+		for j := i + 1; j < len(cats); j++ {
+			if merged[j] {
+				continue
+			}
+			other := cats[j]
+			if other.ByRule || other.ReadManually {
+				continue
+			}
+			if !categoriesMergeable(cur, other) {
+				continue
+			}
+			// Keep the shorter (more general) name; union the message IDs.
+			if len([]rune(other.Name)) < len([]rune(cur.Name)) {
+				cur.Name = other.Name
+				cur.Description = other.Description
+				cur.Priority = other.Priority
+			}
+			cur.MessageIDs = unionIDs(cur.MessageIDs, other.MessageIDs)
+			if cur.Label == "" {
+				cur.Label = other.Label
+			}
+			merged[j] = true
+		}
+		out = append(out, cur)
+	}
+	return out
+}
+
+// categoriesMergeable reports whether two AI categories describe the same theme:
+// same non-empty label (same move destination), or same action with one name a
+// word-boundary prefix of the other.
+func categoriesMergeable(a, b PlanCategory) bool {
+	if a.Label != "" && strings.EqualFold(a.Label, b.Label) {
+		return true
+	}
+	if !strings.EqualFold(a.Action, b.Action) {
+		return false
+	}
+	return isWordPrefix(a.Name, b.Name) || isWordPrefix(b.Name, a.Name)
+}
+
+// isWordPrefix reports whether short is a word-boundary prefix of long,
+// case-insensitively — "Newsletters" is a prefix of "Newsletters & Marketing"
+// but "New" is not a prefix of "Newsletters" (no word boundary after "New").
+func isWordPrefix(short, long string) bool {
+	s := strings.TrimSpace(strings.ToLower(short))
+	l := strings.TrimSpace(strings.ToLower(long))
+	if s == "" || len(s) > len(l) {
+		return false
+	}
+	if s == l {
+		return true
+	}
+	if !strings.HasPrefix(l, s) {
+		return false
+	}
+	// The character right after the prefix must be a word boundary (space or
+	// punctuation), so "New" doesn't match "Newsletters".
+	next := l[len(s):]
+	r := []rune(next)[0]
+	return r == ' ' || r == '&' || r == '/' || r == '-' || r == ',' || r == ':' || r == '|'
+}
+
+// unionIDs concatenates two ID slices, preserving order and dropping duplicates.
+func unionIDs(a, b []string) []string {
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, id := range a {
+		if !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	for _, id := range b {
+		if !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // deterministicRuleName renders a rule as an action-plan category name, e.g.

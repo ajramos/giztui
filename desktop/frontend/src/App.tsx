@@ -4242,11 +4242,7 @@ export default function App() {
                               >
                                 {Icon.bolt} rule
                               </span>
-                            ) : (
-                              <span className={"prio prio-" + c.priority}>
-                                {c.priority}
-                              </span>
-                            )}
+                            ) : null}
                             <strong>{c.name}</strong>
                             <span className="plan-count">
                               {c.messageIds.length}
@@ -4254,6 +4250,14 @@ export default function App() {
                           </div>
                           <div className="plan-cat-desc muted">
                             {c.description}
+                            {!c.readManually && !c.byRule && c.priority ? (
+                              <span
+                                className={"prio-tag prio-" + c.priority}
+                                title="AI-assigned priority"
+                              >
+                                {c.priority}
+                              </span>
+                            ) : null}
                           </div>
                         </button>
                         {/* Read-manually has no action to apply — you recategorize
