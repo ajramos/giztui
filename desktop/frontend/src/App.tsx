@@ -35,6 +35,7 @@ import RSVPPicker from "./RSVPPicker";
 import MovePicker from "./MovePicker";
 import PlanMovePicker from "./PlanMovePicker";
 import SuggestPicker from "./SuggestPicker";
+import AttachmentsPicker from "./AttachmentsPicker";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -136,6 +137,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [nextToken, setNextToken] = useState("");
@@ -670,6 +672,7 @@ export default function App() {
       setSummary(null);
       setPromptResult(null);
       setAttachments([]);
+      setAttachmentsOpen(false);
       setThreadMsgs(null);
       setCollapsedMsgs(new Set());
       setTouchUpText(null);
@@ -2008,8 +2011,7 @@ export default function App() {
         case "attachments":
         case "attach":
           if (d && attachments.length > 0) {
-            const el = document.querySelector<HTMLElement>(".attach-chip");
-            el?.focus();
+            setAttachmentsOpen(true);
           }
           break;
         case "threads":
@@ -2410,6 +2412,7 @@ export default function App() {
         rsvpPickerOpen ||
         detRulesOpen ||
         accountsOpen ||
+        attachmentsOpen ||
         bulkPromptText !== null;
       if (anyModal) {
         // Escape closes the topmost modal from the window (WKWebView won't focus
@@ -2420,6 +2423,7 @@ export default function App() {
         if (e.key === "Escape") {
           e.preventDefault();
           if (accountsOpen) setAccountsOpen(false);
+          else if (attachmentsOpen) setAttachmentsOpen(false);
           else if (promptPreview !== null) setPromptPreview(null);
           else if (rulesOpen) setRulesOpen(false);
           else if (bulkPromptText !== null) setBulkPromptText(null);
@@ -2965,13 +2969,9 @@ export default function App() {
           if (detail) saveRawMessage(detail.id);
           break;
         case "attachments":
-          // No standalone picker on the desktop — attachments render inline in
-          // the reader. Jump focus to the first attachment chip so it's
-          // keyboard-reachable (mirrors the TUI opening its attachments view).
-          if (detail && attachments.length > 0) {
-            const el = document.querySelector<HTMLElement>(".attach-chip");
-            el?.focus();
-          }
+          // Open the keyboard-navigable attachments picker (TUI's PickerAttachments).
+          // The reader still shows the same attachments as inline chips for the mouse.
+          if (detail && attachments.length > 0) setAttachmentsOpen(true);
           break;
         case "rsvp":
           // Open the keyboard-navigable RSVP picker for the current invite
@@ -3058,6 +3058,8 @@ export default function App() {
     resetZoom,
     rsvpPickerOpen,
     detRulesOpen,
+    accountsOpen,
+    attachmentsOpen,
     rulesEnabled,
     openRules,
     viewAnalyzerPrompt,
@@ -4059,6 +4061,14 @@ export default function App() {
           loading={loadingSuggest}
           onApply={applySuggestion}
           onClose={() => setSuggestFor(null)}
+        />
+      )}
+      {attachmentsOpen && (
+        <AttachmentsPicker
+          attachments={attachments}
+          busy={busy}
+          onDownload={(att) => void downloadAttachment(att)}
+          onClose={() => setAttachmentsOpen(false)}
         />
       )}
       {queriesOpen && (

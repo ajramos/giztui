@@ -83,7 +83,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "🔀", keys: fmtKey(k.markdown), desc: "Toggle HTML / text" },
       { icon: "📄", keys: fmtKey(k.toggleHeaders), desc: "Hide / show header block" },
       { icon: "🖼️", keys: ":images", desc: "Load remote images (inline load auto)" },
-      { icon: "📎", keys: fmtKey(k.attachments), desc: "Focus attachments" },
+      { icon: "📎", keys: fmtKey(k.attachments), desc: "Attachments picker (↑↓ · 1-9 · Enter save)" },
       { icon: "🔗", keys: fmtKey(k.linkPicker), desc: "Links in message" },
       { icon: "↪️", keys: fmtKey(k.reply), desc: "Reply" },
       { icon: "↩️", keys: fmtKey(k.replyAll), desc: "Reply all" },
