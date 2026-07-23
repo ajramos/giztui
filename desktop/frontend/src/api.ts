@@ -754,7 +754,7 @@ const mockBackend: Backend = {
   },
   async ApplyPromptStream(_id: string, promptID: number) {
     const names: Record<number, string> = {
-      1: "Here is your digest:\n\n**1. Top Headlines**\n* **OpenAI Voice:** ChatGPT introduces GPT-Live with `full-duplex` audio.\n* **Google Liable:** A German court ruled on [AI Overviews](https://example.com).\n\n## Key Updates\n1. Voice improves reasoning\n2. Legal shift for providers",
+      1: "• Key point one\n• Key point two\n• Key point three",
       2: "1. Reply to Ada by Friday (owner: you)\n2. Review the Q3 roadmap draft",
       3: "Hi,\n\nThanks for the update — Friday works for me. See you then!\n\nBest,",
       4: "Hola,\n\nEste es el cuerpo del correo traducido al español por tu LLM.",
