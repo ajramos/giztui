@@ -139,6 +139,12 @@ export default function App() {
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  // Whether keyboard focus is "in" the reader: after Enter/click-open (or a click
+  // inside the reader) the arrow/j/k keys scroll the message instead of moving
+  // the inbox cursor. Escape returns focus to the list. Mirrors the TUI, where
+  // opening a message hands the arrows to the reader.
+  const [readerFocused, setReaderFocused] = useState(false);
+  const readerBodyRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [nextToken, setNextToken] = useState("");
@@ -716,11 +722,20 @@ export default function App() {
   );
 
   const previewMessage = useCallback(
-    (m: MessageSummary) => void loadMessage(m, false),
+    (m: MessageSummary) => {
+      // Previewing (j/k in the list) keeps focus on the list.
+      setReaderFocused(false);
+      void loadMessage(m, false);
+    },
     [loadMessage],
   );
   const openMessage = useCallback(
-    (m: MessageSummary) => void loadMessage(m, true),
+    (m: MessageSummary) => {
+      // Opening (Enter / click) hands the keyboard to the reader so arrows scroll
+      // the message body, like the TUI.
+      setReaderFocused(true);
+      void loadMessage(m, true);
+    },
     [loadMessage],
   );
   // Ref so load() can preview the first message without a declaration-order cycle.
@@ -2622,6 +2637,57 @@ export default function App() {
       };
       const hasSel = bulkMode && selected.size > 0;
 
+      // --- reader-focused scrolling (TUI parity) ---
+      // After Enter/click-open (or a click in the reader), arrows & j/k scroll
+      // the message body instead of moving the inbox cursor; Space/PageDown page
+      // through it; Escape hands focus back to the list (a second Escape then
+      // closes the reader). Only nav keys are intercepted here — actions
+      // (archive, reply, summarize, …) still fall through to the switch below.
+      if (readerFocused && detail && !bulkMode) {
+        const sc = readerBodyRef.current;
+        const page = sc ? sc.clientHeight * 0.9 : 400;
+        if (chord === "j" || chord === "ArrowDown") {
+          e.preventDefault();
+          sc?.scrollBy({ top: 80 });
+          return;
+        }
+        if (chord === "k" || chord === "ArrowUp") {
+          e.preventDefault();
+          sc?.scrollBy({ top: -80 });
+          return;
+        }
+        if (chord === "space" || chord === "PageDown") {
+          e.preventDefault();
+          sc?.scrollBy({ top: page });
+          return;
+        }
+        if (chord === "PageUp") {
+          e.preventDefault();
+          sc?.scrollBy({ top: -page });
+          return;
+        }
+        if (chord === "Home") {
+          e.preventDefault();
+          sc?.scrollTo({ top: 0 });
+          return;
+        }
+        if (chord === "End") {
+          e.preventDefault();
+          sc?.scrollTo({ top: sc.scrollHeight });
+          return;
+        }
+        if (chord === "Enter") {
+          // Already open — don't reload/re-mark; just consume it.
+          e.preventDefault();
+          return;
+        }
+        if (chord === "Escape") {
+          e.preventDefault();
+          setReaderFocused(false);
+          return;
+        }
+      }
+
       // --- list navigation (not remappable, like the TUI table) ---
       if (chord === "j" || chord === "ArrowDown") {
         e.preventDefault();
@@ -2684,6 +2750,7 @@ export default function App() {
           e.preventDefault();
           setSelectedId(null);
           setDetail(null);
+          setReaderFocused(false);
         } else if (activeQuery || localFilter) {
           // No reader/bulk open: Escape exits the active search back to the
           // default inbox (TUI parity).
@@ -3061,6 +3128,7 @@ export default function App() {
     detRulesOpen,
     accountsOpen,
     attachmentsOpen,
+    readerFocused,
     rulesEnabled,
     openRules,
     viewAnalyzerPrompt,
@@ -3298,7 +3366,10 @@ export default function App() {
       {toast && <div className="toast">{toast}</div>}
 
       <div className="body">
-        <aside className="list">
+        <aside
+          className="list"
+          onMouseDown={() => setReaderFocused(false)}
+        >
           {draftsView ? (
             <>
               <div className="bulk-bar">
@@ -3481,7 +3552,14 @@ export default function App() {
           )}
         </aside>
 
-        <main className="reader">
+        <main
+          className={"reader" + (readerFocused && detail ? " reader-focused" : "")}
+          onMouseDown={() => {
+            // Clicking / selecting inside the reader hands it the keyboard, so
+            // arrows scroll the body (fixes: selecting text didn't grab focus).
+            if (detail) setReaderFocused(true);
+          }}
+        >
           {detail ? (
             <>
               <div className="reader-head">
@@ -3698,7 +3776,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <div className="reader-body">
+              <div className="reader-body" ref={readerBodyRef}>
                 {invite?.isInvite && (
                   <div className="rsvp-bar">
                     <div className="rsvp-info">

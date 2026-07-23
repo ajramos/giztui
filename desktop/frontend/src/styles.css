@@ -294,6 +294,13 @@ button.danger {
   flex-direction: column;
   min-width: 0;
   background: var(--bg-elev);
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: box-shadow 0.12s ease;
+}
+/* When the reader holds keyboard focus (arrows scroll the body), show a subtle
+   accent edge so it's clear which pane the keys drive. */
+.reader-focused {
+  box-shadow: inset 2px 0 0 0 var(--accent);
 }
 .reader-head {
   padding: 20px 24px 14px;
