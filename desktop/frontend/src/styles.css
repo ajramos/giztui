@@ -1645,6 +1645,65 @@ kbd {
   line-height: 1.55;
   color: var(--text);
 }
+
+/* Rendered Markdown (LLM summary / prompt output). The .md-body wrapper resets
+   the pre-wrap of its .summary-text container since block elements handle
+   layout now. */
+.md-body {
+  white-space: normal;
+}
+.md-body > :first-child {
+  margin-top: 0;
+}
+.md-body > :last-child {
+  margin-bottom: 0;
+}
+.md-body p {
+  margin: 0 0 8px;
+}
+.md-body ul,
+.md-body ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+.md-body li {
+  margin: 2px 0;
+}
+.md-body h3,
+.md-body h4,
+.md-body h5,
+.md-body h6 {
+  margin: 12px 0 4px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.md-body h3 {
+  font-size: 15px;
+}
+.md-body h4 {
+  font-size: 14px;
+}
+.md-body h5,
+.md-body h6 {
+  font-size: 13.5px;
+}
+.md-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-selected);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.md-body a {
+  color: var(--accent);
+  cursor: pointer;
+}
+.md-body strong {
+  font-weight: 700;
+}
+.md-body em {
+  font-style: italic;
+}
 button.tiny {
   padding: 2px 8px;
   font-size: 11px;

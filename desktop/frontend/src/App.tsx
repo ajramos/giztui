@@ -36,6 +36,7 @@ import MovePicker from "./MovePicker";
 import PlanMovePicker from "./PlanMovePicker";
 import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
+import Markdown from "./Markdown";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -3763,10 +3764,10 @@ export default function App() {
                     {summarizing && !summary ? (
                       <div className="muted">Generating…</div>
                     ) : (
-                      <pre className="summary-text">
-                        {summary}
+                      <div className="summary-text">
+                        <Markdown text={summary || ""} />
                         {summarizing && <span className="caret">▍</span>}
-                      </pre>
+                      </div>
                     )}
                   </div>
                 )}
@@ -3786,10 +3787,10 @@ export default function App() {
                     {promptRunning && !promptResult ? (
                       <div className="muted">Generating…</div>
                     ) : (
-                      <pre className="summary-text">
-                        {promptResult}
+                      <div className="summary-text">
+                        <Markdown text={promptResult || ""} />
                         {promptRunning && <span className="caret">▍</span>}
-                      </pre>
+                      </div>
                     )}
                   </div>
                 )}
@@ -4151,10 +4152,10 @@ export default function App() {
               {promptRunning && !bulkPromptText ? (
                 <div className="placeholder">Generating…</div>
               ) : (
-                <pre className="summary-text">
-                  {bulkPromptText}
+                <div className="summary-text">
+                  <Markdown text={bulkPromptText || ""} />
                   {promptRunning && <span className="caret">▍</span>}
-                </pre>
+                </div>
               )}
             </div>
             <div className="modal-foot">
