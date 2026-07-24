@@ -13,7 +13,7 @@ func (a *API) ObsidianEnabled() bool { return a.obsidian != nil }
 // SendToObsidian ingests a message into the configured Obsidian vault.
 func (a *API) SendToObsidian(ctx context.Context, id string) (string, error) {
 	if a.obsidian == nil {
-		return "", fmt.Errorf("Obsidian is not configured")
+		return "", fmt.Errorf("the Obsidian integration is not configured")
 	}
 	msg, err := a.repo.GetMessage(ctx, id)
 	if err != nil {

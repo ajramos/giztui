@@ -13,7 +13,7 @@ func (a *API) SlackEnabled() bool { return a.slack != nil }
 // ForwardToSlack forwards a message to the default configured Slack channel.
 func (a *API) ForwardToSlack(ctx context.Context, id string) error {
 	if a.slack == nil {
-		return fmt.Errorf("Slack is not configured")
+		return fmt.Errorf("the Slack integration is not configured")
 	}
 	channels, err := a.slack.ListConfiguredChannels(ctx)
 	if err != nil {
