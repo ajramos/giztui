@@ -88,6 +88,11 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           choco install nsis -y --no-progress
+          # choco deploys makensis to "C:\Program Files (x86)\NSIS" but does not
+          # add it to PATH; `wails build -nsis` shells out to makensis, so put it
+          # on PATH explicitly (both common locations) or no installer is made.
+          echo "C:\Program Files (x86)\NSIS" >> "$GITHUB_PATH"
+          echo "C:\Program Files\NSIS" >> "$GITHUB_PATH"
       - name: Build .exe + NSIS installer
         working-directory: desktop
         run: |
@@ -124,7 +129,9 @@ jobs:
       - name: Install webkit deps + Wails
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+          # imagemagick: linuxdeploy rejects the 1024x1024 appicon.png (max 512),
+          # so we downscale it to 512x512 before building the AppImage.
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev imagemagick
           go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Build binary + tarball
@@ -144,12 +151,18 @@ jobs:
         continue-on-error: true
         run: |
           VER="${{ steps.ver.outputs.VER }}"
+          # linuxdeploy + appimagetool are themselves AppImages; extract-and-run
+          # avoids needing FUSE on the runner.
+          export APPIMAGE_EXTRACT_AND_RUN=1
           curl -sSL -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           curl -sSL -o linuxdeploy-plugin-gtk https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
           chmod +x linuxdeploy linuxdeploy-plugin-gtk
           mkdir -p AppDir/usr/bin
           cp "build/bin/GizTUI Desktop" AppDir/usr/bin/giztui-desktop
-          cp build/appicon.png AppDir/giztui-desktop.png || true
+          # linuxdeploy only accepts icon resolutions up to 512x512; appicon.png
+          # is 1024x1024, so resize it (fall back to a plain copy if convert fails).
+          convert build/appicon.png -resize 512x512 AppDir/giztui-desktop.png \
+            || cp build/appicon.png AppDir/giztui-desktop.png || true
           cat > AppDir/giztui-desktop.desktop <<EOF
           [Desktop Entry]
           Type=Application
