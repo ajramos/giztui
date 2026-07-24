@@ -128,9 +128,14 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // List-mode keyboard: a add · Enter edit · d delete · s sync · i import ·
-  // arrows move · Esc close. Bound to the window (WKWebView focus), only in list
-  // mode. Refs keep it bound once while seeing fresh state.
+  // Keyboard, bound once to the window (WKWebView won't focus a bare div). One
+  // handler owns the whole modal so Escape is form-aware: in the add/edit form it
+  // cancels back to the list; in the list it closes the modal. stopImmediate-
+  // Propagation keeps the App's global Escape from ALSO closing the modal (which
+  // made Escape in the form close everything). Refs keep it bound once with fresh
+  // state. List-mode keys: a add · Enter edit · d delete · s sync · i import.
+  const formRef = useRef(form);
+  formRef.current = form;
   const rulesRef = useRef(rules);
   rulesRef.current = rules;
   const navKeyRef = useRef(nav.onKeyDown);
@@ -138,8 +143,16 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
   const activeRef = useRef(nav.active);
   activeRef.current = nav.active;
   useEffect(() => {
-    if (form) return;
     const h = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (formRef.current) setForm(null);
+        else onClose();
+        return;
+      }
+      // In the form, let the inputs handle their own keys (typing "a"/"i" etc.).
+      if (formRef.current) return;
       const r = rulesRef.current[activeRef.current];
       if (e.key === "a") {
         e.preventDefault();
@@ -170,7 +183,8 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const promptName = (id: number) =>
     prompts.find((p) => p.id === id)?.name ?? `#${id}`;
@@ -207,9 +221,6 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
                 autoFocus
                 value={form.query}
                 onChange={(e) => setForm({ ...form, query: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setForm(null);
-                }}
                 placeholder="from:(alerts@pagertree.com)"
               />
             </div>
