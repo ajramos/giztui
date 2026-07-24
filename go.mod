@@ -13,7 +13,7 @@ require (
 	github.com/derailed/tview v0.8.5
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-runewidth v0.0.17
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
 	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.30.0
@@ -42,6 +42,7 @@ require (
 	github.com/aws/smithy-go v1.24.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
 	github.com/charmbracelet/x/ansi v0.10.2 // indirect
@@ -73,11 +74,11 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
-	go.opentelemetry.io/otel v1.36.0 // indirect
-	go.opentelemetry.io/otel/metric v1.36.0 // indirect
-	go.opentelemetry.io/otel/trace v1.36.0 // indirect
+	go.opentelemetry.io/otel v1.41.0 // indirect
+	go.opentelemetry.io/otel/metric v1.41.0 // indirect
+	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
