@@ -50,6 +50,10 @@ jobs:
         working-directory: desktop
         run: |
           VER="${{ steps.ver.outputs.VER }}"
+          # Build the frontend first: wails generates Go bindings (which compile
+          # main.go's //go:embed all:frontend/dist) before it builds the frontend,
+          # so on a clean checkout dist must already exist.
+          ( cd frontend && (npm ci || npm install) && npm run build )
           wails build -clean -platform darwin/universal \
             -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
           DMG="build/bin/GizTUI-Desktop-${VER}-universal.dmg"
@@ -88,7 +92,8 @@ jobs:
         working-directory: desktop
         run: |
           VER="${{ steps.ver.outputs.VER }}"
-          "$(go env GOPATH)/bin/wails" build -clean -platform windows/amd64 -nsis \
+          ( cd frontend && (npm ci || npm install) && npm run build )
+          wails build -clean -platform windows/amd64 -nsis \
             -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
           cd build/bin
           # Portable exe -> zip; NSIS installer -> renamed setup.exe
@@ -126,6 +131,7 @@ jobs:
         working-directory: desktop
         run: |
           VER="${{ steps.ver.outputs.VER }}"
+          ( cd frontend && (npm ci || npm install) && npm run build )
           wails build -clean -platform linux/amd64 \
             -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
           cd build/bin
