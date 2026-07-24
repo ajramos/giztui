@@ -100,6 +100,23 @@ func (c *Client) GetMessage(id string) (*gmail.Message, error) {
 	return msg, nil
 }
 
+// GetMessageRaw retrieves a message in RFC 822 raw form (the full .eml), decoded
+// from Gmail's URL-safe base64 encoding.
+func (c *Client) GetMessageRaw(id string) ([]byte, error) {
+	if c.Service == nil {
+		return nil, fmt.Errorf("gmail client not initialized")
+	}
+	msg, err := c.Service.Users.Messages.Get("me", id).Format("raw").Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not get raw message: %w", err)
+	}
+	data, err := base64.URLEncoding.DecodeString(msg.Raw)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode raw message: %w", err)
+	}
+	return data, nil
+}
+
 // GetMessageMetadata retrieves only message metadata (headers, labels) for efficient list display
 // This is significantly faster and uses less bandwidth than GetMessage() for list operations
 func (c *Client) GetMessageMetadata(id string) (*gmail.Message, error) {
@@ -582,6 +599,16 @@ func (c *Client) TrashMessage(messageID string) error {
 		return fmt.Errorf("could not move to trash: %w", err)
 	}
 
+	return nil
+}
+
+// UntrashMessage restores a message from the trash (undo of TrashMessage).
+func (c *Client) UntrashMessage(messageID string) error {
+	user := "me"
+	_, err := c.Service.Users.Messages.Untrash(user, messageID).Do()
+	if err != nil {
+		return fmt.Errorf("could not restore from trash: %w", err)
+	}
 	return nil
 }
 

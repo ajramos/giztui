@@ -5,6 +5,42 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-07-24
+
+### 🖥️ New — GizTUI Desktop (Wails client)
+
+- **A native desktop client for GizTUI.** A new Wails app (`desktop/`) that reuses
+  the exact same `internal/services` stack as the TUI, so it is a genuine second
+  front-end rather than a separate product. It aims for **feature parity with the
+  terminal** and stays **keyboard-first**: your configured keybindings drive the
+  list, reader and every picker. Runs on macOS (WKWebView) today; the packaging
+  for distributable installers is designed in `docs/DESKTOP_DISTRIBUTION.md`.
+- **Reading & triage.** Message list with `j`/`k` preview (no accidental
+  read-marking), Enter to open and scroll the message with the keyboard, archive/
+  trash/read/label/move, undo, bulk mode with VIM-style range ops, and a loaded-
+  message count. HTML email renders in a sanitized Shadow DOM (DOMPurify) with
+  remote and `cid:` inline images proxied through the backend; Markdown from AI
+  output is rendered, not shown raw.
+- **Search.** Gmail search, quick from/to/subject searches, a local filter toggle,
+  saved queries, and an **advanced search builder** (Ctrl+F).
+- **AI & rules.** Summaries, prompt library (single + bulk), AI-suggested labels,
+  the **inbox action plan** (parallel batched analysis with real progress,
+  recategorize/move/label/run-prompt buckets, read-manually bucket), and the
+  **deterministic rules** manager (`:rules`) with a rules-only run (`:rules run`)
+  that applies your rules without the LLM.
+- **Standardized keyboard-first pickers** (labels, links, prompts, saved queries,
+  themes, RSVP, move-to-folder, attachments, accounts, suggested labels, rules)
+  that all navigate with arrows/1-9/Enter/Escape under WKWebView.
+- **Integrations.** Obsidian, Slack, RSVP to calendar invites (with the calendar
+  scope), attachments download, open-in-Gmail, drafts, theme picker, account
+  switching, and a browser sign-in flow with a branded OAuth redirect page.
+
+### 🚀 Improvements (shared with the TUI)
+
+- **Inbox analyzer runs batches in parallel** with a configurable concurrency and
+  emits real per-batch progress, so large inboxes analyze faster and show
+  meaningful progress instead of an indeterminate spinner.
+
 ## [1.20.1] - 2026-07-12
 
 ### 🐛 Fixes

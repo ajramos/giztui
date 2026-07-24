@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -175,7 +176,8 @@ func TestAnalyze_HappyPath_SingleBatch(t *testing.T) {
 	// Display order: archive:"Newsletters" (m1,m2) sorts before label:"Follow up" (m3).
 	assert.Equal(t, []string{"m1", "m2"}, plan.Categories[0].MessageIDs)
 	assert.Equal(t, []string{"m3"}, plan.Categories[1].MessageIDs)
-	assert.Equal(t, 1, progressCalls)
+	// One initial 0/N call + one per batch.
+	assert.Equal(t, 2, progressCalls)
 	ai.AssertExpectations(t)
 }
 
@@ -187,8 +189,9 @@ func TestAnalyze_MergesAcrossBatches(t *testing.T) {
 		Return(`{"categories":[{"name":"Newsletters","priority":"low","description":"d","action":"archive","label":"","messages":[1]}],"read_manually":[2]}`, nil).Once()
 
 	svc := NewInboxAnalyzerService(ai)
+	// Concurrency 1: the ordered .Once() stubs map to batches by call order.
 	plan, err := svc.Analyze(context.Background(), analyzerMsgs(4),
-		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10}, nil)
+		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10, Concurrency: 1}, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, plan.BatchesTotal)
@@ -196,6 +199,35 @@ func TestAnalyze_MergesAcrossBatches(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2", "m3"}, plan.Categories[0].MessageIDs)
 	assert.Len(t, plan.ReadManually, 1)
 	assert.Equal(t, "m4", plan.ReadManually[0].ID)
+}
+
+func TestAnalyze_ParallelProcessesAllBatches(t *testing.T) {
+	ai := &mockAIService{}
+	// Order-agnostic stub: every batch categorizes its two local messages, so the
+	// result is correct regardless of which goroutine calls first.
+	ai.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(`{"categories":[{"name":"Newsletters","priority":"low","description":"d","action":"archive","label":"","messages":[1,2]}],"read_manually":[]}`, nil)
+
+	svc := NewInboxAnalyzerService(ai)
+	var mu sync.Mutex
+	maxDone := 0
+	plan, err := svc.Analyze(context.Background(), analyzerMsgs(6),
+		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10, Concurrency: 3},
+		func(p *ActionPlan) {
+			mu.Lock()
+			if p.BatchesDone > maxDone {
+				maxDone = p.BatchesDone
+			}
+			mu.Unlock()
+		})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, plan.BatchesTotal)
+	assert.Equal(t, 3, plan.BatchesDone)
+	assert.Equal(t, 6, plan.TotalAnalyzed) // every batch merged
+	assert.Len(t, plan.Categories, 1)
+	assert.Len(t, plan.Categories[0].MessageIDs, 6)
+	assert.Equal(t, 3, maxDone) // progress reported up to the last batch
 }
 
 func TestAnalyze_RepairRetryThenDegrade(t *testing.T) {
@@ -282,8 +314,10 @@ func TestAnalyze_IntermediateBatchErrorReturnsPartialPlan(t *testing.T) {
 		Return("", fmt.Errorf("llm down")).Once()
 
 	svc := NewInboxAnalyzerService(ai)
+	// Concurrency 1: the ordered .Once() stubs map to batches by call order
+	// (batch 1 succeeds, batch 2 fails).
 	plan, err := svc.Analyze(context.Background(), analyzerMsgs(4),
-		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10}, nil)
+		InboxAnalyzerOptions{BatchSize: 2, MaxBatches: 10, Concurrency: 1}, nil)
 
 	assert.Error(t, err)   // error propagates
 	assert.NotNil(t, plan) // partial plan preserved

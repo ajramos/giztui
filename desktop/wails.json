@@ -1,0 +1,16 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "GizTUI Desktop",
+  "outputfilename": "GizTUI Desktop",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "GizTUI"
+  },
+  "info": {
+    "productName": "GizTUI Desktop",
+    "comments": "A visual Gmail client reusing the GizTUI service layer."
+  }
+}

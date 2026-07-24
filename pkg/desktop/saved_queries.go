@@ -1,0 +1,59 @@
+package desktop
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// SavedQueriesEnabled reports whether saved searches are available.
+func (a *API) SavedQueriesEnabled() bool { return a.query != nil }
+
+// ListSavedQueries returns the saved searches.
+func (a *API) ListSavedQueries(ctx context.Context) ([]SavedQuery, error) {
+	if a.query == nil {
+		return []SavedQuery{}, nil
+	}
+	qs, err := a.query.ListQueries(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SavedQuery, 0, len(qs))
+	for _, q := range qs {
+		if q == nil {
+			continue
+		}
+		out = append(out, SavedQuery{
+			ID: q.ID, Name: q.Name, Query: q.Query,
+			Description: q.Description, Category: q.Category,
+		})
+	}
+	return out, nil
+}
+
+// SaveQuery persists a named Gmail search.
+func (a *API) SaveQuery(ctx context.Context, name, query string) error {
+	if a.query == nil {
+		return fmt.Errorf("saved queries are not available")
+	}
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return fmt.Errorf("a name and query are required")
+	}
+	_, err := a.query.SaveQuery(ctx, name, query, "", "")
+	return err
+}
+
+// DeleteSavedQuery removes a saved search.
+func (a *API) DeleteSavedQuery(ctx context.Context, id int64) error {
+	if a.query == nil {
+		return fmt.Errorf("saved queries are not available")
+	}
+	return a.query.DeleteQuery(ctx, id)
+}
+
+// RecordQueryUse bumps a saved query's usage counter (best-effort).
+func (a *API) RecordQueryUse(ctx context.Context, id int64) {
+	if a.query != nil {
+		_ = a.query.RecordQueryUsage(ctx, id)
+	}
+}

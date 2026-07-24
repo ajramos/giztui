@@ -379,6 +379,10 @@ type LinkInfo struct {
 // AttachmentService handles attachment extraction and download operations
 type AttachmentService interface {
 	GetMessageAttachments(ctx context.Context, messageID string) ([]AttachmentInfo, error)
+	// GetAttachmentData returns an attachment's raw bytes and filename in memory,
+	// without writing to disk — used to inline images (e.g. cid: references) into
+	// a rendered HTML body.
+	GetAttachmentData(ctx context.Context, messageID, attachmentID string) ([]byte, string, error)
 	DownloadAttachment(ctx context.Context, messageID, attachmentID, savePath string) (string, error)
 	DownloadAttachmentWithFilename(ctx context.Context, messageID, attachmentID, savePath, suggestedFilename string) (string, error)
 	OpenAttachment(ctx context.Context, filePath string) error
@@ -1027,6 +1031,7 @@ type ActionPlan struct {
 type InboxAnalyzerOptions struct {
 	BatchSize        int      // messages per batch (default 50)
 	MaxBatches       int      // safety cap on total batches (default 10)
+	Concurrency      int      // max batches analyzed in parallel (default 4); <=1 is sequential
 	CustomPromptText string   // empty → use the built-in default analyzer prompt
 	UserRules        []string // free-text preference rules prepended to the prompt; empty → none
 	BodyCharLimit    int      // max body chars rendered per email; <= 0 → no extra trim

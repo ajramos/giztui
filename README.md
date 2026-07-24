@@ -178,6 +178,7 @@ GizTUI includes several built-in themes and supports custom themes:
 - **[✨ Features Overview](docs/FEATURES.md)** - Comprehensive feature documentation  
 - **[⌨️ Keyboard Shortcuts](docs/KEYBOARD_SHORTCUTS.md)** - Complete shortcut reference
 - **[⚙️ Configuration Guide](docs/CONFIGURATION.md)** - Detailed configuration options
+- **[🖥️ Desktop Client](docs/DESKTOP.md)** - Wails desktop app architecture ([README](desktop/README.md))
 - **[📚 Documentation Hub](docs/README.md)** - Navigate all documentation
 
 ## 🛠️ Development & Contributing
@@ -185,6 +186,28 @@ GizTUI includes several built-in themes and supports custom themes:
 - **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - Development patterns and conventions
 - **[🎨 Theming Guide](docs/THEMING.md)** - Theme system and customization
 - **[GitHub Repository](https://github.com/ajramos/giztui)** - Source code, issues, discussions
+
+## 🖥️ Desktop Client (beta)
+
+Prefer a windowed app? GizTUI also ships a **Wails desktop client** (a native
+window with a React UI) that reuses the exact same Go service layer, so behavior
+and configuration match the terminal. It's **keyboard-first** and aims for full
+feature parity: triage, bulk actions, move-to-folder, labels, drafts, threading,
+AI (summaries, prompts, inbox action plan with recategorize), saved searches,
+calendar RSVP, themes, and multi-account switching.
+
+It reuses your existing `~/.config/giztui/` config and OAuth token — no extra
+setup if the TUI already works. On a fresh machine, first launch opens Google
+sign-in in your system browser.
+
+```sh
+# from the repo root
+cd desktop && wails dev      # live-reload dev
+cd desktop && wails build    # native app → desktop/build/bin/
+```
+
+See the **[Desktop README](desktop/README.md)** for features and build details
+and the **[Desktop Architecture Guide](docs/DESKTOP.md)** for how it's wired.
 
 ## 📦 Platform Support
 

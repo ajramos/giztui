@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 //go:embed inbox_analyzer_prompt.txt
@@ -445,41 +446,87 @@ func (s *InboxAnalyzerServiceImpl) Analyze(ctx context.Context, messages []Analy
 
 	batches := splitBatches(messages, opts.BatchSize, opts.MaxBatches)
 	plan := &ActionPlan{BatchesTotal: len(batches)}
+	if len(batches) == 0 {
+		return plan, nil
+	}
+	// Report the total up front (0/N) so the UI shows how many blocks are coming
+	// before the first one finishes, instead of a blank wait.
+	if onProgress != nil {
+		onProgress(plan)
+	}
 
-	for bi, batch := range batches {
-		if err := ctx.Err(); err != nil {
-			return nil, err
+	// Run batches concurrently (bounded) — the LLM call per batch is the slow part,
+	// so this cuts wall-clock roughly to the slowest batch, and lets progress land
+	// steadily. The reduce (mergeCategories) and progress are serialized under a
+	// mutex; mergeCategories is order-independent and the final plan is re-sorted.
+	conc := opts.Concurrency
+	if conc <= 0 {
+		conc = 4
+	}
+	if conc > len(batches) {
+		conc = len(batches)
+	}
+
+	errs := make([]error, len(batches))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, conc)
+	completed := 0
+
+	for bi := range batches {
+		if ctx.Err() != nil {
+			break // stop scheduling; already-running batches observe ctx too
 		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(bi int, batch []AnalyzerMessage) {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-		payload := buildBatchPayload(batch, opts.BodyCharLimit)
-		batchIDs := make([]string, len(batch))
-		for i, m := range batch {
-			batchIDs[i] = m.ID
-		}
-
-		cats, readIdx, err := s.runBatch(ctx, promptText, payload, batchIDs)
-		if err != nil {
-			if bi == 0 {
-				// First batch hard failure → abort so the panel never opens.
-				return nil, err
+			payload := buildBatchPayload(batch, opts.BodyCharLimit)
+			batchIDs := make([]string, len(batch))
+			for i, m := range batch {
+				batchIDs[i] = m.ID
 			}
-			// Intermediate batch failure → keep what we have, mark interrupted.
-			return plan, err
-		}
-		if cats == nil {
-			// Degraded batch: surface every message in this batch as read-manually
-			// so nothing is silently lost, and flag the plan.
-			plan.Degraded = true
-			plan.ReadManually = append(plan.ReadManually, batch...)
-		} else {
-			plan.Categories = mergeCategories(plan.Categories, cats)
-			plan.ReadManually = append(plan.ReadManually, resolveMessages(readIdx, batch)...)
-		}
+			cats, readIdx, err := s.runBatch(ctx, promptText, payload, batchIDs)
 
-		plan.TotalAnalyzed += len(batch)
-		plan.BatchesDone = bi + 1
-		if onProgress != nil {
-			onProgress(plan)
+			mu.Lock()
+			defer mu.Unlock()
+			errs[bi] = err
+			if err == nil {
+				if cats == nil {
+					// Degraded batch: surface every message as read-manually so
+					// nothing is silently lost, and flag the plan.
+					plan.Degraded = true
+					plan.ReadManually = append(plan.ReadManually, batch...)
+				} else {
+					plan.Categories = mergeCategories(plan.Categories, cats)
+					plan.ReadManually = append(plan.ReadManually, resolveMessages(readIdx, batch)...)
+				}
+				plan.TotalAnalyzed += len(batch)
+			}
+			// BatchesDone counts every completion so the progress bar advances even
+			// through a failing batch; onProgress reports the current merged plan.
+			completed++
+			plan.BatchesDone = completed
+			if onProgress != nil {
+				onProgress(plan)
+			}
+		}(bi, batches[bi])
+	}
+	wg.Wait()
+
+	// Error semantics preserved from the sequential version: a hard failure of the
+	// first batch aborts so the panel never opens (usually a provider/config
+	// problem); a later batch failure keeps the partial plan but surfaces the error.
+	if errs[0] != nil {
+		return nil, errs[0]
+	}
+	for bi := 1; bi < len(batches); bi++ {
+		if errs[bi] != nil {
+			enforceLabelPolicy(plan, messages, opts.AvailableLabels, opts.StrictLabels)
+			SortCategories(plan.Categories)
+			return plan, errs[bi]
 		}
 	}
 

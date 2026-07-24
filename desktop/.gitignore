@@ -1,0 +1,14 @@
+# The repo-root .gitignore ignores all build/ dirs; re-include desktop/build so
+# the Wails app icon (source of the .icns) is tracked, but keep build output out.
+!/build/
+/build/bin/
+/build/*/
+!/build/appicon.png
+!/build/appicon.svg
+
+# Wails build output binary
+giztui-desktop
+
+# Wails-generated frontend bindings & build markers (regenerated on `wails build`)
+frontend/wailsjs/
+frontend/package.json.md5
