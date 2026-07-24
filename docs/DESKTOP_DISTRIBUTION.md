@@ -3,9 +3,12 @@
 Design for building and distributing the **Wails desktop client** across macOS,
 Windows and Linux, and publishing it through package managers (Homebrew first).
 
-> Status: **design / proposal**. Nothing here is wired yet. The current
-> `release.yml` builds only the **TUI CLI** (`./cmd/giztui`) on Ubuntu; the
-> desktop app is not built anywhere.
+> Status: **Phase 1 implemented** (pending first-CI validation on macOS/Windows
+> runners). See `.github/workflows/release-desktop.yml` (the build matrix),
+> `desktop/scripts/build-dmg.sh` + `desktop/Makefile` (local macOS DMG), and
+> `packaging/homebrew/` (the cask + tap instructions). The macOS/Windows jobs
+> cannot be tested from the Linux dev container; expect one or two iterations to
+> shake out per-runner details. The CLI release (`release.yml`) is unchanged.
 
 ## 🎯 Goals
 

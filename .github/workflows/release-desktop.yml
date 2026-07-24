@@ -1,0 +1,191 @@
+name: Release Desktop
+
+# Builds the Wails desktop client per-OS (no cross-compile) and attaches the
+# installers to the GitHub Release for the tag. Kept separate from release.yml
+# (the TUI CLI) so a desktop-packaging failure never blocks the CLI release.
+#
+# Phase 1 ships UNSIGNED artifacts (Gatekeeper/SmartScreen will warn). See
+# docs/DESKTOP_DISTRIBUTION.md for the design and the signing/notarization plan.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. v1.21.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  WAILS_VERSION: v2.10.2
+  GO_VERSION: '1.25.12'
+  NODE_VERSION: '20'
+
+jobs:
+  # ---------------------------------------------------------------- macOS .dmg
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v6
+        with: { go-version: '${{ env.GO_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install Wails + create-dmg
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          brew install create-dmg
+      - name: Build universal .app + .dmg
+        working-directory: desktop
+        run: |
+          VER="${{ steps.ver.outputs.VER }}"
+          wails build -clean -platform darwin/universal \
+            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
+          DMG="build/bin/GizTUI-Desktop-${VER}-universal.dmg"
+          create-dmg --volname "GizTUI Desktop" --app-drop-link 480 170 \
+            --icon "GizTUI Desktop.app" 160 170 --window-size 640 360 \
+            "$DMG" "build/bin/GizTUI Desktop.app" \
+            || hdiutil create -volname "GizTUI Desktop" \
+                 -srcfolder "build/bin/GizTUI Desktop.app" -ov -format UDZO "$DMG"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-macos
+          path: desktop/build/bin/*.dmg
+          if-no-files-found: error
+
+  # ------------------------------------------------------------ Windows (NSIS)
+  windows:
+    runs-on: windows-latest
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v6
+      - id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v6
+        with: { go-version: '${{ env.GO_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install Wails + NSIS
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          choco install nsis -y --no-progress
+      - name: Build .exe + NSIS installer
+        working-directory: desktop
+        run: |
+          VER="${{ steps.ver.outputs.VER }}"
+          "$(go env GOPATH)/bin/wails" build -clean -platform windows/amd64 -nsis \
+            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
+          cd build/bin
+          # Portable exe -> zip; NSIS installer -> renamed setup.exe
+          powershell -Command "Compress-Archive -Path 'GizTUI Desktop.exe' -DestinationPath 'GizTUI-Desktop-${{ steps.ver.outputs.VER }}-windows-amd64.zip' -Force"
+          mv *installer.exe "GizTUI-Desktop-${VER}-windows-amd64-setup.exe" 2>/dev/null || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-windows
+          path: |
+            desktop/build/bin/*-setup.exe
+            desktop/build/bin/*windows-amd64.zip
+          if-no-files-found: error
+
+  # -------------------------------------------------- Linux (AppImage + tar.gz)
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v6
+        with: { go-version: '${{ env.GO_VERSION }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install webkit deps + Wails
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Build binary + tarball
+        working-directory: desktop
+        run: |
+          VER="${{ steps.ver.outputs.VER }}"
+          wails build -clean -platform linux/amd64 \
+            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
+          cd build/bin
+          # Wails names the binary from outputfilename ("GizTUI Desktop").
+          BIN="GizTUI Desktop"
+          cp "$BIN" giztui-desktop
+          tar -czf "GizTUI-Desktop-${VER}-linux-amd64.tar.gz" giztui-desktop
+      - name: Package AppImage (best-effort)
+        working-directory: desktop
+        continue-on-error: true
+        run: |
+          VER="${{ steps.ver.outputs.VER }}"
+          curl -sSL -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -sSL -o linuxdeploy-plugin-gtk https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+          chmod +x linuxdeploy linuxdeploy-plugin-gtk
+          mkdir -p AppDir/usr/bin
+          cp "build/bin/GizTUI Desktop" AppDir/usr/bin/giztui-desktop
+          cp build/appicon.png AppDir/giztui-desktop.png || true
+          cat > AppDir/giztui-desktop.desktop <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=GizTUI Desktop
+          Exec=giztui-desktop
+          Icon=giztui-desktop
+          Categories=Network;Email;
+          EOF
+          ./linuxdeploy --appdir AppDir --plugin gtk \
+            -d AppDir/giztui-desktop.desktop -i AppDir/giztui-desktop.png \
+            --output appimage
+          mv GizTUI_Desktop*.AppImage "build/bin/GizTUI-Desktop-${VER}-x86_64.AppImage" 2>/dev/null \
+            || mv *.AppImage "build/bin/GizTUI-Desktop-${VER}-x86_64.AppImage" 2>/dev/null || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-linux
+          path: |
+            desktop/build/bin/*.tar.gz
+            desktop/build/bin/*.AppImage
+          if-no-files-found: error
+
+  # ------------------------------------------ attach everything to the Release
+  publish:
+    needs: [macos, windows, linux]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v6
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: (cd dist && sha256sum * > desktop-checksums.txt) || true
+      - name: Attach to release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.TAG }}
+          files: dist/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
