@@ -241,6 +241,53 @@ func unionIDs(a, b []string) []string {
 	return out
 }
 
+// DeterministicRulesRunnable reports whether an on-demand deterministic-rules run
+// is available (needs the rules service; no LLM required).
+func (a *API) DeterministicRulesRunnable() bool { return a.detRules != nil }
+
+// RunDeterministicRules applies only the deterministic rules to the given
+// messages and returns them as action-plan categories — the desktop equivalent
+// of the TUI's ":rules plan". No LLM is involved, so it works without an AI
+// provider; the frontend opens the normal plan panel with these rule buckets so
+// you can review and apply them (move/label/archive) without running the full
+// AI action plan.
+func (a *API) RunDeterministicRules(ctx context.Context, inputs []AnalyzerInput) (*ActionPlanResult, error) {
+	if a.detRules == nil {
+		return nil, fmt.Errorf("deterministic rules are not available")
+	}
+	res := &ActionPlanResult{}
+	if len(inputs) == 0 {
+		return res, nil
+	}
+	candidates := make([]string, len(inputs))
+	for i, in := range inputs {
+		candidates[i] = in.ID
+	}
+	matches, _, err := a.detRules.Partition(ctx, "in:inbox", candidates)
+	if err != nil {
+		return nil, err
+	}
+	matched := 0
+	for _, m := range matches {
+		if len(m.MessageIDs) == 0 {
+			continue
+		}
+		matched += len(m.MessageIDs)
+		res.Categories = append(res.Categories, PlanCategory{
+			Name:        deterministicRuleName(m.Rule),
+			Priority:    "medium",
+			Description: "Matched by rule: " + m.Rule.Query,
+			Action:      m.Rule.Action,
+			Label:       m.Rule.Label,
+			MessageIDs:  m.MessageIDs,
+			ByRule:      true,
+			PromptID:    int(m.Rule.PromptID),
+		})
+	}
+	res.TotalAnalyzed = matched
+	return res, nil
+}
+
 // deterministicRuleName renders a rule as an action-plan category name, e.g.
 // "Archive: from:github.com" (query capped), matching the TUI.
 func deterministicRuleName(r services.DeterministicRuleInfo) string {

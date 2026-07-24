@@ -143,7 +143,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
               { icon: "👁️", keys: "Enter", desc: "Peek email · apply bucket (label→move)" },
               { icon: "🏷️", keys: "l", desc: "Apply a label bucket as label-only" },
               { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
-              { icon: "📐", keys: ":rules", desc: "Deterministic rules" },
+              { icon: "📐", keys: ":rules", desc: "Deterministic rules manager" },
+              { icon: "⚡", keys: ":rules run", desc: "Run deterministic rules (no AI)" },
             ]
           : []),
       ],

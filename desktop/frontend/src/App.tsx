@@ -109,7 +109,8 @@ const COMMANDS: CommandDef[] = [
   { names: ["queries", "q"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
-  { names: ["rules", "ru"], desc: "Deterministic rules manager" },
+  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run]" },
+  { names: ["run-rules", "apply-rules"], desc: "Run deterministic rules (no AI)" },
   { names: ["analyzer-rules"], desc: "AI analyzer preference rules" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
@@ -1568,6 +1569,40 @@ export default function App() {
     }
   }, [messages]);
 
+  // Run ONLY the deterministic rules over the loaded inbox (the TUI's
+  // ":rules plan") — no LLM. Opens the same plan panel with the rule buckets so
+  // you can review and apply them (move/label/archive) without the AI pass.
+  const runDeterministicRules = useCallback(async () => {
+    setDetRulesOpen(false);
+    setPlanOpen(true);
+    setAnalyzing(true);
+    setAnalyzeCount(messages.length);
+    setAnalyzeElapsed(0);
+    setAnalyzeProgress(null);
+    setPlan(null);
+    setPlanExcluded(new Set());
+    setError("");
+    try {
+      const inputs: AnalyzerInput[] = messages.map((m) => ({
+        id: m.id,
+        subject: m.subject,
+        from: m.from,
+        snippet: m.snippet,
+      }));
+      const res = await backend.RunDeterministicRules(inputs);
+      if (res.categories.length === 0) {
+        setPlanOpen(false);
+        showToast("No messages matched your deterministic rules");
+        return;
+      }
+      setPlan({ ...res, categories: sortPlanCategories(res.categories) });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [messages, showToast]);
+
   // Tick the elapsed-seconds counter while the analysis runs so the user sees
   // steady progress (the analysis is one backend call with no sub-progress).
   useEffect(() => {
@@ -2158,9 +2193,18 @@ export default function App() {
           break;
         case "rules":
         case "ru":
-          // Deterministic rules manager (matches the TUI's :rules). The AI
-          // analyzer's natural-language rules live on the action plan.
-          setDetRulesOpen(true);
+          // ":rules run|apply|plan" runs ONLY the deterministic rules over the
+          // inbox (TUI's :rules plan) and opens the plan panel to review/apply
+          // them — no LLM. Bare ":rules" opens the manager.
+          if (["run", "apply", "plan"].includes(arg.toLowerCase().trim())) {
+            void runDeterministicRules();
+          } else {
+            setDetRulesOpen(true);
+          }
+          break;
+        case "run-rules":
+        case "apply-rules":
+          void runDeterministicRules();
           break;
         case "analyzer-rules":
           if (rulesEnabled) void openRules();
@@ -2208,6 +2252,7 @@ export default function App() {
       openQueries,
       savedQueriesOn,
       runActionPlan,
+      runDeterministicRules,
       actionPlanOn,
       bulkMode,
       selected,
@@ -4585,7 +4630,10 @@ export default function App() {
         </div>
       )}
       {detRulesOpen && (
-        <RulesManager onClose={() => setDetRulesOpen(false)} />
+        <RulesManager
+          onClose={() => setDetRulesOpen(false)}
+          onRun={() => void runDeterministicRules()}
+        />
       )}
       {rulesOpen && (
         <div className="modal-overlay" onClick={() => setRulesOpen(false)}>

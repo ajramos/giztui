@@ -334,6 +334,8 @@ interface Backend {
   RecordQueryUse(id: number): Promise<void>;
   ActionPlanEnabled(): Promise<boolean>;
   AnalyzeInbox(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
+  RunDeterministicRules(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
+  DeterministicRulesRunnable(): Promise<boolean>;
   BulkApplyLabelByName(ids: string[], name: string): Promise<void>;
   AnalyzerRulesEnabled(): Promise<boolean>;
   ListAnalyzerRules(): Promise<AnalyzerRule[]>;
@@ -846,6 +848,21 @@ const mockBackend: Backend = {
         { name: "Read manually", priority: "low", description: "The AI left these for you to review", action: "none", label: "", messageIds: ids.slice(8, 10), readManually: true },
       ],
     };
+  },
+  async RunDeterministicRules(inputs: AnalyzerInput[]) {
+    await new Promise((r) => setTimeout(r, 250));
+    const ids = inputs.map((i) => i.id);
+    return {
+      totalAnalyzed: Math.min(3, ids.length),
+      readManually: 0,
+      categories: [
+        { name: "Archive: from:github.com", priority: "medium", description: "Matched by rule: from:github.com", action: "archive", label: "", messageIds: ids.slice(0, 1), byRule: true },
+        { name: "Label Finance: from:billing", priority: "medium", description: "Matched by rule: from:billing", action: "label", label: "Finance", messageIds: ids.slice(1, 3), byRule: true },
+      ],
+    };
+  },
+  async DeterministicRulesRunnable() {
+    return true;
   },
   async BulkApplyLabelByName() {
     await new Promise((r) => setTimeout(r, 200));

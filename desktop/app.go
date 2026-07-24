@@ -215,6 +215,21 @@ func (a *App) AnalyzeInbox(inputs []desktop.AnalyzerInput) (*desktop.ActionPlanR
 	})
 }
 
+// RunDeterministicRules applies only the deterministic rules to the given
+// messages (the TUI's ":rules plan") and returns them as plan categories.
+func (a *App) RunDeterministicRules(inputs []desktop.AnalyzerInput) (*desktop.ActionPlanResult, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.RunDeterministicRules(a.ctx, inputs)
+}
+
+// DeterministicRulesRunnable reports whether an on-demand rules run is available.
+func (a *App) DeterministicRulesRunnable() bool {
+	return a.enabled((*desktop.API).DeterministicRulesRunnable)
+}
+
 // BulkApplyLabelByName applies a label by name to many messages.
 func (a *App) BulkApplyLabelByName(ids []string, name string) error {
 	api, err := a.api()

@@ -27,7 +27,14 @@ const EMPTY: FormState = { id: null, query: "", action: "archive", label: "", pr
 // RulesManager is the deterministic-rules (:rules) manager: list rules with
 // their action + Gmail-sync state, add/edit/delete, toggle sync, and import
 // existing Gmail filters — all keyboard-first, matching the TUI.
-export default function RulesManager({ onClose }: { onClose: () => void }) {
+export default function RulesManager({
+  onClose,
+  onRun,
+}: {
+  onClose: () => void;
+  // Run the rules over the inbox now (opens the plan panel); optional.
+  onRun?: () => void;
+}) {
   const [rules, setRules] = useState<DeterministicRule[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +149,8 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
   navKeyRef.current = nav.onKeyDown;
   const activeRef = useRef(nav.active);
   activeRef.current = nav.active;
+  const onRunRef = useRef(onRun);
+  onRunRef.current = onRun;
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -154,6 +163,11 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
       // In the form, let the inputs handle their own keys (typing "a"/"i" etc.).
       if (formRef.current) return;
       const r = rulesRef.current[activeRef.current];
+      if (e.key === "r" && onRunRef.current) {
+        e.preventDefault();
+        onRunRef.current();
+        return;
+      }
       if (e.key === "a") {
         e.preventDefault();
         setForm({ ...EMPTY });
@@ -197,6 +211,11 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
           <span className="summary-head-actions">
             {!form && (
               <>
+                {onRun && (
+                  <button className="ghost tiny row-icon" disabled={busy} onClick={onRun} title="Run these rules over the inbox now">
+                    {Icon.bolt} Run
+                  </button>
+                )}
                 <button className="ghost tiny row-icon" disabled={busy} onClick={() => setForm({ ...EMPTY })}>
                   {Icon.plus} Add
                 </button>
@@ -326,7 +345,8 @@ export default function RulesManager({ onClose }: { onClose: () => void }) {
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                a add · Enter edit · d delete · s sync · i import · Esc close
+                {onRun ? "r run · " : ""}a add · Enter edit · d delete · s sync ·
+                i import · Esc close
               </span>
             </div>
           </>
