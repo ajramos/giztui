@@ -30,6 +30,12 @@ command -v wails >/dev/null 2>&1 || {
 }
 
 # --- build the universal .app ----------------------------------------------
+# Build the frontend first: wails generates Go bindings (which compile
+# main.go's //go:embed all:frontend/dist) before it builds the frontend, so on a
+# fresh clone dist must already exist.
+echo "==> Building frontend"
+( cd "$DESKTOP_DIR/frontend" && npm install && npm run build )
+
 echo "==> Building $APP_NAME.app (universal) v$VERSION"
 ( cd "$DESKTOP_DIR" && wails build -clean -platform darwin/universal \
     -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=$VERSION'" )
