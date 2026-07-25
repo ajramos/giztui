@@ -241,6 +241,7 @@ export interface KeyMap {
   archived: string;
   saveRaw: string;
   rsvp: string;
+  quit: string;
   vimTimeoutMs: number;
   vimRangeTimeoutMs: number;
 }
@@ -257,7 +258,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
   searchAdvanced: "ctrl+f",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
-  rsvp: "V", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
+  rsvp: "V", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
 export interface DraftSummary {
@@ -282,6 +283,7 @@ interface Backend {
   CredentialsPath(): Promise<string>;
   ImportCredentials(): Promise<string>;
   RetryInit(): Promise<void>;
+  Quit(): Promise<void>;
   AccountEmail(): Promise<string>;
   ListInbox(pageToken: string, pageSize: number): Promise<MessageList>;
   Search(query: string, pageToken: string, pageSize: number): Promise<MessageList>;
@@ -584,6 +586,9 @@ const mockBackend: Backend = {
   },
   async RetryInit() {
     /* mock: nothing to retry */
+  },
+  async Quit() {
+    /* mock: no-op in the browser */
   },
   async AccountEmail() {
     return mockActiveAccount === "work"

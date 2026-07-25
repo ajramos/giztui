@@ -192,6 +192,9 @@ func (a *App) ImportCredentials() (string, error) {
 // user placed credentials.json manually or fixed their config.
 func (a *App) RetryInit() { a.initSession() }
 
+// Quit exits the application (the TUI's `q` / `:quit`).
+func (a *App) Quit() { wailsruntime.Quit(a.ctx) }
+
 // AccountEmail returns the active account's email address.
 func (a *App) AccountEmail() (string, error) {
 	s := a.session.Load()

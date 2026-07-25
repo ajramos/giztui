@@ -106,7 +106,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["select", "sel"], desc: "Bulk-select rows", arg: "<n|a-b>" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
   { names: ["bottom", "end"], desc: "Go to last row" },
-  { names: ["queries", "q"], desc: "Saved searches" },
+  { names: ["queries"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
   { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run]" },
@@ -126,6 +126,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["zoom"], desc: "Set UI zoom", arg: "<0.6-2.4>" },
   { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
+  { names: ["quit", "q", "exit"], desc: "Quit GizTUI" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
 
@@ -2056,8 +2057,12 @@ export default function App() {
           if (d) openInGmail(d.id);
           break;
         case "queries":
-        case "q":
           if (savedQueriesOn) void openQueries();
+          break;
+        case "quit":
+        case "q":
+        case "exit":
+          void backend.Quit();
           break;
         case "accounts":
         case "acc":
@@ -2464,6 +2469,7 @@ export default function App() {
     add(keymap.archived, "archived");
     add(keymap.attachments, "attachments");
     add(keymap.rsvp, "rsvp");
+    add(keymap.quit, "quit");
     // Uppercase of the summarize key force-regenerates the summary (ignoring the
     // cache), mirroring the TUI's y → Y. Registered last so a user's own binding
     // for that key wins.
@@ -3037,6 +3043,9 @@ export default function App() {
         case "archive":
           if (hasSel) void bulkAction("archive");
           else if (detail) void doAction("archive", detail.id);
+          break;
+        case "quit":
+          void backend.Quit();
           break;
         case "trash":
           if (hasSel) void bulkAction("trash");

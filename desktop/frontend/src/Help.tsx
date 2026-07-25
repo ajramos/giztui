@@ -185,6 +185,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   tools.push({ icon: "🛠️", keys: ":config", desc: "Configuration" });
   tools.push({ icon: "⌨️", keys: fmtKey(k.commandMode), desc: "Command palette" });
   tools.push({ icon: "❓", keys: fmtKey(k.help), desc: "This help" });
+  tools.push({ icon: "🚪", keys: fmtKey(k.quit), desc: "Quit (:quit)" });
   secs.push({ icon: "🔧", title: "Tools & view", rows: tools });
 
   return secs;
