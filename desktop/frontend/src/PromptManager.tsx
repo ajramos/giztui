@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 import { backend, type Prompt, type PromptDetail } from "./api";
 
 const EMPTY: PromptDetail = {
@@ -208,7 +209,7 @@ export default function PromptManager({
                         title="Delete"
                         onClick={() => void remove(p.id)}
                       >
-                        🗑
+                        {Icon.trash}
                       </button>
                     </div>
                   ))
@@ -219,7 +220,9 @@ export default function PromptManager({
               <span className="foot-hint">
                 ↑↓ move · Enter edit · d delete · n new · Esc close
               </span>
-              <button onClick={() => setEditing({ ...EMPTY })}>＋ New prompt</button>
+              <button onClick={() => setEditing({ ...EMPTY })}>
+                {Icon.plus} New prompt
+              </button>
             </div>
           </>
         ) : (
@@ -278,7 +281,7 @@ export default function PromptManager({
                   disabled={refining || !editing.text.trim()}
                   onClick={() => void refine()}
                 >
-                  {refining ? "Refining…" : "✦ Refine with AI"}
+                  {refining ? "Refining…" : <>{Icon.summarize} Refine with AI</>}
                 </button>
               )}
               <button

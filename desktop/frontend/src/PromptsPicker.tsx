@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 import { backend, type Prompt } from "./api";
 
 export default function PromptsPicker({
@@ -76,7 +77,7 @@ export default function PromptsPicker({
                 onClick={onManage}
                 title="Manage prompts (Ctrl/Cmd+E)"
               >
-                ⚙ Manage
+                {Icon.sliders} Manage
               </button>
             )}
             <button className="ghost" onClick={onClose}>

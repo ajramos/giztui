@@ -312,7 +312,6 @@ interface Backend {
   RemoveLabel(messageID: string, labelID: string): Promise<void>;
   ListAttachments(id: string): Promise<Attachment[]>;
   DownloadAttachment(messageID: string, attachmentID: string, filename: string): Promise<string>;
-  OpenAttachment(path: string): Promise<void>;
   SummarizeStream(id: string, force: boolean): Promise<string>;
   GenerateReply(id: string): Promise<string>;
   TouchUp(id: string): Promise<string>;
@@ -352,13 +351,11 @@ interface Backend {
   ActionPlanEnabled(): Promise<boolean>;
   AnalyzeInbox(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
   RunDeterministicRules(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
-  DeterministicRulesRunnable(): Promise<boolean>;
   BulkApplyLabelByName(ids: string[], name: string): Promise<void>;
   AnalyzerRulesEnabled(): Promise<boolean>;
   ListAnalyzerRules(): Promise<AnalyzerRule[]>;
   SaveAnalyzerRule(text: string): Promise<void>;
   DeleteAnalyzerRule(id: number): Promise<void>;
-  DeterministicRulesEnabled(): Promise<boolean>;
   ListDeterministicRules(): Promise<DeterministicRule[]>;
   SaveDeterministicRule(
     query: string,
@@ -709,7 +706,6 @@ const mockBackend: Backend = {
     await new Promise((r) => setTimeout(r, 300));
     return `~/Downloads/gmail-attachments/${filename}`;
   },
-  async OpenAttachment() {},
   async SummarizeStream(id: string, force: boolean) {
     // In the browser mock the streaming helper drives token delivery; this is
     // only the fallback that returns the full text.
@@ -897,9 +893,6 @@ const mockBackend: Backend = {
       ],
     };
   },
-  async DeterministicRulesRunnable() {
-    return true;
-  },
   async BulkApplyLabelByName() {
     await new Promise((r) => setTimeout(r, 200));
   },
@@ -915,9 +908,6 @@ const mockBackend: Backend = {
   },
   async DeleteAnalyzerRule(id: number) {
     mockRules = mockRules.filter((r) => r.id !== id);
-  },
-  async DeterministicRulesEnabled() {
-    return true;
   },
   async ListDeterministicRules() {
     return mockDetRules;
