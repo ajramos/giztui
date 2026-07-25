@@ -2247,6 +2247,32 @@ export default function App() {
     }
   }, []);
 
+  // Keyboard nav for the analyzer-rules modal: WKWebView won't focus the bare
+  // modal, so drive arrows from the window (useListNav) and highlight the active
+  // row. Escape closes.
+  const rulesNav = useListNav(rules, {
+    onEscape: () => setRulesOpen(false),
+    windowKeys: rulesOpen,
+  });
+  // Delete the highlighted rule with d / Delete — but not while typing in the
+  // add-rule field, so those keys still edit the text there.
+  useEffect(() => {
+    if (!rulesOpen) return;
+    const h = (e: KeyboardEvent) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
+        const r = rules[rulesNav.active];
+        if (r) {
+          e.preventDefault();
+          void deleteRule(r.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [rulesOpen, rules, rulesNav.active, deleteRule]);
+
   const viewAnalyzerPrompt = useCallback(async () => {
     try {
       setPromptPreview(await backend.ViewAnalyzerPrompt());
@@ -5209,19 +5235,26 @@ export default function App() {
               <div className="muted plan-summary">
                 Natural-language preferences the analyzer follows when planning.
               </div>
-              <div className="label-list">
+              <div className="label-list" ref={rulesNav.listRef}>
                 {rules.length === 0 ? (
                   <div className="placeholder">No rules yet</div>
                 ) : (
-                  rules.map((r) => (
-                    <div key={r.id} className="prompt-manage-row">
+                  rules.map((r, i) => (
+                    <div
+                      key={r.id}
+                      className={
+                        "prompt-manage-row" +
+                        (i === rulesNav.active ? " nav-active" : "")
+                      }
+                      onMouseEnter={() => rulesNav.setActiveHover(i)}
+                    >
                       <span className="rule-text">{r.text}</span>
                       <button
                         className="ghost tiny danger"
                         title="Delete"
                         onClick={() => void deleteRule(r.id)}
                       >
-                        🗑
+                        {Icon.trash}
                       </button>
                     </div>
                   ))
@@ -5239,6 +5272,7 @@ export default function App() {
               </div>
             </div>
             <div className="modal-foot">
+              <span className="foot-hint">↑↓ move · d delete · Esc close</span>
               <button onClick={() => void addRule()} disabled={!newRule.trim()}>
                 Add rule
               </button>
