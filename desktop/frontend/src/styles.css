@@ -1538,7 +1538,10 @@ button.danger {
   border-radius: 7px;
   padding: 8px 10px;
   display: grid;
-  grid-template-columns: 130px 90px 1fr;
+  /* Content-sized name/alias columns (they may hold "plan [rules|prompt]" or a
+     long arg like "all|none|<n|a-b>"), each capped so a wide one truncates
+     instead of spilling over the next column; the description takes the rest. */
+  grid-template-columns: minmax(0, max-content) minmax(0, max-content) minmax(0, 1fr);
   gap: 10px;
   align-items: baseline;
   text-align: left;
@@ -1552,6 +1555,10 @@ button.danger {
   font-weight: 600;
   font-family: ui-monospace, monospace;
   font-size: 13px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cmd-arg {
   color: var(--text-muted);
@@ -1561,10 +1568,18 @@ button.danger {
   color: var(--text-muted);
   font-size: 12px;
   font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cmd-desc {
   color: var(--text-muted);
   font-size: 12.5px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Help overlay */
