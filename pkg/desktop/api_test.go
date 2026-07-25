@@ -683,3 +683,23 @@ func TestUserLabelsFilter(t *testing.T) {
 		}
 	}
 }
+
+func TestScopeSearch(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"", ""},
+		{"from:x", "from:x in:inbox"},
+		{"in:archive", "in:archive"},
+		{"label:Work", "label:Work"},
+		{"-in:sent from:me", "-in:sent from:me"},
+		// Substring "in:" inside a word must NOT count as a scope operator.
+		{"subject:domain:foo", "subject:domain:foo in:inbox"},
+		{"within: budget", "within: budget in:inbox"},
+	}
+	for _, c := range cases {
+		if got := scopeSearch(c.in); got != c.want {
+			t.Errorf("scopeSearch(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

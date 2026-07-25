@@ -76,6 +76,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["replyall", "ra"], desc: "Reply all" },
   { names: ["forward", "f"], desc: "Forward" },
   { names: ["refresh"], desc: "Refresh inbox" },
+  { names: ["show-new", "newmail"], desc: "Show held new mail" },
   { names: ["drafts", "dr"], desc: "Drafts" },
   { names: ["links"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
@@ -84,19 +85,19 @@ const COMMANDS: CommandDef[] = [
   { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
   { names: ["decline"], desc: "RSVP: decline invite" },
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
-  { names: ["summarize", "sum"], desc: "AI summary" },
+  { names: ["summarize", "sum", "summary"], desc: "AI summary" },
   { names: ["prompt"], desc: "Apply a prompt" },
-  { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
+  { names: ["prompts", "prompt-new", "prompt-manage"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
   { names: ["slack", "sl"], desc: "Forward to Slack" },
   { names: ["gmail", "web", "o"], desc: "Open in Gmail" },
   { names: ["threads", "thr"], desc: "Toggle conversation view" },
-  { names: ["expand-all", "expand", "flatten"], desc: "Expand all in thread" },
+  { names: ["expand-all", "expand", "flatten", "flat"], desc: "Expand all in thread" },
   { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
   { names: ["thread-summary", "th-sum"], desc: "Summarize thread (AI)" },
   { names: ["inbox", "i"], desc: "Back to inbox" },
-  { names: ["archived", "b"], desc: "Archived messages" },
+  { names: ["archived", "b", "arch-search"], desc: "Archived messages" },
   { names: ["markdown", "md"], desc: "Toggle HTML / text" },
   { names: ["images", "remote", "img"], desc: "Load / block remote images" },
   { names: ["images-always", "always-images", "imgall"], desc: "Always load remote images (on/off)" },
@@ -105,21 +106,23 @@ const COMMANDS: CommandDef[] = [
   { names: ["accounts", "acc"], desc: "Switch account" },
   { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
   { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
+  { names: ["bulk"], desc: "Toggle bulk-selection mode" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
-  { names: ["bottom", "end"], desc: "Go to last row" },
+  { names: ["bottom", "end", "$"], desc: "Go to last row" },
   { names: ["queries"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
   { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
   { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run]" },
   { names: ["run-rules", "apply-rules"], desc: "Run deterministic rules (no AI)" },
   { names: ["analyzer-rules"], desc: "AI analyzer preference rules" },
+  { names: ["view-prompt", "analyzer-prompt"], desc: "Preview the analyzer prompt" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
   { names: ["find"], desc: "Find in message", arg: "<text>" },
   { names: ["from"], desc: "Search from this sender" },
   { names: ["to"], desc: "Search to this recipient" },
   { names: ["subject"], desc: "Search this subject" },
-  { names: ["headers"], desc: "Toggle headers" },
+  { names: ["headers", "h"], desc: "Toggle headers" },
   { names: ["toolbar"], desc: "Show/hide reader toolbar" },
   { names: ["zoom-in", "zi"], desc: "Bigger UI text (Cmd/Ctrl +)" },
   { names: ["zoom-out", "zo"], desc: "Smaller UI text (Cmd/Ctrl -)" },
@@ -2595,6 +2598,20 @@ export default function App() {
         case "analyzer-rules":
           if (rulesEnabled) void openRules();
           break;
+        case "view-prompt":
+        case "analyzer-prompt":
+          // Preview the analyzer prompt (mirrors the action-plan `p` key).
+          if (actionPlanOn) void viewAnalyzerPrompt();
+          break;
+        case "bulk":
+          // Toggle bulk-selection mode (mirrors the space/V bulk toggle).
+          setBulkMode((v) => !v);
+          break;
+        case "show-new":
+        case "newmail":
+          // Merge any held new mail into the list (banner click equivalent).
+          showPendingNew();
+          break;
         case "help":
           setShowHelp(true);
           break;
@@ -2651,6 +2668,8 @@ export default function App() {
       applyTheme,
       rulesEnabled,
       openRules,
+      viewAnalyzerPrompt,
+      showPendingNew,
       toggleToolbar,
       touchUp,
       touchUpText,
@@ -5503,6 +5522,7 @@ export default function App() {
             actionPlan: actionPlanOn,
             rsvp: rsvpEnabled,
             themes: themesOn,
+            rules: rulesEnabled,
           }}
           version={appVersion}
           onClose={() => setShowHelp(false)}

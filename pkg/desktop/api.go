@@ -181,8 +181,14 @@ func scopeSearch(query string) string {
 	if q == "" {
 		return q
 	}
-	if strings.Contains(q, "in:") || strings.Contains(q, "label:") {
-		return q
+	// Only skip scoping when the query carries a real location/label operator as
+	// its own token — a substring check ("in:") wrongly matched words like
+	// "domain:" or "within:" and left those searches unscoped.
+	for _, tok := range strings.Fields(q) {
+		t := strings.ToLower(strings.TrimLeft(tok, "-("))
+		if strings.HasPrefix(t, "in:") || strings.HasPrefix(t, "label:") {
+			return q
+		}
 	}
 	return q + " in:inbox"
 }

@@ -11,6 +11,7 @@ export interface HelpFlags {
   actionPlan: boolean;
   rsvp: boolean;
   themes: boolean;
+  rules: boolean;
 }
 
 // fmtKey turns a config key token into a readable label ("space" → "Space",
@@ -103,6 +104,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },
       { icon: "📦", keys: fmtKey(k.move), desc: "Move selected to folder" },
+      { icon: "⌨️", keys: ":bulk", desc: "Toggle bulk mode (command)" },
       { icon: "❌", keys: "Esc", desc: "Exit bulk mode" },
     ],
   });
@@ -134,7 +136,10 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         { icon: "✨", keys: ":touch-up", desc: "Reformat message (AI)" },
         { icon: "🔖", keys: fmtKey(k.suggestLabel), desc: "Suggest labels (AI)" },
         ...(f.prompts
-          ? [{ icon: "⚙️", keys: ":prompts", desc: "Manage prompts" }]
+          ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
+          : []),
+        ...(f.rules
+          ? [{ icon: "🎛️", keys: ":analyzer-rules", desc: "AI analyzer preference rules" }]
           : []),
         ...(f.actionPlan
           ? [
@@ -143,6 +148,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
               { icon: "👁️", keys: "Enter", desc: "Peek email · apply bucket (label→move)" },
               { icon: "🏷️", keys: "l", desc: "Apply a label bucket as label-only" },
               { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
+              { icon: "📄", keys: "p / :view-prompt", desc: "Preview the analyzer prompt" },
               { icon: "📐", keys: ":rules", desc: "Deterministic rules manager" },
               { icon: "⚡", keys: ":rules run", desc: "Run deterministic rules (no AI)" },
             ]
