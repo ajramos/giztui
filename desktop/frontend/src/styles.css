@@ -1761,6 +1761,22 @@ button.tiny {
   padding: 2px 8px;
   font-size: 11px;
 }
+/* Small icon-only buttons (row delete, sync, Manage…): match the row-icon glyph
+   size instead of the default 20px, so they sit at the same visual weight as the
+   rest of the icon set. */
+button.tiny svg {
+  width: 15px;
+  height: 15px;
+}
+/* Row delete buttons are flat red trash icons, not a boxed button — the persistent
+   red border read as a heavy recuadro next to the flat icons around it. */
+button.ghost.tiny.danger {
+  border-color: transparent;
+  padding: 2px 4px;
+}
+button.ghost.tiny.danger:hover {
+  border-color: var(--danger);
+}
 
 /* Toast */
 .toast {
