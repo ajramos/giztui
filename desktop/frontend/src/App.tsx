@@ -127,6 +127,8 @@ const COMMANDS: CommandDef[] = [
   { names: ["zoom"], desc: "Set UI zoom", arg: "<0.6-2.4>" },
   { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
+  { names: ["regenerate", "regen"], desc: "Regenerate the open AI panel (summary/prompt)" },
+  { names: ["dismiss", "close-ai"], desc: "Close the open AI panel" },
   { names: ["quit", "q", "exit"], desc: "Quit GizTUI" },
   { names: ["help"], desc: "Keyboard shortcuts" },
 ];
@@ -296,6 +298,16 @@ export default function App() {
   const [generatingReply, setGeneratingReply] = useState(false);
   const [touchUpText, setTouchUpText] = useState<string | null>(null);
   const [touchingUp, setTouchingUp] = useState(false);
+  // Refs mirroring the AI-panel state so the keydown handler / commands can read
+  // fresh values without stale closures (for :dismiss, :regenerate, layered Esc).
+  const summaryRef = useRef(summary);
+  summaryRef.current = summary;
+  const promptResultRef = useRef(promptResult);
+  promptResultRef.current = promptResult;
+  const promptLabelRef = useRef(promptLabel);
+  promptLabelRef.current = promptLabel;
+  const touchUpTextRef = useRef(touchUpText);
+  touchUpTextRef.current = touchUpText;
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
@@ -1613,6 +1625,57 @@ export default function App() {
     [detail, bulkMode, selected, showToast],
   );
 
+  // dismissAI closes any open AI panel for the current message (summary / prompt /
+  // reformat). Returns whether it dismissed anything (for the layered Escape).
+  const dismissAI = useCallback(() => {
+    const id = openIdRef.current;
+    let any = false;
+    if (summaryRef.current !== null) {
+      setSummary(null);
+      if (id) {
+        const e = aiCache.current.get(id);
+        if (e) delete e.summary;
+      }
+      any = true;
+    }
+    if (promptResultRef.current !== null) {
+      setPromptResult(null);
+      if (id) {
+        const e = aiCache.current.get(id);
+        if (e) e.lastPromptId = undefined;
+      }
+      any = true;
+    }
+    if (touchUpTextRef.current !== null) {
+      setTouchUpText(null);
+      if (id) {
+        const e = aiCache.current.get(id);
+        if (e) delete e.touchUp;
+      }
+      any = true;
+    }
+    return any;
+  }, []);
+
+  // regenerateActive re-runs the AI panel currently shown for the open message:
+  // the summary if one is up, otherwise the last prompt (both force a fresh call).
+  const regenerateActive = useCallback(() => {
+    const id = openIdRef.current;
+    if (!id) return;
+    if (summaryRef.current !== null) {
+      void summarize(id, true);
+      return;
+    }
+    if (promptResultRef.current !== null) {
+      const pid = aiCache.current.get(id)?.lastPromptId;
+      if (pid != null)
+        void runPrompt(
+          { id: pid, name: promptLabelRef.current, description: "", category: "" },
+          true,
+        );
+    }
+  }, [summarize, runPrompt]);
+
   const replyInit = (d: MessageDetail): ComposeInit => ({
     mode: "reply",
     originalId: d.id,
@@ -2228,6 +2291,14 @@ export default function App() {
           break;
         case "queries":
           if (savedQueriesOn) void openQueries();
+          break;
+        case "regenerate":
+        case "regen":
+          regenerateActive();
+          break;
+        case "dismiss":
+        case "close-ai":
+          dismissAI();
           break;
         case "quit":
         case "q":
@@ -2948,6 +3019,13 @@ export default function App() {
         previewMessage(messages[i]);
       };
       const hasSel = bulkMode && selected.size > 0;
+
+      // Layered Escape: an open AI panel (summary / prompt / reformat) is closed
+      // first, before Escape hands the reader back / exits a search.
+      if (chord === "Escape" && dismissAI()) {
+        e.preventDefault();
+        return;
+      }
 
       // --- reader-focused scrolling (TUI parity) ---
       // After Enter/click-open (or a click in the reader), arrows & j/k scroll

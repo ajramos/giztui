@@ -181,6 +181,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   tools.push({ icon: "🔎", keys: "Cmd/Ctrl +/-/0", desc: "Zoom UI in / out / reset" });
   tools.push({ icon: "🕐", keys: ":autorefresh", desc: "Toggle auto-refresh" });
   tools.push({ icon: "🖼️", keys: ":images-always", desc: "Always load remote images (on/off)" });
+  tools.push({ icon: "🔁", keys: ":regenerate", desc: "Regenerate the open AI panel (summary/prompt)" });
+  tools.push({ icon: "✕", keys: "Esc · :dismiss", desc: "Close the open AI panel" });
   tools.push({ icon: "▤", keys: ":toolbar", desc: "Show / hide reader toolbar" });
   tools.push({ icon: "📊", keys: ":stats", desc: "AI usage" });
   tools.push({ icon: "🛠️", keys: ":config", desc: "Configuration" });
