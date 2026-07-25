@@ -37,6 +37,7 @@ import PlanMovePicker from "./PlanMovePicker";
 import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
 import Markdown from "./Markdown";
+import AiPanel from "./AiPanel";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -236,6 +237,28 @@ export default function App() {
       }
     >
   >(new Map());
+  // updateAiCache merges a patch into a message's cache entry (creating it if
+  // needed); a key set to undefined deletes it. Consolidates the repeated
+  // get-or-{}/mutate/set dance around aiCache.current.
+  const updateAiCache = useCallback(
+    (
+      id: string,
+      patch: Partial<{
+        summary: string | undefined;
+        touchUp: string | undefined;
+        lastPromptId: number | undefined;
+        promptResults: Record<number, { text: string; label: string }>;
+      }>,
+    ) => {
+      const e = aiCache.current.get(id) ?? {};
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined) delete (e as Record<string, unknown>)[k];
+        else (e as Record<string, unknown>)[k] = v;
+      }
+      aiCache.current.set(id, e);
+    },
+    [],
+  );
   const [draftsView, setDraftsView] = useState(false);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
@@ -314,8 +337,6 @@ export default function App() {
   promptLabelRef.current = promptLabel;
   const touchUpTextRef = useRef(touchUpText);
   touchUpTextRef.current = touchUpText;
-  const aiEnabledRef = useRef(aiEnabled);
-  aiEnabledRef.current = aiEnabled;
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
@@ -1358,7 +1379,7 @@ export default function App() {
         },
         force,
       );
-      aiCache.current.set(id, { ...aiCache.current.get(id), summary: final });
+      updateAiCache(id, { summary: final });
       if (openIdRef.current === id) setSummary(final);
     } catch (e) {
       setError(String(e));
@@ -1366,7 +1387,7 @@ export default function App() {
     } finally {
       setSummarizing(false);
     }
-  }, []);
+  }, [updateAiCache]);
 
   // generateReply asks the AI to draft a reply, then opens the composer with the
   // draft prefilled so the user can edit before sending.
@@ -1394,13 +1415,13 @@ export default function App() {
     try {
       const t = await backend.TouchUp(id);
       setTouchUpText(t);
-      aiCache.current.set(id, { ...aiCache.current.get(id), touchUp: t });
+      updateAiCache(id, { touchUp: t });
     } catch (e) {
       setError(String(e));
     } finally {
       setTouchingUp(false);
     }
-  }, []);
+  }, [updateAiCache]);
 
   // respondInvite sends an RSVP (accepted/tentative/declined) for the open
   // message's calendar invite.
@@ -1605,9 +1626,7 @@ export default function App() {
         ? undefined
         : aiCache.current.get(launchId)?.promptResults?.[prompt.id];
       if (cached) {
-        const e = aiCache.current.get(launchId) ?? {};
-        e.lastPromptId = prompt.id;
-        aiCache.current.set(launchId, e);
+        updateAiCache(launchId, { lastPromptId: prompt.id });
         setPromptForId(launchId);
         setPromptLabel(cached.label);
         setPromptResult(cached.text);
@@ -1634,13 +1653,13 @@ export default function App() {
           },
           force,
         );
-        const e = aiCache.current.get(launchId) ?? {};
-        e.promptResults = {
-          ...(e.promptResults ?? {}),
-          [prompt.id]: { text: final, label: prompt.name },
-        };
-        e.lastPromptId = prompt.id;
-        aiCache.current.set(launchId, e);
+        updateAiCache(launchId, {
+          promptResults: {
+            ...(aiCache.current.get(launchId)?.promptResults ?? {}),
+            [prompt.id]: { text: final, label: prompt.name },
+          },
+          lastPromptId: prompt.id,
+        });
         if (openIdRef.current === launchId) {
           setPromptResult(final);
           setPromptLabel(prompt.name);
@@ -1652,7 +1671,32 @@ export default function App() {
         setPromptRunning(false);
       }
     },
-    [detail, bulkMode, selected, showToast],
+    [detail, bulkMode, selected, showToast, updateAiCache],
+  );
+
+  // Per-panel dismiss: hide the panel and forget just enough of its cache entry
+  // so it stays closed on return. Summary/touch-up drop their cached text; the
+  // prompt keeps its result but clears lastPromptId (so nothing auto-restores).
+  const dismissSummary = useCallback(
+    (id: string | null) => {
+      setSummary(null);
+      if (id) updateAiCache(id, { summary: undefined });
+    },
+    [updateAiCache],
+  );
+  const dismissPrompt = useCallback(
+    (id: string | null) => {
+      setPromptResult(null);
+      if (id) updateAiCache(id, { lastPromptId: undefined });
+    },
+    [updateAiCache],
+  );
+  const dismissTouchUp = useCallback(
+    (id: string | null) => {
+      setTouchUpText(null);
+      if (id) updateAiCache(id, { touchUp: undefined });
+    },
+    [updateAiCache],
   );
 
   // dismissAI closes any open AI panel for the current message (summary / prompt /
@@ -1661,31 +1705,19 @@ export default function App() {
     const id = openIdRef.current;
     let any = false;
     if (summaryRef.current !== null) {
-      setSummary(null);
-      if (id) {
-        const e = aiCache.current.get(id);
-        if (e) delete e.summary;
-      }
+      dismissSummary(id);
       any = true;
     }
     if (promptResultRef.current !== null) {
-      setPromptResult(null);
-      if (id) {
-        const e = aiCache.current.get(id);
-        if (e) e.lastPromptId = undefined;
-      }
+      dismissPrompt(id);
       any = true;
     }
     if (touchUpTextRef.current !== null) {
-      setTouchUpText(null);
-      if (id) {
-        const e = aiCache.current.get(id);
-        if (e) delete e.touchUp;
-      }
+      dismissTouchUp(id);
       any = true;
     }
     return any;
-  }, []);
+  }, [dismissSummary, dismissPrompt, dismissTouchUp]);
 
   // regenerateActive re-runs the AI panel currently shown for the open message:
   // the summary if one is up, otherwise the last prompt (both force a fresh call).
@@ -1712,8 +1744,8 @@ export default function App() {
       return;
     }
     // Otherwise (a summary is shown, or nothing yet) → (re)generate the summary.
-    if (aiEnabledRef.current) void summarize(id, true);
-  }, [summarize, runPrompt, touchUp]);
+    if (aiEnabled) void summarize(id, true);
+  }, [summarize, runPrompt, touchUp, aiEnabled]);
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
     mode: "reply",
@@ -4347,104 +4379,37 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(() => {
+                <AiPanel
+                  ref={summaryPanelRef}
+                  title="AI summary"
+                  text={summary}
                   // "Generating…" only for a summary launched on THIS message, so
                   // a run started elsewhere never paints over the open email.
-                  const genHere = summarizing && summaryForId === detail.id;
-                  if (summary === null && !genHere) return null;
-                  return (
-                    <div className="summary-panel" ref={summaryPanelRef}>
-                      <div className="summary-head">
-                        <span>✦ AI summary</span>
-                        <span className="summary-head-actions">
-                          {summary && !genHere && (
-                            <button
-                              className="ghost tiny"
-                              title="Regenerate (ignore cache)"
-                              onClick={() => void summarize(detail.id, true)}
-                            >
-                              regenerate
-                            </button>
-                          )}
-                          {summary && !genHere && (
-                            <button
-                              className="ghost tiny"
-                              onClick={() => {
-                                setSummary(null);
-                                const e = aiCache.current.get(detail.id);
-                                if (e) delete e.summary;
-                              }}
-                            >
-                              dismiss
-                            </button>
-                          )}
-                        </span>
-                      </div>
-                      {genHere && !summary ? (
-                        <div className="muted">Generating…</div>
-                      ) : (
-                        <div className="summary-text">
-                          <Markdown text={summary || ""} />
-                          {genHere && <span className="caret">▍</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-                {(() => {
+                  generating={summarizing && summaryForId === detail.id}
+                  regenerateTitle="Regenerate (ignore cache)"
+                  onRegenerate={() => void summarize(detail.id, true)}
+                  onDismiss={() => dismissSummary(detail.id)}
+                />
+                <AiPanel
+                  ref={promptPanelRef}
+                  className="prompt-panel"
+                  title={promptLabel}
+                  text={promptResult}
                   // "Generating…" only for a prompt launched on THIS message; a
                   // run started elsewhere must not paint over the open email.
-                  const genHere = promptRunning && promptForId === detail.id;
-                  if (promptResult === null && !genHere) return null;
-                  return (
-                    <div className="summary-panel prompt-panel" ref={promptPanelRef}>
-                      <div className="summary-head">
-                        <span>✦ {promptLabel}</span>
-                        <span className="summary-head-actions">
-                          {promptResult !== null && !genHere && (
-                            <button
-                              className="ghost tiny"
-                              title="Regenerate (ignore the saved result and call the LLM again)"
-                              onClick={() => {
-                                const pid = aiCache.current.get(detail.id)?.lastPromptId;
-                                if (pid != null)
-                                  void runPrompt(
-                                    { id: pid, name: promptLabel, description: "", category: "" },
-                                    true,
-                                  );
-                              }}
-                            >
-                              regenerate
-                            </button>
-                          )}
-                          {promptResult !== null && !genHere && (
-                            <button
-                              className="ghost tiny"
-                              title="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
-                              onClick={() => {
-                                // Hide but keep the cached result; just forget which
-                                // one to auto-restore so it stays closed on return.
-                                setPromptResult(null);
-                                const e = aiCache.current.get(detail.id);
-                                if (e) e.lastPromptId = undefined;
-                              }}
-                            >
-                              dismiss
-                            </button>
-                          )}
-                        </span>
-                      </div>
-                      {genHere && !promptResult ? (
-                        <div className="muted">Generating…</div>
-                      ) : (
-                        <div className="summary-text">
-                          <Markdown text={promptResult || ""} />
-                          {genHere && <span className="caret">▍</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                  generating={promptRunning && promptForId === detail.id}
+                  regenerateTitle="Regenerate (ignore the saved result and call the LLM again)"
+                  dismissTitle="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
+                  onRegenerate={() => {
+                    const pid = aiCache.current.get(detail.id)?.lastPromptId;
+                    if (pid != null)
+                      void runPrompt(
+                        { id: pid, name: promptLabel, description: "", category: "" },
+                        true,
+                      );
+                  }}
+                  onDismiss={() => dismissPrompt(detail.id)}
+                />
                 {csOpen && (
                   <div className="content-search">
                     <input
@@ -4527,11 +4492,7 @@ export default function App() {
                       <span>✦ Reformatted by AI</span>
                       <button
                         className="ghost tiny"
-                        onClick={() => {
-                          setTouchUpText(null);
-                          const e = aiCache.current.get(detail.id);
-                          if (e) delete e.touchUp;
-                        }}
+                        onClick={() => dismissTouchUp(detail.id)}
                       >
                         show original
                       </button>
