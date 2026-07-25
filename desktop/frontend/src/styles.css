@@ -614,6 +614,12 @@ button.danger {
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
+  /* WKWebView (macOS) leaves gray repaint bands when the arrow keys scrollBy()
+     this container over the rounded-clipped .html-body below. Promoting the
+     scroller to its own compositing layer makes it repaint correctly. Harmless
+     elsewhere. */
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
 }
 .plain {
   margin: 0;
@@ -653,6 +659,10 @@ button.danger {
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
+  /* Keep the (rounded-clipped) email card on its own layer so it repaints while
+     the reader body is scrolled programmatically — without this, WKWebView shows
+     gray bands over the content on arrow-key scroll. */
+  transform: translateZ(0);
 }
 
 /* Account switcher */
