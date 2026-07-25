@@ -169,9 +169,13 @@ func (a *API) ListInbox(ctx context.Context, pageToken string, pageSize int64) (
 // Search returns a page of message summaries matching a Gmail search query
 // (supports the full Gmail operator syntax, e.g. "from:x has:attachment").
 // scopeSearch mirrors the TUI: unless the query already targets a location
-// (in:) or a label (label:), constrain it to the inbox and drop sent/draft/
-// chat/spam/trash. Without this, a bare "from:x" would return archived mail and
-// every folder, which the terminal never shows.
+// (in:) or a label (label:), constrain it to the inbox so a bare "from:x"
+// doesn't return archived mail and every folder, which the terminal never shows.
+//
+// We scope with `in:inbox` ALONE — it already excludes archived, sent-only,
+// drafts, chat, spam and trash (none of those carry the INBOX label). Adding
+// `-in:sent` on top wrongly hid self-addressed inbox mail (a message you send to
+// yourself carries both INBOX and SENT), so "from:me" searches came back empty.
 func scopeSearch(query string) string {
 	q := strings.TrimSpace(query)
 	if q == "" {
@@ -180,7 +184,7 @@ func scopeSearch(query string) string {
 	if strings.Contains(q, "in:") || strings.Contains(q, "label:") {
 		return q
 	}
-	return q + " -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox"
+	return q + " in:inbox"
 }
 
 func (a *API) Search(ctx context.Context, query, pageToken string, pageSize int64) (*MessageList, error) {

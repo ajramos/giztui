@@ -306,9 +306,10 @@ func TestSearchPassesQuery(t *testing.T) {
 	if _, err := api.Search(context.Background(), "from:x has:attachment", "tok", 10); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	// A query without in:/label: is scoped to the inbox (matching the TUI), so
-	// searches don't surface archived/sent/trash mail.
-	if repo.lastQ != "from:x has:attachment -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox" {
+	// A query without in:/label: is scoped to the inbox so searches don't surface
+	// archived/sent/trash mail. `in:inbox` alone suffices (and doesn't hide
+	// self-addressed inbox mail the way an extra -in:sent did).
+	if repo.lastQ != "from:x has:attachment in:inbox" {
 		t.Errorf("query not scoped as expected: %q", repo.lastQ)
 	}
 	if repo.lastOpts.PageToken != "tok" || repo.lastOpts.MaxResults != 10 {
