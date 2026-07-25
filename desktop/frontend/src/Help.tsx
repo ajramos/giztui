@@ -39,7 +39,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "✏️", keys: fmtKey(k.compose), desc: "Compose new message" },
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Move to trash" },
-      { icon: "👁️", keys: fmtKey(k.toggleRead), desc: "Toggle read / unread" },
+      { icon: "👁️", keys: `${fmtKey(k.toggleRead)} · :t`, desc: "Toggle read / unread (:read · :markunread)" },
       { icon: "↩️", keys: fmtKey(k.undo), desc: "Undo last action" },
       { icon: "📦", keys: fmtKey(k.move), desc: "Move to folder" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Manage labels" },
@@ -99,7 +99,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
     rows: [
       { icon: "✅", keys: fmtKey(k.bulkMode), desc: "Toggle bulk mode" },
       { icon: "➕", keys: `${fmtKey(k.bulkSelect)} / Space`, desc: "Select (enters bulk)" },
-      { icon: "🌟", keys: "*", desc: "Select all loaded" },
+      { icon: "🌟", keys: "* · :select all", desc: "Select all loaded (:select none clears)" },
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive selected" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },

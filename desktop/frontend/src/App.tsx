@@ -4432,7 +4432,7 @@ export default function App() {
                         title={`${att.mimeType} · ${formatSize(att.size)}`}
                         onClick={() => void downloadAttachment(att)}
                       >
-                        📎 {att.filename}
+                        {Icon.paperclip} {att.filename}
                         <span className="attach-size">{formatSize(att.size)}</span>
                       </button>
                     ))}
@@ -4443,7 +4443,7 @@ export default function App() {
                 {invite?.isInvite && (
                   <div className="rsvp-bar">
                     <div className="rsvp-info">
-                      <span className="rsvp-title">📅 {invite.summary || "Calendar invite"}</span>
+                      <span className="rsvp-title">{Icon.calendar} {invite.summary || "Calendar invite"}</span>
                       {invite.dtStart && (
                         <span className="rsvp-when muted">
                           {formatICSDate(invite.dtStart)}
