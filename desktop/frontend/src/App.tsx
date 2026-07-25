@@ -582,8 +582,18 @@ export default function App() {
     if (activeQuery || draftsView || localFilter) return;
     try {
       const list = await backend.ListInbox("", PAGE_SIZE);
+      const msgs = list.messages ?? [];
       const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      const fresh = (list.messages ?? []).filter((m) => !known.has(m.id));
+      // New mail always arrives at the TOP of the inbox, so it's the contiguous
+      // prefix of page 1 before the first message we already have. Stop at the
+      // first known id: older messages that shifted onto page 1 after a delete
+      // are NOT new — filtering by "unknown" alone would prepend those older
+      // messages to the top and scramble the order.
+      const fresh: MessageSummary[] = [];
+      for (const m of msgs) {
+        if (known.has(m.id)) break;
+        fresh.push(m);
+      }
       if (fresh.length === 0) return;
       fullMessagesRef.current = [...fresh, ...fullMessagesRef.current];
       setMessages((prev) => [...fresh, ...prev]);
