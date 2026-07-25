@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 import type { SavedQuery } from "./api";
 
 export default function SavedQueriesPicker({
@@ -21,6 +23,26 @@ export default function SavedQueriesPicker({
     onEscape: onClose,
     windowKeys: true,
   });
+
+  // d / Delete removes the highlighted saved search (no text input here, so the
+  // bare key is safe), matching the prompts / analyzer-rules pickers.
+  const queriesRef = useRef(queries);
+  queriesRef.current = queries;
+  const activeRef = useRef(nav.active);
+  activeRef.current = nav.active;
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
+        const q = queriesRef.current[activeRef.current];
+        if (q) {
+          e.preventDefault();
+          onDelete(q.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onDelete]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -48,11 +70,11 @@ export default function SavedQueriesPicker({
                     <span className="prompt-desc">{q.query}</span>
                   </button>
                   <button
-                    className="ghost tiny"
+                    className="ghost tiny danger"
                     title="Delete"
                     onClick={() => onDelete(q.id)}
                   >
-                    ✕
+                    {Icon.trash}
                   </button>
                 </div>
               ))
@@ -60,7 +82,7 @@ export default function SavedQueriesPicker({
           </div>
         </div>
         <div className="modal-foot">
-          <span className="foot-hint">↑↓ move · Enter run · Esc close</span>
+          <span className="foot-hint">↑↓ move · Enter run · d delete · Esc close</span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>
               Save current search

@@ -334,6 +334,18 @@ export default function App() {
   promptResultRef.current = promptResult;
   const promptLabelRef = useRef(promptLabel);
   promptLabelRef.current = promptLabel;
+  const promptRunningRef = useRef(promptRunning);
+  promptRunningRef.current = promptRunning;
+  const promptForIdRef = useRef(promptForId);
+  promptForIdRef.current = promptForId;
+  const summarizingRef = useRef(summarizing);
+  summarizingRef.current = summarizing;
+  const summaryForIdRef = useRef(summaryForId);
+  summaryForIdRef.current = summaryForId;
+  // Label of the prompt currently streaming, keyed by message id, so returning
+  // to a message mid-run can restore its panel title (the global promptLabel is
+  // reset when you navigate away).
+  const runningLabelRef = useRef<Record<string, string>>({});
   const touchUpTextRef = useRef(touchUpText);
   touchUpTextRef.current = touchUpText;
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
@@ -881,11 +893,25 @@ export default function App() {
       setError("");
       // Restore any AI results computed for this message earlier this session.
       const ai = aiCache.current.get(m.id);
-      setSummary(ai?.summary ?? null);
+      // If an AI run for THIS message is still streaming, keep the live panel
+      // (its result isn't cached yet). The stream repaints the body on the next
+      // token; the title would otherwise blank out, so restore it explicitly.
+      const summaryStreamingHere =
+        summarizingRef.current && summaryForIdRef.current === m.id;
+      const promptStreamingHere =
+        promptRunningRef.current && promptForIdRef.current === m.id;
+      if (!summaryStreamingHere) setSummary(ai?.summary ?? null);
       const lastPrompt =
         ai?.lastPromptId != null ? ai.promptResults?.[ai.lastPromptId] : undefined;
-      setPromptResult(lastPrompt?.text ?? null);
-      setPromptLabel(lastPrompt?.label ?? "");
+      if (promptStreamingHere) {
+        setPromptLabel(runningLabelRef.current[m.id] ?? promptLabelRef.current);
+        // Blank the body (not another message's cached text); the in-flight
+        // stream repaints the full accumulated text on its next token.
+        setPromptResult("");
+      } else {
+        setPromptResult(lastPrompt?.text ?? null);
+        setPromptLabel(lastPrompt?.label ?? "");
+      }
       const hadSessionPrompt = ai?.lastPromptId != null;
       setAttachments([]);
       setAttachmentsOpen(false);
@@ -1640,6 +1666,7 @@ export default function App() {
       setPromptRunning(true);
       setPromptLabel(prompt.name);
       setPromptResult("");
+      runningLabelRef.current[launchId] = prompt.name;
       try {
         let acc = "";
         const final = await applyPromptStream(
@@ -1668,6 +1695,7 @@ export default function App() {
         if (openIdRef.current === launchId) setPromptResult(null);
       } finally {
         setPromptRunning(false);
+        delete runningLabelRef.current[launchId];
       }
     },
     [detail, bulkMode, selected, showToast, updateAiCache],
