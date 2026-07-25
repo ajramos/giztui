@@ -49,6 +49,21 @@ export default function PromptsPicker({
     windowKeys: true,
   });
 
+  // Keyboard access to "Manage" (opens the prompt manager). The filter input is
+  // focused so plain letters must go to typing — use Ctrl/Cmd+E (E for "edit").
+  useEffect(() => {
+    if (!onManage) return;
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "e" || e.key === "E")) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onManage();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onManage]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
@@ -56,7 +71,11 @@ export default function PromptsPicker({
           <h3>Apply a prompt</h3>
           <span className="summary-head-actions">
             {onManage && (
-              <button className="ghost tiny" onClick={onManage}>
+              <button
+                className="ghost tiny"
+                onClick={onManage}
+                title="Manage prompts (Ctrl/Cmd+E)"
+              >
                 ⚙ Manage
               </button>
             )}
@@ -101,7 +120,7 @@ export default function PromptsPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            type to filter · ↑↓ move · Enter apply · Esc close
+            type to filter · ↑↓ move · Enter apply ·{onManage ? " ⌘E manage ·" : ""} Esc close
           </span>
         </div>
       </div>
