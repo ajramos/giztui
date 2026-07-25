@@ -1980,6 +1980,13 @@ button.tiny {
 
 /* First-run onboarding (missing credentials.json): reuses .fatal layout but the
    message is guidance, not an error, and the steps read left-to-right. */
+.fatal.onboarding .logo {
+  display: block;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
 .fatal.onboarding .fatal-msg {
   color: var(--text);
 }

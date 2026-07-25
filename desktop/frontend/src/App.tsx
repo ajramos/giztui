@@ -3234,6 +3234,9 @@ export default function App() {
   if (needCreds) {
     return (
       <div className="fatal onboarding">
+        <span className="logo" aria-hidden="true">
+          ✦
+        </span>
         <h1>Welcome to GizTUI Desktop</h1>
         <p className="fatal-msg">
           To connect to Gmail, GizTUI needs your own Google API credentials — a
