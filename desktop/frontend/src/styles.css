@@ -1977,3 +1977,26 @@ button.tiny {
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* First-run onboarding (missing credentials.json): reuses .fatal layout but the
+   message is guidance, not an error, and the steps read left-to-right. */
+.fatal.onboarding .fatal-msg {
+  color: var(--text);
+}
+.fatal.onboarding .onboarding-err {
+  color: var(--danger);
+}
+.onboarding-steps {
+  text-align: left;
+  margin: 16px auto 20px;
+  max-width: 560px;
+  padding-left: 22px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.onboarding-steps li {
+  margin-bottom: 8px;
+}
+.onboarding-steps code {
+  word-break: break-all;
+}

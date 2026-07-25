@@ -133,6 +133,12 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [initError, setInitError] = useState("");
   const [connecting, setConnecting] = useState(true);
+  // First-run: startup failed because credentials.json is missing. Drives a
+  // dedicated onboarding screen (explain + import) instead of the raw error.
+  const [needCreds, setNeedCreds] = useState(false);
+  const [credsPath, setCredsPath] = useState("");
+  const [importErr, setImportErr] = useState("");
+  const [importing, setImporting] = useState(false);
   // OAuth consent URL while first-run sign-in is pending (desktop only).
   const [authUrl, setAuthUrl] = useState("");
   const [messages, setMessages] = useState<MessageSummary[]>([]);
@@ -532,37 +538,50 @@ export default function App() {
     return () => clearInterval(timer);
   }, [autoRefresh, autoRefreshSecs, checkNewMail]);
 
-  useEffect(() => {
-    void (async () => {
-      // The backend builds the Gmail/service session off the main thread so the
-      // window paints immediately; wait for it to be ready before the first
-      // calls (up to ~45s for a cold OAuth) instead of erroring.
-      for (let i = 0; i < 300; i++) {
-        try {
-          if (await backend.Ready()) break;
-        } catch {
-          break; // mock / no backend
-        }
-        // Surface the sign-in URL (first-run OAuth) so the modal can offer a
-        // button instead of the user hunting for the URL in the logs.
-        try {
-          setAuthUrl(await backend.PendingAuthURL());
-        } catch {
-          /* mock backend has no pending auth */
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
-      setAuthUrl("");
-      setConnecting(false);
+  const runInit = useCallback(async () => {
+    // Reset to the connecting state (also covers retry-after-import).
+    setConnecting(true);
+    setInitError("");
+    setNeedCreds(false);
+    // The backend builds the Gmail/service session off the main thread so the
+    // window paints immediately; wait for it to be ready before the first
+    // calls (up to ~45s for a cold OAuth) instead of erroring.
+    for (let i = 0; i < 300; i++) {
       try {
-        const ie = await backend.InitError();
-        if (ie) {
-          setInitError(ie);
-          return;
-        }
+        if (await backend.Ready()) break;
       } catch {
-        /* mock backend never errors here */
+        break; // mock / no backend
       }
+      // Surface the sign-in URL (first-run OAuth) so the modal can offer a
+      // button instead of the user hunting for the URL in the logs.
+      try {
+        setAuthUrl(await backend.PendingAuthURL());
+      } catch {
+        /* mock backend has no pending auth */
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    setAuthUrl("");
+    setConnecting(false);
+    try {
+      const ie = await backend.InitError();
+      if (ie) {
+        // Distinguish "no credentials.json yet" (first-run) from other errors so
+        // the UI can offer an import flow instead of a dead-end message.
+        try {
+          if (await backend.NeedsCredentials()) {
+            setNeedCreds(true);
+            setCredsPath(await backend.CredentialsPath());
+          }
+        } catch {
+          /* older/mock backend without these methods */
+        }
+        setInitError(ie);
+        return;
+      }
+    } catch {
+      /* mock backend never errors here */
+    }
       try {
         setAccount(await backend.AccountEmail());
       } catch {
@@ -633,8 +652,38 @@ export default function App() {
         /* non-fatal */
       }
       void load("");
-    })();
   }, [load, applyTheme]);
+
+  useEffect(() => {
+    void runInit();
+  }, [runInit]);
+
+  // Import a credentials.json via the native file picker, then retry init.
+  const importCreds = useCallback(async () => {
+    setImportErr("");
+    setImporting(true);
+    try {
+      await backend.ImportCredentials();
+      // ImportCredentials returns "" if the user cancelled the dialog; in that
+      // case NeedsCredentials stays true and runInit just shows the screen again.
+      await runInit();
+    } catch (e) {
+      setImportErr(String((e as Error)?.message ?? e));
+    } finally {
+      setImporting(false);
+    }
+  }, [runInit]);
+
+  // Re-run init after the user placed credentials.json manually.
+  const retryInit = useCallback(async () => {
+    setImportErr("");
+    try {
+      await backend.RetryInit();
+    } catch {
+      /* mock backend */
+    }
+    await runInit();
+  }, [runInit]);
 
   const switchAccount = useCallback(
     async (a: AccountInfo) => {
@@ -3182,6 +3231,55 @@ export default function App() {
     loadMore,
   ]);
 
+  if (needCreds) {
+    return (
+      <div className="fatal onboarding">
+        <h1>Welcome to GizTUI Desktop</h1>
+        <p className="fatal-msg">
+          To connect to Gmail, GizTUI needs your own Google API credentials — a
+          one-time <code>credentials.json</code> (an OAuth client you create in
+          Google Cloud). Your email never passes through anyone else's servers.
+        </p>
+        <ol className="onboarding-steps">
+          <li>
+            In the Google Cloud Console, <b>enable the Gmail API</b> and create
+            an <b>OAuth client ID</b> of type <b>Desktop app</b>.
+          </li>
+          <li>
+            <b>Download</b> the client's <code>credentials.json</code>.
+          </li>
+          <li>
+            Click <b>Choose credentials.json…</b> below to import it (GizTUI
+            copies it to <code>{credsPath || "~/.config/giztui/credentials.json"}</code>),
+            then sign in.
+          </li>
+        </ol>
+        {importErr && <p className="fatal-msg onboarding-err">{importErr}</p>}
+        <div className="signin-actions">
+          <button
+            className="primary"
+            disabled={importing}
+            onClick={() => void importCreds()}
+          >
+            {importing ? "Importing…" : "Choose credentials.json…"}
+          </button>
+          <button
+            onClick={() =>
+              void backend.OpenURL(
+                "https://github.com/ajramos/giztui/blob/main/docs/GETTING_STARTED.md#gmail-api-setup",
+              )
+            }
+          >
+            Open the setup guide
+          </button>
+          <button disabled={importing} onClick={() => void retryInit()}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (initError) {
     return (
       <div className="fatal">
@@ -3192,6 +3290,11 @@ export default function App() {
           Make sure GizTUI is configured (run <code>giztui --setup</code>) and
           that <code>~/.config/giztui/</code> holds valid credentials and token.
         </p>
+        <div className="signin-actions">
+          <button className="primary" onClick={() => void retryInit()}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

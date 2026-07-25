@@ -278,6 +278,10 @@ export interface DraftDetail {
 interface Backend {
   Ready(): Promise<boolean>;
   InitError(): Promise<string>;
+  NeedsCredentials(): Promise<boolean>;
+  CredentialsPath(): Promise<string>;
+  ImportCredentials(): Promise<string>;
+  RetryInit(): Promise<void>;
   AccountEmail(): Promise<string>;
   ListInbox(pageToken: string, pageSize: number): Promise<MessageList>;
   Search(query: string, pageToken: string, pageSize: number): Promise<MessageList>;
@@ -568,6 +572,18 @@ const mockBackend: Backend = {
   },
   async InitError() {
     return "";
+  },
+  async NeedsCredentials() {
+    return false;
+  },
+  async CredentialsPath() {
+    return "~/.config/giztui/credentials.json";
+  },
+  async ImportCredentials() {
+    return ""; // mock: no native file dialog in the browser
+  },
+  async RetryInit() {
+    /* mock: nothing to retry */
   },
   async AccountEmail() {
     return mockActiveAccount === "work"

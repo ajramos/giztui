@@ -2,6 +2,8 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -59,6 +61,14 @@ var gmailScopes = []string{
 	calendarScope,
 }
 
+// ErrNoCredentials indicates the OAuth client credentials file (credentials.json)
+// does not exist. This is the desktop first-run case for a user who installed
+// via Homebrew/DMG without ever using the TUI: the GUI shows an onboarding
+// screen that explains what's needed and offers to import the file, rather than
+// dumping a raw filesystem error. Missing *token* is NOT this error — that
+// triggers the normal interactive OAuth consent flow.
+var ErrNoCredentials = errors.New("credentials.json not found")
+
 // Options configures how a Session resolves its config and credentials. All
 // fields are optional; empty values fall back to the same environment
 // variables and default paths the TUI uses (GMAIL_TUI_CONFIG, etc.).
@@ -104,9 +114,15 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		return nil, fmt.Errorf("failed to load config %q: %w", configPath, err)
 	}
 
-	defaultCred, defaultToken := config.DefaultCredentialPaths()
-	credPath := resolvePath(firstNonEmpty(opts.CredentialsPath, expandPath(cfg.Credentials)), "GMAIL_TUI_CREDENTIALS", defaultCred)
+	_, defaultToken := config.DefaultCredentialPaths()
+	credPath := credentialsPath(opts, cfg)
 	tokenPath := resolvePath(firstNonEmpty(opts.TokenPath, expandPath(cfg.Token)), "GMAIL_TUI_TOKEN", defaultToken)
+
+	// Detect the missing-credentials case up front so the GUI can show a friendly
+	// onboarding/import screen. (A missing token is fine — it drives OAuth.)
+	if _, statErr := os.Stat(credPath); errors.Is(statErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("%w: %s", ErrNoCredentials, credPath)
+	}
 
 	service, err := auth.NewGmailService(ctx, credPath, tokenPath, gmailScopes...)
 	if err != nil {
@@ -398,6 +414,78 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// credentialsPath resolves the credentials.json path using the same priority as
+// NewSession: explicit option, config value, GMAIL_TUI_CREDENTIALS, then default.
+func credentialsPath(opts Options, cfg *config.Config) string {
+	defaultCred, _ := config.DefaultCredentialPaths()
+	return resolvePath(firstNonEmpty(opts.CredentialsPath, expandPath(cfg.Credentials)), "GMAIL_TUI_CREDENTIALS", defaultCred)
+}
+
+// CredentialsPathFor returns where NewSession would look for credentials.json,
+// loading config (best-effort) the same way. A GUI uses it to show the expected
+// path and to know where InstallCredentials should write.
+func CredentialsPathFor(opts Options) string {
+	configPath := resolvePath(opts.ConfigPath, "GMAIL_TUI_CONFIG", config.DefaultConfigPath())
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil || cfg == nil {
+		cfg = &config.Config{}
+	}
+	return credentialsPath(opts, cfg)
+}
+
+// InstallCredentials validates a user-selected OAuth credentials.json and copies
+// it into the location NewSession reads (creating the parent dir with tight
+// perms). It returns the destination path. Validation fails fast on the wrong
+// file (e.g. a token, or unrelated JSON) so the user gets a clear message here
+// instead of an opaque API error later.
+func InstallCredentials(opts Options, srcPath string) (string, error) {
+	if srcPath == "" {
+		return "", fmt.Errorf("no file selected")
+	}
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		return "", fmt.Errorf("could not read %s: %w", srcPath, err)
+	}
+	if err := validateCredentialsJSON(data); err != nil {
+		return "", err
+	}
+	dest := CredentialsPathFor(opts)
+	if dest == "" {
+		return "", fmt.Errorf("could not determine where to store credentials.json")
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+		return "", fmt.Errorf("could not create %s: %w", filepath.Dir(dest), err)
+	}
+	if err := os.WriteFile(dest, data, 0o600); err != nil {
+		return "", fmt.Errorf("could not write %s: %w", dest, err)
+	}
+	return dest, nil
+}
+
+// validateCredentialsJSON checks the bytes look like a Google OAuth client
+// credentials file: valid JSON with an "installed" (desktop) or "web" block that
+// carries a client_id. This is a cheap sanity check, not full schema validation.
+func validateCredentialsJSON(data []byte) error {
+	type oauthClient struct {
+		ClientID string `json:"client_id"`
+	}
+	var probe struct {
+		Installed *oauthClient `json:"installed"`
+		Web       *oauthClient `json:"web"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return fmt.Errorf("that file is not valid JSON — download the OAuth client credentials from Google Cloud Console")
+	}
+	block := probe.Installed
+	if block == nil {
+		block = probe.Web
+	}
+	if block == nil || block.ClientID == "" {
+		return fmt.Errorf(`that JSON doesn't look like an OAuth client credentials file (expected an "installed" or "web" client_id)`)
+	}
+	return nil
 }
 
 // expandPath expands a leading ~ to the user's home directory.
