@@ -179,7 +179,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   if (f.obsidian) tools.push({ icon: "📝", keys: fmtKey(k.obsidian), desc: "Send to Obsidian" });
   if (f.slack) tools.push({ icon: "💬", keys: fmtKey(k.slack), desc: "Forward to Slack" });
   if (f.rsvp) {
-    tools.push({ icon: "📅", keys: `${fmtKey(k.rsvp)} · :accept/:decline`, desc: "RSVP to invites" });
+    tools.push({ icon: "📅", keys: `${fmtKey(k.rsvp)} · :rsvp · :accept/:decline`, desc: "RSVP to invites" });
   }
   tools.push({ icon: "👤", keys: "Ctrl+A", desc: "Switch account" });
   if (f.themes) tools.push({ icon: "🎨", keys: fmtKey(k.themePicker), desc: "Theme picker" });

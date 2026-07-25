@@ -71,6 +71,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["undo"], desc: "Undo last action" },
   { names: ["read"], desc: "Mark read" },
   { names: ["markunread"], desc: "Mark unread" },
+  { names: ["toggle-read", "t"], desc: "Toggle read / unread" },
   { names: ["labels", "l"], desc: "Manage labels" },
   { names: ["compose", "c", "new"], desc: "New message" },
   { names: ["reply", "r"], desc: "Reply" },
@@ -81,6 +82,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["links", "link"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
+  { names: ["rsvp"], desc: "Open RSVP picker for invite" },
   { names: ["accept"], desc: "RSVP: accept invite" },
   { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
   { names: ["decline"], desc: "RSVP: decline invite" },
@@ -2298,6 +2300,16 @@ export default function App() {
         case "markunread":
           if (d) void doAction("unread", d.id);
           break;
+        case "toggle-read":
+        case "t":
+          // TUI parity: :t / :toggle-read flips read↔unread on the open message
+          // (the desktop also has explicit :read / :markunread). Read the live
+          // list row so it reflects any change since the detail was fetched.
+          if (d) {
+            const cur = messages.find((m) => m.id === d.id);
+            void doAction(cur?.unread ? "read" : "unread", d.id);
+          }
+          break;
         case "labels":
         case "l":
           if (d) setLabelsFor(d.id);
@@ -2332,6 +2344,9 @@ export default function App() {
           if (d) setLinksFor(d.id);
           break;
         case "save":
+          // NOTE: intentional divergence from the TUI, where :save is an alias
+          // of :save-query. Here :save saves the message to a file (more
+          // intuitive); saving a search is :save-query / :sq.
           if (d) saveMessage(d.id);
           break;
         case "summarize":
@@ -2548,6 +2563,10 @@ export default function App() {
         case "save-raw":
         case "saveraw":
           if (d) saveRawMessage(d.id);
+          break;
+        case "rsvp":
+          // TUI parity: open the keyboard-navigable RSVP picker (same as the V key).
+          if (d && invite?.isInvite) setRsvpPickerOpen(true);
           break;
         case "accept":
           if (d && invite?.isInvite) void respondInvite(d.id, "accepted");
