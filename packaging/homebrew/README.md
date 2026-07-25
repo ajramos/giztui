@@ -13,8 +13,20 @@ Users then install with:
 
 ```bash
 brew tap ajramos/giztui
+brew trust ajramos/giztui        # required once: third-party taps are untrusted by default
 brew install --cask giztui-desktop
 ```
+
+> **`brew trust` is required.** Recent Homebrew refuses to load a cask from a
+> third-party tap until it is trusted, failing with *"Refusing to load cask …
+> from untrusted tap ajramos/giztui"*. Running `brew trust ajramos/giztui` (or
+> the per-cask `brew trust --cask ajramos/giztui/giztui-desktop`) clears it. This
+> is expected for any tap outside `homebrew/core`; document it wherever you point
+> users at the tap so the message doesn't scare them off.
+>
+> The same gate applies to `brew audit` — audit **by name** after trusting
+> (`brew audit --cask giztui-desktop`), not by file path (`brew audit [path]` is
+> disabled in current Homebrew).
 
 ## Per-release bump
 

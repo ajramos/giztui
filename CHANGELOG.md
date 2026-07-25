@@ -5,6 +5,67 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-07-25
+
+Maturation pass over the **GizTUI Desktop** client (introduced in 1.21.0):
+command parity with the terminal, keyboard-first pickers everywhere, and a long
+list of correctness and polish fixes. TUI behavior is unchanged except for a
+shared date-parsing improvement.
+
+### ⌨️ Desktop — command parity with the TUI
+
+- **Command set aligned with the terminal.** The `:` palette now mirrors the
+  TUI's taxonomy: analyzer rules and the analyzer-prompt preview are subcommands
+  of `:action-plan` (`:action-plan rules`, `:action-plan prompt`), deterministic
+  rules run via `:rules plan` / `:rp`, and the invented one-off commands were
+  removed. Missing canonical aliases were added (`:u`, `:reply-all`, `:link`,
+  `:p`/`:pr`, `:open-web`, `:save-query`/`:sq`, `:h`).
+- **New commands:** `:rsvp` (open the RSVP picker), `:toggle-read` / `:t`
+  (flip read↔unread), plus `:quit` / `q`.
+- **Help screen** updated to list the new keys and commands.
+
+### 🖥️ Desktop — keyboard-first pickers & UI consistency
+
+- Keyboard navigation in the **prompt manager**, **analyzer-rules** modal and
+  **saved-searches** picker (arrows to move, `d`/Delete to remove); the
+  analyzer-prompt preview scrolls with the keyboard.
+- Every list picker's **delete** action is now the same flat red trash icon,
+  sized to match the rest of the icon set; remaining emoji (📎 / 📅) were
+  replaced with SVG icons.
+- Command-palette suggestion rows no longer overlap when a command shows an
+  argument hint.
+
+### 🐛 Desktop — correctness fixes
+
+- AI panels are tracked **per message**: applying a prompt, switching messages
+  and returning no longer bleeds one message's summary/prompt onto another, and
+  the panel title no longer blanks out while a run is still streaming.
+- Prompt results are **cached per (message, prompt)** and persisted in the DB,
+  so re-running a prompt reuses the result; editing a prompt invalidates it and
+  a regenerate button forces a fresh call.
+- New mail from the background poll is offered via a **banner** instead of being
+  injected at the top of the list (which previously scrambled the inbox and
+  risked acting on the wrong message after deletes).
+- `from:` / `to:` searches scoped to the inbox by matching `in:` / `label:` as
+  real tokens (not substrings), and self-addressed mail is no longer hidden.
+- Remote images are remembered per message with an "always load" toggle, images
+  whose resize query got mangled to U+FFFD are recovered, and gray repaint bands
+  when arrow-scrolling HTML email are gone.
+- Links picker decodes HTML entities in anchor text and URLs (e.g.
+  `Versi&oacute;n web` → `Versión web`).
+
+### 📅 Shared
+
+- Date parsing accepts more header formats and falls back to the message's
+  `internalDate` instead of "now", fixing list dates that "jumped" (TUI + desktop).
+
+### 📦 Desktop — packaging
+
+- First-run **onboarding** when `credentials.json` is missing (explain + native
+  file import) instead of a raw startup error.
+- Release packaging fixes: build the frontend before `wails build`, working NSIS
+  installer and Linux AppImage, and Homebrew cask install docs.
+
 ## [1.21.0] - 2026-07-24
 
 ### 🖥️ New — GizTUI Desktop (Wails client)

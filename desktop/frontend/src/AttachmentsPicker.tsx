@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useListNav } from "./useListNav";
+import { Icon } from "./Icons";
 import type { Attachment } from "./api";
 
 function fmtSize(n: number): string {
@@ -48,7 +49,7 @@ export default function AttachmentsPicker({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>📎 Attachments</h3>
+          <h3>{Icon.paperclip} Attachments</h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>

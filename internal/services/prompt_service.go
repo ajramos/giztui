@@ -226,6 +226,24 @@ func (s *PromptServiceImpl) GetCachedResult(ctx context.Context, accountEmail, m
 	return s.store.GetPromptResult(ctx, accountEmail, messageID, promptID)
 }
 
+// GetCachedResultsForMessage returns the latest cached result per prompt for a
+// message, so a UI can restore its AI panels across sessions.
+func (s *PromptServiceImpl) GetCachedResultsForMessage(ctx context.Context, accountEmail, messageID string) ([]*PromptResult, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("cache store not available")
+	}
+	return s.store.GetPromptResultsForMessage(ctx, accountEmail, messageID)
+}
+
+// InvalidateResults drops all cached results for a prompt, so editing the prompt
+// text (or deleting it) doesn't leave stale results to be reused.
+func (s *PromptServiceImpl) InvalidateResults(ctx context.Context, promptID int) error {
+	if s.store == nil {
+		return fmt.Errorf("cache store not available")
+	}
+	return s.store.DeletePromptResults(ctx, promptID)
+}
+
 // ApplyBulkPromptStream delegates to the bulk prompt service with streaming
 func (s *PromptServiceImpl) ApplyBulkPromptStream(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error) {
 	if s.bulkService == nil {

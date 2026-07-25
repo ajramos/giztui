@@ -329,14 +329,14 @@ export default function RulesManager({
                         {Icon.cloud}
                       </button>
                       <button
-                        className="ghost tiny"
+                        className="ghost tiny danger"
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           void del(r.id);
                         }}
                       >
-                        {Icon.x}
+                        {Icon.trash}
                       </button>
                     </div>
                   ))

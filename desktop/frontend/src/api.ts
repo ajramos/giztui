@@ -241,6 +241,7 @@ export interface KeyMap {
   archived: string;
   saveRaw: string;
   rsvp: string;
+  quit: string;
   vimTimeoutMs: number;
   vimRangeTimeoutMs: number;
 }
@@ -257,8 +258,14 @@ export const DEFAULT_KEYMAP: KeyMap = {
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
   searchAdvanced: "ctrl+f",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
-  rsvp: "V", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
+  rsvp: "V", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
+
+export interface CachedPromptResult {
+  promptId: number;
+  name: string;
+  text: string;
+}
 
 export interface DraftSummary {
   id: string;
@@ -278,6 +285,11 @@ export interface DraftDetail {
 interface Backend {
   Ready(): Promise<boolean>;
   InitError(): Promise<string>;
+  NeedsCredentials(): Promise<boolean>;
+  CredentialsPath(): Promise<string>;
+  ImportCredentials(): Promise<string>;
+  RetryInit(): Promise<void>;
+  Quit(): Promise<void>;
   AccountEmail(): Promise<string>;
   ListInbox(pageToken: string, pageSize: number): Promise<MessageList>;
   Search(query: string, pageToken: string, pageSize: number): Promise<MessageList>;
@@ -300,7 +312,6 @@ interface Backend {
   RemoveLabel(messageID: string, labelID: string): Promise<void>;
   ListAttachments(id: string): Promise<Attachment[]>;
   DownloadAttachment(messageID: string, attachmentID: string, filename: string): Promise<string>;
-  OpenAttachment(path: string): Promise<void>;
   SummarizeStream(id: string, force: boolean): Promise<string>;
   GenerateReply(id: string): Promise<string>;
   TouchUp(id: string): Promise<string>;
@@ -319,7 +330,12 @@ interface Backend {
   UpdatePrompt(id: number, name: string, description: string, text: string, category: string): Promise<void>;
   DeletePrompt(id: number): Promise<void>;
   RefinePromptText(text: string): Promise<string>;
-  ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
+  ApplyPromptStream(
+    messageID: string,
+    promptID: number,
+    force: boolean,
+  ): Promise<string>;
+  CachedPrompts(messageID: string): Promise<CachedPromptResult[]>;
   ApplyBulkPromptStream(ids: string[], promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
@@ -335,13 +351,11 @@ interface Backend {
   ActionPlanEnabled(): Promise<boolean>;
   AnalyzeInbox(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
   RunDeterministicRules(inputs: AnalyzerInput[]): Promise<ActionPlanResult>;
-  DeterministicRulesRunnable(): Promise<boolean>;
   BulkApplyLabelByName(ids: string[], name: string): Promise<void>;
   AnalyzerRulesEnabled(): Promise<boolean>;
   ListAnalyzerRules(): Promise<AnalyzerRule[]>;
   SaveAnalyzerRule(text: string): Promise<void>;
   DeleteAnalyzerRule(id: number): Promise<void>;
-  DeterministicRulesEnabled(): Promise<boolean>;
   ListDeterministicRules(): Promise<DeterministicRule[]>;
   SaveDeterministicRule(
     query: string,
@@ -501,10 +515,11 @@ export function applyPromptStream(
   id: string,
   promptId: number,
   onToken: (token: string) => void,
+  force = false,
 ): Promise<string> {
   return streamViaEvent(
     "prompt:token",
-    () => backend.ApplyPromptStream(id, promptId),
+    () => backend.ApplyPromptStream(id, promptId, force),
     onToken,
   );
 }
@@ -568,6 +583,21 @@ const mockBackend: Backend = {
   },
   async InitError() {
     return "";
+  },
+  async NeedsCredentials() {
+    return false;
+  },
+  async CredentialsPath() {
+    return "~/.config/giztui/credentials.json";
+  },
+  async ImportCredentials() {
+    return ""; // mock: no native file dialog in the browser
+  },
+  async RetryInit() {
+    /* mock: nothing to retry */
+  },
+  async Quit() {
+    /* mock: no-op in the browser */
   },
   async AccountEmail() {
     return mockActiveAccount === "work"
@@ -676,7 +706,6 @@ const mockBackend: Backend = {
     await new Promise((r) => setTimeout(r, 300));
     return `~/Downloads/gmail-attachments/${filename}`;
   },
-  async OpenAttachment() {},
   async SummarizeStream(id: string, force: boolean) {
     // In the browser mock the streaming helper drives token delivery; this is
     // only the fallback that returns the full text.
@@ -754,7 +783,7 @@ const mockBackend: Backend = {
     await new Promise((r) => setTimeout(r, 400));
     return `Applied to ${ids.length} messages:\n\n• Combined key points across the selection\n• (mock bulk prompt result)`;
   },
-  async ApplyPromptStream(_id: string, promptID: number) {
+  async ApplyPromptStream(_id: string, promptID: number, _force?: boolean) {
     const names: Record<number, string> = {
       1: "• Key point one\n• Key point two\n• Key point three",
       2: "1. Reply to Ada by Friday (owner: you)\n2. Review the Q3 roadmap draft",
@@ -762,6 +791,9 @@ const mockBackend: Backend = {
       4: "Hola,\n\nEste es el cuerpo del correo traducido al español por tu LLM.",
     };
     return names[promptID] ?? "(mock prompt result)";
+  },
+  async CachedPrompts(_id: string) {
+    return []; // mock: no persisted results in the browser
   },
   async ListAccounts() {
     return [
@@ -861,9 +893,6 @@ const mockBackend: Backend = {
       ],
     };
   },
-  async DeterministicRulesRunnable() {
-    return true;
-  },
   async BulkApplyLabelByName() {
     await new Promise((r) => setTimeout(r, 200));
   },
@@ -879,9 +908,6 @@ const mockBackend: Backend = {
   },
   async DeleteAnalyzerRule(id: number) {
     mockRules = mockRules.filter((r) => r.id !== id);
-  },
-  async DeterministicRulesEnabled() {
-    return true;
   },
   async ListDeterministicRules() {
     return mockDetRules;

@@ -37,6 +37,7 @@ import PlanMovePicker from "./PlanMovePicker";
 import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
 import Markdown from "./Markdown";
+import AiPanel from "./AiPanel";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -59,7 +60,7 @@ const PAGE_SIZE = 50;
 // Command palette entries (`:` command mode), mirroring the TUI's command set.
 const COMMANDS: CommandDef[] = [
   { names: ["search", "s"], desc: "Gmail search", arg: "<query>" },
-  { names: ["unread"], desc: "Show unread only" },
+  { names: ["unread", "u"], desc: "Show unread only" },
   { names: ["advanced", "adv"], desc: "Advanced search builder" },
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["stats", "usage"], desc: "AI prompt usage stats" },
@@ -70,55 +71,57 @@ const COMMANDS: CommandDef[] = [
   { names: ["undo"], desc: "Undo last action" },
   { names: ["read"], desc: "Mark read" },
   { names: ["markunread"], desc: "Mark unread" },
+  { names: ["toggle-read", "t"], desc: "Toggle read / unread" },
   { names: ["labels", "l"], desc: "Manage labels" },
   { names: ["compose", "c", "new"], desc: "New message" },
   { names: ["reply", "r"], desc: "Reply" },
-  { names: ["replyall", "ra"], desc: "Reply all" },
+  { names: ["replyall", "reply-all", "ra"], desc: "Reply all" },
   { names: ["forward", "f"], desc: "Forward" },
   { names: ["refresh"], desc: "Refresh inbox" },
   { names: ["drafts", "dr"], desc: "Drafts" },
-  { names: ["links"], desc: "Links in message" },
+  { names: ["links", "link"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
+  { names: ["rsvp"], desc: "Open RSVP picker for invite" },
   { names: ["accept"], desc: "RSVP: accept invite" },
   { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
   { names: ["decline"], desc: "RSVP: decline invite" },
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
-  { names: ["summarize", "sum"], desc: "AI summary" },
-  { names: ["prompt"], desc: "Apply a prompt" },
+  { names: ["summarize", "sum", "summary"], desc: "AI summary" },
+  { names: ["prompt", "pr", "p"], desc: "Apply a prompt" },
   { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
   { names: ["slack", "sl"], desc: "Forward to Slack" },
-  { names: ["gmail", "web", "o"], desc: "Open in Gmail" },
+  { names: ["gmail", "web", "open-web", "o"], desc: "Open in Gmail" },
   { names: ["threads", "thr"], desc: "Toggle conversation view" },
-  { names: ["expand-all", "expand", "flatten"], desc: "Expand all in thread" },
+  { names: ["expand-all", "expand", "flatten", "flat"], desc: "Expand all in thread" },
   { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
   { names: ["thread-summary", "th-sum"], desc: "Summarize thread (AI)" },
   { names: ["inbox", "i"], desc: "Back to inbox" },
-  { names: ["archived", "b"], desc: "Archived messages" },
+  { names: ["archived", "b", "arch-search"], desc: "Archived messages" },
   { names: ["markdown", "md"], desc: "Toggle HTML / text" },
   { names: ["images", "remote", "img"], desc: "Load / block remote images" },
+  { names: ["images-always", "always-images", "imgall"], desc: "Always load remote images (on/off)" },
   { names: ["load", "more", "next"], desc: "Load more messages" },
   { names: ["attachments", "attach"], desc: "Focus attachments" },
   { names: ["accounts", "acc"], desc: "Switch account" },
   { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
-  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "<n|a-b>" },
+  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
-  { names: ["bottom", "end"], desc: "Go to last row" },
-  { names: ["queries", "q"], desc: "Saved searches" },
-  { names: ["savequery"], desc: "Save current search" },
-  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
-  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run]" },
-  { names: ["run-rules", "apply-rules"], desc: "Run deterministic rules (no AI)" },
-  { names: ["analyzer-rules"], desc: "AI analyzer preference rules" },
+  { names: ["bottom", "end", "$"], desc: "Go to last row" },
+  { names: ["queries"], desc: "Saved searches" },
+  { names: ["savequery", "save-query", "sq"], desc: "Save current search" },
+  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan", arg: "[rules|prompt]" },
+  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run|plan]" },
+  { names: ["rp"], desc: "Run deterministic rules (:rules plan)" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
   { names: ["find"], desc: "Find in message", arg: "<text>" },
   { names: ["from"], desc: "Search from this sender" },
   { names: ["to"], desc: "Search to this recipient" },
   { names: ["subject"], desc: "Search this subject" },
-  { names: ["headers"], desc: "Toggle headers" },
+  { names: ["headers", "toggle-headers"], desc: "Toggle headers" },
   { names: ["toolbar"], desc: "Show/hide reader toolbar" },
   { names: ["zoom-in", "zi"], desc: "Bigger UI text (Cmd/Ctrl +)" },
   { names: ["zoom-out", "zo"], desc: "Smaller UI text (Cmd/Ctrl -)" },
@@ -126,16 +129,29 @@ const COMMANDS: CommandDef[] = [
   { names: ["zoom"], desc: "Set UI zoom", arg: "<0.6-2.4>" },
   { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
   { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
-  { names: ["help"], desc: "Keyboard shortcuts" },
+  { names: ["regenerate", "regen"], desc: "Regenerate the open AI panel (summary/prompt)" },
+  { names: ["dismiss", "close-ai"], desc: "Close the open AI panel" },
+  { names: ["quit", "q", "exit"], desc: "Quit GizTUI" },
+  { names: ["help", "h"], desc: "Keyboard shortcuts" },
 ];
 
 export default function App() {
   const [account, setAccount] = useState("");
   const [initError, setInitError] = useState("");
   const [connecting, setConnecting] = useState(true);
+  // First-run: startup failed because credentials.json is missing. Drives a
+  // dedicated onboarding screen (explain + import) instead of the raw error.
+  const [needCreds, setNeedCreds] = useState(false);
+  const [credsPath, setCredsPath] = useState("");
+  const [importErr, setImportErr] = useState("");
+  const [importing, setImporting] = useState(false);
   // OAuth consent URL while first-run sign-in is pending (desktop only).
   const [authUrl, setAuthUrl] = useState("");
   const [messages, setMessages] = useState<MessageSummary[]>([]);
+  // New mail found by the background poll, held OUT of the list until the user
+  // asks to show it (via the banner or refresh) — auto-injecting it shifts rows
+  // under an in-progress operation and risks acting on the wrong message.
+  const [pendingNew, setPendingNew] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -146,6 +162,12 @@ export default function App() {
   // opening a message hands the arrows to the reader.
   const [readerFocused, setReaderFocused] = useState(false);
   const readerBodyRef = useRef<HTMLDivElement>(null);
+  // Refs to the AI result panels so we can scroll them into view when they
+  // appear — otherwise, if the reader is scrolled down, the panel renders above
+  // the fold and it looks like nothing happened.
+  const summaryPanelRef = useRef<HTMLDivElement>(null);
+  const promptPanelRef = useRef<HTMLDivElement>(null);
+  const touchUpRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [nextToken, setNextToken] = useState("");
@@ -157,6 +179,9 @@ export default function App() {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  // The message a summary run/result belongs to, so a summary started on one
+  // email doesn't paint its "Generating…" / stream over another you navigated to.
+  const [summaryForId, setSummaryForId] = useState<string | null>(null);
   const [compose, setCompose] = useState<ComposeInit | null>(null);
   const [labelsFor, setLabelsFor] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -171,11 +196,67 @@ export default function App() {
   const [promptResult, setPromptResult] = useState<string | null>(null);
   const [promptLabel, setPromptLabel] = useState("");
   const [promptRunning, setPromptRunning] = useState(false);
+  // The message a single-message prompt result/run belongs to, so a run started
+  // on one email doesn't paint its "Generating…" over a different email you've
+  // since navigated to.
+  const [promptForId, setPromptForId] = useState<string | null>(null);
+  // Always the id of the message currently open in the reader, so a streaming
+  // prompt can tell it should stop updating the visible panel once you move away.
+  const openIdRef = useRef<string | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [viewHtml, setViewHtml] = useState(false);
   const [loadRemote, setLoadRemote] = useState(false);
+  // "Always load remote images": persisted global default (off = ask per message).
+  const [alwaysImages, setAlwaysImages] = useState<boolean>(
+    () => localStorage.getItem("giztui.alwaysImages") === "on",
+  );
+  const alwaysImagesRef = useRef(alwaysImages);
+  alwaysImagesRef.current = alwaysImages;
+  // Per-message opt-in (session only), so returning to a message you already
+  // revealed images for doesn't ask again.
+  const imageOptIn = useRef<Set<string>>(new Set());
+  // Remember AI results per message (session) so navigating away and back shows
+  // the summary / prompt output / reformat again instead of a blank panel. The
+  // backend also caches, but the frontend state was cleared on every open.
+  const aiCache = useRef<
+    Map<
+      string,
+      {
+        summary?: string;
+        touchUp?: string;
+        // Prompt results keyed by prompt id, so re-running a prompt you already
+        // ran on this message reuses the result (no new LLM call / tokens).
+        promptResults?: Record<number, { text: string; label: string }>;
+        // Which prompt result to restore when you return to this message (cleared
+        // on dismiss, so a dismissed panel stays closed but the result is kept).
+        lastPromptId?: number;
+      }
+    >
+  >(new Map());
+  // updateAiCache merges a patch into a message's cache entry (creating it if
+  // needed); a key set to undefined deletes it. Consolidates the repeated
+  // get-or-{}/mutate/set dance around aiCache.current.
+  const updateAiCache = useCallback(
+    (
+      id: string,
+      patch: Partial<{
+        summary: string | undefined;
+        touchUp: string | undefined;
+        lastPromptId: number | undefined;
+        promptResults: Record<number, { text: string; label: string }>;
+      }>,
+    ) => {
+      const e = aiCache.current.get(id) ?? {};
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined) delete (e as Record<string, unknown>)[k];
+        else (e as Record<string, unknown>)[k] = v;
+      }
+      aiCache.current.set(id, e);
+    },
+    [],
+  );
   const [draftsView, setDraftsView] = useState(false);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
@@ -237,6 +318,7 @@ export default function App() {
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
+  const promptPreviewBodyRef = useRef<HTMLDivElement>(null);
   const [themesOn, setThemesOn] = useState(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeNames, setThemeNames] = useState<string[]>([]);
@@ -244,6 +326,28 @@ export default function App() {
   const [generatingReply, setGeneratingReply] = useState(false);
   const [touchUpText, setTouchUpText] = useState<string | null>(null);
   const [touchingUp, setTouchingUp] = useState(false);
+  // Refs mirroring the AI-panel state so the keydown handler / commands can read
+  // fresh values without stale closures (for :dismiss, :regenerate, layered Esc).
+  const summaryRef = useRef(summary);
+  summaryRef.current = summary;
+  const promptResultRef = useRef(promptResult);
+  promptResultRef.current = promptResult;
+  const promptLabelRef = useRef(promptLabel);
+  promptLabelRef.current = promptLabel;
+  const promptRunningRef = useRef(promptRunning);
+  promptRunningRef.current = promptRunning;
+  const promptForIdRef = useRef(promptForId);
+  promptForIdRef.current = promptForId;
+  const summarizingRef = useRef(summarizing);
+  summarizingRef.current = summarizing;
+  const summaryForIdRef = useRef(summaryForId);
+  summaryForIdRef.current = summaryForId;
+  // Label of the prompt currently streaming, keyed by message id, so returning
+  // to a message mid-run can restore its panel title (the global promptLabel is
+  // reset when you navigate away).
+  const runningLabelRef = useRef<Record<string, string>>({});
+  const touchUpTextRef = useRef(touchUpText);
+  touchUpTextRef.current = touchUpText;
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
@@ -370,6 +474,44 @@ export default function App() {
     setTimeout(() => setToast(""), 2500);
   }, []);
 
+  // When an AI result panel starts, reveal it (the panels render at the top of
+  // the reader, so if you'd scrolled down they'd appear above the fold and look
+  // like a no-op) and flash a toast so there's immediate feedback either way.
+  useEffect(() => {
+    if (summarizing && summaryForId && summaryForId === detail?.id) {
+      summaryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      showToast("Summarizing…");
+    }
+  }, [summarizing, summaryForId, detail?.id, showToast]);
+  useEffect(() => {
+    // Only for a single-message prompt on the message that's actually open (a
+    // bulk run streams into its own modal; promptForId is null for it).
+    if (promptRunning && promptForId && promptForId === detail?.id) {
+      promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      showToast(promptLabel ? `Applying ${promptLabel}…` : "Applying prompt…");
+    }
+  }, [promptRunning, promptForId, detail?.id, promptLabel, showToast]);
+  useEffect(() => {
+    if (touchingUp) showToast("Reformatting…");
+  }, [touchingUp, showToast]);
+  useEffect(() => {
+    // The reformatted panel only mounts once the result is set, so reveal it then.
+    if (touchUpText !== null)
+      touchUpRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [touchUpText]);
+
+  // Global "always load remote images" toggle, persisted across launches. Turning
+  // it on reveals images in the current message too.
+  const setAlwaysImagesOn = useCallback(
+    (on: boolean) => {
+      setAlwaysImages(on);
+      localStorage.setItem("giztui.alwaysImages", on ? "on" : "off");
+      if (on) setLoadRemote(true);
+      showToast(on ? "Always loading remote images" : "Images: ask per message");
+    },
+    [showToast],
+  );
+
   // applyTheme fetches a theme's palette from the backend and maps it onto the
   // CSS custom properties the stylesheet reads. Empty name = the configured
   // (current) theme, resolved on startup.
@@ -432,6 +574,7 @@ export default function App() {
       const msgs = list.messages ?? [];
       setMessages(msgs);
       fullMessagesRef.current = msgs;
+      setPendingNew([]); // a fresh load already includes any new mail
       setNextToken(list.nextPageToken ?? "");
       // Select + preview the first message so the app opens ready to read.
       if (msgs.length > 0) previewRef.current(msgs[0]);
@@ -514,16 +657,41 @@ export default function App() {
     if (activeQuery || draftsView || localFilter) return;
     try {
       const list = await backend.ListInbox("", PAGE_SIZE);
+      const msgs = list.messages ?? [];
       const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      const fresh = (list.messages ?? []).filter((m) => !known.has(m.id));
-      if (fresh.length === 0) return;
-      fullMessagesRef.current = [...fresh, ...fullMessagesRef.current];
-      setMessages((prev) => [...fresh, ...prev]);
-      showToast(`${fresh.length} new message${fresh.length > 1 ? "s" : ""}`);
+      // New mail always arrives at the TOP of the inbox, so it's the contiguous
+      // prefix of page 1 before the first message we already have. Stop at the
+      // first known id: older messages that shifted onto page 1 after a delete
+      // are NOT new — filtering by "unknown" alone would prepend those older
+      // messages to the top and scramble the order.
+      const fresh: MessageSummary[] = [];
+      for (const m of msgs) {
+        if (known.has(m.id)) break;
+        fresh.push(m);
+      }
+      // Hold new mail in a banner instead of prepending it — injecting rows at
+      // the top while the user is reading/selecting shifts everything under them
+      // and they can end up acting on a different message than they see.
+      setPendingNew(fresh);
     } catch {
       /* transient; try again next tick */
     }
-  }, [activeQuery, draftsView, localFilter, showToast]);
+  }, [activeQuery, draftsView, localFilter]);
+
+  // showPendingNew merges the held new mail into the list (banner click / manual
+  // refresh). De-duped in case a manual refresh already pulled some in.
+  const showPendingNew = useCallback(() => {
+    setPendingNew((pending) => {
+      if (pending.length === 0) return pending;
+      const known = new Set(fullMessagesRef.current.map((m) => m.id));
+      const toAdd = pending.filter((m) => !known.has(m.id));
+      if (toAdd.length > 0) {
+        fullMessagesRef.current = [...toAdd, ...fullMessagesRef.current];
+        setMessages((prev) => [...toAdd, ...prev]);
+      }
+      return [];
+    });
+  }, []);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -532,37 +700,50 @@ export default function App() {
     return () => clearInterval(timer);
   }, [autoRefresh, autoRefreshSecs, checkNewMail]);
 
-  useEffect(() => {
-    void (async () => {
-      // The backend builds the Gmail/service session off the main thread so the
-      // window paints immediately; wait for it to be ready before the first
-      // calls (up to ~45s for a cold OAuth) instead of erroring.
-      for (let i = 0; i < 300; i++) {
-        try {
-          if (await backend.Ready()) break;
-        } catch {
-          break; // mock / no backend
-        }
-        // Surface the sign-in URL (first-run OAuth) so the modal can offer a
-        // button instead of the user hunting for the URL in the logs.
-        try {
-          setAuthUrl(await backend.PendingAuthURL());
-        } catch {
-          /* mock backend has no pending auth */
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
-      setAuthUrl("");
-      setConnecting(false);
+  const runInit = useCallback(async () => {
+    // Reset to the connecting state (also covers retry-after-import).
+    setConnecting(true);
+    setInitError("");
+    setNeedCreds(false);
+    // The backend builds the Gmail/service session off the main thread so the
+    // window paints immediately; wait for it to be ready before the first
+    // calls (up to ~45s for a cold OAuth) instead of erroring.
+    for (let i = 0; i < 300; i++) {
       try {
-        const ie = await backend.InitError();
-        if (ie) {
-          setInitError(ie);
-          return;
-        }
+        if (await backend.Ready()) break;
       } catch {
-        /* mock backend never errors here */
+        break; // mock / no backend
       }
+      // Surface the sign-in URL (first-run OAuth) so the modal can offer a
+      // button instead of the user hunting for the URL in the logs.
+      try {
+        setAuthUrl(await backend.PendingAuthURL());
+      } catch {
+        /* mock backend has no pending auth */
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    setAuthUrl("");
+    setConnecting(false);
+    try {
+      const ie = await backend.InitError();
+      if (ie) {
+        // Distinguish "no credentials.json yet" (first-run) from other errors so
+        // the UI can offer an import flow instead of a dead-end message.
+        try {
+          if (await backend.NeedsCredentials()) {
+            setNeedCreds(true);
+            setCredsPath(await backend.CredentialsPath());
+          }
+        } catch {
+          /* older/mock backend without these methods */
+        }
+        setInitError(ie);
+        return;
+      }
+    } catch {
+      /* mock backend never errors here */
+    }
       try {
         setAccount(await backend.AccountEmail());
       } catch {
@@ -633,8 +814,38 @@ export default function App() {
         /* non-fatal */
       }
       void load("");
-    })();
   }, [load, applyTheme]);
+
+  useEffect(() => {
+    void runInit();
+  }, [runInit]);
+
+  // Import a credentials.json via the native file picker, then retry init.
+  const importCreds = useCallback(async () => {
+    setImportErr("");
+    setImporting(true);
+    try {
+      await backend.ImportCredentials();
+      // ImportCredentials returns "" if the user cancelled the dialog; in that
+      // case NeedsCredentials stays true and runInit just shows the screen again.
+      await runInit();
+    } catch (e) {
+      setImportErr(String((e as Error)?.message ?? e));
+    } finally {
+      setImporting(false);
+    }
+  }, [runInit]);
+
+  // Re-run init after the user placed credentials.json manually.
+  const retryInit = useCallback(async () => {
+    setImportErr("");
+    try {
+      await backend.RetryInit();
+    } catch {
+      /* mock backend */
+    }
+    await runInit();
+  }, [runInit]);
 
   const switchAccount = useCallback(
     async (a: AccountInfo) => {
@@ -674,16 +885,39 @@ export default function App() {
   // markRead=true is used for a deliberate open (Enter / click).
   const loadMessage = useCallback(
     async (m: MessageSummary, markRead: boolean) => {
+      // Record the newly-open message synchronously so a prompt still streaming
+      // for the PREVIOUS message stops writing into the visible panel.
+      openIdRef.current = m.id;
       setSelectedId(m.id);
       setLoadingDetail(true);
       setError("");
-      setSummary(null);
-      setPromptResult(null);
+      // Restore any AI results computed for this message earlier this session.
+      const ai = aiCache.current.get(m.id);
+      // If an AI run for THIS message is still streaming, keep the live panel
+      // (its result isn't cached yet). The stream repaints the body on the next
+      // token; the title would otherwise blank out, so restore it explicitly.
+      const summaryStreamingHere =
+        summarizingRef.current && summaryForIdRef.current === m.id;
+      const promptStreamingHere =
+        promptRunningRef.current && promptForIdRef.current === m.id;
+      if (!summaryStreamingHere) setSummary(ai?.summary ?? null);
+      const lastPrompt =
+        ai?.lastPromptId != null ? ai.promptResults?.[ai.lastPromptId] : undefined;
+      if (promptStreamingHere) {
+        setPromptLabel(runningLabelRef.current[m.id] ?? promptLabelRef.current);
+        // Blank the body (not another message's cached text); the in-flight
+        // stream repaints the full accumulated text on its next token.
+        setPromptResult("");
+      } else {
+        setPromptResult(lastPrompt?.text ?? null);
+        setPromptLabel(lastPrompt?.label ?? "");
+      }
+      const hadSessionPrompt = ai?.lastPromptId != null;
       setAttachments([]);
       setAttachmentsOpen(false);
       setThreadMsgs(null);
       setCollapsedMsgs(new Set());
-      setTouchUpText(null);
+      setTouchUpText(ai?.touchUp ?? null);
       setInvite(null);
       setCsOpen(false);
       // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
@@ -694,17 +928,49 @@ export default function App() {
       });
       try {
         const d = await backend.GetMessage(m.id);
+        // A faster navigation (e.g. j/k to a cached message) may have already
+        // opened another message while this fetch was in flight — abandon the
+        // stale result so the reader never shows a different email's body.
+        if (openIdRef.current !== m.id) return;
         setDetail(d);
         setViewHtml(!!(d.html && d.html.trim()));
-        setLoadRemote(false);
+        // Show remote images automatically if the global "always" is on or the
+        // user already opted this message in earlier this session.
+        setLoadRemote(alwaysImagesRef.current || imageOptIn.current.has(m.id));
+        // Restore prompt results persisted in the DB (survive app restarts). Seed
+        // the session cache so re-running reuses them, and surface the most recent
+        // if the session didn't already show one.
+        void backend
+          .CachedPrompts(m.id)
+          .then((cached) => {
+            if (openIdRef.current !== m.id || !cached || cached.length === 0) return;
+            const e = aiCache.current.get(m.id) ?? {};
+            const pr = { ...(e.promptResults ?? {}) };
+            for (const c of cached) {
+              if (pr[c.promptId] === undefined)
+                pr[c.promptId] = { text: c.text, label: c.name };
+            }
+            e.promptResults = pr;
+            if (!hadSessionPrompt && e.lastPromptId === undefined) {
+              e.lastPromptId = cached[0].promptId;
+              setPromptResult(cached[0].text);
+              setPromptLabel(cached[0].name);
+            }
+            aiCache.current.set(m.id, e);
+          })
+          .catch(() => undefined);
         void backend
           .ListAttachments(m.id)
-          .then(setAttachments)
+          .then((atts) => {
+            if (openIdRef.current === m.id) setAttachments(atts);
+          })
           .catch(() => undefined);
         if (rsvpEnabledRef.current) {
           void backend
             .InviteInfo(m.id)
-            .then((inv) => setInvite(inv.isInvite ? inv : null))
+            .then((inv) => {
+              if (openIdRef.current === m.id) setInvite(inv.isInvite ? inv : null);
+            })
             .catch(() => undefined);
         }
         if (markRead && m.unread) {
@@ -747,6 +1013,9 @@ export default function App() {
     (id: string) => {
       const idx = messages.findIndex((x) => x.id === id);
       setMessages((prev) => prev.filter((x) => x.id !== id));
+      // Also drop it from the full (unfiltered) list, so toggling the local
+      // filter doesn't resurrect a message the user just archived/trashed.
+      fullMessagesRef.current = fullMessagesRef.current.filter((x) => x.id !== id);
       if (selectedId !== id) return;
       // When the message being read is removed (archive/trash), advance to the
       // neighbour and preview it — same index is now the next message, or the
@@ -907,6 +1176,11 @@ export default function App() {
   // linger on screen.
   const clearReaderIfRemoved = useCallback(
     (removed: Set<string>) => {
+      // Keep the full (unfiltered) list in sync so the local filter can't
+      // resurrect bulk-removed messages.
+      fullMessagesRef.current = fullMessagesRef.current.filter(
+        (m) => !removed.has(m.id),
+      );
       setDetail((d) => {
         if (d && removed.has(d.id)) {
           setSelectedId(null);
@@ -926,6 +1200,10 @@ export default function App() {
   // Falls back to clearing the reader when nothing survives.
   const advanceAfterBulk = useCallback(
     (removed: Set<string>) => {
+      // Keep the full (unfiltered) list in sync (see clearReaderIfRemoved).
+      fullMessagesRef.current = fullMessagesRef.current.filter(
+        (m) => !removed.has(m.id),
+      );
       const curIdx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
@@ -1111,8 +1389,9 @@ export default function App() {
   }, []);
 
   const summarize = useCallback(async (id: string, force = false) => {
+    setSummaryForId(id);
     setSummarizing(true);
-    setSummary("");
+    if (openIdRef.current === id) setSummary("");
     setError("");
     try {
       let acc = "";
@@ -1120,18 +1399,20 @@ export default function App() {
         id,
         (tok) => {
           acc += tok;
-          setSummary(acc);
+          // Only paint into the visible panel while this message is still open.
+          if (openIdRef.current === id) setSummary(acc);
         },
         force,
       );
-      setSummary(final);
+      updateAiCache(id, { summary: final });
+      if (openIdRef.current === id) setSummary(final);
     } catch (e) {
       setError(String(e));
-      setSummary(null);
+      if (openIdRef.current === id) setSummary(null);
     } finally {
       setSummarizing(false);
     }
-  }, []);
+  }, [updateAiCache]);
 
   // generateReply asks the AI to draft a reply, then opens the composer with the
   // draft prefilled so the user can edit before sending.
@@ -1157,13 +1438,15 @@ export default function App() {
     setTouchingUp(true);
     setError("");
     try {
-      setTouchUpText(await backend.TouchUp(id));
+      const t = await backend.TouchUp(id);
+      setTouchUpText(t);
+      updateAiCache(id, { touchUp: t });
     } catch (e) {
       setError(String(e));
     } finally {
       setTouchingUp(false);
     }
-  }, []);
+  }, [updateAiCache]);
 
   // respondInvite sends an RSVP (accepted/tentative/declined) for the open
   // message's calendar invite.
@@ -1327,41 +1610,169 @@ export default function App() {
   }, []);
 
   const runPrompt = useCallback(
-    async (prompt: Prompt) => {
+    async (prompt: Prompt, force = false) => {
       const bulk = bulkMode && selected.size > 0;
       if (!bulk && !detail) return;
       setPromptsOpen(false);
-      setPromptRunning(true);
       setError("");
+
+      // --- bulk (multi-message) prompt: streams into the bulk modal ----------
       if (bulk) {
+        setPromptForId(null); // bulk isn't tied to the open message's panel
+        setPromptRunning(true);
         setBulkPromptLabel(`${prompt.name} · ${selected.size} messages`);
         setBulkPromptText("");
-      } else {
-        setPromptLabel(prompt.name);
-        setPromptResult("");
+        try {
+          let acc = "";
+          const final = await applyBulkPromptStream(
+            [...selected],
+            prompt.id,
+            (tok) => {
+              acc += tok;
+              setBulkPromptText(acc);
+            },
+          );
+          setBulkPromptText(final);
+        } catch (e) {
+          setError(String(e));
+          setBulkPromptText(null);
+        } finally {
+          setPromptRunning(false);
+        }
+        return;
       }
+
+      // --- single-message prompt --------------------------------------------
+      const launchId = detail!.id;
+      // Reuse a result already generated for this (message, prompt) — no new LLM
+      // call, so dismissing then re-running the same prompt is free. force skips
+      // the cache to regenerate (e.g. after editing the prompt).
+      const cached = force
+        ? undefined
+        : aiCache.current.get(launchId)?.promptResults?.[prompt.id];
+      if (cached) {
+        updateAiCache(launchId, { lastPromptId: prompt.id });
+        setPromptForId(launchId);
+        setPromptLabel(cached.label);
+        setPromptResult(cached.text);
+        showToast(`${cached.label} (cached)`);
+        requestAnimationFrame(() =>
+          promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
+        );
+        return;
+      }
+
+      setPromptForId(launchId);
+      setPromptRunning(true);
+      setPromptLabel(prompt.name);
+      setPromptResult("");
+      runningLabelRef.current[launchId] = prompt.name;
       try {
         let acc = "";
-        const onTok = (tok: string) => {
-          acc += tok;
-          if (bulk) setBulkPromptText(acc);
-          else setPromptResult(acc);
-        };
-        const final = bulk
-          ? await applyBulkPromptStream([...selected], prompt.id, onTok)
-          : await applyPromptStream(detail!.id, prompt.id, onTok);
-        if (bulk) setBulkPromptText(final);
-        else setPromptResult(final);
+        const final = await applyPromptStream(
+          launchId,
+          prompt.id,
+          (tok) => {
+            acc += tok;
+            // Only paint into the visible panel while this message is still open.
+            if (openIdRef.current === launchId) setPromptResult(acc);
+          },
+          force,
+        );
+        updateAiCache(launchId, {
+          promptResults: {
+            ...(aiCache.current.get(launchId)?.promptResults ?? {}),
+            [prompt.id]: { text: final, label: prompt.name },
+          },
+          lastPromptId: prompt.id,
+        });
+        if (openIdRef.current === launchId) {
+          setPromptResult(final);
+          setPromptLabel(prompt.name);
+        }
       } catch (e) {
         setError(String(e));
-        if (bulk) setBulkPromptText(null);
-        else setPromptResult(null);
+        if (openIdRef.current === launchId) setPromptResult(null);
       } finally {
         setPromptRunning(false);
+        delete runningLabelRef.current[launchId];
       }
     },
-    [detail, bulkMode, selected],
+    [detail, bulkMode, selected, showToast, updateAiCache],
   );
+
+  // Per-panel dismiss: hide the panel and forget just enough of its cache entry
+  // so it stays closed on return. Summary/touch-up drop their cached text; the
+  // prompt keeps its result but clears lastPromptId (so nothing auto-restores).
+  const dismissSummary = useCallback(
+    (id: string | null) => {
+      setSummary(null);
+      if (id) updateAiCache(id, { summary: undefined });
+    },
+    [updateAiCache],
+  );
+  const dismissPrompt = useCallback(
+    (id: string | null) => {
+      setPromptResult(null);
+      if (id) updateAiCache(id, { lastPromptId: undefined });
+    },
+    [updateAiCache],
+  );
+  const dismissTouchUp = useCallback(
+    (id: string | null) => {
+      setTouchUpText(null);
+      if (id) updateAiCache(id, { touchUp: undefined });
+    },
+    [updateAiCache],
+  );
+
+  // dismissAI closes any open AI panel for the current message (summary / prompt /
+  // reformat). Returns whether it dismissed anything (for the layered Escape).
+  const dismissAI = useCallback(() => {
+    const id = openIdRef.current;
+    let any = false;
+    if (summaryRef.current !== null) {
+      dismissSummary(id);
+      any = true;
+    }
+    if (promptResultRef.current !== null) {
+      dismissPrompt(id);
+      any = true;
+    }
+    if (touchUpTextRef.current !== null) {
+      dismissTouchUp(id);
+      any = true;
+    }
+    return any;
+  }, [dismissSummary, dismissPrompt, dismissTouchUp]);
+
+  // regenerateActive re-runs the AI panel currently shown for the open message:
+  // the summary if one is up, otherwise the last prompt (both force a fresh call).
+  const regenerateActive = useCallback(() => {
+    const id = openIdRef.current;
+    if (!id) return;
+    // A prompt is the active AI output (and no summary up) → regenerate the prompt.
+    if (promptResultRef.current !== null && summaryRef.current === null) {
+      const pid = aiCache.current.get(id)?.lastPromptId;
+      if (pid != null)
+        void runPrompt(
+          { id: pid, name: promptLabelRef.current, description: "", category: "" },
+          true,
+        );
+      return;
+    }
+    // A reformat (touch-up) is the active output → re-reformat, not summarize.
+    if (
+      touchUpTextRef.current !== null &&
+      summaryRef.current === null &&
+      promptResultRef.current === null
+    ) {
+      void touchUp(id);
+      return;
+    }
+    // Otherwise (a summary is shown, or nothing yet) → (re)generate the summary.
+    if (aiEnabled) void summarize(id, true);
+  }, [summarize, runPrompt, touchUp, aiEnabled]);
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
     mode: "reply",
@@ -1864,6 +2275,32 @@ export default function App() {
     }
   }, []);
 
+  // Keyboard nav for the analyzer-rules modal: WKWebView won't focus the bare
+  // modal, so drive arrows from the window (useListNav) and highlight the active
+  // row. Escape closes.
+  const rulesNav = useListNav(rules, {
+    onEscape: () => setRulesOpen(false),
+    windowKeys: rulesOpen,
+  });
+  // Delete the highlighted rule with d / Delete — but not while typing in the
+  // add-rule field, so those keys still edit the text there.
+  useEffect(() => {
+    if (!rulesOpen) return;
+    const h = (e: KeyboardEvent) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
+        const r = rules[rulesNav.active];
+        if (r) {
+          e.preventDefault();
+          void deleteRule(r.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [rulesOpen, rules, rulesNav.active, deleteRule]);
+
   const viewAnalyzerPrompt = useCallback(async () => {
     try {
       setPromptPreview(await backend.ViewAnalyzerPrompt());
@@ -1871,6 +2308,34 @@ export default function App() {
       setError(String(e));
     }
   }, []);
+
+  // The analyzer-prompt preview is a long scrollable <pre>, but WKWebView won't
+  // focus the bare modal body so arrows/PageUp/etc. never reach it. While the
+  // preview is open, drive its scrolling from a window-level listener (Escape is
+  // handled by the global modal chain).
+  useEffect(() => {
+    if (promptPreview === null) return;
+    const h = (e: KeyboardEvent) => {
+      const el = promptPreviewBodyRef.current;
+      if (!el) return;
+      const line = 48;
+      const page = el.clientHeight * 0.9;
+      let dy = 0;
+      switch (e.key) {
+        case "ArrowDown": case "j": dy = line; break;
+        case "ArrowUp": case "k": dy = -line; break;
+        case "PageDown": case " ": dy = page; break;
+        case "PageUp": dy = -page; break;
+        case "Home": el.scrollTo({ top: 0 }); e.preventDefault(); return;
+        case "End": el.scrollTo({ top: el.scrollHeight }); e.preventDefault(); return;
+        default: return;
+      }
+      el.scrollBy({ top: dy });
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [promptPreview]);
 
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
@@ -1896,6 +2361,7 @@ export default function App() {
           void load("");
           break;
         case "unread":
+        case "u":
           void load("is:unread");
           break;
         case "archived":
@@ -1917,6 +2383,16 @@ export default function App() {
         case "markunread":
           if (d) void doAction("unread", d.id);
           break;
+        case "toggle-read":
+        case "t":
+          // TUI parity: :t / :toggle-read flips read↔unread on the open message
+          // (the desktop also has explicit :read / :markunread). Read the live
+          // list row so it reflects any change since the detail was fetched.
+          if (d) {
+            const cur = messages.find((m) => m.id === d.id);
+            void doAction(cur?.unread ? "read" : "unread", d.id);
+          }
+          break;
         case "labels":
         case "l":
           if (d) setLabelsFor(d.id);
@@ -1931,6 +2407,7 @@ export default function App() {
           if (d) setCompose(replyInit(d));
           break;
         case "replyall":
+        case "reply-all":
         case "ra":
           if (d) setCompose(replyAllInit(d));
           break;
@@ -1946,9 +2423,13 @@ export default function App() {
           openDrafts();
           break;
         case "links":
+        case "link":
           if (d) setLinksFor(d.id);
           break;
         case "save":
+          // NOTE: intentional divergence from the TUI, where :save is an alias
+          // of :save-query. Here :save saves the message to a file (more
+          // intuitive); saving a search is :save-query / :sq.
           if (d) saveMessage(d.id);
           break;
         case "summarize":
@@ -1957,6 +2438,8 @@ export default function App() {
           if (d && aiEnabled) void summarize(d.id);
           break;
         case "prompt":
+        case "pr":
+        case "p":
           if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0)))
             setPromptsOpen(true);
           break;
@@ -1973,12 +2456,25 @@ export default function App() {
           break;
         case "gmail":
         case "web":
+        case "open-web":
         case "o":
           if (d) openInGmail(d.id);
           break;
         case "queries":
-        case "q":
           if (savedQueriesOn) void openQueries();
+          break;
+        case "regenerate":
+        case "regen":
+          regenerateActive();
+          break;
+        case "dismiss":
+        case "close-ai":
+          dismissAI();
+          break;
+        case "quit":
+        case "q":
+        case "exit":
+          void backend.Quit();
           break;
         case "accounts":
         case "acc":
@@ -1987,9 +2483,21 @@ export default function App() {
         case "plan":
         case "actionplan":
         case "action-plan":
-        case "ap":
-          if (actionPlanOn) void runActionPlan();
+        case "ap": {
+          // Mirrors the TUI's :action-plan [rules|prompt]: bare opens the plan,
+          // subcommands reach the things that live inside the plan panel.
+          const sub = arg.trim().toLowerCase();
+          if (sub === "rules") {
+            if (rulesEnabled) void openRules();
+          } else if (sub === "prompt" || sub === "view-prompt") {
+            if (actionPlanOn) void viewAnalyzerPrompt();
+          } else if (sub === "") {
+            if (actionPlanOn) void runActionPlan();
+          } else {
+            showToast("Usage: :action-plan [rules | prompt]");
+          }
           break;
+        }
         case "label":
         case "lbl":
           // Add a label by name to the current message (the picker handles
@@ -2007,28 +2515,43 @@ export default function App() {
           break;
         case "select":
         case "sel": {
-          // Bulk-select by 1-based number or range, e.g. ":select 3" or
-          // ":select 2-6". Enters bulk mode and selects those rows.
-          const spec = arg.trim();
-          const m = spec.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
-          if (m) {
-            const a = Math.max(1, Number(m[1]));
-            const b = m[2] ? Number(m[2]) : a;
-            const lo = Math.min(a, b);
-            const hi = Math.max(a, b);
-            const ids = messages
-              .slice(lo - 1, hi)
-              .map((x) => x.id);
-            if (ids.length > 0) {
+          // ":select all" / ":select none" (matching the * key), or by 1-based
+          // number / range, e.g. ":select 3" or ":select 2-6".
+          const spec = arg.trim().toLowerCase();
+          if (spec === "all" || spec === "*") {
+            if (messages.length > 0) {
               setBulkMode(true);
-              setSelected((prev) => new Set([...prev, ...ids]));
-              setSelectedId(ids[0]);
-              showToast(`Selected ${ids.length}`);
+              setSelected(new Set(messages.map((x) => x.id)));
+              showToast(`Selected ${messages.length}`);
             }
+            break;
+          }
+          if (spec === "none" || spec === "clear") {
+            setSelected(new Set());
+            showToast("Selection cleared");
+            break;
+          }
+          const m = spec.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+          if (!m) {
+            showToast("Usage: :select all | none | N | N-M");
+            break;
+          }
+          const a = Math.max(1, Number(m[1]));
+          const b = m[2] ? Number(m[2]) : a;
+          const lo = Math.min(a, b);
+          const hi = Math.max(a, b);
+          const ids = messages.slice(lo - 1, hi).map((x) => x.id);
+          if (ids.length > 0) {
+            setBulkMode(true);
+            setSelected((prev) => new Set([...prev, ...ids]));
+            setSelectedId(ids[0]);
+            showToast(`Selected ${ids.length}`);
           }
           break;
         }
         case "savequery":
+        case "save-query":
+        case "sq":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
         case "move":
@@ -2042,7 +2565,7 @@ export default function App() {
           }
           break;
         case "headers":
-        case "h":
+        case "toggle-headers":
           if (d) setHeadersHidden((v) => !v);
           break;
         case "markdown":
@@ -2052,7 +2575,19 @@ export default function App() {
         case "images":
         case "remote":
         case "img":
-          setLoadRemote((v) => !v);
+          setLoadRemote((v) => {
+            const next = !v;
+            if (d) {
+              if (next) imageOptIn.current.add(d.id);
+              else imageOptIn.current.delete(d.id);
+            }
+            return next;
+          });
+          break;
+        case "images-always":
+        case "always-images":
+        case "imgall":
+          setAlwaysImagesOn(!alwaysImagesRef.current);
           break;
         case "load":
         case "more":
@@ -2111,6 +2646,10 @@ export default function App() {
         case "save-raw":
         case "saveraw":
           if (d) saveRawMessage(d.id);
+          break;
+        case "rsvp":
+          // TUI parity: open the keyboard-navigable RSVP picker (same as the V key).
+          if (d && invite?.isInvite) setRsvpPickerOpen(true);
           break;
         case "accept":
           if (d && invite?.isInvite) void respondInvite(d.id, "accepted");
@@ -2187,14 +2726,13 @@ export default function App() {
           }
           break;
         case "prompts":
-        case "prompt-manage":
         case "prompt-new":
           if (aiPromptsEnabled) setPromptManagerOpen(true);
           break;
         case "rules":
         case "ru":
-          // ":rules run|apply|plan" runs ONLY the deterministic rules over the
-          // inbox (TUI's :rules plan) and opens the plan panel to review/apply
+          // ":rules run|plan" runs ONLY the deterministic rules over the inbox
+          // (the TUI's :rules plan) and opens the plan panel to review/apply
           // them — no LLM. Bare ":rules" opens the manager.
           if (["run", "apply", "plan"].includes(arg.toLowerCase().trim())) {
             void runDeterministicRules();
@@ -2202,14 +2740,11 @@ export default function App() {
             setDetRulesOpen(true);
           }
           break;
-        case "run-rules":
-        case "apply-rules":
+        case "rp": // TUI parity: shorthand for :rules plan
           void runDeterministicRules();
           break;
-        case "analyzer-rules":
-          if (rulesEnabled) void openRules();
-          break;
         case "help":
+        case "h":
           setShowHelp(true);
           break;
         case "g":
@@ -2265,6 +2800,7 @@ export default function App() {
       applyTheme,
       rulesEnabled,
       openRules,
+      viewAnalyzerPrompt,
       toggleToolbar,
       touchUp,
       touchUpText,
@@ -2385,6 +2921,7 @@ export default function App() {
     add(keymap.archived, "archived");
     add(keymap.attachments, "attachments");
     add(keymap.rsvp, "rsvp");
+    add(keymap.quit, "quit");
     // Uppercase of the summarize key force-regenerates the summary (ignoring the
     // cache), mirroring the TUI's y → Y. Registered last so a user's own binding
     // for that key wins.
@@ -2682,6 +3219,13 @@ export default function App() {
       };
       const hasSel = bulkMode && selected.size > 0;
 
+      // Layered Escape: an open AI panel (summary / prompt / reformat) is closed
+      // first, before Escape hands the reader back / exits a search.
+      if (chord === "Escape" && dismissAI()) {
+        e.preventDefault();
+        return;
+      }
+
       // --- reader-focused scrolling (TUI parity) ---
       // After Enter/click-open (or a click in the reader), arrows & j/k scroll
       // the message body instead of moving the inbox cursor; Space/PageDown page
@@ -2701,11 +3245,15 @@ export default function App() {
           sc?.scrollBy({ top: -80 });
           return;
         }
-        if (chord === "space" || chord === "PageDown") {
+        if (chord === "PageDown") {
           e.preventDefault();
           sc?.scrollBy({ top: page });
           return;
         }
+        // NB: Space is intentionally NOT a reader-scroll key. It always means
+        // "select this message" (bulk select) — even while a message is open — so
+        // it falls through to the selection handler below. Page the reader with
+        // PageDown / j / ArrowDown instead.
         if (chord === "PageUp") {
           e.preventDefault();
           sc?.scrollBy({ top: -page });
@@ -2946,7 +3494,9 @@ export default function App() {
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
           break;
         case "regenerateSummary":
-          if (detail && aiEnabled && !bulkMode) void summarize(detail.id, true);
+          // Regenerate the active AI panel: the shown prompt, else the summary.
+          // (Uppercase of the summarize key — a real shortcut, e.g. Shift+Y.)
+          if (detail && !bulkMode) regenerateActive();
           break;
         case "prompt":
           if (
@@ -2958,6 +3508,9 @@ export default function App() {
         case "archive":
           if (hasSel) void bulkAction("archive");
           else if (detail) void doAction("archive", detail.id);
+          break;
+        case "quit":
+          void backend.Quit();
           break;
         case "trash":
           if (hasSel) void bulkAction("trash");
@@ -3182,6 +3735,58 @@ export default function App() {
     loadMore,
   ]);
 
+  if (needCreds) {
+    return (
+      <div className="fatal onboarding">
+        <span className="logo" aria-hidden="true">
+          ✦
+        </span>
+        <h1>Welcome to GizTUI Desktop</h1>
+        <p className="fatal-msg">
+          To connect to Gmail, GizTUI needs your own Google API credentials — a
+          one-time <code>credentials.json</code> (an OAuth client you create in
+          Google Cloud). Your email never passes through anyone else's servers.
+        </p>
+        <ol className="onboarding-steps">
+          <li>
+            In the Google Cloud Console, <b>enable the Gmail API</b> and create
+            an <b>OAuth client ID</b> of type <b>Desktop app</b>.
+          </li>
+          <li>
+            <b>Download</b> the client's <code>credentials.json</code>.
+          </li>
+          <li>
+            Click <b>Choose credentials.json…</b> below to import it (GizTUI
+            copies it to <code>{credsPath || "~/.config/giztui/credentials.json"}</code>),
+            then sign in.
+          </li>
+        </ol>
+        {importErr && <p className="fatal-msg onboarding-err">{importErr}</p>}
+        <div className="signin-actions">
+          <button
+            className="primary"
+            disabled={importing}
+            onClick={() => void importCreds()}
+          >
+            {importing ? "Importing…" : "Choose credentials.json…"}
+          </button>
+          <button
+            onClick={() =>
+              void backend.OpenURL(
+                "https://github.com/ajramos/giztui/blob/main/docs/GETTING_STARTED.md#gmail-api-setup",
+              )
+            }
+          >
+            Open the setup guide
+          </button>
+          <button disabled={importing} onClick={() => void retryInit()}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (initError) {
     return (
       <div className="fatal">
@@ -3192,6 +3797,11 @@ export default function App() {
           Make sure GizTUI is configured (run <code>giztui --setup</code>) and
           that <code>~/.config/giztui/</code> holds valid credentials and token.
         </p>
+        <div className="signin-actions">
+          <button className="primary" onClick={() => void retryInit()}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -3454,6 +4064,14 @@ export default function App() {
             </>
           ) : (
             <>
+          {/* New mail arrived in the background: show a banner instead of
+              injecting it, so the list never shifts under an in-progress action.
+              Clicking (or refreshing) merges it in. */}
+          {pendingNew.length > 0 && (
+            <button className="new-mail-bar" onClick={showPendingNew}>
+              ↑ {pendingNew.length} new message{pendingNew.length > 1 ? "s" : ""} — show
+            </button>
+          )}
           {/* Loaded-message count (TUI parity — the list title's message tally).
               Shows how many are loaded, a trailing "+" when more can be fetched,
               and "N of M" while a local filter narrows the loaded set. */}
@@ -3814,7 +4432,7 @@ export default function App() {
                         title={`${att.mimeType} · ${formatSize(att.size)}`}
                         onClick={() => void downloadAttachment(att)}
                       >
-                        📎 {att.filename}
+                        {Icon.paperclip} {att.filename}
                         <span className="attach-size">{formatSize(att.size)}</span>
                       </button>
                     ))}
@@ -3825,7 +4443,7 @@ export default function App() {
                 {invite?.isInvite && (
                   <div className="rsvp-bar">
                     <div className="rsvp-info">
-                      <span className="rsvp-title">📅 {invite.summary || "Calendar invite"}</span>
+                      <span className="rsvp-title">{Icon.calendar} {invite.summary || "Calendar invite"}</span>
                       {invite.dtStart && (
                         <span className="rsvp-when muted">
                           {formatICSDate(invite.dtStart)}
@@ -3860,63 +4478,37 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(summarizing || summary) && (
-                  <div className="summary-panel">
-                    <div className="summary-head">
-                      <span>✦ AI summary</span>
-                      <span className="summary-head-actions">
-                        {summary && !summarizing && (
-                          <button
-                            className="ghost tiny"
-                            title="Regenerate (ignore cache)"
-                            onClick={() => void summarize(detail.id, true)}
-                          >
-                            regenerate
-                          </button>
-                        )}
-                        {summary && (
-                          <button
-                            className="ghost tiny"
-                            onClick={() => setSummary(null)}
-                          >
-                            dismiss
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                    {summarizing && !summary ? (
-                      <div className="muted">Generating…</div>
-                    ) : (
-                      <div className="summary-text">
-                        <Markdown text={summary || ""} />
-                        {summarizing && <span className="caret">▍</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {(promptRunning || promptResult) && (
-                  <div className="summary-panel prompt-panel">
-                    <div className="summary-head">
-                      <span>✦ {promptLabel}</span>
-                      {promptResult && !promptRunning && (
-                        <button
-                          className="ghost tiny"
-                          onClick={() => setPromptResult(null)}
-                        >
-                          dismiss
-                        </button>
-                      )}
-                    </div>
-                    {promptRunning && !promptResult ? (
-                      <div className="muted">Generating…</div>
-                    ) : (
-                      <div className="summary-text">
-                        <Markdown text={promptResult || ""} />
-                        {promptRunning && <span className="caret">▍</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <AiPanel
+                  ref={summaryPanelRef}
+                  title="AI summary"
+                  text={summary}
+                  // "Generating…" only for a summary launched on THIS message, so
+                  // a run started elsewhere never paints over the open email.
+                  generating={summarizing && summaryForId === detail.id}
+                  regenerateTitle="Regenerate (ignore cache)"
+                  onRegenerate={() => void summarize(detail.id, true)}
+                  onDismiss={() => dismissSummary(detail.id)}
+                />
+                <AiPanel
+                  ref={promptPanelRef}
+                  className="prompt-panel"
+                  title={promptLabel}
+                  text={promptResult}
+                  // "Generating…" only for a prompt launched on THIS message; a
+                  // run started elsewhere must not paint over the open email.
+                  generating={promptRunning && promptForId === detail.id}
+                  regenerateTitle="Regenerate (ignore the saved result and call the LLM again)"
+                  dismissTitle="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
+                  onRegenerate={() => {
+                    const pid = aiCache.current.get(detail.id)?.lastPromptId;
+                    if (pid != null)
+                      void runPrompt(
+                        { id: pid, name: promptLabel, description: "", category: "" },
+                        true,
+                      );
+                  }}
+                  onDismiss={() => dismissPrompt(detail.id)}
+                />
                 {csOpen && (
                   <div className="content-search">
                     <input
@@ -3994,12 +4586,12 @@ export default function App() {
                   </div>
                 )}
                 {touchUpText !== null ? (
-                  <div className="touchup">
+                  <div className="touchup" ref={touchUpRef}>
                     <div className="touchup-head">
                       <span>✦ Reformatted by AI</span>
                       <button
                         className="ghost tiny"
-                        onClick={() => setTouchUpText(null)}
+                        onClick={() => dismissTouchUp(detail.id)}
                       >
                         show original
                       </button>
@@ -4091,9 +4683,19 @@ export default function App() {
                         Remote images blocked for privacy.
                         <button
                           className="tiny"
-                          onClick={() => setLoadRemote(true)}
+                          onClick={() => {
+                            setLoadRemote(true);
+                            imageOptIn.current.add(detail.id);
+                          }}
                         >
                           Load images
+                        </button>
+                        <button
+                          className="tiny"
+                          title="Always load remote images (toggle with :images-always)"
+                          onClick={() => setAlwaysImagesOn(true)}
+                        >
+                          Always
                         </button>
                       </div>
                     )}
@@ -4172,7 +4774,14 @@ export default function App() {
           aiEnabled={aiEnabled}
           onClose={() => setPromptManagerOpen(false)}
           onChanged={() => {
-            /* prompts reload themselves inside the manager */
+            // A prompt was created/edited/deleted. Drop cached prompt results so a
+            // re-run regenerates with the new text (the backend already cleared
+            // the DB copies for edited/deleted prompts).
+            for (const e of aiCache.current.values()) {
+              e.promptResults = {};
+              e.lastPromptId = undefined;
+            }
+            setPromptResult(null);
           }}
         />
       )}
@@ -4654,19 +5263,26 @@ export default function App() {
               <div className="muted plan-summary">
                 Natural-language preferences the analyzer follows when planning.
               </div>
-              <div className="label-list">
+              <div className="label-list" ref={rulesNav.listRef}>
                 {rules.length === 0 ? (
                   <div className="placeholder">No rules yet</div>
                 ) : (
-                  rules.map((r) => (
-                    <div key={r.id} className="prompt-manage-row">
+                  rules.map((r, i) => (
+                    <div
+                      key={r.id}
+                      className={
+                        "prompt-manage-row" +
+                        (i === rulesNav.active ? " nav-active" : "")
+                      }
+                      onMouseEnter={() => rulesNav.setActiveHover(i)}
+                    >
                       <span className="rule-text">{r.text}</span>
                       <button
                         className="ghost tiny danger"
                         title="Delete"
                         onClick={() => void deleteRule(r.id)}
                       >
-                        🗑
+                        {Icon.trash}
                       </button>
                     </div>
                   ))
@@ -4684,6 +5300,7 @@ export default function App() {
               </div>
             </div>
             <div className="modal-foot">
+              <span className="foot-hint">↑↓ move · d delete · Esc close</span>
               <button onClick={() => void addRule()} disabled={!newRule.trim()}>
                 Add rule
               </button>
@@ -4700,10 +5317,11 @@ export default function App() {
                 ✕
               </button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" ref={promptPreviewBodyRef}>
               <pre className="summary-text">{promptPreview}</pre>
             </div>
             <div className="modal-foot">
+              <span className="foot-hint">↑↓ scroll · Esc close</span>
               <button onClick={() => setPromptPreview(null)}>Close</button>
             </div>
           </div>
@@ -4973,6 +5591,7 @@ export default function App() {
             actionPlan: actionPlanOn,
             rsvp: rsvpEnabled,
             themes: themesOn,
+            rules: rulesEnabled,
           }}
           version={appVersion}
           onClose={() => setShowHelp(false)}

@@ -205,6 +205,27 @@ button.danger {
   font-weight: 600;
   color: var(--fg);
 }
+/* Banner offering to merge background-fetched new mail (kept out of the list so
+   it never shifts rows under an in-progress action). */
+.new-mail-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-strong, var(--accent));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.new-mail-bar:hover {
+  filter: brightness(1.08);
+}
 .list-scope {
   font-size: 11px;
 }
@@ -614,6 +635,12 @@ button.danger {
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
+  /* WKWebView (macOS) leaves gray repaint bands when the arrow keys scrollBy()
+     this container over the rounded-clipped .html-body below. Promoting the
+     scroller to its own compositing layer makes it repaint correctly. Harmless
+     elsewhere. */
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
 }
 .plain {
   margin: 0;
@@ -653,6 +680,10 @@ button.danger {
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
+  /* Keep the (rounded-clipped) email card on its own layer so it repaints while
+     the reader body is scrolled programmatically — without this, WKWebView shows
+     gray bands over the content on arrow-key scroll. */
+  transform: translateZ(0);
 }
 
 /* Account switcher */
@@ -1507,7 +1538,10 @@ button.danger {
   border-radius: 7px;
   padding: 8px 10px;
   display: grid;
-  grid-template-columns: 130px 90px 1fr;
+  /* Content-sized name/alias columns (they may hold "plan [rules|prompt]" or a
+     long arg like "all|none|<n|a-b>"), each capped so a wide one truncates
+     instead of spilling over the next column; the description takes the rest. */
+  grid-template-columns: minmax(0, max-content) minmax(0, max-content) minmax(0, 1fr);
   gap: 10px;
   align-items: baseline;
   text-align: left;
@@ -1521,6 +1555,10 @@ button.danger {
   font-weight: 600;
   font-family: ui-monospace, monospace;
   font-size: 13px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cmd-arg {
   color: var(--text-muted);
@@ -1530,10 +1568,18 @@ button.danger {
   color: var(--text-muted);
   font-size: 12px;
   font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cmd-desc {
   color: var(--text-muted);
   font-size: 12.5px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Help overlay */
@@ -1714,6 +1760,22 @@ kbd {
 button.tiny {
   padding: 2px 8px;
   font-size: 11px;
+}
+/* Small icon-only buttons (row delete, sync, Manage…): match the row-icon glyph
+   size instead of the default 20px, so they sit at the same visual weight as the
+   rest of the icon set. */
+button.tiny svg {
+  width: 15px;
+  height: 15px;
+}
+/* Row delete buttons are flat red trash icons, not a boxed button — the persistent
+   red border read as a heavy recuadro next to the flat icons around it. */
+button.ghost.tiny.danger {
+  border-color: transparent;
+  padding: 2px 4px;
+}
+button.ghost.tiny.danger:hover {
+  border-color: var(--danger);
 }
 
 /* Toast */
@@ -1976,4 +2038,34 @@ button.tiny {
   background: var(--bg-elev);
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+/* First-run onboarding (missing credentials.json): reuses .fatal layout but the
+   message is guidance, not an error, and the steps read left-to-right. */
+.fatal.onboarding .logo {
+  display: block;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.fatal.onboarding .fatal-msg {
+  color: var(--text);
+}
+.fatal.onboarding .onboarding-err {
+  color: var(--danger);
+}
+.onboarding-steps {
+  text-align: left;
+  margin: 16px auto 20px;
+  max-width: 560px;
+  padding-left: 22px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.onboarding-steps li {
+  margin-bottom: 8px;
+}
+.onboarding-steps code {
+  word-break: break-all;
 }

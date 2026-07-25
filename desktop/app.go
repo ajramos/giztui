@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -22,11 +23,12 @@ const (
 // logic lives in the shared pkg/desktop.API, which is reused verbatim from the
 // TUI's service layer.
 type App struct {
-	ctx     context.Context
-	session atomic.Pointer[desktop.Session]
-	initErr atomic.Pointer[string]
-	ready   atomic.Bool
-	authURL atomic.Pointer[string]
+	ctx       context.Context
+	session   atomic.Pointer[desktop.Session]
+	initErr   atomic.Pointer[string]
+	ready     atomic.Bool
+	authURL   atomic.Pointer[string]
+	needCreds atomic.Bool // startup failed because credentials.json is missing
 }
 
 // NewApp creates the App in an unstarted state. Startup wiring happens in
@@ -53,10 +55,24 @@ func (a *App) startup(ctx context.Context) {
 		wailsruntime.BrowserOpenURL(a.ctx, url)
 		log.Printf("desktop: opened sign-in URL in browser")
 	})
+	a.initSession()
+}
+
+// initSession builds the Gmail/service stack in the background (off the main
+// thread so WKWebView paints immediately) and records the outcome. It is safe to
+// call again to retry — e.g. after the user imports credentials.json — and
+// resets the ready/error state before doing so.
+func (a *App) initSession() {
+	a.ready.Store(false)
+	a.initErr.Store(nil)
+	a.needCreds.Store(false)
 	go func() {
-		sess, err := desktop.NewSession(ctx, desktop.Options{Logger: log.Default()})
+		sess, err := desktop.NewSession(a.ctx, desktop.Options{Logger: log.Default()})
 		a.authURL.Store(nil) // sign-in finished (or failed); clear the prompt
 		if err != nil {
+			if errors.Is(err, desktop.ErrNoCredentials) {
+				a.needCreds.Store(true)
+			}
 			msg := err.Error()
 			a.initErr.Store(&msg)
 			a.ready.Store(true)
@@ -65,7 +81,7 @@ func (a *App) startup(ctx context.Context) {
 		}
 		a.session.Store(sess)
 		a.ready.Store(true)
-		if email, err := sess.AccountEmail(ctx); err == nil {
+		if email, err := sess.AccountEmail(a.ctx); err == nil {
 			log.Printf("desktop: signed in as %s", email)
 		}
 	}()
@@ -134,6 +150,50 @@ func (a *App) InitError() string {
 	}
 	return ""
 }
+
+// NeedsCredentials reports whether startup failed specifically because the OAuth
+// client credentials file is missing (the desktop first-run case). The frontend
+// uses it to show an onboarding screen with an import button instead of a raw
+// filesystem error.
+func (a *App) NeedsCredentials() bool { return a.needCreds.Load() }
+
+// CredentialsPath returns the path where GizTUI expects credentials.json, so the
+// onboarding screen can show it (and so the user knows where a manual copy goes).
+func (a *App) CredentialsPath() string {
+	return desktop.CredentialsPathFor(desktop.Options{})
+}
+
+// ImportCredentials opens a native file picker for the user's downloaded OAuth
+// credentials.json, validates and copies it into place, then retries session
+// init (which may in turn start the interactive OAuth consent flow). It returns
+// the destination path, or "" if the user cancelled the dialog.
+func (a *App) ImportCredentials() (string, error) {
+	src, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: "Select your Google OAuth credentials.json",
+		Filters: []wailsruntime.FileFilter{
+			{DisplayName: "JSON credentials (*.json)", Pattern: "*.json"},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if src == "" {
+		return "", nil // user cancelled
+	}
+	dest, err := desktop.InstallCredentials(desktop.Options{}, src)
+	if err != nil {
+		return "", err
+	}
+	a.initSession() // retry now that credentials exist
+	return dest, nil
+}
+
+// RetryInit re-runs session initialization (the "Retry" button), e.g. after the
+// user placed credentials.json manually or fixed their config.
+func (a *App) RetryInit() { a.initSession() }
+
+// Quit exits the application (the TUI's `q` / `:quit`).
+func (a *App) Quit() { wailsruntime.Quit(a.ctx) }
 
 // AccountEmail returns the active account's email address.
 func (a *App) AccountEmail() (string, error) {
@@ -978,14 +1038,24 @@ func (a *App) RefinePromptText(text string) (string, error) {
 
 // ApplyPromptStream applies a prompt to a message, emitting each token as a
 // "prompt:token" runtime event, and returns the full result.
-func (a *App) ApplyPromptStream(messageID string, promptID int) (string, error) {
+func (a *App) ApplyPromptStream(messageID string, promptID int, force bool) (string, error) {
 	api, err := a.api()
 	if err != nil {
 		return "", err
 	}
-	return api.ApplyPromptStream(a.ctx, messageID, promptID, func(tok string) {
+	return api.ApplyPromptStream(a.ctx, messageID, promptID, force, func(tok string) {
 		wailsruntime.EventsEmit(a.ctx, promptTokenEvent, tok)
 	})
+}
+
+// CachedPrompts returns persisted prompt results for a message so the reader can
+// restore its AI panels across sessions.
+func (a *App) CachedPrompts(messageID string) ([]desktop.CachedPromptResult, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.CachedPrompts(a.ctx, messageID)
 }
 
 // BulkArchive archives every message in ids.

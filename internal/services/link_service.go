@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"html"
 	"net/url"
 	"os/exec"
 	"regexp"
@@ -155,8 +156,10 @@ func (s *LinkServiceImpl) extractLinksFromHTML(htmlContent string) []render.Link
 
 	for i, match := range matches {
 		if len(match) >= 3 {
-			url := strings.TrimSpace(match[1])
-			text := strings.TrimSpace(match[2])
+			// Decode HTML entities: hrefs carry &amp; and anchor text carries
+			// things like &oacute; / &nbsp;, which would otherwise show raw.
+			url := html.UnescapeString(strings.TrimSpace(match[1]))
+			text := html.UnescapeString(strings.TrimSpace(match[2]))
 			if url != "" {
 				links = append(links, render.LinkRef{
 					Index: i + 1,

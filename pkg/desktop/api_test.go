@@ -185,6 +185,18 @@ func (f *fakePrompts) ApplyPromptStream(ctx context.Context, messageContent stri
 	}
 	return &services.PromptResult{PromptID: promptID, ResultText: f.result}, nil
 }
+func (f *fakePrompts) GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*services.PromptResult, error) {
+	return nil, nil // no persisted cache in tests → always generate
+}
+func (f *fakePrompts) GetCachedResultsForMessage(ctx context.Context, accountEmail, messageID string) ([]*services.PromptResult, error) {
+	return nil, nil
+}
+func (f *fakePrompts) SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error {
+	return nil
+}
+func (f *fakePrompts) InvalidateResults(ctx context.Context, promptID int) error {
+	return nil
+}
 
 type fakeDraft struct {
 	created   *sendRecord
@@ -306,9 +318,10 @@ func TestSearchPassesQuery(t *testing.T) {
 	if _, err := api.Search(context.Background(), "from:x has:attachment", "tok", 10); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	// A query without in:/label: is scoped to the inbox (matching the TUI), so
-	// searches don't surface archived/sent/trash mail.
-	if repo.lastQ != "from:x has:attachment -in:sent -in:draft -in:chat -in:spam -in:trash in:inbox" {
+	// A query without in:/label: is scoped to the inbox so searches don't surface
+	// archived/sent/trash mail. `in:inbox` alone suffices (and doesn't hide
+	// self-addressed inbox mail the way an extra -in:sent did).
+	if repo.lastQ != "from:x has:attachment in:inbox" {
 		t.Errorf("query not scoped as expected: %q", repo.lastQ)
 	}
 	if repo.lastOpts.PageToken != "tok" || repo.lastOpts.MaxResults != 10 {
@@ -565,7 +578,7 @@ func TestPrompts(t *testing.T) {
 	}
 
 	var streamed string
-	out, err := api.ApplyPromptStream(context.Background(), "1", 2, func(tok string) {
+	out, err := api.ApplyPromptStream(context.Background(), "1", 2, false, func(tok string) {
 		streamed += tok
 	})
 	if err != nil {
@@ -587,7 +600,7 @@ func TestPromptsDisabled(t *testing.T) {
 	if list, err := api.ListPrompts(context.Background()); err != nil || len(list) != 0 {
 		t.Errorf("expected empty list, got %v %v", list, err)
 	}
-	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, func(string) {}); err == nil {
+	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, false, func(string) {}); err == nil {
 		t.Error("expected error when prompts disabled")
 	}
 }
@@ -667,6 +680,26 @@ func TestUserLabelsFilter(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestScopeSearch(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"", ""},
+		{"from:x", "from:x in:inbox"},
+		{"in:archive", "in:archive"},
+		{"label:Work", "label:Work"},
+		{"-in:sent from:me", "-in:sent from:me"},
+		// Substring "in:" inside a word must NOT count as a scope operator.
+		{"subject:domain:foo", "subject:domain:foo in:inbox"},
+		{"within: budget", "within: budget in:inbox"},
+	}
+	for _, c := range cases {
+		if got := scopeSearch(c.in); got != c.want {
+			t.Errorf("scopeSearch(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

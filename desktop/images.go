@@ -19,20 +19,27 @@ func shortURL(u string) string {
 	return u
 }
 
-// sanitizeImageURL strips ASCII control characters from an image URL. They are
-// invalid in URLs (net/url.Parse rejects them) and show up when an upstream
-// quoted-printable decode mangles a query param — e.g. a HubSpot resize URL
-// "…/PUPPET.png?width=1200&…" arrives as "…/PUPPET.png?width\x1200&…". The CDN
-// serves the image from the path regardless of the now-bogus query param, so
-// dropping the control byte recovers an image that would otherwise fail to parse.
+// sanitizeImageURL strips the junk a broken upstream quoted-printable decode
+// leaves in an image URL. It shows up in marketing-CDN resize queries like
+// "…/PUPPET.png?width=1200&…" when the sender fails to escape the '=' as "=3D",
+// so the QP decoder treats the two following hex digits as an escape. Two
+// flavours result, depending on the byte:
+//   - a control byte (< 0x20 / 0x7f): e.g. "width=12" → byte 0x12 → "…?width\x1200&…".
+//   - byte 0x80-0xFF: not valid UTF-8, so the charset decode replaces it with the
+//     Unicode replacement char U+FFFD: e.g. "width=80" → "…?width�0&…".
+//
+// Both make net/url.Parse reject the URL (or the CDN 400). The image lives at the
+// path regardless of the now-bogus query param, so dropping the stray rune
+// recovers it — the param just becomes a harmless valueless key (e.g. "width0").
 func sanitizeImageURL(u string) string {
-	if strings.IndexFunc(u, func(r rune) bool { return r < 0x20 || r == 0x7f }) < 0 {
+	bad := func(r rune) bool { return r < 0x20 || r == 0x7f || r == 0xfffd }
+	if strings.IndexFunc(u, bad) < 0 {
 		return u
 	}
 	var b strings.Builder
 	b.Grow(len(u))
 	for _, r := range u {
-		if r < 0x20 || r == 0x7f {
+		if bad(r) {
 			continue
 		}
 		b.WriteRune(r)

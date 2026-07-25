@@ -11,6 +11,7 @@ export interface HelpFlags {
   actionPlan: boolean;
   rsvp: boolean;
   themes: boolean;
+  rules: boolean;
 }
 
 // fmtKey turns a config key token into a readable label ("space" → "Space",
@@ -38,7 +39,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "✏️", keys: fmtKey(k.compose), desc: "Compose new message" },
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Move to trash" },
-      { icon: "👁️", keys: fmtKey(k.toggleRead), desc: "Toggle read / unread" },
+      { icon: "👁️", keys: `${fmtKey(k.toggleRead)} · :t`, desc: "Toggle read / unread (:read · :markunread)" },
       { icon: "↩️", keys: fmtKey(k.undo), desc: "Undo last action" },
       { icon: "📦", keys: fmtKey(k.move), desc: "Move to folder" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Manage labels" },
@@ -98,7 +99,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
     rows: [
       { icon: "✅", keys: fmtKey(k.bulkMode), desc: "Toggle bulk mode" },
       { icon: "➕", keys: `${fmtKey(k.bulkSelect)} / Space`, desc: "Select (enters bulk)" },
-      { icon: "🌟", keys: "*", desc: "Select all loaded" },
+      { icon: "🌟", keys: "* · :select all", desc: "Select all loaded (:select none clears)" },
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive selected" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },
@@ -134,7 +135,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         { icon: "✨", keys: ":touch-up", desc: "Reformat message (AI)" },
         { icon: "🔖", keys: fmtKey(k.suggestLabel), desc: "Suggest labels (AI)" },
         ...(f.prompts
-          ? [{ icon: "⚙️", keys: ":prompts", desc: "Manage prompts" }]
+          ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
           : []),
         ...(f.actionPlan
           ? [
@@ -143,8 +144,12 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
               { icon: "👁️", keys: "Enter", desc: "Peek email · apply bucket (label→move)" },
               { icon: "🏷️", keys: "l", desc: "Apply a label bucket as label-only" },
               { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
+              { icon: "📄", keys: "p / :action-plan prompt", desc: "Preview the analyzer prompt" },
+              ...(f.rules
+                ? [{ icon: "🎛️", keys: ":action-plan rules", desc: "AI analyzer preference rules" }]
+                : []),
               { icon: "📐", keys: ":rules", desc: "Deterministic rules manager" },
-              { icon: "⚡", keys: ":rules run", desc: "Run deterministic rules (no AI)" },
+              { icon: "⚡", keys: ":rules plan", desc: "Run deterministic rules (no AI)" },
             ]
           : []),
       ],
@@ -174,17 +179,57 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   if (f.obsidian) tools.push({ icon: "📝", keys: fmtKey(k.obsidian), desc: "Send to Obsidian" });
   if (f.slack) tools.push({ icon: "💬", keys: fmtKey(k.slack), desc: "Forward to Slack" });
   if (f.rsvp) {
-    tools.push({ icon: "📅", keys: `${fmtKey(k.rsvp)} · :accept/:decline`, desc: "RSVP to invites" });
+    tools.push({ icon: "📅", keys: `${fmtKey(k.rsvp)} · :rsvp · :accept/:decline`, desc: "RSVP to invites" });
   }
   tools.push({ icon: "👤", keys: "Ctrl+A", desc: "Switch account" });
   if (f.themes) tools.push({ icon: "🎨", keys: fmtKey(k.themePicker), desc: "Theme picker" });
   tools.push({ icon: "🔎", keys: "Cmd/Ctrl +/-/0", desc: "Zoom UI in / out / reset" });
   tools.push({ icon: "🕐", keys: ":autorefresh", desc: "Toggle auto-refresh" });
+  tools.push({ icon: "🖼️", keys: ":images-always", desc: "Always load remote images (on/off)" });
+  {
+    // The regenerate key is the uppercase of the summarize key, but only if that
+    // slot isn't already taken by another binding (e.g. load-more). Show the key
+    // only when it's actually free, so the help never claims a shadowed shortcut.
+    const regenKey = (k.summarize || "y").toUpperCase();
+    const taken = [
+      k.loadMore,
+      k.refresh,
+      k.replyAll,
+      k.forward,
+      k.savedQueries,
+      k.saveQuery,
+      k.actionPlan,
+      k.themePicker,
+      k.slack,
+      k.obsidian,
+      k.openGmail,
+      k.drafts,
+      k.markdown,
+      k.attachments,
+      k.linkPicker,
+      k.threading,
+      k.searchFrom,
+      k.searchTo,
+      k.searchSubject,
+      k.unread,
+      k.archived,
+      k.saveRaw,
+      k.rsvp,
+      k.move,
+    ].includes(regenKey);
+    tools.push({
+      icon: "🔁",
+      keys: taken ? ":regenerate" : `${regenKey} · :regenerate`,
+      desc: "Regenerate the open AI panel (summary/prompt)",
+    });
+  }
+  tools.push({ icon: "✕", keys: "Esc · :dismiss", desc: "Close the open AI panel" });
   tools.push({ icon: "▤", keys: ":toolbar", desc: "Show / hide reader toolbar" });
   tools.push({ icon: "📊", keys: ":stats", desc: "AI usage" });
   tools.push({ icon: "🛠️", keys: ":config", desc: "Configuration" });
   tools.push({ icon: "⌨️", keys: fmtKey(k.commandMode), desc: "Command palette" });
   tools.push({ icon: "❓", keys: fmtKey(k.help), desc: "This help" });
+  tools.push({ icon: "🚪", keys: fmtKey(k.quit), desc: "Quit (:quit)" });
   secs.push({ icon: "🔧", title: "Tools & view", rows: tools });
 
   return secs;

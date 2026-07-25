@@ -142,6 +142,50 @@ func (ps *PromptStore) GetPromptResult(ctx context.Context, accountEmail, messag
 	return result, nil
 }
 
+// DeletePromptResults removes all cached results for a prompt (used when the
+// prompt is edited or deleted, so a stale result isn't reused for new text).
+func (ps *PromptStore) DeletePromptResults(ctx context.Context, promptID int) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+	_, err := ps.db.ExecContext(ctx, `DELETE FROM prompt_results WHERE prompt_id = ?`, promptID)
+	return err
+}
+
+// GetPromptResultsForMessage returns the latest cached result for each prompt
+// run against a message (most-recent prompt first). Used to restore a message's
+// AI panels across sessions.
+func (ps *PromptStore) GetPromptResultsForMessage(ctx context.Context, accountEmail, messageID string) ([]*prompts.PromptResult, error) {
+	if ps == nil || ps.db == nil {
+		return nil, fmt.Errorf("prompt store not initialized")
+	}
+	rows, err := ps.db.QueryContext(ctx,
+		`SELECT id, account_email, message_id, prompt_id, result_text, created_at
+		 FROM prompt_results WHERE account_email = ? AND message_id = ?
+		 ORDER BY created_at DESC`,
+		accountEmail, messageID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []*prompts.PromptResult
+	seen := make(map[int]bool)
+	for rows.Next() {
+		r := &prompts.PromptResult{}
+		if err := rows.Scan(&r.ID, &r.AccountEmail, &r.MessageID, &r.PromptID,
+			&r.ResultText, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		if seen[r.PromptID] { // keep only the newest result per prompt
+			continue
+		}
+		seen[r.PromptID] = true
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // SaveBulkPromptResult saves a bulk prompt execution result
 func (ps *PromptStore) SaveBulkPromptResult(ctx context.Context, accountEmail, cacheKey string, promptID int, messageCount int, messageIDs []string, resultText string) error {
 	if ps == nil || ps.db == nil {
