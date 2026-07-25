@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { useListNav } from "./useListNav";
 import { backend, type Prompt, type PromptDetail } from "./api";
 
 const EMPTY: PromptDetail = {
@@ -103,18 +109,67 @@ export default function PromptManager({
     }
   };
 
+  // Keyboard-first list nav (WKWebView won't focus a bare div, so drive keys from
+  // the window). useListNav owns the arrow/Enter movement; a capture-phase
+  // listener adds delete/new and beats the App's own window handler so its
+  // shortcuts don't fire underneath the manager.
+  const nav = useListNav(prompts, {
+    onEnter: (p) => void edit(p.id),
+    onEscape: onClose,
+  });
+  const promptsRef = useRef(prompts);
+  promptsRef.current = prompts;
+  const activeRef = useRef(nav.active);
+  activeRef.current = nav.active;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const navKeyRef = useRef(nav.onKeyDown);
+  navKeyRef.current = nav.onKeyDown;
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (editingRef.current) setEditing(null);
+        else onClose();
+        return;
+      }
+      // In the edit form, let the inputs/textarea handle their own keys.
+      if (editingRef.current) return;
+      const p = promptsRef.current[activeRef.current];
+      if (e.key === "n" || e.key === "+") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setEditing({ ...EMPTY });
+        return;
+      }
+      if (e.key === "Enter" && p) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        void edit(p.id);
+        return;
+      }
+      if ((e.key === "d" || e.key === "Delete" || e.key === "Backspace") && p) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        void remove(p.id);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.stopImmediatePropagation();
+        navKeyRef.current(e as unknown as ReactKeyboardEvent);
+      }
+    };
+    // Capture phase so we run before (and can stop) the App's window keydown.
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            if (editing) setEditing(null);
-            else onClose();
-          }
-        }}
-      >
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{editing ? (editing.id ? "Edit prompt" : "New prompt") : "Manage prompts"}</h3>
           <button className="ghost" onClick={onClose}>
@@ -125,14 +180,18 @@ export default function PromptManager({
         {!editing ? (
           <>
             <div className="modal-body">
-              <div className="label-list">
+              <div className="label-list" ref={nav.listRef}>
                 {prompts.length === 0 ? (
                   <div className="placeholder">No prompts yet</div>
                 ) : (
-                  prompts.map((p) => (
-                    <div key={p.id} className="prompt-manage-row">
+                  prompts.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className="prompt-manage-row"
+                      onMouseEnter={() => nav.setActiveHover(i)}
+                    >
                       <button
-                        className="prompt-row"
+                        className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
                         onClick={() => void edit(p.id)}
                       >
                         <span className="prompt-name">{p.name}</span>
@@ -153,6 +212,9 @@ export default function PromptManager({
               </div>
             </div>
             <div className="modal-foot">
+              <span className="foot-hint">
+                ↑↓ move · Enter edit · d delete · n new · Esc close
+              </span>
               <button onClick={() => setEditing({ ...EMPTY })}>＋ New prompt</button>
             </div>
           </>
