@@ -185,6 +185,15 @@ func (f *fakePrompts) ApplyPromptStream(ctx context.Context, messageContent stri
 	}
 	return &services.PromptResult{PromptID: promptID, ResultText: f.result}, nil
 }
+func (f *fakePrompts) GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*services.PromptResult, error) {
+	return nil, nil // no persisted cache in tests → always generate
+}
+func (f *fakePrompts) GetCachedResultsForMessage(ctx context.Context, accountEmail, messageID string) ([]*services.PromptResult, error) {
+	return nil, nil
+}
+func (f *fakePrompts) SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error {
+	return nil
+}
 
 type fakeDraft struct {
 	created   *sendRecord

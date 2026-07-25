@@ -104,6 +104,15 @@ func (a *API) ApplyPromptStream(ctx context.Context, messageID string, promptID 
 	if a.prompts == nil {
 		return "", fmt.Errorf("prompts are not available; enable an LLM provider and local database")
 	}
+	// Reuse a persisted result for this (account, message, prompt) so re-running a
+	// prompt — even in a later session — never re-hits the LLM. Stream the cached
+	// text through onToken so the UI renders it just like a fresh run.
+	if cached, err := a.prompts.GetCachedResult(ctx, a.accountEmail, messageID, promptID); err == nil && cached != nil && strings.TrimSpace(cached.ResultText) != "" {
+		if onToken != nil {
+			onToken(cached.ResultText)
+		}
+		return cached.ResultText, nil
+	}
 	msg, err := a.repo.GetMessage(ctx, messageID)
 	if err != nil {
 		return "", err
@@ -119,7 +128,48 @@ func (a *API) ApplyPromptStream(ctx context.Context, messageID string, promptID 
 	if err != nil {
 		return "", err
 	}
+	// Persist so it survives the session (best-effort; a save failure shouldn't
+	// fail the prompt the user just successfully ran).
+	if a.accountEmail != "" {
+		_ = a.prompts.SaveResult(ctx, a.accountEmail, messageID, promptID, res.ResultText)
+	}
 	return res.ResultText, nil
+}
+
+// CachedPromptResult is a persisted single-message prompt result, returned so the
+// frontend can restore the reader's AI panels across sessions.
+type CachedPromptResult struct {
+	PromptID int    `json:"promptId"`
+	Name     string `json:"name"`
+	Text     string `json:"text"`
+}
+
+// CachedPrompts returns the persisted prompt results for a message (latest per
+// prompt, most recent first). Empty when prompts/DB aren't available.
+func (a *API) CachedPrompts(ctx context.Context, messageID string) ([]CachedPromptResult, error) {
+	if a.prompts == nil || a.accountEmail == "" {
+		return nil, nil
+	}
+	results, err := a.prompts.GetCachedResultsForMessage(ctx, a.accountEmail, messageID)
+	if err != nil || len(results) == 0 {
+		return nil, err
+	}
+	names := make(map[int]string)
+	if list, err := a.prompts.ListPrompts(ctx, ""); err == nil {
+		for _, p := range list {
+			if p != nil {
+				names[p.ID] = p.Name
+			}
+		}
+	}
+	out := make([]CachedPromptResult, 0, len(results))
+	for _, r := range results {
+		if r == nil {
+			continue
+		}
+		out = append(out, CachedPromptResult{PromptID: r.PromptID, Name: names[r.PromptID], Text: r.ResultText})
+	}
+	return out, nil
 }
 
 // ApplyBulkPromptStream applies a saved prompt across many messages, streaming

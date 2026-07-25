@@ -261,6 +261,12 @@ export const DEFAULT_KEYMAP: KeyMap = {
   rsvp: "V", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
+export interface CachedPromptResult {
+  promptId: number;
+  name: string;
+  text: string;
+}
+
 export interface DraftSummary {
   id: string;
   to: string;
@@ -326,6 +332,7 @@ interface Backend {
   DeletePrompt(id: number): Promise<void>;
   RefinePromptText(text: string): Promise<string>;
   ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
+  CachedPrompts(messageID: string): Promise<CachedPromptResult[]>;
   ApplyBulkPromptStream(ids: string[], promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
   SwitchAccount(id: string): Promise<void>;
@@ -783,6 +790,9 @@ const mockBackend: Backend = {
       4: "Hola,\n\nEste es el cuerpo del correo traducido al español por tu LLM.",
     };
     return names[promptID] ?? "(mock prompt result)";
+  },
+  async CachedPrompts(_id: string) {
+    return []; // mock: no persisted results in the browser
   },
   async ListAccounts() {
     return [

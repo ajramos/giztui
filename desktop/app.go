@@ -1048,6 +1048,16 @@ func (a *App) ApplyPromptStream(messageID string, promptID int) (string, error) 
 	})
 }
 
+// CachedPrompts returns persisted prompt results for a message so the reader can
+// restore its AI panels across sessions.
+func (a *App) CachedPrompts(messageID string) ([]desktop.CachedPromptResult, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.CachedPrompts(a.ctx, messageID)
+}
+
 // BulkArchive archives every message in ids.
 func (a *App) BulkArchive(ids []string) error {
 	api, err := a.api()

@@ -846,6 +846,7 @@ export default function App() {
         ai?.lastPromptId != null ? ai.promptResults?.[ai.lastPromptId] : undefined;
       setPromptResult(lastPrompt?.text ?? null);
       setPromptLabel(lastPrompt?.label ?? "");
+      const hadSessionPrompt = ai?.lastPromptId != null;
       setAttachments([]);
       setAttachmentsOpen(false);
       setThreadMsgs(null);
@@ -866,6 +867,28 @@ export default function App() {
         // Show remote images automatically if the global "always" is on or the
         // user already opted this message in earlier this session.
         setLoadRemote(alwaysImagesRef.current || imageOptIn.current.has(m.id));
+        // Restore prompt results persisted in the DB (survive app restarts). Seed
+        // the session cache so re-running reuses them, and surface the most recent
+        // if the session didn't already show one.
+        void backend
+          .CachedPrompts(m.id)
+          .then((cached) => {
+            if (openIdRef.current !== m.id || !cached || cached.length === 0) return;
+            const e = aiCache.current.get(m.id) ?? {};
+            const pr = { ...(e.promptResults ?? {}) };
+            for (const c of cached) {
+              if (pr[c.promptId] === undefined)
+                pr[c.promptId] = { text: c.text, label: c.name };
+            }
+            e.promptResults = pr;
+            if (!hadSessionPrompt && e.lastPromptId === undefined) {
+              e.lastPromptId = cached[0].promptId;
+              setPromptResult(cached[0].text);
+              setPromptLabel(cached[0].name);
+            }
+            aiCache.current.set(m.id, e);
+          })
+          .catch(() => undefined);
         void backend
           .ListAttachments(m.id)
           .then(setAttachments)
