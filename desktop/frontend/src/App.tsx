@@ -199,6 +199,15 @@ export default function App() {
   // Per-message opt-in (session only), so returning to a message you already
   // revealed images for doesn't ask again.
   const imageOptIn = useRef<Set<string>>(new Set());
+  // Remember AI results per message (session) so navigating away and back shows
+  // the summary / prompt output / reformat again instead of a blank panel. The
+  // backend also caches, but the frontend state was cleared on every open.
+  const aiCache = useRef<
+    Map<
+      string,
+      { summary?: string; prompt?: string; promptLabel?: string; touchUp?: string }
+    >
+  >(new Map());
   const [draftsView, setDraftsView] = useState(false);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
@@ -779,13 +788,16 @@ export default function App() {
       setSelectedId(m.id);
       setLoadingDetail(true);
       setError("");
-      setSummary(null);
-      setPromptResult(null);
+      // Restore any AI results computed for this message earlier this session.
+      const ai = aiCache.current.get(m.id);
+      setSummary(ai?.summary ?? null);
+      setPromptResult(ai?.prompt ?? null);
+      setPromptLabel(ai?.promptLabel ?? "");
       setAttachments([]);
       setAttachmentsOpen(false);
       setThreadMsgs(null);
       setCollapsedMsgs(new Set());
-      setTouchUpText(null);
+      setTouchUpText(ai?.touchUp ?? null);
       setInvite(null);
       setCsOpen(false);
       // Keep keyboard focus on the app shell (not the HTML iframe) so shortcuts
@@ -1229,6 +1241,7 @@ export default function App() {
         force,
       );
       setSummary(final);
+      aiCache.current.set(id, { ...aiCache.current.get(id), summary: final });
     } catch (e) {
       setError(String(e));
       setSummary(null);
@@ -1261,7 +1274,9 @@ export default function App() {
     setTouchingUp(true);
     setError("");
     try {
-      setTouchUpText(await backend.TouchUp(id));
+      const t = await backend.TouchUp(id);
+      setTouchUpText(t);
+      aiCache.current.set(id, { ...aiCache.current.get(id), touchUp: t });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -1455,7 +1470,14 @@ export default function App() {
           ? await applyBulkPromptStream([...selected], prompt.id, onTok)
           : await applyPromptStream(detail!.id, prompt.id, onTok);
         if (bulk) setBulkPromptText(final);
-        else setPromptResult(final);
+        else {
+          setPromptResult(final);
+          aiCache.current.set(detail!.id, {
+            ...aiCache.current.get(detail!.id),
+            prompt: final,
+            promptLabel: prompt.name,
+          });
+        }
       } catch (e) {
         setError(String(e));
         if (bulk) setBulkPromptText(null);
@@ -4058,7 +4080,11 @@ export default function App() {
                         {summary && (
                           <button
                             className="ghost tiny"
-                            onClick={() => setSummary(null)}
+                            onClick={() => {
+                              setSummary(null);
+                              const e = aiCache.current.get(detail.id);
+                              if (e) delete e.summary;
+                            }}
                           >
                             dismiss
                           </button>
@@ -4082,7 +4108,14 @@ export default function App() {
                       {promptResult && !promptRunning && (
                         <button
                           className="ghost tiny"
-                          onClick={() => setPromptResult(null)}
+                          onClick={() => {
+                            setPromptResult(null);
+                            const e = aiCache.current.get(detail.id);
+                            if (e) {
+                              delete e.prompt;
+                              delete e.promptLabel;
+                            }
+                          }}
                         >
                           dismiss
                         </button>
@@ -4180,7 +4213,11 @@ export default function App() {
                       <span>✦ Reformatted by AI</span>
                       <button
                         className="ghost tiny"
-                        onClick={() => setTouchUpText(null)}
+                        onClick={() => {
+                          setTouchUpText(null);
+                          const e = aiCache.current.get(detail.id);
+                          if (e) delete e.touchUp;
+                        }}
                       >
                         show original
                       </button>
