@@ -189,6 +189,13 @@ export default function App() {
   const [promptResult, setPromptResult] = useState<string | null>(null);
   const [promptLabel, setPromptLabel] = useState("");
   const [promptRunning, setPromptRunning] = useState(false);
+  // The message a single-message prompt result/run belongs to, so a run started
+  // on one email doesn't paint its "Generating…" over a different email you've
+  // since navigated to.
+  const [promptForId, setPromptForId] = useState<string | null>(null);
+  // Always the id of the message currently open in the reader, so a streaming
+  // prompt can tell it should stop updating the visible panel once you move away.
+  const openIdRef = useRef<string | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -209,7 +216,16 @@ export default function App() {
   const aiCache = useRef<
     Map<
       string,
-      { summary?: string; prompt?: string; promptLabel?: string; touchUp?: string }
+      {
+        summary?: string;
+        touchUp?: string;
+        // Prompt results keyed by prompt id, so re-running a prompt you already
+        // ran on this message reuses the result (no new LLM call / tokens).
+        promptResults?: Record<number, { text: string; label: string }>;
+        // Which prompt result to restore when you return to this message (cleared
+        // on dismiss, so a dismissed panel stays closed but the result is kept).
+        lastPromptId?: number;
+      }
     >
   >(new Map());
   const [draftsView, setDraftsView] = useState(false);
@@ -416,11 +432,13 @@ export default function App() {
     }
   }, [summarizing, showToast]);
   useEffect(() => {
-    if (promptRunning) {
+    // Only for a single-message prompt on the message that's actually open (a
+    // bulk run streams into its own modal; promptForId is null for it).
+    if (promptRunning && promptForId && promptForId === detail?.id) {
       promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
       showToast(promptLabel ? `Applying ${promptLabel}…` : "Applying prompt…");
     }
-  }, [promptRunning, promptLabel, showToast]);
+  }, [promptRunning, promptForId, detail?.id, promptLabel, showToast]);
   useEffect(() => {
     if (touchingUp) showToast("Reformatting…");
   }, [touchingUp, showToast]);
@@ -815,14 +833,19 @@ export default function App() {
   // markRead=true is used for a deliberate open (Enter / click).
   const loadMessage = useCallback(
     async (m: MessageSummary, markRead: boolean) => {
+      // Record the newly-open message synchronously so a prompt still streaming
+      // for the PREVIOUS message stops writing into the visible panel.
+      openIdRef.current = m.id;
       setSelectedId(m.id);
       setLoadingDetail(true);
       setError("");
       // Restore any AI results computed for this message earlier this session.
       const ai = aiCache.current.get(m.id);
       setSummary(ai?.summary ?? null);
-      setPromptResult(ai?.prompt ?? null);
-      setPromptLabel(ai?.promptLabel ?? "");
+      const lastPrompt =
+        ai?.lastPromptId != null ? ai.promptResults?.[ai.lastPromptId] : undefined;
+      setPromptResult(lastPrompt?.text ?? null);
+      setPromptLabel(lastPrompt?.label ?? "");
       setAttachments([]);
       setAttachmentsOpen(false);
       setThreadMsgs(null);
@@ -1480,43 +1503,83 @@ export default function App() {
       const bulk = bulkMode && selected.size > 0;
       if (!bulk && !detail) return;
       setPromptsOpen(false);
-      setPromptRunning(true);
       setError("");
+
+      // --- bulk (multi-message) prompt: streams into the bulk modal ----------
       if (bulk) {
+        setPromptForId(null); // bulk isn't tied to the open message's panel
+        setPromptRunning(true);
         setBulkPromptLabel(`${prompt.name} · ${selected.size} messages`);
         setBulkPromptText("");
-      } else {
-        setPromptLabel(prompt.name);
-        setPromptResult("");
+        try {
+          let acc = "";
+          const final = await applyBulkPromptStream(
+            [...selected],
+            prompt.id,
+            (tok) => {
+              acc += tok;
+              setBulkPromptText(acc);
+            },
+          );
+          setBulkPromptText(final);
+        } catch (e) {
+          setError(String(e));
+          setBulkPromptText(null);
+        } finally {
+          setPromptRunning(false);
+        }
+        return;
       }
+
+      // --- single-message prompt --------------------------------------------
+      const launchId = detail!.id;
+      // Reuse a result already generated for this (message, prompt) — no new LLM
+      // call, so dismissing then re-running the same prompt is free.
+      const cached = aiCache.current.get(launchId)?.promptResults?.[prompt.id];
+      if (cached) {
+        const e = aiCache.current.get(launchId) ?? {};
+        e.lastPromptId = prompt.id;
+        aiCache.current.set(launchId, e);
+        setPromptForId(launchId);
+        setPromptLabel(cached.label);
+        setPromptResult(cached.text);
+        showToast(`${cached.label} (cached)`);
+        requestAnimationFrame(() =>
+          promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
+        );
+        return;
+      }
+
+      setPromptForId(launchId);
+      setPromptRunning(true);
+      setPromptLabel(prompt.name);
+      setPromptResult("");
       try {
         let acc = "";
-        const onTok = (tok: string) => {
+        const final = await applyPromptStream(launchId, prompt.id, (tok) => {
           acc += tok;
-          if (bulk) setBulkPromptText(acc);
-          else setPromptResult(acc);
+          // Only paint into the visible panel while this message is still open.
+          if (openIdRef.current === launchId) setPromptResult(acc);
+        });
+        const e = aiCache.current.get(launchId) ?? {};
+        e.promptResults = {
+          ...(e.promptResults ?? {}),
+          [prompt.id]: { text: final, label: prompt.name },
         };
-        const final = bulk
-          ? await applyBulkPromptStream([...selected], prompt.id, onTok)
-          : await applyPromptStream(detail!.id, prompt.id, onTok);
-        if (bulk) setBulkPromptText(final);
-        else {
+        e.lastPromptId = prompt.id;
+        aiCache.current.set(launchId, e);
+        if (openIdRef.current === launchId) {
           setPromptResult(final);
-          aiCache.current.set(detail!.id, {
-            ...aiCache.current.get(detail!.id),
-            prompt: final,
-            promptLabel: prompt.name,
-          });
+          setPromptLabel(prompt.name);
         }
       } catch (e) {
         setError(String(e));
-        if (bulk) setBulkPromptText(null);
-        else setPromptResult(null);
+        if (openIdRef.current === launchId) setPromptResult(null);
       } finally {
         setPromptRunning(false);
       }
     },
-    [detail, bulkMode, selected],
+    [detail, bulkMode, selected, showToast],
   );
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
@@ -4143,36 +4206,42 @@ export default function App() {
                     )}
                   </div>
                 )}
-                {(promptRunning || promptResult) && (
-                  <div className="summary-panel prompt-panel" ref={promptPanelRef}>
-                    <div className="summary-head">
-                      <span>✦ {promptLabel}</span>
-                      {promptResult && !promptRunning && (
-                        <button
-                          className="ghost tiny"
-                          onClick={() => {
-                            setPromptResult(null);
-                            const e = aiCache.current.get(detail.id);
-                            if (e) {
-                              delete e.prompt;
-                              delete e.promptLabel;
-                            }
-                          }}
-                        >
-                          dismiss
-                        </button>
+                {(() => {
+                  // "Generating…" only for a prompt launched on THIS message; a
+                  // run started elsewhere must not paint over the open email.
+                  const genHere = promptRunning && promptForId === detail.id;
+                  if (promptResult === null && !genHere) return null;
+                  return (
+                    <div className="summary-panel prompt-panel" ref={promptPanelRef}>
+                      <div className="summary-head">
+                        <span>✦ {promptLabel}</span>
+                        {promptResult !== null && !genHere && (
+                          <button
+                            className="ghost tiny"
+                            title="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
+                            onClick={() => {
+                              // Hide but keep the cached result; just forget which
+                              // one to auto-restore so it stays closed on return.
+                              setPromptResult(null);
+                              const e = aiCache.current.get(detail.id);
+                              if (e) e.lastPromptId = undefined;
+                            }}
+                          >
+                            dismiss
+                          </button>
+                        )}
+                      </div>
+                      {genHere && !promptResult ? (
+                        <div className="muted">Generating…</div>
+                      ) : (
+                        <div className="summary-text">
+                          <Markdown text={promptResult || ""} />
+                          {genHere && <span className="caret">▍</span>}
+                        </div>
                       )}
                     </div>
-                    {promptRunning && !promptResult ? (
-                      <div className="muted">Generating…</div>
-                    ) : (
-                      <div className="summary-text">
-                        <Markdown text={promptResult || ""} />
-                        {promptRunning && <span className="caret">▍</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
                 {csOpen && (
                   <div className="content-search">
                     <input
