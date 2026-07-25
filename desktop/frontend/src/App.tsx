@@ -152,6 +152,12 @@ export default function App() {
   // opening a message hands the arrows to the reader.
   const [readerFocused, setReaderFocused] = useState(false);
   const readerBodyRef = useRef<HTMLDivElement>(null);
+  // Refs to the AI result panels so we can scroll them into view when they
+  // appear — otherwise, if the reader is scrolled down, the panel renders above
+  // the fold and it looks like nothing happened.
+  const summaryPanelRef = useRef<HTMLDivElement>(null);
+  const promptPanelRef = useRef<HTMLDivElement>(null);
+  const touchUpRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [nextToken, setNextToken] = useState("");
@@ -375,6 +381,30 @@ export default function App() {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   }, []);
+
+  // When an AI result panel starts, reveal it (the panels render at the top of
+  // the reader, so if you'd scrolled down they'd appear above the fold and look
+  // like a no-op) and flash a toast so there's immediate feedback either way.
+  useEffect(() => {
+    if (summarizing) {
+      summaryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      showToast("Summarizing…");
+    }
+  }, [summarizing, showToast]);
+  useEffect(() => {
+    if (promptRunning) {
+      promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      showToast(promptLabel ? `Applying ${promptLabel}…` : "Applying prompt…");
+    }
+  }, [promptRunning, promptLabel, showToast]);
+  useEffect(() => {
+    if (touchingUp) showToast("Reformatting…");
+  }, [touchingUp, showToast]);
+  useEffect(() => {
+    // The reformatted panel only mounts once the result is set, so reveal it then.
+    if (touchUpText !== null)
+      touchUpRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [touchUpText]);
 
   // applyTheme fetches a theme's palette from the backend and maps it onto the
   // CSS custom properties the stylesheet reads. Empty name = the configured
@@ -3967,7 +3997,7 @@ export default function App() {
                   </div>
                 )}
                 {(summarizing || summary) && (
-                  <div className="summary-panel">
+                  <div className="summary-panel" ref={summaryPanelRef}>
                     <div className="summary-head">
                       <span>✦ AI summary</span>
                       <span className="summary-head-actions">
@@ -4001,7 +4031,7 @@ export default function App() {
                   </div>
                 )}
                 {(promptRunning || promptResult) && (
-                  <div className="summary-panel prompt-panel">
+                  <div className="summary-panel prompt-panel" ref={promptPanelRef}>
                     <div className="summary-head">
                       <span>✦ {promptLabel}</span>
                       {promptResult && !promptRunning && (
@@ -4100,7 +4130,7 @@ export default function App() {
                   </div>
                 )}
                 {touchUpText !== null ? (
-                  <div className="touchup">
+                  <div className="touchup" ref={touchUpRef}>
                     <div className="touchup-head">
                       <span>✦ Reformatted by AI</span>
                       <button
