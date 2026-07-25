@@ -181,7 +181,43 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   tools.push({ icon: "🔎", keys: "Cmd/Ctrl +/-/0", desc: "Zoom UI in / out / reset" });
   tools.push({ icon: "🕐", keys: ":autorefresh", desc: "Toggle auto-refresh" });
   tools.push({ icon: "🖼️", keys: ":images-always", desc: "Always load remote images (on/off)" });
-  tools.push({ icon: "🔁", keys: `${fmtKey(k.summarize).toUpperCase()} · :regenerate`, desc: "Regenerate the open AI panel (summary/prompt)" });
+  {
+    // The regenerate key is the uppercase of the summarize key, but only if that
+    // slot isn't already taken by another binding (e.g. load-more). Show the key
+    // only when it's actually free, so the help never claims a shadowed shortcut.
+    const regenKey = (k.summarize || "y").toUpperCase();
+    const taken = [
+      k.loadMore,
+      k.refresh,
+      k.replyAll,
+      k.forward,
+      k.savedQueries,
+      k.saveQuery,
+      k.actionPlan,
+      k.themePicker,
+      k.slack,
+      k.obsidian,
+      k.openGmail,
+      k.drafts,
+      k.markdown,
+      k.attachments,
+      k.linkPicker,
+      k.threading,
+      k.searchFrom,
+      k.searchTo,
+      k.searchSubject,
+      k.unread,
+      k.archived,
+      k.saveRaw,
+      k.rsvp,
+      k.move,
+    ].includes(regenKey);
+    tools.push({
+      icon: "🔁",
+      keys: taken ? ":regenerate" : `${regenKey} · :regenerate`,
+      desc: "Regenerate the open AI panel (summary/prompt)",
+    });
+  }
   tools.push({ icon: "✕", keys: "Esc · :dismiss", desc: "Close the open AI panel" });
   tools.push({ icon: "▤", keys: ":toolbar", desc: "Show / hide reader toolbar" });
   tools.push({ icon: "📊", keys: ":stats", desc: "AI usage" });
