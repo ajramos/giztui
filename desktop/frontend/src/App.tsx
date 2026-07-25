@@ -104,7 +104,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["attachments", "attach"], desc: "Focus attachments" },
   { names: ["accounts", "acc"], desc: "Switch account" },
   { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
-  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "<n|a-b>" },
+  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
   { names: ["bottom", "end"], desc: "Go to last row" },
   { names: ["queries"], desc: "Saved searches" },
@@ -177,6 +177,9 @@ export default function App() {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  // The message a summary run/result belongs to, so a summary started on one
+  // email doesn't paint its "Generating…" / stream over another you navigated to.
+  const [summaryForId, setSummaryForId] = useState<string | null>(null);
   const [compose, setCompose] = useState<ComposeInit | null>(null);
   const [labelsFor, setLabelsFor] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -440,11 +443,11 @@ export default function App() {
   // the reader, so if you'd scrolled down they'd appear above the fold and look
   // like a no-op) and flash a toast so there's immediate feedback either way.
   useEffect(() => {
-    if (summarizing) {
+    if (summarizing && summaryForId && summaryForId === detail?.id) {
       summaryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
       showToast("Summarizing…");
     }
-  }, [summarizing, showToast]);
+  }, [summarizing, summaryForId, detail?.id, showToast]);
   useEffect(() => {
     // Only for a single-message prompt on the message that's actually open (a
     // bulk run streams into its own modal; promptForId is null for it).
@@ -876,6 +879,10 @@ export default function App() {
       });
       try {
         const d = await backend.GetMessage(m.id);
+        // A faster navigation (e.g. j/k to a cached message) may have already
+        // opened another message while this fetch was in flight — abandon the
+        // stale result so the reader never shows a different email's body.
+        if (openIdRef.current !== m.id) return;
         setDetail(d);
         setViewHtml(!!(d.html && d.html.trim()));
         // Show remote images automatically if the global "always" is on or the
@@ -905,12 +912,16 @@ export default function App() {
           .catch(() => undefined);
         void backend
           .ListAttachments(m.id)
-          .then(setAttachments)
+          .then((atts) => {
+            if (openIdRef.current === m.id) setAttachments(atts);
+          })
           .catch(() => undefined);
         if (rsvpEnabledRef.current) {
           void backend
             .InviteInfo(m.id)
-            .then((inv) => setInvite(inv.isInvite ? inv : null))
+            .then((inv) => {
+              if (openIdRef.current === m.id) setInvite(inv.isInvite ? inv : null);
+            })
             .catch(() => undefined);
         }
         if (markRead && m.unread) {
@@ -953,6 +964,9 @@ export default function App() {
     (id: string) => {
       const idx = messages.findIndex((x) => x.id === id);
       setMessages((prev) => prev.filter((x) => x.id !== id));
+      // Also drop it from the full (unfiltered) list, so toggling the local
+      // filter doesn't resurrect a message the user just archived/trashed.
+      fullMessagesRef.current = fullMessagesRef.current.filter((x) => x.id !== id);
       if (selectedId !== id) return;
       // When the message being read is removed (archive/trash), advance to the
       // neighbour and preview it — same index is now the next message, or the
@@ -1113,6 +1127,11 @@ export default function App() {
   // linger on screen.
   const clearReaderIfRemoved = useCallback(
     (removed: Set<string>) => {
+      // Keep the full (unfiltered) list in sync so the local filter can't
+      // resurrect bulk-removed messages.
+      fullMessagesRef.current = fullMessagesRef.current.filter(
+        (m) => !removed.has(m.id),
+      );
       setDetail((d) => {
         if (d && removed.has(d.id)) {
           setSelectedId(null);
@@ -1132,6 +1151,10 @@ export default function App() {
   // Falls back to clearing the reader when nothing survives.
   const advanceAfterBulk = useCallback(
     (removed: Set<string>) => {
+      // Keep the full (unfiltered) list in sync (see clearReaderIfRemoved).
+      fullMessagesRef.current = fullMessagesRef.current.filter(
+        (m) => !removed.has(m.id),
+      );
       const curIdx = selectedId
         ? messages.findIndex((m) => m.id === selectedId)
         : -1;
@@ -1317,8 +1340,9 @@ export default function App() {
   }, []);
 
   const summarize = useCallback(async (id: string, force = false) => {
+    setSummaryForId(id);
     setSummarizing(true);
-    setSummary("");
+    if (openIdRef.current === id) setSummary("");
     setError("");
     try {
       let acc = "";
@@ -1326,15 +1350,16 @@ export default function App() {
         id,
         (tok) => {
           acc += tok;
-          setSummary(acc);
+          // Only paint into the visible panel while this message is still open.
+          if (openIdRef.current === id) setSummary(acc);
         },
         force,
       );
-      setSummary(final);
       aiCache.current.set(id, { ...aiCache.current.get(id), summary: final });
+      if (openIdRef.current === id) setSummary(final);
     } catch (e) {
       setError(String(e));
-      setSummary(null);
+      if (openIdRef.current === id) setSummary(null);
     } finally {
       setSummarizing(false);
     }
@@ -1674,9 +1699,18 @@ export default function App() {
         );
       return;
     }
+    // A reformat (touch-up) is the active output → re-reformat, not summarize.
+    if (
+      touchUpTextRef.current !== null &&
+      summaryRef.current === null &&
+      promptResultRef.current === null
+    ) {
+      void touchUp(id);
+      return;
+    }
     // Otherwise (a summary is shown, or nothing yet) → (re)generate the summary.
     if (aiEnabledRef.current) void summarize(id, true);
-  }, [summarize, runPrompt]);
+  }, [summarize, runPrompt, touchUp]);
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
     mode: "reply",
@@ -2334,24 +2368,37 @@ export default function App() {
           break;
         case "select":
         case "sel": {
-          // Bulk-select by 1-based number or range, e.g. ":select 3" or
-          // ":select 2-6". Enters bulk mode and selects those rows.
-          const spec = arg.trim();
-          const m = spec.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
-          if (m) {
-            const a = Math.max(1, Number(m[1]));
-            const b = m[2] ? Number(m[2]) : a;
-            const lo = Math.min(a, b);
-            const hi = Math.max(a, b);
-            const ids = messages
-              .slice(lo - 1, hi)
-              .map((x) => x.id);
-            if (ids.length > 0) {
+          // ":select all" / ":select none" (matching the * key), or by 1-based
+          // number / range, e.g. ":select 3" or ":select 2-6".
+          const spec = arg.trim().toLowerCase();
+          if (spec === "all" || spec === "*") {
+            if (messages.length > 0) {
               setBulkMode(true);
-              setSelected((prev) => new Set([...prev, ...ids]));
-              setSelectedId(ids[0]);
-              showToast(`Selected ${ids.length}`);
+              setSelected(new Set(messages.map((x) => x.id)));
+              showToast(`Selected ${messages.length}`);
             }
+            break;
+          }
+          if (spec === "none" || spec === "clear") {
+            setSelected(new Set());
+            showToast("Selection cleared");
+            break;
+          }
+          const m = spec.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+          if (!m) {
+            showToast("Usage: :select all | none | N | N-M");
+            break;
+          }
+          const a = Math.max(1, Number(m[1]));
+          const b = m[2] ? Number(m[2]) : a;
+          const lo = Math.min(a, b);
+          const hi = Math.max(a, b);
+          const ids = messages.slice(lo - 1, hi).map((x) => x.id);
+          if (ids.length > 0) {
+            setBulkMode(true);
+            setSelected((prev) => new Set([...prev, ...ids]));
+            setSelectedId(ids[0]);
+            showToast(`Selected ${ids.length}`);
           }
           break;
         }
@@ -4281,44 +4328,50 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(summarizing || summary) && (
-                  <div className="summary-panel" ref={summaryPanelRef}>
-                    <div className="summary-head">
-                      <span>✦ AI summary</span>
-                      <span className="summary-head-actions">
-                        {summary && !summarizing && (
-                          <button
-                            className="ghost tiny"
-                            title="Regenerate (ignore cache)"
-                            onClick={() => void summarize(detail.id, true)}
-                          >
-                            regenerate
-                          </button>
-                        )}
-                        {summary && (
-                          <button
-                            className="ghost tiny"
-                            onClick={() => {
-                              setSummary(null);
-                              const e = aiCache.current.get(detail.id);
-                              if (e) delete e.summary;
-                            }}
-                          >
-                            dismiss
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                    {summarizing && !summary ? (
-                      <div className="muted">Generating…</div>
-                    ) : (
-                      <div className="summary-text">
-                        <Markdown text={summary || ""} />
-                        {summarizing && <span className="caret">▍</span>}
+                {(() => {
+                  // "Generating…" only for a summary launched on THIS message, so
+                  // a run started elsewhere never paints over the open email.
+                  const genHere = summarizing && summaryForId === detail.id;
+                  if (summary === null && !genHere) return null;
+                  return (
+                    <div className="summary-panel" ref={summaryPanelRef}>
+                      <div className="summary-head">
+                        <span>✦ AI summary</span>
+                        <span className="summary-head-actions">
+                          {summary && !genHere && (
+                            <button
+                              className="ghost tiny"
+                              title="Regenerate (ignore cache)"
+                              onClick={() => void summarize(detail.id, true)}
+                            >
+                              regenerate
+                            </button>
+                          )}
+                          {summary && !genHere && (
+                            <button
+                              className="ghost tiny"
+                              onClick={() => {
+                                setSummary(null);
+                                const e = aiCache.current.get(detail.id);
+                                if (e) delete e.summary;
+                              }}
+                            >
+                              dismiss
+                            </button>
+                          )}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {genHere && !summary ? (
+                        <div className="muted">Generating…</div>
+                      ) : (
+                        <div className="summary-text">
+                          <Markdown text={summary || ""} />
+                          {genHere && <span className="caret">▍</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {(() => {
                   // "Generating…" only for a prompt launched on THIS message; a
                   // run started elsewhere must not paint over the open email.
