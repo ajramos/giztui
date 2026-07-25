@@ -777,18 +777,31 @@ func extractHeader(msg *gmail.Message, name string) string {
 
 func extractDate(msg *gmail.Message) time.Time {
 	dateStr := extractHeader(msg, "Date")
-	if dateStr == "" {
-		return time.Now()
+	if dateStr != "" {
+		// mail.ParseDate handles the full RFC 5322 grammar (single-digit days,
+		// "(MST)" comments, obsolete zones, …) that the old RFC1123-only parse
+		// missed, which made many messages fall through to time.Now() and show as
+		// "now".
+		if t, err := mail.ParseDate(dateStr); err == nil {
+			return t
+		}
+		for _, layout := range []string{
+			time.RFC1123Z,
+			time.RFC1123,
+			"2 Jan 2006 15:04:05 -0700",
+			"Mon, 2 Jan 2006 15:04:05 -0700 (MST)",
+		} {
+			if t, err := time.Parse(layout, dateStr); err == nil {
+				return t
+			}
+		}
 	}
-
-	// Try to parse the date
-	if t, err := time.Parse(time.RFC1123Z, dateStr); err == nil {
-		return t
+	// Fall back to Gmail's internal (received) timestamp rather than "now", so a
+	// missing/unparseable Date header doesn't render as just-now — and stays
+	// consistent with the inbox ordering, which is by internalDate.
+	if msg.InternalDate > 0 {
+		return time.UnixMilli(msg.InternalDate)
 	}
-	if t, err := time.Parse(time.RFC1123, dateStr); err == nil {
-		return t
-	}
-
 	return time.Now()
 }
 
