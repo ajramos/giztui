@@ -1038,12 +1038,12 @@ func (a *App) RefinePromptText(text string) (string, error) {
 
 // ApplyPromptStream applies a prompt to a message, emitting each token as a
 // "prompt:token" runtime event, and returns the full result.
-func (a *App) ApplyPromptStream(messageID string, promptID int) (string, error) {
+func (a *App) ApplyPromptStream(messageID string, promptID int, force bool) (string, error) {
 	api, err := a.api()
 	if err != nil {
 		return "", err
 	}
-	return api.ApplyPromptStream(a.ctx, messageID, promptID, func(tok string) {
+	return api.ApplyPromptStream(a.ctx, messageID, promptID, force, func(tok string) {
 		wailsruntime.EventsEmit(a.ctx, promptTokenEvent, tok)
 	})
 }

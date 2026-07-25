@@ -194,6 +194,9 @@ func (f *fakePrompts) GetCachedResultsForMessage(ctx context.Context, accountEma
 func (f *fakePrompts) SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error {
 	return nil
 }
+func (f *fakePrompts) InvalidateResults(ctx context.Context, promptID int) error {
+	return nil
+}
 
 type fakeDraft struct {
 	created   *sendRecord
@@ -575,7 +578,7 @@ func TestPrompts(t *testing.T) {
 	}
 
 	var streamed string
-	out, err := api.ApplyPromptStream(context.Background(), "1", 2, func(tok string) {
+	out, err := api.ApplyPromptStream(context.Background(), "1", 2, false, func(tok string) {
 		streamed += tok
 	})
 	if err != nil {
@@ -597,7 +600,7 @@ func TestPromptsDisabled(t *testing.T) {
 	if list, err := api.ListPrompts(context.Background()); err != nil || len(list) != 0 {
 		t.Errorf("expected empty list, got %v %v", list, err)
 	}
-	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, func(string) {}); err == nil {
+	if _, err := api.ApplyPromptStream(context.Background(), "1", 1, false, func(string) {}); err == nil {
 		t.Error("expected error when prompts disabled")
 	}
 }

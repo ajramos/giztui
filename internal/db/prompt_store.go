@@ -142,6 +142,16 @@ func (ps *PromptStore) GetPromptResult(ctx context.Context, accountEmail, messag
 	return result, nil
 }
 
+// DeletePromptResults removes all cached results for a prompt (used when the
+// prompt is edited or deleted, so a stale result isn't reused for new text).
+func (ps *PromptStore) DeletePromptResults(ctx context.Context, promptID int) error {
+	if ps == nil || ps.db == nil {
+		return fmt.Errorf("prompt store not initialized")
+	}
+	_, err := ps.db.ExecContext(ctx, `DELETE FROM prompt_results WHERE prompt_id = ?`, promptID)
+	return err
+}
+
 // GetPromptResultsForMessage returns the latest cached result for each prompt
 // run against a message (most-recent prompt first). Used to restore a message's
 // AI panels across sessions.

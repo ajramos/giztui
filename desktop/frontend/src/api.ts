@@ -331,7 +331,11 @@ interface Backend {
   UpdatePrompt(id: number, name: string, description: string, text: string, category: string): Promise<void>;
   DeletePrompt(id: number): Promise<void>;
   RefinePromptText(text: string): Promise<string>;
-  ApplyPromptStream(messageID: string, promptID: number): Promise<string>;
+  ApplyPromptStream(
+    messageID: string,
+    promptID: number,
+    force: boolean,
+  ): Promise<string>;
   CachedPrompts(messageID: string): Promise<CachedPromptResult[]>;
   ApplyBulkPromptStream(ids: string[], promptID: number): Promise<string>;
   ListAccounts(): Promise<AccountInfo[]>;
@@ -514,10 +518,11 @@ export function applyPromptStream(
   id: string,
   promptId: number,
   onToken: (token: string) => void,
+  force = false,
 ): Promise<string> {
   return streamViaEvent(
     "prompt:token",
-    () => backend.ApplyPromptStream(id, promptId),
+    () => backend.ApplyPromptStream(id, promptId, force),
     onToken,
   );
 }
@@ -782,7 +787,7 @@ const mockBackend: Backend = {
     await new Promise((r) => setTimeout(r, 400));
     return `Applied to ${ids.length} messages:\n\n• Combined key points across the selection\n• (mock bulk prompt result)`;
   },
-  async ApplyPromptStream(_id: string, promptID: number) {
+  async ApplyPromptStream(_id: string, promptID: number, _force?: boolean) {
     const names: Record<number, string> = {
       1: "• Key point one\n• Key point two\n• Key point three",
       2: "1. Reply to Ada by Friday (owner: you)\n2. Review the Q3 roadmap draft",

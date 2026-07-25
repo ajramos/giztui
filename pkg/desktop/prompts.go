@@ -71,7 +71,13 @@ func (a *API) UpdatePrompt(ctx context.Context, id int, name, description, text,
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(text) == "" {
 		return fmt.Errorf("name and prompt text are required")
 	}
-	return a.prompts.UpdatePrompt(ctx, id, name, description, text, category)
+	if err := a.prompts.UpdatePrompt(ctx, id, name, description, text, category); err != nil {
+		return err
+	}
+	// The prompt text changed, so any cached results for it are stale — drop them
+	// so the next run regenerates.
+	_ = a.prompts.InvalidateResults(ctx, id)
+	return nil
 }
 
 // DeletePrompt removes a prompt template.
@@ -79,7 +85,11 @@ func (a *API) DeletePrompt(ctx context.Context, id int) error {
 	if a.prompts == nil {
 		return fmt.Errorf("prompts are not available")
 	}
-	return a.prompts.DeletePrompt(ctx, id)
+	if err := a.prompts.DeletePrompt(ctx, id); err != nil {
+		return err
+	}
+	_ = a.prompts.InvalidateResults(ctx, id) // clean up its cached results too
+	return nil
 }
 
 // RefinePromptText asks the AI to improve a prompt template's text, returning
@@ -100,18 +110,21 @@ func (a *API) RefinePromptText(ctx context.Context, text string) (string, error)
 
 // ApplyPromptStream applies a saved prompt to a message and streams the result
 // through onToken, returning the full result text at the end.
-func (a *API) ApplyPromptStream(ctx context.Context, messageID string, promptID int, onToken func(string)) (string, error) {
+func (a *API) ApplyPromptStream(ctx context.Context, messageID string, promptID int, force bool, onToken func(string)) (string, error) {
 	if a.prompts == nil {
 		return "", fmt.Errorf("prompts are not available; enable an LLM provider and local database")
 	}
 	// Reuse a persisted result for this (account, message, prompt) so re-running a
 	// prompt — even in a later session — never re-hits the LLM. Stream the cached
-	// text through onToken so the UI renders it just like a fresh run.
-	if cached, err := a.prompts.GetCachedResult(ctx, a.accountEmail, messageID, promptID); err == nil && cached != nil && strings.TrimSpace(cached.ResultText) != "" {
-		if onToken != nil {
-			onToken(cached.ResultText)
+	// text through onToken so the UI renders it just like a fresh run. force=true
+	// (a deliberate "regenerate") skips the cache and overwrites it below.
+	if !force {
+		if cached, err := a.prompts.GetCachedResult(ctx, a.accountEmail, messageID, promptID); err == nil && cached != nil && strings.TrimSpace(cached.ResultText) != "" {
+			if onToken != nil {
+				onToken(cached.ResultText)
+			}
+			return cached.ResultText, nil
 		}
-		return cached.ResultText, nil
 	}
 	msg, err := a.repo.GetMessage(ctx, messageID)
 	if err != nil {

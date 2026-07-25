@@ -1522,7 +1522,7 @@ export default function App() {
   }, []);
 
   const runPrompt = useCallback(
-    async (prompt: Prompt) => {
+    async (prompt: Prompt, force = false) => {
       const bulk = bulkMode && selected.size > 0;
       if (!bulk && !detail) return;
       setPromptsOpen(false);
@@ -1557,8 +1557,11 @@ export default function App() {
       // --- single-message prompt --------------------------------------------
       const launchId = detail!.id;
       // Reuse a result already generated for this (message, prompt) — no new LLM
-      // call, so dismissing then re-running the same prompt is free.
-      const cached = aiCache.current.get(launchId)?.promptResults?.[prompt.id];
+      // call, so dismissing then re-running the same prompt is free. force skips
+      // the cache to regenerate (e.g. after editing the prompt).
+      const cached = force
+        ? undefined
+        : aiCache.current.get(launchId)?.promptResults?.[prompt.id];
       if (cached) {
         const e = aiCache.current.get(launchId) ?? {};
         e.lastPromptId = prompt.id;
@@ -1579,11 +1582,16 @@ export default function App() {
       setPromptResult("");
       try {
         let acc = "";
-        const final = await applyPromptStream(launchId, prompt.id, (tok) => {
-          acc += tok;
-          // Only paint into the visible panel while this message is still open.
-          if (openIdRef.current === launchId) setPromptResult(acc);
-        });
+        const final = await applyPromptStream(
+          launchId,
+          prompt.id,
+          (tok) => {
+            acc += tok;
+            // Only paint into the visible panel while this message is still open.
+            if (openIdRef.current === launchId) setPromptResult(acc);
+          },
+          force,
+        );
         const e = aiCache.current.get(launchId) ?? {};
         e.promptResults = {
           ...(e.promptResults ?? {}),
@@ -4238,21 +4246,39 @@ export default function App() {
                     <div className="summary-panel prompt-panel" ref={promptPanelRef}>
                       <div className="summary-head">
                         <span>✦ {promptLabel}</span>
-                        {promptResult !== null && !genHere && (
-                          <button
-                            className="ghost tiny"
-                            title="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
-                            onClick={() => {
-                              // Hide but keep the cached result; just forget which
-                              // one to auto-restore so it stays closed on return.
-                              setPromptResult(null);
-                              const e = aiCache.current.get(detail.id);
-                              if (e) e.lastPromptId = undefined;
-                            }}
-                          >
-                            dismiss
-                          </button>
-                        )}
+                        <span className="summary-head-actions">
+                          {promptResult !== null && !genHere && (
+                            <button
+                              className="ghost tiny"
+                              title="Regenerate (ignore the saved result and call the LLM again)"
+                              onClick={() => {
+                                const pid = aiCache.current.get(detail.id)?.lastPromptId;
+                                if (pid != null)
+                                  void runPrompt(
+                                    { id: pid, name: promptLabel, description: "", category: "" },
+                                    true,
+                                  );
+                              }}
+                            >
+                              regenerate
+                            </button>
+                          )}
+                          {promptResult !== null && !genHere && (
+                            <button
+                              className="ghost tiny"
+                              title="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
+                              onClick={() => {
+                                // Hide but keep the cached result; just forget which
+                                // one to auto-restore so it stays closed on return.
+                                setPromptResult(null);
+                                const e = aiCache.current.get(detail.id);
+                                if (e) e.lastPromptId = undefined;
+                              }}
+                            >
+                              dismiss
+                            </button>
+                          )}
+                        </span>
                       </div>
                       {genHere && !promptResult ? (
                         <div className="muted">Generating…</div>
@@ -4534,7 +4560,14 @@ export default function App() {
           aiEnabled={aiEnabled}
           onClose={() => setPromptManagerOpen(false)}
           onChanged={() => {
-            /* prompts reload themselves inside the manager */
+            // A prompt was created/edited/deleted. Drop cached prompt results so a
+            // re-run regenerates with the new text (the backend already cleared
+            // the DB copies for edited/deleted prompts).
+            for (const e of aiCache.current.values()) {
+              e.promptResults = {};
+              e.lastPromptId = undefined;
+            }
+            setPromptResult(null);
           }}
         />
       )}

@@ -32,10 +32,12 @@ export default function PromptManager({
   const [refining, setRefining] = useState(false);
   const [error, setError] = useState("");
 
+  // reload refreshes the list. onChanged is fired only by actual mutations
+  // (save/remove) below, not here — so opening the manager doesn't look like an
+  // edit to the parent (which invalidates caches on onChanged).
   const reload = async () => {
     try {
       setPrompts(await backend.ListPrompts());
-      onChanged();
     } catch (e) {
       setError(String(e));
     }
@@ -78,6 +80,7 @@ export default function PromptManager({
       }
       setEditing(null);
       await reload();
+      onChanged();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -90,6 +93,7 @@ export default function PromptManager({
     try {
       await backend.DeletePrompt(id);
       await reload();
+      onChanged();
     } catch (e) {
       setError(String(e));
     }

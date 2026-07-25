@@ -124,6 +124,7 @@ type PromptService interface {
 	ApplyPromptStream(ctx context.Context, messageContent string, promptID int, variables map[string]string, onToken func(string)) (*PromptResult, error)
 	GetCachedResult(ctx context.Context, accountEmail, messageID string, promptID int) (*PromptResult, error)
 	GetCachedResultsForMessage(ctx context.Context, accountEmail, messageID string) ([]*PromptResult, error)
+	InvalidateResults(ctx context.Context, promptID int) error
 	IncrementUsage(ctx context.Context, promptID int) error
 	GetUsageStats(ctx context.Context) (*UsageStats, error)
 	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
