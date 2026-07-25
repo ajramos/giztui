@@ -7,14 +7,15 @@
 #   brew tap ajramos/giztui
 #   brew install --cask giztui-desktop
 #
-# On each release, bump `version` and `sha256` to match the new
-# GizTUI-Desktop-<version>-universal.dmg asset (see packaging/homebrew/README.md
-# for the auto-bump options). Until macOS notarization lands, the build is
-# unsigned; Homebrew strips the quarantine attribute on cask installs, so it
-# still opens without the manual right-click → Open dance.
+# This is the source-of-truth template. On a tagged release the
+# release-desktop.yml `homebrew` job regenerates the tap's copy with the new
+# `version` and the real `sha256` of the universal .dmg (needs the
+# HOMEBREW_TAP_TOKEN secret — see packaging/homebrew/README.md). Until macOS
+# notarization lands the build is unsigned; Homebrew strips the quarantine
+# attribute on cask installs, so it still opens without the right-click → Open dance.
 cask "giztui-desktop" do
-  version "1.21.0"
-  sha256 :no_check # replace with the DMG's sha256 for a pinned, verified install
+  version "1.22.0"
+  sha256 :no_check # the tap copy is pinned to the DMG's sha256 by CI
 
   url "https://github.com/ajramos/giztui/releases/download/v#{version}/GizTUI-Desktop-#{version}-universal.dmg"
   name "GizTUI Desktop"

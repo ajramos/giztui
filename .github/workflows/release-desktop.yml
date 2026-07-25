@@ -208,3 +208,62 @@ jobs:
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ------------------------------------------------------ Homebrew cask auto-bump
+  # Bumps version + sha256 in the tap (ajramos/homebrew-giztui, Casks/
+  # giztui-desktop.rb) to match the new universal .dmg, so `brew upgrade` picks up
+  # the release with no manual step. Requires a HOMEBREW_TAP_TOKEN secret (a PAT
+  # with contents:write on the tap repo); if it is absent the job no-ops so the
+  # release itself never fails.
+  homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Download macOS .dmg
+        uses: actions/download-artifact@v6
+        with:
+          name: desktop-macos
+          path: dist
+      - name: Update the tap cask
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VER: ${{ steps.ver.outputs.VER }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN not set — skipping cask auto-bump. Add the secret (a PAT with contents:write on ajramos/homebrew-giztui) to enable it."
+            exit 0
+          fi
+          DMG="dist/GizTUI-Desktop-${VER}-universal.dmg"
+          if [ ! -f "$DMG" ]; then echo "::warning::$DMG not found — skipping cask bump."; exit 0; fi
+          SHA="$(sha256sum "$DMG" | cut -d' ' -f1)"
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/ajramos/homebrew-giztui.git" tap
+          mkdir -p tap/Casks
+          cat > tap/Casks/giztui-desktop.rb <<EOF
+          cask "giztui-desktop" do
+            version "${VER}"
+            sha256 "${SHA}"
+
+            url "https://github.com/ajramos/giztui/releases/download/v#{version}/GizTUI-Desktop-#{version}-universal.dmg"
+            name "GizTUI Desktop"
+            desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
+            homepage "https://github.com/ajramos/giztui"
+
+            app "GizTUI Desktop.app"
+
+            zap trash: [
+              "~/Library/Application Support/giztui",
+              "~/Library/Logs/giztui",
+            ]
+          end
+          EOF
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/giztui-desktop.rb
+          git commit -m "giztui-desktop ${VER}" || { echo "cask already up to date"; exit 0; }
+          git push
+          echo "Bumped tap cask to ${VER} (sha256 ${SHA})"

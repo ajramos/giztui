@@ -30,21 +30,24 @@ brew install --cask giztui-desktop
 
 ## Per-release bump
 
-After a release publishes `GizTUI-Desktop-<version>-universal.dmg`, update the
-cask's `version` and `sha256` in the tap.
+**Automated (default).** The `homebrew` job in `.github/workflows/release-desktop.yml`
+runs on every tagged release: it downloads the freshly built
+`GizTUI-Desktop-<version>-universal.dmg`, computes its `sha256`, and pushes an
+updated `Casks/giztui-desktop.rb` (pinned `version` + `sha256`) to the tap repo
+`ajramos/homebrew-giztui`. So `brew upgrade --cask giztui-desktop` just works.
 
-**Manual:**
+**One-time setup:** add a repository secret **`HOMEBREW_TAP_TOKEN`** to
+`ajramos/giztui` — a fine-grained PAT (or classic token with `repo`) that has
+**contents: write** on `ajramos/homebrew-giztui`. Without it the job logs a
+warning and skips; the release itself never fails.
+
+**Manual fallback** (e.g. the very first tap seed, or the secret isn't set yet):
 ```bash
-VER=1.21.0
+VER=1.22.0
 URL="https://github.com/ajramos/giztui/releases/download/v$VER/GizTUI-Desktop-$VER-universal.dmg"
 SHA=$(curl -sSL "$URL" | shasum -a 256 | awk '{print $1}')
 # edit Casks/giztui-desktop.rb: version "$VER", sha256 "$SHA"
 ```
-
-**Automated:** from the release workflow (or a small job in the tap), use
-[`dawidd6/action-homebrew-bump-cask`](https://github.com/dawidd6/action-homebrew-bump-cask)
-with a `GH_TAP_TOKEN` secret that can push to the tap repo. Deferred to phase 2
-in `docs/DESKTOP_DISTRIBUTION.md`.
 
 ## Signing note
 
