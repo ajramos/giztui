@@ -99,6 +99,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["archived", "b"], desc: "Archived messages" },
   { names: ["markdown", "md"], desc: "Toggle HTML / text" },
   { names: ["images", "remote", "img"], desc: "Load / block remote images" },
+  { names: ["images-always", "always-images", "imgall"], desc: "Always load remote images (on/off)" },
   { names: ["load", "more", "next"], desc: "Load more messages" },
   { names: ["attachments", "attach"], desc: "Focus attachments" },
   { names: ["accounts", "acc"], desc: "Switch account" },
@@ -189,6 +190,15 @@ export default function App() {
   const [switching, setSwitching] = useState(false);
   const [viewHtml, setViewHtml] = useState(false);
   const [loadRemote, setLoadRemote] = useState(false);
+  // "Always load remote images": persisted global default (off = ask per message).
+  const [alwaysImages, setAlwaysImages] = useState<boolean>(
+    () => localStorage.getItem("giztui.alwaysImages") === "on",
+  );
+  const alwaysImagesRef = useRef(alwaysImages);
+  alwaysImagesRef.current = alwaysImages;
+  // Per-message opt-in (session only), so returning to a message you already
+  // revealed images for doesn't ask again.
+  const imageOptIn = useRef<Set<string>>(new Set());
   const [draftsView, setDraftsView] = useState(false);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
@@ -406,6 +416,18 @@ export default function App() {
     if (touchUpText !== null)
       touchUpRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [touchUpText]);
+
+  // Global "always load remote images" toggle, persisted across launches. Turning
+  // it on reveals images in the current message too.
+  const setAlwaysImagesOn = useCallback(
+    (on: boolean) => {
+      setAlwaysImages(on);
+      localStorage.setItem("giztui.alwaysImages", on ? "on" : "off");
+      if (on) setLoadRemote(true);
+      showToast(on ? "Always loading remote images" : "Images: ask per message");
+    },
+    [showToast],
+  );
 
   // applyTheme fetches a theme's palette from the backend and maps it onto the
   // CSS custom properties the stylesheet reads. Empty name = the configured
@@ -776,7 +798,9 @@ export default function App() {
         const d = await backend.GetMessage(m.id);
         setDetail(d);
         setViewHtml(!!(d.html && d.html.trim()));
-        setLoadRemote(false);
+        // Show remote images automatically if the global "always" is on or the
+        // user already opted this message in earlier this session.
+        setLoadRemote(alwaysImagesRef.current || imageOptIn.current.has(m.id));
         void backend
           .ListAttachments(m.id)
           .then(setAttachments)
@@ -2136,7 +2160,19 @@ export default function App() {
         case "images":
         case "remote":
         case "img":
-          setLoadRemote((v) => !v);
+          setLoadRemote((v) => {
+            const next = !v;
+            if (d) {
+              if (next) imageOptIn.current.add(d.id);
+              else imageOptIn.current.delete(d.id);
+            }
+            return next;
+          });
+          break;
+        case "images-always":
+        case "always-images":
+        case "imgall":
+          setAlwaysImagesOn(!alwaysImagesRef.current);
           break;
         case "load":
         case "more":
@@ -4236,9 +4272,19 @@ export default function App() {
                         Remote images blocked for privacy.
                         <button
                           className="tiny"
-                          onClick={() => setLoadRemote(true)}
+                          onClick={() => {
+                            setLoadRemote(true);
+                            imageOptIn.current.add(detail.id);
+                          }}
                         >
                           Load images
+                        </button>
+                        <button
+                          className="tiny"
+                          title="Always load remote images (toggle with :images-always)"
+                          onClick={() => setAlwaysImagesOn(true)}
+                        >
+                          Always
                         </button>
                       </div>
                     )}
