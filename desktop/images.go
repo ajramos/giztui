@@ -27,6 +27,7 @@ func shortURL(u string) string {
 //   - a control byte (< 0x20 / 0x7f): e.g. "width=12" → byte 0x12 → "…?width\x1200&…".
 //   - byte 0x80-0xFF: not valid UTF-8, so the charset decode replaces it with the
 //     Unicode replacement char U+FFFD: e.g. "width=80" → "…?width�0&…".
+//
 // Both make net/url.Parse reject the URL (or the CDN 400). The image lives at the
 // path regardless of the now-bogus query param, so dropping the stray rune
 // recovers it — the param just becomes a harmless valueless key (e.g. "width0").
