@@ -308,6 +308,8 @@ export default function App() {
   promptLabelRef.current = promptLabel;
   const touchUpTextRef = useRef(touchUpText);
   touchUpTextRef.current = touchUpText;
+  const aiEnabledRef = useRef(aiEnabled);
+  aiEnabledRef.current = aiEnabled;
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
@@ -1662,18 +1664,18 @@ export default function App() {
   const regenerateActive = useCallback(() => {
     const id = openIdRef.current;
     if (!id) return;
-    if (summaryRef.current !== null) {
-      void summarize(id, true);
-      return;
-    }
-    if (promptResultRef.current !== null) {
+    // A prompt is the active AI output (and no summary up) → regenerate the prompt.
+    if (promptResultRef.current !== null && summaryRef.current === null) {
       const pid = aiCache.current.get(id)?.lastPromptId;
       if (pid != null)
         void runPrompt(
           { id: pid, name: promptLabelRef.current, description: "", category: "" },
           true,
         );
+      return;
     }
+    // Otherwise (a summary is shown, or nothing yet) → (re)generate the summary.
+    if (aiEnabledRef.current) void summarize(id, true);
   }, [summarize, runPrompt]);
 
   const replyInit = (d: MessageDetail): ComposeInit => ({
@@ -3295,7 +3297,9 @@ export default function App() {
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);
           break;
         case "regenerateSummary":
-          if (detail && aiEnabled && !bulkMode) void summarize(detail.id, true);
+          // Regenerate the active AI panel: the shown prompt, else the summary.
+          // (Uppercase of the summarize key — a real shortcut, e.g. Shift+Y.)
+          if (detail && !bulkMode) regenerateActive();
           break;
         case "prompt":
           if (
