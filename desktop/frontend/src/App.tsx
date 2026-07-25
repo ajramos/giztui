@@ -77,7 +77,6 @@ const COMMANDS: CommandDef[] = [
   { names: ["replyall", "ra"], desc: "Reply all" },
   { names: ["forward", "f"], desc: "Forward" },
   { names: ["refresh"], desc: "Refresh inbox" },
-  { names: ["show-new", "newmail"], desc: "Show held new mail" },
   { names: ["drafts", "dr"], desc: "Drafts" },
   { names: ["links"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
@@ -88,7 +87,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
   { names: ["summarize", "sum", "summary"], desc: "AI summary" },
   { names: ["prompt"], desc: "Apply a prompt" },
-  { names: ["prompts", "prompt-new", "prompt-manage"], desc: "Manage prompts" },
+  { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
   { names: ["slack", "sl"], desc: "Forward to Slack" },
@@ -107,23 +106,20 @@ const COMMANDS: CommandDef[] = [
   { names: ["accounts", "acc"], desc: "Switch account" },
   { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
   { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
-  { names: ["bulk"], desc: "Toggle bulk-selection mode" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
   { names: ["bottom", "end", "$"], desc: "Go to last row" },
   { names: ["queries"], desc: "Saved searches" },
   { names: ["savequery"], desc: "Save current search" },
-  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan" },
-  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run]" },
-  { names: ["run-rules", "apply-rules"], desc: "Run deterministic rules (no AI)" },
-  { names: ["analyzer-rules"], desc: "AI analyzer preference rules" },
-  { names: ["view-prompt", "analyzer-prompt"], desc: "Preview the analyzer prompt" },
+  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan", arg: "[rules|prompt]" },
+  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run|plan]" },
+  { names: ["rp"], desc: "Run deterministic rules (:rules plan)" },
   { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
   { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
   { names: ["find"], desc: "Find in message", arg: "<text>" },
   { names: ["from"], desc: "Search from this sender" },
   { names: ["to"], desc: "Search to this recipient" },
   { names: ["subject"], desc: "Search this subject" },
-  { names: ["headers", "h"], desc: "Toggle headers" },
+  { names: ["headers", "toggle-headers"], desc: "Toggle headers" },
   { names: ["toolbar"], desc: "Show/hide reader toolbar" },
   { names: ["zoom-in", "zi"], desc: "Bigger UI text (Cmd/Ctrl +)" },
   { names: ["zoom-out", "zo"], desc: "Smaller UI text (Cmd/Ctrl -)" },
@@ -2383,9 +2379,21 @@ export default function App() {
         case "plan":
         case "actionplan":
         case "action-plan":
-        case "ap":
-          if (actionPlanOn) void runActionPlan();
+        case "ap": {
+          // Mirrors the TUI's :action-plan [rules|prompt]: bare opens the plan,
+          // subcommands reach the things that live inside the plan panel.
+          const sub = arg.trim().toLowerCase();
+          if (sub === "rules") {
+            if (rulesEnabled) void openRules();
+          } else if (sub === "prompt" || sub === "view-prompt") {
+            if (actionPlanOn) void viewAnalyzerPrompt();
+          } else if (sub === "") {
+            if (actionPlanOn) void runActionPlan();
+          } else {
+            showToast("Usage: :action-plan [rules | prompt]");
+          }
           break;
+        }
         case "label":
         case "lbl":
           // Add a label by name to the current message (the picker handles
@@ -2451,7 +2459,7 @@ export default function App() {
           }
           break;
         case "headers":
-        case "h":
+        case "toggle-headers":
           if (d) setHeadersHidden((v) => !v);
           break;
         case "markdown":
@@ -2608,14 +2616,13 @@ export default function App() {
           }
           break;
         case "prompts":
-        case "prompt-manage":
         case "prompt-new":
           if (aiPromptsEnabled) setPromptManagerOpen(true);
           break;
         case "rules":
         case "ru":
-          // ":rules run|apply|plan" runs ONLY the deterministic rules over the
-          // inbox (TUI's :rules plan) and opens the plan panel to review/apply
+          // ":rules run|plan" runs ONLY the deterministic rules over the inbox
+          // (the TUI's :rules plan) and opens the plan panel to review/apply
           // them — no LLM. Bare ":rules" opens the manager.
           if (["run", "apply", "plan"].includes(arg.toLowerCase().trim())) {
             void runDeterministicRules();
@@ -2623,26 +2630,8 @@ export default function App() {
             setDetRulesOpen(true);
           }
           break;
-        case "run-rules":
-        case "apply-rules":
+        case "rp": // TUI parity: shorthand for :rules plan
           void runDeterministicRules();
-          break;
-        case "analyzer-rules":
-          if (rulesEnabled) void openRules();
-          break;
-        case "view-prompt":
-        case "analyzer-prompt":
-          // Preview the analyzer prompt (mirrors the action-plan `p` key).
-          if (actionPlanOn) void viewAnalyzerPrompt();
-          break;
-        case "bulk":
-          // Toggle bulk-selection mode (mirrors the space/V bulk toggle).
-          setBulkMode((v) => !v);
-          break;
-        case "show-new":
-        case "newmail":
-          // Merge any held new mail into the list (banner click equivalent).
-          showPendingNew();
           break;
         case "help":
           setShowHelp(true);
@@ -2701,7 +2690,6 @@ export default function App() {
       rulesEnabled,
       openRules,
       viewAnalyzerPrompt,
-      showPendingNew,
       toggleToolbar,
       touchUp,
       touchUpText,

@@ -104,7 +104,6 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Trash selected" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Label selected" },
       { icon: "📦", keys: fmtKey(k.move), desc: "Move selected to folder" },
-      { icon: "⌨️", keys: ":bulk", desc: "Toggle bulk mode (command)" },
       { icon: "❌", keys: "Esc", desc: "Exit bulk mode" },
     ],
   });
@@ -138,9 +137,6 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         ...(f.prompts
           ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
           : []),
-        ...(f.rules
-          ? [{ icon: "🎛️", keys: ":analyzer-rules", desc: "AI analyzer preference rules" }]
-          : []),
         ...(f.actionPlan
           ? [
               { icon: "🧠", keys: fmtKey(k.actionPlan), desc: "Inbox action plan" },
@@ -148,9 +144,12 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
               { icon: "👁️", keys: "Enter", desc: "Peek email · apply bucket (label→move)" },
               { icon: "🏷️", keys: "l", desc: "Apply a label bucket as label-only" },
               { icon: "🔀", keys: "m", desc: "Recategorize email / bucket (in plan)" },
-              { icon: "📄", keys: "p / :view-prompt", desc: "Preview the analyzer prompt" },
+              { icon: "📄", keys: "p / :action-plan prompt", desc: "Preview the analyzer prompt" },
+              ...(f.rules
+                ? [{ icon: "🎛️", keys: ":action-plan rules", desc: "AI analyzer preference rules" }]
+                : []),
               { icon: "📐", keys: ":rules", desc: "Deterministic rules manager" },
-              { icon: "⚡", keys: ":rules run", desc: "Run deterministic rules (no AI)" },
+              { icon: "⚡", keys: ":rules plan", desc: "Run deterministic rules (no AI)" },
             ]
           : []),
       ],
