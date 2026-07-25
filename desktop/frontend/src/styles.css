@@ -205,6 +205,27 @@ button.danger {
   font-weight: 600;
   color: var(--fg);
 }
+/* Banner offering to merge background-fetched new mail (kept out of the list so
+   it never shifts rows under an in-progress action). */
+.new-mail-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-strong, var(--accent));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.new-mail-bar:hover {
+  filter: brightness(1.08);
+}
 .list-scope {
   font-size: 11px;
 }

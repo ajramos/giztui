@@ -144,6 +144,10 @@ export default function App() {
   // OAuth consent URL while first-run sign-in is pending (desktop only).
   const [authUrl, setAuthUrl] = useState("");
   const [messages, setMessages] = useState<MessageSummary[]>([]);
+  // New mail found by the background poll, held OUT of the list until the user
+  // asks to show it (via the banner or refresh) — auto-injecting it shifts rows
+  // under an in-progress operation and risks acting on the wrong message.
+  const [pendingNew, setPendingNew] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -500,6 +504,7 @@ export default function App() {
       const msgs = list.messages ?? [];
       setMessages(msgs);
       fullMessagesRef.current = msgs;
+      setPendingNew([]); // a fresh load already includes any new mail
       setNextToken(list.nextPageToken ?? "");
       // Select + preview the first message so the app opens ready to read.
       if (msgs.length > 0) previewRef.current(msgs[0]);
@@ -594,14 +599,29 @@ export default function App() {
         if (known.has(m.id)) break;
         fresh.push(m);
       }
-      if (fresh.length === 0) return;
-      fullMessagesRef.current = [...fresh, ...fullMessagesRef.current];
-      setMessages((prev) => [...fresh, ...prev]);
-      showToast(`${fresh.length} new message${fresh.length > 1 ? "s" : ""}`);
+      // Hold new mail in a banner instead of prepending it — injecting rows at
+      // the top while the user is reading/selecting shifts everything under them
+      // and they can end up acting on a different message than they see.
+      setPendingNew(fresh);
     } catch {
       /* transient; try again next tick */
     }
-  }, [activeQuery, draftsView, localFilter, showToast]);
+  }, [activeQuery, draftsView, localFilter]);
+
+  // showPendingNew merges the held new mail into the list (banner click / manual
+  // refresh). De-duped in case a manual refresh already pulled some in.
+  const showPendingNew = useCallback(() => {
+    setPendingNew((pending) => {
+      if (pending.length === 0) return pending;
+      const known = new Set(fullMessagesRef.current.map((m) => m.id));
+      const toAdd = pending.filter((m) => !known.has(m.id));
+      if (toAdd.length > 0) {
+        fullMessagesRef.current = [...toAdd, ...fullMessagesRef.current];
+        setMessages((prev) => [...toAdd, ...prev]);
+      }
+      return [];
+    });
+  }, []);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -3671,6 +3691,14 @@ export default function App() {
             </>
           ) : (
             <>
+          {/* New mail arrived in the background: show a banner instead of
+              injecting it, so the list never shifts under an in-progress action.
+              Clicking (or refreshing) merges it in. */}
+          {pendingNew.length > 0 && (
+            <button className="new-mail-bar" onClick={showPendingNew}>
+              ↑ {pendingNew.length} new message{pendingNew.length > 1 ? "s" : ""} — show
+            </button>
+          )}
           {/* Loaded-message count (TUI parity — the list title's message tally).
               Shows how many are loaded, a trailing "+" when more can be fetched,
               and "N of M" while a local filter narrows the loaded set. */}
