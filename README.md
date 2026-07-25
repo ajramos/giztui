@@ -64,6 +64,36 @@ mv giztui /usr/local/bin/
 go install github.com/ajramos/giztui/cmd/giztui@latest
 ```
 
+### Desktop app (GUI)
+
+There's also a **desktop client** (Wails) that shares the same service layer and
+aims for keyboard-first parity with the TUI.
+
+**macOS — Homebrew cask:**
+```bash
+brew tap ajramos/giztui
+# Third-party taps must be trusted once before installing their casks:
+brew trust ajramos/giztui
+brew install --cask giztui-desktop
+```
+
+> The first `brew install` from a third-party tap will refuse to load the cask
+> with *"Refusing to load cask … from untrusted tap"* until you run
+> `brew trust ajramos/giztui` (or `brew trust --cask ajramos/giztui/giztui-desktop`).
+> This is normal Homebrew behavior for taps outside `homebrew/core`.
+
+**All platforms — direct download** (from the [latest release](https://github.com/ajramos/giztui/releases/latest)):
+- macOS: `GizTUI-Desktop-<ver>-universal.dmg`
+- Windows: `GizTUI-Desktop-<ver>-windows-amd64-setup.exe` (installer) or `…-windows-amd64.zip` (portable)
+- Linux: `GizTUI-Desktop-<ver>-x86_64.AppImage` or `…-linux-amd64.tar.gz`
+
+> The desktop builds are currently **unsigned**. macOS Gatekeeper / Windows
+> SmartScreen will warn on first launch — on macOS open via right-click → Open
+> (Homebrew installs already strip the quarantine attribute). See
+> [docs/DESKTOP_DISTRIBUTION.md](docs/DESKTOP_DISTRIBUTION.md) for details and the
+> signing/notarization plan. The desktop app reuses the same
+> `~/.config/giztui/` credentials and token as the TUI.
+
 ### First Run
 
 1. **Setup Gmail API credentials** ([detailed guide](docs/GETTING_STARTED.md#gmail-api-setup)):

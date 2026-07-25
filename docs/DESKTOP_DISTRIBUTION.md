@@ -101,7 +101,9 @@ cask "giztui-desktop" do
 end
 ```
 
-Install: `brew tap ajramos/giztui && brew install --cask giztui-desktop`.
+Install: `brew tap ajramos/giztui && brew trust ajramos/giztui && brew install --cask giztui-desktop`.
+(`brew trust` is required once — recent Homebrew refuses casks from untrusted
+third-party taps. Audit **by name** after trusting: `brew audit --cask giztui-desktop`.)
 
 **Auto-bump**: after a successful release, a step opens a PR (or pushes) to the
 tap updating `version` + `sha256` from the new DMG. Options: a small script with
