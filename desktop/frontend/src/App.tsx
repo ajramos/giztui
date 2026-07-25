@@ -2854,11 +2854,15 @@ export default function App() {
           sc?.scrollBy({ top: -80 });
           return;
         }
-        if (chord === "space" || chord === "PageDown") {
+        if (chord === "PageDown") {
           e.preventDefault();
           sc?.scrollBy({ top: page });
           return;
         }
+        // NB: Space is intentionally NOT a reader-scroll key. It always means
+        // "select this message" (bulk select) — even while a message is open — so
+        // it falls through to the selection handler below. Page the reader with
+        // PageDown / j / ArrowDown instead.
         if (chord === "PageUp") {
           e.preventDefault();
           sc?.scrollBy({ top: -page });
