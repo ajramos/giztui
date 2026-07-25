@@ -60,7 +60,7 @@ const PAGE_SIZE = 50;
 // Command palette entries (`:` command mode), mirroring the TUI's command set.
 const COMMANDS: CommandDef[] = [
   { names: ["search", "s"], desc: "Gmail search", arg: "<query>" },
-  { names: ["unread"], desc: "Show unread only" },
+  { names: ["unread", "u"], desc: "Show unread only" },
   { names: ["advanced", "adv"], desc: "Advanced search builder" },
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["stats", "usage"], desc: "AI prompt usage stats" },
@@ -74,11 +74,11 @@ const COMMANDS: CommandDef[] = [
   { names: ["labels", "l"], desc: "Manage labels" },
   { names: ["compose", "c", "new"], desc: "New message" },
   { names: ["reply", "r"], desc: "Reply" },
-  { names: ["replyall", "ra"], desc: "Reply all" },
+  { names: ["replyall", "reply-all", "ra"], desc: "Reply all" },
   { names: ["forward", "f"], desc: "Forward" },
   { names: ["refresh"], desc: "Refresh inbox" },
   { names: ["drafts", "dr"], desc: "Drafts" },
-  { names: ["links"], desc: "Links in message" },
+  { names: ["links", "link"], desc: "Links in message" },
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
   { names: ["accept"], desc: "RSVP: accept invite" },
@@ -86,12 +86,12 @@ const COMMANDS: CommandDef[] = [
   { names: ["decline"], desc: "RSVP: decline invite" },
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
   { names: ["summarize", "sum", "summary"], desc: "AI summary" },
-  { names: ["prompt"], desc: "Apply a prompt" },
+  { names: ["prompt", "pr", "p"], desc: "Apply a prompt" },
   { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
   { names: ["slack", "sl"], desc: "Forward to Slack" },
-  { names: ["gmail", "web", "o"], desc: "Open in Gmail" },
+  { names: ["gmail", "web", "open-web", "o"], desc: "Open in Gmail" },
   { names: ["threads", "thr"], desc: "Toggle conversation view" },
   { names: ["expand-all", "expand", "flatten", "flat"], desc: "Expand all in thread" },
   { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
@@ -109,7 +109,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
   { names: ["bottom", "end", "$"], desc: "Go to last row" },
   { names: ["queries"], desc: "Saved searches" },
-  { names: ["savequery"], desc: "Save current search" },
+  { names: ["savequery", "save-query", "sq"], desc: "Save current search" },
   { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan", arg: "[rules|prompt]" },
   { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run|plan]" },
   { names: ["rp"], desc: "Run deterministic rules (:rules plan)" },
@@ -130,7 +130,7 @@ const COMMANDS: CommandDef[] = [
   { names: ["regenerate", "regen"], desc: "Regenerate the open AI panel (summary/prompt)" },
   { names: ["dismiss", "close-ai"], desc: "Close the open AI panel" },
   { names: ["quit", "q", "exit"], desc: "Quit GizTUI" },
-  { names: ["help"], desc: "Keyboard shortcuts" },
+  { names: ["help", "h"], desc: "Keyboard shortcuts" },
 ];
 
 export default function App() {
@@ -2276,6 +2276,7 @@ export default function App() {
           void load("");
           break;
         case "unread":
+        case "u":
           void load("is:unread");
           break;
         case "archived":
@@ -2311,6 +2312,7 @@ export default function App() {
           if (d) setCompose(replyInit(d));
           break;
         case "replyall":
+        case "reply-all":
         case "ra":
           if (d) setCompose(replyAllInit(d));
           break;
@@ -2326,6 +2328,7 @@ export default function App() {
           openDrafts();
           break;
         case "links":
+        case "link":
           if (d) setLinksFor(d.id);
           break;
         case "save":
@@ -2337,6 +2340,8 @@ export default function App() {
           if (d && aiEnabled) void summarize(d.id);
           break;
         case "prompt":
+        case "pr":
+        case "p":
           if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0)))
             setPromptsOpen(true);
           break;
@@ -2353,6 +2358,7 @@ export default function App() {
           break;
         case "gmail":
         case "web":
+        case "open-web":
         case "o":
           if (d) openInGmail(d.id);
           break;
@@ -2446,6 +2452,8 @@ export default function App() {
           break;
         }
         case "savequery":
+        case "save-query":
+        case "sq":
           if (savedQueriesOn && activeQuery) setSaveQueryOpen(true);
           break;
         case "move":
@@ -2634,6 +2642,7 @@ export default function App() {
           void runDeterministicRules();
           break;
         case "help":
+        case "h":
           setShowHelp(true);
           break;
         case "g":
