@@ -7,8 +7,16 @@
 > assistant's ephemeral context) so a fresh session, or a human, can pick it up
 > mid-flight. Update the **Progress tracker** as phases land.
 
-**Status:** APPROVED — executing F0 → F1 → F2 this batch (F3 hooks deferred).
+**Status:** F0–F2 DONE & merged (PR #61). Approach approved.
 **Owner:** _tbd_ · **Last updated:** 2026-07-25
+
+> **▶ RESUME HERE (next session).** F0–F2 are merged: vitest harness + `format.ts`,
+> `compose.ts`, `commands.ts` extracted (38 unit tests; `npm test`). **Next is F3
+> (subsystem hooks) — but FIRST build the Playwright integration suite** (§5), the
+> only net for the coupled behavior; then extract hooks safest→riskiest with
+> `useAiPanels` LAST. Re-read §3 (landmines) before touching any stateful code.
+> The branch `claude/giztui-visual-client-iadjgl` was reset off `main` after each
+> merge — reset it to latest `main` again before starting.
 
 > **Sequencing note (refinement, approved):** Playwright integration tests protect
 > the *coupled* refactors (F3). F1/F2 are pure/near-pure and are protected by unit
@@ -162,9 +170,20 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 4. Stop before F3 unless F0 is done and Playwright is protecting the flow.
 5. If a step can't preserve a §3 landmine contract, abandon that step and rethink.
 
-## 9. Open decisions (needed before executing)
+## 9. Open decisions
 
-- [ ] Approve **vitest + jsdom** as the unit harness.
-- [ ] Confirm order: **F0 → F1 → F2 this batch; F3 (hooks) in dedicated sessions.**
+- [x] vitest + jsdom approved as the unit harness.
+- [x] Order approved: F0 → F1 → F2 this batch; F3 (hooks) in dedicated sessions.
 - [ ] Where do Playwright specs live (`desktop/frontend/e2e/`?) and do we wire them
-  into CI or keep them local-run for now?
+  into CI or keep them local-run for now? (decide at F3 start)
+
+## 10. Related outstanding work (NOT this plan — separate backlog)
+
+- [ ] Add repo secret **`HOMEBREW_TAP_TOKEN`** (contents:write on
+  `ajramos/homebrew-giztui`) so `release-desktop.yml`'s cask auto-bump runs.
+- [ ] macOS **notarization** + Windows signing (phase 2 in `DESKTOP_DISTRIBUTION.md`)
+  — the biggest user-facing friction (Gatekeeper/SmartScreen on unsigned builds).
+- [ ] Product decision: keep or remove **`:touch-up`** (user finds it unclear).
+- [ ] Minor TUI↔desktop command-parity gaps (`:numbers`, `:preload`, bookmarks).
+- [ ] Coverage baseline (2026-07-25): Go `internal/services` 32%, `pkg/desktop` 24%,
+  `internal/tui` 9.7%; **frontend bootstrapped 0 → 38 unit tests**.
