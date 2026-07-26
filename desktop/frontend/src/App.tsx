@@ -8,11 +8,9 @@ import {
   summarizeStream,
   threadSummaryStream,
   type AccountInfo,
-  type Attachment,
   type DraftSummary,
   type KeyMap,
   type Label,
-  type Invite,
   type UsageStats,
   type ConfigInfo,
   type MessageDetail,
@@ -69,6 +67,8 @@ import MoreMenu from "./MoreMenu";
 import { useListNav } from "./useListNav";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
+import { useAttachments } from "./useAttachments";
+import { useRsvp } from "./useRsvp";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -92,8 +92,6 @@ export default function App() {
   const [pendingNew, setPendingNew] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   // Whether keyboard focus is "in" the reader: after Enter/click-open (or a click
   // inside the reader) the arrow/j/k keys scroll the message instead of moving
   // the inbox cursor. Escape returns focus to the list. Mirrors the TUI, where
@@ -292,18 +290,10 @@ export default function App() {
   const runningLabelRef = useRef<Record<string, string>>({});
   const touchUpTextRef = useRef(touchUpText);
   touchUpTextRef.current = touchUpText;
-  const [rsvpEnabled, setRsvpEnabled] = useState(false);
-  const [invite, setInvite] = useState<Invite | null>(null);
-  const [rsvpBusy, setRsvpBusy] = useState("");
   const [statsOpen, setStatsOpen] = useState(false);
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [configInfo, setConfigInfo] = useState<ConfigInfo | null>(null);
-  // Ref mirror so loadMessage (stable, no deps) can read the latest value.
-  const rsvpEnabledRef = useRef(false);
-  useEffect(() => {
-    rsvpEnabledRef.current = rsvpEnabled;
-  }, [rsvpEnabled]);
   // headersExpanded reveals the extra cc/thread/id detail (via the ⋯ menu).
   // headersHidden collapses the whole From/To/Date block for more body room and
   // is what the `h` key toggles, matching the TUI's toggle_headers.
@@ -315,8 +305,6 @@ export default function App() {
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
   const [csIndex, setCsIndex] = useState(0);
-  // The RSVP bar auto-shows for invites; V opens a keyboard-navigable picker.
-  const [rsvpPickerOpen, setRsvpPickerOpen] = useState(false);
   // The reader toolbar is optional — GizTUI is keyboard-first, so users can
   // hide it and drive everything from the keyboard. The choice is persisted.
   const [showToolbar, setShowToolbar] = useState(
@@ -404,6 +392,28 @@ export default function App() {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   }, []);
+
+  // Per-message subsystems extracted from App.tsx (F3.2). Their per-message data
+  // is still fetched inside loadMessage (gated by openIdRef) via the setters
+  // below; the hooks own the state + standalone actions.
+  const {
+    attachments,
+    setAttachments,
+    attachmentsOpen,
+    setAttachmentsOpen,
+    downloadAttachment,
+  } = useAttachments(detail, { setBusy, setError, showToast });
+  const {
+    rsvpEnabled,
+    setRsvpEnabled,
+    rsvpEnabledRef,
+    invite,
+    setInvite,
+    rsvpBusy,
+    rsvpPickerOpen,
+    setRsvpPickerOpen,
+    respondInvite,
+  } = useRsvp({ setError, showToast });
 
   // When an AI result panel starts, reveal it (the panels render at the top of
   // the reader, so if you'd scrolled down they'd appear above the fold and look
@@ -1319,23 +1329,6 @@ export default function App() {
     }
   }, [updateAiCache]);
 
-  // respondInvite sends an RSVP (accepted/tentative/declined) for the open
-  // message's calendar invite.
-  const respondInvite = useCallback(
-    async (id: string, status: "accepted" | "tentative" | "declined") => {
-      setRsvpBusy(status);
-      setError("");
-      try {
-        await backend.RespondInvite(id, status);
-        showToast(`RSVP: ${status}`);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setRsvpBusy("");
-      }
-    },
-    [showToast],
-  );
 
   const openStats = useCallback(async () => {
     setStatsOpen(true);
@@ -2676,26 +2669,6 @@ export default function App() {
       resetZoom,
       setZoom,
     ],
-  );
-
-  const downloadAttachment = useCallback(
-    async (att: Attachment) => {
-      if (!detail) return;
-      setBusy(true);
-      try {
-        const path = await backend.DownloadAttachment(
-          detail.id,
-          att.attachmentId,
-          att.filename,
-        );
-        showToast(`Saved to ${path}`);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [detail, showToast],
   );
 
   // Invert the (config-driven) keymap into a chord → action lookup. gotoTop is
