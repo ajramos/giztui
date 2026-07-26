@@ -39,6 +39,20 @@ import AttachmentsPicker from "./AttachmentsPicker";
 import Markdown from "./Markdown";
 import AiPanel from "./AiPanel";
 import {
+  displayName,
+  matchesCombo,
+  emailAddr,
+  labelForAction,
+  formatICSDate,
+  mixHex,
+  cleanSubject,
+  countMatches,
+  formatDate,
+  formatFull,
+  formatSize,
+} from "./format";
+import { replyInit, replyAllInit, forwardInit } from "./compose";
+import {
   buildMoveTargets,
   applyPlanMove,
   sortPlanCategories,
@@ -50,90 +64,13 @@ import HtmlBody from "./HtmlBody";
 import PlainBody from "./PlainBody";
 import HighlightedText from "./HighlightedText";
 import Help from "./Help";
-import CommandBar, { type CommandDef } from "./CommandBar";
+import CommandBar from "./CommandBar";
+import { COMMANDS, parseCommand } from "./commands";
 import MoreMenu from "./MoreMenu";
 import { useListNav } from "./useListNav";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
-
-// Command palette entries (`:` command mode), mirroring the TUI's command set.
-const COMMANDS: CommandDef[] = [
-  { names: ["search", "s"], desc: "Gmail search", arg: "<query>" },
-  { names: ["unread", "u"], desc: "Show unread only" },
-  { names: ["advanced", "adv"], desc: "Advanced search builder" },
-  { names: ["local"], desc: "Toggle local filter / Gmail search" },
-  { names: ["stats", "usage"], desc: "AI prompt usage stats" },
-  { names: ["config", "cfg"], desc: "Show configuration" },
-  { names: ["cache"], desc: "Clear AI caches" },
-  { names: ["archive", "a"], desc: "Archive message" },
-  { names: ["trash", "d"], desc: "Trash message" },
-  { names: ["undo"], desc: "Undo last action" },
-  { names: ["read"], desc: "Mark read" },
-  { names: ["markunread"], desc: "Mark unread" },
-  { names: ["toggle-read", "t"], desc: "Toggle read / unread" },
-  { names: ["labels", "l"], desc: "Manage labels" },
-  { names: ["compose", "c", "new"], desc: "New message" },
-  { names: ["reply", "r"], desc: "Reply" },
-  { names: ["replyall", "reply-all", "ra"], desc: "Reply all" },
-  { names: ["forward", "f"], desc: "Forward" },
-  { names: ["refresh"], desc: "Refresh inbox" },
-  { names: ["drafts", "dr"], desc: "Drafts" },
-  { names: ["links", "link"], desc: "Links in message" },
-  { names: ["save"], desc: "Save to file" },
-  { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
-  { names: ["rsvp"], desc: "Open RSVP picker for invite" },
-  { names: ["accept"], desc: "RSVP: accept invite" },
-  { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
-  { names: ["decline"], desc: "RSVP: decline invite" },
-  { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
-  { names: ["summarize", "sum", "summary"], desc: "AI summary" },
-  { names: ["prompt", "pr", "p"], desc: "Apply a prompt" },
-  { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
-  { names: ["suggest"], desc: "Suggest labels (AI)" },
-  { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
-  { names: ["slack", "sl"], desc: "Forward to Slack" },
-  { names: ["gmail", "web", "open-web", "o"], desc: "Open in Gmail" },
-  { names: ["threads", "thr"], desc: "Toggle conversation view" },
-  { names: ["expand-all", "expand", "flatten", "flat"], desc: "Expand all in thread" },
-  { names: ["collapse-all", "collapse"], desc: "Collapse all in thread" },
-  { names: ["thread-summary", "th-sum"], desc: "Summarize thread (AI)" },
-  { names: ["inbox", "i"], desc: "Back to inbox" },
-  { names: ["archived", "b", "arch-search"], desc: "Archived messages" },
-  { names: ["markdown", "md"], desc: "Toggle HTML / text" },
-  { names: ["images", "remote", "img"], desc: "Load / block remote images" },
-  { names: ["images-always", "always-images", "imgall"], desc: "Always load remote images (on/off)" },
-  { names: ["load", "more", "next"], desc: "Load more messages" },
-  { names: ["attachments", "attach"], desc: "Focus attachments" },
-  { names: ["accounts", "acc"], desc: "Switch account" },
-  { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
-  { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
-  { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
-  { names: ["bottom", "end", "$"], desc: "Go to last row" },
-  { names: ["queries"], desc: "Saved searches" },
-  { names: ["savequery", "save-query", "sq"], desc: "Save current search" },
-  { names: ["plan", "actionplan", "action-plan", "ap"], desc: "AI inbox action plan", arg: "[rules|prompt]" },
-  { names: ["rules", "ru"], desc: "Deterministic rules manager", arg: "[run|plan]" },
-  { names: ["rp"], desc: "Run deterministic rules (:rules plan)" },
-  { names: ["move", "mv"], desc: "Move to folder", arg: "[label]" },
-  { names: ["draft", "replyai"], desc: "Draft reply (AI)" },
-  { names: ["find"], desc: "Find in message", arg: "<text>" },
-  { names: ["from"], desc: "Search from this sender" },
-  { names: ["to"], desc: "Search to this recipient" },
-  { names: ["subject"], desc: "Search this subject" },
-  { names: ["headers", "toggle-headers"], desc: "Toggle headers" },
-  { names: ["toolbar"], desc: "Show/hide reader toolbar" },
-  { names: ["zoom-in", "zi"], desc: "Bigger UI text (Cmd/Ctrl +)" },
-  { names: ["zoom-out", "zo"], desc: "Smaller UI text (Cmd/Ctrl -)" },
-  { names: ["zoom-reset"], desc: "Reset UI zoom (Cmd/Ctrl 0)" },
-  { names: ["zoom"], desc: "Set UI zoom", arg: "<0.6-2.4>" },
-  { names: ["touch-up", "touchup"], desc: "Reformat message with AI" },
-  { names: ["theme", "th"], desc: "Change theme", arg: "[name]" },
-  { names: ["regenerate", "regen"], desc: "Regenerate the open AI panel (summary/prompt)" },
-  { names: ["dismiss", "close-ai"], desc: "Close the open AI panel" },
-  { names: ["quit", "q", "exit"], desc: "Quit GizTUI" },
-  { names: ["help", "h"], desc: "Keyboard shortcuts" },
-];
 
 export default function App() {
   const [account, setAccount] = useState("");
@@ -1774,28 +1711,6 @@ export default function App() {
     if (aiEnabled) void summarize(id, true);
   }, [summarize, runPrompt, touchUp, aiEnabled]);
 
-  const replyInit = (d: MessageDetail): ComposeInit => ({
-    mode: "reply",
-    originalId: d.id,
-    to: d.from,
-  });
-
-  // Reply-all: reply threaded, adding the original To/Cc recipients as Cc.
-  const replyAllInit = (d: MessageDetail): ComposeInit => {
-    const extra = [d.to, d.cc]
-      .filter(Boolean)
-      .join(", ")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s && !d.from.includes(s));
-    return {
-      mode: "reply",
-      originalId: d.id,
-      to: d.from,
-      cc: [...new Set(extra)].join(", "),
-    };
-  };
-
   const saveMessage = useCallback(
     (id: string) => {
       void backend
@@ -2340,9 +2255,7 @@ export default function App() {
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
     (input: string) => {
-      const parts = input.trim().split(/\s+/);
-      const cmd = (parts[0] || "").toLowerCase();
-      const arg = parts.slice(1).join(" ");
+      const { cmd, arg } = parseCommand(input);
       const d = detail;
       // Move the cursor/preview to a 1-based row (shared by :g, :$ and :N).
       const gotoRow = (n1: number) => {
@@ -2829,12 +2742,6 @@ export default function App() {
       resetZoom,
     ],
   );
-
-  const forwardInit = (d: MessageDetail): ComposeInit => ({
-    mode: "new",
-    subject: d.subject.startsWith("Fwd:") ? d.subject : `Fwd: ${d.subject}`,
-    body: `\n\n---------- Forwarded message ----------\nFrom: ${d.from}\nDate: ${d.date}\nSubject: ${d.subject}\nTo: ${d.to}\n\n${d.plainText}`,
-  });
 
   const downloadAttachment = useCallback(
     async (att: Attachment) => {
@@ -5603,145 +5510,3 @@ export default function App() {
 
 // --- helpers -----------------------------------------------------------------
 
-function displayName(from: string): string {
-  const m = from.match(/^\s*"?([^"<]+?)"?\s*</);
-  if (m) return m[1].trim();
-  return from.split("@")[0] || from;
-}
-
-// matchesCombo reports whether a keyboard event matches a TUI-style modifier
-// combo like "ctrl+f" or "ctrl+shift+p". Ctrl and Cmd are treated as
-// interchangeable so a config's "ctrl+f" also fires on macOS's Cmd+F. Only
-// combos that include a modifier are matched — a bare key returns false so it
-// never hijacks normal typing/actions.
-function matchesCombo(e: KeyboardEvent, combo: string): boolean {
-  const parts = combo.toLowerCase().split("+");
-  const key = parts[parts.length - 1];
-  const wantCtrlOrMeta = parts.includes("ctrl") || parts.includes("cmd") || parts.includes("meta");
-  const wantShift = parts.includes("shift");
-  const wantAlt = parts.includes("alt") || parts.includes("option");
-  if (!wantCtrlOrMeta && !wantAlt) return false; // require a modifier
-  if (wantCtrlOrMeta !== (e.ctrlKey || e.metaKey)) return false;
-  if (wantAlt !== e.altKey) return false;
-  if (wantShift !== e.shiftKey) return false;
-  return e.key.toLowerCase() === key;
-}
-
-function emailAddr(from: string): string {
-  const m = from.match(/<([^>]+)>/);
-  return m ? m[1] : from;
-}
-
-// labelForAction is the present-participle verb shown while a bulk action runs.
-function labelForAction(action: string): string {
-  switch (action) {
-    case "archive":
-      return "Archiving";
-    case "trash":
-      return "Trashing";
-    case "read":
-      return "Marking read";
-    case "unread":
-      return "Marking unread";
-    default:
-      return "Working on";
-  }
-}
-
-// formatICSDate turns an iCalendar date-time (optionally with a ;TZID= prefix,
-// e.g. "20260720T150000" or ";TZID=Europe/Madrid:20260720T150000") into a
-// human-readable local string.
-function formatICSDate(raw: string): string {
-  const v = raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw;
-  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?Z?)?/);
-  if (!m) return raw;
-  const [, y, mo, d, hh = "00", mm = "00"] = m;
-  const dt = new Date(
-    Number(y),
-    Number(mo) - 1,
-    Number(d),
-    Number(hh),
-    Number(mm),
-  );
-  if (Number.isNaN(dt.getTime())) return raw;
-  return dt.toLocaleString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// mixHex blends hex color `a` toward `b` by t∈[0,1]. Falls back to `a` when
-// either isn't a parseable #rgb / #rrggbb string, so theme mapping never breaks.
-function mixHex(a: string, b: string, t: number): string {
-  const parse = (h: string): [number, number, number] | null => {
-    let s = h.trim().replace(/^#/, "");
-    if (s.length === 3) s = s.replace(/(.)/g, "$1$1");
-    if (s.length !== 6 || /[^0-9a-fA-F]/.test(s)) return null;
-    return [
-      parseInt(s.slice(0, 2), 16),
-      parseInt(s.slice(2, 4), 16),
-      parseInt(s.slice(4, 6), 16),
-    ];
-  };
-  const ca = parse(a);
-  const cb = parse(b);
-  if (!ca || !cb) return a;
-  const mix = (x: number, y: number) =>
-    Math.round(x + (y - x) * t)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${mix(ca[0], cb[0])}${mix(ca[1], cb[1])}${mix(ca[2], cb[2])}`;
-}
-
-// cleanSubject strips Re:/Fwd: prefixes so a subject search matches the thread.
-function cleanSubject(subject: string): string {
-  return subject.replace(/^(\s*(re|fwd|fw)\s*:\s*)+/i, "").trim() || subject;
-}
-
-// countMatches returns how many times query occurs in text (case-insensitive).
-function countMatches(text: string, query: string): number {
-  if (!query) return 0;
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  let n = 0;
-  let i = t.indexOf(q);
-  while (i !== -1) {
-    n++;
-    i = t.indexOf(q, i + q.length);
-  }
-  return n;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
-function formatFull(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString();
-}
-
-function formatSize(bytes: number): string {
-  if (bytes <= 0) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let n = bytes;
-  let u = 0;
-  while (n >= 1024 && u < units.length - 1) {
-    n /= 1024;
-    u++;
-  }
-  return `${n.toFixed(u === 0 ? 0 : 1)} ${units[u]}`;
-}

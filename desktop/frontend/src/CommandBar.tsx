@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
+import { type CommandDef, filterCommands, resolveEnter } from "./commands";
 
-export interface CommandDef {
-  names: string[]; // first is canonical, rest are aliases
-  desc: string;
-  arg?: string; // placeholder hint when the command takes an argument
-}
+export type { CommandDef };
 
 export default function CommandBar({
   commands,
@@ -18,13 +15,10 @@ export default function CommandBar({
   const [input, setInput] = useState("");
   const [active, setActive] = useState(0);
 
-  const matches = useMemo(() => {
-    const word = input.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-    if (!word) return commands;
-    return commands.filter((c) =>
-      c.names.some((n) => n.toLowerCase().startsWith(word)),
-    );
-  }, [commands, input]);
+  const matches = useMemo(
+    () => filterCommands(commands, input),
+    [commands, input],
+  );
 
   const submit = (value: string) => {
     const v = value.trim();
@@ -56,17 +50,9 @@ export default function CommandBar({
             if (matches[active]) setInput(matches[active].names[0] + " ");
           } else if (e.key === "Enter") {
             e.preventDefault();
-            // If the typed word matches a command exactly, run the input as-is
-            // (keeps arguments); otherwise run the highlighted suggestion.
-            const word = input.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-            const exact = commands.find((c) =>
-              c.names.some((n) => n.toLowerCase() === word),
-            );
-            if (exact) submit(input);
-            else if (matches[active]) submit(matches[active].names[0]);
-            // No suggestion matched (e.g. a numeric jump like ":5" or ":$") —
-            // run the raw input so the dispatcher can still handle it.
-            else submit(input);
+            // Exact command → run input as-is (keeps args); else the highlighted
+            // suggestion; else the raw input (numeric jumps like :5 / :$).
+            submit(resolveEnter(commands, input, active));
           }
         }}
       >
