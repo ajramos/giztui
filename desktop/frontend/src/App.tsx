@@ -69,6 +69,7 @@ import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
 import { useRsvp } from "./useRsvp";
+import { useThreading } from "./useThreading";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -205,10 +206,6 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [threadingOn, setThreadingOn] = useState(false);
-  const [threadMsgs, setThreadMsgs] = useState<MessageDetail[] | null>(null);
-  const [collapsedMsgs, setCollapsedMsgs] = useState<Set<string>>(new Set());
-  const [loadingThread, setLoadingThread] = useState(false);
   const [savedQueriesOn, setSavedQueriesOn] = useState(false);
   const [queriesOpen, setQueriesOpen] = useState(false);
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
@@ -414,6 +411,16 @@ export default function App() {
     setRsvpPickerOpen,
     respondInvite,
   } = useRsvp({ setError, showToast });
+  const {
+    threadingOn,
+    setThreadingOn,
+    threadMsgs,
+    setThreadMsgs,
+    collapsedMsgs,
+    setCollapsedMsgs,
+    loadingThread,
+    toggleThread,
+  } = useThreading(detail, { setError });
 
   // When an AI result panel starts, reveal it (the panels render at the top of
   // the reader, so if you'd scrolled down they'd appear above the fold and look
@@ -1705,24 +1712,6 @@ export default function App() {
     },
     [suggestFor, showToast],
   );
-
-  const toggleThread = useCallback(async () => {
-    if (!detail) return;
-    if (threadMsgs) {
-      setThreadMsgs(null);
-      return;
-    }
-    setLoadingThread(true);
-    setError("");
-    try {
-      const msgs = await backend.GetThread(detail.threadId);
-      setThreadMsgs(msgs);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingThread(false);
-    }
-  }, [detail, threadMsgs]);
 
   const summarizeThread = useCallback(async () => {
     if (!detail) return;

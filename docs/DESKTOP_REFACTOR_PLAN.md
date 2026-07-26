@@ -17,9 +17,12 @@
 > the coupled flows (open→summarize, apply-prompt→switch→return, summary/prompt
 > per-message caching, search scope, picker open/arrow/Escape). **F3.1 is DONE
 > too — `useZoom` + `useTheme`** (safest hooks; guarded by `e2e/zoom.spec.ts` +
-> `e2e/theme.spec.ts`). **Next is F3.2 (`useThreading`, `useAttachments`,
-> `useRsvp`) → F3.3 (`useMessages`, touches `openIdRef`) → F3.4 (`useAiPanels`,
-> the 68-setter tangle) LAST.** For every hook extraction: keep `npm run test:e2e`
+> `e2e/theme.spec.ts`). **F3.2 is DONE too** — `useAttachments` + `useRsvp` +
+> `useThreading` extracted (per-message fetch/reset stays in `loadMessage`;
+> `summarizeThread` deferred to F3.4). **Next is F3.3 (`useMessages` —
+> list/load/pagination/pendingNew/prune; touches `openIdRef` and the load-bearing
+> reset order in `loadMessage`) → F3.4 (`useAiPanels`, the 68-setter tangle)
+> LAST.** For every hook extraction: keep `npm run test:e2e`
 > green (extend it when a hook adds a flow it doesn't yet cover) and re-read §3
 > (landmines) before touching any stateful code. The branch
 > `claude/giztui-visual-client-iadjgl` was reset off `main` after each merge —
@@ -165,7 +168,7 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 - [x] **F2** Command layer — `commands.ts` (COMMANDS + pure `parseCommand`/`filterCommands`/`resolveEnter`), CommandBar/App rewired, 9 unit tests + integrity check ✅. Scope kept safe: the big `executeCommand` switch stays as the handler adapter; **data-driven dispatch (actions object) is deferred** — low marginal value, higher risk.
 - [x] **F3.0** Playwright integration net — `@playwright/test` + `playwright.config.ts` (pre-installed Chromium, vite `webServer` on :5199) + `desktop/frontend/e2e/` (13 specs across inbox/reader, search scope, AI summary+prompt caching/landmines, pickers). `npm run test:e2e`. This is the safety net that guards every F3.x hook extraction ✅.
 - [x] **F3.1** `useZoom` (`src/useZoom.ts`) + `useTheme` (`src/useTheme.ts`) — behavior-preserving moves out of App.tsx (−65 net lines). No §3 landmines touched. Guarded by new e2e specs (`e2e/zoom.spec.ts`, `e2e/theme.spec.ts`; suite now 18 specs). Diff was a pure relocation (verified) ✅.
-- [ ] **F3.2** useThreading / useAttachments / useRsvp
+- [x] **F3.2** `useAttachments` + `useRsvp` + `useThreading` (`src/useAttachments.ts`, `src/useRsvp.ts`, `src/useThreading.ts`) — behavior-preserving moves. The per-message fetch/reset lines stay in `loadMessage` and call the hooks' setters/refs under the same names, so the reset ORDER + `openIdRef` gating are byte-identical. **`summarizeThread` deliberately stays in App.tsx** (it writes the AI-summary panel state → belongs to F3.4). Guarded by `e2e/attachments.spec.ts`, `e2e/rsvp.spec.ts`, `e2e/threading.spec.ts`; suite now 25 ✅.
 - [ ] **F3.3** useMessages
 - [ ] **F3.4** useAiPanels  ⚠️ highest risk
 - [ ] **F4** JSX component splits
