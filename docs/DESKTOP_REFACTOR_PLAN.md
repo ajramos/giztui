@@ -7,8 +7,13 @@
 > assistant's ephemeral context) so a fresh session, or a human, can pick it up
 > mid-flight. Update the **Progress tracker** as phases land.
 
-**Status:** DRAFT — pending sign-off on approach. Nothing refactored yet.
+**Status:** APPROVED — executing F0 → F1 → F2 this batch (F3 hooks deferred).
 **Owner:** _tbd_ · **Last updated:** 2026-07-25
+
+> **Sequencing note (refinement, approved):** Playwright integration tests protect
+> the *coupled* refactors (F3). F1/F2 are pure/near-pure and are protected by unit
+> tests, so this batch only stands up the **vitest** harness now; the Playwright
+> suite is built at the **start of F3** (when it actually guards a coupled change).
 
 ---
 
@@ -140,8 +145,8 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 
 ## 7. Progress tracker
 
-- [ ] **F0** Harness (vitest + Playwright suite)
-- [ ] **F1** Pure helpers + unit tests
+- [x] **F0** Harness — vitest + jsdom, `test` script (Playwright suite deferred to F3 start)
+- [~] **F1** Pure helpers + unit tests — `format.ts` (11 fns) extracted + 23 tests ✅; compose builders pending
 - [ ] **F2** Command layer + unit tests
 - [ ] **F3.1** useZoom / useTheme
 - [ ] **F3.2** useThreading / useAttachments / useRsvp
