@@ -224,9 +224,9 @@ func (a *API) GetMessage(ctx context.Context, id string) (*MessageDetail, error)
 		Labels:    userLabels(msg.Labels),
 	}
 	if msg.Message != nil {
-		detail.ID = msg.Message.Id
-		detail.ThreadID = msg.Message.ThreadId
-		detail.Unread = containsLabel(msg.Message.LabelIds, "UNREAD")
+		detail.ID = msg.Id
+		detail.ThreadID = msg.ThreadId
+		detail.Unread = containsLabel(msg.LabelIds, "UNREAD")
 	}
 	return detail, nil
 }

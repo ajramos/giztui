@@ -30,6 +30,7 @@ func SetupFileLogging() (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", err
 	}
+	// #nosec G304 -- path is the app's own log file under the config dir, not external input
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return "", err
