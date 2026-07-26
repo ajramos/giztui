@@ -147,7 +147,7 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 
 - [x] **F0** Harness — vitest + jsdom, `test` script (Playwright suite deferred to F3 start)
 - [x] **F1** Pure helpers + unit tests — `format.ts` (11 fns, 23 tests) + `compose.ts` (reply/replyAll/forward, 6 tests) ✅
-- [ ] **F2** Command layer + unit tests
+- [x] **F2** Command layer — `commands.ts` (COMMANDS + pure `parseCommand`/`filterCommands`/`resolveEnter`), CommandBar/App rewired, 9 unit tests + integrity check ✅. Scope kept safe: the big `executeCommand` switch stays as the handler adapter; **data-driven dispatch (actions object) is deferred** — low marginal value, higher risk.
 - [ ] **F3.1** useZoom / useTheme
 - [ ] **F3.2** useThreading / useAttachments / useRsvp
 - [ ] **F3.3** useMessages
