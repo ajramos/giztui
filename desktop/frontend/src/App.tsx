@@ -51,6 +51,7 @@ import {
   formatFull,
   formatSize,
 } from "./format";
+import { replyInit, replyAllInit, forwardInit } from "./compose";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -1787,28 +1788,6 @@ export default function App() {
     if (aiEnabled) void summarize(id, true);
   }, [summarize, runPrompt, touchUp, aiEnabled]);
 
-  const replyInit = (d: MessageDetail): ComposeInit => ({
-    mode: "reply",
-    originalId: d.id,
-    to: d.from,
-  });
-
-  // Reply-all: reply threaded, adding the original To/Cc recipients as Cc.
-  const replyAllInit = (d: MessageDetail): ComposeInit => {
-    const extra = [d.to, d.cc]
-      .filter(Boolean)
-      .join(", ")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s && !d.from.includes(s));
-    return {
-      mode: "reply",
-      originalId: d.id,
-      to: d.from,
-      cc: [...new Set(extra)].join(", "),
-    };
-  };
-
   const saveMessage = useCallback(
     (id: string) => {
       void backend
@@ -2842,12 +2821,6 @@ export default function App() {
       resetZoom,
     ],
   );
-
-  const forwardInit = (d: MessageDetail): ComposeInit => ({
-    mode: "new",
-    subject: d.subject.startsWith("Fwd:") ? d.subject : `Fwd: ${d.subject}`,
-    body: `\n\n---------- Forwarded message ----------\nFrom: ${d.from}\nDate: ${d.date}\nSubject: ${d.subject}\nTo: ${d.to}\n\n${d.plainText}`,
-  });
 
   const downloadAttachment = useCallback(
     async (att: Attachment) => {

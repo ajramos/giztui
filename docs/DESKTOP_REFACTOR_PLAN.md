@@ -146,7 +146,7 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 ## 7. Progress tracker
 
 - [x] **F0** Harness — vitest + jsdom, `test` script (Playwright suite deferred to F3 start)
-- [~] **F1** Pure helpers + unit tests — `format.ts` (11 fns) extracted + 23 tests ✅; compose builders pending
+- [x] **F1** Pure helpers + unit tests — `format.ts` (11 fns, 23 tests) + `compose.ts` (reply/replyAll/forward, 6 tests) ✅
 - [ ] **F2** Command layer + unit tests
 - [ ] **F3.1** useZoom / useTheme
 - [ ] **F3.2** useThreading / useAttachments / useRsvp
