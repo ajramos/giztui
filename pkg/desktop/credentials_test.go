@@ -52,6 +52,7 @@ func TestInstallCredentials(t *testing.T) {
 	if got != dest {
 		t.Fatalf("dest = %q, want %q", got, dest)
 	}
+	// #nosec G304 -- test reads back the file it just wrote under a temp dir
 	data, err := os.ReadFile(dest)
 	if err != nil {
 		t.Fatalf("copied file not readable: %v", err)

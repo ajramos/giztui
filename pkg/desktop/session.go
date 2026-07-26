@@ -444,6 +444,7 @@ func InstallCredentials(opts Options, srcPath string) (string, error) {
 	if srcPath == "" {
 		return "", fmt.Errorf("no file selected")
 	}
+	// #nosec G304 -- srcPath is the credentials file the user explicitly picked to import
 	data, err := os.ReadFile(srcPath)
 	if err != nil {
 		return "", fmt.Errorf("could not read %s: %w", srcPath, err)
