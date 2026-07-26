@@ -44,7 +44,6 @@ import {
   emailAddr,
   labelForAction,
   formatICSDate,
-  mixHex,
   cleanSubject,
   countMatches,
   formatDate,
@@ -68,6 +67,8 @@ import CommandBar from "./CommandBar";
 import { COMMANDS, parseCommand } from "./commands";
 import MoreMenu from "./MoreMenu";
 import { useListNav } from "./useListNav";
+import { useZoom } from "./useZoom";
+import { useTheme } from "./useTheme";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -256,10 +257,16 @@ export default function App() {
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const promptPreviewBodyRef = useRef<HTMLDivElement>(null);
-  const [themesOn, setThemesOn] = useState(false);
-  const [themePickerOpen, setThemePickerOpen] = useState(false);
-  const [themeNames, setThemeNames] = useState<string[]>([]);
-  const [currentTheme, setCurrentTheme] = useState("");
+  // Theme subsystem (enablement, names, current, picker, applyTheme) lives in useTheme.
+  const {
+    themesOn,
+    themePickerOpen,
+    setThemePickerOpen,
+    themeNames,
+    currentTheme,
+    applyTheme,
+    initTheme,
+  } = useTheme();
   const [generatingReply, setGeneratingReply] = useState(false);
   const [touchUpText, setTouchUpText] = useState<string | null>(null);
   const [touchingUp, setTouchingUp] = useState(false);
@@ -315,21 +322,8 @@ export default function App() {
   const [showToolbar, setShowToolbar] = useState(
     () => localStorage.getItem("giztui.toolbar") !== "off",
   );
-  // UI zoom: WKWebView doesn't honour Cmd+/- to scale the app, so we drive it
-  // ourselves via CSS zoom on the root and remember the choice. Cmd/Ctrl +/-/0.
-  const [uiZoom, setUiZoom] = useState(() => {
-    const v = Number(localStorage.getItem("giztui.zoom"));
-    return v >= 0.6 && v <= 2.4 ? v : 1;
-  });
-  useEffect(() => {
-    (document.documentElement.style as unknown as { zoom: string }).zoom =
-      String(uiZoom);
-    localStorage.setItem("giztui.zoom", String(uiZoom));
-  }, [uiZoom]);
-  const bumpZoom = useCallback((delta: number) => {
-    setUiZoom((z) => Math.min(2.4, Math.max(0.6, Math.round((z + delta) * 10) / 10)));
-  }, []);
-  const resetZoom = useCallback(() => setUiZoom(1), []);
+  // UI zoom (Cmd/Ctrl +/-/0) lives in useZoom — CSS `zoom` on the root, persisted.
+  const { setZoom, bumpZoom, resetZoom } = useZoom();
   // Local filter mode: narrow the already-loaded list client-side instead of
   // running a remote Gmail search (the TUI's search_toggle_mode).
   const [localFilter, setLocalFilter] = useState(false);
@@ -448,57 +442,6 @@ export default function App() {
     },
     [showToast],
   );
-
-  // applyTheme fetches a theme's palette from the backend and maps it onto the
-  // CSS custom properties the stylesheet reads. Empty name = the configured
-  // (current) theme, resolved on startup.
-  const applyTheme = useCallback(async (name: string) => {
-    try {
-      const c = await backend.GetThemeColors(name);
-      if (!c) return;
-      const root = document.documentElement.style;
-      const set = (k: string, v: string) => {
-        if (v) root.setProperty(k, v);
-      };
-      // Map the theme palette onto the CSS custom properties the stylesheet
-      // reads. Elevated/hover surfaces are derived from the base background so
-      // the UI keeps its layering even when a theme only defines a few colors.
-      // The accent (focus color) — never the title color — drives buttons, so
-      // primary buttons stay in the theme's accent hue instead of turning into
-      // a loud title color (e.g. bright green).
-      const bg = c.bg || "#14161b";
-      const fg = c.fg || "#e6e8ec";
-      const accent = c.accent || "#6ea8fe";
-      const distinct = (v: string) =>
-        v && v.toLowerCase() !== bg.toLowerCase() ? v : "";
-      const elev = distinct(c.inputBg) || mixHex(bg, fg, 0.06);
-      const rowHover = distinct(c.selectionBg) || mixHex(bg, fg, 0.1);
-      const selected = distinct(c.selectionBg) || mixHex(bg, accent, 0.22);
-      set("--bg", bg);
-      set("--bg-elev", elev);
-      set("--bg-row", bg);
-      set("--bg-row-hover", rowHover);
-      set("--bg-selected", selected);
-      set("--border", c.border || mixHex(bg, fg, 0.16));
-      set("--text", fg);
-      set("--text-muted", c.muted || mixHex(fg, bg, 0.4));
-      // Readable secondary text (keyboard hints, ghost buttons, loading) —
-      // always derived from fg/bg so it stays legible regardless of how faint a
-      // theme's own muted color is. t is the weight toward bg, so a smaller value
-      // than --text-muted's 0.4 keeps this closer to the text colour (higher
-      // contrast).
-      set("--text-dim", mixHex(fg, bg, 0.2));
-      set("--accent", accent);
-      set("--accent-strong", accent);
-      set("--danger", c.danger || "#ff6b6b");
-      set("--chip-bg", mixHex(bg, fg, 0.12));
-      set("--chip-text", fg);
-      set("--unread-dot", accent);
-      if (c.name) setCurrentTheme(c.name);
-    } catch {
-      /* non-fatal: keep the default palette */
-    }
-  }, []);
 
   const load = useCallback(async (q: string) => {
     setLoadingList(true);
@@ -721,16 +664,7 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
-      try {
-        const on = await backend.ThemesEnabled();
-        setThemesOn(on);
-        if (on) {
-          setThemeNames(await backend.ListThemes());
-          await applyTheme(""); // apply the configured theme
-        }
-      } catch {
-        /* non-fatal */
-      }
+      await initTheme();
       try {
         setLabels(await backend.ListLabels());
       } catch {
@@ -751,7 +685,7 @@ export default function App() {
         /* non-fatal */
       }
       void load("");
-  }, [load, applyTheme]);
+  }, [load, initTheme]);
 
   useEffect(() => {
     void runInit();
@@ -2548,7 +2482,7 @@ export default function App() {
           break;
         case "zoom": {
           const n = Number(arg);
-          if (arg && n >= 0.6 && n <= 2.4) setUiZoom(n);
+          if (arg && n >= 0.6 && n <= 2.4) setZoom(n);
           else if (!arg) resetZoom();
           break;
         }
@@ -2740,6 +2674,7 @@ export default function App() {
       applyLabelChange,
       bumpZoom,
       resetZoom,
+      setZoom,
     ],
   );
 

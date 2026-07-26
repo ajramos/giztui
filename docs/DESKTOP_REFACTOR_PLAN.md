@@ -15,10 +15,12 @@
 > integration net is now in place** (`desktop/frontend/e2e/`, 13 specs,
 > `npm run test:e2e`) — it drives the real app against the api.ts mock and covers
 > the coupled flows (open→summarize, apply-prompt→switch→return, summary/prompt
-> per-message caching, search scope, picker open/arrow/Escape). **Next is F3.1
-> (`useZoom` / `useTheme`) — the safest hooks — then F3.2 → F3.3 → F3.4 with
-> `useAiPanels` LAST.** For every hook extraction: keep `npm run test:e2e` green
-> (extend it when a hook adds a flow it doesn't yet cover) and re-read §3
+> per-message caching, search scope, picker open/arrow/Escape). **F3.1 is DONE
+> too — `useZoom` + `useTheme`** (safest hooks; guarded by `e2e/zoom.spec.ts` +
+> `e2e/theme.spec.ts`). **Next is F3.2 (`useThreading`, `useAttachments`,
+> `useRsvp`) → F3.3 (`useMessages`, touches `openIdRef`) → F3.4 (`useAiPanels`,
+> the 68-setter tangle) LAST.** For every hook extraction: keep `npm run test:e2e`
+> green (extend it when a hook adds a flow it doesn't yet cover) and re-read §3
 > (landmines) before touching any stateful code. The branch
 > `claude/giztui-visual-client-iadjgl` was reset off `main` after each merge —
 > reset it to latest `main` again before starting.
@@ -162,7 +164,7 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 - [x] **F1** Pure helpers + unit tests — `format.ts` (11 fns, 23 tests) + `compose.ts` (reply/replyAll/forward, 6 tests) ✅
 - [x] **F2** Command layer — `commands.ts` (COMMANDS + pure `parseCommand`/`filterCommands`/`resolveEnter`), CommandBar/App rewired, 9 unit tests + integrity check ✅. Scope kept safe: the big `executeCommand` switch stays as the handler adapter; **data-driven dispatch (actions object) is deferred** — low marginal value, higher risk.
 - [x] **F3.0** Playwright integration net — `@playwright/test` + `playwright.config.ts` (pre-installed Chromium, vite `webServer` on :5199) + `desktop/frontend/e2e/` (13 specs across inbox/reader, search scope, AI summary+prompt caching/landmines, pickers). `npm run test:e2e`. This is the safety net that guards every F3.x hook extraction ✅.
-- [ ] **F3.1** useZoom / useTheme
+- [x] **F3.1** `useZoom` (`src/useZoom.ts`) + `useTheme` (`src/useTheme.ts`) — behavior-preserving moves out of App.tsx (−65 net lines). No §3 landmines touched. Guarded by new e2e specs (`e2e/zoom.spec.ts`, `e2e/theme.spec.ts`; suite now 18 specs). Diff was a pure relocation (verified) ✅.
 - [ ] **F3.2** useThreading / useAttachments / useRsvp
 - [ ] **F3.3** useMessages
 - [ ] **F3.4** useAiPanels  ⚠️ highest risk
