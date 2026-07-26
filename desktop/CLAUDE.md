@@ -68,6 +68,9 @@ action-plan, …) MUST follow these so they behave consistently:
 ## ✅ Verify before claiming done
 
 - `cd desktop/frontend && npm test` (vitest unit tests — the frontend now has them)
+- `cd desktop/frontend && npm run test:e2e` (Playwright integration suite in `e2e/`
+  — drives the real app against the api.ts mock; the regression net for the App.tsx
+  decomposition. Extend it when you add/refactor a coupled flow.)
 - `cd desktop/frontend && npx tsc --noEmit && npm run build`
 - `go build ./pkg/desktop/ && (cd desktop && go build ./...) && go test ./pkg/desktop/`
 - Drive the change in a browser against the mock (Playwright + the pre-installed
