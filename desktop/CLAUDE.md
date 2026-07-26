@@ -67,7 +67,23 @@ action-plan, …) MUST follow these so they behave consistently:
 
 ## ✅ Verify before claiming done
 
+- `cd desktop/frontend && npm test` (vitest unit tests — the frontend now has them)
 - `cd desktop/frontend && npx tsc --noEmit && npm run build`
 - `go build ./pkg/desktop/ && (cd desktop && go build ./...) && go test ./pkg/desktop/`
 - Drive the change in a browser against the mock (Playwright + the pre-installed
   Chromium) — pickers especially: open via command, arrow-navigate, Enter, Escape.
+
+## 🧱 Ongoing: `App.tsx` decomposition (READ if touching App.tsx)
+
+`App.tsx` is a large god component being broken up incrementally. Pure logic
+already lives in small, unit-tested modules — **use/extend these, don't re-inline**:
+`format.ts` (formatting/parsing), `compose.ts` (reply/forward builders),
+`commands.ts` (`COMMANDS` + palette resolution). Add tests next to new pure logic.
+
+**The plan, progress tracker, and — critically — the coupling landmines that keep
+causing bugs (`openIdRef`, `summaryForId`/`promptForId`, `loadMessage` as
+`useCallback([])`, mirror refs, first-binding-wins chords, the `anyModal` Escape
+order) live in [`docs/DESKTOP_REFACTOR_PLAN.md`](../docs/DESKTOP_REFACTOR_PLAN.md).
+Read it before extracting anything stateful.** Next up is F3 (subsystem hooks);
+stand up a Playwright integration suite FIRST — it's the only net for the coupled
+behavior (AI panels are the riskiest, do them last).
