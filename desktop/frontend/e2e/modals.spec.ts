@@ -55,4 +55,16 @@ test.describe("display modals", () => {
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
   });
+
+  test("':advanced' opens the builder and previews the query as you type", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "advanced");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Advanced search" });
+    await expect(modal).toBeVisible();
+    // Typing a From value updates the live query preview.
+    await modal.locator(".field", { hasText: "From" }).locator("input").fill("boss@x.com");
+    await expect(modal.locator(".ro-value")).toHaveText("from:boss@x.com");
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+  });
 });

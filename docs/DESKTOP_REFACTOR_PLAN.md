@@ -191,8 +191,9 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 - [~] **F4** JSX component splits (incremental; each self-contained modal → its own file + e2e)
   - [x] F4.1 `StatsModal` + `ConfigModal` (display modals; −96 lines; +2 e2e specs)
   - [x] F4.2 `PromptPreviewModal` (self-contained; the keyboard-scroll ref+effect moved in; −41 lines; +1 e2e)
-  - [x] F4.3 `SaveQueryModal` (presentational pure move) + `AnalyzerRulesModal` (owns its useListNav + delete-key effect); −108 lines; +2 e2e; suite now 30
-  - [ ] remaining inline modals (advanced search, action plan) + `<MessageList>` / `<Reader>`
+  - [x] F4.3 `SaveQueryModal` (presentational pure move) + `AnalyzerRulesModal` (owns its useListNav + delete-key effect); −108 lines; +2 e2e
+  - [x] F4.4 `AdvancedSearchModal` + pure `buildAdvancedQuery` in `advancedSearch.ts` (5 unit tests); −114 lines; +1 e2e; unit 56 / e2e 31
+  - [ ] remaining: action-plan modal (~340 lines, prop-heavy) + `<MessageList>` / `<Reader>`
 
 ## 8. Safety rules (non-negotiable)
 
