@@ -189,8 +189,9 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
   by the e2e AI specs ✅. _If a full relocation is still wanted, it's a dedicated,
   high-care pass — but the ROI is line-moving, not decoupling._
 - [~] **F4** JSX component splits (incremental; each self-contained modal → its own file + e2e)
-  - [x] F4.1 `StatsModal` + `ConfigModal` (display modals; −96 lines; +2 e2e specs, suite now 27)
-  - [ ] remaining inline modals (advanced search, prompt preview, analyzer rules, save-query, action plan) + `<MessageList>` / `<Reader>`
+  - [x] F4.1 `StatsModal` + `ConfigModal` (display modals; −96 lines; +2 e2e specs)
+  - [x] F4.2 `PromptPreviewModal` (self-contained; the keyboard-scroll ref+effect moved in; −41 lines; +1 e2e; suite now 28)
+  - [ ] remaining inline modals (advanced search, analyzer rules, save-query, action plan) + `<MessageList>` / `<Reader>`
 
 ## 8. Safety rules (non-negotiable)
 

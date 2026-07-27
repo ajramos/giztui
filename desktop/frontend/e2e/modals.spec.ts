@@ -23,4 +23,14 @@ test.describe("display modals", () => {
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
   });
+
+  test("':action-plan prompt' opens the analyzer-prompt preview; Escape closes it", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "action-plan prompt");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Analyzer prompt" });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator("pre.summary-text")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+  });
 });

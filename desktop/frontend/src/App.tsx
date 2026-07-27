@@ -53,6 +53,7 @@ import { freshPrefix, dedupeNew } from "./messageList";
 import { activeAiPanel } from "./aiPanels";
 import StatsModal from "./StatsModal";
 import ConfigModal from "./ConfigModal";
+import PromptPreviewModal from "./PromptPreviewModal";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -255,7 +256,6 @@ export default function App() {
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
-  const promptPreviewBodyRef = useRef<HTMLDivElement>(null);
   // Theme subsystem (enablement, names, current, picker, applyTheme) lives in useTheme.
   const {
     themesOn,
@@ -2134,34 +2134,6 @@ export default function App() {
       setError(String(e));
     }
   }, []);
-
-  // The analyzer-prompt preview is a long scrollable <pre>, but WKWebView won't
-  // focus the bare modal body so arrows/PageUp/etc. never reach it. While the
-  // preview is open, drive its scrolling from a window-level listener (Escape is
-  // handled by the global modal chain).
-  useEffect(() => {
-    if (promptPreview === null) return;
-    const h = (e: KeyboardEvent) => {
-      const el = promptPreviewBodyRef.current;
-      if (!el) return;
-      const line = 48;
-      const page = el.clientHeight * 0.9;
-      let dy = 0;
-      switch (e.key) {
-        case "ArrowDown": case "j": dy = line; break;
-        case "ArrowUp": case "k": dy = -line; break;
-        case "PageDown": case " ": dy = page; break;
-        case "PageUp": dy = -page; break;
-        case "Home": el.scrollTo({ top: 0 }); e.preventDefault(); return;
-        case "End": el.scrollTo({ top: el.scrollHeight }); e.preventDefault(); return;
-        default: return;
-      }
-      el.scrollBy({ top: dy });
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [promptPreview]);
 
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
@@ -5108,23 +5080,10 @@ export default function App() {
         </div>
       )}
       {promptPreview !== null && (
-        <div className="modal-overlay" onClick={() => setPromptPreview(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>Analyzer prompt</h3>
-              <button className="ghost" onClick={() => setPromptPreview(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body" ref={promptPreviewBodyRef}>
-              <pre className="summary-text">{promptPreview}</pre>
-            </div>
-            <div className="modal-foot">
-              <span className="foot-hint">↑↓ scroll · Esc close</span>
-              <button onClick={() => setPromptPreview(null)}>Close</button>
-            </div>
-          </div>
-        </div>
+        <PromptPreviewModal
+          text={promptPreview}
+          onClose={() => setPromptPreview(null)}
+        />
       )}
       {cmdOpen && (
         <CommandBar
