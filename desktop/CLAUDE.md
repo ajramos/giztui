@@ -81,7 +81,11 @@ action-plan, …) MUST follow these so they behave consistently:
 `App.tsx` is a large god component being broken up incrementally. Pure logic
 already lives in small, unit-tested modules — **use/extend these, don't re-inline**:
 `format.ts` (formatting/parsing), `compose.ts` (reply/forward builders),
-`commands.ts` (`COMMANDS` + palette resolution). Add tests next to new pure logic.
+`commands.ts` (`COMMANDS` + palette resolution), `advancedSearch.ts`
+(`buildAdvancedQuery`), `planNodes.ts` (`buildPlanNodes` — the action-plan tree).
+Self-contained/presentational modals are their own files too (`StatsModal`,
+`ConfigModal`, `PromptPreviewModal`, `SaveQueryModal`, `AnalyzerRulesModal`,
+`AdvancedSearchModal`, `ActionPlanModal`). Add tests next to new pure logic.
 
 **The plan, progress tracker, and — critically — the coupling landmines that keep
 causing bugs (`openIdRef`, `summaryForId`/`promptForId`, `loadMessage` as

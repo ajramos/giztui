@@ -10,21 +10,19 @@
 **Status:** F0–F2 DONE & merged (PR #61). Playwright integration net DONE (this batch). Approach approved.
 **Owner:** _tbd_ · **Last updated:** 2026-07-26
 
-> **▶ RESUME HERE (next session).** F0–F2 are merged (vitest harness + `format.ts`,
-> `compose.ts`, `commands.ts`; 38 unit tests, `npm test`) **and the Playwright
-> integration net is now in place** (`desktop/frontend/e2e/`, 13 specs,
-> `npm run test:e2e`) — it drives the real app against the api.ts mock and covers
-> the coupled flows (open→summarize, apply-prompt→switch→return, summary/prompt
-> per-message caching, search scope, picker open/arrow/Escape). **F3.1 is DONE
-> too — `useZoom` + `useTheme`** (safest hooks; guarded by `e2e/zoom.spec.ts` +
-> `e2e/theme.spec.ts`). **F3.2 is DONE too** — `useAttachments` + `useRsvp` +
-> `useThreading` extracted (per-message fetch/reset stays in `loadMessage`;
-> `summarizeThread` deferred to F3.4). **Next is F3.3 (`useMessages` —
-> list/load/pagination/pendingNew/prune; touches `openIdRef` and the load-bearing
-> reset order in `loadMessage`) → F3.4 (`useAiPanels`, the 68-setter tangle)
-> LAST.** For every hook extraction: keep `npm run test:e2e`
-> green (extend it when a hook adds a flow it doesn't yet cover) and re-read §3
-> (landmines) before touching any stateful code. The branch
+> **▶ RESUME HERE (next session).** F0–F3 are merged, and **F4.1–F4.5 are done**:
+> all self-contained/presentational modals are now their own files
+> (`StatsModal`, `ConfigModal`, `PromptPreviewModal`, `SaveQueryModal`,
+> `AnalyzerRulesModal`, `AdvancedSearchModal`, `ActionPlanModal`), each with a pure
+> logic module where it earned one (`advancedSearch.ts`, `planNodes.ts`) and an e2e
+> spec guarding it. **61 unit tests + 33 e2e**, all green; App.tsx **5,747 → 4,794**
+> lines. The safety recipe every time: unit-test the pure derivation, e2e-guard the
+> flow against CURRENT code first, extract as a behavior-preserving move (state +
+> nav stay in App), re-verify `npm test` + `npm run test:e2e` + `tsc` + `build`.
+> **Next (and last of F4): the prop-heavy `<MessageList>` / `<Reader>` splits** —
+> highest coupling (reader touches the AI panels, links, attachments, RSVP,
+> threading, `openIdRef`); do these with dedicated care, re-read §3 (landmines)
+> first, and lean on the full e2e net. The branch
 > `claude/giztui-visual-client-iadjgl` was reset off `main` after each merge —
 > reset it to latest `main` again before starting.
 
@@ -193,7 +191,8 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
   - [x] F4.2 `PromptPreviewModal` (self-contained; the keyboard-scroll ref+effect moved in; −41 lines; +1 e2e)
   - [x] F4.3 `SaveQueryModal` (presentational pure move) + `AnalyzerRulesModal` (owns its useListNav + delete-key effect); −108 lines; +2 e2e
   - [x] F4.4 `AdvancedSearchModal` + pure `buildAdvancedQuery` in `advancedSearch.ts` (5 unit tests); −114 lines; +1 e2e; unit 56 / e2e 31
-  - [ ] remaining: action-plan modal (~340 lines, prop-heavy) + `<MessageList>` / `<Reader>`
+  - [x] F4.5 `ActionPlanModal` (presentational, ~23 props; state + planNav stay in App) + pure `buildPlanNodes` in `planNodes.ts` (5 unit tests); −249 lines; +2 e2e (`actionplan.spec.ts`); unit 61 / e2e 33; App.tsx 5,043 → 4,794
+  - [ ] remaining: `<MessageList>` / `<Reader>` (prop-heavy tier — dedicated care)
 
 ## 8. Safety rules (non-negotiable)
 
