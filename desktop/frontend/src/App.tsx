@@ -51,6 +51,9 @@ import {
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { freshPrefix, dedupeNew } from "./messageList";
 import { activeAiPanel } from "./aiPanels";
+import StatsModal from "./StatsModal";
+import ConfigModal from "./ConfigModal";
+import PromptPreviewModal from "./PromptPreviewModal";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -253,7 +256,6 @@ export default function App() {
   const [rules, setRules] = useState<AnalyzerRule[]>([]);
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
-  const promptPreviewBodyRef = useRef<HTMLDivElement>(null);
   // Theme subsystem (enablement, names, current, picker, applyTheme) lives in useTheme.
   const {
     themesOn,
@@ -2132,34 +2134,6 @@ export default function App() {
       setError(String(e));
     }
   }, []);
-
-  // The analyzer-prompt preview is a long scrollable <pre>, but WKWebView won't
-  // focus the bare modal body so arrows/PageUp/etc. never reach it. While the
-  // preview is open, drive its scrolling from a window-level listener (Escape is
-  // handled by the global modal chain).
-  useEffect(() => {
-    if (promptPreview === null) return;
-    const h = (e: KeyboardEvent) => {
-      const el = promptPreviewBodyRef.current;
-      if (!el) return;
-      const line = 48;
-      const page = el.clientHeight * 0.9;
-      let dy = 0;
-      switch (e.key) {
-        case "ArrowDown": case "j": dy = line; break;
-        case "ArrowUp": case "k": dy = -line; break;
-        case "PageDown": case " ": dy = page; break;
-        case "PageUp": dy = -page; break;
-        case "Home": el.scrollTo({ top: 0 }); e.preventDefault(); return;
-        case "End": el.scrollTo({ top: el.scrollHeight }); e.preventDefault(); return;
-        default: return;
-      }
-      el.scrollBy({ top: dy });
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [promptPreview]);
 
   // Command palette dispatcher (`:` command mode).
   const executeCommand = useCallback(
@@ -5106,23 +5080,10 @@ export default function App() {
         </div>
       )}
       {promptPreview !== null && (
-        <div className="modal-overlay" onClick={() => setPromptPreview(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>Analyzer prompt</h3>
-              <button className="ghost" onClick={() => setPromptPreview(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body" ref={promptPreviewBodyRef}>
-              <pre className="summary-text">{promptPreview}</pre>
-            </div>
-            <div className="modal-foot">
-              <span className="foot-hint">↑↓ scroll · Esc close</span>
-              <button onClick={() => setPromptPreview(null)}>Close</button>
-            </div>
-          </div>
-        </div>
+        <PromptPreviewModal
+          text={promptPreview}
+          onClose={() => setPromptPreview(null)}
+        />
       )}
       {cmdOpen && (
         <CommandBar
@@ -5268,112 +5229,14 @@ export default function App() {
         </div>
       )}
       {statsOpen && (
-        <div className="modal-overlay" onClick={() => setStatsOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setStatsOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>AI usage</h3>
-              <button className="ghost" onClick={() => setStatsOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {!stats ? (
-                <div className="placeholder">Loading…</div>
-              ) : (
-                <>
-                  <div className="stats-summary">
-                    <div className="stat-tile">
-                      <span className="stat-num">{stats.totalUsage}</span>
-                      <span className="stat-label muted">total runs</span>
-                    </div>
-                    <div className="stat-tile">
-                      <span className="stat-num">{stats.uniquePrompts}</span>
-                      <span className="stat-label muted">prompts used</span>
-                    </div>
-                  </div>
-                  <div className="label-list">
-                    {stats.topPrompts.length === 0 ? (
-                      <div className="placeholder">No usage yet</div>
-                    ) : (
-                      stats.topPrompts.map((p) => (
-                        <div key={p.name} className="stat-row">
-                          <span className="stat-row-name">{p.name}</span>
-                          {p.category && (
-                            <span className="stat-row-cat muted">
-                              {p.category}
-                            </span>
-                          )}
-                          <span className="stat-row-count">{p.usageCount}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <StatsModal stats={stats} onClose={() => setStatsOpen(false)} />
       )}
       {configOpen && (
-        <div className="modal-overlay" onClick={() => setConfigOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setConfigOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Configuration</h3>
-              <button className="ghost" onClick={() => setConfigOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {!configInfo ? (
-                <div className="placeholder">Loading…</div>
-              ) : (
-                <div className="config-list">
-                  {(
-                    [
-                      ["Account", configInfo.account],
-                      ["Config file", configInfo.configPath],
-                      ["Log file", configInfo.logPath],
-                      [
-                        "LLM",
-                        configInfo.llmModel
-                          ? `${configInfo.llmProvider} · ${configInfo.llmModel}`
-                          : "disabled",
-                      ],
-                      ["Theme", configInfo.theme || "default"],
-                      ["Downloads", configInfo.downloadPath],
-                      ["Obsidian", configInfo.obsidianOn ? "on" : "off"],
-                      ["Slack", configInfo.slackOn ? "on" : "off"],
-                      ["Auto-refresh", configInfo.autoRefresh ? "on" : "off"],
-                    ] as [string, string][]
-                  ).map(([k, v]) => (
-                    <div key={k} className="config-row">
-                      <span className="config-key muted">{k}</span>
-                      <span className="config-val">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button className="ghost" onClick={() => void clearCaches()}>
-                Clear AI caches
-              </button>
-              <button onClick={() => setConfigOpen(false)}>Close</button>
-            </div>
-          </div>
-        </div>
+        <ConfigModal
+          info={configInfo}
+          onClearCaches={() => void clearCaches()}
+          onClose={() => setConfigOpen(false)}
+        />
       )}
       {showHelp && (
         <Help
