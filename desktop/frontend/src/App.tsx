@@ -50,6 +50,7 @@ import {
 } from "./format";
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { freshPrefix, dedupeNew } from "./messageList";
+import { activeAiPanel } from "./aiPanels";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -1615,8 +1616,12 @@ export default function App() {
   const regenerateActive = useCallback(() => {
     const id = openIdRef.current;
     if (!id) return;
-    // A prompt is the active AI output (and no summary up) → regenerate the prompt.
-    if (promptResultRef.current !== null && summaryRef.current === null) {
+    const kind = activeAiPanel({
+      hasSummary: summaryRef.current !== null,
+      hasPrompt: promptResultRef.current !== null,
+      hasTouchUp: touchUpTextRef.current !== null,
+    });
+    if (kind === "prompt") {
       const pid = aiCache.current.get(id)?.lastPromptId;
       if (pid != null)
         void runPrompt(
@@ -1625,16 +1630,11 @@ export default function App() {
         );
       return;
     }
-    // A reformat (touch-up) is the active output → re-reformat, not summarize.
-    if (
-      touchUpTextRef.current !== null &&
-      summaryRef.current === null &&
-      promptResultRef.current === null
-    ) {
+    if (kind === "touchup") {
       void touchUp(id);
       return;
     }
-    // Otherwise (a summary is shown, or nothing yet) → (re)generate the summary.
+    // summary is shown, or nothing yet → (re)generate the summary.
     if (aiEnabled) void summarize(id, true);
   }, [summarize, runPrompt, touchUp, aiEnabled]);
 

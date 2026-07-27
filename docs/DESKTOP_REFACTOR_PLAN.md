@@ -178,7 +178,16 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
   logic; `dedupeNew`) + 8 unit tests including the "old message shifted onto page 1
   after a delete is NOT new" case. No React state moved; no §3 landmines touched.
   Guarded by the e2e inbox specs ✅.
-- [ ] **F3.4** useAiPanels  ⚠️ highest risk
+- [x] **F3.4** AI panels — scoped to the safe slice, full state-relocation **assessed & declined**.
+  A `useAiPanels` state hook is high-risk / low-reward here: `openIdRef` is shared
+  (attachments/invite/loader/AI), so it can't be AI-owned; `loadMessage`'s AI-restore
+  is interleaved with the reset ORDER (a §3 landmine), so a hook would relocate the
+  coupling, not remove it; and the render is already extracted (`AiPanel`). Instead
+  extracted the **pure regenerate-decision** (`activeAiPanel` in `src/aiPanels.ts`) —
+  the branching that's easy to get subtly wrong — with 5 unit tests. Stateful
+  streaming (summarize/runPrompt/touchUp) + refs stay in App **by design**. Guarded
+  by the e2e AI specs ✅. _If a full relocation is still wanted, it's a dedicated,
+  high-care pass — but the ROI is line-moving, not decoupling._
 - [ ] **F4** JSX component splits
 
 ## 8. Safety rules (non-negotiable)
