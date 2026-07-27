@@ -56,6 +56,8 @@ import ConfigModal from "./ConfigModal";
 import PromptPreviewModal from "./PromptPreviewModal";
 import SaveQueryModal from "./SaveQueryModal";
 import AnalyzerRulesModal from "./AnalyzerRulesModal";
+import AdvancedSearchModal from "./AdvancedSearchModal";
+import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -319,15 +321,7 @@ export default function App() {
   // running a remote Gmail search (the TUI's search_toggle_mode).
   const [localFilter, setLocalFilter] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
-  const [adv, setAdv] = useState({
-    from: "",
-    to: "",
-    subject: "",
-    hasAttachment: false,
-    unreadOnly: false,
-    after: "",
-    before: "",
-  });
+  const [adv, setAdv] = useState<AdvFilters>(EMPTY_ADV);
   const fullMessagesRef = useRef<MessageSummary[]>([]);
   // Background inbox auto-refresh (opt-in; seeded from config, then remembered).
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -532,19 +526,6 @@ export default function App() {
   }, []);
 
   // buildAdvancedQuery assembles a Gmail search string from the builder fields.
-  const buildAdvancedQuery = useCallback((): string => {
-    const parts: string[] = [];
-    if (adv.from.trim()) parts.push(`from:${adv.from.trim()}`);
-    if (adv.to.trim()) parts.push(`to:${adv.to.trim()}`);
-    if (adv.subject.trim()) parts.push(`subject:(${adv.subject.trim()})`);
-    if (adv.hasAttachment) parts.push("has:attachment");
-    if (adv.unreadOnly) parts.push("is:unread");
-    if (adv.after.trim()) parts.push(`after:${adv.after.trim().replace(/-/g, "/")}`);
-    if (adv.before.trim())
-      parts.push(`before:${adv.before.trim().replace(/-/g, "/")}`);
-    return parts.join(" ");
-  }, [adv]);
-
   const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh((v) => {
       const next = !v;
@@ -5012,113 +4993,18 @@ export default function App() {
         />
       )}
       {advOpen && (
-        <div className="modal-overlay" onClick={() => setAdvOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setAdvOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Advanced search</h3>
-              <button className="ghost" onClick={() => setAdvOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="field">
-                <label>From</label>
-                <input
-                  value={adv.from}
-                  onChange={(e) => setAdv({ ...adv, from: e.target.value })}
-                  placeholder="sender@example.com"
-                  autoFocus
-                />
-              </div>
-              <div className="field">
-                <label>To</label>
-                <input
-                  value={adv.to}
-                  onChange={(e) => setAdv({ ...adv, to: e.target.value })}
-                  placeholder="recipient@example.com"
-                />
-              </div>
-              <div className="field">
-                <label>Subject</label>
-                <input
-                  value={adv.subject}
-                  onChange={(e) => setAdv({ ...adv, subject: e.target.value })}
-                  placeholder="words in the subject"
-                />
-              </div>
-              <div className="adv-row">
-                <label className="adv-check">
-                  <input
-                    type="checkbox"
-                    checked={adv.hasAttachment}
-                    onChange={(e) =>
-                      setAdv({ ...adv, hasAttachment: e.target.checked })
-                    }
-                  />
-                  Has attachment
-                </label>
-                <label className="adv-check">
-                  <input
-                    type="checkbox"
-                    checked={adv.unreadOnly}
-                    onChange={(e) =>
-                      setAdv({ ...adv, unreadOnly: e.target.checked })
-                    }
-                  />
-                  Unread only
-                </label>
-              </div>
-              <div className="adv-row">
-                <div className="field">
-                  <label>After</label>
-                  <input
-                    type="date"
-                    value={adv.after}
-                    onChange={(e) => setAdv({ ...adv, after: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Before</label>
-                  <input
-                    type="date"
-                    value={adv.before}
-                    onChange={(e) => setAdv({ ...adv, before: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="field readonly">
-                <label>Query preview</label>
-                <div className="ro-value">
-                  {buildAdvancedQuery() || "(empty)"}
-                </div>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="ghost" onClick={() => setAdvOpen(false)}>
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const q = buildAdvancedQuery();
-                  if (!q) return;
-                  setLocalFilter(false);
-                  setQuery(q);
-                  setAdvOpen(false);
-                  void load(q);
-                }}
-                disabled={!buildAdvancedQuery()}
-              >
-                Search
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdvancedSearchModal
+          adv={adv}
+          onChange={setAdv}
+          onSearch={(q) => {
+            if (!q) return;
+            setLocalFilter(false);
+            setQuery(q);
+            setAdvOpen(false);
+            void load(q);
+          }}
+          onClose={() => setAdvOpen(false)}
+        />
       )}
       {statsOpen && (
         <StatsModal stats={stats} onClose={() => setStatsOpen(false)} />
