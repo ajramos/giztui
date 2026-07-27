@@ -49,6 +49,7 @@ import {
   formatSize,
 } from "./format";
 import { replyInit, replyAllInit, forwardInit } from "./compose";
+import { freshPrefix, dedupeNew } from "./messageList";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -556,20 +557,12 @@ export default function App() {
       const list = await backend.ListInbox("", PAGE_SIZE);
       const msgs = list.messages ?? [];
       const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      // New mail always arrives at the TOP of the inbox, so it's the contiguous
-      // prefix of page 1 before the first message we already have. Stop at the
-      // first known id: older messages that shifted onto page 1 after a delete
-      // are NOT new — filtering by "unknown" alone would prepend those older
-      // messages to the top and scramble the order.
-      const fresh: MessageSummary[] = [];
-      for (const m of msgs) {
-        if (known.has(m.id)) break;
-        fresh.push(m);
-      }
-      // Hold new mail in a banner instead of prepending it — injecting rows at
-      // the top while the user is reading/selecting shifts everything under them
-      // and they can end up acting on a different message than they see.
-      setPendingNew(fresh);
+      // freshPrefix = the contiguous run of unknown messages at the top (new mail
+      // lands there); stopping at the first known id avoids treating messages that
+      // shifted onto page 1 after a delete as new (which would scramble order).
+      // Hold it in a banner instead of prepending — injecting rows while the user
+      // reads/selects shifts everything under them and they act on the wrong one.
+      setPendingNew(freshPrefix(msgs, known));
     } catch {
       /* transient; try again next tick */
     }
@@ -581,7 +574,7 @@ export default function App() {
     setPendingNew((pending) => {
       if (pending.length === 0) return pending;
       const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      const toAdd = pending.filter((m) => !known.has(m.id));
+      const toAdd = dedupeNew(pending, known);
       if (toAdd.length > 0) {
         fullMessagesRef.current = [...toAdd, ...fullMessagesRef.current];
         setMessages((prev) => [...toAdd, ...prev]);
