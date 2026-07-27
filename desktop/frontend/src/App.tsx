@@ -54,6 +54,8 @@ import { activeAiPanel } from "./aiPanels";
 import StatsModal from "./StatsModal";
 import ConfigModal from "./ConfigModal";
 import PromptPreviewModal from "./PromptPreviewModal";
+import SaveQueryModal from "./SaveQueryModal";
+import AnalyzerRulesModal from "./AnalyzerRulesModal";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -2104,29 +2106,6 @@ export default function App() {
   // Keyboard nav for the analyzer-rules modal: WKWebView won't focus the bare
   // modal, so drive arrows from the window (useListNav) and highlight the active
   // row. Escape closes.
-  const rulesNav = useListNav(rules, {
-    onEscape: () => setRulesOpen(false),
-    windowKeys: rulesOpen,
-  });
-  // Delete the highlighted rule with d / Delete — but not while typing in the
-  // add-rule field, so those keys still edit the text there.
-  useEffect(() => {
-    if (!rulesOpen) return;
-    const h = (e: KeyboardEvent) => {
-      const ae = document.activeElement;
-      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
-      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
-        const r = rules[rulesNav.active];
-        if (r) {
-          e.preventDefault();
-          void deleteRule(r.id);
-        }
-      }
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [rulesOpen, rules, rulesNav.active, deleteRule]);
-
   const viewAnalyzerPrompt = useCallback(async () => {
     try {
       setPromptPreview(await backend.ViewAnalyzerPrompt());
@@ -4601,46 +4580,13 @@ export default function App() {
         />
       )}
       {saveQueryOpen && (
-        <div className="modal-overlay" onClick={() => setSaveQueryOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setSaveQueryOpen(false);
-              else if (e.key === "Enter") doSaveQuery();
-            }}
-          >
-            <div className="modal-head">
-              <h3>Save search</h3>
-              <button className="ghost" onClick={() => setSaveQueryOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="field">
-                <label>Name</label>
-                <input
-                  value={saveQueryName}
-                  onChange={(e) => setSaveQueryName(e.target.value)}
-                  placeholder="e.g. Unread from team"
-                  autoFocus
-                />
-              </div>
-              <div className="field readonly">
-                <label>Query</label>
-                <div className="ro-value">{activeQuery}</div>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="ghost" onClick={() => setSaveQueryOpen(false)}>
-                Cancel
-              </button>
-              <button onClick={doSaveQuery} disabled={!saveQueryName.trim()}>
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
+        <SaveQueryModal
+          name={saveQueryName}
+          onNameChange={setSaveQueryName}
+          query={activeQuery}
+          onSave={doSaveQuery}
+          onClose={() => setSaveQueryOpen(false)}
+        />
       )}
       {bulkPromptText !== null && (
         <div className="modal-overlay" onClick={() => setBulkPromptText(null)}>
@@ -5016,68 +4962,14 @@ export default function App() {
         />
       )}
       {rulesOpen && (
-        <div className="modal-overlay" onClick={() => setRulesOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setRulesOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Analyzer rules</h3>
-              <button className="ghost" onClick={() => setRulesOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="muted plan-summary">
-                Natural-language preferences the analyzer follows when planning.
-              </div>
-              <div className="label-list" ref={rulesNav.listRef}>
-                {rules.length === 0 ? (
-                  <div className="placeholder">No rules yet</div>
-                ) : (
-                  rules.map((r, i) => (
-                    <div
-                      key={r.id}
-                      className={
-                        "prompt-manage-row" +
-                        (i === rulesNav.active ? " nav-active" : "")
-                      }
-                      onMouseEnter={() => rulesNav.setActiveHover(i)}
-                    >
-                      <span className="rule-text">{r.text}</span>
-                      <button
-                        className="ghost tiny danger"
-                        title="Delete"
-                        onClick={() => void deleteRule(r.id)}
-                      >
-                        {Icon.trash}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="field">
-                <input
-                  value={newRule}
-                  onChange={(e) => setNewRule(e.target.value)}
-                  placeholder="e.g. Always archive newsletters"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void addRule();
-                  }}
-                />
-              </div>
-            </div>
-            <div className="modal-foot">
-              <span className="foot-hint">↑↓ move · d delete · Esc close</span>
-              <button onClick={() => void addRule()} disabled={!newRule.trim()}>
-                Add rule
-              </button>
-            </div>
-          </div>
-        </div>
+        <AnalyzerRulesModal
+          rules={rules}
+          newRule={newRule}
+          onNewRuleChange={setNewRule}
+          onAddRule={() => void addRule()}
+          onDeleteRule={(id) => void deleteRule(id)}
+          onClose={() => setRulesOpen(false)}
+        />
       )}
       {promptPreview !== null && (
         <PromptPreviewModal

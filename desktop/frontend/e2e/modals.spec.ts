@@ -33,4 +33,26 @@ test.describe("display modals", () => {
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
   });
+
+  test("':action-plan rules' opens the analyzer-rules modal and Escape closes it", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "action-plan rules");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Analyzer rules" });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator(".prompt-manage-row").first()).toBeVisible();
+    await page.keyboard.press("ArrowDown"); // window-level list nav still works
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+  });
+
+  test("':savequery' opens the save-search dialog once a search is active", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "search from:test");
+    await runCommand(page, "savequery");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Save search" });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator("input").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+  });
 });
