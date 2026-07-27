@@ -51,12 +51,14 @@ import {
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { freshPrefix, dedupeNew } from "./messageList";
 import { activeAiPanel } from "./aiPanels";
+import { buildPlanNodes, type PlanNode } from "./planNodes";
 import StatsModal from "./StatsModal";
 import ConfigModal from "./ConfigModal";
 import PromptPreviewModal from "./PromptPreviewModal";
 import SaveQueryModal from "./SaveQueryModal";
 import AnalyzerRulesModal from "./AnalyzerRulesModal";
 import AdvancedSearchModal from "./AdvancedSearchModal";
+import ActionPlanModal from "./ActionPlanModal";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
@@ -2004,19 +2006,10 @@ export default function App() {
   // The plan is a TREE like the TUI: arrows move through a flattened list of
   // visible nodes — every category, plus the emails of any expanded category —
   // so you can descend into a bucket and open individual messages.
-  type PlanNode =
-    | { type: "cat"; catIdx: number }
-    | { type: "email"; catIdx: number; id: string };
-  const planNodes = useMemo<PlanNode[]>(() => {
-    const nodes: PlanNode[] = [];
-    (plan?.categories ?? []).forEach((c, ci) => {
-      nodes.push({ type: "cat", catIdx: ci });
-      if (expandedCats.has(c.name)) {
-        c.messageIds.forEach((id) => nodes.push({ type: "email", catIdx: ci, id }));
-      }
-    });
-    return nodes;
-  }, [plan, expandedCats]);
+  const planNodes = useMemo<PlanNode[]>(
+    () => buildPlanNodes(plan, expandedCats),
+    [plan, expandedCats],
+  );
   const planNav = useListNav(planNodes, {
     onEnter: (node) => {
       if (node.type === "email") {
@@ -4595,276 +4588,34 @@ export default function App() {
         </div>
       )}
       {planOpen && (
-        <div className="modal-overlay" onClick={() => setPlanOpen(false)}>
-          <div
-            className="modal plan-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-head">
-              <h3>Inbox action plan</h3>
-              <span className="summary-head-actions">
-                {rulesEnabled && (
-                  <button className="ghost tiny" onClick={() => void openRules()}>
-                    Rules (r)
-                  </button>
-                )}
-                <button
-                  className="ghost tiny"
-                  onClick={() => void viewAnalyzerPrompt()}
-                >
-                  Prompt (p)
-                </button>
-                <button className="ghost" onClick={() => setPlanOpen(false)}>
-                  {Icon.x}
-                </button>
-              </span>
-            </div>
-            <div className="modal-body">
-              {analyzing ? (
-                <div className="placeholder plan-analyzing">
-                  <div className="plan-analyzing-title">
-                    Analyzing {analyzeCount || messages.length} messages…
-                  </div>
-                  {analyzeProgress && analyzeProgress.total > 0 ? (
-                    <>
-                      <div className="plan-progress">
-                        {analyzeProgress.done > 0 ? (
-                          <div
-                            className="plan-progress-fill"
-                            style={{
-                              width: `${Math.round(
-                                (analyzeProgress.done / analyzeProgress.total) *
-                                  100,
-                              )}%`,
-                            }}
-                          />
-                        ) : (
-                          // Blocks known but none finished yet — keep animating
-                          // so it reads as "working", with the total in the label.
-                          <div className="plan-progress-bar" />
-                        )}
-                      </div>
-                      <div className="muted plan-analyzing-sub">
-                        Batch {analyzeProgress.done}/{analyzeProgress.total} ·{" "}
-                        {analyzeElapsed}s · deterministic rules first, then AI
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="plan-progress">
-                        <div className="plan-progress-bar" />
-                      </div>
-                      <div className="muted plan-analyzing-sub">
-                        {analyzeElapsed}s elapsed · deterministic rules first,
-                        then AI — this can take a moment for a large inbox
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : !plan || plan.categories.length === 0 ? (
-                <div className="placeholder">
-                  {plan ? "Nothing to act on" : "No plan"}
-                </div>
-              ) : (
-                <>
-                  <div className="plan-summary muted">
-                    Analyzed {plan.totalAnalyzed} · {plan.readManually} to read
-                    manually
-                  </div>
-                  <div className="plan-list" ref={planNav.listRef}>
-                    {plan.categories.map((c, i) => (
-                      <div
-                        key={c.name}
-                        className={
-                          "plan-cat" +
-                          (planActiveNode?.type === "cat" &&
-                          planActiveNode.catIdx === i
-                            ? " nav-active"
-                            : "")
-                        }
-                        onMouseEnter={() =>
-                          planNav.setActiveHover(
-                            planNodes.findIndex(
-                              (n) => n.type === "cat" && n.catIdx === i,
-                            ),
-                          )
-                        }
-                      >
-                        <button
-                          className="plan-cat-main"
-                          title="Show emails in this category"
-                          onClick={() =>
-                            setExpandedCats((prev) => {
-                              const n = new Set(prev);
-                              if (n.has(c.name)) n.delete(c.name);
-                              else n.add(c.name);
-                              return n;
-                            })
-                          }
-                        >
-                          <div className="plan-cat-title">
-                            <span className="conv-caret">
-                              {expandedCats.has(c.name) ? "▾" : "▸"}
-                            </span>
-                            {c.readManually ? (
-                              <span
-                                className="rule-badge review-badge"
-                                title="The AI left these for you to review — recategorize with m"
-                              >
-                                review
-                              </span>
-                            ) : c.byRule ? (
-                              <span
-                                className="rule-badge"
-                                title="Resolved by a deterministic rule"
-                              >
-                                {Icon.bolt} rule
-                              </span>
-                            ) : null}
-                            <strong>{c.name}</strong>
-                            <span className="plan-count">
-                              {c.messageIds.length}
-                            </span>
-                          </div>
-                          <div className="plan-cat-desc muted">
-                            {c.description}
-                            {!c.readManually && !c.byRule && c.priority ? (
-                              <span
-                                className={"prio-tag prio-" + c.priority}
-                                title="AI-assigned priority"
-                              >
-                                {c.priority}
-                              </span>
-                            ) : null}
-                          </div>
-                        </button>
-                        {/* Read-manually has no action to apply — you recategorize
-                            its emails out (m). Label buckets get two: Move (label +
-                            archive, leaves inbox) primary, and Label (label only). */}
-                        {!c.readManually &&
-                          (c.action === "label" ? (
-                            <span className="plan-cat-acts">
-                              <button
-                                className="tiny primary"
-                                onClick={() => void applyCategory(c, true)}
-                              >
-                                Move to "{c.label}"
-                              </button>
-                              <button
-                                className="tiny"
-                                onClick={() => void applyCategory(c, false)}
-                              >
-                                Label "{c.label}"
-                              </button>
-                            </span>
-                          ) : c.action === "prompt" ? (
-                            <button
-                              className="tiny primary"
-                              disabled={!c.promptId}
-                              onClick={() => void dispatchPromptCategory(c)}
-                            >
-                              Run prompt
-                            </button>
-                          ) : (
-                            <button
-                              className="tiny"
-                              disabled={c.action === "none"}
-                              onClick={() => void applyCategory(c)}
-                            >
-                              {c.action.replace("_", " ")}
-                            </button>
-                          ))}
-                        {expandedCats.has(c.name) && (
-                          <ul className="plan-cat-emails">
-                            {c.messageIds.map((id) => {
-                              const m = messages.find((x) => x.id === id);
-                              const excluded = planExcluded.has(id);
-                              return (
-                                <li
-                                  key={id}
-                                  className={
-                                    "plan-email" +
-                                    (planActiveNode?.type === "email" &&
-                                    planActiveNode.catIdx === i &&
-                                    planActiveNode.id === id
-                                      ? " nav-active"
-                                      : "") +
-                                    (excluded ? " deselected" : "")
-                                  }
-                                  onMouseEnter={() =>
-                                    planNav.setActiveHover(
-                                      planNodes.findIndex(
-                                        (n) =>
-                                          n.type === "email" &&
-                                          n.catIdx === i &&
-                                          n.id === id,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  <span
-                                    className="pe-check"
-                                    title={
-                                      excluded
-                                        ? "Deselected — Space to select"
-                                        : "Selected — Space to deselect"
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPlanExcluded((prev) => {
-                                        const n = new Set(prev);
-                                        if (n.has(id)) n.delete(id);
-                                        else n.add(id);
-                                        return n;
-                                      });
-                                    }}
-                                  >
-                                    {excluded ? "☐" : "☑"}
-                                  </span>
-                                  <span
-                                    className="pe-body"
-                                    onClick={() => {
-                                      if (m) {
-                                        setPlanOpen(false);
-                                        void openMessage(m);
-                                      }
-                                    }}
-                                  >
-                                    <span className="pe-from">
-                                      {m ? displayName(m.from) : id}
-                                    </span>
-                                    <span className="pe-subject muted">
-                                      {m?.subject || ""}
-                                    </span>
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="modal-foot">
-              <span className="foot-hint">
-                ↑↓ move · → expand · Space (de)select · Enter peek/apply (label→move)
-                · l label-only · m recategorize · r rules · p prompt · Esc close
-              </span>
-              {plan && plan.categories.length > 0 && (
-                <button
-                  className="ghost"
-                  disabled={applyingAll}
-                  onClick={() => void applyAllCategories()}
-                >
-                  {applyingAll ? "Applying…" : "Apply all"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ActionPlanModal
+          analyzing={analyzing}
+          analyzeCount={analyzeCount}
+          analyzeProgress={analyzeProgress}
+          analyzeElapsed={analyzeElapsed}
+          plan={plan}
+          planNodes={planNodes}
+          planActiveNode={planActiveNode}
+          listRef={planNav.listRef}
+          setActiveHover={planNav.setActiveHover}
+          expandedCats={expandedCats}
+          setExpandedCats={setExpandedCats}
+          planExcluded={planExcluded}
+          setPlanExcluded={setPlanExcluded}
+          applyingAll={applyingAll}
+          rulesEnabled={rulesEnabled}
+          messages={messages}
+          onApplyCategory={(c, move) => void applyCategory(c, move)}
+          onDispatchPrompt={(c) => void dispatchPromptCategory(c)}
+          onApplyAll={() => void applyAllCategories()}
+          onOpenMessage={(m) => {
+            setPlanOpen(false);
+            void openMessage(m);
+          }}
+          onOpenRules={() => void openRules()}
+          onViewPrompt={() => void viewAnalyzerPrompt()}
+          onClose={() => setPlanOpen(false)}
+        />
       )}
       {planMove && plan && (
         <PlanMovePicker
