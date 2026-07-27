@@ -51,6 +51,8 @@ import {
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { freshPrefix, dedupeNew } from "./messageList";
 import { activeAiPanel } from "./aiPanels";
+import StatsModal from "./StatsModal";
+import ConfigModal from "./ConfigModal";
 import {
   buildMoveTargets,
   applyPlanMove,
@@ -5268,112 +5270,14 @@ export default function App() {
         </div>
       )}
       {statsOpen && (
-        <div className="modal-overlay" onClick={() => setStatsOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setStatsOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>AI usage</h3>
-              <button className="ghost" onClick={() => setStatsOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {!stats ? (
-                <div className="placeholder">Loading…</div>
-              ) : (
-                <>
-                  <div className="stats-summary">
-                    <div className="stat-tile">
-                      <span className="stat-num">{stats.totalUsage}</span>
-                      <span className="stat-label muted">total runs</span>
-                    </div>
-                    <div className="stat-tile">
-                      <span className="stat-num">{stats.uniquePrompts}</span>
-                      <span className="stat-label muted">prompts used</span>
-                    </div>
-                  </div>
-                  <div className="label-list">
-                    {stats.topPrompts.length === 0 ? (
-                      <div className="placeholder">No usage yet</div>
-                    ) : (
-                      stats.topPrompts.map((p) => (
-                        <div key={p.name} className="stat-row">
-                          <span className="stat-row-name">{p.name}</span>
-                          {p.category && (
-                            <span className="stat-row-cat muted">
-                              {p.category}
-                            </span>
-                          )}
-                          <span className="stat-row-count">{p.usageCount}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <StatsModal stats={stats} onClose={() => setStatsOpen(false)} />
       )}
       {configOpen && (
-        <div className="modal-overlay" onClick={() => setConfigOpen(false)}>
-          <div
-            className="modal narrow"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setConfigOpen(false);
-            }}
-          >
-            <div className="modal-head">
-              <h3>Configuration</h3>
-              <button className="ghost" onClick={() => setConfigOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {!configInfo ? (
-                <div className="placeholder">Loading…</div>
-              ) : (
-                <div className="config-list">
-                  {(
-                    [
-                      ["Account", configInfo.account],
-                      ["Config file", configInfo.configPath],
-                      ["Log file", configInfo.logPath],
-                      [
-                        "LLM",
-                        configInfo.llmModel
-                          ? `${configInfo.llmProvider} · ${configInfo.llmModel}`
-                          : "disabled",
-                      ],
-                      ["Theme", configInfo.theme || "default"],
-                      ["Downloads", configInfo.downloadPath],
-                      ["Obsidian", configInfo.obsidianOn ? "on" : "off"],
-                      ["Slack", configInfo.slackOn ? "on" : "off"],
-                      ["Auto-refresh", configInfo.autoRefresh ? "on" : "off"],
-                    ] as [string, string][]
-                  ).map(([k, v]) => (
-                    <div key={k} className="config-row">
-                      <span className="config-key muted">{k}</span>
-                      <span className="config-val">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button className="ghost" onClick={() => void clearCaches()}>
-                Clear AI caches
-              </button>
-              <button onClick={() => setConfigOpen(false)}>Close</button>
-            </div>
-          </div>
-        </div>
+        <ConfigModal
+          info={configInfo}
+          onClearCaches={() => void clearCaches()}
+          onClose={() => setConfigOpen(false)}
+        />
       )}
       {showHelp && (
         <Help
