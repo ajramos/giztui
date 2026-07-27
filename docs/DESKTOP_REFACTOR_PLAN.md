@@ -7,16 +7,26 @@
 > assistant's ephemeral context) so a fresh session, or a human, can pick it up
 > mid-flight. Update the **Progress tracker** as phases land.
 
-**Status:** F0–F2 DONE & merged (PR #61). Approach approved.
-**Owner:** _tbd_ · **Last updated:** 2026-07-25
+**Status:** F0–F2 DONE & merged (PR #61). Playwright integration net DONE (this batch). Approach approved.
+**Owner:** _tbd_ · **Last updated:** 2026-07-26
 
-> **▶ RESUME HERE (next session).** F0–F2 are merged: vitest harness + `format.ts`,
-> `compose.ts`, `commands.ts` extracted (38 unit tests; `npm test`). **Next is F3
-> (subsystem hooks) — but FIRST build the Playwright integration suite** (§5), the
-> only net for the coupled behavior; then extract hooks safest→riskiest with
-> `useAiPanels` LAST. Re-read §3 (landmines) before touching any stateful code.
-> The branch `claude/giztui-visual-client-iadjgl` was reset off `main` after each
-> merge — reset it to latest `main` again before starting.
+> **▶ RESUME HERE (next session).** F0–F2 are merged (vitest harness + `format.ts`,
+> `compose.ts`, `commands.ts`; 38 unit tests, `npm test`) **and the Playwright
+> integration net is now in place** (`desktop/frontend/e2e/`, 13 specs,
+> `npm run test:e2e`) — it drives the real app against the api.ts mock and covers
+> the coupled flows (open→summarize, apply-prompt→switch→return, summary/prompt
+> per-message caching, search scope, picker open/arrow/Escape). **F3.1 is DONE
+> too — `useZoom` + `useTheme`** (safest hooks; guarded by `e2e/zoom.spec.ts` +
+> `e2e/theme.spec.ts`). **F3.2 is DONE too** — `useAttachments` + `useRsvp` +
+> `useThreading` extracted (per-message fetch/reset stays in `loadMessage`;
+> `summarizeThread` deferred to F3.4). **Next is F3.3 (`useMessages` —
+> list/load/pagination/pendingNew/prune; touches `openIdRef` and the load-bearing
+> reset order in `loadMessage`) → F3.4 (`useAiPanels`, the 68-setter tangle)
+> LAST.** For every hook extraction: keep `npm run test:e2e`
+> green (extend it when a hook adds a flow it doesn't yet cover) and re-read §3
+> (landmines) before touching any stateful code. The branch
+> `claude/giztui-visual-client-iadjgl` was reset off `main` after each merge —
+> reset it to latest `main` again before starting.
 
 > **Sequencing note (refinement, approved):** Playwright integration tests protect
 > the *coupled* refactors (F3). F1/F2 are pure/near-pure and are protected by unit
@@ -156,8 +166,9 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 - [x] **F0** Harness — vitest + jsdom, `test` script (Playwright suite deferred to F3 start)
 - [x] **F1** Pure helpers + unit tests — `format.ts` (11 fns, 23 tests) + `compose.ts` (reply/replyAll/forward, 6 tests) ✅
 - [x] **F2** Command layer — `commands.ts` (COMMANDS + pure `parseCommand`/`filterCommands`/`resolveEnter`), CommandBar/App rewired, 9 unit tests + integrity check ✅. Scope kept safe: the big `executeCommand` switch stays as the handler adapter; **data-driven dispatch (actions object) is deferred** — low marginal value, higher risk.
-- [ ] **F3.1** useZoom / useTheme
-- [ ] **F3.2** useThreading / useAttachments / useRsvp
+- [x] **F3.0** Playwright integration net — `@playwright/test` + `playwright.config.ts` (pre-installed Chromium, vite `webServer` on :5199) + `desktop/frontend/e2e/` (13 specs across inbox/reader, search scope, AI summary+prompt caching/landmines, pickers). `npm run test:e2e`. This is the safety net that guards every F3.x hook extraction ✅.
+- [x] **F3.1** `useZoom` (`src/useZoom.ts`) + `useTheme` (`src/useTheme.ts`) — behavior-preserving moves out of App.tsx (−65 net lines). No §3 landmines touched. Guarded by new e2e specs (`e2e/zoom.spec.ts`, `e2e/theme.spec.ts`; suite now 18 specs). Diff was a pure relocation (verified) ✅.
+- [x] **F3.2** `useAttachments` + `useRsvp` + `useThreading` (`src/useAttachments.ts`, `src/useRsvp.ts`, `src/useThreading.ts`) — behavior-preserving moves. The per-message fetch/reset lines stay in `loadMessage` and call the hooks' setters/refs under the same names, so the reset ORDER + `openIdRef` gating are byte-identical. **`summarizeThread` deliberately stays in App.tsx** (it writes the AI-summary panel state → belongs to F3.4). Guarded by `e2e/attachments.spec.ts`, `e2e/rsvp.spec.ts`, `e2e/threading.spec.ts`; suite now 25 ✅.
 - [ ] **F3.3** useMessages
 - [ ] **F3.4** useAiPanels  ⚠️ highest risk
 - [ ] **F4** JSX component splits
@@ -174,8 +185,12 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 
 - [x] vitest + jsdom approved as the unit harness.
 - [x] Order approved: F0 → F1 → F2 this batch; F3 (hooks) in dedicated sessions.
-- [ ] Where do Playwright specs live (`desktop/frontend/e2e/`?) and do we wire them
-  into CI or keep them local-run for now? (decide at F3 start)
+- [x] Playwright specs live in **`desktop/frontend/e2e/`**, run via **`npm run test:e2e`**
+  (config `desktop/frontend/playwright.config.ts`; a vite `webServer` boots the app
+  against the api.ts mock; Chromium is the pre-installed browser, never downloaded).
+  Kept **local-run for now** (not wired into CI) — revisit wiring it into CI once the
+  F3 hook extractions have proven the suite stays stable. Artifacts
+  (`test-results/`, `playwright-report/`) are git-ignored.
 
 ## 10. Related outstanding work (NOT this plan — separate backlog)
 

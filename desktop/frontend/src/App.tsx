@@ -8,11 +8,9 @@ import {
   summarizeStream,
   threadSummaryStream,
   type AccountInfo,
-  type Attachment,
   type DraftSummary,
   type KeyMap,
   type Label,
-  type Invite,
   type UsageStats,
   type ConfigInfo,
   type MessageDetail,
@@ -44,7 +42,6 @@ import {
   emailAddr,
   labelForAction,
   formatICSDate,
-  mixHex,
   cleanSubject,
   countMatches,
   formatDate,
@@ -68,6 +65,11 @@ import CommandBar from "./CommandBar";
 import { COMMANDS, parseCommand } from "./commands";
 import MoreMenu from "./MoreMenu";
 import { useListNav } from "./useListNav";
+import { useZoom } from "./useZoom";
+import { useTheme } from "./useTheme";
+import { useAttachments } from "./useAttachments";
+import { useRsvp } from "./useRsvp";
+import { useThreading } from "./useThreading";
 import { Icon, IconBtn } from "./Icons";
 
 const PAGE_SIZE = 50;
@@ -91,8 +93,6 @@ export default function App() {
   const [pendingNew, setPendingNew] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   // Whether keyboard focus is "in" the reader: after Enter/click-open (or a click
   // inside the reader) the arrow/j/k keys scroll the message instead of moving
   // the inbox cursor. Escape returns focus to the list. Mirrors the TUI, where
@@ -206,10 +206,6 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [threadingOn, setThreadingOn] = useState(false);
-  const [threadMsgs, setThreadMsgs] = useState<MessageDetail[] | null>(null);
-  const [collapsedMsgs, setCollapsedMsgs] = useState<Set<string>>(new Set());
-  const [loadingThread, setLoadingThread] = useState(false);
   const [savedQueriesOn, setSavedQueriesOn] = useState(false);
   const [queriesOpen, setQueriesOpen] = useState(false);
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
@@ -256,10 +252,16 @@ export default function App() {
   const [newRule, setNewRule] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const promptPreviewBodyRef = useRef<HTMLDivElement>(null);
-  const [themesOn, setThemesOn] = useState(false);
-  const [themePickerOpen, setThemePickerOpen] = useState(false);
-  const [themeNames, setThemeNames] = useState<string[]>([]);
-  const [currentTheme, setCurrentTheme] = useState("");
+  // Theme subsystem (enablement, names, current, picker, applyTheme) lives in useTheme.
+  const {
+    themesOn,
+    themePickerOpen,
+    setThemePickerOpen,
+    themeNames,
+    currentTheme,
+    applyTheme,
+    initTheme,
+  } = useTheme();
   const [generatingReply, setGeneratingReply] = useState(false);
   const [touchUpText, setTouchUpText] = useState<string | null>(null);
   const [touchingUp, setTouchingUp] = useState(false);
@@ -285,18 +287,10 @@ export default function App() {
   const runningLabelRef = useRef<Record<string, string>>({});
   const touchUpTextRef = useRef(touchUpText);
   touchUpTextRef.current = touchUpText;
-  const [rsvpEnabled, setRsvpEnabled] = useState(false);
-  const [invite, setInvite] = useState<Invite | null>(null);
-  const [rsvpBusy, setRsvpBusy] = useState("");
   const [statsOpen, setStatsOpen] = useState(false);
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [configInfo, setConfigInfo] = useState<ConfigInfo | null>(null);
-  // Ref mirror so loadMessage (stable, no deps) can read the latest value.
-  const rsvpEnabledRef = useRef(false);
-  useEffect(() => {
-    rsvpEnabledRef.current = rsvpEnabled;
-  }, [rsvpEnabled]);
   // headersExpanded reveals the extra cc/thread/id detail (via the ⋯ menu).
   // headersHidden collapses the whole From/To/Date block for more body room and
   // is what the `h` key toggles, matching the TUI's toggle_headers.
@@ -308,28 +302,13 @@ export default function App() {
   const [csOpen, setCsOpen] = useState(false);
   const [csQuery, setCsQuery] = useState("");
   const [csIndex, setCsIndex] = useState(0);
-  // The RSVP bar auto-shows for invites; V opens a keyboard-navigable picker.
-  const [rsvpPickerOpen, setRsvpPickerOpen] = useState(false);
   // The reader toolbar is optional — GizTUI is keyboard-first, so users can
   // hide it and drive everything from the keyboard. The choice is persisted.
   const [showToolbar, setShowToolbar] = useState(
     () => localStorage.getItem("giztui.toolbar") !== "off",
   );
-  // UI zoom: WKWebView doesn't honour Cmd+/- to scale the app, so we drive it
-  // ourselves via CSS zoom on the root and remember the choice. Cmd/Ctrl +/-/0.
-  const [uiZoom, setUiZoom] = useState(() => {
-    const v = Number(localStorage.getItem("giztui.zoom"));
-    return v >= 0.6 && v <= 2.4 ? v : 1;
-  });
-  useEffect(() => {
-    (document.documentElement.style as unknown as { zoom: string }).zoom =
-      String(uiZoom);
-    localStorage.setItem("giztui.zoom", String(uiZoom));
-  }, [uiZoom]);
-  const bumpZoom = useCallback((delta: number) => {
-    setUiZoom((z) => Math.min(2.4, Math.max(0.6, Math.round((z + delta) * 10) / 10)));
-  }, []);
-  const resetZoom = useCallback(() => setUiZoom(1), []);
+  // UI zoom (Cmd/Ctrl +/-/0) lives in useZoom — CSS `zoom` on the root, persisted.
+  const { setZoom, bumpZoom, resetZoom } = useZoom();
   // Local filter mode: narrow the already-loaded list client-side instead of
   // running a remote Gmail search (the TUI's search_toggle_mode).
   const [localFilter, setLocalFilter] = useState(false);
@@ -411,6 +390,38 @@ export default function App() {
     setTimeout(() => setToast(""), 2500);
   }, []);
 
+  // Per-message subsystems extracted from App.tsx (F3.2). Their per-message data
+  // is still fetched inside loadMessage (gated by openIdRef) via the setters
+  // below; the hooks own the state + standalone actions.
+  const {
+    attachments,
+    setAttachments,
+    attachmentsOpen,
+    setAttachmentsOpen,
+    downloadAttachment,
+  } = useAttachments(detail, { setBusy, setError, showToast });
+  const {
+    rsvpEnabled,
+    setRsvpEnabled,
+    rsvpEnabledRef,
+    invite,
+    setInvite,
+    rsvpBusy,
+    rsvpPickerOpen,
+    setRsvpPickerOpen,
+    respondInvite,
+  } = useRsvp({ setError, showToast });
+  const {
+    threadingOn,
+    setThreadingOn,
+    threadMsgs,
+    setThreadMsgs,
+    collapsedMsgs,
+    setCollapsedMsgs,
+    loadingThread,
+    toggleThread,
+  } = useThreading(detail, { setError });
+
   // When an AI result panel starts, reveal it (the panels render at the top of
   // the reader, so if you'd scrolled down they'd appear above the fold and look
   // like a no-op) and flash a toast so there's immediate feedback either way.
@@ -448,57 +459,6 @@ export default function App() {
     },
     [showToast],
   );
-
-  // applyTheme fetches a theme's palette from the backend and maps it onto the
-  // CSS custom properties the stylesheet reads. Empty name = the configured
-  // (current) theme, resolved on startup.
-  const applyTheme = useCallback(async (name: string) => {
-    try {
-      const c = await backend.GetThemeColors(name);
-      if (!c) return;
-      const root = document.documentElement.style;
-      const set = (k: string, v: string) => {
-        if (v) root.setProperty(k, v);
-      };
-      // Map the theme palette onto the CSS custom properties the stylesheet
-      // reads. Elevated/hover surfaces are derived from the base background so
-      // the UI keeps its layering even when a theme only defines a few colors.
-      // The accent (focus color) — never the title color — drives buttons, so
-      // primary buttons stay in the theme's accent hue instead of turning into
-      // a loud title color (e.g. bright green).
-      const bg = c.bg || "#14161b";
-      const fg = c.fg || "#e6e8ec";
-      const accent = c.accent || "#6ea8fe";
-      const distinct = (v: string) =>
-        v && v.toLowerCase() !== bg.toLowerCase() ? v : "";
-      const elev = distinct(c.inputBg) || mixHex(bg, fg, 0.06);
-      const rowHover = distinct(c.selectionBg) || mixHex(bg, fg, 0.1);
-      const selected = distinct(c.selectionBg) || mixHex(bg, accent, 0.22);
-      set("--bg", bg);
-      set("--bg-elev", elev);
-      set("--bg-row", bg);
-      set("--bg-row-hover", rowHover);
-      set("--bg-selected", selected);
-      set("--border", c.border || mixHex(bg, fg, 0.16));
-      set("--text", fg);
-      set("--text-muted", c.muted || mixHex(fg, bg, 0.4));
-      // Readable secondary text (keyboard hints, ghost buttons, loading) —
-      // always derived from fg/bg so it stays legible regardless of how faint a
-      // theme's own muted color is. t is the weight toward bg, so a smaller value
-      // than --text-muted's 0.4 keeps this closer to the text colour (higher
-      // contrast).
-      set("--text-dim", mixHex(fg, bg, 0.2));
-      set("--accent", accent);
-      set("--accent-strong", accent);
-      set("--danger", c.danger || "#ff6b6b");
-      set("--chip-bg", mixHex(bg, fg, 0.12));
-      set("--chip-text", fg);
-      set("--unread-dot", accent);
-      if (c.name) setCurrentTheme(c.name);
-    } catch {
-      /* non-fatal: keep the default palette */
-    }
-  }, []);
 
   const load = useCallback(async (q: string) => {
     setLoadingList(true);
@@ -721,16 +681,7 @@ export default function App() {
       } catch {
         /* non-fatal */
       }
-      try {
-        const on = await backend.ThemesEnabled();
-        setThemesOn(on);
-        if (on) {
-          setThemeNames(await backend.ListThemes());
-          await applyTheme(""); // apply the configured theme
-        }
-      } catch {
-        /* non-fatal */
-      }
+      await initTheme();
       try {
         setLabels(await backend.ListLabels());
       } catch {
@@ -751,7 +702,7 @@ export default function App() {
         /* non-fatal */
       }
       void load("");
-  }, [load, applyTheme]);
+  }, [load, initTheme]);
 
   useEffect(() => {
     void runInit();
@@ -1385,23 +1336,6 @@ export default function App() {
     }
   }, [updateAiCache]);
 
-  // respondInvite sends an RSVP (accepted/tentative/declined) for the open
-  // message's calendar invite.
-  const respondInvite = useCallback(
-    async (id: string, status: "accepted" | "tentative" | "declined") => {
-      setRsvpBusy(status);
-      setError("");
-      try {
-        await backend.RespondInvite(id, status);
-        showToast(`RSVP: ${status}`);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setRsvpBusy("");
-      }
-    },
-    [showToast],
-  );
 
   const openStats = useCallback(async () => {
     setStatsOpen(true);
@@ -1778,24 +1712,6 @@ export default function App() {
     },
     [suggestFor, showToast],
   );
-
-  const toggleThread = useCallback(async () => {
-    if (!detail) return;
-    if (threadMsgs) {
-      setThreadMsgs(null);
-      return;
-    }
-    setLoadingThread(true);
-    setError("");
-    try {
-      const msgs = await backend.GetThread(detail.threadId);
-      setThreadMsgs(msgs);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingThread(false);
-    }
-  }, [detail, threadMsgs]);
 
   const summarizeThread = useCallback(async () => {
     if (!detail) return;
@@ -2548,7 +2464,7 @@ export default function App() {
           break;
         case "zoom": {
           const n = Number(arg);
-          if (arg && n >= 0.6 && n <= 2.4) setUiZoom(n);
+          if (arg && n >= 0.6 && n <= 2.4) setZoom(n);
           else if (!arg) resetZoom();
           break;
         }
@@ -2740,27 +2656,8 @@ export default function App() {
       applyLabelChange,
       bumpZoom,
       resetZoom,
+      setZoom,
     ],
-  );
-
-  const downloadAttachment = useCallback(
-    async (att: Attachment) => {
-      if (!detail) return;
-      setBusy(true);
-      try {
-        const path = await backend.DownloadAttachment(
-          detail.id,
-          att.attachmentId,
-          att.filename,
-        );
-        showToast(`Saved to ${path}`);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [detail, showToast],
   );
 
   // Invert the (config-driven) keymap into a chord → action lookup. gotoTop is
