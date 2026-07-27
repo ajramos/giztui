@@ -169,7 +169,15 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
 - [x] **F3.0** Playwright integration net — `@playwright/test` + `playwright.config.ts` (pre-installed Chromium, vite `webServer` on :5199) + `desktop/frontend/e2e/` (13 specs across inbox/reader, search scope, AI summary+prompt caching/landmines, pickers). `npm run test:e2e`. This is the safety net that guards every F3.x hook extraction ✅.
 - [x] **F3.1** `useZoom` (`src/useZoom.ts`) + `useTheme` (`src/useTheme.ts`) — behavior-preserving moves out of App.tsx (−65 net lines). No §3 landmines touched. Guarded by new e2e specs (`e2e/zoom.spec.ts`, `e2e/theme.spec.ts`; suite now 18 specs). Diff was a pure relocation (verified) ✅.
 - [x] **F3.2** `useAttachments` + `useRsvp` + `useThreading` (`src/useAttachments.ts`, `src/useRsvp.ts`, `src/useThreading.ts`) — behavior-preserving moves. The per-message fetch/reset lines stay in `loadMessage` and call the hooks' setters/refs under the same names, so the reset ORDER + `openIdRef` gating are byte-identical. **`summarizeThread` deliberately stays in App.tsx** (it writes the AI-summary panel state → belongs to F3.4). Guarded by `e2e/attachments.spec.ts`, `e2e/rsvp.spec.ts`, `e2e/threading.spec.ts`; suite now 25 ✅.
-- [ ] **F3.3** useMessages
+- [x] **F3.3** Message-list logic — scoped safely: the list *state* (`messages`/
+  `fullMessagesRef`) is a cross-cutting spine used by ~20 call sites (every
+  bulk/doAction/prune), and `loadMessage` reaches into AI restore (F3.4 territory),
+  so a full `useMessages` hook would be high-churn prop-threading with little real
+  decoupling. Instead extracted the **pure list logic** to `messageList.ts`
+  (`freshPrefix` = contiguous-unknown-prefix new-mail detection — the anti-scramble
+  logic; `dedupeNew`) + 8 unit tests including the "old message shifted onto page 1
+  after a delete is NOT new" case. No React state moved; no §3 landmines touched.
+  Guarded by the e2e inbox specs ✅.
 - [ ] **F3.4** useAiPanels  ⚠️ highest risk
 - [ ] **F4** JSX component splits
 
