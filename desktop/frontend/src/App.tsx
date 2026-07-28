@@ -23,15 +23,12 @@ import { useDrafts } from "./useDrafts";
 import { useMessages } from "./useMessages";
 import { useMailActions } from "./useMailActions";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
-import { runCommand } from "./commandRunner";
+import { useAppWiring } from "./useAppWiring";
 import { useActionPlan } from "./useActionPlan";
-import { handleKeyDown } from "./keydownHandler";
 import { useAiActions } from "./useAiActions";
 import { useMiscActions } from "./useMiscActions";
 import { useReader } from "./useReader";
 import { useKeymap } from "./useKeymap";
-import type { KeydownCtx } from "./keydownCtx";
-import type { CommandCtx } from "./commandCtx";
 import { useBootstrap } from "./useBootstrap";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
@@ -191,11 +188,6 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const gPressedAt = useRef(0);
-  // Latest keydown-context, refreshed every render so the once-registered window
-  // listener reads fresh state without re-subscribing (see the keydown effect).
-  const kdCtxRef = useRef<KeydownCtx | null>(null);
-  // Latest command-context, refreshed every render so executeCommand stays stable.
-  const cmdCtxRef = useRef<CommandCtx | null>(null);
   // VIM range-operation state machine (a3a, d2d, t5t, l2l). Held in a ref so the
   // pending count/timer survive re-renders without re-registering the key
   // handler. `op` is the pending operation key; `count` accumulates digits;
@@ -425,73 +417,36 @@ export default function App() {
     setDetRulesOpen, messages, setMessages, promptPreview, setPromptPreview, bulkPromptText,
     setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
   });
-  // Rebuilt every render into a ref so executeCommand stays stable (no giant
-  // deps array, no CommandBar churn) while always seeing fresh state.
-  cmdCtxRef.current = {
-    detail, load, doAction, activeQuery, openDrafts, saveMessage,
-    sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
-    summarize, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
-    runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
-    doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
-    openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
-    applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
-    respondInvite, openStats, openConfig, clearCaches, loadMore, attachments,
-    threadingOn, toggleThread, threadMsgs, summarizeThread, messages, previewMessage,
-    accounts, applyLabelChange, bumpZoom, resetZoom, setZoom, dismissAI,
-    regenerateActive, setError, setCompose, setSelected, setSelectedId, setMessages,
-    setLabelsFor, setLinksFor, setMoveFor, setTouchUpText, setCsQuery, setCsIndex,
-    setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
-    setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
-    setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
-    setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
-  };
-  const executeCommand = useCallback(
-    (input: string) => runCommand(input, cmdCtxRef.current!),
-    [],
-  );
-
-  // Invert the (config-driven) keymap into a chord → action lookup. gotoTop is
-  // handled separately (it may be the "gg" vim sequence).
-
-  // Global keyboard shortcuts, driven by the user's GizTUI keybindings. List
-  // navigation (j/k/arrows/Enter/Esc) mirrors the TUI's native table: j/k move a
-  // cursor without opening; Enter opens. This avoids marking mail read while
-  // just scanning.
-  // Rebuilt every render into a ref so the single window listener (registered
-  // once, below) always reads fresh state without a giant exhaustive-deps array
-  // or re-subscribing on every keystroke-relevant change.
-  kdCtxRef.current = {
-    attachmentsOpen, activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
-    accounts, accountsOpen, actionPlanOn, advOpen, aiEnabled, aiPromptsEnabled,
-    applyCategory, attachments, bulkAction, bulkLabels, bulkMode, bulkMove,
-    bulkPromptText, bumpZoom, chordAction, clearVimRange, cmdOpen, compose,
-    configOpen, csOpen, csQuery, detRulesOpen, detail, dismissAI,
-    doAction, draftsView, exitBulk, fullMessagesRef, headersHidden, invite,
-    keymap, labelsFor, linksFor, load, loadMore, localFilter,
-    messages, moveFor, obsidianOn, openDrafts, openInGmail, openMessage,
-    openQueries, openRules, openSuggest, plan, planActiveRef, planMove,
-    planNodesRef, planOpen, planPreview, previewMessage, promptManagerOpen, promptPreview,
-    promptsOpen, queriesOpen, quickSearch, readerBodyRef, readerFocused, regenerateActive,
-    resetZoom, rsvpPickerOpen, rulesEnabled, rulesOpen, runActionPlan, runUndo,
-    runVimRange, runVimSingle, saveMessage, saveQueryOpen, saveRawMessage, savedQueriesOn,
-    searchRef, selected, selectedId, sendObsidian, setAccountsOpen, setAdvOpen,
-    setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress, setBulkPromptText,
-    setCmdOpen, setCompose, setConfigOpen, setCsIndex, setCsOpen, setCsQuery,
-    setDetail, setDraftsView, setExpandedCats, setHeadersHidden, setLabelsFor, setLinksFor,
-    setLocalFilter, setMessages, setMoveFor, setPlanExcluded, setPlanMove, setPlanOpen,
-    setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
-    setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
-    setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setViewHtml, showHelp,
-    showToast, slackOn, statsOpen, suggestFor, summarize, themePickerOpen,
-    threadingOn, toggleSelect, toggleThread, viewAnalyzerPrompt,
-  };
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (kdCtxRef.current) handleKeyDown(e, kdCtxRef.current);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // Global input wiring — the window keydown listener and the command runner —
+  // lives in useAppWiring, which reads this merged context (a superset of both
+  // KeydownCtx and CommandCtx) through a ref. Both consumers read only their own
+  // fields, so one flat object serves both.
+  const { executeCommand } = useAppWiring({
+    accounts, accountsOpen, actionPlanOn, activeQuery, advOpen, aiEnabled, aiPromptsEnabled,
+    alwaysImagesRef, applyCategory, applyLabelChange, applyLocalFilter, applyTheme, attachments, attachmentsOpen,
+    bulkAction, bulkLabels, bulkMode, bulkMove, bulkPromptText, bumpZoom, chordAction,
+    clearCaches, clearVimRange, cmdOpen, compose, configOpen, csOpen,
+    csQuery, detRulesOpen, detail, dismissAI, doAction, doBulkMove,
+    doMove, draftsView, exitBulk, forwardSlack, fullMessagesRef, gPressedAt, generateReply,
+    headersHidden, imageOptIn, invite, keymap, labelsFor, linksFor,
+    load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
+    openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openSuggest,
+    plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
+    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
+    readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
+    runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
+    saveRawMessage, savedQueriesOn, searchRef, selected, selectedId, sendObsidian, setAccountsOpen,
+    setAdvOpen, setAlwaysImagesOn, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
+    setBulkPromptText, setCmdOpen, setCollapsedMsgs, setCompose, setConfigOpen, setCsIndex, setCsOpen,
+    setCsQuery, setDetRulesOpen, setDetail, setDraftsView, setError, setExpandedCats, setHeadersHidden,
+    setLabelsFor, setLinksFor, setLoadRemote, setLocalFilter, setMessages, setMoveFor, setPlanExcluded,
+    setPlanMove, setPlanOpen, setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen,
+    setQuery, setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
+    setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
+    showHelp, showToast, slackOn, statsOpen, suggestFor, summarize, summarizeThread,
+    themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleSelect, toggleThread,
+    toggleToolbar, touchUp, touchUpText, viewAnalyzerPrompt, vimRange,
+  });
 
   if (needCreds || initError || connecting) {
     return (
