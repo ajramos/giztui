@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	_ "time/tzdata" // embed the IANA tz database so calendar-invite TZID conversion works everywhere
 
 	"github.com/ajramos/giztui/internal/calendar"
 	"github.com/ajramos/giztui/internal/config"
