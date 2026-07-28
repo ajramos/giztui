@@ -4,7 +4,6 @@ import {
   applyPromptStream,
   backend,
   DEFAULT_KEYMAP,
-  isWails,
   summarizeStream,
   threadSummaryStream,
   type AccountInfo,
@@ -58,6 +57,7 @@ import AdvancedSearchModal from "./AdvancedSearchModal";
 import ActionPlanModal from "./ActionPlanModal";
 import MessageList from "./MessageList";
 import Reader from "./Reader";
+import TopBar from "./TopBar";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
@@ -66,7 +66,6 @@ import {
   type MoveTarget,
 } from "./planMove";
 import RulesManager from "./RulesManager";
-import AccountSwitcher from "./AccountSwitcher";
 import Help from "./Help";
 import CommandBar from "./CommandBar";
 import { COMMANDS, parseCommand } from "./commands";
@@ -76,7 +75,7 @@ import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
 import { useRsvp } from "./useRsvp";
 import { useThreading } from "./useThreading";
-import { Icon, IconBtn } from "./Icons";
+import { Icon } from "./Icons";
 
 const PAGE_SIZE = 50;
 
@@ -3561,180 +3560,76 @@ export default function App() {
 
   return (
     <div className="app" ref={rootRef} tabIndex={-1}>
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo">✦</span> GizTUI
-          <span className="subtitle">Desktop</span>
-        </div>
-        <form
-          className="searchbox"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = query.trim();
-            searchRef.current?.blur();
-            if (localFilter) applyLocalFilter(q);
-            else void load(q);
-          }}
-        >
-          <IconBtn
-            icon={localFilter ? Icon.filter : Icon.search}
-            label={
-              localFilter
-                ? "Local filter — click for Gmail search"
-                : "Gmail search — click to filter loaded list"
-            }
-            primary={localFilter}
-            onClick={() => {
-              const next = !localFilter;
-              setLocalFilter(next);
-              if (next) applyLocalFilter(query);
-              else setMessages(fullMessagesRef.current);
-            }}
-          />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder={
-              localFilter
-                ? "Filter loaded messages…"
-                : `Search mail (${keymap.search} · Ctrl+F advanced) — from:, has:attachment…`
-            }
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (localFilter) applyLocalFilter(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              // Escape from the search box exits the search entirely (back to
-              // the default inbox), matching the TUI — not just a blur.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setQuery("");
-                if (localFilter) {
-                  setLocalFilter(false);
-                  setMessages(fullMessagesRef.current);
-                } else if (activeQuery) {
-                  void load("");
-                }
-                (e.target as HTMLElement).blur();
-              }
-            }}
-          />
-          {!localFilter && (
-            <button
-              type="submit"
-              className="icon-btn primary"
-              aria-label="Search"
-              data-tip="Search"
-            >
-              {Icon.search}
-            </button>
-          )}
-          <IconBtn
-            icon={Icon.sliders}
-            label="Advanced search"
-            onClick={() => setAdvOpen(true)}
-          />
-          {(activeQuery || (localFilter && query)) && (
-            <IconBtn
-              icon={Icon.x}
-              label="Clear search"
-              onClick={() => {
-                setQuery("");
-                if (localFilter) setMessages(fullMessagesRef.current);
-                else void load("");
-              }}
-            />
-          )}
-        </form>
-        <div className="account">
-          {!isWails() && <span className="badge">mock</span>}
-          <AccountSwitcher
-            accounts={accounts}
-            email={account}
-            switching={switching}
-            onSwitch={(a) => void switchAccount(a)}
-            open={accountsOpen}
-            onOpenChange={setAccountsOpen}
-          />
-          {/* Same IconBtn format as the reader/bulk toolbars for one consistent
-              button language across the app. */}
-          <div className="actions topbar-actions">
-            {undoLabel && (
-              <IconBtn
-                icon={Icon.undo}
-                label={`Undo ${undoLabel} (U)`}
-                onClick={() => void runUndo()}
-              />
-            )}
-            <IconBtn
-              icon={Icon.edit}
-              label="Compose (c)"
-              primary
-              onClick={() => setCompose({ mode: "new" })}
-            />
-            <IconBtn
-              icon={Icon.drafts}
-              label="Drafts (D)"
-              primary={draftsView}
-              onClick={() => {
-                if (draftsView) setDraftsView(false);
-                else openDrafts();
-              }}
-            />
-            <IconBtn
-              icon={Icon.checkAll}
-              label="Select mode (v)"
-              primary={bulkMode}
-              onClick={() => {
-                if (bulkMode) exitBulk();
-                else {
-                  setBulkMode(true);
-                  if (!selectedId && messages.length > 0)
-                    setSelectedId(messages[0].id);
-                }
-              }}
-            />
-            {savedQueriesOn && (
-              <IconBtn
-                icon={Icon.bookmark}
-                label="Saved searches (Q)"
-                onClick={() => void openQueries()}
-              />
-            )}
-            <IconBtn
-              icon={Icon.layout}
-              label={
-                showToolbar
-                  ? "Hide reader toolbar (:toolbar)"
-                  : "Show reader toolbar (:toolbar)"
-              }
-              primary={showToolbar}
-              onClick={toggleToolbar}
-            />
-            <IconBtn
-              icon={Icon.clock}
-              label={
-                autoRefresh
-                  ? `Auto-refresh on (${autoRefreshSecs}s) — :autorefresh`
-                  : "Auto-refresh off — :autorefresh"
-              }
-              primary={autoRefresh}
-              onClick={toggleAutoRefresh}
-            />
-            <IconBtn
-              icon={Icon.help}
-              label="Shortcuts (?)"
-              onClick={() => setShowHelp(true)}
-            />
-            <IconBtn
-              icon={Icon.refresh}
-              label="Refresh (R)"
-              onClick={() => void load(activeQuery)}
-            />
-          </div>
-        </div>
-      </header>
+      <TopBar
+        query={query}
+        localFilter={localFilter}
+        searchRef={searchRef}
+        searchHint={keymap.search}
+        activeQuery={activeQuery}
+        onQueryChange={(v) => {
+          setQuery(v);
+          if (localFilter) applyLocalFilter(v);
+        }}
+        onSubmitSearch={() => {
+          const q = query.trim();
+          searchRef.current?.blur();
+          if (localFilter) applyLocalFilter(q);
+          else void load(q);
+        }}
+        onToggleFilterMode={() => {
+          const next = !localFilter;
+          setLocalFilter(next);
+          if (next) applyLocalFilter(query);
+          else setMessages(fullMessagesRef.current);
+        }}
+        onSearchEscape={() => {
+          setQuery("");
+          if (localFilter) {
+            setLocalFilter(false);
+            setMessages(fullMessagesRef.current);
+          } else if (activeQuery) {
+            void load("");
+          }
+        }}
+        onAdvanced={() => setAdvOpen(true)}
+        onClearSearch={() => {
+          setQuery("");
+          if (localFilter) setMessages(fullMessagesRef.current);
+          else void load("");
+        }}
+        accounts={accounts}
+        account={account}
+        switching={switching}
+        accountsOpen={accountsOpen}
+        onAccountsOpenChange={setAccountsOpen}
+        onSwitchAccount={(a) => void switchAccount(a)}
+        undoLabel={undoLabel}
+        onUndo={() => void runUndo()}
+        onCompose={() => setCompose({ mode: "new" })}
+        draftsView={draftsView}
+        onToggleDrafts={() => {
+          if (draftsView) setDraftsView(false);
+          else openDrafts();
+        }}
+        bulkMode={bulkMode}
+        onToggleBulk={() => {
+          if (bulkMode) exitBulk();
+          else {
+            setBulkMode(true);
+            if (!selectedId && messages.length > 0)
+              setSelectedId(messages[0].id);
+          }
+        }}
+        savedQueriesOn={savedQueriesOn}
+        onOpenQueries={() => void openQueries()}
+        showToolbar={showToolbar}
+        onToggleToolbar={toggleToolbar}
+        autoRefresh={autoRefresh}
+        autoRefreshSecs={autoRefreshSecs}
+        onToggleAutoRefresh={toggleAutoRefresh}
+        onHelp={() => setShowHelp(true)}
+        onRefresh={() => void load(activeQuery)}
+      />
 
       {error && <div className="error-banner">{error}</div>}
       {toast && <div className="toast">{toast}</div>}
