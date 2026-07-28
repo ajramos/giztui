@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  backend,
   DEFAULT_KEYMAP,
   type AccountInfo,
   type KeyMap,
@@ -17,6 +16,7 @@ import type { ComposeInit } from "./Compose";
 import { replyInit, forwardInit } from "./compose";
 import ModalsPrimary from "./ModalsPrimary";
 import ModalsSecondary from "./ModalsSecondary";
+import StartupScreens from "./StartupScreens";
 import MessageList from "./MessageList";
 import Reader from "./Reader";
 import TopBar from "./TopBar";
@@ -35,6 +35,7 @@ import { useMiscActions } from "./useMiscActions";
 import { useReader } from "./useReader";
 import { useKeymap } from "./useKeymap";
 import type { KeydownCtx } from "./keydownCtx";
+import type { CommandCtx } from "./commandCtx";
 import { useBootstrap } from "./useBootstrap";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
@@ -282,6 +283,11 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const gPressedAt = useRef(0);
+  // Latest keydown-context, refreshed every render so the once-registered window
+  // listener reads fresh state without re-subscribing (see the keydown effect).
+  const kdCtxRef = useRef<KeydownCtx | null>(null);
+  // Latest command-context, refreshed every render so executeCommand stays stable.
+  const cmdCtxRef = useRef<CommandCtx | null>(null);
   // VIM range-operation state machine (a3a, d2d, t5t, l2l). Held in a ref so the
   // pending count/timer survive re-renders without re-registering the key
   // handler. `op` is the pending operation key; `count` accumulates digits;
@@ -531,87 +537,29 @@ export default function App() {
     setDetRulesOpen, messages, setMessages, promptPreview, setPromptPreview, bulkPromptText,
     setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
   });
+  // Rebuilt every render into a ref so executeCommand stays stable (no giant
+  // deps array, no CommandBar churn) while always seeing fresh state.
+  cmdCtxRef.current = {
+    detail, load, doAction, activeQuery, openDrafts, saveMessage,
+    sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
+    summarize, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
+    runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
+    doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
+    openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
+    applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
+    respondInvite, openStats, openConfig, clearCaches, loadMore, attachments,
+    threadingOn, toggleThread, threadMsgs, summarizeThread, messages, previewMessage,
+    accounts, applyLabelChange, bumpZoom, resetZoom, setZoom, dismissAI,
+    regenerateActive, setError, setCompose, setSelected, setSelectedId, setMessages,
+    setLabelsFor, setLinksFor, setMoveFor, setTouchUpText, setCsQuery, setCsIndex,
+    setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
+    setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
+    setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
+    setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
+  };
   const executeCommand = useCallback(
-    (input: string) =>
-      runCommand(input, {
-        detail, load, doAction, activeQuery, openDrafts, saveMessage,
-        sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
-        summarize, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
-        runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
-        doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
-        openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
-        applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
-        respondInvite, openStats, openConfig, clearCaches, loadMore, attachments,
-        threadingOn, toggleThread, threadMsgs, summarizeThread, messages, previewMessage,
-        accounts, applyLabelChange, bumpZoom, resetZoom, setZoom, dismissAI,
-        regenerateActive, setError, setCompose, setSelected, setSelectedId, setMessages,
-        setLabelsFor, setLinksFor, setMoveFor, setTouchUpText, setCsQuery, setCsIndex,
-        setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
-        setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
-        setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
-        setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
-      }),
-    [
-      detail,
-      load,
-      doAction,
-      activeQuery,
-      openDrafts,
-      saveMessage,
-      sendObsidian,
-      forwardSlack,
-      obsidianOn,
-      slackOn,
-      aiEnabled,
-      aiPromptsEnabled,
-      summarize,
-      openSuggest,
-      openInGmail,
-      openQueries,
-      savedQueriesOn,
-      runActionPlan,
-      runDeterministicRules,
-      actionPlanOn,
-      bulkMode,
-      selected,
-      showToast,
-      doMove,
-      doBulkMove,
-      generateReply,
-      quickSearch,
-      themesOn,
-      applyTheme,
-      rulesEnabled,
-      openRules,
-      viewAnalyzerPrompt,
-      toggleToolbar,
-      touchUp,
-      touchUpText,
-      localFilter,
-      applyLocalFilter,
-      query,
-      runUndo,
-      toggleAutoRefresh,
-      saveRawMessage,
-      invite,
-      respondInvite,
-      openStats,
-      openConfig,
-      clearCaches,
-      loadMore,
-      attachments,
-      threadingOn,
-      toggleThread,
-      threadMsgs,
-      summarizeThread,
-      messages,
-      previewMessage,
-      accounts,
-      applyLabelChange,
-      bumpZoom,
-      resetZoom,
-      setZoom,
-    ],
+    (input: string) => runCommand(input, cmdCtxRef.current!),
+    [],
   );
 
   // Invert the (config-driven) keymap into a chord → action lookup. gotoTop is
@@ -621,224 +569,55 @@ export default function App() {
   // navigation (j/k/arrows/Enter/Esc) mirrors the TUI's native table: j/k move a
   // cursor without opening; Enter opens. This avoids marking mail read while
   // just scanning.
+  // Rebuilt every render into a ref so the single window listener (registered
+  // once, below) always reads fresh state without a giant exhaustive-deps array
+  // or re-subscribing on every keystroke-relevant change.
+  kdCtxRef.current = {
+    attachmentsOpen, activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
+    accounts, accountsOpen, actionPlanOn, advOpen, aiEnabled, aiPromptsEnabled,
+    applyCategory, attachments, bulkAction, bulkLabels, bulkMode, bulkMove,
+    bulkPromptText, bumpZoom, chordAction, clearVimRange, cmdOpen, compose,
+    configOpen, csOpen, csQuery, detRulesOpen, detail, dismissAI,
+    doAction, draftsView, exitBulk, fullMessagesRef, headersHidden, invite,
+    keymap, labelsFor, linksFor, load, loadMore, localFilter,
+    messages, moveFor, obsidianOn, openDrafts, openInGmail, openMessage,
+    openQueries, openRules, openSuggest, plan, planActiveRef, planMove,
+    planNodesRef, planOpen, planPreview, previewMessage, promptManagerOpen, promptPreview,
+    promptsOpen, queriesOpen, quickSearch, readerBodyRef, readerFocused, regenerateActive,
+    resetZoom, rsvpPickerOpen, rulesEnabled, rulesOpen, runActionPlan, runUndo,
+    runVimRange, runVimSingle, saveMessage, saveQueryOpen, saveRawMessage, savedQueriesOn,
+    searchRef, selected, selectedId, sendObsidian, setAccountsOpen, setAdvOpen,
+    setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress, setBulkPromptText,
+    setCmdOpen, setCompose, setConfigOpen, setCsIndex, setCsOpen, setCsQuery,
+    setDetail, setDraftsView, setExpandedCats, setHeadersHidden, setLabelsFor, setLinksFor,
+    setLocalFilter, setMessages, setMoveFor, setPlanExcluded, setPlanMove, setPlanOpen,
+    setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
+    setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
+    setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setViewHtml, showHelp,
+    showToast, slackOn, statsOpen, suggestFor, summarize, themePickerOpen,
+    threadingOn, toggleSelect, toggleThread, viewAnalyzerPrompt,
+  };
   useEffect(() => {
-    const ctx: KeydownCtx = {
-      attachmentsOpen, activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
-      accounts, accountsOpen, actionPlanOn, advOpen, aiEnabled, aiPromptsEnabled,
-      applyCategory, attachments, bulkAction, bulkLabels, bulkMode, bulkMove,
-      bulkPromptText, bumpZoom, chordAction, clearVimRange, cmdOpen, compose,
-      configOpen, csOpen, csQuery, detRulesOpen, detail, dismissAI,
-      doAction, draftsView, exitBulk, fullMessagesRef, headersHidden, invite,
-      keymap, labelsFor, linksFor, load, loadMore, localFilter,
-      messages, moveFor, obsidianOn, openDrafts, openInGmail, openMessage,
-      openQueries, openRules, openSuggest, plan, planActiveRef, planMove,
-      planNodesRef, planOpen, planPreview, previewMessage, promptManagerOpen, promptPreview,
-      promptsOpen, queriesOpen, quickSearch, readerBodyRef, readerFocused, regenerateActive,
-      resetZoom, rsvpPickerOpen, rulesEnabled, rulesOpen, runActionPlan, runUndo,
-      runVimRange, runVimSingle, saveMessage, saveQueryOpen, saveRawMessage, savedQueriesOn,
-      searchRef, selected, selectedId, sendObsidian, setAccountsOpen, setAdvOpen,
-      setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress, setBulkPromptText,
-      setCmdOpen, setCompose, setConfigOpen, setCsIndex, setCsOpen, setCsQuery,
-      setDetail, setDraftsView, setExpandedCats, setHeadersHidden, setLabelsFor, setLinksFor,
-      setLocalFilter, setMessages, setMoveFor, setPlanExcluded, setPlanMove, setPlanOpen,
-      setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
-      setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
-      setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setViewHtml, showHelp,
-      showToast, slackOn, statsOpen, suggestFor, summarize, themePickerOpen,
-      threadingOn, toggleSelect, toggleThread, viewAnalyzerPrompt,
+    const onKey = (e: KeyboardEvent) => {
+      if (kdCtxRef.current) handleKeyDown(e, kdCtxRef.current);
     };
-    const onKey = (e: KeyboardEvent) => handleKeyDown(e, ctx);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [
-    keymap,
-    chordAction,
-    messages,
-    selectedId,
-    detail,
-    aiEnabled,
-    aiPromptsEnabled,
-    compose,
-    labelsFor,
-    bulkLabels,
-    promptsOpen,
-    promptManagerOpen,
-    showHelp,
-    linksFor,
-    suggestFor,
-    cmdOpen,
-    obsidianOn,
-    slackOn,
-    threadingOn,
-    threadMsgs,
-    savedQueriesOn,
-    queriesOpen,
-    saveQueryOpen,
-    planOpen,
-    planMove,
-    planPreview,
-    applyCategory,
-    themePickerOpen,
-    rulesOpen,
-    promptPreview,
-    advOpen,
-    statsOpen,
-    configOpen,
-    moveFor,
-    bulkPromptText,
-    actionPlanOn,
-    themesOn,
-    activeQuery,
-    localFilter,
-    bulkMode,
-    selected,
-    draftsView,
-    openMessage,
-    previewMessage,
-    doAction,
-    bulkAction,
-    runVimSingle,
-    runVimRange,
-    clearVimRange,
-    toggleSelect,
-    exitBulk,
-    summarize,
-    quickSearch,
-    runUndo,
-    toggleThread,
-    openQueries,
-    runActionPlan,
-    saveMessage,
-    sendObsidian,
-    forwardSlack,
-    openSuggest,
-    openDrafts,
-    openInGmail,
-    saveRawMessage,
-    attachments,
-    headersHidden,
-    showToast,
-    csOpen,
-    csQuery,
-    invite,
-    accounts,
-    bumpZoom,
-    resetZoom,
-    rsvpPickerOpen,
-    detRulesOpen,
-    accountsOpen,
-    attachmentsOpen,
-    readerFocused,
-    rulesEnabled,
-    openRules,
-    viewAnalyzerPrompt,
-    plan,
-    load,
-    loadMore,
-  ]);
+  }, []);
 
-  if (needCreds) {
+  if (needCreds || initError || connecting) {
     return (
-      <div className="fatal onboarding">
-        <span className="logo" aria-hidden="true">
-          ✦
-        </span>
-        <h1>Welcome to GizTUI Desktop</h1>
-        <p className="fatal-msg">
-          To connect to Gmail, GizTUI needs your own Google API credentials — a
-          one-time <code>credentials.json</code> (an OAuth client you create in
-          Google Cloud). Your email never passes through anyone else's servers.
-        </p>
-        <ol className="onboarding-steps">
-          <li>
-            In the Google Cloud Console, <b>enable the Gmail API</b> and create
-            an <b>OAuth client ID</b> of type <b>Desktop app</b>.
-          </li>
-          <li>
-            <b>Download</b> the client's <code>credentials.json</code>.
-          </li>
-          <li>
-            Click <b>Choose credentials.json…</b> below to import it (GizTUI
-            copies it to <code>{credsPath || "~/.config/giztui/credentials.json"}</code>),
-            then sign in.
-          </li>
-        </ol>
-        {importErr && <p className="fatal-msg onboarding-err">{importErr}</p>}
-        <div className="signin-actions">
-          <button
-            className="primary"
-            disabled={importing}
-            onClick={() => void importCreds()}
-          >
-            {importing ? "Importing…" : "Choose credentials.json…"}
-          </button>
-          <button
-            onClick={() =>
-              void backend.OpenURL(
-                "https://github.com/ajramos/giztui/blob/main/docs/GETTING_STARTED.md#gmail-api-setup",
-              )
-            }
-          >
-            Open the setup guide
-          </button>
-          <button disabled={importing} onClick={() => void retryInit()}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (initError) {
-    return (
-      <div className="fatal">
-        <h1>GizTUI Desktop</h1>
-        <p className="fatal-msg">Could not start a Gmail session:</p>
-        <pre>{initError}</pre>
-        <p className="hint">
-          Make sure GizTUI is configured (run <code>giztui --setup</code>) and
-          that <code>~/.config/giztui/</code> holds valid credentials and token.
-        </p>
-        <div className="signin-actions">
-          <button className="primary" onClick={() => void retryInit()}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (connecting) {
-    return (
-      <div className="connecting">
-        <span className="logo">✦</span>
-        <h1>GizTUI Desktop</h1>
-        {authUrl ? (
-          <div className="signin">
-            <p>Sign in to your Google account to continue.</p>
-            <p className="muted">
-              We opened your browser to grant access. Once you approve, this
-              window continues automatically.
-            </p>
-            <div className="signin-actions">
-              <button
-                className="primary"
-                onClick={() => void backend.OpenAuthURL()}
-              >
-                Open sign-in in browser
-              </button>
-              <button
-                onClick={() => void navigator.clipboard?.writeText(authUrl)}
-              >
-                Copy link
-              </button>
-            </div>
-            <p className="muted signin-url">{authUrl}</p>
-          </div>
-        ) : (
-          <p className="muted">Connecting to Gmail…</p>
-        )}
-      </div>
+      <StartupScreens
+        needCreds={needCreds}
+        initError={initError}
+        connecting={connecting}
+        credsPath={credsPath}
+        importErr={importErr}
+        importing={importing}
+        authUrl={authUrl}
+        importCreds={importCreds}
+        retryInit={retryInit}
+      />
     );
   }
 
