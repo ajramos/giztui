@@ -192,7 +192,30 @@ Extract **as behavior-preserving moves**, safest → riskiest, Playwright in fro
   - [x] F4.3 `SaveQueryModal` (presentational pure move) + `AnalyzerRulesModal` (owns its useListNav + delete-key effect); −108 lines; +2 e2e
   - [x] F4.4 `AdvancedSearchModal` + pure `buildAdvancedQuery` in `advancedSearch.ts` (5 unit tests); −114 lines; +1 e2e; unit 56 / e2e 31
   - [x] F4.5 `ActionPlanModal` (presentational, ~23 props; state + planNav stay in App) + pure `buildPlanNodes` in `planNodes.ts` (5 unit tests); −249 lines; +2 e2e (`actionplan.spec.ts`); unit 61 / e2e 33; App.tsx 5,043 → 4,794
-  - [ ] remaining: `<MessageList>` / `<Reader>` (prop-heavy tier — dedicated care)
+  - [x] F4.6 render extraction: `MessageList` (260), `Reader` (248) → `ReaderToolbar` (233) + `ReaderBody` (338), `TopBar` (213). State + landmine refs stay in App, passed as values + plain onX handlers. App.tsx 4,794 → 4,109; every new file < 400; e2e 33 green.
+  - [ ] optional: `ModalStack` — low ROI (relocates ~150 props; the file would itself exceed 400 and need re-splitting). Skip unless it buys real clarity.
+
+## 7bis. The hard target: **no file > 400 lines** (owner's goal)
+
+Measured: only **two** files exceed 400 — `App.tsx` (4,109) and `api.ts` (1,150).
+
+**`App.tsx` breakdown (why render extraction alone won't get there):** render is now
+~653 lines (of which the modal stack is ~330); the other **~3,456 lines are LOGIC** —
+84 `useState`/`useRef` decls, **74 `useCallback` handlers**, 10 effects, and the
+keymap/command block. The render was never the reason App is huge. To reach < 400,
+the state+handlers must move into **subsystem hooks** (the risky decoupling — re-read
+§3 landmines first: `openIdRef`, `aiCache`, mirror refs, `loadMessage` reset order).
+
+Proposed hook sequence (each its own PR, e2e-guarded, safest → riskiest):
+- `useUndo`, `useAutoRefresh`, `useIntegrations` (obsidian/slack) — small, isolated
+- `useDrafts`, `useCompose` — self-contained
+- `useAccounts` (switch/list) — isolated
+- `useBulk` (bulkAction/toggleSelect/exitBulk/select-all)
+- `useSearch` (query/localFilter/load/loadMore/pending/prune) — touches `fullMessagesRef`
+- `useCommands` + `useKeymap` (the ~600-line palette/keymap block → mostly data + `commands.ts`)
+- `useReaderActions` (open/doAction/quickSearch/save/links) — touches `openIdRef`
+- `useAiActions` (summarize/runPrompt/touchUp/generateReply/suggest + dismiss) — **LAST, riskiest**: `aiCache`, `summaryForId`/`promptForId`, mirror refs, streaming callbacks
+- `api.ts` split: types → `apiTypes.ts`, mock → `apiMock.ts`, keep the thin real-binding wrapper
 
 ## 8. Safety rules (non-negotiable)
 

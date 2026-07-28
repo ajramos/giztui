@@ -85,7 +85,12 @@ already lives in small, unit-tested modules — **use/extend these, don't re-inl
 (`buildAdvancedQuery`), `planNodes.ts` (`buildPlanNodes` — the action-plan tree).
 Self-contained/presentational modals are their own files too (`StatsModal`,
 `ConfigModal`, `PromptPreviewModal`, `SaveQueryModal`, `AnalyzerRulesModal`,
-`AdvancedSearchModal`, `ActionPlanModal`). Add tests next to new pure logic.
+`AdvancedSearchModal`, `ActionPlanModal`). The main render tree is extracted as
+well: `TopBar`, `MessageList`, and `Reader` (→ `ReaderToolbar` + `ReaderBody`) —
+all presentational, state stays in App. **Hard target: no file > 400 lines.**
+Only `App.tsx` and `api.ts` still exceed it; the route down is subsystem hooks
+(see `docs/DESKTOP_REFACTOR_PLAN.md` §7bis for the sequence). Add tests next to
+new pure logic.
 
 **The plan, progress tracker, and — critically — the coupling landmines that keep
 causing bugs (`openIdRef`, `summaryForId`/`promptForId`, `loadMessage` as
