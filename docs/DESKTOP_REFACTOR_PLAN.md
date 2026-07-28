@@ -211,7 +211,7 @@ Proposed hook sequence (each its own PR, e2e-guarded, safest → riskiest):
 - `useCompose` — self-contained
 - `useAccounts` (switch/list) — isolated
 - `useBulk` (bulkAction/toggleSelect/exitBulk/select-all)
-- `useSearch` (query/localFilter/load/loadMore/pending/prune) — touches `fullMessagesRef`
+- [x] **F5.2** `useMessages` (189) — messages/full-list/query/pagination/localFilter/new-mail poll. Reader (loadMessage) stays in App and previews via `previewRef`; App's list mutators use the returned `setMessages`/`fullMessagesRef`. App.tsx 4,023 → 3,937; unit 61 / e2e 34.
 - `useCommands` + `useKeymap` (the ~600-line palette/keymap block → mostly data + `commands.ts`)
 - `useReaderActions` (open/doAction/quickSearch/save/links) — touches `openIdRef`
 - `useAiActions` (summarize/runPrompt/touchUp/generateReply/suggest + dismiss) — **LAST, riskiest**: `aiCache`, `summaryForId`/`promptForId`, mirror refs, streaming callbacks

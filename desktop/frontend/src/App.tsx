@@ -44,7 +44,6 @@ import {
   formatFull,
 } from "./format";
 import { replyInit, replyAllInit, forwardInit } from "./compose";
-import { freshPrefix, dedupeNew } from "./messageList";
 import { activeAiPanel } from "./aiPanels";
 import { buildPlanNodes, type PlanNode } from "./planNodes";
 import StatsModal from "./StatsModal";
@@ -61,6 +60,7 @@ import { useUndo } from "./useUndo";
 import { useIntegrations } from "./useIntegrations";
 import { useAutoRefresh } from "./useAutoRefresh";
 import { useDrafts } from "./useDrafts";
+import { useMessages } from "./useMessages";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
@@ -94,11 +94,9 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   // OAuth consent URL while first-run sign-in is pending (desktop only).
   const [authUrl, setAuthUrl] = useState("");
-  const [messages, setMessages] = useState<MessageSummary[]>([]);
   // New mail found by the background poll, held OUT of the list until the user
   // asks to show it (via the banner or refresh) — auto-injecting it shifts rows
   // under an in-progress operation and risks acting on the wrong message.
-  const [pendingNew, setPendingNew] = useState<MessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   // Whether keyboard focus is "in" the reader: after Enter/click-open (or a click
@@ -113,11 +111,6 @@ export default function App() {
   const summaryPanelRef = useRef<HTMLDivElement>(null);
   const promptPanelRef = useRef<HTMLDivElement>(null);
   const touchUpRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState("");
-  const [activeQuery, setActiveQuery] = useState("");
-  const [nextToken, setNextToken] = useState("");
-  const [loadingList, setLoadingList] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -313,10 +306,8 @@ export default function App() {
   const { setZoom, bumpZoom, resetZoom } = useZoom();
   // Local filter mode: narrow the already-loaded list client-side instead of
   // running a remote Gmail search (the TUI's search_toggle_mode).
-  const [localFilter, setLocalFilter] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
   const [adv, setAdv] = useState<AdvFilters>(EMPTY_ADV);
-  const fullMessagesRef = useRef<MessageSummary[]>([]);
   // Background inbox auto-refresh (opt-in; seeded from config, then remembered).
   const toggleToolbar = useCallback(() => {
     setShowToolbar((v) => {
@@ -394,6 +385,30 @@ export default function App() {
     openDraft,
   } = useDrafts({ setError, setSelectedId, setDetail, setCompose });
 
+  // previewRef breaks the declaration-order cycle: useMessages.load() previews the
+  // first row, but the previewer (previewMessage → loadMessage) is defined below
+  // and owns the openIdRef/AI landmine, so it stays in App and is wired via the ref.
+  const previewRef = useRef<(m: MessageSummary) => void>(() => {});
+  const {
+    messages,
+    setMessages,
+    fullMessagesRef,
+    pendingNew,
+    query,
+    setQuery,
+    activeQuery,
+    nextToken,
+    loadingList,
+    loadingMore,
+    localFilter,
+    setLocalFilter,
+    load,
+    loadMore,
+    applyLocalFilter,
+    checkNewMail,
+    showPendingNew,
+  } = useMessages({ setError, setSelectedId, setDetail, draftsView, previewRef });
+
   // Per-message subsystems extracted from App.tsx (F3.2). Their per-message data
   // is still fetched inside loadMessage (gated by openIdRef) via the setters
   // below; the hooks own the state + standalone actions.
@@ -463,106 +478,6 @@ export default function App() {
     },
     [showToast],
   );
-
-  const load = useCallback(async (q: string) => {
-    setLoadingList(true);
-    setError("");
-    setActiveQuery(q);
-    try {
-      const list = q
-        ? await backend.Search(q, "", PAGE_SIZE)
-        : await backend.ListInbox("", PAGE_SIZE);
-      const msgs = list.messages ?? [];
-      setMessages(msgs);
-      fullMessagesRef.current = msgs;
-      setPendingNew([]); // a fresh load already includes any new mail
-      setNextToken(list.nextPageToken ?? "");
-      // Select + preview the first message so the app opens ready to read.
-      if (msgs.length > 0) previewRef.current(msgs[0]);
-      else {
-        setSelectedId(null);
-        setDetail(null);
-      }
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingList(false);
-    }
-  }, []);
-
-  const loadMore = useCallback(async () => {
-    if (!nextToken || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const list = activeQuery
-        ? await backend.Search(activeQuery, nextToken, PAGE_SIZE)
-        : await backend.ListInbox(nextToken, PAGE_SIZE);
-      const more = list.messages ?? [];
-      fullMessagesRef.current = [...fullMessagesRef.current, ...more];
-      setMessages((prev) => [...prev, ...more]);
-      setNextToken(list.nextPageToken ?? "");
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [nextToken, loadingMore, activeQuery]);
-
-  // applyLocalFilter narrows the loaded list client-side (subject/from/snippet)
-  // without hitting the network; an empty query restores the full list.
-  const applyLocalFilter = useCallback((q: string) => {
-    const needle = q.trim().toLowerCase();
-    const full = fullMessagesRef.current;
-    const next = needle
-      ? full.filter(
-          (m) =>
-            m.subject.toLowerCase().includes(needle) ||
-            m.from.toLowerCase().includes(needle) ||
-            m.snippet.toLowerCase().includes(needle),
-        )
-      : full;
-    setMessages(next);
-    if (next.length > 0) previewRef.current(next[0]);
-    else {
-      setSelectedId(null);
-      setDetail(null);
-    }
-  }, []);
-
-  // buildAdvancedQuery assembles a Gmail search string from the builder fields.
-  // checkNewMail polls the inbox's first page and prepends any messages we don't
-  // already have. Only runs on the plain inbox (no active search / drafts view).
-  const checkNewMail = useCallback(async () => {
-    if (activeQuery || draftsView || localFilter) return;
-    try {
-      const list = await backend.ListInbox("", PAGE_SIZE);
-      const msgs = list.messages ?? [];
-      const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      // freshPrefix = the contiguous run of unknown messages at the top (new mail
-      // lands there); stopping at the first known id avoids treating messages that
-      // shifted onto page 1 after a delete as new (which would scramble order).
-      // Hold it in a banner instead of prepending — injecting rows while the user
-      // reads/selects shifts everything under them and they act on the wrong one.
-      setPendingNew(freshPrefix(msgs, known));
-    } catch {
-      /* transient; try again next tick */
-    }
-  }, [activeQuery, draftsView, localFilter]);
-
-  // showPendingNew merges the held new mail into the list (banner click / manual
-  // refresh). De-duped in case a manual refresh already pulled some in.
-  const showPendingNew = useCallback(() => {
-    setPendingNew((pending) => {
-      if (pending.length === 0) return pending;
-      const known = new Set(fullMessagesRef.current.map((m) => m.id));
-      const toAdd = dedupeNew(pending, known);
-      if (toAdd.length > 0) {
-        fullMessagesRef.current = [...toAdd, ...fullMessagesRef.current];
-        setMessages((prev) => [...toAdd, ...prev]);
-      }
-      return [];
-    });
-  }, []);
 
   const {
     autoRefresh,
@@ -868,7 +783,6 @@ export default function App() {
     [loadMessage],
   );
   // Ref so load() can preview the first message without a declaration-order cycle.
-  const previewRef = useRef<(m: MessageSummary) => void>(() => {});
   previewRef.current = previewMessage;
 
   const removeFromList = useCallback(
