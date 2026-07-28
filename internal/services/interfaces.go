@@ -1041,6 +1041,14 @@ type InboxAnalyzerOptions struct {
 	StrictLabels     bool     // when true, the "label" action may only use an existing label; no-match emails go to read-manually
 }
 
+// ReadManuallySuggestion is the AI's per-email assist result for a read-manually message.
+type ReadManuallySuggestion struct {
+	ID     string // AnalyzerMessage.ID
+	Hint   string // one short line: what it is / why it's here
+	Action string // "archive" | "mark_read" | "trash" | "label" | "read"  ("read" = no action)
+	Label  string // set only when Action == "label"
+}
+
 // InboxAnalyzerService groups unread messages into an actionable plan via the LLM.
 type InboxAnalyzerService interface {
 	// Analyze splits messages into batches, streams each through the AIService, parses
@@ -1052,6 +1060,10 @@ type InboxAnalyzerService interface {
 	// prompt) with {{messages}} left literal — the same assembly Analyze performs, minus the
 	// per-batch payload. Pure: no AI call, no network.
 	BuildPromptPreview(opts InboxAnalyzerOptions) string
+	// AssistReadManually enriches read-manually messages on demand: one suggestion per input
+	// message, in input order. Honors opts.StrictLabels/AvailableLabels (a label suggestion not
+	// in AvailableLabels degrades to "read"). Never applies anything — suggestions only.
+	AssistReadManually(ctx context.Context, msgs []AnalyzerMessage, opts InboxAnalyzerOptions) ([]ReadManuallySuggestion, error)
 }
 
 // AnalyzerRuleInfo is a free-text analyzer preference rule, surfaced to the TUI.

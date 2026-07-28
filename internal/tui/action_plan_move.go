@@ -311,3 +311,33 @@ func (a *App) showActionPlanBulkMoveInline(state *actionPlanState, srcCatIdx int
 			fmt.Sprintf("Moved %d emails to %s — applies when you dispatch that group", n, target.label))
 	})
 }
+
+// showActionPlanGroupMoveInline opens the destination chooser for ONE read-manually sender group,
+// identified by its expand key. It moves only that group's emails (a subset of ReadManually)
+// through the standard chooser, reusing the index-safe per-id applyActionPlanMove. Excluded flags
+// are preserved (msgIDs unchanged). An empty/unknown group is a no-op.
+func (a *App) showActionPlanGroupMoveInline(state *actionPlanState, expandKey string) {
+	var ids []string
+	senderDisp := "group"
+	for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+		if senderExpandKey(g.senderKey) == expandKey {
+			senderDisp = g.senderDisp
+			for _, m := range g.msgs {
+				ids = append(ids, m.ID)
+			}
+			break
+		}
+	}
+	if len(ids) == 0 {
+		go a.GetErrorHandler().ShowWarning(a.ctx, "This group is empty — nothing to move")
+		return
+	}
+	// Read-manually source: no category to exclude from the destination list.
+	a.showActionPlanMoveChooser(state, "", fmt.Sprintf(" ➫ Move %q (%d) to ", senderDisp, len(ids)), func(target moveTarget) {
+		for _, id := range ids {
+			applyActionPlanMove(state.plan, state.metaByID, id, target)
+		}
+		go a.GetErrorHandler().ShowSuccess(a.ctx,
+			fmt.Sprintf("Moved %d emails to %s — applies when you dispatch that group", len(ids), target.label))
+	})
+}

@@ -83,6 +83,17 @@ func TestDefaultKeyBindings(t *testing.T) {
 	assert.Equal(t, "N", keys.SearchPrev)
 	assert.Equal(t, "gg", keys.GotoTop)
 	assert.Equal(t, "G", keys.GotoBottom)
+
+	// Action plan
+	assert.Equal(t, "g", keys.AssistReadManually)
+}
+
+func TestDefaultConfig_AssistReadManually(t *testing.T) {
+	assert.Equal(t, "g", DefaultConfig().Keys.AssistReadManually)
+}
+
+func TestDefaultConfig_AcceptSuggestion(t *testing.T) {
+	assert.Equal(t, ".", DefaultConfig().Keys.AcceptSuggestion)
 }
 
 func TestDefaultLayoutConfig(t *testing.T) {

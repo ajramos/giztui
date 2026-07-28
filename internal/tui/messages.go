@@ -3291,160 +3291,101 @@ func (a *App) reauthorizeCalendar() error {
 	return nil
 }
 
-// formatICalDateTime parses iCalendar datetime format and returns human-readable string
-func formatICalDateTime(dtStr string) string {
+// parseICalInstant parses an iCalendar DTSTART/DTEND value (as captured by scanICSField, which
+// may carry a ";TZID=Zone:" prefix) into an absolute instant, HONORING the timezone. A floating
+// value like 20260731T170000 with TZID=Australia/Melbourne is interpreted in that zone (not UTC);
+// a trailing Z means UTC; a value with neither is treated as local. Date-only values
+// (VALUE=DATE, e.g. 20260731) return dateOnly=true and are never zone-shifted. Callers convert
+// the returned instant to the viewer's local zone for display.
+func parseICalInstant(dtStr string) (t time.Time, dateOnly bool, ok bool) {
 	if dtStr == "" {
-		return ""
+		return time.Time{}, false, false
 	}
 
-	// Common iCalendar datetime formats:
-	// DTSTART:20250115T100000Z (UTC)
-	// DTSTART;VALUE=DATE:20250115 (date only)
-	// DTSTART;TZID=America/New_York:20250115T100000
-	// ;TZID=Europe/Madrid:20250818T170000 (from scanICSField)
-
-	// Clean up the datetime string - handle timezone parameters properly
-	cleanDt := dtStr
-
-	// Handle format like ";TZID=Europe/Madrid:20250818T170000"
-	if strings.HasPrefix(cleanDt, ";") && strings.Contains(cleanDt, ":") {
-		// Extract the datetime part after the last colon
-		if colonIdx := strings.LastIndex(cleanDt, ":"); colonIdx >= 0 {
-			cleanDt = cleanDt[colonIdx+1:]
+	// Split an optional "...;TZID=Zone:" prefix (scanICSField emits it starting with ';') from the
+	// datetime value. Only params-prefixed strings are split, so RFC-style values with ':' in the
+	// time are left intact.
+	tzid, value := "", dtStr
+	if strings.HasPrefix(dtStr, ";") {
+		colon := strings.Index(dtStr, ":") // first colon terminates the parameter list
+		if colon < 0 {
+			return time.Time{}, false, false
 		}
-	} else if strings.Contains(cleanDt, ";") && strings.Contains(cleanDt, ":") {
-		// Handle format like "DTSTART;TZID=America/New_York:20250115T100000"
-		if colonIdx := strings.LastIndex(cleanDt, ":"); colonIdx >= 0 {
-			cleanDt = cleanDt[colonIdx+1:]
-		}
-	}
-
-	// Validate that we have a reasonable date format
-	if len(cleanDt) < 8 {
-		return dtStr // Return original if too short
-	}
-
-	// Try different parsing formats
-	formats := []string{
-		"20060102T150405Z",     // UTC format: 20250115T100000Z
-		"20060102T150405",      // Local format: 20250115T100000
-		"20060102T1504Z",       // UTC without seconds: 20250115T1030Z
-		"20060102T1504",        // Local without seconds: 20250115T1030
-		"20060102",             // Date only: 20250115
-		"2006-01-02T15:04:05Z", // RFC format with dashes
-		"2006-01-02T15:04:05",  // RFC format without Z
-		"2006-01-02T15:04Z",    // RFC format short
-		"2006-01-02T15:04",     // RFC format short without Z
-		"2006-01-02",           // Date with dashes
-	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, cleanDt); err == nil {
-			// Sanity check: reject dates before 1990 or after 2050 (likely parsing errors)
-			if t.Year() < 1990 || t.Year() > 2050 {
-				continue
+		params := dtStr[1:colon]
+		value = dtStr[colon+1:]
+		if idx := strings.Index(strings.ToUpper(params), "TZID="); idx >= 0 {
+			tzid = params[idx+len("TZID="):]
+			if semi := strings.Index(tzid, ";"); semi >= 0 {
+				tzid = tzid[:semi] // TZID may be followed by other params
 			}
+		}
+	}
+	value = strings.TrimSpace(value)
+	if len(value) < 8 {
+		return time.Time{}, false, false
+	}
 
-			// For date-only format, don't show time
-			if format == "20060102" {
-				return t.Format("Mon, Jan 2 2006")
-			}
-			// For datetime formats, show both date and time
-			return t.Format("Mon, Jan 2 2006, 3:04 PM")
+	inRange := func(x time.Time) bool { return x.Year() >= 1990 && x.Year() <= 2050 }
+
+	// Date-only (all-day): 8 digits, no time component — not zone-shifted.
+	if len(value) == 8 && !strings.Contains(value, "T") {
+		if d, err := time.ParseInLocation("20060102", value, time.Local); err == nil && inRange(d) {
+			return d, true, true
+		}
+		return time.Time{}, false, false
+	}
+
+	// UTC (trailing Z).
+	for _, f := range []string{"20060102T150405Z", "20060102T1504Z"} {
+		if ct, err := time.Parse(f, value); err == nil && inRange(ct) {
+			return ct.UTC(), false, true
 		}
 	}
 
-	// If parsing fails, return a cleaned version of original
-	return strings.TrimSpace(strings.ReplaceAll(dtStr, "DTSTART:", ""))
+	// Floating / TZID-local: interpret in the TZID zone when present, else the local zone.
+	loc := time.Local
+	if tzid != "" {
+		if l, err := time.LoadLocation(tzid); err == nil {
+			loc = l
+		}
+	}
+	for _, f := range []string{"20060102T150405", "20060102T1504"} {
+		if ct, err := time.ParseInLocation(f, value, loc); err == nil && inRange(ct) {
+			return ct, false, true
+		}
+	}
+	return time.Time{}, false, false
 }
 
 // formatMeetingTimeRange creates a time range string from start and end times
 func formatMeetingTimeRange(dtStart, dtEnd string) string {
-	startStr := formatICalDateTime(dtStart)
-	endStr := formatICalDateTime(dtEnd)
-
-	// Debug logging removed - was leaking to main content
-
-	// If start parsing failed, try to show something meaningful
-	// Check if startStr is empty or still contains unparsed format (like "DTSTART:" prefix)
-	if startStr == "" || len(startStr) < 10 || strings.HasPrefix(startStr, "DTSTART") {
-		// Return a generic message if we can't parse the dates
+	start, startDateOnly, okS := parseICalInstant(dtStart)
+	if !okS {
 		return "Meeting time details not available"
 	}
+	end, endDateOnly, okE := parseICalInstant(dtEnd)
 
-	// If no end time, just show start
-	if endStr == "" || len(endStr) < 10 || strings.HasPrefix(endStr, "DTEND") {
-		return startStr
+	// Show times in the viewer's LOCAL zone (this is the fix: the ICS TZID is honored by
+	// parseICalInstant, then converted here — e.g. 17:00 Australia/Melbourne → 09:00 CEST).
+	// All-day (date-only) events carry no meaningful clock time, so they are not converted.
+	if !startDateOnly {
+		start = start.Local()
+	}
+	if okE && !endDateOnly {
+		end = end.Local()
 	}
 
-	// Try to parse both to see if they're on the same date
-	startTime := parseICalDateTime(dtStart)
-	endTime := parseICalDateTime(dtEnd)
-
-	if !startTime.IsZero() && !endTime.IsZero() {
-		// Same date - show "Mon, Jan 2 2006, 10:00 AM - 11:00 AM"
-		if startTime.Format("20060102") == endTime.Format("20060102") {
-			return startTime.Format("Mon, Jan 2 2006, 3:04 PM") + " - " + endTime.Format("3:04 PM")
-		}
-		// Different dates - show full date/time for both
-		return startStr + " - " + endStr
+	if startDateOnly {
+		return start.Format("Mon, Jan 2 2006")
 	}
-
-	// Fallback - just show start if we have it
-	return startStr
-}
-
-// parseICalDateTime helper function to parse iCalendar datetime for comparison
-func parseICalDateTime(dtStr string) time.Time {
-	if dtStr == "" {
-		return time.Time{}
+	if !okE {
+		return start.Format("Mon, Jan 2 2006, 3:04 PM")
 	}
-
-	// Clean up the datetime string - handle timezone parameters properly
-	cleanDt := dtStr
-
-	// Handle format like ";TZID=Europe/Madrid:20250818T170000"
-	if strings.HasPrefix(cleanDt, ";") && strings.Contains(cleanDt, ":") {
-		// Extract the datetime part after the last colon
-		if colonIdx := strings.LastIndex(cleanDt, ":"); colonIdx >= 0 {
-			cleanDt = cleanDt[colonIdx+1:]
-		}
-	} else if strings.Contains(cleanDt, ";") && strings.Contains(cleanDt, ":") {
-		// Handle format like "DTSTART;TZID=America/New_York:20250115T100000"
-		if colonIdx := strings.LastIndex(cleanDt, ":"); colonIdx >= 0 {
-			cleanDt = cleanDt[colonIdx+1:]
-		}
+	// Same local date → compact "… 9:00 AM - 9:25 AM"; otherwise show both full datetimes.
+	if start.Format("20060102") == end.Format("20060102") {
+		return start.Format("Mon, Jan 2 2006, 3:04 PM") + " - " + end.Format("3:04 PM")
 	}
-
-	// Validate minimum length
-	if len(cleanDt) < 8 {
-		return time.Time{}
-	}
-
-	formats := []string{
-		"20060102T150405Z",     // UTC format: 20250115T100000Z
-		"20060102T150405",      // Local format: 20250115T100000
-		"20060102T1504Z",       // UTC without seconds: 20250115T1030Z
-		"20060102T1504",        // Local without seconds: 20250115T1030
-		"20060102",             // Date only: 20250115
-		"2006-01-02T15:04:05Z", // RFC format with dashes
-		"2006-01-02T15:04:05",  // RFC format without Z
-		"2006-01-02T15:04Z",    // RFC format short
-		"2006-01-02T15:04",     // RFC format short without Z
-		"2006-01-02",           // Date with dashes
-	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, cleanDt); err == nil {
-			// Sanity check: reject dates before 1990 or after 2050
-			if t.Year() < 1990 || t.Year() > 2050 {
-				continue
-			}
-			return t
-		}
-	}
-
-	return time.Time{}
+	return start.Format("Mon, Jan 2 2006, 3:04 PM") + " - " + end.Format("Mon, Jan 2 2006, 3:04 PM")
 }
 
 // formatOrganizerName extracts and formats organizer name from iCalendar organizer field

@@ -387,6 +387,9 @@ func (stubAnalyzerSvc) Analyze(ctx context.Context, messages []services.Analyzer
 func (stubAnalyzerSvc) BuildPromptPreview(opts services.InboxAnalyzerOptions) string {
 	return "PREVIEW-BODY {{messages}}"
 }
+func (stubAnalyzerSvc) AssistReadManually(ctx context.Context, msgs []services.AnalyzerMessage, opts services.InboxAnalyzerOptions) ([]services.ReadManuallySuggestion, error) {
+	return nil, nil
+}
 
 func TestActionPlanPromptViewSwap(t *testing.T) {
 	a := &App{Application: tview.NewApplication()}

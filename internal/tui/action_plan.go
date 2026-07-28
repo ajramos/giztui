@@ -84,6 +84,8 @@ type actionPlanState struct {
 	metaByID      map[string]*gmailapi.Message // subject/from lookup for email nodes
 	selectedMsgID string                       // msgID of selected email node, "" if a category is selected
 
+	rmSuggestions map[string]services.ReadManuallySuggestion // read-manually assist results by msg ID; nil until requested
+
 	tree            *tview.TreeView
 	root            *tview.TreeNode
 	footer          *tview.TextView
@@ -91,6 +93,8 @@ type actionPlanState struct {
 	streamingCancel context.CancelFunc
 
 	confirmPending bool // whole-plan apply armed (first press of keys.confirm_plan); UI goroutine only
+
+	rmAcceptPending string // sender-group expand key armed for accept (first press of keys.accept_suggestion); UI goroutine only
 }
 
 // checkedIDs returns the subset of ids not present in excluded, preserving order.
@@ -227,6 +231,9 @@ func (a *App) buildActionPlanPanelState(customPromptText, scopeLabel string, met
 		case emailRef:
 			state.selectedCategory = ref.catIndex
 			state.selectedMsgID = ref.msgID
+		case string: // read-manually sender-group header
+			state.selectedCategory = -1
+			state.selectedMsgID = ""
 		}
 		a.updateActionPlanFooter(state)
 		// tview postpones cursor movement to draw time (process()), and Flex defers the
@@ -572,6 +579,24 @@ func (a *App) syncActionPlanNode(state *actionPlanState, node *tview.TreeNode, i
 	a.updateActionPlanFooter(state)
 }
 
+// setSenderGroupChevron refreshes a read-manually sender-group header's chevron in place
+// (▶/▼) to match state.expanded[key] and re-syncs the footer, mirroring syncActionPlanNode
+// for top-level nodes but without a full tree rebuild. The label is "<chevron> <disp> · N";
+// only the leading chevron rune changes on expand/collapse.
+func (a *App) setSenderGroupChevron(state *actionPlanState, node *tview.TreeNode, key string) {
+	txt := node.GetText()
+	if i := strings.IndexByte(txt, ' '); i >= 0 {
+		chevron := "▶"
+		if state.expanded[key] {
+			chevron = "▼"
+		}
+		node.SetText(chevron + txt[i:])
+	}
+	state.selectedCategory = -1
+	state.selectedMsgID = ""
+	a.updateActionPlanFooter(state)
+}
+
 // syncSelectionToNode makes node the current node AND derives the selection state
 // (selectedCategory/selectedMsgID) from its reference, then refreshes the footer.
 // SetCurrentNode does NOT fire SetChangedFunc, so callers that relocate the cursor
@@ -589,6 +614,9 @@ func (a *App) syncSelectionToNode(state *actionPlanState, node *tview.TreeNode) 
 	case emailRef:
 		state.selectedCategory = ref.catIndex
 		state.selectedMsgID = ref.msgID
+	case string: // read-manually sender-group header
+		state.selectedCategory = -1
+		state.selectedMsgID = ""
 	}
 	a.updateActionPlanFooter(state)
 }
@@ -631,11 +659,23 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 		rm := tview.NewTreeNode(a.topLevelNodeLabel(state, rmIdx)).
 			SetSelectable(true).SetColor(colors.Text.Color())
 		rm.SetReference(rmIdx)
-		for _, m := range state.plan.ReadManually {
-			child := tview.NewTreeNode(fmt.Sprintf("• %s — %s", m.Subject, m.From)).
+		for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+			sk := senderExpandKey(g.senderKey)
+			senderChevron := "▶"
+			if state.expanded[sk] {
+				senderChevron = "▼"
+			}
+			senderNode := tview.NewTreeNode(fmt.Sprintf("%s %s · %d", senderChevron, g.senderDisp, len(g.msgs))).
 				SetSelectable(true).SetColor(colors.Text.Color())
-			child.SetReference(emailRef{catIndex: rmIdx, msgID: m.ID})
-			rm.AddChild(child)
+			senderNode.SetReference(sk) // string ref: sender-group expand key
+			for _, m := range g.msgs {
+				leaf := tview.NewTreeNode(readManuallyLeafLabel(m, state.rmSuggestions[m.ID], state.rmSuggestions != nil)).
+					SetSelectable(true).SetColor(colors.Text.Color())
+				leaf.SetReference(emailRef{catIndex: rmIdx, msgID: m.ID})
+				senderNode.AddChild(leaf)
+			}
+			senderNode.SetExpanded(state.expanded[sk]) // default collapsed
+			rm.AddChild(senderNode)
 		}
 		rm.SetExpanded(state.expanded[catExpandKey(state, rmIdx)])
 		state.root.AddChild(rm)
@@ -648,6 +688,9 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 		return
 	}
 	// Restore an email-node selection if one was active and still present/visible.
+	// Email nodes live one level under categories, and two levels under the
+	// read-manually node (category → sender group → email); descend visible
+	// sender groups too.
 	if state.selectedMsgID != "" {
 		for _, parent := range children {
 			if !parent.IsExpanded() {
@@ -657,6 +700,15 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 				if ref, ok := child.GetReference().(emailRef); ok && ref.msgID == state.selectedMsgID {
 					a.syncSelectionToNode(state, child)
 					return
+				}
+				// read-manually sender group (string ref): its children are the emails.
+				if _, isGroup := child.GetReference().(string); isGroup && child.IsExpanded() {
+					for _, grand := range child.GetChildren() {
+						if ref, ok := grand.GetReference().(emailRef); ok && ref.msgID == state.selectedMsgID {
+							a.syncSelectionToNode(state, grand)
+							return
+						}
+					}
 				}
 			}
 		}
@@ -676,7 +728,9 @@ func (a *App) rebuildActionPlanTree(state *actionPlanState) {
 // actionPlanFooterKeys holds the configurable bindings advertised in the footer, so the hints
 // always reflect the user's config (not hardcoded letters).
 type actionPlanFooterKeys struct {
-	viewPrompt, remember, move, skip string
+	viewPrompt, remember, move, skip           string
+	archive, trash, label, toggleRead, confirm string
+	assist, accept                             string
 }
 
 // prettyKeyLabel renders a config binding for display in footers (e.g. "ctrl+r" → "Ctrl+R",
@@ -752,12 +806,20 @@ func (a *App) updateActionPlanFooter(state *actionPlanState) {
 		key = a.actionKeyHint(cat.Action)
 		count = len(checkedIDs(cat.MessageIDs, state.excluded))
 	}
-	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, actionPlanFooterKeys{
+	fk := actionPlanFooterKeys{
 		viewPrompt: a.Keys.ViewPrompt,
 		remember:   a.Keys.RememberRule,
 		move:       a.Keys.Move,
 		skip:       a.Keys.BulkSelect,
-	}))
+		archive:    a.Keys.Archive,
+		trash:      a.Keys.Trash,
+		label:      a.Keys.ManageLabels,
+		toggleRead: a.Keys.ToggleRead,
+		confirm:    a.Keys.ConfirmPlan,
+		assist:     a.Keys.AssistReadManually,
+		accept:     a.Keys.AcceptSuggestion,
+	}
+	state.footer.SetText(actionPlanFooterText(onCategory, key, action, count, fk))
 }
 
 // closeActionPlanPanel closes the panel and restores the list view. Synchronous — no
@@ -811,6 +873,37 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			}
 		}
 
+		// Two-press accept state (sender group): while armed, the accept key applies the group,
+		// Esc cancels the confirmation ONLY (panel stays open), and any other key disarms then
+		// does its normal job. Mirrors the confirmPending handling above.
+		if state.rmAcceptPending != "" {
+			switch {
+			case a.matchesConfiguredKey(ev, a.Keys.AcceptSuggestion):
+				armed := state.rmAcceptPending
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				var groupIDs []string
+				for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+					if senderExpandKey(g.senderKey) == armed {
+						for _, m := range g.msgs {
+							groupIDs = append(groupIDs, m.ID)
+						}
+						break
+					}
+				}
+				a.acceptReadManuallySuggestions(state, groupIDs)
+				return nil
+			case ev.Key() == tcell.KeyEscape:
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				return nil
+			default:
+				state.rmAcceptPending = ""
+				go a.GetErrorHandler().ClearPersistentMessage()
+				// fall through: the key still performs its normal action below
+			}
+		}
+
 		// ESC: synchronous close (no QueueUpdateDraw).
 		if ev.Key() == tcell.KeyEscape {
 			a.closeActionPlanPanel()
@@ -831,6 +924,10 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 					state.expanded[k] = !state.expanded[k]
 					cur.SetExpanded(state.expanded[k])
 					a.syncActionPlanNode(state, cur, ref) // refresh chevron + footer
+				case string: // read-manually sender-group header → expand/collapse its emails
+					state.expanded[ref] = !state.expanded[ref]
+					cur.SetExpanded(state.expanded[ref])
+					a.setSenderGroupChevron(state, cur, ref)
 				case emailRef: // email node → load it into the list + reader (focus stays here)
 					a.openActionPlanEmail(ref.msgID)
 				}
@@ -838,13 +935,46 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		case tcell.KeyLeft:
 			if cur != nil {
-				if idx, ok := cur.GetReference().(int); ok {
-					state.expanded[catExpandKey(state, idx)] = false
+				switch ref := cur.GetReference().(type) {
+				case int:
+					state.expanded[catExpandKey(state, ref)] = false
 					cur.SetExpanded(false)
-					a.syncActionPlanNode(state, cur, idx)
+					a.syncActionPlanNode(state, cur, ref)
+				case string: // read-manually sender-group header
+					state.expanded[ref] = false
+					cur.SetExpanded(false)
+					a.setSenderGroupChevron(state, cur, ref)
 				}
 			}
 			return nil
+		}
+
+		if a.matchesConfiguredKey(ev, a.Keys.AssistReadManually) {
+			a.assistReadManually(a.actionPlanState)
+			return nil
+		}
+
+		// Accept the AI-suggested action. On a read-manually email leaf (catIndex == -1) apply
+		// that one email directly; on a sender-group header, arm a two-press confirm for the group.
+		if a.matchesConfiguredKey(ev, a.Keys.AcceptSuggestion) && cur != nil {
+			switch ref := cur.GetReference().(type) {
+			case emailRef:
+				if ref.catIndex == -1 {
+					a.acceptReadManuallySuggestions(state, []string{ref.msgID})
+				}
+				return nil
+			case string: // read-manually sender-group header → two-press confirm
+				senderDisp := ref
+				for _, g := range groupReadManuallyBySender(state.plan.ReadManually) {
+					if senderExpandKey(g.senderKey) == ref {
+						senderDisp = g.senderDisp
+						break
+					}
+				}
+				state.rmAcceptPending = ref
+				go a.GetErrorHandler().ShowPersistentMessage(a.ctx, fmt.Sprintf("Accept suggestions from %s? Press %s again, Esc cancels", senderDisp, a.Keys.AcceptSuggestion), LogLevelInfo)
+				return nil
+			}
 		}
 
 		if a.matchesConfiguredKey(ev, a.Keys.RememberRule) {
@@ -895,6 +1025,13 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 
+		// Show the panel key cheat-sheet ('?'). Available even during analysis (read-only
+		// help, no plan interaction). Consumed here so it never reaches the global help
+		// toggle while the panel is focused.
+		if a.matchesConfiguredKey(ev, a.Keys.Help) {
+			a.showActionPlanKeyHelp(state)
+			return nil
+		}
 		// Quick-actions are blocked until analysis finishes (avoids racing the plan).
 		if state.analyzing.Load() {
 			return nil
@@ -905,7 +1042,7 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 			return nil
 		}
 		// 'm' moves: on an email node, that one email; on a category or read-manually header,
-		// the whole group.
+		// the whole group; on a read-manually sender-group header, just that sender's emails.
 		if a.matchesConfiguredKey(ev, a.Keys.Move) && cur != nil {
 			switch ref := cur.GetReference().(type) {
 			case emailRef:
@@ -913,6 +1050,9 @@ func (a *App) actionPlanInputCapture(state *actionPlanState) func(*tcell.EventKe
 				return nil
 			case int:
 				a.showActionPlanBulkMoveInline(state, ref)
+				return nil
+			case string: // read-manually sender-group header
+				a.showActionPlanGroupMoveInline(state, ref)
 				return nil
 			}
 		}
