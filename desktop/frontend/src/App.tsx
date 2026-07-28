@@ -9,8 +9,6 @@ import {
   type MessageDetail,
   type MessageSummary,
   type SavedQuery,
-  type ActionPlanResult,
-  type AnalyzerRule,
 } from "./api";
 import type { ComposeInit } from "./Compose";
 import AppModals from "./AppModals";
@@ -103,43 +101,9 @@ export default function App() {
   const [bulkPromptText, setBulkPromptText] = useState<string | null>(null);
   const [bulkPromptLabel, setBulkPromptLabel] = useState("");
   const [actionPlanOn, setActionPlanOn] = useState(false);
-  const [planOpen, setPlanOpen] = useState(false);
-  const [plan, setPlan] = useState<ActionPlanResult | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  // Live feedback while the inbox analysis runs (a single, possibly slow LLM
-  // call): how many messages we're analyzing and elapsed seconds, so it never
-  // looks hung.
-  const [analyzeCount, setAnalyzeCount] = useState(0);
-  const [analyzeElapsed, setAnalyzeElapsed] = useState(0);
-  // Real batch progress (done/total) emitted by the backend as each AI batch
-  // finishes; null until the first event (or in browser mock, which can't emit).
-  const [analyzeProgress, setAnalyzeProgress] = useState<{
-    done: number;
-    total: number;
-  } | null>(null);
-  const [applyingAll, setApplyingAll] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
-  const [detRulesOpen, setDetRulesOpen] = useState(false);
-  // Action-plan categories the user has expanded to see their emails.
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-  // Pending action-plan reassignment: a single email or a whole category being
-  // moved to another bucket (opens the destination chooser).
-  const [planMove, setPlanMove] = useState<{
-    kind: "email" | "category";
-    catIdx: number;
-    id?: string;
-  } | null>(null);
-  // Action-plan emails toggled OFF (deselected). Emails are included by default;
-  // Space excludes one so category apply/move act only on the checked subset,
-  // mirroring the TUI's excluded map.
-  const [planExcluded, setPlanExcluded] = useState<Set<string>>(new Set());
-  // Quickview: peek at an email's content without leaving the action plan.
-  const [planPreview, setPlanPreview] = useState<MessageDetail | null>(null);
-  const [planPreviewLoading, setPlanPreviewLoading] = useState(false);
-  const [rules, setRules] = useState<AnalyzerRule[]>([]);
-  const [newRule, setNewRule] = useState("");
-  const [promptPreview, setPromptPreview] = useState<string | null>(null);
+  // Action-plan / analyzer state (plan, analyze progress, rules, previews) is
+  // owned by useActionPlan; App consumes it below via that hook's return.
   // Theme subsystem (enablement, names, current, picker, applyTheme) lives in useTheme.
   const {
     themesOn,
@@ -409,12 +373,13 @@ export default function App() {
     applyAllCategories, doPlanMove, planNodes, planNav,
     planActiveNode, planNodesRef, planActiveRef, openRules, addRule, deleteRule,
     viewAnalyzerPrompt,
+    plan, planOpen, setPlanOpen, analyzing, analyzeCount, analyzeElapsed,
+    analyzeProgress, applyingAll, rulesOpen, setRulesOpen, detRulesOpen, setDetRulesOpen,
+    expandedCats, setExpandedCats, planMove, setPlanMove, planExcluded, setPlanExcluded,
+    planPreview, setPlanPreview, planPreviewLoading, rules, newRule, setNewRule,
+    promptPreview, setPromptPreview,
   } = useActionPlan({
-    plan, setPlan, planOpen, setPlanOpen, analyzing, setAnalyzing,
-    setAnalyzeCount, setAnalyzeElapsed, setAnalyzeProgress, planExcluded, setPlanExcluded, expandedCats,
-    setApplyingAll, planMove, setPlanMove, planPreview, setPlanPreview, setPlanPreviewLoading,
-    setRules, newRule, setNewRule, rulesOpen, setRulesOpen,
-    setDetRulesOpen, messages, setMessages, promptPreview, setPromptPreview, bulkPromptText,
+    messages, setMessages, bulkPromptText,
     setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
   });
   // Global input wiring — the window keydown listener and the command runner —

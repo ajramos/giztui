@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { backend, applyBulkPromptStream } from "./api";
 import type {
   ActionPlanResult,
+  AnalyzerRule,
   PlanCategory,
   MessageDetail,
   MessageSummary,
@@ -18,34 +19,8 @@ import { useListNav } from "./useListNav";
 // analyzer-rule CRUD, and the analyzer-prompt view. Plan/rules STATE stays in
 // App and is passed in; this hook holds the (verbatim) logic + the nav hooks.
 export function useActionPlan(deps: {
-  plan: ActionPlanResult | null;
-  setPlan: Dispatch<SetStateAction<ActionPlanResult | null>>;
-  planOpen: boolean;
-  setPlanOpen: Dispatch<SetStateAction<boolean>>;
-  analyzing: boolean;
-  setAnalyzing: Dispatch<SetStateAction<boolean>>;
-  setAnalyzeCount: Dispatch<SetStateAction<number>>;
-  setAnalyzeElapsed: Dispatch<SetStateAction<number>>;
-  setAnalyzeProgress: Dispatch<SetStateAction<{ done: number; total: number } | null>>;
-  planExcluded: Set<string>;
-  setPlanExcluded: Dispatch<SetStateAction<Set<string>>>;
-  expandedCats: Set<string>;
-  setApplyingAll: Dispatch<SetStateAction<boolean>>;
-  planMove: { kind: "email" | "category"; catIdx: number; id?: string } | null;
-  setPlanMove: Dispatch<SetStateAction<{ kind: "email" | "category"; catIdx: number; id?: string } | null>>;
-  planPreview: MessageDetail | null;
-  setPlanPreview: Dispatch<SetStateAction<MessageDetail | null>>;
-  setPlanPreviewLoading: Dispatch<SetStateAction<boolean>>;
-  setRules: Dispatch<SetStateAction<{ id: number; text: string }[]>>;
-  newRule: string;
-  setNewRule: Dispatch<SetStateAction<string>>;
-  rulesOpen: boolean;
-  setRulesOpen: Dispatch<SetStateAction<boolean>>;
-  setDetRulesOpen: Dispatch<SetStateAction<boolean>>;
   messages: MessageSummary[];
   setMessages: Dispatch<SetStateAction<MessageSummary[]>>;
-  promptPreview: string | null;
-  setPromptPreview: Dispatch<SetStateAction<string | null>>;
   bulkPromptText: string | null;
   setBulkPromptText: Dispatch<SetStateAction<string | null>>;
   setBulkPromptLabel: Dispatch<SetStateAction<string>>;
@@ -55,13 +30,43 @@ export function useActionPlan(deps: {
   clearReaderIfRemoved: (removed: Set<string>) => void;
 }) {
   const {
-    plan, setPlan, planOpen, setPlanOpen, analyzing, setAnalyzing,
-    setAnalyzeCount, setAnalyzeElapsed, setAnalyzeProgress, planExcluded, setPlanExcluded, expandedCats,
-    setApplyingAll, planMove, setPlanMove, planPreview, setPlanPreview, setPlanPreviewLoading,
-    setRules, newRule, setNewRule, rulesOpen, setRulesOpen,
-    setDetRulesOpen, messages, setMessages, promptPreview, setPromptPreview, bulkPromptText,
+    messages, setMessages, bulkPromptText,
     setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
   } = deps;
+
+  // Action-plan / analyzer subsystem state (owned here; App consumes via the
+  // return). The current plan + whether its panel is open.
+  const [plan, setPlan] = useState<ActionPlanResult | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  // Live feedback while the inbox analysis runs (a single, possibly slow LLM
+  // call): how many messages we're analyzing and elapsed seconds, so it never
+  // looks hung.
+  const [analyzeCount, setAnalyzeCount] = useState(0);
+  const [analyzeElapsed, setAnalyzeElapsed] = useState(0);
+  // Real batch progress (done/total) emitted by the backend as each AI batch
+  // finishes; null until the first event (or in browser mock, which can't emit).
+  const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(null);
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [detRulesOpen, setDetRulesOpen] = useState(false);
+  // Action-plan categories the user has expanded to see their emails.
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  // Pending action-plan reassignment: a single email or a whole category being
+  // moved to another bucket (opens the destination chooser).
+  const [planMove, setPlanMove] = useState<
+    { kind: "email" | "category"; catIdx: number; id?: string } | null
+  >(null);
+  // Action-plan emails toggled OFF (deselected). Emails are included by default;
+  // Space excludes one so category apply/move act only on the checked subset,
+  // mirroring the TUI's excluded map.
+  const [planExcluded, setPlanExcluded] = useState<Set<string>>(new Set());
+  // Quickview: peek at an email's content without leaving the action plan.
+  const [planPreview, setPlanPreview] = useState<MessageDetail | null>(null);
+  const [planPreviewLoading, setPlanPreviewLoading] = useState(false);
+  const [rules, setRules] = useState<AnalyzerRule[]>([]);
+  const [newRule, setNewRule] = useState("");
+  const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const runActionPlan = useCallback(async () => {
     setPlanOpen(true);
     setAnalyzing(true);
@@ -405,5 +410,11 @@ export function useActionPlan(deps: {
     applyAllCategories, doPlanMove, openPlanPreview, planNodes, planNav,
     planActiveNode, planNodesRef, planActiveRef, openRules, addRule, deleteRule,
     viewAnalyzerPrompt,
+    // owned state (App consumes for the modal stack + keydown context)
+    plan, setPlan, planOpen, setPlanOpen, analyzing, analyzeCount, analyzeElapsed,
+    analyzeProgress, applyingAll, rulesOpen, setRulesOpen, detRulesOpen, setDetRulesOpen,
+    expandedCats, setExpandedCats, planMove, setPlanMove, planExcluded, setPlanExcluded,
+    planPreview, setPlanPreview, planPreviewLoading, rules, newRule, setNewRule,
+    promptPreview, setPromptPreview,
   };
 }
