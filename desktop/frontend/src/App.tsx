@@ -68,21 +68,10 @@ export default function App() {
   // opening a message hands the arrows to the reader.
   const [readerFocused, setReaderFocused] = useState(false);
   const readerBodyRef = useRef<HTMLDivElement>(null);
-  // Refs to the AI result panels so we can scroll them into view when they
-  // appear — otherwise, if the reader is scrolled down, the panel renders above
-  // the fold and it looks like nothing happened.
-  const summaryPanelRef = useRef<HTMLDivElement>(null);
-  const promptPanelRef = useRef<HTMLDivElement>(null);
-  const touchUpRef = useRef<HTMLDivElement>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [summarizing, setSummarizing] = useState(false);
-  // The message a summary run/result belongs to, so a summary started on one
-  // email doesn't paint its "Generating…" / stream over another you navigated to.
-  const [summaryForId, setSummaryForId] = useState<string | null>(null);
   const [compose, setCompose] = useState<ComposeInit | null>(null);
   const [labelsFor, setLabelsFor] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -94,16 +83,6 @@ export default function App() {
   const [aiPromptsEnabled, setAiPromptsEnabled] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
   const [promptManagerOpen, setPromptManagerOpen] = useState(false);
-  const [promptResult, setPromptResult] = useState<string | null>(null);
-  const [promptLabel, setPromptLabel] = useState("");
-  const [promptRunning, setPromptRunning] = useState(false);
-  // The message a single-message prompt result/run belongs to, so a run started
-  // on one email doesn't paint its "Generating…" over a different email you've
-  // since navigated to.
-  const [promptForId, setPromptForId] = useState<string | null>(null);
-  // Always the id of the message currently open in the reader, so a streaming
-  // prompt can tell it should stop updating the visible panel once you move away.
-  const openIdRef = useRef<string | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -118,46 +97,6 @@ export default function App() {
   // Per-message opt-in (session only), so returning to a message you already
   // revealed images for doesn't ask again.
   const imageOptIn = useRef<Set<string>>(new Set());
-  // Remember AI results per message (session) so navigating away and back shows
-  // the summary / prompt output / reformat again instead of a blank panel. The
-  // backend also caches, but the frontend state was cleared on every open.
-  const aiCache = useRef<
-    Map<
-      string,
-      {
-        summary?: string;
-        touchUp?: string;
-        // Prompt results keyed by prompt id, so re-running a prompt you already
-        // ran on this message reuses the result (no new LLM call / tokens).
-        promptResults?: Record<number, { text: string; label: string }>;
-        // Which prompt result to restore when you return to this message (cleared
-        // on dismiss, so a dismissed panel stays closed but the result is kept).
-        lastPromptId?: number;
-      }
-    >
-  >(new Map());
-  // updateAiCache merges a patch into a message's cache entry (creating it if
-  // needed); a key set to undefined deletes it. Consolidates the repeated
-  // get-or-{}/mutate/set dance around aiCache.current.
-  const updateAiCache = useCallback(
-    (
-      id: string,
-      patch: Partial<{
-        summary: string | undefined;
-        touchUp: string | undefined;
-        lastPromptId: number | undefined;
-        promptResults: Record<number, { text: string; label: string }>;
-      }>,
-    ) => {
-      const e = aiCache.current.get(id) ?? {};
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === undefined) delete (e as Record<string, unknown>)[k];
-        else (e as Record<string, unknown>)[k] = v;
-      }
-      aiCache.current.set(id, e);
-    },
-    [],
-  );
   const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
   const [appVersion, setAppVersion] = useState("");
   const [linksFor, setLinksFor] = useState<string | null>(null);
@@ -220,31 +159,6 @@ export default function App() {
     applyTheme,
     initTheme,
   } = useTheme();
-  const [generatingReply, setGeneratingReply] = useState(false);
-  const [touchUpText, setTouchUpText] = useState<string | null>(null);
-  const [touchingUp, setTouchingUp] = useState(false);
-  // Refs mirroring the AI-panel state so the keydown handler / commands can read
-  // fresh values without stale closures (for :dismiss, :regenerate, layered Esc).
-  const summaryRef = useRef(summary);
-  summaryRef.current = summary;
-  const promptResultRef = useRef(promptResult);
-  promptResultRef.current = promptResult;
-  const promptLabelRef = useRef(promptLabel);
-  promptLabelRef.current = promptLabel;
-  const promptRunningRef = useRef(promptRunning);
-  promptRunningRef.current = promptRunning;
-  const promptForIdRef = useRef(promptForId);
-  promptForIdRef.current = promptForId;
-  const summarizingRef = useRef(summarizing);
-  summarizingRef.current = summarizing;
-  const summaryForIdRef = useRef(summaryForId);
-  summaryForIdRef.current = summaryForId;
-  // Label of the prompt currently streaming, keyed by message id, so returning
-  // to a message mid-run can restore its panel title (the global promptLabel is
-  // reset when you navigate away).
-  const runningLabelRef = useRef<Record<string, string>>({});
-  const touchUpTextRef = useRef(touchUpText);
-  touchUpTextRef.current = touchUpText;
   const [statsOpen, setStatsOpen] = useState(false);
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
@@ -402,32 +316,6 @@ export default function App() {
     toggleThread,
   } = useThreading(detail, { setError });
 
-  // When an AI result panel starts, reveal it (the panels render at the top of
-  // the reader, so if you'd scrolled down they'd appear above the fold and look
-  // like a no-op) and flash a toast so there's immediate feedback either way.
-  useEffect(() => {
-    if (summarizing && summaryForId && summaryForId === detail?.id) {
-      summaryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-      showToast("Summarizing…");
-    }
-  }, [summarizing, summaryForId, detail?.id, showToast]);
-  useEffect(() => {
-    // Only for a single-message prompt on the message that's actually open (a
-    // bulk run streams into its own modal; promptForId is null for it).
-    if (promptRunning && promptForId && promptForId === detail?.id) {
-      promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-      showToast(promptLabel ? `Applying ${promptLabel}…` : "Applying prompt…");
-    }
-  }, [promptRunning, promptForId, detail?.id, promptLabel, showToast]);
-  useEffect(() => {
-    if (touchingUp) showToast("Reformatting…");
-  }, [touchingUp, showToast]);
-  useEffect(() => {
-    // The reformatted panel only mounts once the result is set, so reveal it then.
-    if (touchUpText !== null)
-      touchUpRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [touchUpText]);
-
   // Global "always load remote images" toggle, persisted across launches. Turning
   // it on reveals images in the current message too.
   const setAlwaysImagesOn = useCallback(
@@ -447,6 +335,24 @@ export default function App() {
     setAutoRefreshSecs,
     toggleAutoRefresh,
   } = useAutoRefresh({ showToast, onTick: () => void checkNewMail() });
+
+  // The AI subsystem owns its panel state + the openIdRef/aiCache/mirror-ref
+  // landmines and returns them so loadMessage (below) and the render can consume
+  // them by their original names. Declared before useReader/useBootstrap because
+  // those reset/clear this state.
+  const {
+    summary, setSummary, summarizing, summaryForId,
+    promptResult, setPromptResult, promptLabel, setPromptLabel, promptRunning, setPromptRunning, promptForId,
+    generatingReply, touchUpText, setTouchUpText, touchingUp,
+    summaryPanelRef, promptPanelRef, touchUpRef,
+    openIdRef, aiCache, runningLabelRef, promptLabelRef, promptForIdRef,
+    promptRunningRef, summarizingRef, summaryForIdRef,
+    summarize, generateReply, touchUp, runPrompt, dismissSummary,
+    dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
+  } = useAiActions({
+    detail, bulkMode, selected, aiEnabled, showToast, setError,
+    setPromptsOpen, setCompose, setBulkPromptLabel, setBulkPromptText,
+  });
 
   const { importCreds, retryInit, switchAccount } = useBootstrap({
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
@@ -501,18 +407,6 @@ export default function App() {
     bulkAction, bulkActionIds, setBulkLabels, setBulkMode, setBulkProgress,
     setLabelsFor, setSelected, setSelectedId,
   });
-
-  const {
-    summarize, generateReply, touchUp, runPrompt, dismissSummary,
-    dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
-  } = useAiActions({
-    detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setSummary, setSummarizing, setSummaryForId, setPromptResult, setPromptLabel, setPromptRunning,
-    setPromptForId, setPromptsOpen, setGeneratingReply, setTouchUpText, setTouchingUp, setCompose,
-    setBulkPromptLabel, setBulkPromptText, openIdRef, aiCache, updateAiCache, summaryRef,
-    promptResultRef, touchUpTextRef, promptLabelRef, runningLabelRef, promptPanelRef,
-  });
-
 
   const {
     openStats, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
