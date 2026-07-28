@@ -1,0 +1,310 @@
+:root {
+  --bg: #14161b;
+  --bg-elev: #1b1e25;
+  --bg-row: #191c22;
+  --bg-row-hover: #222630;
+  --bg-selected: #253044;
+  --border: #2a2e37;
+  --text: #e6e8ec;
+  --text-muted: #9aa0ab;
+  /* Higher-contrast secondary text for functional/instructional UI (keyboard
+     hints, ghost buttons, loading text) — readable but a step below --text.
+     --text-muted stays for genuinely secondary content (dates, snippets). */
+  --text-dim: #c7ccd6;
+  --accent: #6ea8fe;
+  --accent-strong: #4d8bff;
+  --danger: #ff6b6b;
+  --chip-bg: #2b3240;
+  --chip-text: #b9c6da;
+  --unread-dot: #6ea8fe;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  /* 100% (of #root, which fills the viewport) rather than 100vh: CSS zoom
+     rescales the effective viewport, and 100vh doesn't follow it — that made a
+     zoomed UI overflow and grow scrollbars. 100% cascades from html/#root and
+     tracks the zoomed viewport correctly. */
+  height: 100%;
+  overflow: hidden;
+}
+.app:focus {
+  outline: none;
+}
+
+/* Topbar — slim status-bar style */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  /* leave room for the macOS traffic-light buttons (hidden inset titlebar) */
+  padding-left: 78px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Compact controls just inside the topbar (keeps modals' buttons untouched). */
+.topbar button {
+  padding: 4px 9px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+.brand .logo {
+  color: var(--accent);
+}
+.brand .subtitle {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.searchbox {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+.searchbox input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+}
+.searchbox input:focus {
+  border-color: var(--accent);
+}
+
+button {
+  background: var(--accent-strong);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+button:hover {
+  filter: brightness(1.08);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+button.ghost:hover {
+  color: var(--text);
+}
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.account .email {
+  font-size: 13px;
+}
+.badge {
+  background: #4a3a12;
+  color: #ffd479;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.error-banner {
+  background: #3a1d1d;
+  color: #ffb4b4;
+  padding: 8px 16px;
+  border-bottom: 1px solid #5a2a2a;
+  font-size: 13px;
+}
+
+/* Body split */
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.list {
+  width: 380px;
+  min-width: 300px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--bg);
+}
+.list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Loaded-message count header, sticky at the top of the list so the tally
+   stays visible while scrolling (TUI parity with the list title's count). */
+.list-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.list-count {
+  font-weight: 600;
+  color: var(--fg);
+}
+/* Banner offering to merge background-fetched new mail (kept out of the list so
+   it never shifts rows under an in-progress action). */
+.new-mail-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-strong, var(--accent));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.new-mail-bar:hover {
+  filter: brightness(1.08);
+}
+.list-scope {
+  font-size: 11px;
+}
+
+.row {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+}
+.row:hover {
+  background: var(--bg-row-hover);
+}
+.row.selected {
+  background: var(--bg-selected);
+  /* An accent bar makes the cursor row unmistakable next to hover/checked,
+     whatever the theme's selected background is. */
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.row.unread .subject {
+  font-weight: 700;
+  color: var(--text);
+}
+.row.unread::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 18px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--unread-dot);
+}
+
+.row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.row .from {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.row .date {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.row .subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .snippet {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.labels {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.label-chip {
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
