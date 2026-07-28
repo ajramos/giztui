@@ -20,38 +20,18 @@ import {
   type PlanCategory,
   type AnalyzerRule,
 } from "./api";
-import Compose, { type ComposeInit } from "./Compose";
-import LabelsPicker from "./LabelsPicker";
-import PromptsPicker from "./PromptsPicker";
-import PromptManager from "./PromptManager";
-import LinksPicker from "./LinksPicker";
-import ThemePicker from "./ThemePicker";
-import SavedQueriesPicker from "./SavedQueriesPicker";
-import RSVPPicker from "./RSVPPicker";
-import MovePicker from "./MovePicker";
-import PlanMovePicker from "./PlanMovePicker";
-import SuggestPicker from "./SuggestPicker";
-import AttachmentsPicker from "./AttachmentsPicker";
-import Markdown from "./Markdown";
+import type { ComposeInit } from "./Compose";
 import {
-  displayName,
   matchesCombo,
   emailAddr,
-  formatICSDate,
   cleanSubject,
   countMatches,
-  formatFull,
 } from "./format";
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { activeAiPanel } from "./aiPanels";
 import { buildPlanNodes, type PlanNode } from "./planNodes";
-import StatsModal from "./StatsModal";
-import ConfigModal from "./ConfigModal";
-import PromptPreviewModal from "./PromptPreviewModal";
-import SaveQueryModal from "./SaveQueryModal";
-import AnalyzerRulesModal from "./AnalyzerRulesModal";
-import AdvancedSearchModal from "./AdvancedSearchModal";
-import ActionPlanModal from "./ActionPlanModal";
+import ModalsPrimary from "./ModalsPrimary";
+import ModalsSecondary from "./ModalsSecondary";
 import MessageList from "./MessageList";
 import Reader from "./Reader";
 import TopBar from "./TopBar";
@@ -63,22 +43,17 @@ import { useMessages } from "./useMessages";
 import { useMailActions } from "./useMailActions";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
-  buildMoveTargets,
   applyPlanMove,
   sortPlanCategories,
   type MoveTarget,
 } from "./planMove";
-import RulesManager from "./RulesManager";
-import Help from "./Help";
-import CommandBar from "./CommandBar";
-import { COMMANDS, parseCommand } from "./commands";
+import { parseCommand } from "./commands";
 import { useListNav } from "./useListNav";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
 import { useRsvp } from "./useRsvp";
 import { useThreading } from "./useThreading";
-import { Icon } from "./Icons";
 
 const PAGE_SIZE = 50;
 
@@ -3349,338 +3324,148 @@ export default function App() {
         />
       </div>
 
-      {compose && (
-        <Compose
-          init={compose}
-          onClose={() => setCompose(null)}
-          onSent={(msg) => {
-            setCompose(null);
-            showToast(msg);
-            if (draftsView) void loadDrafts();
-          }}
-        />
-      )}
-      {labelsFor && (
-        <LabelsPicker
-          messageId={labelsFor}
-          onClose={() => setLabelsFor(null)}
-          onChanged={(c) => applyLabelChange(new Set([labelsFor]), c)}
-        />
-      )}
-      {bulkLabels && (
-        <LabelsPicker
-          bulkIds={[...selected]}
-          onClose={() => setBulkLabels(false)}
-          onChanged={(c) => applyLabelChange(new Set(selected), c)}
-        />
-      )}
-      {promptsOpen && (
-        <PromptsPicker
-          onClose={() => setPromptsOpen(false)}
-          onPick={(p) => void runPrompt(p)}
-          onManage={
-            aiPromptsEnabled
-              ? () => {
-                  setPromptsOpen(false);
-                  setPromptManagerOpen(true);
-                }
-              : undefined
-          }
-        />
-      )}
-      {promptManagerOpen && (
-        <PromptManager
-          aiEnabled={aiEnabled}
-          onClose={() => setPromptManagerOpen(false)}
-          onChanged={() => {
-            // A prompt was created/edited/deleted. Drop cached prompt results so a
-            // re-run regenerates with the new text (the backend already cleared
-            // the DB copies for edited/deleted prompts).
-            for (const e of aiCache.current.values()) {
-              e.promptResults = {};
-              e.lastPromptId = undefined;
-            }
-            setPromptResult(null);
-          }}
-        />
-      )}
-      {linksFor && (
-        <LinksPicker messageId={linksFor} onClose={() => setLinksFor(null)} />
-      )}
-      {suggestFor && (
-        <SuggestPicker
-          suggestions={suggestions}
-          loading={loadingSuggest}
-          onApply={applySuggestion}
-          onClose={() => setSuggestFor(null)}
-        />
-      )}
-      {attachmentsOpen && (
-        <AttachmentsPicker
-          attachments={attachments}
-          busy={busy}
-          onDownload={(att) => void downloadAttachment(att)}
-          onClose={() => setAttachmentsOpen(false)}
-        />
-      )}
-      {queriesOpen && (
-        <SavedQueriesPicker
-          queries={savedQueries}
-          canSaveCurrent={!!activeQuery}
-          onRun={runQuery}
-          onDelete={(id) => void deleteQuery(id)}
-          onSaveCurrent={() => {
-            setQueriesOpen(false);
-            setSaveQueryOpen(true);
-          }}
-          onClose={() => setQueriesOpen(false)}
-        />
-      )}
-      {rsvpPickerOpen && detail && invite?.isInvite && (
-        <RSVPPicker
-          summary={invite.summary || ""}
-          when={invite.dtStart ? formatICSDate(invite.dtStart) : ""}
-          busy={rsvpBusy}
-          onRespond={(status) => {
-            void respondInvite(detail.id, status);
-            setRsvpPickerOpen(false);
-          }}
-          onClose={() => setRsvpPickerOpen(false)}
-        />
-      )}
-      {saveQueryOpen && (
-        <SaveQueryModal
-          name={saveQueryName}
-          onNameChange={setSaveQueryName}
-          query={activeQuery}
-          onSave={doSaveQuery}
-          onClose={() => setSaveQueryOpen(false)}
-        />
-      )}
-      {bulkPromptText !== null && (
-        <div className="modal-overlay" onClick={() => setBulkPromptText(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>✦ {bulkPromptLabel}</h3>
-              <button className="ghost" onClick={() => setBulkPromptText(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {promptRunning && !bulkPromptText ? (
-                <div className="placeholder">Generating…</div>
-              ) : (
-                <div className="summary-text">
-                  <Markdown text={bulkPromptText || ""} />
-                  {promptRunning && <span className="caret">▍</span>}
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button onClick={() => setBulkPromptText(null)}>Done</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {planOpen && (
-        <ActionPlanModal
-          analyzing={analyzing}
-          analyzeCount={analyzeCount}
-          analyzeProgress={analyzeProgress}
-          analyzeElapsed={analyzeElapsed}
-          plan={plan}
-          planNodes={planNodes}
-          planActiveNode={planActiveNode}
-          listRef={planNav.listRef}
-          setActiveHover={planNav.setActiveHover}
-          expandedCats={expandedCats}
-          setExpandedCats={setExpandedCats}
-          planExcluded={planExcluded}
-          setPlanExcluded={setPlanExcluded}
-          applyingAll={applyingAll}
-          rulesEnabled={rulesEnabled}
-          messages={messages}
-          onApplyCategory={(c, move) => void applyCategory(c, move)}
-          onDispatchPrompt={(c) => void dispatchPromptCategory(c)}
-          onApplyAll={() => void applyAllCategories()}
-          onOpenMessage={(m) => {
-            setPlanOpen(false);
-            void openMessage(m);
-          }}
-          onOpenRules={() => void openRules()}
-          onViewPrompt={() => void viewAnalyzerPrompt()}
-          onClose={() => setPlanOpen(false)}
-        />
-      )}
-      {planMove && plan && (
-        <PlanMovePicker
-          title={
-            planMove.kind === "email"
-              ? "Move email to…"
-              : `Move "${plan.categories[planMove.catIdx]?.name ?? ""}" (${
-                  // The selected (non-deselected) count — what will actually move.
-                  (plan.categories[planMove.catIdx]?.messageIds ?? []).filter(
-                    (id) => !planExcluded.has(id),
-                  ).length
-                }) to…`
-          }
-          targets={buildMoveTargets(
-            plan.categories,
-            plan.categories[planMove.catIdx]?.name ?? "",
-          )}
-          onChoose={doPlanMove}
-          onClose={() => setPlanMove(null)}
-        />
-      )}
-      {(planPreview || planPreviewLoading) && (
-        <div className="modal-overlay" onClick={() => setPlanPreview(null)}>
-          <div
-            className="modal plan-preview"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-head">
-              <h3>{planPreview?.subject || "Quick view"}</h3>
-              <button className="ghost" onClick={() => setPlanPreview(null)}>
-                {Icon.x}
-              </button>
-            </div>
-            <div className="modal-body">
-              {planPreviewLoading || !planPreview ? (
-                <div className="placeholder">Loading…</div>
-              ) : (
-                <>
-                  <div className="qv-meta muted">
-                    <div>
-                      <strong>{displayName(planPreview.from)}</strong>{" "}
-                      {emailAddr(planPreview.from)}
-                    </div>
-                    <div>{formatFull(planPreview.date)}</div>
-                  </div>
-                  <pre className="qv-body">
-                    {planPreview.plainText?.trim() ||
-                      "(no plain-text preview — open in reader for the full HTML)"}
-                  </pre>
-                </>
-              )}
-            </div>
-            <div className="modal-foot">
-              <span className="foot-hint">Esc back to plan</span>
-              {planPreview && (
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    const m = messages.find((x) => x.id === planPreview.id);
-                    setPlanPreview(null);
-                    setPlanOpen(false);
-                    if (m) void openMessage(m);
-                  }}
-                >
-                  Open in reader
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {detRulesOpen && (
-        <RulesManager
-          onClose={() => setDetRulesOpen(false)}
-          onRun={() => void runDeterministicRules()}
-        />
-      )}
-      {rulesOpen && (
-        <AnalyzerRulesModal
-          rules={rules}
-          newRule={newRule}
-          onNewRuleChange={setNewRule}
-          onAddRule={() => void addRule()}
-          onDeleteRule={(id) => void deleteRule(id)}
-          onClose={() => setRulesOpen(false)}
-        />
-      )}
-      {promptPreview !== null && (
-        <PromptPreviewModal
-          text={promptPreview}
-          onClose={() => setPromptPreview(null)}
-        />
-      )}
-      {cmdOpen && (
-        <CommandBar
-          commands={COMMANDS}
-          onRun={executeCommand}
-          onClose={() => setCmdOpen(false)}
-        />
-      )}
-      {themePickerOpen && (
-        <ThemePicker
-          themes={themeNames}
-          current={currentTheme}
-          onPick={(name) => {
-            void applyTheme(name);
-            setThemePickerOpen(false);
-            showToast(`Theme: ${name}`);
-          }}
-          onClose={() => setThemePickerOpen(false)}
-        />
-      )}
-      {moveFor && (
-        <MovePicker
-          labels={labels}
-          onMove={(name) => void doMove(moveFor, name)}
-          onClose={() => setMoveFor(null)}
-        />
-      )}
-      {bulkMove && (
-        <MovePicker
-          labels={labels}
-          count={selected.size}
-          onMove={(name) => void doBulkMove(name)}
-          onClose={() => setBulkMove(false)}
-        />
-      )}
-      {advOpen && (
-        <AdvancedSearchModal
-          adv={adv}
-          onChange={setAdv}
-          onSearch={(q) => {
-            if (!q) return;
-            setLocalFilter(false);
-            setQuery(q);
-            setAdvOpen(false);
-            void load(q);
-          }}
-          onClose={() => setAdvOpen(false)}
-        />
-      )}
-      {statsOpen && (
-        <StatsModal stats={stats} onClose={() => setStatsOpen(false)} />
-      )}
-      {configOpen && (
-        <ConfigModal
-          info={configInfo}
-          onClearCaches={() => void clearCaches()}
-          onClose={() => setConfigOpen(false)}
-        />
-      )}
-      {showHelp && (
-        <Help
-          keymap={keymap}
-          flags={{
-            ai: aiEnabled,
-            prompts: aiPromptsEnabled,
-            obsidian: obsidianOn,
-            slack: slackOn,
-            threading: threadingOn,
-            savedQueries: savedQueriesOn,
-            actionPlan: actionPlanOn,
-            rsvp: rsvpEnabled,
-            themes: themesOn,
-            rules: rulesEnabled,
-          }}
-          version={appVersion}
-          onClose={() => setShowHelp(false)}
-        />
-      )}
+      <ModalsPrimary
+        compose={compose}
+        setCompose={setCompose}
+        showToast={showToast}
+        draftsView={draftsView}
+        loadDrafts={loadDrafts}
+        labelsFor={labelsFor}
+        setLabelsFor={setLabelsFor}
+        applyLabelChange={applyLabelChange}
+        bulkLabels={bulkLabels}
+        setBulkLabels={setBulkLabels}
+        selected={selected}
+        promptsOpen={promptsOpen}
+        setPromptsOpen={setPromptsOpen}
+        runPrompt={runPrompt}
+        aiPromptsEnabled={aiPromptsEnabled}
+        setPromptManagerOpen={setPromptManagerOpen}
+        promptManagerOpen={promptManagerOpen}
+        aiEnabled={aiEnabled}
+        aiCache={aiCache}
+        setPromptResult={setPromptResult}
+        linksFor={linksFor}
+        setLinksFor={setLinksFor}
+        suggestFor={suggestFor}
+        setSuggestFor={setSuggestFor}
+        suggestions={suggestions}
+        loadingSuggest={loadingSuggest}
+        applySuggestion={applySuggestion}
+        attachmentsOpen={attachmentsOpen}
+        setAttachmentsOpen={setAttachmentsOpen}
+        attachments={attachments}
+        busy={busy}
+        downloadAttachment={downloadAttachment}
+        queriesOpen={queriesOpen}
+        setQueriesOpen={setQueriesOpen}
+        savedQueries={savedQueries}
+        activeQuery={activeQuery}
+        runQuery={runQuery}
+        deleteQuery={deleteQuery}
+        setSaveQueryOpen={setSaveQueryOpen}
+        rsvpPickerOpen={rsvpPickerOpen}
+        setRsvpPickerOpen={setRsvpPickerOpen}
+        detail={detail}
+        invite={invite}
+        rsvpBusy={rsvpBusy}
+        respondInvite={respondInvite}
+        saveQueryOpen={saveQueryOpen}
+        saveQueryName={saveQueryName}
+        setSaveQueryName={setSaveQueryName}
+        doSaveQuery={doSaveQuery}
+      />
+      <ModalsSecondary
+        bulkPromptText={bulkPromptText}
+        setBulkPromptText={setBulkPromptText}
+        bulkPromptLabel={bulkPromptLabel}
+        promptRunning={promptRunning}
+        planOpen={planOpen}
+        analyzing={analyzing}
+        analyzeCount={analyzeCount}
+        analyzeProgress={analyzeProgress}
+        analyzeElapsed={analyzeElapsed}
+        plan={plan}
+        planNodes={planNodes}
+        planActiveNode={planActiveNode}
+        planNav={planNav}
+        expandedCats={expandedCats}
+        setExpandedCats={setExpandedCats}
+        planExcluded={planExcluded}
+        setPlanExcluded={setPlanExcluded}
+        applyingAll={applyingAll}
+        rulesEnabled={rulesEnabled}
+        messages={messages}
+        applyCategory={applyCategory}
+        dispatchPromptCategory={dispatchPromptCategory}
+        applyAllCategories={applyAllCategories}
+        setPlanOpen={setPlanOpen}
+        openMessage={openMessage}
+        openRules={openRules}
+        viewAnalyzerPrompt={viewAnalyzerPrompt}
+        planMove={planMove}
+        setPlanMove={setPlanMove}
+        doPlanMove={doPlanMove}
+        planPreview={planPreview}
+        planPreviewLoading={planPreviewLoading}
+        setPlanPreview={setPlanPreview}
+        detRulesOpen={detRulesOpen}
+        setDetRulesOpen={setDetRulesOpen}
+        runDeterministicRules={runDeterministicRules}
+        rulesOpen={rulesOpen}
+        rules={rules}
+        newRule={newRule}
+        setNewRule={setNewRule}
+        addRule={addRule}
+        deleteRule={deleteRule}
+        setRulesOpen={setRulesOpen}
+        promptPreview={promptPreview}
+        setPromptPreview={setPromptPreview}
+        cmdOpen={cmdOpen}
+        executeCommand={executeCommand}
+        setCmdOpen={setCmdOpen}
+        themePickerOpen={themePickerOpen}
+        themeNames={themeNames}
+        currentTheme={currentTheme}
+        applyTheme={applyTheme}
+        setThemePickerOpen={setThemePickerOpen}
+        showToast={showToast}
+        moveFor={moveFor}
+        labels={labels}
+        doMove={doMove}
+        setMoveFor={setMoveFor}
+        bulkMove={bulkMove}
+        selected={selected}
+        doBulkMove={doBulkMove}
+        setBulkMove={setBulkMove}
+        advOpen={advOpen}
+        adv={adv}
+        setAdv={setAdv}
+        setLocalFilter={setLocalFilter}
+        setQuery={setQuery}
+        load={load}
+        setAdvOpen={setAdvOpen}
+        statsOpen={statsOpen}
+        stats={stats}
+        setStatsOpen={setStatsOpen}
+        configOpen={configOpen}
+        configInfo={configInfo}
+        clearCaches={clearCaches}
+        setConfigOpen={setConfigOpen}
+        showHelp={showHelp}
+        keymap={keymap}
+        aiEnabled={aiEnabled}
+        aiPromptsEnabled={aiPromptsEnabled}
+        obsidianOn={obsidianOn}
+        slackOn={slackOn}
+        threadingOn={threadingOn}
+        savedQueriesOn={savedQueriesOn}
+        actionPlanOn={actionPlanOn}
+        rsvpEnabled={rsvpEnabled}
+        themesOn={themesOn}
+        appVersion={appVersion}
+        setShowHelp={setShowHelp}
+      />
     </div>
   );
 }
