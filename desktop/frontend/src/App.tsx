@@ -7,7 +7,6 @@ import {
   summarizeStream,
   threadSummaryStream,
   type AccountInfo,
-  type DraftSummary,
   type KeyMap,
   type Label,
   type UsageStats,
@@ -58,6 +57,10 @@ import ActionPlanModal from "./ActionPlanModal";
 import MessageList from "./MessageList";
 import Reader from "./Reader";
 import TopBar from "./TopBar";
+import { useUndo } from "./useUndo";
+import { useIntegrations } from "./useIntegrations";
+import { useAutoRefresh } from "./useAutoRefresh";
+import { useDrafts } from "./useDrafts";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
@@ -199,14 +202,9 @@ export default function App() {
     },
     [],
   );
-  const [draftsView, setDraftsView] = useState(false);
-  const [drafts, setDrafts] = useState<DraftSummary[]>([]);
-  const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [keymap, setKeymap] = useState<KeyMap>(DEFAULT_KEYMAP);
   const [appVersion, setAppVersion] = useState("");
   const [linksFor, setLinksFor] = useState<string | null>(null);
-  const [obsidianOn, setObsidianOn] = useState(false);
-  const [slackOn, setSlackOn] = useState(false);
   const [suggestFor, setSuggestFor] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
@@ -320,8 +318,6 @@ export default function App() {
   const [adv, setAdv] = useState<AdvFilters>(EMPTY_ADV);
   const fullMessagesRef = useRef<MessageSummary[]>([]);
   // Background inbox auto-refresh (opt-in; seeded from config, then remembered).
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [autoRefreshSecs, setAutoRefreshSecs] = useState(60);
   const toggleToolbar = useCallback(() => {
     setShowToolbar((v) => {
       const next = !v;
@@ -385,6 +381,18 @@ export default function App() {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   }, []);
+
+  const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
+    useIntegrations({ showToast, setError });
+  const {
+    draftsView,
+    setDraftsView,
+    drafts,
+    loadingDrafts,
+    loadDrafts,
+    openDrafts,
+    openDraft,
+  } = useDrafts({ setError, setSelectedId, setDetail, setCompose });
 
   // Per-message subsystems extracted from App.tsx (F3.2). Their per-message data
   // is still fetched inside loadMessage (gated by openIdRef) via the setters
@@ -522,15 +530,6 @@ export default function App() {
   }, []);
 
   // buildAdvancedQuery assembles a Gmail search string from the builder fields.
-  const toggleAutoRefresh = useCallback(() => {
-    setAutoRefresh((v) => {
-      const next = !v;
-      localStorage.setItem("giztui.autorefresh", next ? "on" : "off");
-      showToast(next ? "Auto-refresh on" : "Auto-refresh off");
-      return next;
-    });
-  }, [showToast]);
-
   // checkNewMail polls the inbox's first page and prepends any messages we don't
   // already have. Only runs on the plain inbox (no active search / drafts view).
   const checkNewMail = useCallback(async () => {
@@ -565,12 +564,13 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const ms = Math.max(30, autoRefreshSecs) * 1000;
-    const timer = setInterval(() => void checkNewMail(), ms);
-    return () => clearInterval(timer);
-  }, [autoRefresh, autoRefreshSecs, checkNewMail]);
+  const {
+    autoRefresh,
+    setAutoRefresh,
+    autoRefreshSecs,
+    setAutoRefreshSecs,
+    toggleAutoRefresh,
+  } = useAutoRefresh({ showToast, onTick: () => void checkNewMail() });
 
   const runInit = useCallback(async () => {
     // Reset to the connecting state (also covers retry-after-import).
@@ -647,8 +647,7 @@ export default function App() {
         /* non-fatal */
       }
       try {
-        setObsidianOn(await backend.ObsidianEnabled());
-        setSlackOn(await backend.SlackEnabled());
+        await refreshIntegrations();
         setThreadingOn(await backend.ThreadingEnabled());
         setSavedQueriesOn(await backend.SavedQueriesEnabled());
         setActionPlanOn(await backend.ActionPlanEnabled());
@@ -910,34 +909,7 @@ export default function App() {
 
   // Undo stack: each mutating action pushes a reversal closure; the undo key runs
   // the most recent one (GizTUI's "U").
-  const undoRef = useRef<{ label: string; run: () => Promise<void> }[]>([]);
-  const [undoLabel, setUndoLabel] = useState("");
-  const pushUndo = useCallback(
-    (label: string, run: () => Promise<void>) => {
-      undoRef.current.push({ label, run });
-      if (undoRef.current.length > 25) undoRef.current.shift();
-      setUndoLabel(label);
-    },
-    [],
-  );
-  const runUndo = useCallback(async () => {
-    const entry = undoRef.current.pop();
-    setUndoLabel(
-      undoRef.current.length
-        ? undoRef.current[undoRef.current.length - 1].label
-        : "",
-    );
-    if (!entry) {
-      showToast("Nothing to undo");
-      return;
-    }
-    try {
-      await entry.run();
-      showToast(`Undone: ${entry.label}`);
-    } catch (e) {
-      setError(String(e));
-    }
-  }, [showToast]);
+  const { undoLabel, pushUndo, runUndo } = useUndo({ showToast, setError });
 
   const doAction = useCallback(
     async (action: "archive" | "trash" | "read" | "unread", id: string) => {
@@ -1415,42 +1387,6 @@ export default function App() {
     [load],
   );
 
-  const loadDrafts = useCallback(async () => {
-    setLoadingDrafts(true);
-    setError("");
-    try {
-      setDrafts(await backend.ListDrafts());
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoadingDrafts(false);
-    }
-  }, []);
-
-  const openDrafts = useCallback(() => {
-    setDraftsView(true);
-    setSelectedId(null);
-    setDetail(null);
-    void loadDrafts();
-  }, [loadDrafts]);
-
-  const openDraft = useCallback(async (d: DraftSummary) => {
-    setError("");
-    try {
-      const det = await backend.GetDraft(d.id);
-      setCompose({
-        mode: "draft",
-        draftId: det.id,
-        to: det.to,
-        cc: det.cc,
-        subject: det.subject,
-        body: det.body,
-      });
-    } catch (e) {
-      setError(String(e));
-    }
-  }, []);
-
   const openInGmail = useCallback((id: string) => {
     void backend.OpenGmailWeb(id).catch((e) => setError(String(e)));
   }, []);
@@ -1634,28 +1570,6 @@ export default function App() {
       void backend
         .SaveRawMessage(id)
         .then((path) => showToast(`Saved .eml to ${path}`))
-        .catch((e) => setError(String(e)));
-    },
-    [showToast],
-  );
-
-  const sendObsidian = useCallback(
-    (id: string) => {
-      showToast("Sending to Obsidian…");
-      void backend
-        .SendToObsidian(id)
-        .then((p) => showToast(p ? `Saved to Obsidian: ${p}` : "Saved to Obsidian"))
-        .catch((e) => setError(String(e)));
-    },
-    [showToast],
-  );
-
-  const forwardSlack = useCallback(
-    (id: string) => {
-      showToast("Forwarding to Slack…");
-      void backend
-        .ForwardToSlack(id)
-        .then(() => showToast("Forwarded to Slack"))
         .catch((e) => setError(String(e)));
     },
     [showToast],

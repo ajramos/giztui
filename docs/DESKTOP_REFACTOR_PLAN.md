@@ -207,8 +207,8 @@ the state+handlers must move into **subsystem hooks** (the risky decoupling — 
 §3 landmines first: `openIdRef`, `aiCache`, mirror refs, `loadMessage` reset order).
 
 Proposed hook sequence (each its own PR, e2e-guarded, safest → riskiest):
-- `useUndo`, `useAutoRefresh`, `useIntegrations` (obsidian/slack) — small, isolated
-- `useDrafts`, `useCompose` — self-contained
+- [x] **F5.1** `useUndo` (50) + `useIntegrations` (52) + `useAutoRefresh` (47) + `useDrafts` (79) — small, isolated; App.tsx 4,109 → 4,023; +1 e2e (`drafts.spec.ts`); unit 61 / e2e 34
+- `useCompose` — self-contained
 - `useAccounts` (switch/list) — isolated
 - `useBulk` (bulkAction/toggleSelect/exitBulk/select-all)
 - `useSearch` (query/localFilter/load/loadMore/pending/prune) — touches `fullMessagesRef`
