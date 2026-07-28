@@ -13,13 +13,9 @@ import {
   type AnalyzerRule,
 } from "./api";
 import type { ComposeInit } from "./Compose";
-import { replyInit, forwardInit } from "./compose";
-import ModalsPrimary from "./ModalsPrimary";
-import ModalsSecondary from "./ModalsSecondary";
+import AppModals from "./AppModals";
+import AppInbox from "./AppInbox";
 import StartupScreens from "./StartupScreens";
-import MessageList from "./MessageList";
-import Reader from "./Reader";
-import TopBar from "./TopBar";
 import { useUndo } from "./useUndo";
 import { useIntegrations } from "./useIntegrations";
 import { useAutoRefresh } from "./useAutoRefresh";
@@ -42,8 +38,6 @@ import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
 import { useRsvp } from "./useRsvp";
 import { useThreading } from "./useThreading";
-
-const PAGE_SIZE = 50;
 
 export default function App() {
   const [account, setAccount] = useState("");
@@ -515,359 +509,59 @@ export default function App() {
     );
   }
 
+  // Props for the modal/picker stack (AppModals forwards to ModalsPrimary +
+  // ModalsSecondary). All were verbatim name={name} pass-throughs.
+  const modalProps = {
+    compose, setCompose, showToast, draftsView, loadDrafts, labelsFor, setLabelsFor,
+    applyLabelChange, bulkLabels, setBulkLabels, selected, promptsOpen, setPromptsOpen,
+    runPrompt, aiPromptsEnabled, setPromptManagerOpen, promptManagerOpen, aiEnabled, aiCache,
+    setPromptResult, linksFor, setLinksFor, suggestFor, setSuggestFor, suggestions, loadingSuggest,
+    applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
+    queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
+    rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
+    saveQueryName, setSaveQueryName, doSaveQuery,
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, promptRunning, planOpen, analyzing,
+    analyzeCount, analyzeProgress, analyzeElapsed, plan, planNodes, planActiveNode, planNav,
+    expandedCats, setExpandedCats, planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
+    applyCategory, dispatchPromptCategory, applyAllCategories, setPlanOpen, openMessage, openRules,
+    viewAnalyzerPrompt, planMove, setPlanMove, doPlanMove, planPreview, planPreviewLoading, setPlanPreview,
+    detRulesOpen, setDetRulesOpen, runDeterministicRules, rulesOpen, rules, newRule, setNewRule,
+    addRule, deleteRule, setRulesOpen, promptPreview, setPromptPreview, cmdOpen, executeCommand,
+    setCmdOpen, themePickerOpen, themeNames, currentTheme, applyTheme, setThemePickerOpen, moveFor,
+    labels, doMove, setMoveFor, bulkMove, doBulkMove, setBulkMove, advOpen, adv, setAdv,
+    setLocalFilter, setQuery, load, setAdvOpen, statsOpen, stats, setStatsOpen, configOpen, configInfo,
+    clearCaches, setConfigOpen, showHelp, keymap, obsidianOn, slackOn, threadingOn, savedQueriesOn,
+    actionPlanOn, rsvpEnabled, themesOn, appVersion, setShowHelp,
+  };
+
+  // Props for the inbox surface (top bar + banners + list/reader). All were
+  // verbatim pass-throughs or inline handlers now living in AppInbox.
+  const inboxProps = {
+    query, setQuery, localFilter, setLocalFilter, searchRef, keymap, activeQuery,
+    applyLocalFilter, load, setMessages, fullMessagesRef, setAdvOpen, accounts, account,
+    switching, accountsOpen, setAccountsOpen, switchAccount, undoLabel, runUndo, setCompose,
+    draftsView, setDraftsView, openDrafts, bulkMode, exitBulk, setBulkMode, selectedId, messages,
+    setSelectedId, savedQueriesOn, openQueries, showToolbar, toggleToolbar, autoRefresh,
+    autoRefreshSecs, toggleAutoRefresh, setShowHelp, error, toast, setReaderFocused, drafts,
+    loadingDrafts, loadDrafts, openDraft, pendingNew, showPendingNew, loadingList, nextToken,
+    selected, busy, bulkProgress, bulkAction, setBulkLabels, setBulkMove, setSelected, toggleSelect,
+    openMessage, loadingMore, loadMore, detail, readerFocused, headersHidden, headersExpanded,
+    attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
+    threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
+    setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
+    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, sendObsidian,
+    forwardSlack, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
+    readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
+    dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
+    dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
+    dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn,
+  };
+
   return (
     <div className="app" ref={rootRef} tabIndex={-1}>
-      <TopBar
-        query={query}
-        localFilter={localFilter}
-        searchRef={searchRef}
-        searchHint={keymap.search}
-        activeQuery={activeQuery}
-        onQueryChange={(v) => {
-          setQuery(v);
-          if (localFilter) applyLocalFilter(v);
-        }}
-        onSubmitSearch={() => {
-          const q = query.trim();
-          searchRef.current?.blur();
-          if (localFilter) applyLocalFilter(q);
-          else void load(q);
-        }}
-        onToggleFilterMode={() => {
-          const next = !localFilter;
-          setLocalFilter(next);
-          if (next) applyLocalFilter(query);
-          else setMessages(fullMessagesRef.current);
-        }}
-        onSearchEscape={() => {
-          setQuery("");
-          if (localFilter) {
-            setLocalFilter(false);
-            setMessages(fullMessagesRef.current);
-          } else if (activeQuery) {
-            void load("");
-          }
-        }}
-        onAdvanced={() => setAdvOpen(true)}
-        onClearSearch={() => {
-          setQuery("");
-          if (localFilter) setMessages(fullMessagesRef.current);
-          else void load("");
-        }}
-        accounts={accounts}
-        account={account}
-        switching={switching}
-        accountsOpen={accountsOpen}
-        onAccountsOpenChange={setAccountsOpen}
-        onSwitchAccount={(a) => void switchAccount(a)}
-        undoLabel={undoLabel}
-        onUndo={() => void runUndo()}
-        onCompose={() => setCompose({ mode: "new" })}
-        draftsView={draftsView}
-        onToggleDrafts={() => {
-          if (draftsView) setDraftsView(false);
-          else openDrafts();
-        }}
-        bulkMode={bulkMode}
-        onToggleBulk={() => {
-          if (bulkMode) exitBulk();
-          else {
-            setBulkMode(true);
-            if (!selectedId && messages.length > 0)
-              setSelectedId(messages[0].id);
-          }
-        }}
-        savedQueriesOn={savedQueriesOn}
-        onOpenQueries={() => void openQueries()}
-        showToolbar={showToolbar}
-        onToggleToolbar={toggleToolbar}
-        autoRefresh={autoRefresh}
-        autoRefreshSecs={autoRefreshSecs}
-        onToggleAutoRefresh={toggleAutoRefresh}
-        onHelp={() => setShowHelp(true)}
-        onRefresh={() => void load(activeQuery)}
-      />
-
-      {error && <div className="error-banner">{error}</div>}
-      {toast && <div className="toast">{toast}</div>}
-
-      <div className="body">
-        <MessageList
-          pageSize={PAGE_SIZE}
-          onBlurReader={() => setReaderFocused(false)}
-          draftsView={draftsView}
-          drafts={drafts}
-          loadingDrafts={loadingDrafts}
-          onRefreshDrafts={() => void loadDrafts()}
-          onBackToInbox={() => setDraftsView(false)}
-          onOpenDraft={(d) => void openDraft(d)}
-          pendingNew={pendingNew}
-          onShowPendingNew={showPendingNew}
-          loadingList={loadingList}
-          messages={messages}
-          localFilter={localFilter}
-          fullCount={fullMessagesRef.current.length}
-          nextToken={nextToken}
-          activeQuery={activeQuery}
-          selectedId={selectedId}
-          bulkMode={bulkMode}
-          selected={selected}
-          busy={busy}
-          bulkProgress={bulkProgress}
-          onBulkAction={(action) => void bulkAction(action)}
-          onBulkLabels={() => setBulkLabels(true)}
-          onBulkMove={() => setBulkMove(true)}
-          onSelectAll={() => setSelected(new Set(messages.map((m) => m.id)))}
-          onExitBulk={exitBulk}
-          onToggleSelect={toggleSelect}
-          onOpenMessage={(m) => void openMessage(m)}
-          loadingMore={loadingMore}
-          onLoadMore={() => void loadMore()}
-        />
-
-        <Reader
-          detail={detail}
-          readerFocused={readerFocused}
-          onFocusReader={() => setReaderFocused(true)}
-          headersHidden={headersHidden}
-          headersExpanded={headersExpanded}
-          showToolbar={showToolbar}
-          busy={busy}
-          attachments={attachments}
-          onDownloadAttachment={(att) => void downloadAttachment(att)}
-          aiEnabled={aiEnabled}
-          aiPromptsEnabled={aiPromptsEnabled}
-          obsidianOn={obsidianOn}
-          slackOn={slackOn}
-          threadingOn={threadingOn}
-          hasThread={!!threadMsgs}
-          viewHtml={viewHtml}
-          summarizing={summarizing}
-          promptRunning={promptRunning}
-          generatingReply={generatingReply}
-          touchingUp={touchingUp}
-          touchUpShown={touchUpText !== null}
-          onReply={() => detail && setCompose(replyInit(detail))}
-          onForward={() => detail && setCompose(forwardInit(detail))}
-          onLabels={() => detail && setLabelsFor(detail.id)}
-          onArchive={() => detail && void doAction("archive", detail.id)}
-          onTrash={() => detail && void doAction("trash", detail.id)}
-          onToggleRead={() =>
-            detail && void doAction(detail.unread ? "read" : "unread", detail.id)
-          }
-          onToggleHtml={() => setViewHtml((v) => !v)}
-          onToggleThread={() => void toggleThread()}
-          onSummarize={() => detail && void summarize(detail.id)}
-          onApplyPrompt={() => setPromptsOpen(true)}
-          onDraftReply={() => detail && void generateReply(detail)}
-          onTouchUp={() =>
-            detail &&
-            (touchUpText !== null ? setTouchUpText(null) : void touchUp(detail.id))
-          }
-          onSuggestLabels={() => detail && void openSuggest(detail.id)}
-          onMove={() => detail && setMoveFor(detail.id)}
-          onSearchSender={() => detail && quickSearch("from", detail)}
-          onLinks={() => detail && setLinksFor(detail.id)}
-          onObsidian={() => detail && sendObsidian(detail.id)}
-          onSlack={() => detail && forwardSlack(detail.id)}
-          onSave={() => detail && saveMessage(detail.id)}
-          onSaveRaw={() => detail && saveRawMessage(detail.id)}
-          onToggleHeaderBlock={() => setHeadersHidden((v) => !v)}
-          onToggleFullHeaders={() => setHeadersExpanded((v) => !v)}
-          onOpenGmail={() => detail && openInGmail(detail.id)}
-          readerBodyRef={readerBodyRef}
-          invite={invite}
-          rsvpBusy={rsvpBusy}
-          onRespond={(status) => detail && void respondInvite(detail.id, status)}
-          summaryPanelRef={summaryPanelRef}
-          summary={summary}
-          summaryForId={summaryForId}
-          onRegenerateSummary={() => detail && void summarize(detail.id, true)}
-          onDismissSummary={() => detail && dismissSummary(detail.id)}
-          promptPanelRef={promptPanelRef}
-          promptLabel={promptLabel}
-          promptResult={promptResult}
-          promptForId={promptForId}
-          onRegeneratePrompt={() => {
-            if (!detail) return;
-            const pid = aiCache.current.get(detail.id)?.lastPromptId;
-            if (pid != null)
-              void runPrompt(
-                { id: pid, name: promptLabel, description: "", category: "" },
-                true,
-              );
-          }}
-          onDismissPrompt={() => detail && dismissPrompt(detail.id)}
-          csOpen={csOpen}
-          csQuery={csQuery}
-          csIndex={csIndex}
-          setCsQuery={setCsQuery}
-          setCsIndex={setCsIndex}
-          onCloseSearch={() => {
-            setCsOpen(false);
-            setCsQuery("");
-          }}
-          touchUpText={touchUpText}
-          touchUpRef={touchUpRef}
-          onDismissTouchUp={() => detail && dismissTouchUp(detail.id)}
-          loadingThread={loadingThread}
-          threadMsgs={threadMsgs}
-          collapsedMsgs={collapsedMsgs}
-          setCollapsedMsgs={setCollapsedMsgs}
-          onSummarizeThread={() => void summarizeThread()}
-          loadingDetail={loadingDetail}
-          loadRemote={loadRemote}
-          onLoadImages={() => {
-            if (!detail) return;
-            setLoadRemote(true);
-            imageOptIn.current.add(detail.id);
-          }}
-          onAlwaysImages={() => setAlwaysImagesOn(true)}
-        />
-      </div>
-
-      <ModalsPrimary
-        compose={compose}
-        setCompose={setCompose}
-        showToast={showToast}
-        draftsView={draftsView}
-        loadDrafts={loadDrafts}
-        labelsFor={labelsFor}
-        setLabelsFor={setLabelsFor}
-        applyLabelChange={applyLabelChange}
-        bulkLabels={bulkLabels}
-        setBulkLabels={setBulkLabels}
-        selected={selected}
-        promptsOpen={promptsOpen}
-        setPromptsOpen={setPromptsOpen}
-        runPrompt={runPrompt}
-        aiPromptsEnabled={aiPromptsEnabled}
-        setPromptManagerOpen={setPromptManagerOpen}
-        promptManagerOpen={promptManagerOpen}
-        aiEnabled={aiEnabled}
-        aiCache={aiCache}
-        setPromptResult={setPromptResult}
-        linksFor={linksFor}
-        setLinksFor={setLinksFor}
-        suggestFor={suggestFor}
-        setSuggestFor={setSuggestFor}
-        suggestions={suggestions}
-        loadingSuggest={loadingSuggest}
-        applySuggestion={applySuggestion}
-        attachmentsOpen={attachmentsOpen}
-        setAttachmentsOpen={setAttachmentsOpen}
-        attachments={attachments}
-        busy={busy}
-        downloadAttachment={downloadAttachment}
-        queriesOpen={queriesOpen}
-        setQueriesOpen={setQueriesOpen}
-        savedQueries={savedQueries}
-        activeQuery={activeQuery}
-        runQuery={runQuery}
-        deleteQuery={deleteQuery}
-        setSaveQueryOpen={setSaveQueryOpen}
-        rsvpPickerOpen={rsvpPickerOpen}
-        setRsvpPickerOpen={setRsvpPickerOpen}
-        detail={detail}
-        invite={invite}
-        rsvpBusy={rsvpBusy}
-        respondInvite={respondInvite}
-        saveQueryOpen={saveQueryOpen}
-        saveQueryName={saveQueryName}
-        setSaveQueryName={setSaveQueryName}
-        doSaveQuery={doSaveQuery}
-      />
-      <ModalsSecondary
-        bulkPromptText={bulkPromptText}
-        setBulkPromptText={setBulkPromptText}
-        bulkPromptLabel={bulkPromptLabel}
-        promptRunning={promptRunning}
-        planOpen={planOpen}
-        analyzing={analyzing}
-        analyzeCount={analyzeCount}
-        analyzeProgress={analyzeProgress}
-        analyzeElapsed={analyzeElapsed}
-        plan={plan}
-        planNodes={planNodes}
-        planActiveNode={planActiveNode}
-        planNav={planNav}
-        expandedCats={expandedCats}
-        setExpandedCats={setExpandedCats}
-        planExcluded={planExcluded}
-        setPlanExcluded={setPlanExcluded}
-        applyingAll={applyingAll}
-        rulesEnabled={rulesEnabled}
-        messages={messages}
-        applyCategory={applyCategory}
-        dispatchPromptCategory={dispatchPromptCategory}
-        applyAllCategories={applyAllCategories}
-        setPlanOpen={setPlanOpen}
-        openMessage={openMessage}
-        openRules={openRules}
-        viewAnalyzerPrompt={viewAnalyzerPrompt}
-        planMove={planMove}
-        setPlanMove={setPlanMove}
-        doPlanMove={doPlanMove}
-        planPreview={planPreview}
-        planPreviewLoading={planPreviewLoading}
-        setPlanPreview={setPlanPreview}
-        detRulesOpen={detRulesOpen}
-        setDetRulesOpen={setDetRulesOpen}
-        runDeterministicRules={runDeterministicRules}
-        rulesOpen={rulesOpen}
-        rules={rules}
-        newRule={newRule}
-        setNewRule={setNewRule}
-        addRule={addRule}
-        deleteRule={deleteRule}
-        setRulesOpen={setRulesOpen}
-        promptPreview={promptPreview}
-        setPromptPreview={setPromptPreview}
-        cmdOpen={cmdOpen}
-        executeCommand={executeCommand}
-        setCmdOpen={setCmdOpen}
-        themePickerOpen={themePickerOpen}
-        themeNames={themeNames}
-        currentTheme={currentTheme}
-        applyTheme={applyTheme}
-        setThemePickerOpen={setThemePickerOpen}
-        showToast={showToast}
-        moveFor={moveFor}
-        labels={labels}
-        doMove={doMove}
-        setMoveFor={setMoveFor}
-        bulkMove={bulkMove}
-        selected={selected}
-        doBulkMove={doBulkMove}
-        setBulkMove={setBulkMove}
-        advOpen={advOpen}
-        adv={adv}
-        setAdv={setAdv}
-        setLocalFilter={setLocalFilter}
-        setQuery={setQuery}
-        load={load}
-        setAdvOpen={setAdvOpen}
-        statsOpen={statsOpen}
-        stats={stats}
-        setStatsOpen={setStatsOpen}
-        configOpen={configOpen}
-        configInfo={configInfo}
-        clearCaches={clearCaches}
-        setConfigOpen={setConfigOpen}
-        showHelp={showHelp}
-        keymap={keymap}
-        aiEnabled={aiEnabled}
-        aiPromptsEnabled={aiPromptsEnabled}
-        obsidianOn={obsidianOn}
-        slackOn={slackOn}
-        threadingOn={threadingOn}
-        savedQueriesOn={savedQueriesOn}
-        actionPlanOn={actionPlanOn}
-        rsvpEnabled={rsvpEnabled}
-        themesOn={themesOn}
-        appVersion={appVersion}
-        setShowHelp={setShowHelp}
-      />
+      <AppInbox {...inboxProps} />
+      <AppModals {...modalProps} />
     </div>
   );
 }
