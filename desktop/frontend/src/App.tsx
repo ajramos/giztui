@@ -4,7 +4,6 @@ import {
   applyPromptStream,
   backend,
   DEFAULT_KEYMAP,
-  isWails,
   summarizeStream,
   threadSummaryStream,
   type AccountInfo,
@@ -35,7 +34,6 @@ import PlanMovePicker from "./PlanMovePicker";
 import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
 import Markdown from "./Markdown";
-import AiPanel from "./AiPanel";
 import {
   displayName,
   matchesCombo,
@@ -44,9 +42,7 @@ import {
   formatICSDate,
   cleanSubject,
   countMatches,
-  formatDate,
   formatFull,
-  formatSize,
 } from "./format";
 import { replyInit, replyAllInit, forwardInit } from "./compose";
 import { freshPrefix, dedupeNew } from "./messageList";
@@ -59,6 +55,9 @@ import SaveQueryModal from "./SaveQueryModal";
 import AnalyzerRulesModal from "./AnalyzerRulesModal";
 import AdvancedSearchModal from "./AdvancedSearchModal";
 import ActionPlanModal from "./ActionPlanModal";
+import MessageList from "./MessageList";
+import Reader from "./Reader";
+import TopBar from "./TopBar";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import {
   buildMoveTargets,
@@ -67,21 +66,16 @@ import {
   type MoveTarget,
 } from "./planMove";
 import RulesManager from "./RulesManager";
-import AccountSwitcher from "./AccountSwitcher";
-import HtmlBody from "./HtmlBody";
-import PlainBody from "./PlainBody";
-import HighlightedText from "./HighlightedText";
 import Help from "./Help";
 import CommandBar from "./CommandBar";
 import { COMMANDS, parseCommand } from "./commands";
-import MoreMenu from "./MoreMenu";
 import { useListNav } from "./useListNav";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
 import { useRsvp } from "./useRsvp";
 import { useThreading } from "./useThreading";
-import { Icon, IconBtn } from "./Icons";
+import { Icon } from "./Icons";
 
 const PAGE_SIZE = 50;
 
@@ -3566,892 +3560,213 @@ export default function App() {
 
   return (
     <div className="app" ref={rootRef} tabIndex={-1}>
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo">✦</span> GizTUI
-          <span className="subtitle">Desktop</span>
-        </div>
-        <form
-          className="searchbox"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = query.trim();
-            searchRef.current?.blur();
-            if (localFilter) applyLocalFilter(q);
-            else void load(q);
-          }}
-        >
-          <IconBtn
-            icon={localFilter ? Icon.filter : Icon.search}
-            label={
-              localFilter
-                ? "Local filter — click for Gmail search"
-                : "Gmail search — click to filter loaded list"
-            }
-            primary={localFilter}
-            onClick={() => {
-              const next = !localFilter;
-              setLocalFilter(next);
-              if (next) applyLocalFilter(query);
-              else setMessages(fullMessagesRef.current);
-            }}
-          />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder={
-              localFilter
-                ? "Filter loaded messages…"
-                : `Search mail (${keymap.search} · Ctrl+F advanced) — from:, has:attachment…`
-            }
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (localFilter) applyLocalFilter(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              // Escape from the search box exits the search entirely (back to
-              // the default inbox), matching the TUI — not just a blur.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setQuery("");
-                if (localFilter) {
-                  setLocalFilter(false);
-                  setMessages(fullMessagesRef.current);
-                } else if (activeQuery) {
-                  void load("");
-                }
-                (e.target as HTMLElement).blur();
-              }
-            }}
-          />
-          {!localFilter && (
-            <button
-              type="submit"
-              className="icon-btn primary"
-              aria-label="Search"
-              data-tip="Search"
-            >
-              {Icon.search}
-            </button>
-          )}
-          <IconBtn
-            icon={Icon.sliders}
-            label="Advanced search"
-            onClick={() => setAdvOpen(true)}
-          />
-          {(activeQuery || (localFilter && query)) && (
-            <IconBtn
-              icon={Icon.x}
-              label="Clear search"
-              onClick={() => {
-                setQuery("");
-                if (localFilter) setMessages(fullMessagesRef.current);
-                else void load("");
-              }}
-            />
-          )}
-        </form>
-        <div className="account">
-          {!isWails() && <span className="badge">mock</span>}
-          <AccountSwitcher
-            accounts={accounts}
-            email={account}
-            switching={switching}
-            onSwitch={(a) => void switchAccount(a)}
-            open={accountsOpen}
-            onOpenChange={setAccountsOpen}
-          />
-          {/* Same IconBtn format as the reader/bulk toolbars for one consistent
-              button language across the app. */}
-          <div className="actions topbar-actions">
-            {undoLabel && (
-              <IconBtn
-                icon={Icon.undo}
-                label={`Undo ${undoLabel} (U)`}
-                onClick={() => void runUndo()}
-              />
-            )}
-            <IconBtn
-              icon={Icon.edit}
-              label="Compose (c)"
-              primary
-              onClick={() => setCompose({ mode: "new" })}
-            />
-            <IconBtn
-              icon={Icon.drafts}
-              label="Drafts (D)"
-              primary={draftsView}
-              onClick={() => {
-                if (draftsView) setDraftsView(false);
-                else openDrafts();
-              }}
-            />
-            <IconBtn
-              icon={Icon.checkAll}
-              label="Select mode (v)"
-              primary={bulkMode}
-              onClick={() => {
-                if (bulkMode) exitBulk();
-                else {
-                  setBulkMode(true);
-                  if (!selectedId && messages.length > 0)
-                    setSelectedId(messages[0].id);
-                }
-              }}
-            />
-            {savedQueriesOn && (
-              <IconBtn
-                icon={Icon.bookmark}
-                label="Saved searches (Q)"
-                onClick={() => void openQueries()}
-              />
-            )}
-            <IconBtn
-              icon={Icon.layout}
-              label={
-                showToolbar
-                  ? "Hide reader toolbar (:toolbar)"
-                  : "Show reader toolbar (:toolbar)"
-              }
-              primary={showToolbar}
-              onClick={toggleToolbar}
-            />
-            <IconBtn
-              icon={Icon.clock}
-              label={
-                autoRefresh
-                  ? `Auto-refresh on (${autoRefreshSecs}s) — :autorefresh`
-                  : "Auto-refresh off — :autorefresh"
-              }
-              primary={autoRefresh}
-              onClick={toggleAutoRefresh}
-            />
-            <IconBtn
-              icon={Icon.help}
-              label="Shortcuts (?)"
-              onClick={() => setShowHelp(true)}
-            />
-            <IconBtn
-              icon={Icon.refresh}
-              label="Refresh (R)"
-              onClick={() => void load(activeQuery)}
-            />
-          </div>
-        </div>
-      </header>
+      <TopBar
+        query={query}
+        localFilter={localFilter}
+        searchRef={searchRef}
+        searchHint={keymap.search}
+        activeQuery={activeQuery}
+        onQueryChange={(v) => {
+          setQuery(v);
+          if (localFilter) applyLocalFilter(v);
+        }}
+        onSubmitSearch={() => {
+          const q = query.trim();
+          searchRef.current?.blur();
+          if (localFilter) applyLocalFilter(q);
+          else void load(q);
+        }}
+        onToggleFilterMode={() => {
+          const next = !localFilter;
+          setLocalFilter(next);
+          if (next) applyLocalFilter(query);
+          else setMessages(fullMessagesRef.current);
+        }}
+        onSearchEscape={() => {
+          setQuery("");
+          if (localFilter) {
+            setLocalFilter(false);
+            setMessages(fullMessagesRef.current);
+          } else if (activeQuery) {
+            void load("");
+          }
+        }}
+        onAdvanced={() => setAdvOpen(true)}
+        onClearSearch={() => {
+          setQuery("");
+          if (localFilter) setMessages(fullMessagesRef.current);
+          else void load("");
+        }}
+        accounts={accounts}
+        account={account}
+        switching={switching}
+        accountsOpen={accountsOpen}
+        onAccountsOpenChange={setAccountsOpen}
+        onSwitchAccount={(a) => void switchAccount(a)}
+        undoLabel={undoLabel}
+        onUndo={() => void runUndo()}
+        onCompose={() => setCompose({ mode: "new" })}
+        draftsView={draftsView}
+        onToggleDrafts={() => {
+          if (draftsView) setDraftsView(false);
+          else openDrafts();
+        }}
+        bulkMode={bulkMode}
+        onToggleBulk={() => {
+          if (bulkMode) exitBulk();
+          else {
+            setBulkMode(true);
+            if (!selectedId && messages.length > 0)
+              setSelectedId(messages[0].id);
+          }
+        }}
+        savedQueriesOn={savedQueriesOn}
+        onOpenQueries={() => void openQueries()}
+        showToolbar={showToolbar}
+        onToggleToolbar={toggleToolbar}
+        autoRefresh={autoRefresh}
+        autoRefreshSecs={autoRefreshSecs}
+        onToggleAutoRefresh={toggleAutoRefresh}
+        onHelp={() => setShowHelp(true)}
+        onRefresh={() => void load(activeQuery)}
+      />
 
       {error && <div className="error-banner">{error}</div>}
       {toast && <div className="toast">{toast}</div>}
 
       <div className="body">
-        <aside
-          className="list"
-          onMouseDown={() => setReaderFocused(false)}
-        >
-          {draftsView ? (
-            <>
-              <div className="bulk-bar">
-                <span className="bulk-count">Drafts</span>
-                <div className="bulk-actions">
-                  <button className="tiny ghost" onClick={() => void loadDrafts()}>
-                    Refresh
-                  </button>
-                  <button className="tiny ghost" onClick={() => setDraftsView(false)}>
-                    Back to inbox
-                  </button>
-                </div>
-              </div>
-              {loadingDrafts ? (
-                <div className="placeholder">Loading…</div>
-              ) : drafts.length === 0 ? (
-                <div className="placeholder">No drafts</div>
-              ) : (
-                <ul>
-                  {drafts.map((d) => (
-                    <li
-                      key={d.id}
-                      className="row"
-                      onClick={() => void openDraft(d)}
-                    >
-                      <div className="row-top">
-                        <span className="from">
-                          {d.to ? `To: ${d.to}` : "(no recipient)"}
-                        </span>
-                      </div>
-                      <div className="subject">{d.subject || "(no subject)"}</div>
-                      <div className="snippet">{d.snippet}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : (
-            <>
-          {/* New mail arrived in the background: show a banner instead of
-              injecting it, so the list never shifts under an in-progress action.
-              Clicking (or refreshing) merges it in. */}
-          {pendingNew.length > 0 && (
-            <button className="new-mail-bar" onClick={showPendingNew}>
-              ↑ {pendingNew.length} new message{pendingNew.length > 1 ? "s" : ""} — show
-            </button>
-          )}
-          {/* Loaded-message count (TUI parity — the list title's message tally).
-              Shows how many are loaded, a trailing "+" when more can be fetched,
-              and "N of M" while a local filter narrows the loaded set. */}
-          {!loadingList && messages.length > 0 && (
-            <div className="list-head">
-              <span className="list-count">
-                {localFilter
-                  ? `${messages.length} of ${fullMessagesRef.current.length} emails`
-                  : nextToken
-                    ? `${messages.length} emails loaded`
-                    : `${messages.length} ${messages.length === 1 ? "email" : "emails"}`}
-              </span>
-              {activeQuery && !localFilter && (
-                <span className="list-scope muted">· search</span>
-              )}
-            </div>
-          )}
-          {bulkMode && (
-            <div className="bulk-bar">
-              <div className="bulk-top">
-                <span className="bulk-count">{selected.size} selected</span>
-                {/* Same IconBtn format as the reader toolbar for consistency. */}
-                <div className="actions">
-                  <IconBtn
-                    icon={Icon.archive}
-                    label="Archive"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => void bulkAction("archive")}
-                  />
-                  <IconBtn
-                    icon={Icon.trash}
-                    label="Trash"
-                    danger
-                    disabled={busy || selected.size === 0}
-                    onClick={() => void bulkAction("trash")}
-                  />
-                  <IconBtn
-                    icon={Icon.mailOpen}
-                    label="Mark read"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => void bulkAction("read")}
-                  />
-                  <IconBtn
-                    icon={Icon.mail}
-                    label="Mark unread"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => void bulkAction("unread")}
-                  />
-                  <IconBtn
-                    icon={Icon.label}
-                    label="Label…"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => setBulkLabels(true)}
-                  />
-                  <IconBtn
-                    icon={Icon.folder}
-                    label="Move to folder…"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => setBulkMove(true)}
-                  />
-                  <span className="actions-sep" />
-                  <IconBtn
-                    icon={Icon.checkAll}
-                    label="Select all"
-                    disabled={busy}
-                    onClick={() =>
-                      setSelected(new Set(messages.map((m) => m.id)))
-                    }
-                  />
-                  <IconBtn
-                    icon={Icon.check}
-                    label="Done"
-                    primary
-                    onClick={exitBulk}
-                  />
-                </div>
-              </div>
-              {bulkProgress && (
-                <div className="bulk-progress">
-                  <div className="bulk-progress-bar" />
-                  <span className="bulk-progress-label">{bulkProgress}</span>
-                </div>
-              )}
-            </div>
-          )}
-          {loadingList ? (
-            <div className="placeholder">Loading…</div>
-          ) : messages.length === 0 ? (
-            <div className="placeholder">No messages</div>
-          ) : (
-            <>
-              <ul>
-                {messages.map((m) => (
-                  <li
-                    key={m.id}
-                    className={
-                      "row" +
-                      (m.id === selectedId ? " selected" : "") +
-                      (m.unread ? " unread" : "") +
-                      (bulkMode && selected.has(m.id) ? " checked" : "")
-                    }
-                    onClick={() =>
-                      bulkMode ? toggleSelect(m.id) : void openMessage(m)
-                    }
-                  >
-                    <div className="row-top">
-                      {bulkMode && (
-                        <span className="row-check">
-                          {selected.has(m.id) ? "☑" : "☐"}
-                        </span>
-                      )}
-                      <span className="from">{displayName(m.from)}</span>
-                      <span className="date">{formatDate(m.date)}</span>
-                    </div>
-                    <div className="subject">{m.subject || "(no subject)"}</div>
-                    <div className="snippet">{m.snippet}</div>
-                    {m.labels.length > 0 && (
-                      <div className="labels">
-                        {m.labels.map((l) => (
-                          <span key={l} className="label-chip">
-                            {l}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {nextToken && (
-                <button
-                  className="load-more"
-                  disabled={loadingMore}
-                  onClick={() => void loadMore()}
-                >
-                  {loadingMore ? "Loading…" : `Load ${PAGE_SIZE} more`}
-                </button>
-              )}
-            </>
-          )}
-            </>
-          )}
-        </aside>
+        <MessageList
+          pageSize={PAGE_SIZE}
+          onBlurReader={() => setReaderFocused(false)}
+          draftsView={draftsView}
+          drafts={drafts}
+          loadingDrafts={loadingDrafts}
+          onRefreshDrafts={() => void loadDrafts()}
+          onBackToInbox={() => setDraftsView(false)}
+          onOpenDraft={(d) => void openDraft(d)}
+          pendingNew={pendingNew}
+          onShowPendingNew={showPendingNew}
+          loadingList={loadingList}
+          messages={messages}
+          localFilter={localFilter}
+          fullCount={fullMessagesRef.current.length}
+          nextToken={nextToken}
+          activeQuery={activeQuery}
+          selectedId={selectedId}
+          bulkMode={bulkMode}
+          selected={selected}
+          busy={busy}
+          bulkProgress={bulkProgress}
+          onBulkAction={(action) => void bulkAction(action)}
+          onBulkLabels={() => setBulkLabels(true)}
+          onBulkMove={() => setBulkMove(true)}
+          onSelectAll={() => setSelected(new Set(messages.map((m) => m.id)))}
+          onExitBulk={exitBulk}
+          onToggleSelect={toggleSelect}
+          onOpenMessage={(m) => void openMessage(m)}
+          loadingMore={loadingMore}
+          onLoadMore={() => void loadMore()}
+        />
 
-        <main
-          className={"reader" + (readerFocused && detail ? " reader-focused" : "")}
-          onMouseDown={() => {
-            // Clicking / selecting inside the reader hands it the keyboard, so
-            // arrows scroll the body (fixes: selecting text didn't grab focus).
-            if (detail) setReaderFocused(true);
+        <Reader
+          detail={detail}
+          readerFocused={readerFocused}
+          onFocusReader={() => setReaderFocused(true)}
+          headersHidden={headersHidden}
+          headersExpanded={headersExpanded}
+          showToolbar={showToolbar}
+          busy={busy}
+          attachments={attachments}
+          onDownloadAttachment={(att) => void downloadAttachment(att)}
+          aiEnabled={aiEnabled}
+          aiPromptsEnabled={aiPromptsEnabled}
+          obsidianOn={obsidianOn}
+          slackOn={slackOn}
+          threadingOn={threadingOn}
+          hasThread={!!threadMsgs}
+          viewHtml={viewHtml}
+          summarizing={summarizing}
+          promptRunning={promptRunning}
+          generatingReply={generatingReply}
+          touchingUp={touchingUp}
+          touchUpShown={touchUpText !== null}
+          onReply={() => detail && setCompose(replyInit(detail))}
+          onForward={() => detail && setCompose(forwardInit(detail))}
+          onLabels={() => detail && setLabelsFor(detail.id)}
+          onArchive={() => detail && void doAction("archive", detail.id)}
+          onTrash={() => detail && void doAction("trash", detail.id)}
+          onToggleRead={() =>
+            detail && void doAction(detail.unread ? "read" : "unread", detail.id)
+          }
+          onToggleHtml={() => setViewHtml((v) => !v)}
+          onToggleThread={() => void toggleThread()}
+          onSummarize={() => detail && void summarize(detail.id)}
+          onApplyPrompt={() => setPromptsOpen(true)}
+          onDraftReply={() => detail && void generateReply(detail)}
+          onTouchUp={() =>
+            detail &&
+            (touchUpText !== null ? setTouchUpText(null) : void touchUp(detail.id))
+          }
+          onSuggestLabels={() => detail && void openSuggest(detail.id)}
+          onMove={() => detail && setMoveFor(detail.id)}
+          onSearchSender={() => detail && quickSearch("from", detail)}
+          onLinks={() => detail && setLinksFor(detail.id)}
+          onObsidian={() => detail && sendObsidian(detail.id)}
+          onSlack={() => detail && forwardSlack(detail.id)}
+          onSave={() => detail && saveMessage(detail.id)}
+          onSaveRaw={() => detail && saveRawMessage(detail.id)}
+          onToggleHeaderBlock={() => setHeadersHidden((v) => !v)}
+          onToggleFullHeaders={() => setHeadersExpanded((v) => !v)}
+          onOpenGmail={() => detail && openInGmail(detail.id)}
+          readerBodyRef={readerBodyRef}
+          invite={invite}
+          rsvpBusy={rsvpBusy}
+          onRespond={(status) => detail && void respondInvite(detail.id, status)}
+          summaryPanelRef={summaryPanelRef}
+          summary={summary}
+          summaryForId={summaryForId}
+          onRegenerateSummary={() => detail && void summarize(detail.id, true)}
+          onDismissSummary={() => detail && dismissSummary(detail.id)}
+          promptPanelRef={promptPanelRef}
+          promptLabel={promptLabel}
+          promptResult={promptResult}
+          promptForId={promptForId}
+          onRegeneratePrompt={() => {
+            if (!detail) return;
+            const pid = aiCache.current.get(detail.id)?.lastPromptId;
+            if (pid != null)
+              void runPrompt(
+                { id: pid, name: promptLabel, description: "", category: "" },
+                true,
+              );
           }}
-        >
-          {detail ? (
-            <>
-              <div className="reader-head">
-                <h2>{detail.subject || "(no subject)"}</h2>
-                <div className="meta">
-                  {!headersHidden && (
-                    <>
-                      <div>
-                        <strong>{displayName(detail.from)}</strong>{" "}
-                        <span className="muted">{emailAddr(detail.from)}</span>
-                      </div>
-                      <div className="muted">to {detail.to}</div>
-                      <div className="muted">{formatFull(detail.date)}</div>
-                      {headersExpanded && (
-                        <div className="headers-detail">
-                          {detail.cc && (
-                            <div className="muted">cc {detail.cc}</div>
-                          )}
-                          <div className="muted">thread {detail.threadId}</div>
-                          <div className="muted">id {detail.id}</div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {detail.labels.length > 0 && (
-                    <div className="labels reader-labels">
-                      {detail.labels.map((l) => (
-                        <span key={l} className="label-chip">
-                          {l}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {showToolbar && (
-                <div className="actions">
-                  {/* Primary actions stay visible; everything else collapses
-                      into the "⋯" overflow so the toolbar never wraps.
-                      The whole bar is optional (keyboard-first) — hide it from
-                      the topbar ▤ toggle or :toolbar. */}
-                  <IconBtn
-                    icon={Icon.reply}
-                    label="Reply"
-                    primary
-                    onClick={() => setCompose(replyInit(detail))}
-                  />
-                  <IconBtn
-                    icon={Icon.forward}
-                    label="Forward"
-                    onClick={() => setCompose(forwardInit(detail))}
-                  />
-                  <IconBtn
-                    icon={Icon.label}
-                    label="Labels"
-                    onClick={() => setLabelsFor(detail.id)}
-                  />
-                  <span className="actions-sep" />
-                  <IconBtn
-                    icon={Icon.archive}
-                    label="Archive"
-                    disabled={busy}
-                    onClick={() => void doAction("archive", detail.id)}
-                  />
-                  <IconBtn
-                    icon={Icon.trash}
-                    label="Trash"
-                    danger
-                    disabled={busy}
-                    onClick={() => void doAction("trash", detail.id)}
-                  />
-                  <IconBtn
-                    icon={detail.unread ? Icon.mailOpen : Icon.mail}
-                    label={detail.unread ? "Mark read" : "Mark unread"}
-                    disabled={busy}
-                    onClick={() =>
-                      void doAction(detail.unread ? "read" : "unread", detail.id)
-                    }
-                  />
-                  {detail.html && detail.html.trim() && (
-                    <IconBtn
-                      icon={viewHtml ? Icon.text : Icon.code}
-                      label={viewHtml ? "Show plain text" : "Show HTML"}
-                      onClick={() => setViewHtml((v) => !v)}
-                    />
-                  )}
-                  {threadingOn && (
-                    <IconBtn
-                      icon={Icon.thread}
-                      label={threadMsgs ? "Hide conversation" : "Show conversation"}
-                      primary={!!threadMsgs}
-                      onClick={() => void toggleThread()}
-                    />
-                  )}
-                  <span className="actions-sep" />
-                  <MoreMenu
-                    items={[
-                      {
-                        icon: Icon.summarize,
-                        label: summarizing ? "Summarizing…" : "Summarize (AI)",
-                        disabled: summarizing,
-                        hidden: !aiEnabled,
-                        onClick: () => void summarize(detail.id),
-                      },
-                      {
-                        icon: Icon.prompt,
-                        label: promptRunning ? "Running…" : "Apply a prompt",
-                        disabled: promptRunning,
-                        hidden: !aiPromptsEnabled,
-                        onClick: () => setPromptsOpen(true),
-                      },
-                      {
-                        icon: Icon.reply,
-                        label: generatingReply ? "Drafting…" : "Draft reply (AI)",
-                        disabled: generatingReply,
-                        hidden: !aiEnabled,
-                        onClick: () => void generateReply(detail),
-                      },
-                      {
-                        icon: Icon.summarize,
-                        label: touchingUp
-                          ? "Reformatting…"
-                          : touchUpText !== null
-                            ? "Show original"
-                            : "Touch-up (AI)",
-                        disabled: touchingUp,
-                        hidden: !aiEnabled,
-                        onClick: () =>
-                          touchUpText !== null
-                            ? setTouchUpText(null)
-                            : void touchUp(detail.id),
-                      },
-                      {
-                        icon: Icon.tag2,
-                        label: "Suggest labels (AI)",
-                        hidden: !aiEnabled,
-                        onClick: () => void openSuggest(detail.id),
-                      },
-                      {
-                        icon: Icon.folder,
-                        label: "Move to…",
-                        onClick: () => {
-                          setMoveFor(detail.id);
-                        },
-                      },
-                      {
-                        icon: Icon.search,
-                        label: "Search from sender",
-                        onClick: () => quickSearch("from", detail),
-                      },
-                      {
-                        icon: Icon.link,
-                        label: "Links",
-                        onClick: () => setLinksFor(detail.id),
-                      },
-                      {
-                        icon: Icon.obsidian,
-                        label: "Send to Obsidian",
-                        hidden: !obsidianOn,
-                        onClick: () => sendObsidian(detail.id),
-                      },
-                      {
-                        icon: Icon.slack,
-                        label: "Forward to Slack",
-                        hidden: !slackOn,
-                        onClick: () => forwardSlack(detail.id),
-                      },
-                      {
-                        icon: Icon.save,
-                        label: "Save to file",
-                        onClick: () => saveMessage(detail.id),
-                      },
-                      {
-                        icon: Icon.save,
-                        label: "Save raw (.eml)",
-                        onClick: () => saveRawMessage(detail.id),
-                      },
-                      {
-                        icon: Icon.text,
-                        label: headersHidden
-                          ? "Show header block (h)"
-                          : "Hide header block (h)",
-                        onClick: () => setHeadersHidden((v) => !v),
-                      },
-                      {
-                        icon: Icon.text,
-                        label: headersExpanded
-                          ? "Hide full headers"
-                          : "Show full headers",
-                        onClick: () => setHeadersExpanded((v) => !v),
-                      },
-                      {
-                        icon: Icon.external,
-                        label: "Open in Gmail",
-                        onClick: () => openInGmail(detail.id),
-                      },
-                    ]}
-                  />
-                </div>
-                )}
-                {attachments.length > 0 && (
-                  <div className="attach-bar">
-                    {attachments.map((att) => (
-                      <button
-                        key={att.attachmentId}
-                        className="attach-chip"
-                        disabled={busy}
-                        title={`${att.mimeType} · ${formatSize(att.size)}`}
-                        onClick={() => void downloadAttachment(att)}
-                      >
-                        {Icon.paperclip} {att.filename}
-                        <span className="attach-size">{formatSize(att.size)}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="reader-body" ref={readerBodyRef}>
-                {invite?.isInvite && (
-                  <div className="rsvp-bar">
-                    <div className="rsvp-info">
-                      <span className="rsvp-title">{Icon.calendar} {invite.summary || "Calendar invite"}</span>
-                      {invite.dtStart && (
-                        <span className="rsvp-when muted">
-                          {formatICSDate(invite.dtStart)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="rsvp-actions">
-                      <button
-                        className="rsvp-btn accept"
-                        disabled={!!rsvpBusy}
-                        onClick={() => void respondInvite(detail.id, "accepted")}
-                      >
-                        <span className="rsvp-ico">{Icon.check}</span>
-                        {rsvpBusy === "accepted" ? "…" : "Accept"}
-                      </button>
-                      <button
-                        className="rsvp-btn maybe"
-                        disabled={!!rsvpBusy}
-                        onClick={() => void respondInvite(detail.id, "tentative")}
-                      >
-                        <span className="rsvp-ico">{Icon.help}</span>
-                        {rsvpBusy === "tentative" ? "…" : "Maybe"}
-                      </button>
-                      <button
-                        className="rsvp-btn decline"
-                        disabled={!!rsvpBusy}
-                        onClick={() => void respondInvite(detail.id, "declined")}
-                      >
-                        <span className="rsvp-ico">{Icon.x}</span>
-                        {rsvpBusy === "declined" ? "…" : "Decline"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <AiPanel
-                  ref={summaryPanelRef}
-                  title="AI summary"
-                  text={summary}
-                  // "Generating…" only for a summary launched on THIS message, so
-                  // a run started elsewhere never paints over the open email.
-                  generating={summarizing && summaryForId === detail.id}
-                  regenerateTitle="Regenerate (ignore cache)"
-                  onRegenerate={() => void summarize(detail.id, true)}
-                  onDismiss={() => dismissSummary(detail.id)}
-                />
-                <AiPanel
-                  ref={promptPanelRef}
-                  className="prompt-panel"
-                  title={promptLabel}
-                  text={promptResult}
-                  // "Generating…" only for a prompt launched on THIS message; a
-                  // run started elsewhere must not paint over the open email.
-                  generating={promptRunning && promptForId === detail.id}
-                  regenerateTitle="Regenerate (ignore the saved result and call the LLM again)"
-                  dismissTitle="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
-                  onRegenerate={() => {
-                    const pid = aiCache.current.get(detail.id)?.lastPromptId;
-                    if (pid != null)
-                      void runPrompt(
-                        { id: pid, name: promptLabel, description: "", category: "" },
-                        true,
-                      );
-                  }}
-                  onDismiss={() => dismissPrompt(detail.id)}
-                />
-                {csOpen && (
-                  <div className="content-search">
-                    <input
-                      autoFocus
-                      value={csQuery}
-                      placeholder="Find in message…"
-                      onChange={(e) => {
-                        setCsQuery(e.target.value);
-                        setCsIndex(0);
-                      }}
-                      onKeyDown={(e) => {
-                        const total = countMatches(
-                          detail.plainText || "",
-                          csQuery,
-                        );
-                        if (e.key === "Escape") {
-                          setCsOpen(false);
-                          setCsQuery("");
-                        } else if (e.key === "Enter") {
-                          e.preventDefault();
-                          if (total > 0)
-                            setCsIndex((i) =>
-                              e.shiftKey
-                                ? (i - 1 + total) % total
-                                : (i + 1) % total,
-                            );
-                        }
-                      }}
-                    />
-                    <span className="cs-count">
-                      {csQuery
-                        ? `${
-                            countMatches(detail.plainText || "", csQuery) === 0
-                              ? 0
-                              : csIndex + 1
-                          }/${countMatches(detail.plainText || "", csQuery)}`
-                        : ""}
-                    </span>
-                    <button
-                      className="tiny"
-                      title="Previous (Shift+Enter)"
-                      onClick={() => {
-                        const total = countMatches(
-                          detail.plainText || "",
-                          csQuery,
-                        );
-                        if (total > 0)
-                          setCsIndex((i) => (i - 1 + total) % total);
-                      }}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      className="tiny"
-                      title="Next (Enter)"
-                      onClick={() => {
-                        const total = countMatches(
-                          detail.plainText || "",
-                          csQuery,
-                        );
-                        if (total > 0) setCsIndex((i) => (i + 1) % total);
-                      }}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      className="ghost tiny"
-                      onClick={() => {
-                        setCsOpen(false);
-                        setCsQuery("");
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-                {touchUpText !== null ? (
-                  <div className="touchup" ref={touchUpRef}>
-                    <div className="touchup-head">
-                      <span>✦ Reformatted by AI</span>
-                      <button
-                        className="ghost tiny"
-                        onClick={() => dismissTouchUp(detail.id)}
-                      >
-                        show original
-                      </button>
-                    </div>
-                    <pre className="plain">{touchUpText}</pre>
-                  </div>
-                ) : loadingThread ? (
-                  <div className="placeholder">Loading conversation…</div>
-                ) : threadMsgs ? (
-                  <div className="conversation">
-                    <div className="conv-head">
-                      <span>Conversation · {threadMsgs.length} messages</span>
-                      <span className="summary-head-actions">
-                        <button
-                          className="ghost tiny"
-                          onClick={() => setCollapsedMsgs(new Set())}
-                        >
-                          Expand all
-                        </button>
-                        <button
-                          className="ghost tiny"
-                          onClick={() =>
-                            setCollapsedMsgs(
-                              new Set(threadMsgs.map((m) => m.id)),
-                            )
-                          }
-                        >
-                          Collapse all
-                        </button>
-                        {aiEnabled && (
-                          <button
-                            className="tiny"
-                            disabled={summarizing}
-                            onClick={() => void summarizeThread()}
-                          >
-                            {summarizing ? "Summarizing…" : "✦ Summarize"}
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                    {threadMsgs.map((m) => {
-                      const collapsed = collapsedMsgs.has(m.id);
-                      return (
-                        <div
-                          key={m.id}
-                          className={
-                            "conv-msg" +
-                            (m.unread ? " unread" : "") +
-                            (collapsed ? " collapsed" : "")
-                          }
-                        >
-                          <button
-                            className="conv-msg-head"
-                            onClick={() =>
-                              setCollapsedMsgs((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(m.id)) next.delete(m.id);
-                                else next.add(m.id);
-                                return next;
-                              })
-                            }
-                          >
-                            <span className="conv-caret">
-                              {collapsed ? "▸" : "▾"}
-                            </span>
-                            <strong>{displayName(m.from)}</strong>
-                            {collapsed && (
-                              <span className="conv-snippet">
-                                {(m.plainText || "").slice(0, 80)}
-                              </span>
-                            )}
-                            <span className="conv-date muted">
-                              {formatFull(m.date)}
-                            </span>
-                          </button>
-                          {!collapsed && (
-                            <pre className="plain">{m.plainText || "(empty)"}</pre>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : loadingDetail ? (
-                  <div className="placeholder">Loading…</div>
-                ) : viewHtml && detail.html && detail.html.trim() ? (
-                  <div className="html-wrap">
-                    {!loadRemote && (
-                      <div className="remote-bar">
-                        Remote images blocked for privacy.
-                        <button
-                          className="tiny"
-                          onClick={() => {
-                            setLoadRemote(true);
-                            imageOptIn.current.add(detail.id);
-                          }}
-                        >
-                          Load images
-                        </button>
-                        <button
-                          className="tiny"
-                          title="Always load remote images (toggle with :images-always)"
-                          onClick={() => setAlwaysImagesOn(true)}
-                        >
-                          Always
-                        </button>
-                      </div>
-                    )}
-                    <HtmlBody
-                      html={detail.html}
-                      loadRemote={loadRemote}
-                      messageId={detail.id}
-                      attachments={attachments}
-                    />
-                  </div>
-                ) : csOpen && csQuery ? (
-                  <pre className="plain">
-                    <HighlightedText
-                      text={detail.plainText || "(empty body)"}
-                      query={csQuery}
-                      activeIndex={csIndex}
-                    />
-                  </pre>
-                ) : (
-                  <PlainBody text={detail.plainText || "(empty body)"} />
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="empty-reader">
-              <p>Select a message to read it here.</p>
-              <p className="muted">
-                Press <kbd>?</kbd> for keyboard shortcuts.
-              </p>
-            </div>
-          )}
-        </main>
+          onDismissPrompt={() => detail && dismissPrompt(detail.id)}
+          csOpen={csOpen}
+          csQuery={csQuery}
+          csIndex={csIndex}
+          setCsQuery={setCsQuery}
+          setCsIndex={setCsIndex}
+          onCloseSearch={() => {
+            setCsOpen(false);
+            setCsQuery("");
+          }}
+          touchUpText={touchUpText}
+          touchUpRef={touchUpRef}
+          onDismissTouchUp={() => detail && dismissTouchUp(detail.id)}
+          loadingThread={loadingThread}
+          threadMsgs={threadMsgs}
+          collapsedMsgs={collapsedMsgs}
+          setCollapsedMsgs={setCollapsedMsgs}
+          onSummarizeThread={() => void summarizeThread()}
+          loadingDetail={loadingDetail}
+          loadRemote={loadRemote}
+          onLoadImages={() => {
+            if (!detail) return;
+            setLoadRemote(true);
+            imageOptIn.current.add(detail.id);
+          }}
+          onAlwaysImages={() => setAlwaysImagesOn(true)}
+        />
       </div>
 
       {compose && (
