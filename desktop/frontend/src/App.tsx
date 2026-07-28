@@ -41,6 +41,7 @@ import { useMailActions } from "./useMailActions";
 import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import { runCommand } from "./commandRunner";
 import { useActionPlan } from "./useActionPlan";
+import { useBootstrap } from "./useBootstrap";
 import { useZoom } from "./useZoom";
 import { useTheme } from "./useTheme";
 import { useAttachments } from "./useAttachments";
@@ -454,175 +455,14 @@ export default function App() {
     toggleAutoRefresh,
   } = useAutoRefresh({ showToast, onTick: () => void checkNewMail() });
 
-  const runInit = useCallback(async () => {
-    // Reset to the connecting state (also covers retry-after-import).
-    setConnecting(true);
-    setInitError("");
-    setNeedCreds(false);
-    // The backend builds the Gmail/service session off the main thread so the
-    // window paints immediately; wait for it to be ready before the first
-    // calls (up to ~45s for a cold OAuth) instead of erroring.
-    for (let i = 0; i < 300; i++) {
-      try {
-        if (await backend.Ready()) break;
-      } catch {
-        break; // mock / no backend
-      }
-      // Surface the sign-in URL (first-run OAuth) so the modal can offer a
-      // button instead of the user hunting for the URL in the logs.
-      try {
-        setAuthUrl(await backend.PendingAuthURL());
-      } catch {
-        /* mock backend has no pending auth */
-      }
-      await new Promise((r) => setTimeout(r, 150));
-    }
-    setAuthUrl("");
-    setConnecting(false);
-    try {
-      const ie = await backend.InitError();
-      if (ie) {
-        // Distinguish "no credentials.json yet" (first-run) from other errors so
-        // the UI can offer an import flow instead of a dead-end message.
-        try {
-          if (await backend.NeedsCredentials()) {
-            setNeedCreds(true);
-            setCredsPath(await backend.CredentialsPath());
-          }
-        } catch {
-          /* older/mock backend without these methods */
-        }
-        setInitError(ie);
-        return;
-      }
-    } catch {
-      /* mock backend never errors here */
-    }
-      try {
-        setAccount(await backend.AccountEmail());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        setAiEnabled(await backend.AIEnabled());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        setAiPromptsEnabled(await backend.PromptsEnabled());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        setAccounts(await backend.ListAccounts());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        setKeymap(await backend.KeyMap());
-      } catch {
-        /* non-fatal — defaults already set */
-      }
-      try {
-        setAppVersion(await backend.Version());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        await refreshIntegrations();
-        setThreadingOn(await backend.ThreadingEnabled());
-        setSavedQueriesOn(await backend.SavedQueriesEnabled());
-        setActionPlanOn(await backend.ActionPlanEnabled());
-        setRulesEnabled(await backend.AnalyzerRulesEnabled());
-      } catch {
-        /* non-fatal */
-      }
-      await initTheme();
-      try {
-        setLabels(await backend.ListLabels());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        setRsvpEnabled(await backend.RSVPEnabled());
-      } catch {
-        /* non-fatal */
-      }
-      try {
-        const ar = await backend.AutoRefreshSettings();
-        if (ar.intervalSeconds > 0) setAutoRefreshSecs(ar.intervalSeconds);
-        // localStorage overrides the config default once the user has chosen.
-        const saved = localStorage.getItem("giztui.autorefresh");
-        setAutoRefresh(saved === null ? ar.enabled : saved === "on");
-      } catch {
-        /* non-fatal */
-      }
-      void load("");
-  }, [load, initTheme]);
-
-  useEffect(() => {
-    void runInit();
-  }, [runInit]);
-
-  // Import a credentials.json via the native file picker, then retry init.
-  const importCreds = useCallback(async () => {
-    setImportErr("");
-    setImporting(true);
-    try {
-      await backend.ImportCredentials();
-      // ImportCredentials returns "" if the user cancelled the dialog; in that
-      // case NeedsCredentials stays true and runInit just shows the screen again.
-      await runInit();
-    } catch (e) {
-      setImportErr(String((e as Error)?.message ?? e));
-    } finally {
-      setImporting(false);
-    }
-  }, [runInit]);
-
-  // Re-run init after the user placed credentials.json manually.
-  const retryInit = useCallback(async () => {
-    setImportErr("");
-    try {
-      await backend.RetryInit();
-    } catch {
-      /* mock backend */
-    }
-    await runInit();
-  }, [runInit]);
-
-  const switchAccount = useCallback(
-    async (a: AccountInfo) => {
-      setSwitching(true);
-      setError("");
-      try {
-        await backend.SwitchAccount(a.id);
-        setSelectedId(null);
-        setDetail(null);
-        setSummary(null);
-        setPromptResult(null);
-        setBulkMode(false);
-        setSelected(new Set());
-        setQuery("");
-        const [email, ai, prompts, accs] = await Promise.all([
-          backend.AccountEmail().catch(() => ""),
-          backend.AIEnabled().catch(() => false),
-          backend.PromptsEnabled().catch(() => false),
-          backend.ListAccounts().catch(() => [] as AccountInfo[]),
-        ]);
-        setAccount(email);
-        setAiEnabled(ai);
-        setAiPromptsEnabled(prompts);
-        if (accs.length) setAccounts(accs);
-        await load("");
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setSwitching(false);
-      }
-    },
-    [load],
-  );
+  const { importCreds, retryInit, switchAccount } = useBootstrap({
+    load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
+    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled,
+    setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
+    setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
+    setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,
+    setBulkMode, setSelected, setQuery,
+  });
 
   // loadMessage shows a message in the reading pane. markRead=false is used for
   // cursor navigation (preview) so scanning the inbox never marks mail read;
