@@ -7,7 +7,9 @@
 > assistant's ephemeral context) so a fresh session, or a human, can pick it up
 > mid-flight. Update the **Progress tracker** as phases land.
 
-**Status:** F0–F2 DONE & merged (PR #61). Playwright integration net DONE (this batch). Approach approved.
+**Status:** ✅ COMPLETE — every code file in the desktop module (Go, TS/TSX, CSS) is now
+under 500 lines (see §7bis "DONE"). F0–F2 merged (PR #61); F3–F5 landed the hook/render
+decomposition. Playwright integration net DONE. Approach approved.
 **Owner:** _tbd_ · **Last updated:** 2026-07-26
 
 > **▶ RESUME HERE (next session).** F0–F3 are merged, and **F4.1–F4.5 are done**:
@@ -216,6 +218,29 @@ Proposed hook sequence (each its own PR, e2e-guarded, safest → riskiest):
 - `useReaderActions` (open/doAction/quickSearch/save/links) — touches `openIdRef`
 - `useAiActions` (summarize/runPrompt/touchUp/generateReply/suggest + dismiss) — **LAST, riskiest**: `aiCache`, `summaryForId`/`promptForId`, mirror refs, streaming callbacks
 - `api.ts` split: types → `apiTypes.ts`, mock → `apiMock.ts`, keep the thin real-binding wrapper
+
+### ✅ DONE — every desktop code file is now < 500 lines (goal met)
+
+F5.3–F5.15 landed the decomposition. The route down for `App.tsx` (1,203 → **490**):
+- [x] **F5.13** `StartupScreens.tsx` (onboarding/init/connecting) + the *latest-ref*
+  pattern for the keydown & command contexts — one window listener + a stable
+  `executeCommand`, no giant exhaustive-deps arrays. 1,203 → 982.
+- [x] **F5.14** `useAiActions` **owns** the AI panel state now (was scattered in App):
+  `openIdRef`, `aiCache`/`updateAiCache`, the 9 mirror refs, the reveal/toast effects.
+  Returned by original names so `loadMessage`/bootstrap/mail/actionplan/keydown all
+  consume unchanged. 982 → 876.
+- [x] **F5.15a** render split: `AppInbox.tsx` (top bar + banners + list/reader) and
+  `AppModals.tsx` (a `ComponentProps` forwarder for the modal stack). App builds one
+  dense props object per surface. 876 → 570.
+- [x] **F5.15b** `useAppWiring` — the keydown listener + command runner take the merged
+  `KeydownCtx & CommandCtx` through a ref (both read only their own fields). 570 → 525.
+- [x] **F5.15c** `useActionPlan` now owns its subsystem state (plan/analyze/rules/
+  previews/move) instead of ~26 setters from App. 525 → **490**.
+- [x] **F5.15d** `styles.css` (2,071) → barrel of 5 ordered `@import` partials under
+  `src/styles/`, each < 500. Bundled CSS is byte-identical (same content hash).
+
+Safety recipe held throughout: behavior-preserving verbatim moves, guarded by the full
+Playwright net (**61 unit / 39 e2e**), re-verified with `tsc` + `build` + e2e each step.
 
 ## 8. Safety rules (non-negotiable)
 
