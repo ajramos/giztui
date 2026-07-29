@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { backend, summarizeStream, applyPromptStream, applyBulkPromptStream, threadSummaryStream } from "./api";
+import { backend, summarizeStream, applyPromptStream, threadSummaryStream } from "./api";
 import type { MessageDetail, Prompt } from "./apiTypes";
 import type { ComposeInit } from "./Compose";
+import type { EnqueueSpec } from "./useAiJobs";
 import { activeAiPanel } from "./aiPanels";
 
 export interface AiCacheEntry {
@@ -28,12 +29,14 @@ export function useAiActions(deps: {
   setError: (e: string) => void;
   setPromptsOpen: (v: boolean) => void;
   setCompose: (v: ComposeInit | null) => void;
-  setBulkPromptLabel: (v: string) => void;
-  setBulkPromptText: (v: string | null) => void;
+  // Bulk prompts now run as background jobs; the reader's single-message prompt
+  // stream is serialized through runExclusive (shared "prompt:token" event).
+  enqueueJob: (spec: EnqueueSpec) => void;
+  runExclusive: <T>(fn: () => Promise<T>) => Promise<T>;
 }) {
   const {
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, setBulkPromptLabel, setBulkPromptText,
+    setPromptsOpen, setCompose, enqueueJob, runExclusive,
   } = deps;
 
   // Refs to the AI result panels so we can scroll them into view when they
@@ -202,29 +205,16 @@ export function useAiActions(deps: {
       setPromptsOpen(false);
       setError("");
 
-      // --- bulk (multi-message) prompt: streams into the bulk modal ----------
+      // --- bulk (multi-message) prompt: runs as a background AI job -----------
+      // Non-blocking: enqueue and return. The job streams in the background (see
+      // useAiJobs), shows in the result dialog, and toasts on completion; closing
+      // the dialog no longer cancels or loses it.
       if (bulk) {
-        setPromptForId(null); // bulk isn't tied to the open message's panel
-        setPromptRunning(true);
-        setBulkPromptLabel(`${prompt.name} · ${selected.size} messages`);
-        setBulkPromptText("");
-        try {
-          let acc = "";
-          const final = await applyBulkPromptStream(
-            [...selected],
-            prompt.id,
-            (tok) => {
-              acc += tok;
-              setBulkPromptText(acc);
-            },
-          );
-          setBulkPromptText(final);
-        } catch (e) {
-          setError(String(e));
-          setBulkPromptText(null);
-        } finally {
-          setPromptRunning(false);
-        }
+        enqueueJob({
+          label: `${prompt.name} · ${selected.size} messages`,
+          messageIds: [...selected],
+          promptId: prompt.id,
+        });
         return;
       }
 
@@ -255,15 +245,19 @@ export function useAiActions(deps: {
       runningLabelRef.current[launchId] = prompt.name;
       try {
         let acc = "";
-        const final = await applyPromptStream(
-          launchId,
-          prompt.id,
-          (tok) => {
-            acc += tok;
-            // Only paint into the visible panel while this message is still open.
-            if (openIdRef.current === launchId) setPromptResult(acc);
-          },
-          force,
+        // Serialized against any running bulk job (shared "prompt:token" event):
+        // if a job is streaming, this waits its turn instead of interleaving.
+        const final = await runExclusive(() =>
+          applyPromptStream(
+            launchId,
+            prompt.id,
+            (tok) => {
+              acc += tok;
+              // Only paint into the visible panel while this message is still open.
+              if (openIdRef.current === launchId) setPromptResult(acc);
+            },
+            force,
+          ),
         );
         updateAiCache(launchId, {
           promptResults: {
@@ -284,7 +278,7 @@ export function useAiActions(deps: {
         delete runningLabelRef.current[launchId];
       }
     },
-    [detail, bulkMode, selected, showToast, updateAiCache],
+    [detail, bulkMode, selected, showToast, updateAiCache, enqueueJob, runExclusive],
   );
 
   // Per-panel dismiss: hide the panel and forget just enough of its cache entry

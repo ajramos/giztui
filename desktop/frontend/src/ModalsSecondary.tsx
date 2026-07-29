@@ -39,7 +39,7 @@ export default function ModalsSecondary(p: {
   bulkPromptText: string | null;
   setBulkPromptText: Dispatch<SetStateAction<string | null>>;
   bulkPromptLabel: string;
-  promptRunning: boolean;
+  bulkJobRunning: boolean;
   planOpen: boolean;
   analyzing: boolean;
   analyzeCount: number;
@@ -127,7 +127,7 @@ export default function ModalsSecondary(p: {
   setShowHelp: Dispatch<SetStateAction<boolean>>;
 }) {
   const {
-    bulkPromptText, setBulkPromptText, bulkPromptLabel, promptRunning,
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
     planOpen, analyzing, analyzeCount, analyzeProgress, analyzeElapsed, plan,
     planNodes, planActiveNode, planNav, expandedCats, setExpandedCats,
     planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
@@ -156,12 +156,12 @@ export default function ModalsSecondary(p: {
               </button>
             </div>
             <div className="modal-body">
-              {promptRunning && !bulkPromptText ? (
+              {bulkJobRunning && !bulkPromptText ? (
                 <div className="placeholder">Generating…</div>
               ) : (
                 <div className="summary-text">
                   <Markdown text={bulkPromptText || ""} />
-                  {promptRunning && <span className="caret">▍</span>}
+                  {bulkJobRunning && <span className="caret">▍</span>}
                 </div>
               )}
             </div>

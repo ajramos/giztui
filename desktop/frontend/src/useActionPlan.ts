@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { backend, applyBulkPromptStream } from "./api";
+import { backend } from "./api";
+import type { EnqueueSpec } from "./useAiJobs";
 import type {
   ActionPlanResult,
   AnalyzerRule,
@@ -22,16 +23,16 @@ export function useActionPlan(deps: {
   messages: MessageSummary[];
   setMessages: Dispatch<SetStateAction<MessageSummary[]>>;
   bulkPromptText: string | null;
-  setBulkPromptText: Dispatch<SetStateAction<string | null>>;
-  setBulkPromptLabel: Dispatch<SetStateAction<string>>;
-  setPromptRunning: Dispatch<SetStateAction<boolean>>;
+  // A "prompt" bucket now runs as a background AI job instead of streaming into a
+  // blocking modal (see useAiJobs).
+  enqueueJob: (spec: EnqueueSpec) => void;
   showToast: (m: string) => void;
   setError: (e: string) => void;
   clearReaderIfRemoved: (removed: Set<string>) => void;
 }) {
   const {
     messages, setMessages, bulkPromptText,
-    setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
+    enqueueJob, showToast, setError, clearReaderIfRemoved,
   } = deps;
 
   // Action-plan / analyzer subsystem state (owned here; App consumes via the
@@ -215,32 +216,20 @@ export function useActionPlan(deps: {
   );
 
   // dispatchPromptCategory runs the prompt attached to a "prompt" bucket (from a
-  // deterministic rule) over its selected emails, streaming the result into the
-  // shared prompt-result modal — the TUI's dispatchActionPlanPrompt.
+  // deterministic rule) over its selected emails as a background AI job — the
+  // TUI's dispatchActionPlanPrompt. Non-blocking: enqueue and return.
   const dispatchPromptCategory = useCallback(
     async (cat: PlanCategory) => {
       if (cat.action !== "prompt" || !cat.promptId) return;
       const ids = cat.messageIds.filter((id) => !planExcluded.has(id));
       if (!ids.length) return;
-      setBulkPromptLabel(`${cat.name} · ${ids.length} emails`);
-      setBulkPromptText("");
-      setPromptRunning(true);
-      setError("");
-      try {
-        let acc = "";
-        const final = await applyBulkPromptStream(ids, cat.promptId, (tok) => {
-          acc += tok;
-          setBulkPromptText(acc);
-        });
-        setBulkPromptText(final);
-      } catch (e) {
-        setError(String(e));
-        setBulkPromptText(null);
-      } finally {
-        setPromptRunning(false);
-      }
+      enqueueJob({
+        label: `${cat.name} · ${ids.length} emails`,
+        messageIds: ids,
+        promptId: cat.promptId,
+      });
     },
-    [planExcluded],
+    [planExcluded, enqueueJob],
   );
 
   // applyAllCategories runs every category's action in one go (the TUI's

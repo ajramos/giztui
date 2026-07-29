@@ -86,3 +86,31 @@ test.describe("AI prompt panel", () => {
     await expect(promptPanel(page).locator(".summary-text")).toHaveText(promptA);
   });
 });
+
+test.describe("AI bulk prompt (background job)", () => {
+  test("running a bulk prompt shows its result in the job dialog; Escape closes it", async ({
+    page,
+  }) => {
+    await openApp(page);
+    // ':select all' enters bulk mode with every row selected; ':prompt' then opens
+    // the prompts picker (allowed in bulk mode), and Enter runs the highlighted one.
+    await runCommand(page, "select all");
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+
+    // The bulk prompt now runs as a background job whose result surfaces in the
+    // job dialog (the ✦-headed modal), not a per-message panel.
+    const jobModal = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "✦" }) });
+    await expect(jobModal).toBeVisible();
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+
+    // Closing the dialog dismisses the view (the job itself is already done here).
+    await page.keyboard.press("Escape");
+    await expect(jobModal).toBeHidden();
+  });
+});

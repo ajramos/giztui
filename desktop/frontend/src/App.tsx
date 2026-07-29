@@ -24,6 +24,7 @@ import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import { useAppWiring } from "./useAppWiring";
 import { useActionPlan } from "./useActionPlan";
 import { useAiActions } from "./useAiActions";
+import { useAiJobs } from "./useAiJobs";
 import { useMiscActions } from "./useMiscActions";
 import { useReader } from "./useReader";
 import { useKeymap } from "./useKeymap";
@@ -98,8 +99,6 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
-  const [bulkPromptText, setBulkPromptText] = useState<string | null>(null);
-  const [bulkPromptLabel, setBulkPromptLabel] = useState("");
   const [actionPlanOn, setActionPlanOn] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   // Action-plan / analyzer state (plan, analyze progress, rules, previews) is
@@ -198,6 +197,15 @@ export default function App() {
     setTimeout(() => setToast(""), 2500);
   }, []);
 
+  // Background AI jobs (bulk prompts) + the result-dialog bindings the modal and
+  // keydown chain consume (bulkPromptText/label + the close shim). enqueueJob is
+  // wired into useAiActions (reader bulk prompt) and useActionPlan (prompt bucket);
+  // runExclusive serializes the shared "prompt:token" stream.
+  const {
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
+    enqueueJob, runExclusive,
+  } = useAiJobs({ showToast, setError });
+
   const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
     useIntegrations({ showToast, setError });
   const {
@@ -292,7 +300,7 @@ export default function App() {
   // those reset/clear this state.
   const {
     summary, setSummary, summarizing, summaryForId,
-    promptResult, setPromptResult, promptLabel, setPromptLabel, promptRunning, setPromptRunning, promptForId,
+    promptResult, setPromptResult, promptLabel, setPromptLabel, promptRunning, promptForId,
     generatingReply, touchUpText, setTouchUpText, touchingUp,
     summaryPanelRef, promptPanelRef, touchUpRef,
     openIdRef, aiCache, runningLabelRef, promptLabelRef, promptForIdRef,
@@ -301,7 +309,7 @@ export default function App() {
     dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
   } = useAiActions({
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, setBulkPromptLabel, setBulkPromptText,
+    setPromptsOpen, setCompose, enqueueJob, runExclusive,
   });
 
   const { importCreds, retryInit, switchAccount } = useBootstrap({
@@ -380,7 +388,7 @@ export default function App() {
     promptPreview, setPromptPreview,
   } = useActionPlan({
     messages, setMessages, bulkPromptText,
-    setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
+    enqueueJob, showToast, setError, clearReaderIfRemoved,
   });
   // Global input wiring — the window keydown listener and the command runner —
   // lives in useAppWiring, which reads this merged context (a superset of both
@@ -440,7 +448,7 @@ export default function App() {
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
     saveQueryName, setSaveQueryName, doSaveQuery,
-    bulkPromptText, setBulkPromptText, bulkPromptLabel, promptRunning, planOpen, analyzing,
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning, planOpen, analyzing,
     analyzeCount, analyzeProgress, analyzeElapsed, plan, planNodes, planActiveNode, planNav,
     expandedCats, setExpandedCats, planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
     applyCategory, dispatchPromptCategory, applyAllCategories, setPlanOpen, openMessage, openRules,
