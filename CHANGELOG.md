@@ -5,6 +5,36 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.1] - 2026-07-29
+
+Maintenance release: the internal decomposition of the **GizTUI Desktop** client
+is complete, plus two correctness fixes. No changes to the TUI or to the desktop
+feature set — behavior is preserved.
+
+### 🐛 Bug Fixes
+
+- **Desktop — calendar-invite times shown in the wrong timezone.** The RSVP
+  preview and picker displayed the organizer's wall-clock time instead of the
+  viewer's. Invite `DTSTART`/`DTEND` are now resolved to an absolute instant
+  (honoring `TZID` / UTC) and rendered in the viewer's local zone — a 09:00-CEST
+  event now shows 09:00. The IANA timezone database is bundled so zones resolve in
+  the packaged app.
+- **Desktop — build failed on case-insensitive filesystems (macOS).** Pure-logic
+  modules that collided by case only with their components were renamed
+  (`compose.ts` → `composeBuilders.ts`, `messageList.ts` → `messageListModel.ts`),
+  so `tsc` / `wails dev` build cleanly. Linux CI (case-sensitive) never surfaced it.
+
+### 🛠️ Technical Improvements
+
+- **Desktop `App.tsx` decomposition complete.** The former ~1.2k-line god
+  component is now a thin orchestrator: the render moved to `AppInbox` / `AppModals`,
+  global keyboard + command wiring to `useAppWiring`, and subsystem state into
+  dedicated hooks (`useAiActions`, `useActionPlan`, …). **Every code file in the
+  `desktop/` module (Go, TS/TSX, CSS) is now under 500 lines.** Behavior-preserving,
+  covered by 62 vitest unit tests + 39 Playwright e2e specs.
+
+---
+
 ## [1.22.0] - 2026-07-25
 
 Maturation pass over the **GizTUI Desktop** client (introduced in 1.21.0):
