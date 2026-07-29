@@ -2,6 +2,9 @@ package main
 
 import (
 	"embed"
+	// Embed the IANA timezone database so calendar-invite times (TZID=…) resolve
+	// even when the packaged app has no access to the system zoneinfo.
+	_ "time/tzdata"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"

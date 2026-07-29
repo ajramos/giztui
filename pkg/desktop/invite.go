@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	gmail_v1 "google.golang.org/api/gmail/v1"
 )
@@ -134,8 +135,8 @@ func (a *API) detectInvite(msg *gmail_v1.Message) (Invite, bool) {
 				out.UID = scanICSField(s, "UID")
 				out.Summary = scanICSField(s, "SUMMARY")
 				out.Organizer = scanICSField(s, "ORGANIZER")
-				out.DtStart = scanICSField(s, "DTSTART")
-				out.DtEnd = scanICSField(s, "DTEND")
+				out.DtStart = resolveICSDateTime(scanICSField(s, "DTSTART"))
+				out.DtEnd = resolveICSDateTime(scanICSField(s, "DTEND"))
 			}
 			if methodReq {
 				found = true
@@ -183,9 +184,72 @@ func scanICSField(s, key string) string {
 						break
 					}
 				}
+				// For DTSTART/DTEND, preserve the parameter part (e.g.
+				// ";TZID=Europe/Madrid:") so the timezone survives to
+				// resolveICSDateTime — otherwise the wall clock is shown in the
+				// organizer's zone instead of the viewer's.
+				if key == "DTSTART" || key == "DTEND" {
+					if p := strings.Index(line, ";"); p > 0 && p < colonIdx {
+						return line[p:colonIdx] + ":" + fullValue
+					}
+				}
 				return fullValue
 			}
 		}
 	}
 	return ""
+}
+
+// resolveICSDateTime turns an iCalendar DTSTART/DTEND value — as returned by
+// scanICSField, which may carry a ";TZID=Zone:" or ";VALUE=DATE:" parameter —
+// into an absolute instant formatted as RFC3339 (UTC), so the frontend can
+// render it in the viewer's local timezone (matching Gmail/Calendar). All-day
+// (date-only) values and anything unparseable are returned as their raw digits
+// for the frontend's wall-clock fallback path.
+func resolveICSDateTime(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	params, val := "", raw
+	if strings.HasPrefix(val, ";") {
+		if idx := strings.LastIndex(val, ":"); idx >= 0 {
+			params, val = val[:idx], val[idx+1:]
+		}
+	}
+	val = strings.TrimSpace(val)
+	// All-day / date-only: leave the raw date for the frontend to show sans time.
+	if strings.Contains(strings.ToUpper(params), "VALUE=DATE") || len(val) == 8 {
+		return val
+	}
+	// UTC (trailing Z).
+	if strings.HasSuffix(val, "Z") {
+		for _, f := range []string{"20060102T150405Z", "20060102T1504Z"} {
+			if t, err := time.Parse(f, val); err == nil {
+				return t.UTC().Format(time.RFC3339)
+			}
+		}
+		return val
+	}
+	// Zoned (TZID=Area/City).
+	if i := strings.Index(strings.ToUpper(params), "TZID="); i >= 0 {
+		zone := params[i+len("TZID="):]
+		if j := strings.IndexByte(zone, ';'); j >= 0 {
+			zone = zone[:j]
+		}
+		if loc, err := time.LoadLocation(strings.TrimSpace(zone)); err == nil {
+			for _, f := range []string{"20060102T150405", "20060102T1504"} {
+				if t, err := time.ParseInLocation(f, val, loc); err == nil {
+					return t.UTC().Format(time.RFC3339)
+				}
+			}
+		}
+	}
+	// Floating (no zone declared): best effort — treat the wall clock as UTC so
+	// the frontend still receives an absolute instant. Raw if unparseable.
+	for _, f := range []string{"20060102T150405", "20060102T1504"} {
+		if t, err := time.Parse(f, val); err == nil {
+			return t.UTC().Format(time.RFC3339)
+		}
+	}
+	return val
 }

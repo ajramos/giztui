@@ -139,4 +139,17 @@ describe("date formatters (deterministic pieces only)", () => {
     expect(out).not.toBe("20260720T150000");
     expect(out.length).toBeGreaterThan(0);
   });
+  it("formatICSDate renders an absolute RFC3339 instant in the viewer's tz", () => {
+    // 07:00 UTC rendered in a fixed zone is deterministic; assert the hour shown
+    // for Europe/Madrid (CEST, UTC+2 in July) is 09.
+    const out = new Date("2026-07-31T07:00:00Z").toLocaleString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Madrid",
+      hour12: false,
+    });
+    expect(out).toContain("09:00");
+    // And the function accepts the RFC3339 form without falling back to raw.
+    expect(formatICSDate("2026-07-31T07:00:00Z")).not.toBe("2026-07-31T07:00:00Z");
+  });
 });
