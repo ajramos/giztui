@@ -340,6 +340,7 @@ type KeyBindings struct {
 	SaveMessage   string `json:"save_message"`   // Save message to file
 	SaveRaw       string `json:"save_raw"`       // Save raw EML
 	RSVP          string `json:"rsvp"`           // Toggle RSVP panel
+	AiJobs        string `json:"ai_jobs"`        // Open AI background-jobs picker
 	LinkPicker    string `json:"link_picker"`    // Open link picker
 	ThemePicker   string `json:"theme_picker"`   // Open theme picker
 	OpenGmail     string `json:"open_gmail"`     // Open message in Gmail web UI
@@ -590,6 +591,7 @@ func DefaultKeyBindings() KeyBindings {
 		SaveMessage:   "w",
 		SaveRaw:       "W",
 		RSVP:          "V",
+		AiJobs:        "J",
 		LinkPicker:    "L",
 		ThemePicker:   "H",
 		OpenGmail:     "O",

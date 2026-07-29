@@ -245,6 +245,7 @@ export interface KeyMap {
   archived: string;
   saveRaw: string;
   rsvp: string;
+  aiJobs: string;
   quit: string;
   vimTimeoutMs: number;
   vimRangeTimeoutMs: number;
@@ -262,7 +263,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
   searchAdvanced: "ctrl+f",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
-  rsvp: "V", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
+  rsvp: "V", aiJobs: "J", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
 export interface CachedPromptResult {

@@ -17,7 +17,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     sendObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
     setCmdOpen, setCompose, setCsIndex, setCsOpen, setCsQuery, setDetail,
     setHeadersHidden, setLabelsFor, setLinksFor, setLocalFilter, setMessages, setMoveFor,
-    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setSaveQueryOpen, setSelected,
+    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, setSaveQueryOpen, setSelected,
     setSelectedId, setShowHelp, setThemePickerOpen, setViewHtml, showToast, slackOn,
     summarize, threadingOn, toggleSelect, toggleThread,
     activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
@@ -459,6 +459,10 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
           // Open the keyboard-navigable RSVP picker for the current invite
           // (TUI's V). Only meaningful when the open message is an invite.
           if (detail && invite?.isInvite) setRsvpPickerOpen(true);
+          break;
+        case "aijobs":
+          // Open the AI background-jobs picker (":jobs" / default "J").
+          setJobsPickerOpen(true);
           break;
       }
 

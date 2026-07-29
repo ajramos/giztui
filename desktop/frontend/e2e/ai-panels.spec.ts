@@ -130,7 +130,8 @@ test.describe("AI bulk prompt (background job)", () => {
     await page.keyboard.press("Escape");
     await expect(jobModal).toBeHidden();
 
-    await runCommand(page, "jobs");
+    // Open via the default keymap shortcut ("J") — exercises the keymap wiring.
+    await page.keyboard.press("J");
     const jobsPicker = page
       .locator(".modal-overlay")
       .filter({ has: page.locator("h3", { hasText: "AI jobs" }) });
