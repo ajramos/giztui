@@ -76,26 +76,40 @@ action-plan, …) MUST follow these so they behave consistently:
 - Drive the change in a browser against the mock (Playwright + the pre-installed
   Chromium) — pickers especially: open via command, arrow-navigate, Enter, Escape.
 
-## 🧱 Ongoing: `App.tsx` decomposition (READ if touching App.tsx)
+## 🧱 `App.tsx` decomposition — DONE (READ if touching App.tsx)
 
-`App.tsx` is a large god component being broken up incrementally. Pure logic
-already lives in small, unit-tested modules — **use/extend these, don't re-inline**:
-`format.ts` (formatting/parsing), `composeBuilders.ts` (reply/forward builders),
-`commands.ts` (`COMMANDS` + palette resolution), `advancedSearch.ts`
-(`buildAdvancedQuery`), `planNodes.ts` (`buildPlanNodes` — the action-plan tree).
-Self-contained/presentational modals are their own files too (`StatsModal`,
-`ConfigModal`, `PromptPreviewModal`, `SaveQueryModal`, `AnalyzerRulesModal`,
-`AdvancedSearchModal`, `ActionPlanModal`). The main render tree is extracted as
-well: `TopBar`, `MessageList`, and `Reader` (→ `ReaderToolbar` + `ReaderBody`) —
-all presentational, state stays in App. **Hard target: no file > 400 lines.**
-Only `App.tsx` and `api.ts` still exceed it; the route down is subsystem hooks
-(see `docs/DESKTOP_REFACTOR_PLAN.md` §7bis for the sequence). Add tests next to
-new pure logic.
+The decomposition is **complete**: every code file in the desktop module (Go,
+TS/TSX, CSS) is now **under 500 lines** (`App.tsx` is ~490). Keep it that way —
+**use/extend the existing modules, don't re-inline logic into `App.tsx`.**
 
-**The plan, progress tracker, and — critically — the coupling landmines that keep
-causing bugs (`openIdRef`, `summaryForId`/`promptForId`, `loadMessage` as
-`useCallback([])`, mirror refs, first-binding-wins chords, the `anyModal` Escape
-order) live in [`docs/DESKTOP_REFACTOR_PLAN.md`](../docs/DESKTOP_REFACTOR_PLAN.md).
-Read it before extracting anything stateful.** Next up is F3 (subsystem hooks);
-stand up a Playwright integration suite FIRST — it's the only net for the coupled
-behavior (AI panels are the riskiest, do them last).
+`App.tsx` is now a thin **orchestrator**: it owns cross-subsystem state and wires
+the hooks + two presentational surfaces. Where things live:
+- **Render** — `AppInbox.tsx` (top bar + banners + list/reader) and `AppModals.tsx`
+  (the modal/picker stack, a `ComponentProps` forwarder over `ModalsPrimary` +
+  `ModalsSecondary`). App builds one dense props object per surface.
+- **Global input** — `useAppWiring.ts` owns the single window `keydown` listener
+  and the command runner; it takes the merged `KeydownCtx & CommandCtx` through a
+  ref (registered once, always fresh) and returns a stable `executeCommand`.
+- **Subsystem hooks own their state** — `useAiActions` (AI panels + the
+  `openIdRef`/`aiCache`/mirror-ref landmines), `useActionPlan` (plan/analyze/rules),
+  `useMessages`, `useReader`, `useMailActions`, `useKeymap`, `useMiscActions`,
+  `useDrafts`, `useAttachments`, `useRsvp`, `useThreading`, `useBootstrap`,
+  `useTheme`, `useZoom`, `useAutoRefresh`, `useIntegrations`, `useUndo`.
+- **Pure logic modules (unit-tested)** — `format.ts`, `composeBuilders.ts`
+  (reply/forward builders), `commands.ts` (`COMMANDS` + palette), `advancedSearch.ts`,
+  `planNodes.ts`, `messageListModel.ts`, `aiPanels.ts`. Add tests next to new pure logic.
+- **Self-contained modals** — `StatsModal`, `ConfigModal`, `PromptPreviewModal`,
+  `SaveQueryModal`, `AnalyzerRulesModal`, `AdvancedSearchModal`, `ActionPlanModal`,
+  `StartupScreens`. Presentational render lives in `TopBar`/`MessageList`/`Reader`.
+
+> **Filenames:** the pure-logic siblings are named to avoid case-only collisions
+> with their components (`composeBuilders.ts` vs `Compose.tsx`, `messageListModel.ts`
+> vs `MessageList.tsx`) — macOS is case-insensitive and `tsc` picks `.ts` over
+> `.tsx`, so never reintroduce a `compose.ts`/`messageList.ts` pair.
+
+**Before touching anything stateful, re-read the coupling landmines** (`openIdRef`,
+`summaryForId`/`promptForId`, `loadMessage` reset order, mirror refs,
+first-binding-wins chords, the `anyModal` Escape order) documented in
+[`docs/DESKTOP_REFACTOR_PLAN.md`](../docs/DESKTOP_REFACTOR_PLAN.md) §3. The
+Playwright suite in `e2e/` (39 specs) + 62 vitest unit tests are the regression
+net — extend them when you refactor a coupled flow (AI panels are the riskiest).

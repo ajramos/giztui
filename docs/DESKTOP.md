@@ -73,12 +73,15 @@ A single-page React app. The important pieces:
 
 | File | Responsibility |
 |------|----------------|
-| `src/App.tsx` | The whole application shell: state, keyboard handling, command palette, all panels and modals |
-| `src/api.ts` | Typed wrapper over the Wails-bound backend **plus a full mock backend** so the UI runs in a plain browser |
+| `src/App.tsx` | Thin **orchestrator**: owns cross-subsystem state, wires the subsystem hooks, and renders `AppInbox` + `AppModals`. Every desktop code file is kept **under 500 lines** (see [`DESKTOP_REFACTOR_PLAN.md`](DESKTOP_REFACTOR_PLAN.md)) |
+| `src/AppInbox.tsx`, `src/AppModals.tsx` | The two presentational render surfaces (top bar + list/reader; and the modal/picker stack). All state stays in App and is passed in |
+| `src/useAppWiring.ts` | The single global `keydown` listener + the command runner, driven by the merged `KeydownCtx & CommandCtx` through a ref |
+| `src/use*.ts` hooks | Subsystem state + logic: `useAiActions`, `useActionPlan`, `useMessages`, `useReader`, `useMailActions`, `useKeymap`, `useMiscActions`, `useDrafts`, `useAttachments`, `useRsvp`, `useThreading`, `useBootstrap`, `useTheme`, `useZoom`, `useAutoRefresh`, `useIntegrations`, `useUndo` |
+| `src/api.ts` (+ `apiTypes.ts`, `apiMock*.ts`) | Typed wrapper over the Wails-bound backend **plus a full mock backend** so the UI runs in a plain browser |
 | `src/Icons.tsx` | Stroke SVG icon set + the shared `IconBtn` (one button language everywhere) |
 | `src/HtmlBody.tsx` | Shadow-DOM renderer for HTML emails (DOMPurify-sanitized; proxied remote + inline `cid:` images) |
 | `src/Compose.tsx`, `LabelsPicker.tsx`, `PromptsPicker.tsx`, `PromptManager.tsx`, `LinksPicker.tsx`, `CommandBar.tsx`, `AccountSwitcher.tsx`, `Help.tsx`, `MoreMenu.tsx`, `HighlightedText.tsx` | Focused components/modals |
-| `src/styles.css` | CSS custom properties (theme variables) + all component styles |
+| `src/styles.css` | Barrel of ordered `@import`s over `src/styles/*.css` partials (theme variables + all component styles) |
 
 ### The backend proxy + mock
 
