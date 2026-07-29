@@ -329,6 +329,7 @@ export interface Backend {
   BulkApplyLabel(ids: string[], labelID: string): Promise<void>;
   BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
   PromptsEnabled(): Promise<boolean>;
+  JobsNotifyOnComplete(): Promise<boolean>;
   ListPrompts(): Promise<Prompt[]>;
   GetPrompt(id: number): Promise<PromptDetail>;
   CreatePrompt(name: string, description: string, text: string, category: string): Promise<number>;

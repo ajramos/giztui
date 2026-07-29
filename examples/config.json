@@ -204,5 +204,9 @@
   "display": {
     "_comment": "UI display preferences",
     "show_message_numbers": false
+  },
+  "jobs": {
+    "_comment": "AI background jobs (bulk prompts run async; desktop :jobs picker)",
+    "notify_on_complete": true
   }
 }

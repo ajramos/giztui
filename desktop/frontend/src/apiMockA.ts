@@ -176,6 +176,9 @@ export const mockA: Partial<Backend> = {
   async PromptsEnabled() {
     return true;
   },
+  async JobsNotifyOnComplete() {
+    return true;
+  },
   async ListPrompts() {
     return md.prompts.map((p) => ({
       id: p.id,

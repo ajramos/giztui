@@ -113,6 +113,21 @@ type Config struct {
 
 	// Display configuration
 	Display DisplayConfig `json:"display"`
+
+	// AI background jobs (bulk prompts run asynchronously; desktop :jobs picker)
+	Jobs JobsConfig `json:"jobs"`
+}
+
+// JobsConfig configures the AI background-jobs subsystem. Bulk prompts run
+// asynchronously as jobs; the desktop client exposes them via the ":jobs" picker.
+type JobsConfig struct {
+	// NotifyOnComplete shows a toast when a job finishes (default true).
+	NotifyOnComplete bool `json:"notify_on_complete"`
+}
+
+// DefaultJobsConfig returns the default AI-jobs configuration.
+func DefaultJobsConfig() JobsConfig {
+	return JobsConfig{NotifyOnComplete: true}
 }
 
 // SlackConfig contains all Slack integration settings
@@ -510,6 +525,7 @@ func DefaultConfig() *Config {
 		TTS:           TTSConfig{Enabled: false, Engine: "auto"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),
+		Jobs:          DefaultJobsConfig(),
 		LogFile:       "",
 	}
 }

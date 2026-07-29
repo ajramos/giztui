@@ -99,6 +99,8 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
+  // Whether AI jobs toast on completion (config jobs.notify_on_complete; set at bootstrap).
+  const [jobsNotify, setJobsNotify] = useState(true);
   const [actionPlanOn, setActionPlanOn] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   // Action-plan / analyzer state (plan, analyze progress, rules, previews) is
@@ -205,7 +207,7 @@ export default function App() {
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
     enqueueJob, runExclusive,
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
-  } = useAiJobs({ showToast, setError });
+  } = useAiJobs({ showToast, setError, notifyOnComplete: jobsNotify });
 
   const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
     useIntegrations({ showToast, setError });
@@ -315,7 +317,7 @@ export default function App() {
 
   const { importCreds, retryInit, switchAccount } = useBootstrap({
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
-    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled,
+    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
     setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
     setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
     setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,

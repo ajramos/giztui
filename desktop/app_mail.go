@@ -14,6 +14,15 @@ func (a *App) KeyMap() desktop.KeyMap {
 	return desktop.DefaultKeyMap()
 }
 
+// JobsNotifyOnComplete reports whether the AI-jobs subsystem should toast when a
+// background job finishes (config keys jobs.notify_on_complete, default true).
+func (a *App) JobsNotifyOnComplete() bool {
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		return s.Config.Jobs.NotifyOnComplete
+	}
+	return true
+}
+
 // ListAccounts returns all configured accounts for the account switcher.
 func (a *App) ListAccounts() ([]desktop.AccountInfo, error) {
 	s := a.session.Load()
