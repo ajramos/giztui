@@ -841,6 +841,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"m": "move",           // m key → move config
 		"M": "markdown",       // M key → markdown config
 		"V": "rsvp",           // V key → rsvp config
+		"J": "ai_jobs",        // J key → ai_jobs config
 		"O": "obsidian",       // O key → obsidian config
 		"L": "link_picker",    // L key → link_picker config
 		"w": "save_message",   // w key → save_message config
@@ -1020,6 +1021,7 @@ func getFunctionName(configParam string) string {
 		"move":            "move messages",
 		"markdown":        "markdown toggle",
 		"rsvp":            "RSVP",
+		"ai_jobs":         "AI background jobs",
 		"obsidian":        "Obsidian integration",
 		"link_picker":     "link picker",
 		"save_message":    "save message",

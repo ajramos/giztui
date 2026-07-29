@@ -328,6 +328,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeSummaryCommand(args)
 	case "rsvp":
 		a.executeRSVPCommand(args)
+	case "jobs", "aijobs":
+		go a.openAIJobsPicker()
 	case "inbox", "i":
 		a.executeInboxCommand(args)
 	case "compose", "c":

@@ -363,6 +363,13 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 			go a.openRSVPModal()
 		}
 		return true
+	case a.Keys.AiJobs:
+		if a.logger != nil {
+			a.logger.Printf("Configurable shortcut: '%s' -> ai jobs", key)
+		}
+		// Toggle the AI background-jobs picker (openAIJobsPicker self-toggles).
+		go a.openAIJobsPicker()
+		return true
 	case a.Keys.LinkPicker:
 		if a.logger != nil {
 			a.logger.Printf("Configurable shortcut: '%s' -> link_picker", key)
@@ -523,6 +530,7 @@ func (a *App) isKeyConfigured(key rune) bool {
 		keyStr == a.Keys.SaveMessage ||
 		keyStr == a.Keys.SaveRaw ||
 		keyStr == a.Keys.RSVP ||
+		keyStr == a.Keys.AiJobs ||
 		keyStr == a.Keys.LinkPicker ||
 		keyStr == a.Keys.ThemePicker ||
 		keyStr == a.Keys.OpenGmail ||

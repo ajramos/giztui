@@ -63,6 +63,9 @@ var commandRegistry = []commandSpec{
 	{name: "rsvp", help: &cmdHelp{
 		summary: "Respond to a calendar invitation (Yes/No/Maybe) in the current message.",
 	}},
+	{name: "jobs", aliases: []string{"aijobs"}, help: &cmdHelp{
+		summary: "Browse AI background jobs (bulk prompts); re-open a result, remove, or clear finished.",
+	}},
 	{name: "inbox", aliases: []string{"i"}, help: &cmdHelp{
 		summary: "Return to the inbox and reload the message list.",
 	}},

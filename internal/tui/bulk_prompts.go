@@ -443,6 +443,15 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 
 		ctx, cancel := context.WithCancel(a.ctx)
 		a.aiPanel.setStreamingCancel(cancel) // Store cancel function for Esc handler
+		// Track this run as an AI job so it can be browsed/re-opened via ":jobs".
+		jobID := a.aiJobs.add(&aiJob{
+			promptID:     promptID,
+			promptName:   promptName,
+			messageCount: messageCount,
+			status:       aiJobRunning,
+			createdAt:    time.Now(),
+			cancel:       cancel,
+		})
 		defer func() {
 			cancel()
 			a.aiPanel.clearStreamingCancel() // Clear when done
@@ -491,12 +500,23 @@ func (a *App) applyBulkPrompt(promptID int, promptName string) {
 		if err != nil {
 			// Check if error is due to context cancellation (user pressed ESC)
 			if ctx.Err() == context.Canceled {
+				a.aiJobs.update(jobID, func(j *aiJob) { j.status = aiJobCanceled })
 				a.GetErrorHandler().ShowInfo(a.ctx, "Bulk prompt operation canceled")
 				return
 			}
+			a.aiJobs.update(jobID, func(j *aiJob) {
+				j.status = aiJobError
+				j.errMsg = err.Error()
+			})
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to apply bulk prompt: %v", err))
 			return
 		}
+
+		// Record the completed job so ":jobs" can re-open its result.
+		a.aiJobs.update(jobID, func(j *aiJob) {
+			j.status = aiJobDone
+			j.result = result
+		})
 
 		// Final update with complete information
 		a.QueueUpdateDraw(func() {

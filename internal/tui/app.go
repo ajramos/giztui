@@ -48,6 +48,7 @@ const (
 	PickerRSVP               ActivePicker = "rsvp"
 	PickerAccounts           ActivePicker = "accounts"
 	PickerRules              ActivePicker = "rules"
+	PickerAIJobs             ActivePicker = "ai_jobs"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -130,6 +131,9 @@ type App struct {
 
 	// Bulk selection (mode + selected set), mutex-guarded — see bulk_state.go
 	bulk *bulkState
+
+	// AI background jobs (bulk prompts tracked as jobs), mutex-guarded — see ai_jobs.go
+	aiJobs *aiJobsRegistry
 
 	// VIM-style navigation and range operations (state machine in vim_navigator.go)
 	vim vimState
@@ -321,6 +325,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		logger:             logger, // Use passed logger instead of creating new one
 		logFile:            nil,
 		bulk:               newBulkState(),
+		aiJobs:             newAIJobsRegistry(),
 		messagesLoading:    false,
 		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}
@@ -2256,7 +2261,8 @@ func (a *App) generateHelpText() string {
 		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
 		fmt.Fprintf(&help, "    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt)
 		fmt.Fprintf(&help, "    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply)
-		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n\n", a.Keys.SuggestLabel)
+		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n", a.Keys.SuggestLabel)
+		fmt.Fprintf(&help, "    %-8s  🧰  AI background jobs (:jobs)\n\n", a.Keys.AiJobs)
 	}
 
 	// Threading Features (if enabled)
@@ -3376,6 +3382,11 @@ func (a *App) isActionPlanActive() bool {
 // isRulesPickerActive returns true if the deterministic rules manager is currently active.
 func (a *App) isRulesPickerActive() bool {
 	return a.currentActivePicker == PickerRules
+}
+
+// isAIJobsPickerActive returns true if the AI background-jobs picker is currently active.
+func (a *App) isAIJobsPickerActive() bool {
+	return a.currentActivePicker == PickerAIJobs
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging
