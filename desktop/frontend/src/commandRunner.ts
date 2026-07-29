@@ -1,6 +1,6 @@
 import { parseCommand } from "./commands";
 import { backend } from "./api";
-import { replyInit, replyAllInit, forwardInit } from "./compose";
+import { replyInit, replyAllInit, forwardInit } from "./composeBuilders";
 import type { CommandCtx } from "./commandCtx";
 
 // runCommand executes a typed command (":archive", ":search foo", …). Lifted

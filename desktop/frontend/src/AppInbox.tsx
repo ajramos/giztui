@@ -2,7 +2,7 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "reac
 import MessageList from "./MessageList";
 import Reader from "./Reader";
 import TopBar from "./TopBar";
-import { replyInit, forwardInit } from "./compose";
+import { replyInit, forwardInit } from "./composeBuilders";
 import type { ComposeInit } from "./Compose";
 import type { AiCacheEntry } from "./useAiActions";
 import type {

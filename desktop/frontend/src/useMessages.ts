@@ -8,7 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import { backend, type MessageDetail, type MessageSummary } from "./api";
-import { freshPrefix, dedupeNew } from "./messageList";
+import { freshPrefix, dedupeNew } from "./messageListModel";
 
 const PAGE_SIZE = 50;
 

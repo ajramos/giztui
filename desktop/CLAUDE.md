@@ -80,7 +80,7 @@ action-plan, …) MUST follow these so they behave consistently:
 
 `App.tsx` is a large god component being broken up incrementally. Pure logic
 already lives in small, unit-tested modules — **use/extend these, don't re-inline**:
-`format.ts` (formatting/parsing), `compose.ts` (reply/forward builders),
+`format.ts` (formatting/parsing), `composeBuilders.ts` (reply/forward builders),
 `commands.ts` (`COMMANDS` + palette resolution), `advancedSearch.ts`
 (`buildAdvancedQuery`), `planNodes.ts` (`buildPlanNodes` — the action-plan tree).
 Self-contained/presentational modals are their own files too (`StatsModal`,

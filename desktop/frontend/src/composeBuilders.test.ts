@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { replyInit, replyAllInit, forwardInit } from "./compose";
+import { replyInit, replyAllInit, forwardInit } from "./composeBuilders";
 import type { MessageDetail } from "./api";
 
 // Minimal MessageDetail factory — only the fields the builders read matter.

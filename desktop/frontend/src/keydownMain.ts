@@ -1,4 +1,4 @@
-import { replyInit, replyAllInit, forwardInit } from "./compose";
+import { replyInit, replyAllInit, forwardInit } from "./composeBuilders";
 import { backend } from "./api";
 import type { KeydownCtx } from "./keydownCtx";
 
