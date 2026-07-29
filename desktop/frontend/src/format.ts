@@ -46,10 +46,28 @@ export function labelForAction(action: string): string {
   }
 }
 
-// formatICSDate turns an iCalendar date-time (optionally with a ;TZID= prefix,
-// e.g. "20260720T150000" or ";TZID=Europe/Madrid:20260720T150000") into a
-// human-readable local string.
+// formatICSDate renders a calendar-invite date-time as a human-readable local
+// string. The backend resolves zoned/UTC invites to an absolute RFC3339 instant
+// (e.g. "2026-07-31T07:00:00Z") — those are converted to the VIEWER's timezone,
+// so a 09:00-CEST event shows 09:00 for a CEST user regardless of the
+// organizer's zone. Raw iCal digits ("20260720T150000", all-day "20260731") have
+// no zone, so they fall back to a wall-clock reading.
 export function formatICSDate(raw: string): string {
+  if (!raw) return raw;
+  // Absolute instant from the backend (ISO-8601 has dashes in the date): render
+  // in local time.
+  if (raw.includes("-")) {
+    const iso = new Date(raw);
+    if (!Number.isNaN(iso.getTime())) {
+      return iso.toLocaleString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }
   const v = raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw;
   const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?Z?)?/);
   if (!m) return raw;

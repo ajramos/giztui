@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freshPrefix, dedupeNew } from "./messageList";
+import { freshPrefix, dedupeNew } from "./messageListModel";
 
 const m = (id: string) => ({ id });
 
