@@ -49,6 +49,8 @@ export function useAiJobs(deps: {
   const [jobs, setJobs] = useState<AiJob[]>([]);
   // Which job the result dialog is showing; null = dialog closed.
   const [viewJobId, setViewJobId] = useState<string | null>(null);
+  // The :jobs picker (browse/re-open/remove jobs).
+  const [jobsPickerOpen, setJobsPickerOpen] = useState(false);
   const seqRef = useRef(0);
 
   // Serialize any prompt-token stream (jobs + the reader's single prompt). Each
@@ -150,6 +152,8 @@ export function useAiJobs(deps: {
   return {
     jobs,
     viewJobId,
+    jobsPickerOpen,
+    setJobsPickerOpen,
     // result-dialog bindings (same names the modal/keydown chain already use)
     bulkPromptText,
     setBulkPromptText,

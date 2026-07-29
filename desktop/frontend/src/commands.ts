@@ -71,6 +71,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["save"], desc: "Save to file" },
   { names: ["save-raw", "saveraw"], desc: "Save raw .eml" },
   { names: ["rsvp"], desc: "Open RSVP picker for invite" },
+  { names: ["jobs", "aijobs"], desc: "AI background jobs" },
   { names: ["accept"], desc: "RSVP: accept invite" },
   { names: ["tentative", "maybe"], desc: "RSVP: tentative" },
   { names: ["decline"], desc: "RSVP: decline invite" },

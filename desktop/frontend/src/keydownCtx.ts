@@ -80,6 +80,7 @@ export interface KeydownCtx {
   regenerateActive: () => void;
   resetZoom: () => void;
   rsvpPickerOpen: boolean;
+  jobsPickerOpen: boolean;
   rulesEnabled: boolean;
   rulesOpen: boolean;
   runActionPlan: () => void;
@@ -128,6 +129,7 @@ export interface KeydownCtx {
   setQuery: Dispatch<SetStateAction<string>>;
   setReaderFocused: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
+  setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
   setRulesOpen: Dispatch<SetStateAction<boolean>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setSelected: Dispatch<SetStateAction<Set<string>>>;

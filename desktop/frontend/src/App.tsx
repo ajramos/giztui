@@ -204,6 +204,7 @@ export default function App() {
   const {
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
     enqueueJob, runExclusive,
+    jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
   } = useAiJobs({ showToast, setError });
 
   const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
@@ -407,6 +408,7 @@ export default function App() {
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
     promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
+    jobsPickerOpen, setJobsPickerOpen,
     runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
     saveRawMessage, savedQueriesOn, searchRef, selected, selectedId, sendObsidian, setAccountsOpen,
     setAdvOpen, setAlwaysImagesOn, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
@@ -448,7 +450,8 @@ export default function App() {
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
     saveQueryName, setSaveQueryName, doSaveQuery,
-    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning, planOpen, analyzing,
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
+    jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished, planOpen, analyzing,
     analyzeCount, analyzeProgress, analyzeElapsed, plan, planNodes, planActiveNode, planNav,
     expandedCats, setExpandedCats, planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
     applyCategory, dispatchPromptCategory, applyAllCategories, setPlanOpen, openMessage, openRules,

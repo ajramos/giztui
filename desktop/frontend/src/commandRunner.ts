@@ -23,6 +23,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
     setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
     setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
+    setJobsPickerOpen,
     setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
   } = ctx;
         const { cmd, arg } = parseCommand(input);
@@ -333,6 +334,11 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "rsvp":
           // TUI parity: open the keyboard-navigable RSVP picker (same as the V key).
           if (d && invite?.isInvite) setRsvpPickerOpen(true);
+          break;
+        case "jobs":
+        case "aijobs":
+          // Open the AI background-jobs picker (browse/re-open/remove jobs).
+          setJobsPickerOpen(true);
           break;
         case "accept":
           if (d && invite?.isInvite) void respondInvite(d.id, "accepted");

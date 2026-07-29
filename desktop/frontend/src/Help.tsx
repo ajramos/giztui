@@ -137,6 +137,9 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         ...(f.prompts
           ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
           : []),
+        ...(f.prompts
+          ? [{ icon: "🧰", keys: ":jobs", desc: "AI background jobs (bulk prompts run async)" }]
+          : []),
         ...(f.actionPlan
           ? [
               { icon: "🧠", keys: fmtKey(k.actionPlan), desc: "Inbox action plan" },

@@ -113,4 +113,38 @@ test.describe("AI bulk prompt (background job)", () => {
     await page.keyboard.press("Escape");
     await expect(jobModal).toBeHidden();
   });
+
+  test("':jobs' lists the job and Enter re-opens its result", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "select all");
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+    const jobModal = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "✦" }) });
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+    // Close the result dialog, then browse jobs via ':jobs'.
+    await page.keyboard.press("Escape");
+    await expect(jobModal).toBeHidden();
+
+    await runCommand(page, "jobs");
+    const jobsPicker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "AI jobs" }) });
+    await expect(jobsPicker).toBeVisible();
+    await expect(jobsPicker.locator(".prompt-row").first()).toContainText(
+      "messages",
+    );
+    await expect(jobsPicker.locator('.job-status[data-status="done"]').first()).toBeVisible();
+
+    // Enter re-opens the selected job's result in the ✦ dialog.
+    await page.keyboard.press("Enter");
+    await expect(jobsPicker).toBeHidden();
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+  });
 });

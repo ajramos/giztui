@@ -29,6 +29,8 @@ import AdvancedSearchModal from "./AdvancedSearchModal";
 import StatsModal from "./StatsModal";
 import ConfigModal from "./ConfigModal";
 import Help from "./Help";
+import AiJobsPicker from "./AiJobsPicker";
+import type { AiJob } from "./useAiJobs";
 
 // The dialog-style modals: bulk-prompt result, action plan (+ move/preview),
 // analyzer/deterministic rules, prompt preview, command palette, theme/move
@@ -40,6 +42,12 @@ export default function ModalsSecondary(p: {
   setBulkPromptText: Dispatch<SetStateAction<string | null>>;
   bulkPromptLabel: string;
   bulkJobRunning: boolean;
+  jobs: AiJob[];
+  jobsPickerOpen: boolean;
+  setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
+  openJob: (id: string) => void;
+  removeJob: (id: string) => void;
+  clearFinished: () => void;
   planOpen: boolean;
   analyzing: boolean;
   analyzeCount: number;
@@ -128,6 +136,7 @@ export default function ModalsSecondary(p: {
 }) {
   const {
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
+    jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
     planOpen, analyzing, analyzeCount, analyzeProgress, analyzeElapsed, plan,
     planNodes, planActiveNode, planNav, expandedCats, setExpandedCats,
     planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
@@ -146,6 +155,15 @@ export default function ModalsSecondary(p: {
   } = p;
   return (
     <>
+      {jobsPickerOpen && (
+        <AiJobsPicker
+          jobs={jobs}
+          onClose={() => setJobsPickerOpen(false)}
+          onOpen={openJob}
+          onRemove={removeJob}
+          onClear={clearFinished}
+        />
+      )}
       {bulkPromptText !== null && (
         <div className="modal-overlay" onClick={() => setBulkPromptText(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
