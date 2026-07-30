@@ -100,11 +100,28 @@ func (a *App) buildChatPanel(messageID string) {
 	footer.SetBackgroundColor(bg)
 	container.AddItem(footer, 1, 0, false)
 
-	a.chatPanelState = &chatPanelState{
+	st := &chatPanelState{
 		container:  container,
 		transcript: transcript,
 		input:      input,
 		messageID:  messageID,
+	}
+	a.chatPanelState = st
+
+	// Restore any prior conversation for this message (the ChatService keeps the
+	// history; without this the AI would "remember" but the panel would look empty).
+	if svc := a.GetChatService(); svc != nil {
+		for _, t := range svc.GetHistory(messageID) {
+			if t.Role == "assistant" {
+				st.buf.WriteString("AI: " + t.Text + "\n\n")
+			} else {
+				st.buf.WriteString("You: " + t.Text + "\n")
+			}
+		}
+	}
+	if st.buf.Len() > 0 {
+		transcript.SetText(st.buf.String())
+		transcript.ScrollToEnd()
 	}
 
 	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -136,6 +153,19 @@ func (a *App) closeChatPanel() {
 	a.restoreFocusAfterModal()
 }
 
+// setChatTranscript replaces the transcript text from a background goroutine.
+// QueueUpdateDraw (safe off the event loop) forces the redraw that a bare
+// SetText from a goroutine would not; guarded so a closed/replaced panel is a
+// no-op.
+func (a *App) setChatTranscript(st *chatPanelState, text string) {
+	a.QueueUpdateDraw(func() {
+		if a.chatPanelState == st && st.transcript != nil {
+			st.transcript.SetText(text)
+			st.transcript.ScrollToEnd()
+		}
+	})
+}
+
 // sendChatMessage streams a reply to `text`, run in its own goroutine (launched
 // from the input's Enter handler). The streaming callback updates the transcript
 // directly (NEVER QueueUpdateDraw in a streaming callback — deadlock risk); the
@@ -153,17 +183,30 @@ func (a *App) sendChatMessage(text string) {
 		return
 	}
 
+	// Live view = the committed transcript so far + this pending exchange. The
+	// user turn is only persisted to st.buf on success (mirroring the service,
+	// which doesn't record failed turns), so an error leaves a clean history.
+	liveBase := st.buf.String() + "You: " + text + "\n"
+
+	// Show the user's message + a "thinking" cue IMMEDIATELY — before the
+	// (possibly slow) content load — so it never looks stuck. QueueUpdateDraw is
+	// safe here (off the event loop, not a streaming callback) and forces the
+	// redraw that a bare SetText from this goroutine would not trigger.
+	a.setChatTranscript(st, liveBase+"AI: …thinking…")
+
 	// Load the grounding content once (prefer rendered-visible HTML text so the
 	// chat doesn't answer with hidden preheaders / "can't view" boilerplate).
 	if st.content == "" {
 		m, err := a.Client.GetMessageWithContent(st.messageID)
 		if err != nil {
+			a.setChatTranscript(st, liveBase+"AI: ⚠️ couldn't load the message")
 			go a.GetErrorHandler().ShowError(a.ctx, "Failed to load message for chat")
 			return
 		}
 		st.content = tuiReadableBody(m)
 	}
 	if strings.TrimSpace(st.content) == "" {
+		a.setChatTranscript(st, liveBase+"AI: ⚠️ no readable content in this message")
 		go a.GetErrorHandler().ShowError(a.ctx, "Message has no readable content to chat about")
 		return
 	}
@@ -177,14 +220,6 @@ func (a *App) sendChatMessage(text string) {
 		}
 	}()
 
-	// Echo the user turn and prime the assistant line.
-	st.buf.WriteString("You: " + text + "\n")
-	base := st.buf.String()
-	if st.transcript != nil {
-		st.transcript.SetText(base + "AI: ")
-		st.transcript.ScrollToEnd()
-	}
-
 	var reply strings.Builder
 	_, err := chatSvc.SendMessageStream(ctx, st.messageID, st.content, text, func(token string) {
 		select {
@@ -193,8 +228,10 @@ func (a *App) sendChatMessage(text string) {
 		default:
 		}
 		reply.WriteString(token)
+		// Streaming callback: update directly + ForceDraw (NEVER QueueUpdateDraw
+		// here — it can deadlock with the Esc/cancel handler).
 		if ctx.Err() == nil && st.transcript != nil {
-			st.transcript.SetText(base + "AI: " + reply.String())
+			st.transcript.SetText(liveBase + "AI: " + reply.String())
 			st.transcript.ScrollToEnd()
 			a.ForceDraw()
 		}
@@ -203,18 +240,14 @@ func (a *App) sendChatMessage(text string) {
 		if ctx.Err() == context.Canceled {
 			return
 		}
+		a.setChatTranscript(st, liveBase+"AI: ⚠️ "+err.Error())
 		go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Chat failed: %v", err))
 		return
 	}
 
-	// Commit the assistant turn to the persistent transcript buffer.
-	st.buf.WriteString("AI: " + reply.String() + "\n\n")
-	a.QueueUpdateDraw(func() {
-		if a.chatPanelState == st && st.transcript != nil {
-			st.transcript.SetText(st.buf.String())
-			st.transcript.ScrollToEnd()
-		}
-	})
+	// Commit the completed exchange to the persistent transcript buffer.
+	st.buf.WriteString("You: " + text + "\nAI: " + reply.String() + "\n\n")
+	a.setChatTranscript(st, st.buf.String())
 }
 
 // tuiReadableBody returns readable text for a message, preferring the rendered
