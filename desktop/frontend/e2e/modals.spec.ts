@@ -24,6 +24,17 @@ test.describe("display modals", () => {
     await expect(modal).toBeHidden();
   });
 
+  test("':config migrate' runs the migration and toasts (no config modal)", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "config migrate");
+    // Runs the backend migration and confirms with a toast — it must NOT open the
+    // read-only Configuration modal (the parity bug this guards against).
+    await expect(page.locator(".toast")).toContainText("Config");
+    await expect(
+      page.locator(".modal-overlay").filter({ hasText: "Configuration" }),
+    ).toBeHidden();
+  });
+
   test("':action-plan prompt' opens the analyzer-prompt preview; Escape closes it", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "action-plan prompt");

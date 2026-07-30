@@ -402,6 +402,7 @@ export interface Backend {
   UsageStats(): Promise<UsageStats>;
   ClearCaches(): Promise<void>;
   ConfigInfo(): Promise<ConfigInfo>;
+  MigrateConfig(): Promise<string>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;

@@ -197,6 +197,10 @@ export const mockB: Partial<Backend> = {
       downloadPath: "~/Downloads/gmail-attachments",
     };
   },
+  async MigrateConfig() {
+    await new Promise((r) => setTimeout(r, 150));
+    return "Config is already up to date";
+  },
   async ObsidianEnabled() {
     return true;
   },

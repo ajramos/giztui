@@ -52,7 +52,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["advanced", "adv"], desc: "Advanced search builder" },
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["stats", "usage"], desc: "AI prompt usage stats" },
-  { names: ["config", "cfg"], desc: "Show configuration" },
+  { names: ["config", "cfg"], desc: "Show configuration (:config migrate to update)" },
   { names: ["cache"], desc: "Clear AI caches" },
   { names: ["archive", "a"], desc: "Archive message" },
   { names: ["trash", "d"], desc: "Trash message" },

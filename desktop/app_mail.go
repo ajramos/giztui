@@ -3,6 +3,8 @@ package main
 // App bindings: keymap, accounts, mailbox core (list/search/message/archive/trash/read/labels), AI. Split out of app.go.
 
 import (
+	"fmt"
+
 	"github.com/ajramos/giztui/pkg/desktop"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -244,6 +246,25 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 		info.DownloadPath = api.DownloadDir()
 	}
 	return info
+}
+
+// MigrateConfig runs the config self-migration against this session's config
+// file (adds missing default keys, prunes obsolete ones, writes a .bak first),
+// mirroring the TUI's ":config migrate". Returns a human-readable summary the UI
+// can toast.
+func (a *App) MigrateConfig() (string, error) {
+	s := a.session.Load()
+	if s == nil {
+		return "", a.notReady()
+	}
+	added, removed, backup, err := s.MigrateConfig()
+	if err != nil {
+		return "", err
+	}
+	if len(added) == 0 && len(removed) == 0 {
+		return "Config is already up to date", nil
+	}
+	return fmt.Sprintf("Config updated: +%d added, -%d removed (backup: %s). Restart to apply.", len(added), len(removed), backup), nil
 }
 
 // InviteInfo returns calendar-invite details for a message (IsInvite=false when

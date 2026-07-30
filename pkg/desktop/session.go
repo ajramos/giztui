@@ -322,6 +322,17 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 // ConfigPath returns the path of the config file this session loaded.
 func (s *Session) ConfigPath() string { return s.configPath }
 
+// MigrateConfig reconciles this session's config file with the current schema
+// (adding missing default keys, pruning obsolete ones, writing a .bak first).
+// It mirrors the TUI's ":config migrate". Returns the added/removed dotted paths
+// and the backup path; all empty when the file is already up to date.
+func (s *Session) MigrateConfig() (added, removed []string, backupPath string, err error) {
+	if s.configPath == "" {
+		return nil, nil, "", fmt.Errorf("no config file path for this session")
+	}
+	return config.MigrateConfigFile(s.configPath)
+}
+
 // AccountEmail returns the active account's email address.
 func (s *Session) AccountEmail(ctx context.Context) (string, error) {
 	if s.client == nil {

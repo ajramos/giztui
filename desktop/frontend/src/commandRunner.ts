@@ -366,7 +366,16 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "config":
         case "cfg":
-          void openConfig();
+          // ":config migrate" runs the config self-migration (TUI parity);
+          // ":config" with no arg opens the read-only config info modal.
+          if (arg.trim().toLowerCase() === "migrate") {
+            void backend
+              .MigrateConfig()
+              .then((msg) => showToast(msg))
+              .catch((e) => setError(`Config migrate failed: ${String(e)}`));
+          } else {
+            void openConfig();
+          }
           break;
         case "cache":
           void clearCaches();
