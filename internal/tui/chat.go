@@ -31,18 +31,20 @@ type chatPanelState struct {
 // userLine / aiLine format one committed turn with its role color. The text is
 // tview.Escape'd so markdown brackets (links, etc.) don't break color parsing.
 func (st *chatPanelState) userLine(text string) string {
-	return st.userTag + "You: " + tview.Escape(text) + "[-]\n"
+	return st.userTag + "You: " + tview.Escape(text) + chatColorReset + "\n"
 }
 func (st *chatPanelState) aiLine(text string) string {
-	return st.aiTag + "AI: " + tview.Escape(text) + "[-]\n\n"
+	return st.aiTag + "AI: " + tview.Escape(text) + chatColorReset + "\n\n"
 }
 
-// Chat role colors. Named tview colors are used (not hex #rrggbb) because
-// derailed/tview does not reliably parse hex color tags — hex renders the tag
-// literally (see the reader's [yellow] header tags and the themes.go TODO).
+// Chat role colors. derailed/tview's colorPattern requires the full
+// "[fg:bg:flags]" form (two colons) — a bare "[aqua]" or "[-]" does NOT match
+// the regex and prints literally. Named colors only (hex "#rrggbb" is allowed by
+// the regex but unreliable in this fork).
 const (
-	chatUserColor = "[aqua]" // your turns
-	chatAIColor   = "[lime]" // the assistant's turns
+	chatUserColor  = "[aqua::b]" // your turns
+	chatAIColor    = "[lime::b]" // the assistant's turns
+	chatColorReset = "[-:-:-]"   // reset fg/bg/flags
 )
 
 // openChatPanel opens (or toggles closed) the chat panel for the open message.
@@ -212,7 +214,7 @@ func (a *App) sendChatMessage(text string) {
 	liveBase := st.buf.String() + st.userLine(text)
 	// pendingAI renders the in-progress assistant line (already-escaped body).
 	pendingAI := func(body string) string {
-		return liveBase + st.aiTag + "AI: " + body + "[-]"
+		return liveBase + st.aiTag + "AI: " + body + chatColorReset
 	}
 
 	// Show the user's message + a "thinking" cue IMMEDIATELY — before the
