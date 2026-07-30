@@ -37,14 +37,13 @@ func (st *chatPanelState) aiLine(text string) string {
 	return st.aiTag + "AI: " + tview.Escape(text) + "[-]\n\n"
 }
 
-// chatColorTag builds a tview dynamic-color tag from a theme color, falling back
-// to a named color when the theme color is "default" (no RGB).
-func chatColorTag(c tcell.Color, fallback string) string {
-	if h := c.Hex(); h >= 0 {
-		return fmt.Sprintf("[#%06x]", h)
-	}
-	return "[" + fallback + "]"
-}
+// Chat role colors. Named tview colors are used (not hex #rrggbb) because
+// derailed/tview does not reliably parse hex color tags — hex renders the tag
+// literally (see the reader's [yellow] header tags and the themes.go TODO).
+const (
+	chatUserColor = "[aqua]" // your turns
+	chatAIColor   = "[lime]" // the assistant's turns
+)
 
 // openChatPanel opens (or toggles closed) the chat panel for the open message.
 // Runs everything on the UI goroutine (call via `go a.openChatPanel()`).
@@ -126,10 +125,9 @@ func (a *App) buildChatPanel(messageID string) {
 		transcript: transcript,
 		input:      input,
 		messageID:  messageID,
-		// Distinct role colors (theme-derived, with readable fallbacks) so you
-		// can tell your turns from the assistant's at a glance.
-		userTag: chatColorTag(a.GetComponentColors("links").Accent.Color(), "aqua"),
-		aiTag:   chatColorTag(colors.Accent.Color(), "green"),
+		// Distinct role colors so you can tell your turns from the assistant's.
+		userTag: chatUserColor,
+		aiTag:   chatAIColor,
 	}
 	a.chatPanelState = st
 
