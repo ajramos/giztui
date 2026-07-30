@@ -161,6 +161,7 @@ type App struct {
 	bulkPromptService         *services.BulkPromptServiceImpl
 	promptService             services.PromptService
 	promptGeneratorService    services.PromptGeneratorService
+	chatService               services.ChatService
 	inboxAnalyzerService      services.InboxAnalyzerService
 	promptConfiguratorState   *promptConfiguratorState
 	actionPlanState           *actionPlanState
@@ -483,6 +484,14 @@ func (a *App) reinitializeServices() {
 			a.logger.Printf("reinitializeServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
 		}
 	}
+
+	// Initialize chat service if AI is available and chat is nil
+	if a.aiService != nil && a.chatService == nil {
+		a.chatService = services.NewChatService(a.aiService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: chat service initialized: %v", a.chatService != nil)
+		}
+	}
 	if a.aiService != nil && a.inboxAnalyzerService == nil {
 		a.inboxAnalyzerService = services.NewInboxAnalyzerService(a.aiService)
 		if a.logger != nil {
@@ -743,6 +752,13 @@ func (a *App) initServices() {
 		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
 		if a.logger != nil {
 			a.logger.Printf("initServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+	// Chat service (multi-turn "chat with this email")
+	if a.aiService != nil {
+		a.chatService = services.NewChatService(a.aiService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("initServices: chat service initialized: %v", a.chatService != nil)
 		}
 	}
 	if a.aiService != nil {
@@ -1458,6 +1474,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 // GetPromptGeneratorService returns the prompt generator service or nil if not initialized.
 func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 	return a.promptGeneratorService
+}
+
+// GetChatService returns the chat service or nil if not initialized.
+func (a *App) GetChatService() services.ChatService {
+	return a.chatService
 }
 
 // GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.

@@ -89,6 +89,27 @@ type AIService interface {
 	ApplyCustomPromptStream(ctx context.Context, prompt string, variables map[string]string, onToken func(string)) (string, error)
 }
 
+// ChatTurn is one message in a chat conversation (role "user" or "assistant").
+type ChatTurn struct {
+	Role string `json:"role"`
+	Text string `json:"text"`
+}
+
+// ChatService powers the multi-turn "chat with this email" feature. It keeps a
+// per-session conversation history in memory and answers each new message by
+// grounding the assistant on the email content plus the prior turns. The LLM API
+// is single-shot, so each turn re-sends the (bounded) transcript as one prompt.
+type ChatService interface {
+	// SendMessageStream answers userMessage in the context of the session's email
+	// (emailContent) and prior turns, streaming tokens via onToken. On success the
+	// user message and the assistant reply are appended to the session history.
+	SendMessageStream(ctx context.Context, sessionID, emailContent, userMessage string, onToken func(string)) (string, error)
+	// GetHistory returns a copy of the session's conversation turns.
+	GetHistory(sessionID string) []ChatTurn
+	// ClearSession drops a session's history (e.g. "new chat").
+	ClearSession(sessionID string)
+}
+
 // CacheService handles caching operations
 type CacheService interface {
 	GetSummary(ctx context.Context, accountEmail, messageID string) (string, bool, error)

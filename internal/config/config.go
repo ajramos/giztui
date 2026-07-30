@@ -36,6 +36,7 @@ type LLMConfig struct {
 	ReplyTemplate     string `json:"reply_template"`
 	LabelTemplate     string `json:"label_template"`
 	TouchUpTemplate   string `json:"touch_up_template"`
+	ChatTemplate      string `json:"chat_template"`
 
 	// Inline prompt overrides (optional - takes precedence over files)
 	SummarizePrompt string `json:"summarize_prompt,omitempty"`
@@ -43,6 +44,8 @@ type LLMConfig struct {
 	LabelPrompt     string `json:"label_prompt,omitempty"`
 	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
 	TouchUpPrompt string `json:"touch_up_prompt,omitempty"`
+	// Chat prompt for the "chat with this email" conversational feature
+	ChatPrompt string `json:"chat_prompt,omitempty"`
 }
 
 // ThemeConfig holds theme-related configuration
@@ -546,6 +549,7 @@ func DefaultLLMConfig() LLMConfig {
 		ReplyTemplate:     "templates/ai/reply.md",
 		LabelTemplate:     "templates/ai/label.md",
 		TouchUpTemplate:   "templates/ai/touch_up.md",
+		ChatTemplate:      "templates/ai/chat.md",
 		// No inline prompts in defaults - use template files
 		SummarizePrompt: "",
 		ReplyPrompt:     "",
@@ -1188,6 +1192,19 @@ func (c *LLMConfig) GetLabelPrompt() string {
 func (c *LLMConfig) GetTouchUpPrompt() string {
 	fallback := "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
 	return LoadTemplate(c.TouchUpTemplate, c.TouchUpPrompt, fallback)
+}
+
+// GetChatPrompt returns the chat prompt used for the conversational "chat with
+// this email" feature, loading from template file if needed. It grounds the
+// assistant on the email ({{body}}), the prior conversation ({{transcript}}),
+// and the new user question ({{question}}).
+func (c *LLMConfig) GetChatPrompt() string {
+	fallback := "You are a helpful assistant answering questions about the email below. " +
+		"Use the email as your primary source; if the answer isn't in it, say so briefly. " +
+		"Keep answers concise and in the same language as the question.\n\n" +
+		"--- EMAIL ---\n{{body}}\n--- END EMAIL ---\n\n" +
+		"{{transcript}}User: {{question}}\nAssistant:"
+	return LoadTemplate(c.ChatTemplate, c.ChatPrompt, fallback)
 }
 
 // GetSummaryPrompt returns the Slack summary prompt, loading from template file if needed
