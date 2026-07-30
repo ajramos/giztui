@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
 )
 
@@ -82,11 +83,17 @@ func (a *API) ChatStream(ctx context.Context, id string, message string, onToken
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
+	// Prefer the rendered-visible text of the HTML body so the chat grounds on
+	// what the reader shows — not hidden preheaders or "can't view this email"
+	// fallback text that live in the raw HTML / plain-text part.
+	content := ""
+	if strings.TrimSpace(msg.HTML) != "" {
+		content = render.HTMLToText(msg.HTML)
 	}
 	if strings.TrimSpace(content) == "" {
+		content = strings.TrimSpace(msg.PlainText)
+	}
+	if content == "" {
 		return "", fmt.Errorf("message has no readable content to chat about")
 	}
 	return a.chat.SendMessageStream(ctx, id, content, message, onToken)

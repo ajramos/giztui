@@ -406,6 +406,19 @@ func dedupeRepeatedLineBlocks(s string, minBlockLines, window int) string {
 	return strings.Join(out, "\n")
 }
 
+// HTMLToText converts an HTML email body to readable plain text, dropping
+// head/style/script/title subtrees and markup so callers (e.g. the AI chat/
+// summary grounding) see roughly what the reader renders — not hidden preheaders
+// or "can't view this email" fallback text. Best-effort: returns "" on parse
+// failure so callers can fall back to the plain-text part.
+func HTMLToText(htmlStr string) string {
+	text, _, _, err := renderHTMLToText(htmlStr)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
 // renderHTMLToText parses HTML and emits text, collecting links and inline image references.
 func renderHTMLToText(htmlStr string) (string, []LinkRef, []AttachmentMeta, error) {
 	doc, err := html.Parse(strings.NewReader(htmlStr))

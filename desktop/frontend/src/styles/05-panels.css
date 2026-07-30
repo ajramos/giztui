@@ -28,15 +28,6 @@
 }
 
 /* Chat-with-this-email panel */
-.summary-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.summary-title svg {
-  width: 15px;
-  height: 15px;
-}
 .chat-body {
   max-height: 320px;
   overflow-y: auto;

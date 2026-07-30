@@ -42,20 +42,26 @@ export default function ChatPanel({
   return (
     <div className="summary-panel chat-panel">
       <div className="summary-head">
-        <span className="summary-title">{Icon.chat} Chat with this email</span>
+        <span>✦ Chat with this email</span>
         <span className="summary-head-actions">
-          <button className="ghost tiny" onClick={onReset} title="Clear the conversation">
-            {Icon.trash} Reset
-          </button>
-          <button className="ghost tiny" onClick={onClose} title="Close (Esc)">
-            ✕
+          {turns.length > 0 && (
+            <button
+              className="ghost tiny"
+              title="Clear the conversation and start over"
+              onClick={onReset}
+            >
+              reset
+            </button>
+          )}
+          <button className="ghost tiny" title="Close the chat (Esc)" onClick={onClose}>
+            dismiss
           </button>
         </span>
       </div>
 
       <div className="chat-body" ref={bodyRef}>
         {turns.length === 0 && !streaming && (
-          <div className="placeholder">
+          <div className="muted">
             Ask anything about this email — e.g. “what are the action items?”
           </div>
         )}
@@ -73,7 +79,7 @@ export default function ChatPanel({
             {streamingText ? (
               <Markdown text={streamingText} />
             ) : (
-              <span className="placeholder">Thinking…</span>
+              <span className="muted">Thinking…</span>
             )}
             <span className="caret">▍</span>
           </div>
