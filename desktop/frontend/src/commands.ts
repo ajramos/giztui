@@ -77,6 +77,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["decline"], desc: "RSVP: decline invite" },
   { names: ["autorefresh", "arr"], desc: "Toggle inbox auto-refresh" },
   { names: ["summarize", "sum", "summary"], desc: "AI summary" },
+  { names: ["chat"], desc: "Chat with this email (AI)" },
   { names: ["prompt", "pr", "p"], desc: "Apply a prompt" },
   { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },

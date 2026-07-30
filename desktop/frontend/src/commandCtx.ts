@@ -100,6 +100,7 @@ export interface CommandCtx {
   setPromptsOpen: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
   setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
+  openChat: () => void;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setShowHelp: Dispatch<SetStateAction<boolean>>;
   setThemePickerOpen: (v: boolean) => void;

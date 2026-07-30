@@ -71,6 +71,45 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	return res.Summary, nil
 }
 
+// ChatStream answers a user's message in the context of message `id` and the
+// prior conversation for that message, streaming tokens via onToken. The chat
+// history is kept per-message by the ChatService for the life of the session.
+func (a *API) ChatStream(ctx context.Context, id string, message string, onToken func(string)) (string, error) {
+	if a.chat == nil {
+		return "", fmt.Errorf("AI is not configured; enable an LLM provider in your GizTUI config")
+	}
+	msg, err := a.repo.GetMessage(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	content := msg.PlainText
+	if strings.TrimSpace(content) == "" {
+		content = msg.HTML
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("message has no readable content to chat about")
+	}
+	return a.chat.SendMessageStream(ctx, id, content, message, onToken)
+}
+
+// ChatHistory returns the conversation turns recorded for message `id`.
+func (a *API) ChatHistory(id string) []services.ChatTurn {
+	if a.chat == nil {
+		return nil
+	}
+	return a.chat.GetHistory(id)
+}
+
+// ChatReset clears the conversation history for message `id`.
+func (a *API) ChatReset(id string) {
+	if a.chat != nil {
+		a.chat.ClearSession(id)
+	}
+}
+
+// ChatEnabled reports whether the chat feature is available (an LLM is configured).
+func (a *API) ChatEnabled() bool { return a.chat != nil }
+
 // TouchUp reformats a message's body with the AI for readability (fixing broken
 // wrapping, spacing and markdown), returning the cleaned-up text. Mirrors the
 // TUI's ":touch-up".

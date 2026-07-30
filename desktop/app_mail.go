@@ -140,6 +140,34 @@ func (a *App) SummarizeStream(id string, force bool) (string, error) {
 	})
 }
 
+// ChatEnabled reports whether the "chat with this email" feature is available.
+func (a *App) ChatEnabled() bool {
+	api, err := a.api()
+	if err != nil {
+		return false
+	}
+	return api.ChatEnabled()
+}
+
+// ChatStream answers a user's message about message `id`, emitting each token as
+// a "chat:token" Wails event and returning the full reply when done.
+func (a *App) ChatStream(id string, message string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ChatStream(a.ctx, id, message, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, chatTokenEvent, tok)
+	})
+}
+
+// ChatReset clears the chat history for message `id`.
+func (a *App) ChatReset(id string) {
+	if api, err := a.api(); err == nil {
+		api.ChatReset(id)
+	}
+}
+
 // GenerateReply drafts an AI reply to a message and returns the draft body.
 func (a *App) GenerateReply(id string) (string, error) {
 	api, err := a.api()

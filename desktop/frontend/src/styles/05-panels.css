@@ -27,6 +27,84 @@
   color: var(--text);
 }
 
+/* Chat-with-this-email panel */
+.summary-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.summary-title svg {
+  width: 15px;
+  height: 15px;
+}
+.chat-body {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chat-turn {
+  font-size: 13.5px;
+  line-height: 1.55;
+  border-radius: 8px;
+  padding: 7px 10px;
+  max-width: 92%;
+}
+.chat-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--bg);
+}
+.chat-user-text {
+  white-space: pre-wrap;
+}
+.chat-assistant {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chat-input {
+  flex: 1;
+  resize: vertical;
+  min-height: 38px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.chat-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.chat-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+.chat-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Rendered Markdown (LLM summary / prompt output). The .md-body wrapper resets
    the pre-wrap of its .summary-text container since block elements handle
    layout now. */

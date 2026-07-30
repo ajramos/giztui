@@ -10,7 +10,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
   const {
     detail, load, doAction, activeQuery, openDrafts, saveMessage,
     sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
-    summarize, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
+    summarize, openChat, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
     runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
     openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
@@ -120,6 +120,9 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "sum":
         case "summary":
           if (d && aiEnabled) void summarize(d.id);
+          break;
+        case "chat":
+          if (d && aiEnabled) openChat();
           break;
         case "prompt":
         case "pr":

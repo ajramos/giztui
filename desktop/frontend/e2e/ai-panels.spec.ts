@@ -87,6 +87,29 @@ test.describe("AI prompt panel", () => {
   });
 });
 
+test.describe("AI chat", () => {
+  test("':chat' opens the chat panel; a message streams an assistant reply", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await openMessageAt(page, 0);
+    await runCommand(page, "chat");
+
+    const input = page.locator(".chat-input");
+    await expect(input).toBeVisible();
+    await input.fill("What are the action items?");
+    await input.press("Enter");
+
+    // The user turn shows immediately; the assistant reply streams in.
+    await expect(page.locator(".chat-user").last()).toContainText(
+      "What are the action items?",
+    );
+    await expect(page.locator(".chat-assistant").last()).toContainText(
+      "mock answer",
+    );
+  });
+});
+
 test.describe("AI bulk prompt (background job)", () => {
   test("running a bulk prompt shows its result in the job dialog; Escape closes it", async ({
     page,

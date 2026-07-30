@@ -5,6 +5,7 @@ import TopBar from "./TopBar";
 import { replyInit, forwardInit } from "./composeBuilders";
 import type { ComposeInit } from "./Compose";
 import type { AiCacheEntry } from "./useAiActions";
+import type { ChatBundle } from "./useChat";
 import type {
   AccountInfo,
   Attachment,
@@ -95,6 +96,7 @@ export interface AppInboxProps {
   downloadAttachment: (att: Attachment) => void;
   aiEnabled: boolean;
   aiPromptsEnabled: boolean;
+  chat: ChatBundle;
   obsidianOn: boolean;
   slackOn: boolean;
   threadingOn: boolean;
@@ -179,7 +181,7 @@ export default function AppInbox(p: AppInboxProps) {
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
   } = p;
   return (
     <>
@@ -309,6 +311,7 @@ export default function AppInbox(p: AppInboxProps) {
           hasThread={!!threadMsgs}
           viewHtml={viewHtml}
           summarizing={summarizing}
+          chat={chat}
           promptRunning={promptRunning}
           generatingReply={generatingReply}
           touchingUp={touchingUp}

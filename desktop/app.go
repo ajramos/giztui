@@ -14,6 +14,7 @@ import (
 const (
 	summaryTokenEvent = "summary:token"
 	promptTokenEvent  = "prompt:token"
+	chatTokenEvent    = "chat:token"
 	planProgressEvent = "plan:progress"
 )
 

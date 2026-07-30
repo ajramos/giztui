@@ -179,6 +179,14 @@ export const mockA: Partial<Backend> = {
   async JobsNotifyOnComplete() {
     return true;
   },
+  async ChatEnabled() {
+    return true;
+  },
+  async ChatReset(_id: string) {},
+  async ChatStream(_id: string, message: string) {
+    await new Promise((r) => setTimeout(r, 300));
+    return `You asked: "${message}". Based on the email, here's a concise mock answer with the key detail you were looking for.`;
+  },
   async ListPrompts() {
     return md.prompts.map((p) => ({
       id: p.id,

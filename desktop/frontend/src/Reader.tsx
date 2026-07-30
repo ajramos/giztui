@@ -1,5 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { MessageDetail, Attachment, Invite } from "./api";
+import type { ChatBundle } from "./useChat";
 import { Icon } from "./Icons";
 import { displayName, emailAddr, formatFull, formatSize } from "./format";
 import ReaderToolbar from "./ReaderToolbar";
@@ -29,6 +30,7 @@ export default function Reader(props: {
   hasThread: boolean;
   viewHtml: boolean;
   summarizing: boolean;
+  chat: ChatBundle;
   promptRunning: boolean;
   generatingReply: boolean;
   touchingUp: boolean;
@@ -195,6 +197,7 @@ export default function Reader(props: {
           </div>
           <ReaderBody
             detail={detail}
+            chat={props.chat}
             readerBodyRef={props.readerBodyRef}
             invite={props.invite}
             rsvpBusy={props.rsvpBusy}

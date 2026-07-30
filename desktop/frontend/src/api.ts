@@ -101,6 +101,16 @@ export function applyBulkPromptStream(
   );
 }
 
+// chatStream streams the assistant's reply to a user message, grounded on the
+// email `id` and the prior conversation for that email (kept by the backend).
+export function chatStream(
+  id: string,
+  message: string,
+  onToken: (token: string) => void,
+): Promise<string> {
+  return streamViaEvent("chat:token", () => backend.ChatStream(id, message), onToken);
+}
+
 // backend proxies to the real Wails bindings when present, otherwise to a mock
 // so the UI is fully explorable in a normal browser during development.
 export const backend: Backend = new Proxy({} as Backend, {

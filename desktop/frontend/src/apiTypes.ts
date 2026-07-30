@@ -330,6 +330,9 @@ export interface Backend {
   BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
   PromptsEnabled(): Promise<boolean>;
   JobsNotifyOnComplete(): Promise<boolean>;
+  ChatEnabled(): Promise<boolean>;
+  ChatStream(id: string, message: string): Promise<string>;
+  ChatReset(id: string): Promise<void>;
   ListPrompts(): Promise<Prompt[]>;
   GetPrompt(id: number): Promise<PromptDetail>;
   CreatePrompt(name: string, description: string, text: string, category: string): Promise<number>;

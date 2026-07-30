@@ -44,6 +44,7 @@ type Deps struct {
 	Labels       services.LabelService
 	Mail         mailClient
 	AI           services.AIService                 // optional; nil when no LLM is configured
+	Chat         services.ChatService               // optional; multi-turn "chat with this email"
 	Attach       services.AttachmentService         // optional
 	Prompts      services.PromptService             // optional; nil without LLM+DB
 	Web          services.GmailWebService           // optional
@@ -79,6 +80,7 @@ type API struct {
 	labels       services.LabelService
 	mail         mailClient
 	ai           services.AIService
+	chat         services.ChatService
 	attach       services.AttachmentService
 	prompts      services.PromptService
 	web          services.GmailWebService
@@ -117,6 +119,7 @@ func NewAPI(d Deps) *API {
 		labels:       d.Labels,
 		mail:         d.Mail,
 		ai:           d.AI,
+		chat:         d.Chat,
 		attach:       d.Attach,
 		prompts:      d.Prompts,
 		web:          d.Web,

@@ -128,6 +128,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       rows: [
         { icon: "📝", keys: fmtKey(k.summarize), desc: "Summarize" },
         { icon: "🔄", keys: fmtKey(k.summarize.toUpperCase()), desc: "Regenerate (ignore cache)" },
+        { icon: "💬", keys: ":chat", desc: "Chat with this email (AI)" },
         ...(f.prompts
           ? [{ icon: "🎯", keys: fmtKey(k.prompt), desc: "Apply a prompt" }]
           : []),

@@ -25,6 +25,7 @@ import { useAppWiring } from "./useAppWiring";
 import { useActionPlan } from "./useActionPlan";
 import { useAiActions } from "./useAiActions";
 import { useAiJobs } from "./useAiJobs";
+import { useChat } from "./useChat";
 import { useMiscActions } from "./useMiscActions";
 import { useReader } from "./useReader";
 import { useKeymap } from "./useKeymap";
@@ -315,6 +316,9 @@ export default function App() {
     setPromptsOpen, setCompose, enqueueJob, runExclusive,
   });
 
+  // "Chat with this email" panel (multi-turn), scoped to the open message.
+  const chat = useChat({ detailId: () => detail?.id ?? null, setError });
+
   const { importCreds, retryInit, switchAccount } = useBootstrap({
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
     setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
@@ -410,7 +414,7 @@ export default function App() {
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
     promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
-    jobsPickerOpen, setJobsPickerOpen,
+    jobsPickerOpen, setJobsPickerOpen, openChat: chat.openChat,
     runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
     saveRawMessage, savedQueriesOn, searchRef, selected, selectedId, sendObsidian, setAccountsOpen,
     setAdvOpen, setAlwaysImagesOn, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
@@ -488,7 +492,7 @@ export default function App() {
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
   };
 
   return (

@@ -195,6 +195,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	// AIService is optional: only wired when an LLM provider is configured.
 	aiService := buildAIService(cfg, cacheService, logger)
 
+	// Chat service (multi-turn "chat with this email"); nil without an LLM.
+	var chatService services.ChatService
+	if aiService != nil {
+		chatService = services.NewChatService(aiService, cfg)
+	}
+
 	// PromptService needs both an LLM (aiService) and the local database. Wire the
 	// bulk-prompt service too (mirroring the TUI) so "apply a prompt to many
 	// messages" works — without it ApplyBulkPrompt returns "bulk prompt service
@@ -285,6 +291,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Labels:       labelService,
 		Mail:         client,
 		AI:           aiService,
+		Chat:         chatService,
 		Attach:       attachmentService,
 		Prompts:      promptService,
 		Web:          webService,
