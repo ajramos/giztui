@@ -13,6 +13,19 @@ import (
 // AI actions when unavailable.
 func (a *API) AIEnabled() bool { return a.ai != nil }
 
+// readableBody returns the message body the AI should work on: the rendered
+// visible text of the HTML part when present, else the plain-text part. This
+// keeps AI features (summary, reply, touch-up, chat) grounded on what the reader
+// shows instead of hidden preheaders / "can't view this email" fallback text.
+func readableBody(plain, htmlBody string) string {
+	if strings.TrimSpace(htmlBody) != "" {
+		if t := render.HTMLToText(htmlBody); strings.TrimSpace(t) != "" {
+			return t
+		}
+	}
+	return strings.TrimSpace(plain)
+}
+
 // Summarize returns an AI-generated summary of a message's body. It reuses the
 // same AIService the TUI uses. Returns a clear error when AI is not configured.
 func (a *API) Summarize(ctx context.Context, id string) (string, error) {
@@ -23,10 +36,7 @@ func (a *API) Summarize(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
@@ -52,10 +62,7 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
@@ -86,13 +93,7 @@ func (a *API) ChatStream(ctx context.Context, id string, message string, onToken
 	// Prefer the rendered-visible text of the HTML body so the chat grounds on
 	// what the reader shows — not hidden preheaders or "can't view this email"
 	// fallback text that live in the raw HTML / plain-text part.
-	content := ""
-	if strings.TrimSpace(msg.HTML) != "" {
-		content = render.HTMLToText(msg.HTML)
-	}
-	if strings.TrimSpace(content) == "" {
-		content = strings.TrimSpace(msg.PlainText)
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if content == "" {
 		return "", fmt.Errorf("message has no readable content to chat about")
 	}
@@ -128,10 +129,7 @@ func (a *API) TouchUp(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to reformat")
 	}
@@ -152,10 +150,7 @@ func (a *API) GenerateReply(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to reply to")
 	}
