@@ -37,15 +37,21 @@ func (st *chatPanelState) aiLine(text string) string {
 	return st.aiTag + "AI: " + tview.Escape(text) + chatColorReset + "\n\n"
 }
 
-// Chat role colors. derailed/tview's colorPattern requires the full
-// "[fg:bg:flags]" form (two colons) — a bare "[aqua]" or "[-]" does NOT match
-// the regex and prints literally. Named colors only (hex "#rrggbb" is allowed by
-// the regex but unreliable in this fork).
-const (
-	chatUserColor  = "[aqua::b]" // your turns
-	chatAIColor    = "[lime::b]" // the assistant's turns
-	chatColorReset = "[-:-:-]"   // reset fg/bg/flags
-)
+// chatColorReset resets fg/bg/flags. derailed/tview's colorPattern requires the
+// full "[fg:bg:flags]" form (two colons) — a bare "[aqua]"/"[-]" does NOT match
+// the regex and would print literally.
+const chatColorReset = "[-:-:-]"
+
+// chatColorTag builds a bold, two-colon tview color tag from a theme color so the
+// chat's role colors follow the active theme. Falls back to a named color when
+// the theme color has no RGB (default). Hex uses the "[#rrggbb::b]" form, which
+// the colorPattern regex accepts.
+func chatColorTag(c tcell.Color, fallback string) string {
+	if h := c.Hex(); h >= 0 {
+		return fmt.Sprintf("[#%06x::b]", h)
+	}
+	return "[" + fallback + "::b]"
+}
 
 // openChatPanel opens (or toggles closed) the chat panel for the open message.
 // Runs everything on the UI goroutine (call via `go a.openChatPanel()`).
@@ -127,9 +133,10 @@ func (a *App) buildChatPanel(messageID string) {
 		transcript: transcript,
 		input:      input,
 		messageID:  messageID,
-		// Distinct role colors so you can tell your turns from the assistant's.
-		userTag: chatUserColor,
-		aiTag:   chatAIColor,
+		// Distinct, theme-derived role colors so you can tell your turns from the
+		// assistant's (links accent for you, AI accent for the assistant).
+		userTag: chatColorTag(a.GetComponentColors("links").Accent.Color(), "aqua"),
+		aiTag:   chatColorTag(a.GetComponentColors("ai").Accent.Color(), "lime"),
 	}
 	a.chatPanelState = st
 
