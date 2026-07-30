@@ -53,6 +53,7 @@ type KeyMap struct {
 	SaveRaw           string `json:"saveRaw"`
 	RSVP              string `json:"rsvp"`
 	AiJobs            string `json:"aiJobs"`
+	Chat              string `json:"chat"`
 	Quit              string `json:"quit"`
 	VimTimeoutMs      int    `json:"vimTimeoutMs"`
 	VimRangeTimeoutMs int    `json:"vimRangeTimeoutMs"`
@@ -73,7 +74,7 @@ func DefaultKeyMap() KeyMap {
 		ToggleHeaders: "h", SearchFrom: "F", SearchTo: "T", SearchSubject: "S",
 		SearchAdvanced: "ctrl+f",
 		ContentSearch:  "/", Undo: "U", Unread: "u", Archived: "B", SaveRaw: "W",
-		RSVP: "V", AiJobs: "J", Quit: "q", VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
+		RSVP: "V", AiJobs: "J", Chat: "X", Quit: "q", VimTimeoutMs: 1000, VimRangeTimeoutMs: 2000,
 	}
 }
 
@@ -132,6 +133,7 @@ func (s *Session) KeyMap() KeyMap {
 	km.SaveRaw = orDefault(k.SaveRaw, km.SaveRaw)
 	km.RSVP = orDefault(k.RSVP, km.RSVP)
 	km.AiJobs = orDefault(k.AiJobs, km.AiJobs)
+	km.Chat = orDefault(k.Chat, km.Chat)
 	km.Quit = orDefault(k.Quit, km.Quit)
 	if k.VimNavigationTimeoutMs > 0 {
 		km.VimTimeoutMs = k.VimNavigationTimeoutMs

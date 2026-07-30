@@ -330,6 +330,8 @@ func (a *App) executeCommand(cmd string) {
 		a.executeRSVPCommand(args)
 	case "jobs", "aijobs":
 		go a.openAIJobsPicker()
+	case "chat":
+		go a.openChatPanel()
 	case "inbox", "i":
 		a.executeInboxCommand(args)
 	case "compose", "c":

@@ -49,6 +49,7 @@ const (
 	PickerAccounts           ActivePicker = "accounts"
 	PickerRules              ActivePicker = "rules"
 	PickerAIJobs             ActivePicker = "ai_jobs"
+	PickerChat               ActivePicker = "chat"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -162,6 +163,7 @@ type App struct {
 	promptService             services.PromptService
 	promptGeneratorService    services.PromptGeneratorService
 	chatService               services.ChatService
+	chatPanelState            *chatPanelState
 	inboxAnalyzerService      services.InboxAnalyzerService
 	promptConfiguratorState   *promptConfiguratorState
 	actionPlanState           *actionPlanState
@@ -2283,7 +2285,8 @@ func (a *App) generateHelpText() string {
 		fmt.Fprintf(&help, "    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt)
 		fmt.Fprintf(&help, "    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply)
 		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n", a.Keys.SuggestLabel)
-		fmt.Fprintf(&help, "    %-8s  🧰  AI background jobs (:jobs)\n\n", a.Keys.AiJobs)
+		fmt.Fprintf(&help, "    %-8s  🧰  AI background jobs (:jobs)\n", a.Keys.AiJobs)
+		fmt.Fprintf(&help, "    %-8s  💬  Chat with this email (:chat)\n\n", a.Keys.Chat)
 	}
 
 	// Threading Features (if enabled)
@@ -3408,6 +3411,11 @@ func (a *App) isRulesPickerActive() bool {
 // isAIJobsPickerActive returns true if the AI background-jobs picker is currently active.
 func (a *App) isAIJobsPickerActive() bool {
 	return a.currentActivePicker == PickerAIJobs
+}
+
+// isChatPanelActive returns true if the "chat with this email" panel is currently active.
+func (a *App) isChatPanelActive() bool {
+	return a.currentActivePicker == PickerChat
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging

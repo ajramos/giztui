@@ -93,7 +93,8 @@ test.describe("AI chat", () => {
   }) => {
     await openApp(page);
     await openMessageAt(page, 0);
-    await runCommand(page, "chat");
+    // Open via the default keymap shortcut ("X") — exercises the keymap wiring.
+    await page.keyboard.press("X");
 
     const input = page.locator(".chat-input");
     await expect(input).toBeVisible();

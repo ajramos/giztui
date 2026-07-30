@@ -359,6 +359,7 @@ type KeyBindings struct {
 	SaveRaw       string `json:"save_raw"`       // Save raw EML
 	RSVP          string `json:"rsvp"`           // Toggle RSVP panel
 	AiJobs        string `json:"ai_jobs"`        // Open AI background-jobs picker
+	Chat          string `json:"chat"`           // Open chat-with-this-email panel
 	LinkPicker    string `json:"link_picker"`    // Open link picker
 	ThemePicker   string `json:"theme_picker"`   // Open theme picker
 	OpenGmail     string `json:"open_gmail"`     // Open message in Gmail web UI
@@ -612,6 +613,7 @@ func DefaultKeyBindings() KeyBindings {
 		SaveRaw:       "W",
 		RSVP:          "V",
 		AiJobs:        "J",
+		Chat:          "X",
 		LinkPicker:    "L",
 		ThemePicker:   "H",
 		OpenGmail:     "O",
@@ -846,6 +848,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"M": "markdown",       // M key → markdown config
 		"V": "rsvp",           // V key → rsvp config
 		"J": "ai_jobs",        // J key → ai_jobs config
+		"X": "chat",           // X key → chat config
 		"O": "obsidian",       // O key → obsidian config
 		"L": "link_picker",    // L key → link_picker config
 		"w": "save_message",   // w key → save_message config
@@ -1026,6 +1029,7 @@ func getFunctionName(configParam string) string {
 		"markdown":        "markdown toggle",
 		"rsvp":            "RSVP",
 		"ai_jobs":         "AI background jobs",
+		"chat":            "AI chat",
 		"obsidian":        "Obsidian integration",
 		"link_picker":     "link picker",
 		"save_message":    "save message",

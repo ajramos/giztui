@@ -130,6 +130,7 @@ export interface KeydownCtx {
   setReaderFocused: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
   setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
+  openChat: () => void;
   setRulesOpen: Dispatch<SetStateAction<boolean>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setSelected: Dispatch<SetStateAction<Set<string>>>;

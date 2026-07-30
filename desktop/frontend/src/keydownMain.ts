@@ -17,7 +17,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     sendObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
     setCmdOpen, setCompose, setCsIndex, setCsOpen, setCsQuery, setDetail,
     setHeadersHidden, setLabelsFor, setLinksFor, setLocalFilter, setMessages, setMoveFor,
-    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, setSaveQueryOpen, setSelected,
+    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, openChat, setSaveQueryOpen, setSelected,
     setSelectedId, setShowHelp, setThemePickerOpen, setViewHtml, showToast, slackOn,
     summarize, threadingOn, toggleSelect, toggleThread,
     activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
@@ -463,6 +463,10 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
         case "aijobs":
           // Open the AI background-jobs picker (":jobs" / default "J").
           setJobsPickerOpen(true);
+          break;
+        case "chat":
+          // Open the chat-with-this-email panel (":chat" / default "X").
+          openChat();
           break;
       }
 
