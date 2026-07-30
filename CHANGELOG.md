@@ -5,6 +5,50 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-07-30
+
+Two AI features, brought to **both the desktop client and the TUI** with keyboard
+and command parity: bulk prompts that run in the background, and a multi-turn
+chat grounded on the open email.
+
+### 🚀 Features
+
+- **AI background jobs (`:jobs`, key `J`) — desktop & TUI.** Applying a prompt
+  across selected emails no longer blocks: it runs as a tracked background job,
+  so you keep working and get a toast when it finishes. A `:jobs` picker lists
+  jobs (queued / running / done / error) and lets you re-open a result, remove a
+  job, or clear finished ones. On the desktop a `runExclusive` gate serializes
+  the shared token stream so concurrent AI runs never interleave; the completion
+  toast is configurable via `jobs.notify_on_complete`.
+- **Chat with this email (`:chat`, key `X`) — desktop & TUI.** A multi-turn AI
+  chat grounded on the open message, with per-message history. The desktop shows
+  a chat panel in the reader (transcript + input; Enter sends, Shift+Enter
+  newline); the TUI shows a side panel with color-coded turns and history restore
+  on reopen. Backed by a new `ChatService` that reuses the existing streaming AI
+  API — no LLM-provider changes.
+
+### 🚀 Improvements
+
+- **AI grounds on the visible email text.** Summary, reply, touch-up and chat now
+  read the *rendered* HTML text of a message instead of the raw HTML / plain-text
+  part, so they no longer answer with hidden preheaders or "can't view this
+  email" boilerplate.
+
+### 🐛 Bug Fixes
+
+- **TUI — opening a finished job from `:jobs` could hang** (a `QueueUpdateDraw`
+  ran on the tview event goroutine); the result now renders synchronously.
+- **TUI chat — no feedback on send.** The message and a "…thinking…" cue now
+  appear instantly, and reopening chat restores the prior conversation.
+- **Desktop — the frameless window couldn't be dragged;** the top bar is now a
+  window drag region.
+
+### 🔧 Configuration
+
+- New keys, added to defaults and surfaced to existing users via `:config migrate`:
+  `jobs.notify_on_complete` (default `true`), `llm.chat_template`
+  (`templates/ai/chat.md`), `keys.ai_jobs` (`J`) and `keys.chat` (`X`).
+
 ## [1.22.1] - 2026-07-29
 
 Maintenance release: the internal decomposition of the **GizTUI Desktop** client
