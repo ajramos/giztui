@@ -215,6 +215,22 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+/* Slack forward picker: optional pre-message input under the channel list. */
+.slack-premessage {
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px 9px;
+  background: var(--bg-input, rgba(127, 127, 127, 0.12));
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+.slack-premessage:focus {
+  border-color: var(--accent, #60a5fa);
+}
 /* AI-jobs picker status chip (":jobs"). */
 .job-status {
   display: inline-block;

@@ -19,7 +19,7 @@ export interface CommandCtx {
   openDrafts: () => void;
   saveMessage: (id: string) => void;
   sendObsidian: (id: string) => void;
-  forwardSlack: (id: string) => void;
+  openSlackForward: () => void;
   obsidianOn: boolean;
   slackOn: boolean;
   aiEnabled: boolean;

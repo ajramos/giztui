@@ -53,13 +53,27 @@ func (a *App) SlackEnabled() bool {
 	return a.enabled((*desktop.API).SlackEnabled)
 }
 
-// ForwardToSlack forwards a message to the default Slack channel.
-func (a *App) ForwardToSlack(id string) error {
+// SlackChannels returns the configured Slack channels for the forward picker.
+func (a *App) SlackChannels() ([]desktop.SlackChannelInfo, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.SlackChannels(a.ctx)
+}
+
+// ForwardToSlack forwards a message to the chosen Slack channel with an optional
+// pre-message, honoring the configured slack.defaults.format_style (TUI parity).
+func (a *App) ForwardToSlack(id, channelID, userMessage string) error {
 	api, err := a.api()
 	if err != nil {
 		return err
 	}
-	return api.ForwardToSlack(a.ctx, id)
+	format := ""
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		format = s.Config.Slack.Defaults.FormatStyle
+	}
+	return api.ForwardToSlack(a.ctx, id, channelID, userMessage, format)
 }
 
 // SuggestLabels returns AI-suggested labels for a message.

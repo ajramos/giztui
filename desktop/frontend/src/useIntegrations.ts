@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { backend } from "./api";
 
 // useIntegrations owns the optional outbound integrations (Obsidian, Slack):
@@ -10,7 +10,12 @@ export interface Integrations {
   slackOn: boolean;
   refresh: () => Promise<void>;
   sendObsidian: (id: string) => void;
-  forwardSlack: (id: string) => void;
+  // Slack forward now goes through a picker (channel + pre-message, TUI parity):
+  // openSlackForward toggles the dialog; forwardSlack performs the actual send.
+  slackForwardOpen: boolean;
+  setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
+  openSlackForward: () => void;
+  forwardSlack: (id: string, channelID: string, userMessage: string) => void;
 }
 
 export function useIntegrations(deps: {
@@ -20,6 +25,7 @@ export function useIntegrations(deps: {
   const { showToast, setError } = deps;
   const [obsidianOn, setObsidianOn] = useState(false);
   const [slackOn, setSlackOn] = useState(false);
+  const [slackForwardOpen, setSlackForwardOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setObsidianOn(await backend.ObsidianEnabled());
@@ -37,16 +43,28 @@ export function useIntegrations(deps: {
     [showToast, setError],
   );
 
+  const openSlackForward = useCallback(() => setSlackForwardOpen(true), []);
+
   const forwardSlack = useCallback(
-    (id: string) => {
+    (id: string, channelID: string, userMessage: string) => {
+      setSlackForwardOpen(false);
       showToast("Forwarding to Slack…");
       void backend
-        .ForwardToSlack(id)
+        .ForwardToSlack(id, channelID, userMessage)
         .then(() => showToast("Forwarded to Slack"))
         .catch((e) => setError(String(e)));
     },
     [showToast, setError],
   );
 
-  return { obsidianOn, slackOn, refresh, sendObsidian, forwardSlack };
+  return {
+    obsidianOn,
+    slackOn,
+    refresh,
+    sendObsidian,
+    slackForwardOpen,
+    setSlackForwardOpen,
+    openSlackForward,
+    forwardSlack,
+  };
 }

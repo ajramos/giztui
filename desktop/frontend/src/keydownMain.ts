@@ -20,7 +20,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, openChat, setSaveQueryOpen, setSelected,
     setSelectedId, setShowHelp, setThemePickerOpen, setViewHtml, showToast, slackOn,
     summarize, threadingOn, toggleSelect, toggleThread,
-    activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
+    activeQuery, gPressedAt, vimRange, openSlackForward, themesOn,
   } = ctx;
       const chord = e.key === " " ? "space" : e.key;
       const idx = selectedId
@@ -399,7 +399,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
           if (detail && obsidianOn) sendObsidian(detail.id);
           break;
         case "slack":
-          if (detail && slackOn) forwardSlack(detail.id);
+          if (detail && slackOn) openSlackForward();
           break;
         case "commandMode":
           setCmdOpen(true);

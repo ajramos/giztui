@@ -9,7 +9,7 @@ import type { CommandCtx } from "./commandCtx";
 export function runCommand(input: string, ctx: CommandCtx) {
   const {
     detail, load, doAction, activeQuery, openDrafts, saveMessage,
-    sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
+    sendObsidian, openSlackForward, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
     summarize, openChat, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
     runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
@@ -139,7 +139,9 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "slack":
         case "sl":
-          if (d && slackOn) forwardSlack(d.id);
+          // Open the forward picker (channel + pre-message); the send honors the
+          // configured format_style on the backend.
+          if (d && slackOn) openSlackForward();
           break;
         case "gmail":
         case "web":

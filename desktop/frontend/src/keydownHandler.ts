@@ -22,6 +22,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
     setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setShowHelp, setStatsOpen, setSuggestFor,
     setThemePickerOpen, showHelp, statsOpen, suggestFor, themePickerOpen, viewAnalyzerPrompt,
     attachmentsOpen, activeQuery, jobsPickerOpen, setJobsPickerOpen,
+    slackForwardOpen, setSlackForwardOpen,
   } = ctx;
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
@@ -97,6 +98,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
         bulkMove ||
         rsvpPickerOpen ||
         jobsPickerOpen ||
+        slackForwardOpen ||
         detRulesOpen ||
         accountsOpen ||
         attachmentsOpen ||
@@ -128,6 +130,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
           else if (queriesOpen) setQueriesOpen(false);
           else if (rsvpPickerOpen) setRsvpPickerOpen(false);
           else if (jobsPickerOpen) setJobsPickerOpen(false);
+          else if (slackForwardOpen) setSlackForwardOpen(false);
           else if (linksFor) setLinksFor(null);
           else if (bulkLabels) setBulkLabels(false);
           else if (labelsFor) setLabelsFor(null);

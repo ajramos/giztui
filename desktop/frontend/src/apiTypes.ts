@@ -162,6 +162,13 @@ export interface UsageStats {
   topPrompts: UsageStat[];
 }
 
+export interface SlackChannel {
+  id: string;
+  name: string;
+  description: string;
+  default: boolean;
+}
+
 export interface ConfigInfo {
   configPath: string;
   logPath: string;
@@ -407,7 +414,8 @@ export interface Backend {
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
-  ForwardToSlack(messageID: string): Promise<void>;
+  SlackChannels(): Promise<SlackChannel[]>;
+  ForwardToSlack(messageID: string, channelID: string, userMessage: string): Promise<void>;
   SuggestLabels(messageID: string): Promise<string[]>;
   ApplyLabelByName(messageID: string, name: string): Promise<void>;
   OpenGmailWeb(messageID: string): Promise<void>;

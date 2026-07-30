@@ -17,6 +17,7 @@ import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
 import SavedQueriesPicker from "./SavedQueriesPicker";
 import RSVPPicker from "./RSVPPicker";
+import SlackPicker from "./SlackPicker";
 import SaveQueryModal from "./SaveQueryModal";
 
 // The compose window + the picker-style modals (labels, prompts, links, suggest,
@@ -85,6 +86,9 @@ export default function ModalsPrimary(p: {
   saveQueryName: string;
   setSaveQueryName: Dispatch<SetStateAction<string>>;
   doSaveQuery: () => void;
+  slackForwardOpen: boolean;
+  setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
+  forwardSlack: (id: string, channelID: string, userMessage: string) => void;
 }) {
   const {
     compose, setCompose, showToast, draftsView, loadDrafts,
@@ -97,6 +101,7 @@ export default function ModalsPrimary(p: {
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite,
     saveQueryOpen, saveQueryName, setSaveQueryName, doSaveQuery,
+    slackForwardOpen, setSlackForwardOpen, forwardSlack,
   } = p;
   return (
     <>
@@ -197,6 +202,12 @@ export default function ModalsPrimary(p: {
             setRsvpPickerOpen(false);
           }}
           onClose={() => setRsvpPickerOpen(false)}
+        />
+      )}
+      {slackForwardOpen && detail && (
+        <SlackPicker
+          onSend={(channelID, message) => forwardSlack(detail.id, channelID, message)}
+          onClose={() => setSlackForwardOpen(false)}
         />
       )}
       {saveQueryOpen && (

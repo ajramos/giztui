@@ -214,7 +214,14 @@ export const mockB: Partial<Backend> = {
   async SlackEnabled() {
     return true;
   },
-  async ForwardToSlack() {
+  async SlackChannels() {
+    await new Promise((r) => setTimeout(r, 100));
+    return [
+      { id: "team", name: "team-updates", description: "Team channel", default: true },
+      { id: "me", name: "personal-dm", description: "My DM", default: false },
+    ];
+  },
+  async ForwardToSlack(_id: string, _channelID: string, _userMessage: string) {
     await new Promise((r) => setTimeout(r, 300));
   },
   async SuggestLabels() {

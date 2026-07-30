@@ -210,8 +210,16 @@ export default function App() {
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
   } = useAiJobs({ showToast, setError, notifyOnComplete: jobsNotify });
 
-  const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
-    useIntegrations({ showToast, setError });
+  const {
+    obsidianOn,
+    slackOn,
+    refresh: refreshIntegrations,
+    sendObsidian,
+    slackForwardOpen,
+    setSlackForwardOpen,
+    openSlackForward,
+    forwardSlack,
+  } = useIntegrations({ showToast, setError });
   const {
     draftsView,
     setDraftsView,
@@ -407,7 +415,8 @@ export default function App() {
     bulkAction, bulkLabels, bulkMode, bulkMove, bulkPromptText, bumpZoom, chordAction,
     clearCaches, clearVimRange, cmdOpen, compose, configOpen, csOpen,
     csQuery, detRulesOpen, detail, dismissAI, doAction, doBulkMove,
-    doMove, draftsView, exitBulk, forwardSlack, fullMessagesRef, gPressedAt, generateReply,
+    doMove, draftsView, exitBulk, openSlackForward, slackForwardOpen, setSlackForwardOpen,
+    fullMessagesRef, gPressedAt, generateReply,
     headersHidden, imageOptIn, invite, keymap, labelsFor, linksFor,
     load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
     openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openSuggest,
@@ -455,6 +464,7 @@ export default function App() {
     applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
+    slackForwardOpen, setSlackForwardOpen, forwardSlack,
     saveQueryName, setSaveQueryName, doSaveQuery,
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished, planOpen, analyzing,
@@ -487,7 +497,7 @@ export default function App() {
     threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
     setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, sendObsidian,
-    forwardSlack, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
+    openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
     readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,

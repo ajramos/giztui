@@ -12,7 +12,9 @@ export type VimOp = "archive" | "trash" | "toggleRead" | "manageLabels";
 // The keydown useEffect builds this each time its deps change; the ~700-line
 // handler then lives in keydownHandler.ts / keydownMain.ts instead of App.tsx.
 export interface KeydownCtx {
-  forwardSlack: (id: string) => void;
+  openSlackForward: () => void;
+  slackForwardOpen: boolean;
+  setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
   themesOn: boolean;
   attachmentsOpen: boolean;
   activeQuery: string;
