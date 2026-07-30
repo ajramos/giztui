@@ -24,6 +24,26 @@ type chatPanelState struct {
 	buf        strings.Builder
 	streaming  bool
 	cancel     context.CancelFunc
+	userTag    string // dynamic-color tag for the user's turns
+	aiTag      string // dynamic-color tag for the assistant's turns
+}
+
+// userLine / aiLine format one committed turn with its role color. The text is
+// tview.Escape'd so markdown brackets (links, etc.) don't break color parsing.
+func (st *chatPanelState) userLine(text string) string {
+	return st.userTag + "You: " + tview.Escape(text) + "[-]\n"
+}
+func (st *chatPanelState) aiLine(text string) string {
+	return st.aiTag + "AI: " + tview.Escape(text) + "[-]\n\n"
+}
+
+// chatColorTag builds a tview dynamic-color tag from a theme color, falling back
+// to a named color when the theme color is "default" (no RGB).
+func chatColorTag(c tcell.Color, fallback string) string {
+	if h := c.Hex(); h >= 0 {
+		return fmt.Sprintf("[#%06x]", h)
+	}
+	return "[" + fallback + "]"
 }
 
 // openChatPanel opens (or toggles closed) the chat panel for the open message.
@@ -53,6 +73,7 @@ func (a *App) buildChatPanel(messageID string) {
 	bg := colors.Background.Color()
 
 	transcript := tview.NewTextView().
+		SetDynamicColors(true).
 		SetWrap(true).
 		SetWordWrap(true).
 		SetScrollable(true)
@@ -105,6 +126,10 @@ func (a *App) buildChatPanel(messageID string) {
 		transcript: transcript,
 		input:      input,
 		messageID:  messageID,
+		// Distinct role colors (theme-derived, with readable fallbacks) so you
+		// can tell your turns from the assistant's at a glance.
+		userTag: chatColorTag(a.GetComponentColors("links").Accent.Color(), "aqua"),
+		aiTag:   chatColorTag(colors.Accent.Color(), "green"),
 	}
 	a.chatPanelState = st
 
@@ -113,9 +138,9 @@ func (a *App) buildChatPanel(messageID string) {
 	if svc := a.GetChatService(); svc != nil {
 		for _, t := range svc.GetHistory(messageID) {
 			if t.Role == "assistant" {
-				st.buf.WriteString("AI: " + t.Text + "\n\n")
+				st.buf.WriteString(st.aiLine(t.Text))
 			} else {
-				st.buf.WriteString("You: " + t.Text + "\n")
+				st.buf.WriteString(st.userLine(t.Text))
 			}
 		}
 	}
@@ -186,27 +211,31 @@ func (a *App) sendChatMessage(text string) {
 	// Live view = the committed transcript so far + this pending exchange. The
 	// user turn is only persisted to st.buf on success (mirroring the service,
 	// which doesn't record failed turns), so an error leaves a clean history.
-	liveBase := st.buf.String() + "You: " + text + "\n"
+	liveBase := st.buf.String() + st.userLine(text)
+	// pendingAI renders the in-progress assistant line (already-escaped body).
+	pendingAI := func(body string) string {
+		return liveBase + st.aiTag + "AI: " + body + "[-]"
+	}
 
 	// Show the user's message + a "thinking" cue IMMEDIATELY — before the
 	// (possibly slow) content load — so it never looks stuck. QueueUpdateDraw is
 	// safe here (off the event loop, not a streaming callback) and forces the
 	// redraw that a bare SetText from this goroutine would not trigger.
-	a.setChatTranscript(st, liveBase+"AI: …thinking…")
+	a.setChatTranscript(st, pendingAI("…thinking…"))
 
 	// Load the grounding content once (prefer rendered-visible HTML text so the
 	// chat doesn't answer with hidden preheaders / "can't view" boilerplate).
 	if st.content == "" {
 		m, err := a.Client.GetMessageWithContent(st.messageID)
 		if err != nil {
-			a.setChatTranscript(st, liveBase+"AI: ⚠️ couldn't load the message")
+			a.setChatTranscript(st, pendingAI("⚠️ couldn't load the message"))
 			go a.GetErrorHandler().ShowError(a.ctx, "Failed to load message for chat")
 			return
 		}
 		st.content = tuiReadableBody(m)
 	}
 	if strings.TrimSpace(st.content) == "" {
-		a.setChatTranscript(st, liveBase+"AI: ⚠️ no readable content in this message")
+		a.setChatTranscript(st, pendingAI("⚠️ no readable content in this message"))
 		go a.GetErrorHandler().ShowError(a.ctx, "Message has no readable content to chat about")
 		return
 	}
@@ -231,7 +260,7 @@ func (a *App) sendChatMessage(text string) {
 		// Streaming callback: update directly + ForceDraw (NEVER QueueUpdateDraw
 		// here — it can deadlock with the Esc/cancel handler).
 		if ctx.Err() == nil && st.transcript != nil {
-			st.transcript.SetText(liveBase + "AI: " + reply.String())
+			st.transcript.SetText(pendingAI(tview.Escape(reply.String())))
 			st.transcript.ScrollToEnd()
 			a.ForceDraw()
 		}
@@ -240,13 +269,13 @@ func (a *App) sendChatMessage(text string) {
 		if ctx.Err() == context.Canceled {
 			return
 		}
-		a.setChatTranscript(st, liveBase+"AI: ⚠️ "+err.Error())
+		a.setChatTranscript(st, pendingAI("⚠️ "+tview.Escape(err.Error())))
 		go a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Chat failed: %v", err))
 		return
 	}
 
 	// Commit the completed exchange to the persistent transcript buffer.
-	st.buf.WriteString("You: " + text + "\nAI: " + reply.String() + "\n\n")
+	st.buf.WriteString(st.userLine(text) + st.aiLine(reply.String()))
 	a.setChatTranscript(st, st.buf.String())
 }
 
