@@ -286,6 +286,17 @@ func (a *App) RespondInvite(id, status string) error {
 	return api.RespondInvite(a.ctx, id, status)
 }
 
+// SetAutoRefreshEnabled persists the auto-refresh on/off choice to config.json so it survives a
+// restart. The desktop never sends the Slack new-mail digest itself, but writing enabled:false here
+// stops any TUI launched later from silently re-arming it from a stale enabled:true.
+func (a *App) SetAutoRefreshEnabled(enabled bool) error {
+	s := a.session.Load()
+	if s == nil {
+		return a.notReady()
+	}
+	return s.SetAutoRefreshEnabled(enabled)
+}
+
 // AutoRefreshSettings returns the configured inbox auto-refresh preference.
 func (a *App) AutoRefreshSettings() desktop.AutoRefreshSettings {
 	s := a.session.Load()

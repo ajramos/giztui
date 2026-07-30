@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { backend } from "./api";
 
 // useAutoRefresh owns the background inbox poll: whether it's on, the interval,
 // and the toggle (which persists the on/off choice to localStorage). The actual
@@ -25,6 +26,10 @@ export function useAutoRefresh(deps: {
     setAutoRefresh((v) => {
       const next = !v;
       localStorage.setItem("giztui.autorefresh", next ? "on" : "off");
+      // Persist to config.json too. The desktop never sends the Slack new-mail digest, but writing
+      // enabled:false here stops any TUI launched later from silently re-arming it from a stale
+      // enabled:true. Fire-and-forget: the local toggle already took effect.
+      void backend.SetAutoRefreshEnabled(next).catch(() => {});
       showToast(next ? "Auto-refresh on" : "Auto-refresh off");
       return next;
     });

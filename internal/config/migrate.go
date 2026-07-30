@@ -100,6 +100,29 @@ func readConfigMap(path string) (map[string]any, error) {
 	return m, nil
 }
 
+// SetAutoRefreshEnabled persists only the auto_refresh.enabled flag to the config file at path,
+// preserving every other key (including _comment keys) exactly. Runtime toggles otherwise live only
+// in memory, so a file that says enabled:true re-arms the auto-refresh ticker (and its Slack digest)
+// on the next launch even after the user turned it off. A missing auto_refresh section is created.
+func SetAutoRefreshEnabled(path string, enabled bool) error {
+	path = filepath.Clean(path)
+	user, err := readConfigMap(path)
+	if err != nil {
+		return err
+	}
+	section, ok := user["auto_refresh"].(map[string]any)
+	if !ok {
+		section = map[string]any{}
+		user["auto_refresh"] = section
+	}
+	section["enabled"] = enabled
+	out, err := json.MarshalIndent(user, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0600)
+}
+
 // MissingDefaultKeys returns the dotted paths of default keys absent from the user's config file.
 // Read-only (used for the startup notice).
 func MissingDefaultKeys(path string) ([]string, error) {

@@ -201,6 +201,9 @@ export const mockB: Partial<Backend> = {
     await new Promise((r) => setTimeout(r, 150));
     return "Config is already up to date";
   },
+  async SetAutoRefreshEnabled(_enabled: boolean) {
+    await new Promise((r) => setTimeout(r, 50));
+  },
   async ObsidianEnabled() {
     return true;
   },

@@ -403,6 +403,7 @@ export interface Backend {
   ClearCaches(): Promise<void>;
   ConfigInfo(): Promise<ConfigInfo>;
   MigrateConfig(): Promise<string>;
+  SetAutoRefreshEnabled(enabled: boolean): Promise<void>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;

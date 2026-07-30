@@ -119,6 +119,54 @@ func TestMigrateConfigFile_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestSetAutoRefreshEnabled(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	// A file with an unrelated section + a _comment key, plus auto_refresh.enabled=true.
+	orig := `{
+  "_comment": "keep me",
+  "slack": {"enabled": true},
+  "auto_refresh": {"enabled": true, "interval": "1m", "notify_slack": true}
+}`
+	if err := os.WriteFile(path, []byte(orig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetAutoRefreshEnabled(path, false); err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	data, _ := os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() join
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	ar, ok := got["auto_refresh"].(map[string]any)
+	if !ok {
+		t.Fatalf("auto_refresh section missing: %v", got)
+	}
+	if ar["enabled"] != false {
+		t.Fatalf("enabled not persisted as false: %v", ar["enabled"])
+	}
+	// Sibling keys within the section and unrelated keys must be preserved.
+	if ar["interval"] != "1m" || ar["notify_slack"] != true {
+		t.Fatalf("auto_refresh siblings clobbered: %v", ar)
+	}
+	if got["_comment"] != "keep me" {
+		t.Fatalf("_comment key dropped: %v", got["_comment"])
+	}
+	if s, _ := got["slack"].(map[string]any); s == nil || s["enabled"] != true {
+		t.Fatalf("unrelated slack section clobbered: %v", got["slack"])
+	}
+	// Round-trip back to true.
+	if err := SetAutoRefreshEnabled(path, true); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() join
+	_ = json.Unmarshal(data, &got)
+	if ar, _ := got["auto_refresh"].(map[string]any); ar["enabled"] != true {
+		t.Fatalf("enabled not re-enabled: %v", got["auto_refresh"])
+	}
+}
+
 func TestPruneObsolete(t *testing.T) {
 	user := map[string]any{
 		"keys": map[string]any{

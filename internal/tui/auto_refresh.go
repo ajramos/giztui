@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tview"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -145,6 +146,20 @@ func (a *App) performAutoRefreshTick() {
 	})
 }
 
+// persistAutoRefreshEnabled records the on/off choice back to config.json so it survives a restart.
+// Without this, config's enabled:true re-arms the ticker — and its Slack new-mail digest — on every
+// launch even after the user turned auto-refresh off. Runs the file write off the caller goroutine.
+func (a *App) persistAutoRefreshEnabled(enabled bool) {
+	if a.Config != nil {
+		a.Config.AutoRefresh.Enabled = enabled
+	}
+	go func() {
+		if err := config.SetAutoRefreshEnabled(config.DefaultConfigPath(), enabled); err != nil && a.logger != nil {
+			a.logger.Printf("AUTO_REFRESH: could not persist enabled=%v: %v", enabled, err)
+		}
+	}()
+}
+
 // toggleAutoRefresh flips the session enable state and starts/stops the ticker.
 func (a *App) toggleAutoRefresh() {
 	if a.autoRefreshService == nil {
@@ -152,6 +167,7 @@ func (a *App) toggleAutoRefresh() {
 	}
 	enabled := !a.autoRefreshService.IsEnabled()
 	a.autoRefreshService.SetEnabled(enabled)
+	a.persistAutoRefreshEnabled(enabled)
 	if enabled {
 		a.startAutoRefresh()
 		go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("⟳ Auto-refresh ON (every %s)", a.autoRefreshService.Interval()))
@@ -177,6 +193,7 @@ func (a *App) executeAutoRefreshCommand(args []string) {
 			// ":arr 1m" (previously it only set the interval and silently stayed off if it
 			// wasn't already running). (Re)start the ticker so the new interval takes effect.
 			a.autoRefreshService.SetEnabled(true)
+			a.persistAutoRefreshEnabled(true)
 			if a.isAutoRefreshRunning() {
 				a.stopAutoRefresh()
 			}

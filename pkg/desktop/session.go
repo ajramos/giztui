@@ -322,6 +322,19 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 // ConfigPath returns the path of the config file this session loaded.
 func (s *Session) ConfigPath() string { return s.configPath }
 
+// SetAutoRefreshEnabled persists the auto-refresh on/off choice to this session's config file (and
+// updates the in-memory copy). This mirrors the TUI and, crucially, lets turning auto-refresh off in
+// the desktop write enabled:false so no TUI launched later silently re-arms the Slack new-mail digest.
+func (s *Session) SetAutoRefreshEnabled(enabled bool) error {
+	if s.configPath == "" {
+		return fmt.Errorf("no config file path for this session")
+	}
+	if s.Config != nil {
+		s.Config.AutoRefresh.Enabled = enabled
+	}
+	return config.SetAutoRefreshEnabled(s.configPath, enabled)
+}
+
 // MigrateConfig reconciles this session's config file with the current schema
 // (adding missing default keys, pruning obsolete ones, writing a .bak first).
 // It mirrors the TUI's ":config migrate". Returns the added/removed dotted paths
