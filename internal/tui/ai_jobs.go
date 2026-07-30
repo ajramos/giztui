@@ -254,6 +254,11 @@ func (a *App) closeAIJobsPicker() {
 // openAIJob re-opens a job in the AI panel: a finished job renders its cached
 // result, a running one just reports it's still streaming, an errored one shows
 // the error.
+//
+// This runs on the tview event goroutine (invoked from the picker's Enter/select
+// callback), so it must NOT call QueueUpdateDraw — that would block waiting on the
+// very event loop it is running on and hang the app. UI mutations are done
+// synchronously; only the ErrorHandler toasts are dispatched in goroutines.
 func (a *App) openAIJob(id int) {
 	job := a.aiJobs.get(id)
 	a.closeAIJobsPicker()
@@ -269,7 +274,8 @@ func (a *App) openAIJob(id int) {
 		go a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("Job '%s' was canceled", job.promptName))
 	default:
 		if job.result != nil {
-			a.QueueUpdateDraw(func() { a.renderBulkJobResult(job) })
+			// Direct render — already on the UI goroutine (see doc comment).
+			a.renderBulkJobResult(job)
 		}
 	}
 }
