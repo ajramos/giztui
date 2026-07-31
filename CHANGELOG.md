@@ -5,11 +5,13 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.23.0] - 2026-07-30
+## [1.23.0] - 2026-07-31
 
-Two AI features, brought to **both the desktop client and the TUI** with keyboard
-and command parity: bulk prompts that run in the background, and a multi-turn
-chat grounded on the open email.
+AI features **and desktop↔TUI integration parity**. Two new AI features — bulk
+prompts that run in the background and a multi-turn chat grounded on the open
+email — plus the **desktop client catching up to the TUI** on Slack forwarding
+and Obsidian ingest, a new Slack **"markdown"** format, and configurable chat
+context. All keyboard-first, with command parity.
 
 ### 🚀 Features
 
@@ -26,6 +28,20 @@ chat grounded on the open email.
   newline); the TUI shows a side panel with color-coded turns and history restore
   on reopen. Backed by a new `ChatService` that reuses the existing streaming AI
   API — no LLM-provider changes.
+- **Slack forward parity on the desktop.** The desktop's "forward to Slack" (`K`,
+  `:slack`) now opens a keyboard-first picker to choose the channel and add an
+  optional pre-message, and honors the configured `slack.defaults.format_style`
+  instead of hardcoding one — matching the TUI. A `full` forward now includes the
+  rendered message body instead of a "content not available" placeholder.
+- **New Slack `markdown` forward format.** A middle ground between `summary`
+  (AI-condensed) and `full` (everything): the email's HTML is rendered through the
+  same clean-markdown pipeline the reader uses, dropping newsletter cruft. Pick it
+  per-send from the desktop picker (keyboard: `Tab`) or set it as the default.
+- **Obsidian ingest dialog on the desktop.** `O` / `:obsidian` now opens a dialog
+  for an optional comment that is rendered into the note (`> **Note:** …`), at
+  parity with the TUI (the desktop previously dropped the comment).
+- **Desktop `:config migrate`.** Runs the config self-migration from the desktop
+  command bar (it previously just opened the read-only config modal).
 
 ### 🚀 Improvements
 
@@ -33,6 +49,11 @@ chat grounded on the open email.
   read the *rendered* HTML text of a message instead of the raw HTML / plain-text
   part, so they no longer answer with hidden preheaders or "can't view this
   email" boilerplate.
+- **Auto-refresh state is durable and config-driven.** Toggling auto-refresh now
+  persists to `config.json`, and startup reads the config as the single source of
+  truth (a stale local override no longer makes `enabled: true` show as off). This
+  also stops a config left at `enabled: true` from silently re-arming the TUI's
+  Slack new-mail digest on every launch.
 
 ### 🐛 Bug Fixes
 
@@ -42,12 +63,21 @@ chat grounded on the open email.
   appear instantly, and reopening chat restores the prior conversation.
 - **Desktop — the frameless window couldn't be dragged;** the top bar is now a
   window drag region.
+- **Chat with a long email answered "not mentioned" for later content.** The chat
+  grounding body was capped at a fixed 8000 characters, so questions about
+  anything past that point in a long newsletter were answered as if it wasn't
+  there. The cap is now higher (24000) and configurable.
+- **Desktop Slack format was mouse-only.** The forward picker's format selector is
+  now fully keyboard-operable (`Tab` cycles format, `↑↓` the channel).
 
 ### 🔧 Configuration
 
 - New keys, added to defaults and surfaced to existing users via `:config migrate`:
   `jobs.notify_on_complete` (default `true`), `llm.chat_template`
   (`templates/ai/chat.md`), `keys.ai_jobs` (`J`) and `keys.chat` (`X`).
+- More new keys: `llm.chat_max_body_chars` (default `24000`) and
+  `llm.chat_max_turns` (default `12`) tune how much email and how many prior turns
+  ground the chat; `slack.defaults.format_style` now also accepts `"markdown"`.
 
 ## [1.22.1] - 2026-07-29
 
