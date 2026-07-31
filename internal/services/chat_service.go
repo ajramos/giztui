@@ -9,12 +9,6 @@ import (
 	"github.com/ajramos/giztui/internal/config"
 )
 
-const (
-	// chatMaxTurns bounds how many prior turns are re-sent in the transcript, since
-	// the LLM API is single-shot and the whole conversation is resent every turn.
-	chatMaxTurns = 12
-)
-
 // ChatServiceImpl implements ChatService on top of AIService. It keeps an
 // in-memory per-session history and builds a single grounded prompt per turn
 // (email + transcript + question), reusing AIService.ApplyCustomPromptStream —
@@ -93,21 +87,23 @@ func (s *ChatServiceImpl) appendTurns(sessionID string, turns ...ChatTurn) {
 // buildChatPrompt renders the chat template with the (bounded) email body, the
 // recent transcript, and the new question.
 func (s *ChatServiceImpl) buildChatPrompt(emailContent string, history []ChatTurn, userMessage string) string {
-	// Cap the grounding body so a huge email doesn't blow the model's context. The
-	// limit is configurable (llm.chat_max_body_chars) because the right value
-	// depends on the model; fall back to a generous default that fits long
-	// newsletters when config is absent.
-	maxBody := 24000
+	// Cap the grounding body and transcript length so a huge email / long chat
+	// doesn't blow the model's context. Both are configurable (llm.chat_max_body_chars,
+	// llm.chat_max_turns) since the right values depend on the model; the config
+	// getters supply the shared built-in defaults when unset or config is absent.
+	maxBody := config.DefaultChatMaxBodyChars
+	maxTurns := config.DefaultChatMaxTurns
 	if s.config != nil {
 		maxBody = s.config.LLM.GetChatMaxBodyChars()
+		maxTurns = s.config.LLM.GetChatMaxTurns()
 	}
 	body := emailContent
 	if r := []rune(body); len(r) > maxBody {
 		body = string(r[:maxBody]) + "\n[...email truncated...]"
 	}
 
-	if len(history) > chatMaxTurns {
-		history = history[len(history)-chatMaxTurns:]
+	if len(history) > maxTurns {
+		history = history[len(history)-maxTurns:]
 	}
 	var tb strings.Builder
 	for _, t := range history {

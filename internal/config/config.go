@@ -51,11 +51,19 @@ type LLMConfig struct {
 	// questions about content past that point were answered "not mentioned". Raise
 	// it for big-context models; lower it for small ones. 0 → the built-in default.
 	ChatMaxBodyChars int `json:"chat_max_body_chars"`
+	// ChatMaxTurns bounds how many prior chat turns are re-sent as transcript each
+	// turn (the LLM API is single-shot, so the whole conversation is resent). Higher
+	// keeps more memory but grows every prompt. 0 → the built-in default.
+	ChatMaxTurns int `json:"chat_max_turns"`
 }
 
-// defaultChatMaxBodyChars is the fallback grounding-body cap for "chat with this
-// email" when config leaves chat_max_body_chars unset (0).
-const defaultChatMaxBodyChars = 24000
+// Built-in defaults for the "chat with this email" feature, used when config
+// leaves the corresponding key unset (0). Exported so the ChatService shares the
+// single source of truth instead of duplicating the literals.
+const (
+	DefaultChatMaxBodyChars = 24000
+	DefaultChatMaxTurns     = 12
+)
 
 // GetChatMaxBodyChars returns the configured chat grounding-body cap, or the
 // built-in default when unset/invalid.
@@ -63,7 +71,16 @@ func (c *LLMConfig) GetChatMaxBodyChars() int {
 	if c != nil && c.ChatMaxBodyChars > 0 {
 		return c.ChatMaxBodyChars
 	}
-	return defaultChatMaxBodyChars
+	return DefaultChatMaxBodyChars
+}
+
+// GetChatMaxTurns returns the configured chat transcript-turn cap, or the built-in
+// default when unset/invalid.
+func (c *LLMConfig) GetChatMaxTurns() int {
+	if c != nil && c.ChatMaxTurns > 0 {
+		return c.ChatMaxTurns
+	}
+	return DefaultChatMaxTurns
 }
 
 // ThemeConfig holds theme-related configuration
@@ -569,7 +586,8 @@ func DefaultLLMConfig() LLMConfig {
 		LabelTemplate:     "templates/ai/label.md",
 		TouchUpTemplate:   "templates/ai/touch_up.md",
 		ChatTemplate:      "templates/ai/chat.md",
-		ChatMaxBodyChars:  defaultChatMaxBodyChars,
+		ChatMaxBodyChars:  DefaultChatMaxBodyChars,
+		ChatMaxTurns:      DefaultChatMaxTurns,
 		// No inline prompts in defaults - use template files
 		SummarizePrompt: "",
 		ReplyPrompt:     "",

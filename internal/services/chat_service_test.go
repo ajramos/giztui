@@ -119,6 +119,31 @@ func TestChatService_BodyCapConfigurable(t *testing.T) {
 	assert.Contains(t, run(&config.Config{}), "AFM3_MARKER")
 }
 
+// TestChatService_MaxTurnsConfigurable verifies llm.chat_max_turns bounds how many
+// prior turns are re-sent as transcript.
+func TestChatService_MaxTurnsConfigurable(t *testing.T) {
+	mockAI := &mockAIService{}
+	var lastPrompt string
+	mockAI.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { lastPrompt = args.String(1) }).
+		Return("ok", nil)
+
+	cfg := &config.Config{}
+	cfg.LLM.ChatMaxTurns = 2 // only the last 2 turns are resent
+	svc := NewChatService(mockAI, cfg)
+
+	// Build up several exchanges, each adds 2 turns (user+assistant).
+	for i, q := range []string{"AAA", "BBB", "CCC"} {
+		_, err := svc.SendMessageStream(context.Background(), "s", "body", q, nil)
+		assert.NoError(t, err)
+		_ = i
+	}
+	// The last prompt's transcript is capped to 2 turns, so the earliest question
+	// ("AAA") has scrolled out while the most recent ("CCC") is present.
+	assert.NotContains(t, lastPrompt, "AAA")
+	assert.Contains(t, lastPrompt, "CCC")
+}
+
 func TestChatService_ErrorNotRecorded(t *testing.T) {
 	mockAI := &mockAIService{}
 	mockAI.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).

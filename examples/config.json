@@ -17,7 +17,8 @@
     "label_template": "templates/ai/label.md",
     "touch_up_template": "templates/ai/touch_up.md",
     "chat_template": "templates/ai/chat.md",
-    "chat_max_body_chars": 24000
+    "chat_max_body_chars": 24000,
+    "chat_max_turns": 12
   },
   "slack": {
     "enabled": false,
