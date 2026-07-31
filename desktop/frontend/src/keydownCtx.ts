@@ -12,7 +12,9 @@ export type VimOp = "archive" | "trash" | "toggleRead" | "manageLabels";
 // The keydown useEffect builds this each time its deps change; the ~700-line
 // handler then lives in keydownHandler.ts / keydownMain.ts instead of App.tsx.
 export interface KeydownCtx {
-  forwardSlack: (id: string) => void;
+  openSlackForward: () => void;
+  slackForwardOpen: boolean;
+  setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
   themesOn: boolean;
   attachmentsOpen: boolean;
   activeQuery: string;
@@ -80,6 +82,7 @@ export interface KeydownCtx {
   regenerateActive: () => void;
   resetZoom: () => void;
   rsvpPickerOpen: boolean;
+  jobsPickerOpen: boolean;
   rulesEnabled: boolean;
   rulesOpen: boolean;
   runActionPlan: () => void;
@@ -93,7 +96,9 @@ export interface KeydownCtx {
   searchRef: RefObject<HTMLInputElement>;
   selected: Set<string>;
   selectedId: string | null;
-  sendObsidian: (id: string) => void;
+  openObsidian: () => void;
+  obsidianOpen: boolean;
+  setObsidianOpen: Dispatch<SetStateAction<boolean>>;
   setAccountsOpen: Dispatch<SetStateAction<boolean>>;
   setAdvOpen: Dispatch<SetStateAction<boolean>>;
   setAttachmentsOpen: Dispatch<SetStateAction<boolean>>;
@@ -128,6 +133,8 @@ export interface KeydownCtx {
   setQuery: Dispatch<SetStateAction<string>>;
   setReaderFocused: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
+  setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
+  openChat: () => void;
   setRulesOpen: Dispatch<SetStateAction<boolean>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setSelected: Dispatch<SetStateAction<Set<string>>>;

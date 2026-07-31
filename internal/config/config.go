@@ -36,6 +36,7 @@ type LLMConfig struct {
 	ReplyTemplate     string `json:"reply_template"`
 	LabelTemplate     string `json:"label_template"`
 	TouchUpTemplate   string `json:"touch_up_template"`
+	ChatTemplate      string `json:"chat_template"`
 
 	// Inline prompt overrides (optional - takes precedence over files)
 	SummarizePrompt string `json:"summarize_prompt,omitempty"`
@@ -43,6 +44,43 @@ type LLMConfig struct {
 	LabelPrompt     string `json:"label_prompt,omitempty"`
 	// Touch-up prompt for LLM whitespace/line-break adjustments (no semantic changes)
 	TouchUpPrompt string `json:"touch_up_prompt,omitempty"`
+	// Chat prompt for the "chat with this email" conversational feature
+	ChatPrompt string `json:"chat_prompt,omitempty"`
+	// ChatMaxBodyChars caps how much of the email body grounds the "chat with this
+	// email" feature. Long newsletters exceed the old fixed 8000-char limit, so
+	// questions about content past that point were answered "not mentioned". Raise
+	// it for big-context models; lower it for small ones. 0 → the built-in default.
+	ChatMaxBodyChars int `json:"chat_max_body_chars"`
+	// ChatMaxTurns bounds how many prior chat turns are re-sent as transcript each
+	// turn (the LLM API is single-shot, so the whole conversation is resent). Higher
+	// keeps more memory but grows every prompt. 0 → the built-in default.
+	ChatMaxTurns int `json:"chat_max_turns"`
+}
+
+// Built-in defaults for the "chat with this email" feature, used when config
+// leaves the corresponding key unset (0). Exported so the ChatService shares the
+// single source of truth instead of duplicating the literals.
+const (
+	DefaultChatMaxBodyChars = 24000
+	DefaultChatMaxTurns     = 12
+)
+
+// GetChatMaxBodyChars returns the configured chat grounding-body cap, or the
+// built-in default when unset/invalid.
+func (c *LLMConfig) GetChatMaxBodyChars() int {
+	if c != nil && c.ChatMaxBodyChars > 0 {
+		return c.ChatMaxBodyChars
+	}
+	return DefaultChatMaxBodyChars
+}
+
+// GetChatMaxTurns returns the configured chat transcript-turn cap, or the built-in
+// default when unset/invalid.
+func (c *LLMConfig) GetChatMaxTurns() int {
+	if c != nil && c.ChatMaxTurns > 0 {
+		return c.ChatMaxTurns
+	}
+	return DefaultChatMaxTurns
 }
 
 // ThemeConfig holds theme-related configuration
@@ -113,6 +151,21 @@ type Config struct {
 
 	// Display configuration
 	Display DisplayConfig `json:"display"`
+
+	// AI background jobs (bulk prompts run asynchronously; desktop :jobs picker)
+	Jobs JobsConfig `json:"jobs"`
+}
+
+// JobsConfig configures the AI background-jobs subsystem. Bulk prompts run
+// asynchronously as jobs; the desktop client exposes them via the ":jobs" picker.
+type JobsConfig struct {
+	// NotifyOnComplete shows a toast when a job finishes (default true).
+	NotifyOnComplete bool `json:"notify_on_complete"`
+}
+
+// DefaultJobsConfig returns the default AI-jobs configuration.
+func DefaultJobsConfig() JobsConfig {
+	return JobsConfig{NotifyOnComplete: true}
 }
 
 // SlackConfig contains all Slack integration settings
@@ -155,7 +208,7 @@ type SlackChannel struct {
 
 // SlackDefaults defines default Slack forwarding behavior
 type SlackDefaults struct {
-	// FormatStyle controls how emails are formatted: "summary" (AI-generated), "compact" (headers + preview), "full" (TUI processed), "raw" (minimal processing)
+	// FormatStyle controls how emails are formatted: "summary" (AI-generated), "compact" (headers + preview), "markdown" (cleaned reader-style markdown, between summary and full), "full" (TUI processed), "raw" (minimal processing)
 	FormatStyle string `json:"format_style"`
 }
 
@@ -340,6 +393,8 @@ type KeyBindings struct {
 	SaveMessage   string `json:"save_message"`   // Save message to file
 	SaveRaw       string `json:"save_raw"`       // Save raw EML
 	RSVP          string `json:"rsvp"`           // Toggle RSVP panel
+	AiJobs        string `json:"ai_jobs"`        // Open AI background-jobs picker
+	Chat          string `json:"chat"`           // Open chat-with-this-email panel
 	LinkPicker    string `json:"link_picker"`    // Open link picker
 	ThemePicker   string `json:"theme_picker"`   // Open theme picker
 	OpenGmail     string `json:"open_gmail"`     // Open message in Gmail web UI
@@ -509,6 +564,7 @@ func DefaultConfig() *Config {
 		TTS:           TTSConfig{Enabled: false, Engine: "auto"},
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),
+		Jobs:          DefaultJobsConfig(),
 		LogFile:       "",
 	}
 }
@@ -529,6 +585,9 @@ func DefaultLLMConfig() LLMConfig {
 		ReplyTemplate:     "templates/ai/reply.md",
 		LabelTemplate:     "templates/ai/label.md",
 		TouchUpTemplate:   "templates/ai/touch_up.md",
+		ChatTemplate:      "templates/ai/chat.md",
+		ChatMaxBodyChars:  DefaultChatMaxBodyChars,
+		ChatMaxTurns:      DefaultChatMaxTurns,
 		// No inline prompts in defaults - use template files
 		SummarizePrompt: "",
 		ReplyPrompt:     "",
@@ -590,6 +649,8 @@ func DefaultKeyBindings() KeyBindings {
 		SaveMessage:   "w",
 		SaveRaw:       "W",
 		RSVP:          "V",
+		AiJobs:        "J",
+		Chat:          "X",
 		LinkPicker:    "L",
 		ThemePicker:   "H",
 		OpenGmail:     "O",
@@ -823,6 +884,8 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"m": "move",           // m key → move config
 		"M": "markdown",       // M key → markdown config
 		"V": "rsvp",           // V key → rsvp config
+		"J": "ai_jobs",        // J key → ai_jobs config
+		"X": "chat",           // X key → chat config
 		"O": "obsidian",       // O key → obsidian config
 		"L": "link_picker",    // L key → link_picker config
 		"w": "save_message",   // w key → save_message config
@@ -1002,6 +1065,8 @@ func getFunctionName(configParam string) string {
 		"move":            "move messages",
 		"markdown":        "markdown toggle",
 		"rsvp":            "RSVP",
+		"ai_jobs":         "AI background jobs",
+		"chat":            "AI chat",
 		"obsidian":        "Obsidian integration",
 		"link_picker":     "link picker",
 		"save_message":    "save message",
@@ -1168,6 +1233,19 @@ func (c *LLMConfig) GetLabelPrompt() string {
 func (c *LLMConfig) GetTouchUpPrompt() string {
 	fallback := "You are a formatting assistant. Do NOT paraphrase, translate, or summarize. Your goals: (1) Adjust whitespace and line breaks to improve terminal readability within a wrap width of {{wrap_width}}; (2) Remove strictly duplicated sections or paragraphs. Output only the adjusted text.\n\n{{body}}"
 	return LoadTemplate(c.TouchUpTemplate, c.TouchUpPrompt, fallback)
+}
+
+// GetChatPrompt returns the chat prompt used for the conversational "chat with
+// this email" feature, loading from template file if needed. It grounds the
+// assistant on the email ({{body}}), the prior conversation ({{transcript}}),
+// and the new user question ({{question}}).
+func (c *LLMConfig) GetChatPrompt() string {
+	fallback := "You are a helpful assistant answering questions about the email below. " +
+		"Use the email as your primary source; if the answer isn't in it, say so briefly. " +
+		"Keep answers concise and in the same language as the question.\n\n" +
+		"--- EMAIL ---\n{{body}}\n--- END EMAIL ---\n\n" +
+		"{{transcript}}User: {{question}}\nAssistant:"
+	return LoadTemplate(c.ChatTemplate, c.ChatPrompt, fallback)
 }
 
 // GetSummaryPrompt returns the Slack summary prompt, loading from template file if needed

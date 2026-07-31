@@ -48,6 +48,8 @@ const (
 	PickerRSVP               ActivePicker = "rsvp"
 	PickerAccounts           ActivePicker = "accounts"
 	PickerRules              ActivePicker = "rules"
+	PickerAIJobs             ActivePicker = "ai_jobs"
+	PickerChat               ActivePicker = "chat"
 )
 
 // App encapsulates the terminal UI and the Gmail client
@@ -131,6 +133,9 @@ type App struct {
 	// Bulk selection (mode + selected set), mutex-guarded — see bulk_state.go
 	bulk *bulkState
 
+	// AI background jobs (bulk prompts tracked as jobs), mutex-guarded — see ai_jobs.go
+	aiJobs *aiJobsRegistry
+
 	// VIM-style navigation and range operations (state machine in vim_navigator.go)
 	vim vimState
 
@@ -157,6 +162,8 @@ type App struct {
 	bulkPromptService         *services.BulkPromptServiceImpl
 	promptService             services.PromptService
 	promptGeneratorService    services.PromptGeneratorService
+	chatService               services.ChatService
+	chatPanelState            *chatPanelState
 	inboxAnalyzerService      services.InboxAnalyzerService
 	promptConfiguratorState   *promptConfiguratorState
 	actionPlanState           *actionPlanState
@@ -321,6 +328,7 @@ func NewApp(client *gmail.Client, calendarClient *calclient.Client, llmClient ll
 		logger:             logger, // Use passed logger instead of creating new one
 		logFile:            nil,
 		bulk:               newBulkState(),
+		aiJobs:             newAIJobsRegistry(),
 		messagesLoading:    false,
 		showMessageNumbers: cfg.Display.ShowMessageNumbers, // Load from config
 	}
@@ -476,6 +484,14 @@ func (a *App) reinitializeServices() {
 		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
 		if a.logger != nil {
 			a.logger.Printf("reinitializeServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+
+	// Initialize chat service if AI is available and chat is nil
+	if a.aiService != nil && a.chatService == nil {
+		a.chatService = services.NewChatService(a.aiService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: chat service initialized: %v", a.chatService != nil)
 		}
 	}
 	if a.aiService != nil && a.inboxAnalyzerService == nil {
@@ -738,6 +754,13 @@ func (a *App) initServices() {
 		a.promptGeneratorService = services.NewPromptGeneratorService(a.aiService)
 		if a.logger != nil {
 			a.logger.Printf("initServices: prompt generator service initialized: %v", a.promptGeneratorService != nil)
+		}
+	}
+	// Chat service (multi-turn "chat with this email")
+	if a.aiService != nil {
+		a.chatService = services.NewChatService(a.aiService, a.Config)
+		if a.logger != nil {
+			a.logger.Printf("initServices: chat service initialized: %v", a.chatService != nil)
 		}
 	}
 	if a.aiService != nil {
@@ -1453,6 +1476,11 @@ func (a *App) GetServices() (services.EmailService, services.AIService, services
 // GetPromptGeneratorService returns the prompt generator service or nil if not initialized.
 func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 	return a.promptGeneratorService
+}
+
+// GetChatService returns the chat service or nil if not initialized.
+func (a *App) GetChatService() services.ChatService {
+	return a.chatService
 }
 
 // GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.
@@ -2256,7 +2284,9 @@ func (a *App) generateHelpText() string {
 		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
 		fmt.Fprintf(&help, "    %-8s  🎯  Open Prompt Library\n", a.Keys.Prompt)
 		fmt.Fprintf(&help, "    %-8s  🤖  Generate reply draft\n", a.Keys.GenerateReply)
-		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n\n", a.Keys.SuggestLabel)
+		fmt.Fprintf(&help, "    %-8s  🔖  AI suggest label\n", a.Keys.SuggestLabel)
+		fmt.Fprintf(&help, "    %-8s  🧰  AI background jobs (:jobs)\n", a.Keys.AiJobs)
+		fmt.Fprintf(&help, "    %-8s  💬  Chat with this email (:chat)\n\n", a.Keys.Chat)
 	}
 
 	// Threading Features (if enabled)
@@ -3376,6 +3406,16 @@ func (a *App) isActionPlanActive() bool {
 // isRulesPickerActive returns true if the deterministic rules manager is currently active.
 func (a *App) isRulesPickerActive() bool {
 	return a.currentActivePicker == PickerRules
+}
+
+// isAIJobsPickerActive returns true if the AI background-jobs picker is currently active.
+func (a *App) isAIJobsPickerActive() bool {
+	return a.currentActivePicker == PickerAIJobs
+}
+
+// isChatPanelActive returns true if the "chat with this email" panel is currently active.
+func (a *App) isChatPanelActive() bool {
+	return a.currentActivePicker == PickerChat
 }
 
 // setActivePicker sets the current active picker and logs the change for debugging

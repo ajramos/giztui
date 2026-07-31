@@ -162,6 +162,13 @@ export interface UsageStats {
   topPrompts: UsageStat[];
 }
 
+export interface SlackChannel {
+  id: string;
+  name: string;
+  description: string;
+  default: boolean;
+}
+
 export interface ConfigInfo {
   configPath: string;
   logPath: string;
@@ -245,6 +252,8 @@ export interface KeyMap {
   archived: string;
   saveRaw: string;
   rsvp: string;
+  aiJobs: string;
+  chat: string;
   quit: string;
   vimTimeoutMs: number;
   vimRangeTimeoutMs: number;
@@ -262,7 +271,7 @@ export const DEFAULT_KEYMAP: KeyMap = {
   toggleHeaders: "h", searchFrom: "F", searchTo: "T", searchSubject: "S",
   searchAdvanced: "ctrl+f",
   contentSearch: "/", undo: "U", unread: "u", archived: "B", saveRaw: "W",
-  rsvp: "V", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
+  rsvp: "V", aiJobs: "J", chat: "X", quit: "q", vimTimeoutMs: 1000, vimRangeTimeoutMs: 2000,
 };
 
 export interface CachedPromptResult {
@@ -328,6 +337,10 @@ export interface Backend {
   BulkApplyLabel(ids: string[], labelID: string): Promise<void>;
   BulkRemoveLabel(ids: string[], labelID: string): Promise<void>;
   PromptsEnabled(): Promise<boolean>;
+  JobsNotifyOnComplete(): Promise<boolean>;
+  ChatEnabled(): Promise<boolean>;
+  ChatStream(id: string, message: string): Promise<string>;
+  ChatReset(id: string): Promise<void>;
   ListPrompts(): Promise<Prompt[]>;
   GetPrompt(id: number): Promise<PromptDetail>;
   CreatePrompt(name: string, description: string, text: string, category: string): Promise<number>;
@@ -396,10 +409,19 @@ export interface Backend {
   UsageStats(): Promise<UsageStats>;
   ClearCaches(): Promise<void>;
   ConfigInfo(): Promise<ConfigInfo>;
+  MigrateConfig(): Promise<string>;
+  SetAutoRefreshEnabled(enabled: boolean): Promise<void>;
   ObsidianEnabled(): Promise<boolean>;
-  SendToObsidian(messageID: string): Promise<string>;
+  SendToObsidian(messageID: string, comment: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
-  ForwardToSlack(messageID: string): Promise<void>;
+  SlackChannels(): Promise<SlackChannel[]>;
+  SlackDefaultFormat(): Promise<string>;
+  ForwardToSlack(
+    messageID: string,
+    channelID: string,
+    userMessage: string,
+    format: string,
+  ): Promise<void>;
   SuggestLabels(messageID: string): Promise<string[]>;
   ApplyLabelByName(messageID: string, name: string): Promise<void>;
   OpenGmailWeb(messageID: string): Promise<void>;

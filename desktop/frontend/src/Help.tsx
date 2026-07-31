@@ -128,6 +128,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       rows: [
         { icon: "📝", keys: fmtKey(k.summarize), desc: "Summarize" },
         { icon: "🔄", keys: fmtKey(k.summarize.toUpperCase()), desc: "Regenerate (ignore cache)" },
+        { icon: "💬", keys: `${fmtKey(k.chat)} · :chat`, desc: "Chat with this email (AI)" },
         ...(f.prompts
           ? [{ icon: "🎯", keys: fmtKey(k.prompt), desc: "Apply a prompt" }]
           : []),
@@ -136,6 +137,9 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         { icon: "🔖", keys: fmtKey(k.suggestLabel), desc: "Suggest labels (AI)" },
         ...(f.prompts
           ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
+          : []),
+        ...(f.prompts
+          ? [{ icon: "🧰", keys: `${fmtKey(k.aiJobs)} · :jobs`, desc: "AI background jobs (bulk prompts run async)" }]
           : []),
         ...(f.actionPlan
           ? [

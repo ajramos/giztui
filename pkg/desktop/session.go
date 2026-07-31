@@ -195,6 +195,12 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	// AIService is optional: only wired when an LLM provider is configured.
 	aiService := buildAIService(cfg, cacheService, logger)
 
+	// Chat service (multi-turn "chat with this email"); nil without an LLM.
+	var chatService services.ChatService
+	if aiService != nil {
+		chatService = services.NewChatService(aiService, cfg)
+	}
+
 	// PromptService needs both an LLM (aiService) and the local database. Wire the
 	// bulk-prompt service too (mirroring the TUI) so "apply a prompt to many
 	// messages" works — without it ApplyBulkPrompt returns "bulk prompt service
@@ -285,6 +291,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Labels:       labelService,
 		Mail:         client,
 		AI:           aiService,
+		Chat:         chatService,
 		Attach:       attachmentService,
 		Prompts:      promptService,
 		Web:          webService,
@@ -314,6 +321,30 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 
 // ConfigPath returns the path of the config file this session loaded.
 func (s *Session) ConfigPath() string { return s.configPath }
+
+// SetAutoRefreshEnabled persists the auto-refresh on/off choice to this session's config file (and
+// updates the in-memory copy). This mirrors the TUI and, crucially, lets turning auto-refresh off in
+// the desktop write enabled:false so no TUI launched later silently re-arms the Slack new-mail digest.
+func (s *Session) SetAutoRefreshEnabled(enabled bool) error {
+	if s.configPath == "" {
+		return fmt.Errorf("no config file path for this session")
+	}
+	if s.Config != nil {
+		s.Config.AutoRefresh.Enabled = enabled
+	}
+	return config.SetAutoRefreshEnabled(s.configPath, enabled)
+}
+
+// MigrateConfig reconciles this session's config file with the current schema
+// (adding missing default keys, pruning obsolete ones, writing a .bak first).
+// It mirrors the TUI's ":config migrate". Returns the added/removed dotted paths
+// and the backup path; all empty when the file is already up to date.
+func (s *Session) MigrateConfig() (added, removed []string, backupPath string, err error) {
+	if s.configPath == "" {
+		return nil, nil, "", fmt.Errorf("no config file path for this session")
+	}
+	return config.MigrateConfigFile(s.configPath)
+}
 
 // AccountEmail returns the active account's email address.
 func (s *Session) AccountEmail(ctx context.Context) (string, error) {

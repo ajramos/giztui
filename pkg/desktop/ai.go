@@ -5,12 +5,26 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
 )
 
 // AIEnabled reports whether an LLM provider is configured, so the UI can hide
 // AI actions when unavailable.
 func (a *API) AIEnabled() bool { return a.ai != nil }
+
+// readableBody returns the message body the AI should work on: the rendered
+// visible text of the HTML part when present, else the plain-text part. This
+// keeps AI features (summary, reply, touch-up, chat) grounded on what the reader
+// shows instead of hidden preheaders / "can't view this email" fallback text.
+func readableBody(plain, htmlBody string) string {
+	if strings.TrimSpace(htmlBody) != "" {
+		if t := render.HTMLToText(htmlBody); strings.TrimSpace(t) != "" {
+			return t
+		}
+	}
+	return strings.TrimSpace(plain)
+}
 
 // Summarize returns an AI-generated summary of a message's body. It reuses the
 // same AIService the TUI uses. Returns a clear error when AI is not configured.
@@ -22,10 +36,7 @@ func (a *API) Summarize(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
@@ -51,10 +62,7 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
@@ -71,6 +79,45 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	return res.Summary, nil
 }
 
+// ChatStream answers a user's message in the context of message `id` and the
+// prior conversation for that message, streaming tokens via onToken. The chat
+// history is kept per-message by the ChatService for the life of the session.
+func (a *API) ChatStream(ctx context.Context, id string, message string, onToken func(string)) (string, error) {
+	if a.chat == nil {
+		return "", fmt.Errorf("AI is not configured; enable an LLM provider in your GizTUI config")
+	}
+	msg, err := a.repo.GetMessage(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	// Prefer the rendered-visible text of the HTML body so the chat grounds on
+	// what the reader shows — not hidden preheaders or "can't view this email"
+	// fallback text that live in the raw HTML / plain-text part.
+	content := readableBody(msg.PlainText, msg.HTML)
+	if content == "" {
+		return "", fmt.Errorf("message has no readable content to chat about")
+	}
+	return a.chat.SendMessageStream(ctx, id, content, message, onToken)
+}
+
+// ChatHistory returns the conversation turns recorded for message `id`.
+func (a *API) ChatHistory(id string) []services.ChatTurn {
+	if a.chat == nil {
+		return nil
+	}
+	return a.chat.GetHistory(id)
+}
+
+// ChatReset clears the conversation history for message `id`.
+func (a *API) ChatReset(id string) {
+	if a.chat != nil {
+		a.chat.ClearSession(id)
+	}
+}
+
+// ChatEnabled reports whether the chat feature is available (an LLM is configured).
+func (a *API) ChatEnabled() bool { return a.chat != nil }
+
 // TouchUp reformats a message's body with the AI for readability (fixing broken
 // wrapping, spacing and markdown), returning the cleaned-up text. Mirrors the
 // TUI's ":touch-up".
@@ -82,10 +129,7 @@ func (a *API) TouchUp(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to reformat")
 	}
@@ -106,10 +150,7 @@ func (a *API) GenerateReply(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	content := msg.PlainText
-	if strings.TrimSpace(content) == "" {
-		content = msg.HTML
-	}
+	content := readableBody(msg.PlainText, msg.HTML)
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to reply to")
 	}

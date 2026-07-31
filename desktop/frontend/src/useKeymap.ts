@@ -175,6 +175,8 @@ export function useKeymap(deps: {
     add(keymap.archived, "archived");
     add(keymap.attachments, "attachments");
     add(keymap.rsvp, "rsvp");
+    add(keymap.aiJobs, "aijobs");
+    add(keymap.chat, "chat");
     add(keymap.quit, "quit");
     // Uppercase of the summarize key force-regenerates the summary (ignoring the
     // cache), mirroring the TUI's y → Y. Registered last so a user's own binding

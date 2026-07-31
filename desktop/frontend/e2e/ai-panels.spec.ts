@@ -86,3 +86,90 @@ test.describe("AI prompt panel", () => {
     await expect(promptPanel(page).locator(".summary-text")).toHaveText(promptA);
   });
 });
+
+test.describe("AI chat", () => {
+  test("':chat' opens the chat panel; a message streams an assistant reply", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await openMessageAt(page, 0);
+    // Open via the default keymap shortcut ("X") — exercises the keymap wiring.
+    await page.keyboard.press("X");
+
+    const input = page.locator(".chat-input");
+    await expect(input).toBeVisible();
+    await input.fill("What are the action items?");
+    await input.press("Enter");
+
+    // The user turn shows immediately; the assistant reply streams in.
+    await expect(page.locator(".chat-user").last()).toContainText(
+      "What are the action items?",
+    );
+    await expect(page.locator(".chat-assistant").last()).toContainText(
+      "mock answer",
+    );
+  });
+});
+
+test.describe("AI bulk prompt (background job)", () => {
+  test("running a bulk prompt shows its result in the job dialog; Escape closes it", async ({
+    page,
+  }) => {
+    await openApp(page);
+    // ':select all' enters bulk mode with every row selected; ':prompt' then opens
+    // the prompts picker (allowed in bulk mode), and Enter runs the highlighted one.
+    await runCommand(page, "select all");
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+
+    // The bulk prompt now runs as a background job whose result surfaces in the
+    // job dialog (the ✦-headed modal), not a per-message panel.
+    const jobModal = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "✦" }) });
+    await expect(jobModal).toBeVisible();
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+
+    // Closing the dialog dismisses the view (the job itself is already done here).
+    await page.keyboard.press("Escape");
+    await expect(jobModal).toBeHidden();
+  });
+
+  test("':jobs' lists the job and Enter re-opens its result", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "select all");
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+    const jobModal = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "✦" }) });
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+    // Close the result dialog, then browse jobs via ':jobs'.
+    await page.keyboard.press("Escape");
+    await expect(jobModal).toBeHidden();
+
+    // Open via the default keymap shortcut ("J") — exercises the keymap wiring.
+    await page.keyboard.press("J");
+    const jobsPicker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "AI jobs" }) });
+    await expect(jobsPicker).toBeVisible();
+    await expect(jobsPicker.locator(".prompt-row").first()).toContainText(
+      "messages",
+    );
+    await expect(jobsPicker.locator('.job-status[data-status="done"]').first()).toBeVisible();
+
+    // Enter re-opens the selected job's result in the ✦ dialog.
+    await page.keyboard.press("Enter");
+    await expect(jobsPicker).toBeHidden();
+    await expect(jobModal.locator(".summary-text")).toContainText(
+      "mock bulk prompt result",
+    );
+  });
+});

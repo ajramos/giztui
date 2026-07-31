@@ -39,13 +39,14 @@ func (a *App) ObsidianEnabled() bool {
 	return a.enabled((*desktop.API).ObsidianEnabled)
 }
 
-// SendToObsidian ingests a message into the Obsidian vault.
-func (a *App) SendToObsidian(id string) (string, error) {
+// SendToObsidian ingests a message into the Obsidian vault with an optional
+// comment (rendered into the note as "> **Note:** …", TUI parity).
+func (a *App) SendToObsidian(id, comment string) (string, error) {
 	api, err := a.api()
 	if err != nil {
 		return "", err
 	}
-	return api.SendToObsidian(a.ctx, id)
+	return api.SendToObsidian(a.ctx, id, comment)
 }
 
 // SlackEnabled reports whether the Slack integration is available.
@@ -53,13 +54,40 @@ func (a *App) SlackEnabled() bool {
 	return a.enabled((*desktop.API).SlackEnabled)
 }
 
-// ForwardToSlack forwards a message to the default Slack channel.
-func (a *App) ForwardToSlack(id string) error {
+// SlackChannels returns the configured Slack channels for the forward picker.
+func (a *App) SlackChannels() ([]desktop.SlackChannelInfo, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.SlackChannels(a.ctx)
+}
+
+// SlackDefaultFormat returns the configured slack.defaults.format_style so the
+// forward picker can preselect it.
+func (a *App) SlackDefaultFormat() string {
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		if f := s.Config.Slack.Defaults.FormatStyle; f != "" {
+			return f
+		}
+	}
+	return "summary"
+}
+
+// ForwardToSlack forwards a message to the chosen Slack channel with an optional
+// pre-message. format selects the style ("summary"/"markdown"/"compact"/"full"/
+// "raw"); an empty format falls back to the configured slack.defaults.format_style.
+func (a *App) ForwardToSlack(id, channelID, userMessage, format string) error {
 	api, err := a.api()
 	if err != nil {
 		return err
 	}
-	return api.ForwardToSlack(a.ctx, id)
+	if format == "" {
+		if s := a.session.Load(); s != nil && s.Config != nil {
+			format = s.Config.Slack.Defaults.FormatStyle
+		}
+	}
+	return api.ForwardToSlack(a.ctx, id, channelID, userMessage, format)
 }
 
 // SuggestLabels returns AI-suggested labels for a message.

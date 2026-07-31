@@ -14,13 +14,13 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     openMessage, openQueries, openSuggest, previewMessage, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, runActionPlan, runUndo, runVimRange, runVimSingle,
     saveMessage, saveRawMessage, savedQueriesOn, searchRef, selected, selectedId,
-    sendObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
+    openObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
     setCmdOpen, setCompose, setCsIndex, setCsOpen, setCsQuery, setDetail,
     setHeadersHidden, setLabelsFor, setLinksFor, setLocalFilter, setMessages, setMoveFor,
-    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setSaveQueryOpen, setSelected,
+    setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, openChat, setSaveQueryOpen, setSelected,
     setSelectedId, setShowHelp, setThemePickerOpen, setViewHtml, showToast, slackOn,
     summarize, threadingOn, toggleSelect, toggleThread,
-    activeQuery, gPressedAt, vimRange, forwardSlack, themesOn,
+    activeQuery, gPressedAt, vimRange, openSlackForward, themesOn,
   } = ctx;
       const chord = e.key === " " ? "space" : e.key;
       const idx = selectedId
@@ -396,10 +396,10 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
           if (detail && aiEnabled && !bulkMode) void openSuggest(detail.id);
           break;
         case "obsidian":
-          if (detail && obsidianOn) sendObsidian(detail.id);
+          if (detail && obsidianOn) openObsidian();
           break;
         case "slack":
-          if (detail && slackOn) forwardSlack(detail.id);
+          if (detail && slackOn) openSlackForward();
           break;
         case "commandMode":
           setCmdOpen(true);
@@ -459,6 +459,14 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
           // Open the keyboard-navigable RSVP picker for the current invite
           // (TUI's V). Only meaningful when the open message is an invite.
           if (detail && invite?.isInvite) setRsvpPickerOpen(true);
+          break;
+        case "aijobs":
+          // Open the AI background-jobs picker (":jobs" / default "J").
+          setJobsPickerOpen(true);
+          break;
+        case "chat":
+          // Open the chat-with-this-email panel (":chat" / default "X").
+          openChat();
           break;
       }
 

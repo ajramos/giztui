@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/gmail"
+	"github.com/ajramos/giztui/internal/render"
 	gmailapi "google.golang.org/api/gmail/v1"
 )
 
@@ -23,6 +25,14 @@ type SlackGmailClient interface {
 	GetMessagesMetadataParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
 	GetMessagesParallel(messageIDs []string, maxWorkers int) ([]*gmailapi.Message, error)
 }
+
+// boldMarkdownRe matches CommonMark **bold**; atxHeadingRe matches an ATX heading
+// line ("# ".."###### "). Both feed slackifyMarkdown so the "markdown" forward
+// renders as Slack bold instead of literal asterisks/hashes.
+var (
+	boldMarkdownRe = regexp.MustCompile(`\*\*([^*\n]+)\*\*`)
+	atxHeadingRe   = regexp.MustCompile(`^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$`)
+)
 
 // SlackServiceImpl implements the SlackService interface
 type SlackServiceImpl struct {
@@ -119,6 +129,8 @@ func (s *SlackServiceImpl) formatEmailForSlack(ctx context.Context, message *gma
 		slackMessage.Text = content
 	case "compact":
 		slackMessage.Text = s.formatCompactMessage(headers, body, options)
+	case "markdown":
+		slackMessage.Text = s.formatMarkdownMessage(message, headers, options)
 	case "full":
 		slackMessage.Text = s.formatFullMessage(headers, options)
 	case "raw":
@@ -203,6 +215,75 @@ func (s *SlackServiceImpl) formatCompactMessage(headers map[string]string, body 
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+// formatMarkdownMessage renders the email's HTML to cleaned Markdown — the same
+// HTML→markdown→cleanup pipeline the TUI reader uses (minus the terminal glamour
+// step) — giving a readable middle ground between "summary" (AI-condensed) and
+// "full" (everything, including newsletter cruft). A light Slack-ify pass makes
+// **bold** and headings render as Slack bold. Falls back to the compact preview
+// when there is no HTML or the render fails.
+func (s *SlackServiceImpl) formatMarkdownMessage(message *gmailapi.Message, headers map[string]string, options SlackForwardOptions) string {
+	var parts []string
+	if options.UserMessage != "" {
+		parts = append(parts, fmt.Sprintf("💬 %s\n", options.UserMessage))
+	}
+	parts = append(parts, fmt.Sprintf("*From:* %s • *Subject:* %s", headers["from"], headers["subject"]))
+
+	// Prefer caller-provided processed content (the TUI can pass its rendered view);
+	// otherwise render the cleaned markdown from the raw HTML part here.
+	content := strings.TrimSpace(options.ProcessedContent)
+	if content == "" {
+		if raw := s.extractRawHTMLBody(message.Payload); strings.TrimSpace(raw) != "" {
+			if md, err := render.EmailMarkdown(raw, render.MarkdownOptions{DropTrackingImages: true}); err == nil {
+				content = md
+			}
+		}
+	}
+	if content == "" {
+		// No HTML (plain-text-only email) — fall back to the trimmed body.
+		content = s.extractEmailBody(message)
+	}
+
+	content = slackifyMarkdown(content)
+	content = s.truncateText(content, 3000)
+	parts = append(parts, "\n"+content)
+	return strings.Join(parts, "\n")
+}
+
+// slackifyMarkdown nudges CommonMark toward Slack's mrkdwn so the post reads well:
+// **bold** → *bold*, and ATX headings ("## Title") → *Title* on their own line.
+// Everything else (lists, blockquotes, [n] link references) already renders fine.
+func slackifyMarkdown(md string) string {
+	md = boldMarkdownRe.ReplaceAllString(md, "*$1*")
+	lines := strings.Split(md, "\n")
+	for i, ln := range lines {
+		if m := atxHeadingRe.FindStringSubmatch(ln); m != nil {
+			if h := strings.TrimSpace(m[1]); h != "" {
+				lines[i] = "*" + h + "*"
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// extractRawHTMLBody returns the decoded HTML of the first text/html part WITHOUT
+// stripping tags (unlike extractHTMLBody), so the markdown converter sees real HTML.
+func (s *SlackServiceImpl) extractRawHTMLBody(payload *gmailapi.MessagePart) string {
+	if payload == nil {
+		return ""
+	}
+	if payload.MimeType == "text/html" && payload.Body != nil && payload.Body.Data != "" {
+		if decoded, err := base64.URLEncoding.DecodeString(payload.Body.Data); err == nil {
+			return string(decoded)
+		}
+	}
+	for _, part := range payload.Parts {
+		if raw := s.extractRawHTMLBody(part); raw != "" {
+			return raw
+		}
+	}
+	return ""
 }
 
 // formatFullMessage creates a full-formatted message using TUI-processed content

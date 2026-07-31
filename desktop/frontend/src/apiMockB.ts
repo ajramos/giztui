@@ -197,17 +197,39 @@ export const mockB: Partial<Backend> = {
       downloadPath: "~/Downloads/gmail-attachments",
     };
   },
+  async MigrateConfig() {
+    await new Promise((r) => setTimeout(r, 150));
+    return "Config is already up to date";
+  },
+  async SetAutoRefreshEnabled(_enabled: boolean) {
+    await new Promise((r) => setTimeout(r, 50));
+  },
   async ObsidianEnabled() {
     return true;
   },
-  async SendToObsidian() {
+  async SendToObsidian(_id: string, _comment: string) {
     await new Promise((r) => setTimeout(r, 300));
     return "00-Inbox/2026-07-18_welcome.md";
   },
   async SlackEnabled() {
     return true;
   },
-  async ForwardToSlack() {
+  async SlackChannels() {
+    await new Promise((r) => setTimeout(r, 100));
+    return [
+      { id: "team", name: "team-updates", description: "Team channel", default: true },
+      { id: "me", name: "personal-dm", description: "My DM", default: false },
+    ];
+  },
+  async SlackDefaultFormat() {
+    return "markdown";
+  },
+  async ForwardToSlack(
+    _id: string,
+    _channelID: string,
+    _userMessage: string,
+    _format: string,
+  ) {
     await new Promise((r) => setTimeout(r, 300));
   },
   async SuggestLabels() {

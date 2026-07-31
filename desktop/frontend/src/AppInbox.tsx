@@ -5,6 +5,7 @@ import TopBar from "./TopBar";
 import { replyInit, forwardInit } from "./composeBuilders";
 import type { ComposeInit } from "./Compose";
 import type { AiCacheEntry } from "./useAiActions";
+import type { ChatBundle } from "./useChat";
 import type {
   AccountInfo,
   Attachment,
@@ -95,6 +96,7 @@ export interface AppInboxProps {
   downloadAttachment: (att: Attachment) => void;
   aiEnabled: boolean;
   aiPromptsEnabled: boolean;
+  chat: ChatBundle;
   obsidianOn: boolean;
   slackOn: boolean;
   threadingOn: boolean;
@@ -118,8 +120,8 @@ export interface AppInboxProps {
   setMoveFor: (v: string | null) => void;
   quickSearch: (kind: "from" | "to" | "subject", d: MessageDetail) => void;
   setLinksFor: (v: string | null) => void;
-  sendObsidian: (id: string) => void;
-  forwardSlack: (id: string) => void;
+  openObsidian: () => void;
+  openSlackForward: () => void;
   saveMessage: (id: string) => void;
   saveRawMessage: (id: string) => void;
   setHeadersHidden: Dispatch<SetStateAction<boolean>>;
@@ -173,13 +175,13 @@ export default function AppInbox(p: AppInboxProps) {
     attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
     threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
-    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, sendObsidian,
-    forwardSlack, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
+    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
+    openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
     readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
   } = p;
   return (
     <>
@@ -309,6 +311,7 @@ export default function AppInbox(p: AppInboxProps) {
           hasThread={!!threadMsgs}
           viewHtml={viewHtml}
           summarizing={summarizing}
+          chat={chat}
           promptRunning={promptRunning}
           generatingReply={generatingReply}
           touchingUp={touchingUp}
@@ -334,8 +337,8 @@ export default function AppInbox(p: AppInboxProps) {
           onMove={() => detail && setMoveFor(detail.id)}
           onSearchSender={() => detail && quickSearch("from", detail)}
           onLinks={() => detail && setLinksFor(detail.id)}
-          onObsidian={() => detail && sendObsidian(detail.id)}
-          onSlack={() => detail && forwardSlack(detail.id)}
+          onObsidian={() => detail && openObsidian()}
+          onSlack={() => detail && openSlackForward()}
           onSave={() => detail && saveMessage(detail.id)}
           onSaveRaw={() => detail && saveRawMessage(detail.id)}
           onToggleHeaderBlock={() => setHeadersHidden((v) => !v)}

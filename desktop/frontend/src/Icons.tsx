@@ -18,6 +18,13 @@ const svg = (children: ReactNode) => (
 );
 
 export const Icon = {
+  chat: svg(<path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3a8.38 8.38 0 0 1 8.5 8.5z" />),
+  send: svg(
+    <>
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </>,
+  ),
   reply: svg(
     <>
       <polyline points="9 17 4 12 9 7" />

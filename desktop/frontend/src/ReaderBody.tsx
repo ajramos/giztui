@@ -3,6 +3,8 @@ import type { MessageDetail, Attachment, Invite } from "./api";
 import { Icon } from "./Icons";
 import { displayName, formatFull, formatICSDate, countMatches } from "./format";
 import AiPanel from "./AiPanel";
+import ChatPanel from "./ChatPanel";
+import type { ChatBundle } from "./useChat";
 import HtmlBody from "./HtmlBody";
 import PlainBody from "./PlainBody";
 import HighlightedText from "./HighlightedText";
@@ -52,6 +54,7 @@ export default function ReaderBody({
   onLoadImages,
   onAlwaysImages,
   attachments,
+  chat,
 }: {
   detail: MessageDetail;
   readerBodyRef: RefObject<HTMLDivElement>;
@@ -92,6 +95,7 @@ export default function ReaderBody({
   onLoadImages: () => void;
   onAlwaysImages: () => void;
   attachments: Attachment[];
+  chat: ChatBundle;
 }) {
   return (
     <div className="reader-body" ref={readerBodyRef}>
@@ -159,6 +163,18 @@ export default function ReaderBody({
         onRegenerate={onRegeneratePrompt}
         onDismiss={onDismissPrompt}
       />
+      {chat.chatOpen && chat.chatForId === detail.id && (
+        <ChatPanel
+          turns={chat.chatTurns}
+          streaming={chat.chatStreaming}
+          streamingText={chat.chatStreamingText}
+          input={chat.chatInput}
+          onInput={chat.setChatInput}
+          onSend={chat.sendChat}
+          onReset={chat.resetChat}
+          onClose={chat.closeChat}
+        />
+      )}
       {csOpen && (
         <div className="content-search">
           <input

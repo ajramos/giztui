@@ -20,6 +20,7 @@ export function useBootstrap(deps: {
   setAccount: (v: string) => void;
   setAiEnabled: (v: boolean) => void;
   setAiPromptsEnabled: (v: boolean) => void;
+  setJobsNotify: (v: boolean) => void;
   setAccounts: (v: AccountInfo[]) => void;
   setKeymap: (v: KeyMap) => void;
   setAppVersion: (v: string) => void;
@@ -44,7 +45,7 @@ export function useBootstrap(deps: {
 }) {
   const {
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
-    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled,
+    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
     setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
     setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
     setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,
@@ -110,6 +111,11 @@ export function useBootstrap(deps: {
         /* non-fatal */
       }
       try {
+        setJobsNotify(await backend.JobsNotifyOnComplete());
+      } catch {
+        /* non-fatal */
+      }
+      try {
         setAccounts(await backend.ListAccounts());
       } catch {
         /* non-fatal */
@@ -147,9 +153,10 @@ export function useBootstrap(deps: {
       try {
         const ar = await backend.AutoRefreshSettings();
         if (ar.intervalSeconds > 0) setAutoRefreshSecs(ar.intervalSeconds);
-        // localStorage overrides the config default once the user has chosen.
-        const saved = localStorage.getItem("giztui.autorefresh");
-        setAutoRefresh(saved === null ? ar.enabled : saved === "on");
+        // config.json is the single source of truth (the toggle persists back to
+        // it). A stale localStorage override used to win here, which made
+        // auto_refresh.enabled:true show as OFF after the user had toggled it once.
+        setAutoRefresh(ar.enabled);
       } catch {
         /* non-fatal */
       }
@@ -200,15 +207,17 @@ export function useBootstrap(deps: {
         setBulkMode(false);
         setSelected(new Set());
         setQuery("");
-        const [email, ai, prompts, accs] = await Promise.all([
+        const [email, ai, prompts, notify, accs] = await Promise.all([
           backend.AccountEmail().catch(() => ""),
           backend.AIEnabled().catch(() => false),
           backend.PromptsEnabled().catch(() => false),
+          backend.JobsNotifyOnComplete().catch(() => true),
           backend.ListAccounts().catch(() => [] as AccountInfo[]),
         ]);
         setAccount(email);
         setAiEnabled(ai);
         setAiPromptsEnabled(prompts);
+        setJobsNotify(notify);
         if (accs.length) setAccounts(accs);
         await load("");
       } catch (e) {

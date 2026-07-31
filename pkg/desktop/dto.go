@@ -137,6 +137,16 @@ type Link struct {
 	Type  string `json:"type"`
 }
 
+// SlackChannelInfo is a configured Slack channel offered in the desktop's forward
+// picker. WebhookURL is intentionally omitted — the frontend never needs it and it
+// should not cross the bridge.
+type SlackChannelInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Default     bool   `json:"default"`
+}
+
 // Prompt is a JSON-serializable AI prompt template.
 type Prompt struct {
 	ID          int    `json:"id"`

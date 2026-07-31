@@ -65,6 +65,17 @@ body {
   padding-left: 78px;
   -webkit-user-select: none;
   user-select: none;
+  /* The hidden-inset titlebar is covered by this header, so make the header a
+     window drag region (Wails v2). Interactive children opt back out below. */
+  --wails-draggable: drag;
+}
+/* Keep clicks/typing working on the topbar's controls (not drag). */
+.topbar button,
+.topbar input,
+.topbar select,
+.topbar a,
+.topbar [role="button"] {
+  --wails-draggable: no-drag;
 }
 /* Compact controls just inside the topbar (keeps modals' buttons untouched). */
 .topbar button {

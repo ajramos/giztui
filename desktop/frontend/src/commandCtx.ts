@@ -18,8 +18,8 @@ export interface CommandCtx {
   activeQuery: string;
   openDrafts: () => void;
   saveMessage: (id: string) => void;
-  sendObsidian: (id: string) => void;
-  forwardSlack: (id: string) => void;
+  openObsidian: () => void;
+  openSlackForward: () => void;
   obsidianOn: boolean;
   slackOn: boolean;
   aiEnabled: boolean;
@@ -99,6 +99,8 @@ export interface CommandCtx {
   setPromptManagerOpen: Dispatch<SetStateAction<boolean>>;
   setPromptsOpen: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
+  setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;
+  openChat: () => void;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setShowHelp: Dispatch<SetStateAction<boolean>>;
   setThemePickerOpen: (v: boolean) => void;

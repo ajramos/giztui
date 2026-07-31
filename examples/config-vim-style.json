@@ -16,7 +16,8 @@
     "summarize_template": "templates/ai/summarize.md",
     "reply_template": "templates/ai/reply.md",
     "label_template": "templates/ai/label.md",
-    "touch_up_template": "templates/ai/touch_up.md"
+    "touch_up_template": "templates/ai/touch_up.md",
+    "chat_template": "templates/ai/chat.md"
   },
   "slack": {
     "enabled": false,
@@ -90,6 +91,8 @@
     "save_message": "w",
     "save_raw": "W",
     "rsvp": "V",
+    "ai_jobs": "J",
+    "chat": "X",
     "link_picker": "L",
     "theme_picker": "H",
     "bulk_mode": "v",
@@ -169,5 +172,9 @@
   "display": {
     "_comment": "UI display preferences",
     "show_message_numbers": false
+  },
+  "jobs": {
+    "_comment": "AI background jobs (bulk prompts run async; desktop :jobs picker)",
+    "notify_on_complete": true
   }
 }

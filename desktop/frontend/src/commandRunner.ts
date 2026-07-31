@@ -9,8 +9,8 @@ import type { CommandCtx } from "./commandCtx";
 export function runCommand(input: string, ctx: CommandCtx) {
   const {
     detail, load, doAction, activeQuery, openDrafts, saveMessage,
-    sendObsidian, forwardSlack, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
-    summarize, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
+    openObsidian, openSlackForward, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
+    summarize, openChat, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
     runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
     openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
@@ -23,6 +23,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
     setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
     setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
+    setJobsPickerOpen,
     setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
   } = ctx;
         const { cmd, arg } = parseCommand(input);
@@ -120,6 +121,9 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "summary":
           if (d && aiEnabled) void summarize(d.id);
           break;
+        case "chat":
+          if (d && aiEnabled) openChat();
+          break;
         case "prompt":
         case "pr":
         case "p":
@@ -131,11 +135,14 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "obsidian":
         case "obs":
-          if (d && obsidianOn) sendObsidian(d.id);
+          // Open the ingest dialog (optional comment → "> **Note:** …" in the note).
+          if (d && obsidianOn) openObsidian();
           break;
         case "slack":
         case "sl":
-          if (d && slackOn) forwardSlack(d.id);
+          // Open the forward picker (channel + pre-message); the send honors the
+          // configured format_style on the backend.
+          if (d && slackOn) openSlackForward();
           break;
         case "gmail":
         case "web":
@@ -334,6 +341,11 @@ export function runCommand(input: string, ctx: CommandCtx) {
           // TUI parity: open the keyboard-navigable RSVP picker (same as the V key).
           if (d && invite?.isInvite) setRsvpPickerOpen(true);
           break;
+        case "jobs":
+        case "aijobs":
+          // Open the AI background-jobs picker (browse/re-open/remove jobs).
+          setJobsPickerOpen(true);
+          break;
         case "accept":
           if (d && invite?.isInvite) void respondInvite(d.id, "accepted");
           break;
@@ -357,7 +369,16 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "config":
         case "cfg":
-          void openConfig();
+          // ":config migrate" runs the config self-migration (TUI parity);
+          // ":config" with no arg opens the read-only config info modal.
+          if (arg.trim().toLowerCase() === "migrate") {
+            void backend
+              .MigrateConfig()
+              .then((msg) => showToast(msg))
+              .catch((e) => setError(`Config migrate failed: ${String(e)}`));
+          } else {
+            void openConfig();
+          }
           break;
         case "cache":
           void clearCaches();

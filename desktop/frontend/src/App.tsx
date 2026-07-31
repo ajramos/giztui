@@ -24,6 +24,8 @@ import { type AdvFilters, EMPTY_ADV } from "./advancedSearch";
 import { useAppWiring } from "./useAppWiring";
 import { useActionPlan } from "./useActionPlan";
 import { useAiActions } from "./useAiActions";
+import { useAiJobs } from "./useAiJobs";
+import { useChat } from "./useChat";
 import { useMiscActions } from "./useMiscActions";
 import { useReader } from "./useReader";
 import { useKeymap } from "./useKeymap";
@@ -98,8 +100,8 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
-  const [bulkPromptText, setBulkPromptText] = useState<string | null>(null);
-  const [bulkPromptLabel, setBulkPromptLabel] = useState("");
+  // Whether AI jobs toast on completion (config jobs.notify_on_complete; set at bootstrap).
+  const [jobsNotify, setJobsNotify] = useState(true);
   const [actionPlanOn, setActionPlanOn] = useState(false);
   const [rulesEnabled, setRulesEnabled] = useState(false);
   // Action-plan / analyzer state (plan, analyze progress, rules, previews) is
@@ -198,8 +200,29 @@ export default function App() {
     setTimeout(() => setToast(""), 2500);
   }, []);
 
-  const { obsidianOn, slackOn, refresh: refreshIntegrations, sendObsidian, forwardSlack } =
-    useIntegrations({ showToast, setError });
+  // Background AI jobs (bulk prompts) + the result-dialog bindings the modal and
+  // keydown chain consume (bulkPromptText/label + the close shim). enqueueJob is
+  // wired into useAiActions (reader bulk prompt) and useActionPlan (prompt bucket);
+  // runExclusive serializes the shared "prompt:token" stream.
+  const {
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
+    enqueueJob, runExclusive,
+    jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
+  } = useAiJobs({ showToast, setError, notifyOnComplete: jobsNotify });
+
+  const {
+    obsidianOn,
+    slackOn,
+    refresh: refreshIntegrations,
+    obsidianOpen,
+    setObsidianOpen,
+    openObsidian,
+    sendObsidian,
+    slackForwardOpen,
+    setSlackForwardOpen,
+    openSlackForward,
+    forwardSlack,
+  } = useIntegrations({ showToast, setError });
   const {
     draftsView,
     setDraftsView,
@@ -292,7 +315,7 @@ export default function App() {
   // those reset/clear this state.
   const {
     summary, setSummary, summarizing, summaryForId,
-    promptResult, setPromptResult, promptLabel, setPromptLabel, promptRunning, setPromptRunning, promptForId,
+    promptResult, setPromptResult, promptLabel, setPromptLabel, promptRunning, promptForId,
     generatingReply, touchUpText, setTouchUpText, touchingUp,
     summaryPanelRef, promptPanelRef, touchUpRef,
     openIdRef, aiCache, runningLabelRef, promptLabelRef, promptForIdRef,
@@ -301,12 +324,15 @@ export default function App() {
     dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
   } = useAiActions({
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, setBulkPromptLabel, setBulkPromptText,
+    setPromptsOpen, setCompose, enqueueJob, runExclusive,
   });
+
+  // "Chat with this email" panel (multi-turn), scoped to the open message.
+  const chat = useChat({ detailId: () => detail?.id ?? null, setError });
 
   const { importCreds, retryInit, switchAccount } = useBootstrap({
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
-    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled,
+    setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
     setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
     setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
     setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,
@@ -380,7 +406,7 @@ export default function App() {
     promptPreview, setPromptPreview,
   } = useActionPlan({
     messages, setMessages, bulkPromptText,
-    setBulkPromptText, setBulkPromptLabel, setPromptRunning, showToast, setError, clearReaderIfRemoved,
+    enqueueJob, showToast, setError, clearReaderIfRemoved,
   });
   // Global input wiring — the window keydown listener and the command runner —
   // lives in useAppWiring, which reads this merged context (a superset of both
@@ -392,15 +418,18 @@ export default function App() {
     bulkAction, bulkLabels, bulkMode, bulkMove, bulkPromptText, bumpZoom, chordAction,
     clearCaches, clearVimRange, cmdOpen, compose, configOpen, csOpen,
     csQuery, detRulesOpen, detail, dismissAI, doAction, doBulkMove,
-    doMove, draftsView, exitBulk, forwardSlack, fullMessagesRef, gPressedAt, generateReply,
+    doMove, draftsView, exitBulk, openSlackForward, slackForwardOpen, setSlackForwardOpen,
+    fullMessagesRef, gPressedAt, generateReply,
     headersHidden, imageOptIn, invite, keymap, labelsFor, linksFor,
     load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
     openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openSuggest,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
     promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
+    jobsPickerOpen, setJobsPickerOpen, openChat: chat.openChat,
     runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
-    saveRawMessage, savedQueriesOn, searchRef, selected, selectedId, sendObsidian, setAccountsOpen,
+    saveRawMessage, savedQueriesOn, searchRef, selected, selectedId, openObsidian,
+    obsidianOpen, setObsidianOpen, setAccountsOpen,
     setAdvOpen, setAlwaysImagesOn, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
     setBulkPromptText, setCmdOpen, setCollapsedMsgs, setCompose, setConfigOpen, setCsIndex, setCsOpen,
     setCsQuery, setDetRulesOpen, setDetail, setDraftsView, setError, setExpandedCats, setHeadersHidden,
@@ -439,8 +468,11 @@ export default function App() {
     applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
+    slackForwardOpen, setSlackForwardOpen, forwardSlack,
+    obsidianOpen, setObsidianOpen, sendObsidian,
     saveQueryName, setSaveQueryName, doSaveQuery,
-    bulkPromptText, setBulkPromptText, bulkPromptLabel, promptRunning, planOpen, analyzing,
+    bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
+    jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished, planOpen, analyzing,
     analyzeCount, analyzeProgress, analyzeElapsed, plan, planNodes, planActiveNode, planNav,
     expandedCats, setExpandedCats, planExcluded, setPlanExcluded, applyingAll, rulesEnabled, messages,
     applyCategory, dispatchPromptCategory, applyAllCategories, setPlanOpen, openMessage, openRules,
@@ -469,13 +501,13 @@ export default function App() {
     attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
     threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
-    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, sendObsidian,
-    forwardSlack, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
+    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
+    openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
     readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
   };
 
   return (

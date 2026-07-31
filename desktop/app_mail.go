@@ -3,6 +3,8 @@ package main
 // App bindings: keymap, accounts, mailbox core (list/search/message/archive/trash/read/labels), AI. Split out of app.go.
 
 import (
+	"fmt"
+
 	"github.com/ajramos/giztui/pkg/desktop"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -12,6 +14,15 @@ func (a *App) KeyMap() desktop.KeyMap {
 		return s.KeyMap()
 	}
 	return desktop.DefaultKeyMap()
+}
+
+// JobsNotifyOnComplete reports whether the AI-jobs subsystem should toast when a
+// background job finishes (config keys jobs.notify_on_complete, default true).
+func (a *App) JobsNotifyOnComplete() bool {
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		return s.Config.Jobs.NotifyOnComplete
+	}
+	return true
 }
 
 // ListAccounts returns all configured accounts for the account switcher.
@@ -131,6 +142,34 @@ func (a *App) SummarizeStream(id string, force bool) (string, error) {
 	})
 }
 
+// ChatEnabled reports whether the "chat with this email" feature is available.
+func (a *App) ChatEnabled() bool {
+	api, err := a.api()
+	if err != nil {
+		return false
+	}
+	return api.ChatEnabled()
+}
+
+// ChatStream answers a user's message about message `id`, emitting each token as
+// a "chat:token" Wails event and returning the full reply when done.
+func (a *App) ChatStream(id string, message string) (string, error) {
+	api, err := a.api()
+	if err != nil {
+		return "", err
+	}
+	return api.ChatStream(a.ctx, id, message, func(tok string) {
+		wailsruntime.EventsEmit(a.ctx, chatTokenEvent, tok)
+	})
+}
+
+// ChatReset clears the chat history for message `id`.
+func (a *App) ChatReset(id string) {
+	if api, err := a.api(); err == nil {
+		api.ChatReset(id)
+	}
+}
+
 // GenerateReply drafts an AI reply to a message and returns the draft body.
 func (a *App) GenerateReply(id string) (string, error) {
 	api, err := a.api()
@@ -209,6 +248,25 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 	return info
 }
 
+// MigrateConfig runs the config self-migration against this session's config
+// file (adds missing default keys, prunes obsolete ones, writes a .bak first),
+// mirroring the TUI's ":config migrate". Returns a human-readable summary the UI
+// can toast.
+func (a *App) MigrateConfig() (string, error) {
+	s := a.session.Load()
+	if s == nil {
+		return "", a.notReady()
+	}
+	added, removed, backup, err := s.MigrateConfig()
+	if err != nil {
+		return "", err
+	}
+	if len(added) == 0 && len(removed) == 0 {
+		return "Config is already up to date", nil
+	}
+	return fmt.Sprintf("Config updated: +%d added, -%d removed (backup: %s). Restart to apply.", len(added), len(removed), backup), nil
+}
+
 // InviteInfo returns calendar-invite details for a message (IsInvite=false when
 // the message isn't an invitation).
 func (a *App) InviteInfo(id string) (*desktop.Invite, error) {
@@ -226,6 +284,17 @@ func (a *App) RespondInvite(id, status string) error {
 		return err
 	}
 	return api.RespondInvite(a.ctx, id, status)
+}
+
+// SetAutoRefreshEnabled persists the auto-refresh on/off choice to config.json so it survives a
+// restart. The desktop never sends the Slack new-mail digest itself, but writing enabled:false here
+// stops any TUI launched later from silently re-arming it from a stale enabled:true.
+func (a *App) SetAutoRefreshEnabled(enabled bool) error {
+	s := a.session.Load()
+	if s == nil {
+		return a.notReady()
+	}
+	return s.SetAutoRefreshEnabled(enabled)
 }
 
 // AutoRefreshSettings returns the configured inbox auto-refresh preference.
