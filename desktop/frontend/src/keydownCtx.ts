@@ -96,7 +96,9 @@ export interface KeydownCtx {
   searchRef: RefObject<HTMLInputElement>;
   selected: Set<string>;
   selectedId: string | null;
-  sendObsidian: (id: string) => void;
+  openObsidian: () => void;
+  obsidianOpen: boolean;
+  setObsidianOpen: Dispatch<SetStateAction<boolean>>;
   setAccountsOpen: Dispatch<SetStateAction<boolean>>;
   setAdvOpen: Dispatch<SetStateAction<boolean>>;
   setAttachmentsOpen: Dispatch<SetStateAction<boolean>>;

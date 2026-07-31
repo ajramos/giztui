@@ -18,7 +18,7 @@ export interface CommandCtx {
   activeQuery: string;
   openDrafts: () => void;
   saveMessage: (id: string) => void;
-  sendObsidian: (id: string) => void;
+  openObsidian: () => void;
   openSlackForward: () => void;
   obsidianOn: boolean;
   slackOn: boolean;

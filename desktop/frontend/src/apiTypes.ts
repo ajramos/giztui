@@ -412,7 +412,7 @@ export interface Backend {
   MigrateConfig(): Promise<string>;
   SetAutoRefreshEnabled(enabled: boolean): Promise<void>;
   ObsidianEnabled(): Promise<boolean>;
-  SendToObsidian(messageID: string): Promise<string>;
+  SendToObsidian(messageID: string, comment: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
   SlackChannels(): Promise<SlackChannel[]>;
   SlackDefaultFormat(): Promise<string>;

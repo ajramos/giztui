@@ -39,13 +39,14 @@ func (a *App) ObsidianEnabled() bool {
 	return a.enabled((*desktop.API).ObsidianEnabled)
 }
 
-// SendToObsidian ingests a message into the Obsidian vault.
-func (a *App) SendToObsidian(id string) (string, error) {
+// SendToObsidian ingests a message into the Obsidian vault with an optional
+// comment (rendered into the note as "> **Note:** …", TUI parity).
+func (a *App) SendToObsidian(id, comment string) (string, error) {
 	api, err := a.api()
 	if err != nil {
 		return "", err
 	}
-	return api.SendToObsidian(a.ctx, id)
+	return api.SendToObsidian(a.ctx, id, comment)
 }
 
 // SlackEnabled reports whether the Slack integration is available.

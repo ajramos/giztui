@@ -9,7 +9,12 @@ export interface Integrations {
   obsidianOn: boolean;
   slackOn: boolean;
   refresh: () => Promise<void>;
-  sendObsidian: (id: string) => void;
+  // Obsidian ingest now goes through a dialog (optional comment, TUI parity):
+  // openObsidian toggles it; sendObsidian performs the ingest with the comment.
+  obsidianOpen: boolean;
+  setObsidianOpen: Dispatch<SetStateAction<boolean>>;
+  openObsidian: () => void;
+  sendObsidian: (id: string, comment: string) => void;
   // Slack forward now goes through a picker (channel + pre-message, TUI parity):
   // openSlackForward toggles the dialog; forwardSlack performs the actual send.
   slackForwardOpen: boolean;
@@ -31,17 +36,21 @@ export function useIntegrations(deps: {
   const [obsidianOn, setObsidianOn] = useState(false);
   const [slackOn, setSlackOn] = useState(false);
   const [slackForwardOpen, setSlackForwardOpen] = useState(false);
+  const [obsidianOpen, setObsidianOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setObsidianOn(await backend.ObsidianEnabled());
     setSlackOn(await backend.SlackEnabled());
   }, []);
 
+  const openObsidian = useCallback(() => setObsidianOpen(true), []);
+
   const sendObsidian = useCallback(
-    (id: string) => {
+    (id: string, comment: string) => {
+      setObsidianOpen(false);
       showToast("Sending to Obsidian…");
       void backend
-        .SendToObsidian(id)
+        .SendToObsidian(id, comment)
         .then((p) => showToast(p ? `Saved to Obsidian: ${p}` : "Saved to Obsidian"))
         .catch((e) => setError(String(e)));
     },
@@ -66,6 +75,9 @@ export function useIntegrations(deps: {
     obsidianOn,
     slackOn,
     refresh,
+    obsidianOpen,
+    setObsidianOpen,
+    openObsidian,
     sendObsidian,
     slackForwardOpen,
     setSlackForwardOpen,

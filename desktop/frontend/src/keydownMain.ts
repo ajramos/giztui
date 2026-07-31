@@ -14,7 +14,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     openMessage, openQueries, openSuggest, previewMessage, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, runActionPlan, runUndo, runVimRange, runVimSingle,
     saveMessage, saveRawMessage, savedQueriesOn, searchRef, selected, selectedId,
-    sendObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
+    openObsidian, setAttachmentsOpen, setBulkLabels, setBulkMode, setBulkMove, setBulkProgress,
     setCmdOpen, setCompose, setCsIndex, setCsOpen, setCsQuery, setDetail,
     setHeadersHidden, setLabelsFor, setLinksFor, setLocalFilter, setMessages, setMoveFor,
     setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, openChat, setSaveQueryOpen, setSelected,
@@ -396,7 +396,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
           if (detail && aiEnabled && !bulkMode) void openSuggest(detail.id);
           break;
         case "obsidian":
-          if (detail && obsidianOn) sendObsidian(detail.id);
+          if (detail && obsidianOn) openObsidian();
           break;
         case "slack":
           if (detail && slackOn) openSlackForward();

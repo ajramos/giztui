@@ -9,7 +9,7 @@ import type { CommandCtx } from "./commandCtx";
 export function runCommand(input: string, ctx: CommandCtx) {
   const {
     detail, load, doAction, activeQuery, openDrafts, saveMessage,
-    sendObsidian, openSlackForward, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
+    openObsidian, openSlackForward, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
     summarize, openChat, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
     runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
@@ -135,7 +135,8 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "obsidian":
         case "obs":
-          if (d && obsidianOn) sendObsidian(d.id);
+          // Open the ingest dialog (optional comment → "> **Note:** …" in the note).
+          if (d && obsidianOn) openObsidian();
           break;
         case "slack":
         case "sl":

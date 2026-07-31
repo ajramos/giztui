@@ -120,7 +120,7 @@ export interface AppInboxProps {
   setMoveFor: (v: string | null) => void;
   quickSearch: (kind: "from" | "to" | "subject", d: MessageDetail) => void;
   setLinksFor: (v: string | null) => void;
-  sendObsidian: (id: string) => void;
+  openObsidian: () => void;
   openSlackForward: () => void;
   saveMessage: (id: string) => void;
   saveRawMessage: (id: string) => void;
@@ -175,7 +175,7 @@ export default function AppInbox(p: AppInboxProps) {
     attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
     threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
-    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, sendObsidian,
+    setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
     openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
     readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
@@ -337,7 +337,7 @@ export default function AppInbox(p: AppInboxProps) {
           onMove={() => detail && setMoveFor(detail.id)}
           onSearchSender={() => detail && quickSearch("from", detail)}
           onLinks={() => detail && setLinksFor(detail.id)}
-          onObsidian={() => detail && sendObsidian(detail.id)}
+          onObsidian={() => detail && openObsidian()}
           onSlack={() => detail && openSlackForward()}
           onSave={() => detail && saveMessage(detail.id)}
           onSaveRaw={() => detail && saveRawMessage(detail.id)}

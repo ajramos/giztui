@@ -207,7 +207,7 @@ export const mockB: Partial<Backend> = {
   async ObsidianEnabled() {
     return true;
   },
-  async SendToObsidian() {
+  async SendToObsidian(_id: string, _comment: string) {
     await new Promise((r) => setTimeout(r, 300));
     return "00-Inbox/2026-07-18_welcome.md";
   },
