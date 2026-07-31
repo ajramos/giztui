@@ -138,46 +138,51 @@ jobs:
     - name: Generate release notes from changelog
       id: release_notes
       run: |
-        # Extract release notes for this version from CHANGELOG.md
         VERSION="${{ steps.version.outputs.VERSION }}"
+        VER="${VERSION#v}"  # CHANGELOG headings are unprefixed (## [1.23.0])
 
-        # Create release notes
-        cat > release-notes.md << 'EOF'
-        # GizTUI ${{ steps.version.outputs.VERSION }}
+        # Extract THIS version's section from CHANGELOG.md: everything between
+        # "## [VER]" and the next "## [" heading (the heading line itself dropped).
+        awk -v ver="$VER" '
+          $0 ~ ("^## \\[" ver "\\]") { found=1; next }
+          found && /^## \[/ { exit }
+          found { print }
+        ' CHANGELOG.md > changelog-section.md
 
-        🎉 **GizTUI (formerly Gmail TUI) - Terminal-based Gmail client with AI integration**
+        # Fall back to a link if the tag has no matching CHANGELOG entry.
+        if [ ! -s changelog-section.md ]; then
+          echo "_See [CHANGELOG.md](https://github.com/ajramos/giztui/blob/main/CHANGELOG.md) for release notes._" > changelog-section.md
+        fi
 
-        ## Installation
-
-        ### Download Binary
-        1. Download the appropriate binary for your platform from the assets below
-        2. Extract the archive: `tar -xzf giztui-*.tar.gz` (Linux/macOS) or unzip `giztui-*.zip` (Windows)
-        3. Move to your PATH: `mv giztui /usr/local/bin/` (Linux/macOS)
-        4. Run: `giztui --setup` for first-time configuration
-
-        ### Go Install
-        ```bash
-        go install github.com/ajramos/giztui/cmd/giztui@${{ steps.version.outputs.VERSION }}
-        ```
-
-        ## What's New
-
-        See [CHANGELOG.md](https://github.com/ajramos/giztui/blob/main/CHANGELOG.md) for complete release notes.
-
-        ## Platform Support
-        - ✅ Linux (AMD64, ARM64)
-        - ✅ macOS (Intel, Apple Silicon)
-        - ✅ Windows (AMD64, ARM64)
-
-        ## Requirements
-        - Gmail API credentials (see setup guide)
-        - Terminal with 256-color support
-        - Optional: Ollama for local AI features
-
-        ---
-
-        **Full Changelog**: https://github.com/ajramos/giztui/blob/main/CHANGELOG.md
-        EOF
+        # Assemble the release body: the version's changelog section on top, then
+        # the standing install/requirements boilerplate.
+        {
+          echo "# GizTUI ${VERSION}"
+          echo
+          cat changelog-section.md
+          echo
+          echo "## Installation"
+          echo
+          echo "### Download Binary"
+          echo "1. Download the appropriate binary for your platform from the assets below"
+          echo "2. Extract the archive: \`tar -xzf giztui-*.tar.gz\` (Linux/macOS) or unzip \`giztui-*.zip\` (Windows)"
+          echo "3. Move to your PATH: \`mv giztui /usr/local/bin/\` (Linux/macOS)"
+          echo "4. Run: \`giztui --setup\` for first-time configuration"
+          echo
+          echo "### Go Install"
+          echo '```bash'
+          echo "go install github.com/ajramos/giztui/cmd/giztui@${VERSION}"
+          echo '```'
+          echo
+          echo "## Platform Support"
+          echo "- ✅ Linux (AMD64, ARM64)"
+          echo "- ✅ macOS (Intel, Apple Silicon)"
+          echo "- ✅ Windows (AMD64, ARM64)"
+          echo
+          echo "---"
+          echo
+          echo "**Full Changelog**: https://github.com/ajramos/giztui/blob/main/CHANGELOG.md"
+        } > release-notes.md
 
         # Set output for GitHub release
         {
