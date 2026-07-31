@@ -23,11 +23,14 @@ test.describe("Slack forward picker", () => {
 
     // The format selector defaults to the configured style (mock: "markdown").
     await expect(picker.locator(".slack-format.sel")).toContainText("Markdown");
-    // Pick a different format, then add a pre-message and send.
-    await picker.locator(".slack-format", { hasText: "Summary" }).click();
+    // Keyboard-first: the format must be selectable from the keyboard (Shift+Tab
+    // cycles back markdown → summary), not only by mouse. Focus stays in the input.
+    const input = picker.locator(".slack-premessage");
+    await input.press("Shift+Tab");
     await expect(picker.locator(".slack-format.sel")).toContainText("Summary");
-    await picker.locator(".slack-premessage").fill("heads up on this");
-    await picker.locator(".slack-premessage").press("Enter");
+    // Add a pre-message and send.
+    await input.fill("heads up on this");
+    await input.press("Enter");
 
     await expect(page.locator(".toast")).toContainText("Forwarded to Slack");
     await expect(picker).toBeHidden();

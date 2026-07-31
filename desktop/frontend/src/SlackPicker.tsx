@@ -168,6 +168,10 @@ export default function SlackPicker({
                 autoFocus
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
+                  // The input holds focus (WKWebView focuses inputs reliably), so
+                  // ALL navigation must work from here — keyboard-first. Tab cycles
+                  // the format, ↑↓ the channel; neither is useful for a single-line
+                  // input so intercepting them is safe.
                   if (e.key === "Enter") {
                     e.preventDefault();
                     e.stopPropagation();
@@ -176,6 +180,21 @@ export default function SlackPicker({
                     e.preventDefault();
                     e.stopPropagation();
                     onClose();
+                  } else if (e.key === "Tab") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setFormat((f) => {
+                      const i = FORMATS.findIndex((x) => x.key === f);
+                      const n = FORMATS.length;
+                      const next = e.shiftKey ? (i - 1 + n) % n : (i + 1) % n;
+                      return FORMATS[next].key;
+                    });
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActive((a) => Math.min(channelsRef.current.length - 1, a + 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActive((a) => Math.max(0, a - 1));
                   }
                 }}
               />
@@ -184,7 +203,7 @@ export default function SlackPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            ↑↓ / 1-9 channel · click format · Enter send · Esc close
+            ↑↓ channel · Tab format · Enter send · Esc close
           </span>
         </div>
       </div>
