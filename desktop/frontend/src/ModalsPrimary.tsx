@@ -88,7 +88,12 @@ export default function ModalsPrimary(p: {
   doSaveQuery: () => void;
   slackForwardOpen: boolean;
   setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
-  forwardSlack: (id: string, channelID: string, userMessage: string) => void;
+  forwardSlack: (
+    id: string,
+    channelID: string,
+    userMessage: string,
+    format: string,
+  ) => void;
 }) {
   const {
     compose, setCompose, showToast, draftsView, loadDrafts,
@@ -206,7 +211,9 @@ export default function ModalsPrimary(p: {
       )}
       {slackForwardOpen && detail && (
         <SlackPicker
-          onSend={(channelID, message) => forwardSlack(detail.id, channelID, message)}
+          onSend={(channelID, message, format) =>
+            forwardSlack(detail.id, channelID, message, format)
+          }
           onClose={() => setSlackForwardOpen(false)}
         />
       )}

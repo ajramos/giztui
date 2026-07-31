@@ -11,35 +11,46 @@ import { Icon } from "./Icons";
 // The channel list defaults to the configured default channel. Enter sends to the
 // selected channel; Escape closes. The actual send + toast lives in the caller's
 // forwardSlack (which also honors the configured format_style on the backend).
+// Format styles offered in the picker, in "least → most" verbosity order. The
+// backend also accepts "raw"; it's omitted here as a rarely-wanted option.
+const FORMATS: { key: string; label: string; hint: string }[] = [
+  { key: "summary", label: "Summary", hint: "AI one-liner" },
+  { key: "markdown", label: "Markdown", hint: "Clean reader view" },
+  { key: "compact", label: "Compact", hint: "Headers + preview" },
+  { key: "full", label: "Full", hint: "Everything" },
+];
+
 export default function SlackPicker({
   onSend,
   onClose,
 }: {
-  onSend: (channelID: string, message: string) => void;
+  onSend: (channelID: string, message: string, format: string) => void;
   onClose: () => void;
 }) {
   const [channels, setChannels] = useState<SlackChannel[]>([]);
   const [active, setActive] = useState(0);
   const [message, setMessage] = useState("");
+  const [format, setFormat] = useState("markdown");
   const [loading, setLoading] = useState(true);
 
   // Fresh values for the window listener (registered once).
   const activeRef = useRef(0);
   const channelsRef = useRef<SlackChannel[]>([]);
   const messageRef = useRef("");
+  const formatRef = useRef("markdown");
   activeRef.current = active;
   channelsRef.current = channels;
   messageRef.current = message;
+  formatRef.current = format;
 
   useEffect(() => {
     let alive = true;
-    void backend
-      .SlackChannels()
-      .then((cs) => {
+    void Promise.all([backend.SlackChannels(), backend.SlackDefaultFormat()])
+      .then(([cs, def]) => {
         if (!alive) return;
         setChannels(cs);
-        const def = Math.max(0, cs.findIndex((c) => c.default));
-        setActive(def);
+        setActive(Math.max(0, cs.findIndex((c) => c.default)));
+        if (def) setFormat(def);
         setLoading(false);
       })
       .catch(() => {
@@ -52,7 +63,7 @@ export default function SlackPicker({
 
   const send = () => {
     const ch = channelsRef.current[activeRef.current];
-    if (ch) onSend(ch.id, messageRef.current.trim());
+    if (ch) onSend(ch.id, messageRef.current.trim(), formatRef.current);
   };
 
   // Window-level keys (WKWebView won't focus a bare div). Escape always closes.
@@ -120,7 +131,7 @@ export default function SlackPicker({
                     onMouseEnter={() => setActive(i)}
                     onClick={() => {
                       setActive(i);
-                      onSend(c.id, message.trim());
+                      onSend(c.id, message.trim(), format);
                     }}
                   >
                     <span className="prompt-name">
@@ -131,6 +142,21 @@ export default function SlackPicker({
                     {c.description ? (
                       <span className="prompt-desc">{c.description}</span>
                     ) : null}
+                  </button>
+                ))}
+              </div>
+              <div className="slack-format-row" role="radiogroup" aria-label="Format">
+                {FORMATS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={format === f.key}
+                    title={f.hint}
+                    className={"slack-format" + (format === f.key ? " sel" : "")}
+                    onClick={() => setFormat(f.key)}
+                  >
+                    {f.label}
                   </button>
                 ))}
               </div>
@@ -158,7 +184,7 @@ export default function SlackPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            ↑↓ / 1-9 channel · Enter send · Esc close
+            ↑↓ / 1-9 channel · click format · Enter send · Esc close
           </span>
         </div>
       </div>

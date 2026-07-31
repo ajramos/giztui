@@ -15,7 +15,12 @@ export interface Integrations {
   slackForwardOpen: boolean;
   setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
   openSlackForward: () => void;
-  forwardSlack: (id: string, channelID: string, userMessage: string) => void;
+  forwardSlack: (
+    id: string,
+    channelID: string,
+    userMessage: string,
+    format: string,
+  ) => void;
 }
 
 export function useIntegrations(deps: {
@@ -46,11 +51,11 @@ export function useIntegrations(deps: {
   const openSlackForward = useCallback(() => setSlackForwardOpen(true), []);
 
   const forwardSlack = useCallback(
-    (id: string, channelID: string, userMessage: string) => {
+    (id: string, channelID: string, userMessage: string, format: string) => {
       setSlackForwardOpen(false);
       showToast("Forwarding to Slack…");
       void backend
-        .ForwardToSlack(id, channelID, userMessage)
+        .ForwardToSlack(id, channelID, userMessage, format)
         .then(() => showToast("Forwarded to Slack"))
         .catch((e) => setError(String(e)));
     },

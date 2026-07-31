@@ -231,6 +231,31 @@
 .slack-premessage:focus {
   border-color: var(--accent, #60a5fa);
 }
+/* Slack forward format selector: a small segmented chip row. */
+.slack-format-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.slack-format {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.slack-format:hover {
+  color: var(--text);
+}
+.slack-format.sel {
+  background: var(--accent, #60a5fa);
+  border-color: var(--accent, #60a5fa);
+  color: #fff;
+  font-weight: 600;
+}
 /* AI-jobs picker status chip (":jobs"). */
 .job-status {
   display: inline-block;

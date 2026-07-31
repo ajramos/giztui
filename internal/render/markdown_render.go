@@ -204,6 +204,27 @@ func RenderEmailMarkdown(msg *gmailwrap.Message, opts MarkdownOptions) (string, 
 	return MarkdownToTerminal(md, opts.GlamourTheme, opts.WrapWidth)
 }
 
+// EmailMarkdown returns the cleaned Markdown SOURCE of an email's HTML — the same
+// HTML→markdown→cleanup pipeline RenderEmailMarkdown uses, but WITHOUT the glamour
+// terminal styling step. Useful where clean markdown text is wanted instead of
+// ANSI/tview output (e.g. a Slack "markdown" forward, which reads like the TUI's
+// message view but drops the newsletter cruft that "full" keeps). Errors when the
+// HTML is empty or nothing survives cleanup.
+func EmailMarkdown(htmlStr string, opts MarkdownOptions) (string, error) {
+	if strings.TrimSpace(htmlStr) == "" {
+		return "", fmt.Errorf("no HTML content")
+	}
+	md, err := convertHTMLToMarkdown(htmlStr)
+	if err != nil {
+		return "", err
+	}
+	md = cleanupMarkdown(md, opts)
+	if strings.TrimSpace(md) == "" {
+		return "", fmt.Errorf("empty after cleanup")
+	}
+	return md, nil
+}
+
 // MarkdownToTerminal renders Markdown to terminal text styled by glamour, then
 // translates ANSI escapes to tview color tags for the message TextView.
 func MarkdownToTerminal(markdown, theme string, width int) (string, error) {

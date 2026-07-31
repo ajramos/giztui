@@ -221,7 +221,15 @@ export const mockB: Partial<Backend> = {
       { id: "me", name: "personal-dm", description: "My DM", default: false },
     ];
   },
-  async ForwardToSlack(_id: string, _channelID: string, _userMessage: string) {
+  async SlackDefaultFormat() {
+    return "markdown";
+  },
+  async ForwardToSlack(
+    _id: string,
+    _channelID: string,
+    _userMessage: string,
+    _format: string,
+  ) {
     await new Promise((r) => setTimeout(r, 300));
   },
   async SuggestLabels() {

@@ -62,16 +62,29 @@ func (a *App) SlackChannels() ([]desktop.SlackChannelInfo, error) {
 	return api.SlackChannels(a.ctx)
 }
 
+// SlackDefaultFormat returns the configured slack.defaults.format_style so the
+// forward picker can preselect it.
+func (a *App) SlackDefaultFormat() string {
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		if f := s.Config.Slack.Defaults.FormatStyle; f != "" {
+			return f
+		}
+	}
+	return "summary"
+}
+
 // ForwardToSlack forwards a message to the chosen Slack channel with an optional
-// pre-message, honoring the configured slack.defaults.format_style (TUI parity).
-func (a *App) ForwardToSlack(id, channelID, userMessage string) error {
+// pre-message. format selects the style ("summary"/"markdown"/"compact"/"full"/
+// "raw"); an empty format falls back to the configured slack.defaults.format_style.
+func (a *App) ForwardToSlack(id, channelID, userMessage, format string) error {
 	api, err := a.api()
 	if err != nil {
 		return err
 	}
-	format := ""
-	if s := a.session.Load(); s != nil && s.Config != nil {
-		format = s.Config.Slack.Defaults.FormatStyle
+	if format == "" {
+		if s := a.session.Load(); s != nil && s.Config != nil {
+			format = s.Config.Slack.Defaults.FormatStyle
+		}
 	}
 	return api.ForwardToSlack(a.ctx, id, channelID, userMessage, format)
 }

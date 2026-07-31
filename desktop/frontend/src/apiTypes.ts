@@ -415,7 +415,13 @@ export interface Backend {
   SendToObsidian(messageID: string): Promise<string>;
   SlackEnabled(): Promise<boolean>;
   SlackChannels(): Promise<SlackChannel[]>;
-  ForwardToSlack(messageID: string, channelID: string, userMessage: string): Promise<void>;
+  SlackDefaultFormat(): Promise<string>;
+  ForwardToSlack(
+    messageID: string,
+    channelID: string,
+    userMessage: string,
+    format: string,
+  ): Promise<void>;
   SuggestLabels(messageID: string): Promise<string[]>;
   ApplyLabelByName(messageID: string, name: string): Promise<void>;
   OpenGmailWeb(messageID: string): Promise<void>;

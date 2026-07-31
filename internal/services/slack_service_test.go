@@ -116,6 +116,46 @@ func TestSummaryCount(t *testing.T) {
 	}
 }
 
+func TestSlackifyMarkdown(t *testing.T) {
+	got := slackifyMarkdown("# Title\n\nHello **world**\n## Sub heading")
+	if strings.Contains(got, "**world**") || !strings.Contains(got, "*world*") {
+		t.Errorf("bold not slackified: %q", got)
+	}
+	if strings.Contains(got, "# Title") || !strings.Contains(got, "*Title*") {
+		t.Errorf("h1 not bolded: %q", got)
+	}
+	if strings.Contains(got, "## Sub heading") || !strings.Contains(got, "*Sub heading*") {
+		t.Errorf("h2 not bolded: %q", got)
+	}
+}
+
+func TestFormatEmailForSlack_Markdown(t *testing.T) {
+	s := NewSlackService(nil, &config.Config{}, nil)
+	html := "<h1>Deploy done</h1><p>All <strong>green</strong>.</p>"
+	msg := &gmailapi.Message{Payload: &gmailapi.MessagePart{
+		MimeType: "text/html",
+		Body:     &gmailapi.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte(html))},
+		Headers: []*gmailapi.MessagePartHeader{
+			{Name: "From", Value: "a@b.com"},
+			{Name: "Subject", Value: "Deploy"},
+		},
+	}}
+	out, err := s.formatEmailForSlack(context.Background(), msg, SlackForwardOptions{FormatStyle: "markdown"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.Text, "*From:* a@b.com") {
+		t.Errorf("missing header line: %q", out.Text)
+	}
+	// <strong>green</strong> → **green** → *green* (Slack bold), and the <h1> heading bolded.
+	if !strings.Contains(out.Text, "*green*") {
+		t.Errorf("expected slack-bold body: %q", out.Text)
+	}
+	if !strings.Contains(out.Text, "*Deploy done*") {
+		t.Errorf("expected bolded heading: %q", out.Text)
+	}
+}
+
 func TestBuildNewMailDigest(t *testing.T) {
 	// Two items, no links, no summaries.
 	got := buildNewMailDigest([]digestItem{

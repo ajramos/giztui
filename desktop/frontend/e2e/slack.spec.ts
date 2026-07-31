@@ -21,7 +21,11 @@ test.describe("Slack forward picker", () => {
     await expect(picker.locator(".prompt-row").first()).toContainText("team-updates");
     await expect(picker.locator(".prompt-row")).toHaveCount(2);
 
-    // Add a pre-message and send.
+    // The format selector defaults to the configured style (mock: "markdown").
+    await expect(picker.locator(".slack-format.sel")).toContainText("Markdown");
+    // Pick a different format, then add a pre-message and send.
+    await picker.locator(".slack-format", { hasText: "Summary" }).click();
+    await expect(picker.locator(".slack-format.sel")).toContainText("Summary");
     await picker.locator(".slack-premessage").fill("heads up on this");
     await picker.locator(".slack-premessage").press("Enter");
 

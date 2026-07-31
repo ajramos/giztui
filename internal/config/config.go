@@ -173,7 +173,7 @@ type SlackChannel struct {
 
 // SlackDefaults defines default Slack forwarding behavior
 type SlackDefaults struct {
-	// FormatStyle controls how emails are formatted: "summary" (AI-generated), "compact" (headers + preview), "full" (TUI processed), "raw" (minimal processing)
+	// FormatStyle controls how emails are formatted: "summary" (AI-generated), "compact" (headers + preview), "markdown" (cleaned reader-style markdown, between summary and full), "full" (TUI processed), "raw" (minimal processing)
 	FormatStyle string `json:"format_style"`
 }
 

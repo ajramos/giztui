@@ -136,7 +136,7 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 ### Slack Integration
 - ✅ **Email forwarding to Slack** - Send emails to configured Slack channels
 - ✅ **Bulk forwarding with comments** - Forward multiple emails with shared context
-- ✅ **Multiple format styles** - Summary (AI-generated), Compact, Full (TUI-processed), Raw
+- ✅ **Multiple format styles** - Summary (AI-generated), Markdown (cleaned reader-style, between summary and full), Compact, Full (TUI-processed), Raw
 - ✅ **AI-powered summaries** - Use custom AI prompts for intelligent summarization
 - ✅ **Custom user messages** - Add optional context when forwarding emails
 - ✅ **Multi-channel support** - Configure multiple Slack channels with webhooks
