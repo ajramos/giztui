@@ -153,9 +153,10 @@ export function useBootstrap(deps: {
       try {
         const ar = await backend.AutoRefreshSettings();
         if (ar.intervalSeconds > 0) setAutoRefreshSecs(ar.intervalSeconds);
-        // localStorage overrides the config default once the user has chosen.
-        const saved = localStorage.getItem("giztui.autorefresh");
-        setAutoRefresh(saved === null ? ar.enabled : saved === "on");
+        // config.json is the single source of truth (the toggle persists back to
+        // it). A stale localStorage override used to win here, which made
+        // auto_refresh.enabled:true show as OFF after the user had toggled it once.
+        setAutoRefresh(ar.enabled);
       } catch {
         /* non-fatal */
       }

@@ -25,9 +25,9 @@ export function useAutoRefresh(deps: {
   const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh((v) => {
       const next = !v;
-      localStorage.setItem("giztui.autorefresh", next ? "on" : "off");
-      // Persist to config.json too. The desktop never sends the Slack new-mail digest, but writing
-      // enabled:false here stops any TUI launched later from silently re-arming it from a stale
+      // Persist to config.json — the single source of truth, read back on startup.
+      // The desktop never sends the Slack new-mail digest, but writing enabled:false
+      // here also stops any TUI launched later from re-arming it from a stale
       // enabled:true. Fire-and-forget: the local toggle already took effect.
       void backend.SetAutoRefreshEnabled(next).catch(() => {});
       showToast(next ? "Auto-refresh on" : "Auto-refresh off");
