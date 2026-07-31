@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	// chatMaxBodyRunes caps the grounding email body (matches the summary path).
-	chatMaxBodyRunes = 8000
 	// chatMaxTurns bounds how many prior turns are re-sent in the transcript, since
 	// the LLM API is single-shot and the whole conversation is resent every turn.
 	chatMaxTurns = 12
@@ -95,9 +93,17 @@ func (s *ChatServiceImpl) appendTurns(sessionID string, turns ...ChatTurn) {
 // buildChatPrompt renders the chat template with the (bounded) email body, the
 // recent transcript, and the new question.
 func (s *ChatServiceImpl) buildChatPrompt(emailContent string, history []ChatTurn, userMessage string) string {
+	// Cap the grounding body so a huge email doesn't blow the model's context. The
+	// limit is configurable (llm.chat_max_body_chars) because the right value
+	// depends on the model; fall back to a generous default that fits long
+	// newsletters when config is absent.
+	maxBody := 24000
+	if s.config != nil {
+		maxBody = s.config.LLM.GetChatMaxBodyChars()
+	}
 	body := emailContent
-	if r := []rune(body); len(r) > chatMaxBodyRunes {
-		body = string(r[:chatMaxBodyRunes]) + "\n[...email truncated...]"
+	if r := []rune(body); len(r) > maxBody {
+		body = string(r[:maxBody]) + "\n[...email truncated...]"
 	}
 
 	if len(history) > chatMaxTurns {

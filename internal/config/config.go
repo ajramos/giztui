@@ -46,6 +46,24 @@ type LLMConfig struct {
 	TouchUpPrompt string `json:"touch_up_prompt,omitempty"`
 	// Chat prompt for the "chat with this email" conversational feature
 	ChatPrompt string `json:"chat_prompt,omitempty"`
+	// ChatMaxBodyChars caps how much of the email body grounds the "chat with this
+	// email" feature. Long newsletters exceed the old fixed 8000-char limit, so
+	// questions about content past that point were answered "not mentioned". Raise
+	// it for big-context models; lower it for small ones. 0 → the built-in default.
+	ChatMaxBodyChars int `json:"chat_max_body_chars"`
+}
+
+// defaultChatMaxBodyChars is the fallback grounding-body cap for "chat with this
+// email" when config leaves chat_max_body_chars unset (0).
+const defaultChatMaxBodyChars = 24000
+
+// GetChatMaxBodyChars returns the configured chat grounding-body cap, or the
+// built-in default when unset/invalid.
+func (c *LLMConfig) GetChatMaxBodyChars() int {
+	if c != nil && c.ChatMaxBodyChars > 0 {
+		return c.ChatMaxBodyChars
+	}
+	return defaultChatMaxBodyChars
 }
 
 // ThemeConfig holds theme-related configuration
@@ -551,6 +569,7 @@ func DefaultLLMConfig() LLMConfig {
 		LabelTemplate:     "templates/ai/label.md",
 		TouchUpTemplate:   "templates/ai/touch_up.md",
 		ChatTemplate:      "templates/ai/chat.md",
+		ChatMaxBodyChars:  defaultChatMaxBodyChars,
 		// No inline prompts in defaults - use template files
 		SummarizePrompt: "",
 		ReplyPrompt:     "",

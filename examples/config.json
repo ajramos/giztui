@@ -16,7 +16,8 @@
     "reply_template": "templates/ai/reply.md",
     "label_template": "templates/ai/label.md",
     "touch_up_template": "templates/ai/touch_up.md",
-    "chat_template": "templates/ai/chat.md"
+    "chat_template": "templates/ai/chat.md",
+    "chat_max_body_chars": 24000
   },
   "slack": {
     "enabled": false,

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ajramos/giztui/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -90,6 +91,34 @@ func TestChatService_ClearSession(t *testing.T) {
 }
 
 // TestChatService_ErrorNotRecorded ensures a failed turn does not poison history.
+// TestChatService_BodyCapConfigurable verifies the grounding-body cap honors
+// llm.chat_max_body_chars, so long newsletters aren't truncated below the section
+// the user asks about.
+func TestChatService_BodyCapConfigurable(t *testing.T) {
+	longBody := strings.Repeat("x", 5000) + "AFM3_MARKER" + strings.Repeat("y", 5000)
+
+	run := func(cfg *config.Config) string {
+		mockAI := &mockAIService{}
+		var prompt string
+		mockAI.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) { prompt = args.String(1) }).
+			Return("ok", nil)
+		svc := NewChatService(mockAI, cfg)
+		_, err := svc.SendMessageStream(context.Background(), "s", longBody, "where is AFM3?", nil)
+		assert.NoError(t, err)
+		return prompt
+	}
+
+	// A tiny cap truncates the marker out (the old fixed-8000 failure mode).
+	small := &config.Config{}
+	small.LLM.ChatMaxBodyChars = 100
+	assert.NotContains(t, run(small), "AFM3_MARKER")
+	assert.Contains(t, run(small), "[...email truncated...]")
+
+	// The default cap (>10k) keeps the marker.
+	assert.Contains(t, run(&config.Config{}), "AFM3_MARKER")
+}
+
 func TestChatService_ErrorNotRecorded(t *testing.T) {
 	mockAI := &mockAIService{}
 	mockAI.On("ApplyCustomPromptStream", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
