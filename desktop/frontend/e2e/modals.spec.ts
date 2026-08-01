@@ -14,6 +14,14 @@ test.describe("display modals", () => {
     await expect(modal).toBeHidden();
   });
 
+  test("':stats' redirects to :prompt stats (not 'unknown command')", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "stats");
+    const toast = page.locator(".toast");
+    await expect(toast).toContainText(":prompt stats");
+    await expect(toast).not.toContainText("Unknown command");
+  });
+
   test("':config' opens the configuration modal and Escape closes it", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "config");

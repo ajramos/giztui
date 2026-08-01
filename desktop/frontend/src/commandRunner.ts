@@ -380,6 +380,13 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "adv":
           setAdvOpen(true);
           break;
+        case "stats":
+        case "usage":
+          // :stats is the TUI's (opt-in) telemetry dashboard, which the desktop
+          // doesn't have yet. Prompt-usage moved to :prompt stats — redirect
+          // rather than falling through to a bare "Unknown command".
+          showToast("Usage analytics is TUI-only for now · AI prompt usage: :prompt stats");
+          break;
         case "config":
         case "cfg":
           // ":config migrate" runs the config self-migration (TUI parity);
