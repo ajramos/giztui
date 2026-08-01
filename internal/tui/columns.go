@@ -150,8 +150,19 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 	}
 	config = append(config, flagsColumn)
 
-	// Calculate remaining width after fixed columns (numbers + flags)
-	usedWidth := numbersWidth + flagsFixedWidth + 2 // +2 for separators
+	// Dedicated star column (⭐), always present, right after flags so a starred
+	// message is unmistakable — like the attachment/calendar icon columns.
+	starFixedWidth := 2
+	config = append(config, render.ColumnConfig{
+		Header:    "",
+		Alignment: tview.AlignCenter,
+		Expansion: 0,
+		MaxWidth:  starFixedWidth,
+		MinWidth:  starFixedWidth,
+	})
+
+	// Calculate remaining width after fixed columns (numbers + flags + star)
+	usedWidth := numbersWidth + flagsFixedWidth + starFixedWidth + 3 // +3 for separators
 	remainingWidth := availableWidth - usedWidth
 
 	// Responsive column inclusion based on breakpoint and available space
@@ -514,6 +525,7 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		SRC_ATTACHMENT = 4 // Updated index
 		SRC_CALENDAR   = 5 // Updated index
 		SRC_DATE       = 6 // Updated index
+		SRC_STAR       = 7 // Dedicated star column (appended)
 	)
 
 	// Determine if numbers column is present in config (always first if present)
@@ -535,8 +547,10 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		configIndex++
 	}
 
-	// Track which empty-header columns we've seen (flags, then attachment, then calendar)
+	// Track which empty-header center columns we've seen, in config order:
+	// flags, then star, then attachment, then calendar.
 	flagsColumnSeen := false
+	starColumnSeen := false
 	attachmentColumnSeen := false
 
 	// Map remaining columns based on config headers and availability
@@ -547,19 +561,25 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		case "": // Either flags, attachment, or calendar column
 			if config[configIndex].Alignment == tview.AlignCenter {
 				if !flagsColumnSeen {
-					// This is the first empty-header column - it's the flags column
+					// First empty-header column - the flags column
 					if len(emailData.Columns) > SRC_FLAGS {
 						mappedColumns[configIndex] = emailData.Columns[SRC_FLAGS]
 					}
 					flagsColumnSeen = true
+				} else if !starColumnSeen {
+					// Second empty-header column - the star column
+					if len(emailData.Columns) > SRC_STAR {
+						mappedColumns[configIndex] = emailData.Columns[SRC_STAR]
+					}
+					starColumnSeen = true
 				} else if !attachmentColumnSeen {
-					// This is the second empty-header column - it's the attachment column
+					// Third empty-header column - the attachment column
 					if len(emailData.Columns) > SRC_ATTACHMENT {
 						mappedColumns[configIndex] = emailData.Columns[SRC_ATTACHMENT]
 					}
 					attachmentColumnSeen = true
 				} else {
-					// This is the third empty-header column - it's the calendar column
+					// Fourth empty-header column - the calendar column
 					if len(emailData.Columns) > SRC_CALENDAR {
 						mappedColumns[configIndex] = emailData.Columns[SRC_CALENDAR]
 					}
