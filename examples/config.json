@@ -212,5 +212,10 @@
   "jobs": {
     "_comment": "AI background jobs (bulk prompts run async; desktop :jobs picker)",
     "notify_on_complete": true
+  },
+  "telemetry": {
+    "_comment": "Privacy-first, local-only usage analytics (opt-in; never uploaded). Dashboard: :stats",
+    "enabled": false,
+    "retention_days": 90
   }
 }

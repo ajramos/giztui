@@ -793,6 +793,8 @@ func (a *App) bindKeys() {
 
 		// Check configurable shortcuts after VIM sequences
 		if a.handleConfigurableKey(event) {
+			// Telemetry: record the key pressed (no-op when disabled).
+			a.recordTelemetry("shortcut", string(event.Rune()), true)
 			return nil
 		}
 

@@ -444,6 +444,37 @@ CREATE TABLE IF NOT EXISTS deterministic_rules (
 		ver = 10
 	}
 
+	// v11: telemetry_events table (privacy-first local usage analytics)
+	if ver == 10 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS telemetry_events (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts            INTEGER NOT NULL,
+  account_email TEXT NOT NULL DEFAULT '',
+  kind          TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  ok            INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry_events(ts);`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=11;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v11: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 11
+	}
+
 	_ = ver
 	return nil
 }

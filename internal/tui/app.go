@@ -163,6 +163,7 @@ type App struct {
 	promptService             services.PromptService
 	promptGeneratorService    services.PromptGeneratorService
 	chatService               services.ChatService
+	telemetryService          services.TelemetryService
 	chatPanelState            *chatPanelState
 	inboxAnalyzerService      services.InboxAnalyzerService
 	promptConfiguratorState   *promptConfiguratorState
@@ -494,6 +495,13 @@ func (a *App) reinitializeServices() {
 			a.logger.Printf("reinitializeServices: chat service initialized: %v", a.chatService != nil)
 		}
 	}
+	// Telemetry service (privacy-first, local-only usage analytics; opt-in)
+	if a.dbStore != nil && a.telemetryService == nil {
+		a.telemetryService = services.NewTelemetryService(db.NewTelemetryStore(a.dbStore), a.Config, a.getActiveAccountEmail())
+		if a.logger != nil {
+			a.logger.Printf("reinitializeServices: telemetry service initialized (enabled=%v)", a.telemetryService.IsEnabled())
+		}
+	}
 	if a.aiService != nil && a.inboxAnalyzerService == nil {
 		a.inboxAnalyzerService = services.NewInboxAnalyzerService(a.aiService)
 		if a.logger != nil {
@@ -761,6 +769,13 @@ func (a *App) initServices() {
 		a.chatService = services.NewChatService(a.aiService, a.Config)
 		if a.logger != nil {
 			a.logger.Printf("initServices: chat service initialized: %v", a.chatService != nil)
+		}
+	}
+	// Telemetry service (privacy-first, local-only usage analytics; opt-in)
+	if a.dbStore != nil && a.telemetryService == nil {
+		a.telemetryService = services.NewTelemetryService(db.NewTelemetryStore(a.dbStore), a.Config, a.getActiveAccountEmail())
+		if a.logger != nil {
+			a.logger.Printf("initServices: telemetry service initialized (enabled=%v)", a.telemetryService.IsEnabled())
 		}
 	}
 	if a.aiService != nil {
@@ -1481,6 +1496,19 @@ func (a *App) GetPromptGeneratorService() services.PromptGeneratorService {
 // GetChatService returns the chat service or nil if not initialized.
 func (a *App) GetChatService() services.ChatService {
 	return a.chatService
+}
+
+// GetTelemetryService returns the telemetry service or nil if not initialized.
+func (a *App) GetTelemetryService() services.TelemetryService {
+	return a.telemetryService
+}
+
+// recordTelemetry records a usage event when telemetry is available and enabled.
+// Safe to call from any goroutine; a no-op when telemetry is off.
+func (a *App) recordTelemetry(kind, name string, ok bool) {
+	if ts := a.telemetryService; ts != nil {
+		ts.RecordEvent(kind, name, ok)
+	}
 }
 
 // GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.
@@ -2431,6 +2459,9 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s ⏸️   Disable background preloading\n", ":preload off")
 	fmt.Fprintf(&help, "    %-18s 🧹  Clear all preloaded caches\n", ":preload clear")
 
+	// Usage analytics (privacy-first, local-only; opt-in via telemetry.enabled)
+	fmt.Fprintf(&help, "    %-18s 📊  Local usage analytics (:stats reset · :stats <days>)\n", ":stats")
+
 	// Prompt management commands
 	fmt.Fprintf(&help, "    %-18s 📊  Show prompt usage statistics\n", ":prompt stats")
 	fmt.Fprintf(&help, "    %-18s 📋  Manage prompts\n", ":prompt list")
@@ -2806,6 +2837,62 @@ func (a *App) showPromptStats(stats *services.UsageStats) {
 		a.focus.set("text")
 		a.SetFocus(a.views["text"])
 		// Use QueueUpdateDraw only for focus indicators since we're now in goroutine context
+		a.QueueUpdateDraw(func() {
+			a.updateFocusIndicators("text")
+		})
+	}
+}
+
+// showTelemetryStats renders the local usage-analytics dashboard in the reader
+// overlay. It reuses the prompt-stats overlay state, so ESC (hidePromptStats)
+// restores the previous reader content just like :prompt stats.
+func (a *App) showTelemetryStats(content string) {
+	// Save current content before showing the overlay
+	if text, ok := a.views["text"].(*tview.TextView); ok {
+		a.promptStatsBackup.text = text.GetText(false)
+	}
+	if header, ok := a.views["header"].(*tview.TextView); ok {
+		a.promptStatsBackup.header = header.GetText(false)
+	}
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		a.promptStatsBackup.title = textContainer.GetTitle()
+	}
+
+	a.promptStatsVisible = true
+
+	// Store current header height and hide header section
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		if header, ok := a.views["header"].(*tview.TextView); ok {
+			headerContent := header.GetText(false)
+			a.originalHeaderHeight = a.calculateHeaderHeight(headerContent)
+			header.SetDynamicColors(true)
+			header.SetText("")
+			textContainer.ResizeItem(header, 0, 0)
+		}
+	}
+
+	// Display the dashboard title in the text container border
+	if textContainer, ok := a.views["textContainer"].(*tview.Flex); ok {
+		textContainer.SetTitle(" 📊 Usage Analytics (local) ")
+		textContainer.SetTitleColor(a.GetComponentColors("stats").Title.Color())
+	}
+
+	// Display content in enhanced text view (fallback to regular text view)
+	if a.enhancedTextView != nil {
+		a.enhancedTextView.SetContent(content)
+		a.enhancedTextView.SetDynamicColors(true)
+		a.enhancedTextView.ScrollToBeginning()
+	} else if text, ok := a.views["text"].(*tview.TextView); ok {
+		text.SetDynamicColors(true)
+		text.Clear()
+		text.SetText(content)
+		text.ScrollToBeginning()
+	}
+
+	// Update focus state and set focus to text view (unless composer is active)
+	if a.compositionPanel == nil || !a.compositionPanel.IsVisible() {
+		a.focus.set("text")
+		a.SetFocus(a.views["text"])
 		a.QueueUpdateDraw(func() {
 			a.updateFocusIndicators("text")
 		})
@@ -3435,5 +3522,10 @@ func (a *App) Shutdown() {
 	// Shutdown preloader service to stop background goroutines
 	if a.preloaderService != nil {
 		a.preloaderService.Shutdown()
+	}
+
+	// Flush and stop the telemetry writer so buffered events are persisted.
+	if a.telemetryService != nil {
+		a.telemetryService.Close()
 	}
 }

@@ -302,6 +302,10 @@ func (a *App) executeCommand(cmd string) {
 		return
 	}
 
+	// Telemetry: record the command name only — never the args — so search
+	// queries and other message content are never captured. No-op when disabled.
+	a.recordTelemetry("command", command, true)
+
 	switch command {
 	case "labels", "l":
 		a.executeLabelsCommand(args)
@@ -1067,14 +1071,50 @@ func (a *App) executePreloadAdjacent(args []string) {
 }
 
 // executeStatsCommand handles the stats/usage command (redirects to new :prompt stats)
+// executeStatsCommand handles :stats — the local usage-analytics dashboard.
+// ":stats reset" clears captured data; ":stats <days>" sets the window. Prompt
+// usage stats live under ":prompt stats".
 func (a *App) executeStatsCommand(args []string) {
-	// Redirect to new command structure
-	go func() {
-		a.GetErrorHandler().ShowInfo(a.ctx, "Command moved! Use ':prompt stats' instead of ':stats'")
-	}()
+	ts := a.GetTelemetryService()
+	if ts == nil {
+		go func() { a.GetErrorHandler().ShowError(a.ctx, "Telemetry not available") }()
+		return
+	}
 
-	// Execute the new prompt stats command directly
-	a.executePromptStats([]string{})
+	// :stats reset — wipe local telemetry for this account.
+	if len(args) > 0 && strings.ToLower(args[0]) == "reset" {
+		go func() {
+			if err := ts.Reset(a.ctx); err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to reset usage analytics: %v", err))
+				return
+			}
+			a.GetErrorHandler().ShowSuccess(a.ctx, "Usage analytics reset")
+		}()
+		return
+	}
+
+	if !ts.IsEnabled() {
+		go func() {
+			a.GetErrorHandler().ShowInfo(a.ctx, "Usage analytics are off (opt-in). Set telemetry.enabled: true in config and restart. Prompt usage: :prompt stats")
+		}()
+		return
+	}
+
+	windowDays := 30
+	if len(args) > 0 {
+		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+			windowDays = n
+		}
+	}
+
+	go func() {
+		summary, err := ts.Summary(a.ctx, windowDays)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load usage analytics: %v", err))
+			return
+		}
+		a.showTelemetryStats(a.generateTelemetryContent(summary))
+	}()
 }
 
 // executeCacheClear clears prompt caches
