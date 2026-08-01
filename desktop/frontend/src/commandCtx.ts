@@ -15,6 +15,7 @@ export interface CommandCtx {
   detail: MessageDetail | null;
   load: (q: string) => Promise<void>;
   doAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar", id: string) => Promise<void>;
+  bulkAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar") => Promise<void>;
   activeQuery: string;
   openDrafts: () => void;
   saveMessage: (id: string) => void;

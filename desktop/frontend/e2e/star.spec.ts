@@ -26,4 +26,14 @@ test.describe("star", () => {
     await runCommand(page, "unstar");
     await expect(row0.locator(".star-flag")).toHaveCount(0);
   });
+
+  test("':star' stars the whole selection in bulk mode", async ({ page }) => {
+    await openApp(page);
+    // ':select all' enters bulk mode with every row selected; ':star' then stars
+    // the whole selection (bulk-aware command), so every row shows the indicator.
+    await runCommand(page, "select all");
+    await runCommand(page, "star");
+    const total = await rows(page).count();
+    await expect(rows(page).locator(".star-flag")).toHaveCount(total);
+  });
 });

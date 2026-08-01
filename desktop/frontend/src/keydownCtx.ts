@@ -28,7 +28,7 @@ export interface KeydownCtx {
   aiPromptsEnabled: boolean;
   applyCategory: (cat: PlanCategory, asMove?: boolean) => Promise<void>;
   attachments: Attachment[];
-  bulkAction: (action: "archive" | "trash" | "read" | "unread") => Promise<void>;
+  bulkAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar") => Promise<void>;
   bulkLabels: boolean;
   bulkMode: boolean;
   bulkMove: boolean;
