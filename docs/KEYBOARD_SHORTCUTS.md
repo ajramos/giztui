@@ -412,6 +412,17 @@ When you customize shortcuts, the priority order is:
 | `:preload next on/off` | Control next page preloading |
 | `:preload adjacent on/off` | Control adjacent message preloading |
 
+### Usage Analytics Commands
+Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and restart). Data never leaves your machine.
+
+| Command | Description |
+|---------|-------------|
+| `:stats` or `:usage` | Open the local usage dashboard: totals, top commands, top shortcuts, and per-action outcomes + timing |
+| `:stats <days>` | Set the window (default 30 days) |
+| `:stats reset` | Delete all captured telemetry for this account |
+
+> Prompt-template usage stats are separate — see `:prompt stats` below.
+
 ### Prompt Management Commands
 | Command | Shortcut | Description |
 |---------|----------|-------------|

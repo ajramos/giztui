@@ -2468,7 +2468,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 🧹  Clear all preloaded caches\n", ":preload clear")
 
 	// Usage analytics (privacy-first, local-only; opt-in via telemetry.enabled)
-	fmt.Fprintf(&help, "    %-18s 📊  Local usage analytics (:stats reset · :stats <days>)\n", ":stats")
+	fmt.Fprintf(&help, "    %-18s 📊  Local usage analytics: commands, shortcuts, action outcomes+timing (:stats reset · :stats <days>)\n", ":stats")
 
 	// Prompt management commands
 	fmt.Fprintf(&help, "    %-18s 📊  Show prompt usage statistics\n", ":prompt stats")
