@@ -62,6 +62,7 @@ type Deps struct {
 	Invite       inviteClient                       // optional; calendar invite detection (gmail client)
 	Cal          calClient                          // optional; calendar RSVP responder
 	Cache        services.CacheService              // optional; summary cache (for clearing)
+	Telemetry    services.TelemetryService          // optional; local usage analytics (opt-in)
 	AccountEmail string                             // active account address, used as the "from" for sends
 	// Inbox-analyzer knobs, mirrored from config.InboxAnalyzer so the desktop
 	// honors the same settings as the TUI (0 → sensible defaults).
@@ -98,6 +99,7 @@ type API struct {
 	invite       inviteClient
 	cal          calClient
 	cache        services.CacheService
+	telemetry    services.TelemetryService
 	accountEmail string
 
 	analyzerBatchSize    int
@@ -137,6 +139,7 @@ func NewAPI(d Deps) *API {
 		invite:       d.Invite,
 		cal:          d.Cal,
 		cache:        d.Cache,
+		telemetry:    d.Telemetry,
 		accountEmail: d.AccountEmail,
 
 		analyzerBatchSize:    d.AnalyzerBatchSize,
@@ -237,12 +240,18 @@ func (a *API) GetMessage(ctx context.Context, id string) (*MessageDetail, error)
 
 // Archive removes the INBOX label from a message.
 func (a *API) Archive(ctx context.Context, id string) error {
-	return a.email.ArchiveMessage(ctx, id)
+	start := time.Now()
+	err := a.email.ArchiveMessage(ctx, id)
+	a.recordAction("archive", start, err)
+	return err
 }
 
 // Trash moves a message to the Gmail trash.
 func (a *API) Trash(ctx context.Context, id string) error {
-	return a.email.TrashMessage(ctx, id)
+	start := time.Now()
+	err := a.email.TrashMessage(ctx, id)
+	a.recordAction("trash", start, err)
+	return err
 }
 
 // MarkRead marks a message as read.

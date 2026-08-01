@@ -230,6 +230,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
   }
   tools.push({ icon: "✕", keys: "Esc · :dismiss", desc: "Close the open AI panel" });
   tools.push({ icon: "▤", keys: ":toolbar", desc: "Show / hide reader toolbar" });
+  tools.push({ icon: "📊", keys: ":stats", desc: "Local usage analytics (opt-in)" });
   tools.push({ icon: "📊", keys: ":prompt stats", desc: "AI prompt usage" });
   tools.push({ icon: "🛠️", keys: ":config", desc: "Configuration" });
   tools.push({ icon: "⌨️", keys: fmtKey(k.commandMode), desc: "Command palette" });

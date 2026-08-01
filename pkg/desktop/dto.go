@@ -171,6 +171,32 @@ type UsageStats struct {
 	TopPrompts    []UsageStat `json:"topPrompts"`
 }
 
+// TelemetryNameCount is a name and how many times it occurred (top commands /
+// shortcuts in the usage dashboard).
+type TelemetryNameCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// TelemetryActionStat is an instrumented action's outcome: runs, failures, and
+// average duration in milliseconds.
+type TelemetryActionStat struct {
+	Name          string `json:"name"`
+	Count         int    `json:"count"`
+	Failures      int    `json:"failures"`
+	AvgDurationMs int    `json:"avgDurationMs"`
+}
+
+// TelemetrySummary is the aggregated local usage-analytics view for ":stats".
+type TelemetrySummary struct {
+	WindowDays   int                   `json:"windowDays"`
+	TotalActions int                   `json:"totalActions"`
+	TotalErrors  int                   `json:"totalErrors"`
+	TopCommands  []TelemetryNameCount  `json:"topCommands"`
+	TopShortcuts []TelemetryNameCount  `json:"topShortcuts"`
+	TopActions   []TelemetryActionStat `json:"topActions"`
+}
+
 // ConfigInfo is a read-only snapshot of the effective configuration, shown by
 // the desktop's ":config" panel.
 type ConfigInfo struct {

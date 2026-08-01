@@ -14,12 +14,15 @@ test.describe("display modals", () => {
     await expect(modal).toBeHidden();
   });
 
-  test("':stats' redirects to :prompt stats (not 'unknown command')", async ({ page }) => {
+  test("':stats' opens the local usage-analytics dashboard and Escape closes it", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "stats");
-    const toast = page.locator(".toast");
-    await expect(toast).toContainText(":prompt stats");
-    await expect(toast).not.toContainText("Unknown command");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Usage analytics" });
+    await expect(modal).toBeVisible();
+    // The Actions section (outcomes + timing) is the telemetry-specific part.
+    await expect(modal).toContainText("Actions (outcome");
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
   });
 
   test("':config' opens the configuration modal and Escape closes it", async ({ page }) => {

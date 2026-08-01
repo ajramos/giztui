@@ -15,7 +15,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
     openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
     applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
-    respondInvite, openStats, openConfig, clearCaches, loadMore, attachments,
+    respondInvite, openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, loadMore, attachments,
     threadingOn, toggleThread, threadMsgs, summarizeThread, messages, previewMessage,
     accounts, applyLabelChange, bumpZoom, resetZoom, setZoom, dismissAI,
     regenerateActive, setError, setCompose, setSelected, setSelectedId, setMessages,
@@ -27,6 +27,11 @@ export function runCommand(input: string, ctx: CommandCtx) {
     setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
   } = ctx;
         const { cmd, arg } = parseCommand(input);
+      // Telemetry: record the command word only (never args), skipping bare
+      // numeric jumps (:5). No-op when telemetry is disabled. Fire-and-forget.
+      if (cmd && !/^\d+$/.test(cmd)) {
+        void backend.RecordCommand(cmd);
+      }
       const d = detail;
       // Move the cursor/preview to a 1-based row (shared by :g, :$ and :N).
       const gotoRow = (n1: number) => {
@@ -381,12 +386,18 @@ export function runCommand(input: string, ctx: CommandCtx) {
           setAdvOpen(true);
           break;
         case "stats":
-        case "usage":
-          // :stats is the TUI's (opt-in) telemetry dashboard, which the desktop
-          // doesn't have yet. Prompt-usage moved to :prompt stats — redirect
-          // rather than falling through to a bare "Unknown command".
-          showToast("Usage analytics is TUI-only for now · AI prompt usage: :prompt stats");
+        case "usage": {
+          // Local usage-analytics dashboard (TUI parity). ":stats reset" wipes it;
+          // ":stats <days>" sets the window. Prompt usage lives at ":prompt stats".
+          const a = arg.trim().toLowerCase();
+          if (a === "reset") {
+            void openTelemetry().then(() => resetTelemetry());
+          } else {
+            const days = parseInt(a, 10);
+            void openTelemetry(Number.isFinite(days) && days > 0 ? days : undefined);
+          }
           break;
+        }
         case "config":
         case "cfg":
           // ":config migrate" runs the config self-migration (TUI parity);

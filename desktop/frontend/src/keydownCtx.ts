@@ -141,6 +141,7 @@ export interface KeydownCtx {
   setSelectedId: Dispatch<SetStateAction<string | null>>;
   setShowHelp: Dispatch<SetStateAction<boolean>>;
   setStatsOpen: Dispatch<SetStateAction<boolean>>;
+  setTelemetryOpen: Dispatch<SetStateAction<boolean>>;
   setSuggestFor: Dispatch<SetStateAction<string | null>>;
   setThemePickerOpen: (v: boolean) => void;
   setViewHtml: Dispatch<SetStateAction<boolean>>;
@@ -148,6 +149,7 @@ export interface KeydownCtx {
   showToast: (m: string) => void;
   slackOn: boolean;
   statsOpen: boolean;
+  telemetryOpen: boolean;
   suggestFor: string | null;
   summarize: (id: string, force?: boolean) => Promise<void>;
   themePickerOpen: boolean;

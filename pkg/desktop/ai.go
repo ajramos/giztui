@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
@@ -40,10 +41,12 @@ func (a *API) Summarize(ctx context.Context, id string) (string, error) {
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
+	start := time.Now()
 	res, err := a.ai.GenerateSummary(ctx, content, services.SummaryOptions{
 		MessageID:    id,
 		AccountEmail: a.accountEmail,
 	})
+	a.recordAction("summarize", start, err)
 	if err != nil {
 		return "", err
 	}
@@ -66,6 +69,7 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 	if strings.TrimSpace(content) == "" {
 		return "", fmt.Errorf("message has no readable content to summarize")
 	}
+	start := time.Now()
 	res, err := a.ai.GenerateSummaryStream(ctx, content, services.SummaryOptions{
 		MessageID:       id,
 		AccountEmail:    a.accountEmail,
@@ -73,6 +77,7 @@ func (a *API) SummarizeStream(ctx context.Context, id string, force bool, onToke
 		UseCache:        !force,
 		ForceRegenerate: force,
 	}, onToken)
+	a.recordAction("summarize", start, err)
 	if err != nil {
 		return "", err
 	}

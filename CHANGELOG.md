@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   high-value actions (archive, trash, summarize), so you can see success/failure
   rates and how long they take — complementing the command/shortcut counts which
   only measure invocation.
+- **Desktop parity for `:stats`.** The desktop client now has the same local,
+  opt-in usage-analytics dashboard (totals, top commands/shortcuts, and the
+  Actions section) reusing the same per-account store; `:stats reset` and
+  `:stats <days>` work there too. `:prompt stats` stays the AI prompt-usage view.
 
 ## [1.23.0] - 2026-07-31
 

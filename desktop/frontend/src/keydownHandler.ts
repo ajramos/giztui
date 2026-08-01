@@ -20,7 +20,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
     setLocalFilter, setMessages, setMoveFor, setPlanExcluded, setPlanMove, setPlanOpen,
     setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
     setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setShowHelp, setStatsOpen, setSuggestFor,
-    setThemePickerOpen, showHelp, statsOpen, suggestFor, themePickerOpen, viewAnalyzerPrompt,
+    setThemePickerOpen, showHelp, statsOpen, telemetryOpen, setTelemetryOpen, suggestFor, themePickerOpen, viewAnalyzerPrompt,
     attachmentsOpen, activeQuery, jobsPickerOpen, setJobsPickerOpen,
     slackForwardOpen, setSlackForwardOpen, obsidianOpen, setObsidianOpen,
   } = ctx;
@@ -93,6 +93,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
         promptPreview !== null ||
         advOpen ||
         statsOpen ||
+        telemetryOpen ||
         configOpen ||
         moveFor ||
         bulkMove ||
@@ -123,6 +124,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
           else if (suggestFor) setSuggestFor(null);
           else if (advOpen) setAdvOpen(false);
           else if (statsOpen) setStatsOpen(false);
+          else if (telemetryOpen) setTelemetryOpen(false);
           else if (configOpen) setConfigOpen(false);
           else if (planPreview) setPlanPreview(null);
           else if (planMove) setPlanMove(null);

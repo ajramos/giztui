@@ -95,6 +95,10 @@ type Session struct {
 
 // Close releases the session's resources (e.g. the local database).
 func (s *Session) Close() error {
+	// Drain buffered telemetry to disk before the database is closed under it.
+	if s.API != nil && s.API.telemetry != nil {
+		s.API.telemetry.Close()
+	}
 	if s.dbManager != nil {
 		return s.dbManager.Close()
 	}
@@ -285,6 +289,13 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	// Theming: read the user's theme from config (best-effort).
 	themeService := buildThemeService(cfg)
 
+	// Local usage analytics (opt-in). Needs the account DB; a no-op recorder when
+	// telemetry.enabled is false. Mirrors the TUI's per-account wiring.
+	var telemetryService services.TelemetryService
+	if dbStore != nil {
+		telemetryService = services.NewTelemetryService(db.NewTelemetryStore(dbStore), cfg, accountEmail)
+	}
+
 	return NewAPI(Deps{
 		Repo:         repo,
 		Email:        emailService,
@@ -309,6 +320,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		Invite:       client,
 		Cal:          cal,
 		Cache:        cacheService,
+		Telemetry:    telemetryService,
 		AccountEmail: accountEmail,
 		// Honor the same inbox-analyzer settings the TUI reads from config, so
 		// tuning inbox_analyzer.batch_size in config.json affects the desktop too.

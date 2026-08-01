@@ -6,6 +6,7 @@ import type {
   MessageDetail,
   Label,
   UsageStats,
+  TelemetrySummary,
   ConfigInfo,
   KeyMap,
 } from "./apiTypes";
@@ -27,6 +28,7 @@ import ThemePicker from "./ThemePicker";
 import MovePicker from "./MovePicker";
 import AdvancedSearchModal from "./AdvancedSearchModal";
 import StatsModal from "./StatsModal";
+import TelemetryModal from "./TelemetryModal";
 import ConfigModal from "./ConfigModal";
 import Help from "./Help";
 import AiJobsPicker from "./AiJobsPicker";
@@ -116,6 +118,10 @@ export default function ModalsSecondary(p: {
   statsOpen: boolean;
   stats: UsageStats | null;
   setStatsOpen: Dispatch<SetStateAction<boolean>>;
+  telemetryOpen: boolean;
+  telemetry: TelemetrySummary | null;
+  setTelemetryOpen: Dispatch<SetStateAction<boolean>>;
+  resetTelemetry: () => Promise<void>;
   configOpen: boolean;
   configInfo: ConfigInfo | null;
   clearCaches: () => Promise<void>;
@@ -149,6 +155,7 @@ export default function ModalsSecondary(p: {
     applyTheme, setThemePickerOpen, showToast, moveFor, labels, doMove, setMoveFor,
     bulkMove, selected, doBulkMove, setBulkMove, advOpen, adv, setAdv,
     setLocalFilter, setQuery, load, setAdvOpen, statsOpen, stats, setStatsOpen,
+    telemetryOpen, telemetry, setTelemetryOpen, resetTelemetry,
     configOpen, configInfo, clearCaches, setConfigOpen, showHelp, keymap, aiEnabled,
     aiPromptsEnabled, obsidianOn, slackOn, threadingOn, savedQueriesOn,
     actionPlanOn, rsvpEnabled, themesOn, appVersion, setShowHelp,
@@ -361,6 +368,13 @@ export default function ModalsSecondary(p: {
       )}
       {statsOpen && (
         <StatsModal stats={stats} onClose={() => setStatsOpen(false)} />
+      )}
+      {telemetryOpen && (
+        <TelemetryModal
+          summary={telemetry}
+          onReset={() => void resetTelemetry()}
+          onClose={() => setTelemetryOpen(false)}
+        />
       )}
       {configOpen && (
         <ConfigModal

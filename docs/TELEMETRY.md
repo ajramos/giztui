@@ -118,9 +118,16 @@ Prompt-template usage stats are separate and live under `:prompt stats`.
 
 ## 🧭 Scope & roadmap
 
-**TUI-only** so far. Captures commands, shortcuts, and error counts, plus
-per-action **outcome + timing** for a handful of high-value actions (`action`
-events with `ok` and `duration_ms`: archive, trash, summarize).
+Captures commands, shortcuts, and error counts, plus per-action **outcome +
+timing** for a handful of high-value actions (`action` events with `ok` and
+`duration_ms`: archive, trash, summarize).
+
+**TUI and desktop** both have the `:stats` dashboard now. The desktop reuses the
+same `TelemetryService`/store (per-account, opt-in): action outcomes are recorded
+in the backend (`pkg/desktop`), while command and shortcut capture come from the
+frontend via the `RecordCommand`/`RecordShortcut` bindings. The command-bar
+trigger is excluded on both, and errors are not captured on the desktop yet.
+
 Deferred (epic #41): **more instrumented actions** (send, search), **reports**
-(weekly/monthly), **CSV/JSON export**, `ctrl+…` shortcut capture, and **desktop
-parity**.
+(weekly/monthly), **CSV/JSON export**, `ctrl+…` shortcut capture, and desktop
+**error** capture.

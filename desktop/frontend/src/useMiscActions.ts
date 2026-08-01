@@ -1,6 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { backend } from "./api";
-import type { MessageSummary, MessageDetail, ConfigInfo, SavedQuery, UsageStats } from "./apiTypes";
+import type { MessageSummary, MessageDetail, ConfigInfo, SavedQuery, UsageStats, TelemetrySummary } from "./apiTypes";
 import { emailAddr, cleanSubject } from "./format";
 
 // useMiscActions groups the smaller action handlers: usage-stats / config /
@@ -34,6 +34,8 @@ export function useMiscActions(deps: {
   setSelected: Dispatch<SetStateAction<Set<string>>>;
   setStats: Dispatch<SetStateAction<UsageStats | null>>;
   setStatsOpen: Dispatch<SetStateAction<boolean>>;
+  setTelemetry: Dispatch<SetStateAction<TelemetrySummary | null>>;
+  setTelemetryOpen: Dispatch<SetStateAction<boolean>>;
   setSuggestFor: Dispatch<SetStateAction<string | null>>;
   setSuggestions: Dispatch<SetStateAction<string[]>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
@@ -44,13 +46,36 @@ export function useMiscActions(deps: {
     showToast, setError, load, removeFromList, insertMessage, advanceAfterBulk,
     pushUndo, setBulkMove, setBulkProgress, setBusy, setConfigInfo, setConfigOpen,
     setLoadingSuggest, setMessages, setMoveFor, setQueriesOpen, setQuery, setSavedQueries,
-    setSelected, setStats, setStatsOpen, setSuggestFor, setSuggestions,
+    setSelected, setStats, setStatsOpen, setTelemetry, setTelemetryOpen, setSuggestFor, setSuggestions,
     setSaveQueryOpen, setSaveQueryName,
   } = deps;
   const openStats = useCallback(async () => {
     setStatsOpen(true);
     try {
       setStats(await backend.UsageStats());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  // Local usage-analytics dashboard (:stats). Fetches the summary for the given
+  // window (default 30 days) and opens the modal.
+  const openTelemetry = useCallback(async (days?: number) => {
+    setTelemetry(null);
+    setTelemetryOpen(true);
+    try {
+      setTelemetry(await backend.TelemetrySummary(days ?? 30));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  // :stats reset — wipe local telemetry, then refresh the open dashboard.
+  const resetTelemetry = useCallback(async () => {
+    try {
+      await backend.TelemetryReset();
+      setTelemetry(await backend.TelemetrySummary(30));
+      showToast("Usage analytics reset");
     } catch (e) {
       setError(String(e));
     }
@@ -242,6 +267,6 @@ export function useMiscActions(deps: {
   }, [saveQueryName, activeQuery, showToast]);
 
   return {
-    openStats, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
+    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
   };
 }

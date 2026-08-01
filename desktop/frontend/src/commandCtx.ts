@@ -57,6 +57,8 @@ export interface CommandCtx {
   invite: Invite | null;
   respondInvite: (id: string, status: "accepted" | "tentative" | "declined") => Promise<void>;
   openStats: () => Promise<void>;
+  openTelemetry: (days?: number) => Promise<void>;
+  resetTelemetry: () => Promise<void>;
   openConfig: () => Promise<void>;
   clearCaches: () => Promise<void>;
   loadMore: () => Promise<void>;
