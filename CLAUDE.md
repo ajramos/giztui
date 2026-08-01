@@ -311,7 +311,8 @@ When implementing a new feature:
 10. **Test Integration** - Verify build and functionality (see [TESTING.md](docs/TESTING.md))
 11. **Update in-app `:help`** - Document new keys/commands/options on the `?` help screen (not just the docs). This is part of Definition of Done, not optional.
 12. **Config defaults + migration** - If the feature adds a config option, add it to `DefaultConfig()` AND ensure the config self-migration path surfaces it to existing users' `config.json` on other machines (a default in code is not enough — users on an older config file must get the new key). Part of Definition of Done.
-13. **Documentation** - Update relevant docs in [docs/](docs/) if needed
+13. **Telemetry** - New commands and keyboard shortcuts are already captured by the generic telemetry hooks (command name / shortcut key) — no extra work. If the feature adds a **distinct user action worth measuring on its own** (e.g. an outcome/failure rate), consider a `recordTelemetry(kind, name, ok)` call and **register the new event in the tracking plan** ([docs/TELEMETRY.md](docs/TELEMETRY.md)). NEVER capture command arguments or any message content, and keep `name` values low-cardinality. Part of Definition of Done.
+14. **Documentation** - Update relevant docs in [docs/](docs/) if needed
 
 ## 🚀 **Release Management**
 
