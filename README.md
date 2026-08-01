@@ -275,6 +275,7 @@ All platforms include:
 ## 🆘 Need Help?
 
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Setup and first steps
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Fixes for common problems (auth, rendering, loading)
 - **[Known Issues](docs/KNOWN_ISSUES.md)** - Common problems and solutions
 - **[GitHub Issues](https://github.com/ajramos/giztui/issues)** - Bug reports and feature requests
 - **[GitHub Discussions](https://github.com/ajramos/giztui/discussions)** - Community support

@@ -41,6 +41,10 @@ export function labelForAction(action: string): string {
       return "Marking read";
     case "unread":
       return "Marking unread";
+    case "star":
+      return "Starring";
+    case "unstar":
+      return "Unstarring";
     default:
       return "Working on";
   }

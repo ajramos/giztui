@@ -371,6 +371,10 @@ func (a *App) executeCommand(cmd string) {
 		a.executeTrashCommand(args)
 	case "read", "toggle-read", "t":
 		a.executeToggleReadCommand(args)
+	case "star", "st":
+		a.executeStarCommand(args)
+	case "unstar", "unst":
+		a.executeUnstarCommand(args)
 	case "new":
 		a.executeComposeCommand(args) // "new" as alias for compose
 	case "reply", "r":
@@ -1224,6 +1228,29 @@ func (a *App) executeToggleReadCommand(args []string) {
 		go a.toggleMarkReadUnreadBulk()
 	} else {
 		go a.toggleMarkReadUnread()
+	}
+}
+
+// executeStarCommand handles :star/:st commands. ":star toggle" flips the current
+// message; otherwise it stars the current message or the whole bulk selection.
+func (a *App) executeStarCommand(args []string) {
+	if len(args) > 0 && (args[0] == "toggle" || args[0] == "t") {
+		go a.toggleStar()
+		return
+	}
+	if a.bulk.isMode() && a.bulk.count() > 0 {
+		go a.starSelectedBulk(true)
+	} else {
+		go a.setStarCurrentMessage(true)
+	}
+}
+
+// executeUnstarCommand handles :unstar/:unst commands (current message or bulk).
+func (a *App) executeUnstarCommand(args []string) {
+	if a.bulk.isMode() && a.bulk.count() > 0 {
+		go a.starSelectedBulk(false)
+	} else {
+		go a.setStarCurrentMessage(false)
 	}
 }
 

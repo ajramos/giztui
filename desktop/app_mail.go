@@ -106,6 +106,24 @@ func (a *App) MarkUnread(id string) error {
 	return api.MarkUnread(a.ctx, id)
 }
 
+// Star adds the STARRED label to a message.
+func (a *App) Star(id string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.Star(a.ctx, id)
+}
+
+// Unstar removes the STARRED label from a message.
+func (a *App) Unstar(id string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.Unstar(a.ctx, id)
+}
+
 // ListLabels returns the account's labels.
 func (a *App) ListLabels() ([]desktop.Label, error) {
 	api, err := a.api()

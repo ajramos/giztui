@@ -60,6 +60,8 @@ export const COMMANDS: CommandDef[] = [
   { names: ["read"], desc: "Mark read" },
   { names: ["markunread"], desc: "Mark unread" },
   { names: ["toggle-read", "t"], desc: "Toggle read / unread" },
+  { names: ["star", "st"], desc: "Star message" },
+  { names: ["unstar", "unst"], desc: "Unstar message" },
   { names: ["labels", "l"], desc: "Manage labels" },
   { names: ["compose", "c", "new"], desc: "New message" },
   { names: ["reply", "r"], desc: "Reply" },

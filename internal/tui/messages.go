@@ -3765,6 +3765,77 @@ func (a *App) toggleMarkReadUnread() {
 	}(!isUnread)
 }
 
+// setStarCurrentMessage applies (star=true) or removes (star=false) the STARRED
+// label on the currently selected message, updating the cache and list in place.
+func (a *App) setStarCurrentMessage(star bool) {
+	messageIndex := a.getCurrentSelectedMessageIndex()
+	if messageIndex < 0 {
+		a.showError("❌ No message selected")
+		return
+	}
+	messageID := a.ids[messageIndex]
+	if messageID == "" {
+		a.showError("❌ Invalid message ID")
+		return
+	}
+	go func() {
+		// LabelService is the 3rd service returned by GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		var err error
+		if star {
+			err = labelService.ApplyLabel(a.ctx, messageID, "STARRED")
+		} else {
+			err = labelService.RemoveLabel(a.ctx, messageID, "STARRED")
+		}
+		if err != nil {
+			if star {
+				a.showError(fmt.Sprintf("❌ Error starring message: %v", err))
+			} else {
+				a.showError(fmt.Sprintf("❌ Error removing star: %v", err))
+			}
+			return
+		}
+		if star {
+			a.showStatusMessage("⭐ Message starred")
+		} else {
+			a.showStatusMessage("☆ Star removed")
+		}
+		a.QueueUpdateDraw(func() {
+			a.updateCachedMessageLabels(messageID, "STARRED", star)
+			a.refreshTableDisplay()
+		})
+	}()
+}
+
+// toggleStar flips the STARRED label on the currently selected message.
+func (a *App) toggleStar() {
+	messageIndex := a.getCurrentSelectedMessageIndex()
+	if messageIndex < 0 {
+		a.showError("❌ No message selected")
+		return
+	}
+	// Determine starred state from cache if possible to avoid an extra roundtrip
+	isStarred := false
+	if messageIndex < len(a.messagesMeta) && a.messagesMeta[messageIndex] != nil {
+		for _, l := range a.messagesMeta[messageIndex].LabelIds {
+			if l == "STARRED" {
+				isStarred = true
+				break
+			}
+		}
+	} else if messageID := a.ids[messageIndex]; messageID != "" {
+		if message, err := a.Client.GetMessage(messageID); err == nil {
+			for _, l := range message.LabelIds {
+				if l == "STARRED" {
+					isStarred = true
+					break
+				}
+			}
+		}
+	}
+	a.setStarCurrentMessage(!isStarred)
+}
+
 // listUnreadMessages searches for all unread messages using is:unread query
 func (a *App) listUnreadMessages() {
 	a.performSearch("is:unread")

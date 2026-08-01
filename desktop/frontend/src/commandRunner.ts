@@ -11,7 +11,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     detail, load, doAction, activeQuery, openDrafts, saveMessage,
     openObsidian, openSlackForward, obsidianOn, slackOn, aiEnabled, aiPromptsEnabled,
     summarize, openChat, openSuggest, openInGmail, openQueries, savedQueriesOn, runActionPlan,
-    runDeterministicRules, actionPlanOn, bulkMode, selected, showToast, doMove,
+    runDeterministicRules, actionPlanOn, bulkMode, selected, bulkAction, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
     openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
     applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
@@ -76,6 +76,16 @@ export function runCommand(input: string, ctx: CommandCtx) {
             const cur = messages.find((m) => m.id === d.id);
             void doAction(cur?.unread ? "read" : "unread", d.id);
           }
+          break;
+        case "star":
+        case "st":
+          if (bulkMode && selected.size > 0) void bulkAction("star");
+          else if (d) void doAction("star", d.id);
+          break;
+        case "unstar":
+        case "unst":
+          if (bulkMode && selected.size > 0) void bulkAction("unstar");
+          else if (d) void doAction("unstar", d.id);
           break;
         case "labels":
         case "l":

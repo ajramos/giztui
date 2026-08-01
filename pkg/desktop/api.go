@@ -230,6 +230,7 @@ func (a *API) GetMessage(ctx context.Context, id string) (*MessageDetail, error)
 		detail.ID = msg.Id
 		detail.ThreadID = msg.ThreadId
 		detail.Unread = containsLabel(msg.LabelIds, "UNREAD")
+		detail.Starred = containsLabel(msg.LabelIds, "STARRED")
 	}
 	return detail, nil
 }
@@ -252,6 +253,16 @@ func (a *API) MarkRead(ctx context.Context, id string) error {
 // MarkUnread marks a message as unread.
 func (a *API) MarkUnread(ctx context.Context, id string) error {
 	return a.email.MarkAsUnread(ctx, id)
+}
+
+// Star adds the STARRED label to a message.
+func (a *API) Star(ctx context.Context, id string) error {
+	return a.labels.ApplyLabel(ctx, id, "STARRED")
+}
+
+// Unstar removes the STARRED label from a message.
+func (a *API) Unstar(ctx context.Context, id string) error {
+	return a.labels.RemoveLabel(ctx, id, "STARRED")
 }
 
 // ListLabels returns all of the account's labels.
@@ -306,6 +317,7 @@ func (a *API) hydrate(page *services.MessagePage) (*MessageList, error) {
 			Snippet:  m.Snippet,
 			Date:     a.mail.ExtractDate(m),
 			Unread:   containsLabel(rawLabels, "UNREAD"),
+			Starred:  containsLabel(rawLabels, "STARRED"),
 			Labels:   a.resolveLabels(rawLabels),
 		})
 	}

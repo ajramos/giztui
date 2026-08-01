@@ -19,7 +19,7 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
     setHeadersHidden, setLabelsFor, setLinksFor, setLocalFilter, setMessages, setMoveFor,
     setPromptsOpen, setQuery, setReaderFocused, setRsvpPickerOpen, setJobsPickerOpen, openChat, setSaveQueryOpen, setSelected,
     setSelectedId, setShowHelp, setThemePickerOpen, setViewHtml, showToast, slackOn,
-    summarize, threadingOn, toggleSelect, toggleThread,
+    summarize, threadingOn, toggleSelect, toggleStar, toggleThread,
     activeQuery, gPressedAt, vimRange, openSlackForward, themesOn,
   } = ctx;
       const chord = e.key === " " ? "space" : e.key;
@@ -175,9 +175,14 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
         return;
       }
       if (chord === "*") {
+        e.preventDefault();
         if (bulkMode) {
-          e.preventDefault();
+          // Bulk mode: select all (TUI parity).
           setSelected(new Set(messages.map((m) => m.id)));
+        } else {
+          // Otherwise toggle the star on the highlighted / open message.
+          const id = selectedId ?? detail?.id;
+          if (id) void toggleStar(id);
         }
         return;
       }

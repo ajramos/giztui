@@ -287,6 +287,9 @@ Now that you're up and running:
 3. **Master Shortcuts**: Review [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md) for efficiency
 4. **Advanced Usage**: Try integrations like Slack forwarding and Obsidian note-taking
 
+> Hit a snag? The [Troubleshooting guide](TROUBLESHOOTING.md) covers the common
+> auth, rendering, and loading problems (and how to grab your log for a report).
+
 ## 🔗 Quick Reference
 
 **Essential Shortcuts:**

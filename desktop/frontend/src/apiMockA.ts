@@ -66,6 +66,8 @@ export const mockA: Partial<Backend> = {
   async Trash() {},
   async MarkRead() {},
   async MarkUnread() {},
+  async Star() {},
+  async Unstar() {},
   async Unarchive() {},
   async Untrash() {},
   async BulkUnarchive() {},
@@ -259,6 +261,7 @@ export const mockA: Partial<Backend> = {
       cc: "",
       date: new Date(Date.now() - (3 - i) * 3600_000).toISOString(),
       unread,
+      starred: false,
       labels: ["Work"],
       plainText:
         i === 0

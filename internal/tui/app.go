@@ -2224,6 +2224,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-8s  📁  Archive message\n", a.Keys.Archive)
 	fmt.Fprintf(&help, "    %-8s  🗑️   Move to trash\n", a.Keys.Trash)
 	fmt.Fprintf(&help, "    %-8s  👁️   Toggle read/unread\n", a.Keys.ToggleRead)
+	fmt.Fprintf(&help, "    %-8s  ⭐  Star / unstar message (:star / :unstar)\n", "*")
 	fmt.Fprintf(&help, "    %-8s  ↩️   Undo last action\n", a.Keys.Undo)
 	fmt.Fprintf(&help, "    %-8s  📦  Move message to folder\n", a.Keys.Move)
 	fmt.Fprintf(&help, "    %-8s  🔖  Manage labels\n", a.Keys.ManageLabels)

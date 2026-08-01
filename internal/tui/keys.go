@@ -903,6 +903,9 @@ func (a *App) bindKeys() {
 				}
 				return nil
 			}
+			// Non-bulk mode: '*' toggles the star on the selected message
+			go a.toggleStar()
+			return nil
 		case ':':
 			// Only handle if not configured as a configurable shortcut
 			if !a.isKeyConfigured(':') {

@@ -40,6 +40,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "📁", keys: fmtKey(k.archive), desc: "Archive" },
       { icon: "🗑️", keys: fmtKey(k.trash), desc: "Move to trash" },
       { icon: "👁️", keys: `${fmtKey(k.toggleRead)} · :t`, desc: "Toggle read / unread (:read · :markunread)" },
+      { icon: "⭐", keys: "* · :star", desc: "Star / unstar message (:star · :unstar)" },
       { icon: "↩️", keys: fmtKey(k.undo), desc: "Undo last action" },
       { icon: "📦", keys: fmtKey(k.move), desc: "Move to folder" },
       { icon: "🔖", keys: fmtKey(k.manageLabels), desc: "Manage labels" },
