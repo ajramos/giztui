@@ -5,10 +5,19 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.24.0] - 2026-08-01
+
+A privacy-first, opt-in **local usage-analytics dashboard (`:stats`)** — brought
+to **both the TUI and the desktop client** with command parity — plus continued
+TUI↔desktop parity work (message stars and the `:numbers` column).
 
 ### 🚀 Features
 
+- **Star / unstar messages (key `*`, `:star` / `:unstar`) — desktop & TUI.**
+  Toggle Gmail's STARRED flag on the highlighted or open message; `:star` /
+  `:unstar` are bulk-aware (act on the whole selection). Starred mail shows a
+  dedicated ⭐ column, far-right and aligned in both clients, reflected in place
+  without a refetch.
 - **Local usage analytics (`:stats`) — privacy-first, opt-in.** A local-only
   usage dashboard that never leaves your machine. Off by default; enable with
   `telemetry.enabled: true` and restart. `:stats` shows totals, top commands, and
