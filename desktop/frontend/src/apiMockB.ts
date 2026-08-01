@@ -180,6 +180,39 @@ export const mockB: Partial<Backend> = {
       ],
     };
   },
+  async TelemetryEnabled() {
+    return true;
+  },
+  async TelemetrySummary(windowDays: number) {
+    return {
+      windowDays: windowDays || 30,
+      totalActions: 412,
+      totalErrors: 7,
+      topCommands: [
+        { name: "search", count: 96 },
+        { name: "archive", count: 74 },
+        { name: "labels", count: 41 },
+        { name: "summarize", count: 33 },
+        { name: "chat", count: 22 },
+      ],
+      topShortcuts: [
+        { name: "j", count: 210 },
+        { name: "k", count: 188 },
+        { name: "a", count: 74 },
+        { name: "s", count: 51 },
+      ],
+      topActions: [
+        { name: "archive", count: 74, failures: 0, avgDurationMs: 180 },
+        { name: "summarize", count: 33, failures: 2, avgDurationMs: 1420 },
+        { name: "trash", count: 18, failures: 1, avgDurationMs: 210 },
+      ],
+    };
+  },
+  async TelemetryReset() {
+    await new Promise((r) => setTimeout(r, 150));
+  },
+  async RecordCommand() {},
+  async RecordShortcut() {},
   async ClearCaches() {
     await new Promise((r) => setTimeout(r, 250));
   },

@@ -310,6 +310,12 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
       const action = chordAction[chord];
       if (!action) return;
       e.preventDefault();
+      // Telemetry: record the shortcut key (no-op when disabled). Skip the
+      // command-bar trigger — the command typed after it is captured on its own,
+      // so counting the key too would double-count. Fire-and-forget.
+      if (action !== "commandMode") {
+        void backend.RecordShortcut(chord);
+      }
       switch (action) {
         case "summarize":
           if (detail && aiEnabled && !bulkMode) void summarize(detail.id);

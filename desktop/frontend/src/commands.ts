@@ -51,6 +51,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["unread", "u"], desc: "Show unread only" },
   { names: ["advanced", "adv"], desc: "Advanced search builder" },
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
+  { names: ["stats", "usage"], desc: "Local usage analytics (:stats reset · :stats <days>)" },
   { names: ["config", "cfg"], desc: "Show configuration (:config migrate to update)" },
   { names: ["cache"], desc: "Clear AI caches" },
   { names: ["archive", "a"], desc: "Archive message" },

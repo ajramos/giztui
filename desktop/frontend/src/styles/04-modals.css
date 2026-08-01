@@ -182,6 +182,56 @@
   color: var(--accent);
 }
 
+/* Usage analytics (telemetry) dashboard */
+.tele-section-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin: 14px 0 4px;
+}
+.tele-empty {
+  font-size: 13px;
+  opacity: 0.6;
+  padding: 4px 0 6px;
+}
+.tele-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+}
+.tele-row-name {
+  width: 96px;
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tele-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-elev);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.tele-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 5px;
+}
+.tele-row-count {
+  width: 40px;
+  flex: none;
+  text-align: right;
+  font-weight: 600;
+  color: var(--accent);
+}
+.tele-row-detail {
+  flex: none;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
 /* Config panel */
 .config-list {
   display: flex;

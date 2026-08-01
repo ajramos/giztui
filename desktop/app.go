@@ -243,6 +243,46 @@ func (a *App) GetThemeColors(name string) (*desktop.ThemeColors, error) {
 	return api.GetThemeColors(a.ctx, name)
 }
 
+// TelemetryEnabled reports whether local usage analytics are on (opt-in).
+func (a *App) TelemetryEnabled() bool {
+	return a.enabled((*desktop.API).TelemetryEnabled)
+}
+
+// RecordCommand records a command invocation (name only) for local analytics.
+// Fire-and-forget: silently ignored until the session is ready or when disabled.
+func (a *App) RecordCommand(name string) {
+	if api, err := a.api(); err == nil {
+		api.RecordCommand(name)
+	}
+}
+
+// RecordShortcut records a single shortcut keypress for local analytics.
+// Fire-and-forget, like RecordCommand.
+func (a *App) RecordShortcut(key string) {
+	if api, err := a.api(); err == nil {
+		api.RecordShortcut(key)
+	}
+}
+
+// TelemetrySummary returns the local usage-analytics dashboard data for the last
+// windowDays (0 → default 30).
+func (a *App) TelemetrySummary(windowDays int) (*desktop.TelemetrySummary, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.TelemetrySummary(a.ctx, windowDays)
+}
+
+// TelemetryReset deletes all captured telemetry for the active account.
+func (a *App) TelemetryReset() error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.TelemetryReset(a.ctx)
+}
+
 // ApplyBulkPromptStream applies a prompt across many messages, streaming tokens
 // via the "prompt:token" event.
 func (a *App) ApplyBulkPromptStream(ids []string, promptID int) (string, error) {

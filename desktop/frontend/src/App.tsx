@@ -5,6 +5,7 @@ import {
   type KeyMap,
   type Label,
   type UsageStats,
+  type TelemetrySummary,
   type ConfigInfo,
   type MessageDetail,
   type MessageSummary,
@@ -118,6 +119,8 @@ export default function App() {
   } = useTheme();
   const [statsOpen, setStatsOpen] = useState(false);
   const [stats, setStats] = useState<UsageStats | null>(null);
+  const [telemetryOpen, setTelemetryOpen] = useState(false);
+  const [telemetry, setTelemetry] = useState<TelemetrySummary | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [configInfo, setConfigInfo] = useState<ConfigInfo | null>(null);
   // headersExpanded reveals the extra cc/thread/id detail (via the ⋯ menu).
@@ -386,13 +389,13 @@ export default function App() {
   });
 
   const {
-    openStats, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
+    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
   } = useMiscActions({
     messages, selected, activeQuery, suggestFor, saveQueryName, showToast,
     setError, load, removeFromList, insertMessage, advanceAfterBulk, pushUndo,
     setBulkMove, setBulkProgress, setBusy, setConfigInfo, setConfigOpen, setLoadingSuggest,
     setMessages, setMoveFor, setQueriesOpen, setQuery, setSavedQueries, setSelected,
-    setStats, setStatsOpen, setSuggestFor, setSuggestions, setSaveQueryOpen, setSaveQueryName,
+    setStats, setStatsOpen, setTelemetry, setTelemetryOpen, setSuggestFor, setSuggestions, setSaveQueryOpen, setSaveQueryName,
   });
 
   const {
@@ -423,7 +426,7 @@ export default function App() {
     fullMessagesRef, gPressedAt, generateReply,
     headersHidden, imageOptIn, invite, keymap, labelsFor, linksFor,
     load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
-    openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openSuggest,
+    openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openTelemetry, resetTelemetry, openSuggest,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
     promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
@@ -437,8 +440,8 @@ export default function App() {
     setLabelsFor, setLinksFor, setLoadRemote, setLocalFilter, setMessages, setMoveFor, setPlanExcluded,
     setPlanMove, setPlanOpen, setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen,
     setQuery, setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
-    setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
-    showHelp, showToast, slackOn, statsOpen, suggestFor, summarize, summarizeThread,
+    setShowHelp, setStatsOpen, setTelemetryOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
+    showHelp, showToast, slackOn, statsOpen, telemetryOpen, suggestFor, summarize, summarizeThread,
     themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleSelect, toggleStar, toggleThread,
     toggleToolbar, touchUp, touchUpText, viewAnalyzerPrompt, vimRange,
   });
@@ -482,7 +485,8 @@ export default function App() {
     addRule, deleteRule, setRulesOpen, promptPreview, setPromptPreview, cmdOpen, executeCommand,
     setCmdOpen, themePickerOpen, themeNames, currentTheme, applyTheme, setThemePickerOpen, moveFor,
     labels, doMove, setMoveFor, bulkMove, doBulkMove, setBulkMove, advOpen, adv, setAdv,
-    setLocalFilter, setQuery, load, setAdvOpen, statsOpen, stats, setStatsOpen, configOpen, configInfo,
+    setLocalFilter, setQuery, load, setAdvOpen, statsOpen, stats, setStatsOpen,
+    telemetryOpen, telemetry, setTelemetryOpen, resetTelemetry, configOpen, configInfo,
     clearCaches, setConfigOpen, showHelp, keymap, obsidianOn, slackOn, threadingOn, savedQueriesOn,
     actionPlanOn, rsvpEnabled, themesOn, appVersion, setShowHelp,
   };

@@ -164,6 +164,27 @@ export interface UsageStats {
   topPrompts: UsageStat[];
 }
 
+export interface TelemetryNameCount {
+  name: string;
+  count: number;
+}
+
+export interface TelemetryActionStat {
+  name: string;
+  count: number;
+  failures: number;
+  avgDurationMs: number;
+}
+
+export interface TelemetrySummary {
+  windowDays: number;
+  totalActions: number;
+  totalErrors: number;
+  topCommands: TelemetryNameCount[];
+  topShortcuts: TelemetryNameCount[];
+  topActions: TelemetryActionStat[];
+}
+
 export interface SlackChannel {
   id: string;
   name: string;
@@ -411,6 +432,11 @@ export interface Backend {
   InviteInfo(messageID: string): Promise<Invite>;
   RespondInvite(messageID: string, status: string): Promise<void>;
   UsageStats(): Promise<UsageStats>;
+  TelemetryEnabled(): Promise<boolean>;
+  TelemetrySummary(windowDays: number): Promise<TelemetrySummary>;
+  TelemetryReset(): Promise<void>;
+  RecordCommand(name: string): Promise<void>;
+  RecordShortcut(key: string): Promise<void>;
   ClearCaches(): Promise<void>;
   ConfigInfo(): Promise<ConfigInfo>;
   MigrateConfig(): Promise<string>;
