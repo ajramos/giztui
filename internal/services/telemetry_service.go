@@ -41,8 +41,6 @@ func NewTelemetryService(store *db.TelemetryStore, cfg *config.Config, accountEm
 	if s.IsEnabled() && store != nil {
 		s.events = make(chan db.TelemetryEvent, telemetryBufferSize)
 		s.done = make(chan struct{})
-		// Prune stale events on startup (best-effort, off the caller's path).
-		go s.pruneOnStartup()
 		s.wg.Add(1)
 		go s.run()
 	}
@@ -84,6 +82,10 @@ func (s *TelemetryServiceImpl) enqueue(ev db.TelemetryEvent) {
 // timer or when the batch fills up, and drains on shutdown.
 func (s *TelemetryServiceImpl) run() {
 	defer s.wg.Done()
+	// Prune stale events on startup from within the single owned goroutine, so
+	// nothing touches the store after Close() returns (a separate fire-and-forget
+	// goroutine could outlive the store and flake tests / teardown).
+	s.pruneOnStartup()
 	ticker := time.NewTicker(telemetryFlushEvery)
 	defer ticker.Stop()
 	batch := make([]db.TelemetryEvent, 0, telemetryBatchMax)
