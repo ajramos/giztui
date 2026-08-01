@@ -327,7 +327,10 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 		AnalyzerBatchSize:    cfg.InboxAnalyzer.BatchSize,
 		AnalyzerMaxBatches:   cfg.InboxAnalyzer.MaxBatches,
 		AnalyzerStrictLabels: cfg.InboxAnalyzer.StrictLabels,
-		Logger:               logger,
+		// Seed the message-number column from config so the desktop honors the
+		// same display.show_message_numbers the TUI reads (:numbers toggles it).
+		ShowMessageNumbers: cfg.Display.ShowMessageNumbers,
+		Logger:             logger,
 	})
 }
 

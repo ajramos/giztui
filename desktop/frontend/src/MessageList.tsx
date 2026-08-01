@@ -26,6 +26,7 @@ export default function MessageList({
   activeQuery,
   selectedId,
   bulkMode,
+  showNumbers,
   selected,
   busy,
   bulkProgress,
@@ -57,6 +58,7 @@ export default function MessageList({
   activeQuery: string;
   selectedId: string | null;
   bulkMode: boolean;
+  showNumbers: boolean;
   selected: Set<string>;
   busy: boolean;
   bulkProgress: string;
@@ -206,7 +208,7 @@ export default function MessageList({
           ) : (
             <>
               <ul>
-                {messages.map((m) => (
+                {messages.map((m, i) => (
                   <li
                     key={m.id}
                     className={
@@ -220,6 +222,19 @@ export default function MessageList({
                     }
                   >
                     <div className="row-top">
+                      {/* Message-number column (TUI :numbers parity): 1-based,
+                          right-aligned, width tracks the largest row number so
+                          :N jumps like :14 are easy to aim. */}
+                      {showNumbers && (
+                        <span
+                          className="row-num"
+                          style={{
+                            minWidth: `${String(messages.length).length}ch`,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                      )}
                       {bulkMode && (
                         <span className="row-check">
                           {selected.has(m.id) ? "☑" : "☐"}

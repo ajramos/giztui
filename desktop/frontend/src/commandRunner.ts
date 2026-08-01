@@ -14,7 +14,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     runDeterministicRules, actionPlanOn, bulkMode, selected, bulkAction, showToast, doMove,
     doBulkMove, generateReply, quickSearch, themesOn, applyTheme, rulesEnabled,
     openRules, viewAnalyzerPrompt, toggleToolbar, touchUp, touchUpText, localFilter,
-    applyLocalFilter, query, runUndo, toggleAutoRefresh, saveRawMessage, invite,
+    applyLocalFilter, query, runUndo, toggleAutoRefresh, toggleNumbers, saveRawMessage, invite,
     respondInvite, openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, loadMore, attachments,
     threadingOn, toggleThread, threadMsgs, summarizeThread, messages, previewMessage,
     accounts, applyLabelChange, bumpZoom, resetZoom, setZoom, dismissAI,
@@ -354,6 +354,12 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "autorefresh":
         case "arr":
           toggleAutoRefresh();
+          break;
+        case "numbers":
+        case "n":
+          // TUI parity: toggle the 1-based message-number column (makes :N jumps
+          // like :14 easy to aim). Seeded from config.display.show_message_numbers.
+          toggleNumbers();
           break;
         case "save-raw":
         case "saveraw":

@@ -159,6 +159,7 @@ export interface AppInboxProps {
   setLoadRemote: (v: boolean) => void;
   imageOptIn: MutableRefObject<Set<string>>;
   setAlwaysImagesOn: (on: boolean) => void;
+  showNumbers: boolean;
 }
 
 export default function AppInbox(p: AppInboxProps) {
@@ -181,7 +182,7 @@ export default function AppInbox(p: AppInboxProps) {
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat, showNumbers,
   } = p;
   return (
     <>
@@ -279,6 +280,7 @@ export default function AppInbox(p: AppInboxProps) {
           activeQuery={activeQuery}
           selectedId={selectedId}
           bulkMode={bulkMode}
+          showNumbers={showNumbers}
           selected={selected}
           busy={busy}
           bulkProgress={bulkProgress}

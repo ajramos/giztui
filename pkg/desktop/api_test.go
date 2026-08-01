@@ -703,3 +703,13 @@ func TestScopeSearch(t *testing.T) {
 		}
 	}
 }
+
+func TestShowMessageNumbers(t *testing.T) {
+	// Off unless the config flag is set (mirrors config.Display.ShowMessageNumbers).
+	if api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}}); api.ShowMessageNumbers() {
+		t.Errorf("ShowMessageNumbers() = true, want false by default")
+	}
+	if api := NewAPI(Deps{Repo: &fakeRepo{}, Email: &fakeEmail{}, Mail: &fakeMail{}, ShowMessageNumbers: true}); !api.ShowMessageNumbers() {
+		t.Errorf("ShowMessageNumbers() = false, want true when config-enabled")
+	}
+}

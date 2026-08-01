@@ -251,6 +251,9 @@ export const mockA: Partial<Backend> = {
   async ThreadingEnabled() {
     return true;
   },
+  async ShowMessageNumbers() {
+    return false;
+  },
   async GetThread(_id: string) {
     const mk = (i: number, from: string, unread: boolean): MessageDetail => ({
       id: `t${i}`,
