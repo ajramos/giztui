@@ -12,6 +12,7 @@ type MessageSummary struct {
 	Snippet  string    `json:"snippet"`
 	Date     time.Time `json:"date"`
 	Unread   bool      `json:"unread"`
+	Starred  bool      `json:"starred"`
 	Labels   []string  `json:"labels"`
 }
 
@@ -25,6 +26,7 @@ type MessageDetail struct {
 	Cc        string    `json:"cc"`
 	Date      time.Time `json:"date"`
 	Unread    bool      `json:"unread"`
+	Starred   bool      `json:"starred"`
 	Labels    []string  `json:"labels"`
 	PlainText string    `json:"plainText"`
 	HTML      string    `json:"html"`

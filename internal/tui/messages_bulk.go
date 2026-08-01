@@ -56,6 +56,60 @@ func (a *App) archiveSelectedBulk() {
 	}()
 }
 
+// starSelectedBulk applies (star=true) or removes (star=false) the STARRED label
+// on all selected messages. Unlike archive/trash, starred messages stay in the
+// list, so this refreshes labels in place rather than removing rows.
+func (a *App) starSelectedBulk(star bool) {
+	if a.bulk.count() == 0 {
+		return
+	}
+	ids := make([]string, 0, a.bulk.count())
+	ids = append(ids, a.bulk.ids()...)
+	verb := "Starring"
+	if !star {
+		verb = "Unstarring"
+	}
+	a.GetErrorHandler().ShowProgress(a.ctx, fmt.Sprintf("%s %d message(s)…", verb, len(ids)))
+	go func() {
+		// LabelService is the 3rd service returned by GetServices()
+		_, _, labelService, _, _, _, _, _, _, _, _, _ := a.GetServices()
+		var err error
+		if star {
+			err = labelService.BulkApplyLabel(a.ctx, ids, "STARRED", a.bulkProgress(a.ctx, verb))
+		} else {
+			err = labelService.BulkRemoveLabel(a.ctx, ids, "STARRED")
+		}
+		a.GetErrorHandler().ClearPersistentMessage()
+
+		a.QueueUpdateDraw(func() {
+			for _, id := range ids {
+				a.updateCachedMessageLabels(id, "STARRED", star)
+			}
+			// Exit bulk mode and restore normal rendering/styles
+			a.bulk.clear()
+			a.bulk.setMode(false)
+			a.refreshTableDisplay()
+			if list, ok := a.views["list"].(*tview.Table); ok {
+				list.SetSelectedStyle(a.getSelectionStyle())
+			}
+			a.focusList()
+		})
+
+		// ErrorHandler calls outside QueueUpdateDraw to avoid deadlock
+		a.GetErrorHandler().ClearProgress()
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			if err != nil {
+				a.GetErrorHandler().ShowWarning(a.ctx, fmt.Sprintf("%s completed with error: %v", verb, err))
+			} else if star {
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Starred")
+			} else {
+				a.GetErrorHandler().ShowSuccess(a.ctx, "Unstarred")
+			}
+		}()
+	}()
+}
+
 // trashSelectedBulk moves all selected messages to trash
 func (a *App) trashSelectedBulk() {
 	if a.bulk.count() == 0 {

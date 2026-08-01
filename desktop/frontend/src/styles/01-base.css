@@ -277,6 +277,16 @@ button.danger {
   gap: 8px;
   margin-bottom: 2px;
 }
+.star-flag {
+  display: inline-flex;
+  align-items: center;
+  color: #e6b800;
+  flex: 0 0 auto;
+}
+.star-flag svg {
+  width: 13px;
+  height: 13px;
+}
 .row .from {
   font-weight: 600;
   overflow: hidden;

@@ -19,6 +19,12 @@ const svg = (children: ReactNode) => (
 
 export const Icon = {
   chat: svg(<path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3a8.38 8.38 0 0 1 8.5 8.5z" />),
+  // Filled star for the "starred" list indicator (fill, not stroke).
+  star: (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  ),
   send: svg(
     <>
       <line x1="22" y1="2" x2="11" y2="13" />

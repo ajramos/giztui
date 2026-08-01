@@ -342,6 +342,14 @@ func (er *EmailRenderer) extractMessageFlags(message *googleGmail.Message) strin
 		flags.WriteString("!")
 	}
 
+	// Starred indicator
+	for _, l := range message.LabelIds {
+		if l == "STARRED" {
+			flags.WriteString("★")
+			break
+		}
+	}
+
 	return flags.String()
 }
 

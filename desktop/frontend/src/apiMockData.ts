@@ -34,6 +34,7 @@ export const mockMessages: MessageSummary[] = Array.from({ length: 24 }, (_, i) 
     "This is a preview of the message body shown in the inbox list so you can scan quickly…",
   date: new Date(Date.now() - i * 3600_000).toISOString(),
   unread: i % 3 === 0,
+  starred: i % 4 === 1,
   labels: i % 4 === 0 ? ["Work"] : i % 5 === 0 ? ["Personal", "Travel"] : [],
 }));
 

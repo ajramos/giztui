@@ -19,13 +19,14 @@ export interface MailActions {
   removeFromList: (id: string) => void;
   insertMessage: (msg: MessageSummary, index: number) => void;
   applyLabelChange: (ids: Set<string>, change: { added?: string; removed?: string }) => void;
-  doAction: (action: "archive" | "trash" | "read" | "unread", id: string) => Promise<void>;
+  doAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar", id: string) => Promise<void>;
+  toggleStar: (id: string) => Promise<void>;
   toggleSelect: (id: string) => void;
   exitBulk: () => void;
   clearReaderIfRemoved: (removed: Set<string>) => void;
   advanceAfterBulk: (removed: Set<string>) => void;
-  bulkActionIds: (action: "archive" | "trash" | "read" | "unread", ids: string[]) => Promise<void>;
-  bulkAction: (action: "archive" | "trash" | "read" | "unread") => Promise<void>;
+  bulkActionIds: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar", ids: string[]) => Promise<void>;
+  bulkAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar") => Promise<void>;
 }
 
 export function useMailActions(deps: {
@@ -91,7 +92,7 @@ export function useMailActions(deps: {
   }, []);
 
   const doAction = useCallback(
-    async (action: "archive" | "trash" | "read" | "unread", id: string) => {
+    async (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar", id: string) => {
       const msg = messages.find((m) => m.id === id);
       const index = messages.findIndex((m) => m.id === id);
       setBusy(true);
@@ -141,6 +142,20 @@ export function useMailActions(deps: {
             );
             setDetail((d) => (d && d.id === id ? { ...d, unread: false } : d));
           });
+        } else if (action === "star") {
+          await backend.Star(id);
+          setMessages((prev) =>
+            prev.map((x) => (x.id === id ? { ...x, starred: true } : x)),
+          );
+          setDetail((d) => (d && d.id === id ? { ...d, starred: true } : d));
+          showToast("Starred");
+        } else if (action === "unstar") {
+          await backend.Unstar(id);
+          setMessages((prev) =>
+            prev.map((x) => (x.id === id ? { ...x, starred: false } : x)),
+          );
+          setDetail((d) => (d && d.id === id ? { ...d, starred: false } : d));
+          showToast("Star removed");
         }
       } catch (e) {
         setError(String(e));
@@ -149,6 +164,16 @@ export function useMailActions(deps: {
       }
     },
     [messages, removeFromList, showToast, pushUndo, insertMessage],
+  );
+
+  // toggleStar flips the STARRED label on a single message, reading the current
+  // state from the list so it doesn't need an extra fetch.
+  const toggleStar = useCallback(
+    async (id: string) => {
+      const cur = messages.find((m) => m.id === id)?.starred ?? false;
+      await doAction(cur ? "unstar" : "star", id);
+    },
+    [messages, doAction],
   );
 
   // applyLabelChange updates the label chips of the affected messages (in the
@@ -256,7 +281,7 @@ export function useMailActions(deps: {
   // It does NOT touch the `selected` set — callers decide whether to clear it.
   const bulkActionIds = useCallback(
     async (
-      action: "archive" | "trash" | "read" | "unread",
+      action: "archive" | "trash" | "read" | "unread" | "star" | "unstar",
       ids: string[],
     ) => {
       if (ids.length === 0) return;
@@ -299,6 +324,18 @@ export function useMailActions(deps: {
             prev.map((m) => (idSet.has(m.id) ? { ...m, unread: true } : m)),
           );
           showToast(`Marked ${ids.length} unread`);
+        } else if (action === "star") {
+          await backend.BulkApplyLabel(ids, "STARRED");
+          setMessages((prev) =>
+            prev.map((m) => (idSet.has(m.id) ? { ...m, starred: true } : m)),
+          );
+          showToast(`Starred ${ids.length}`);
+        } else if (action === "unstar") {
+          await backend.BulkRemoveLabel(ids, "STARRED");
+          setMessages((prev) =>
+            prev.map((m) => (idSet.has(m.id) ? { ...m, starred: false } : m)),
+          );
+          showToast(`Unstarred ${ids.length}`);
         }
       } catch (e) {
         setError(String(e));
@@ -311,7 +348,7 @@ export function useMailActions(deps: {
   );
 
   const bulkAction = useCallback(
-    async (action: "archive" | "trash" | "read" | "unread") => {
+    async (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar") => {
       const ids = [...selected];
       if (ids.length === 0) return;
       await bulkActionIds(action, ids);
@@ -325,6 +362,7 @@ export function useMailActions(deps: {
     insertMessage,
     applyLabelChange,
     doAction,
+    toggleStar,
     toggleSelect,
     exitBulk,
     clearReaderIfRemoved,

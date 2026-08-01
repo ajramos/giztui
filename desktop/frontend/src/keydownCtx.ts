@@ -153,6 +153,7 @@ export interface KeydownCtx {
   themePickerOpen: boolean;
   threadingOn: boolean;
   toggleSelect: (id: string) => void;
+  toggleStar: (id: string) => Promise<void>;
   toggleThread: () => Promise<void>;
   viewAnalyzerPrompt: () => Promise<void>;
 }

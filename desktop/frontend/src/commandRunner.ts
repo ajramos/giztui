@@ -77,6 +77,14 @@ export function runCommand(input: string, ctx: CommandCtx) {
             void doAction(cur?.unread ? "read" : "unread", d.id);
           }
           break;
+        case "star":
+        case "st":
+          if (d) void doAction("star", d.id);
+          break;
+        case "unstar":
+        case "unst":
+          if (d) void doAction("unstar", d.id);
+          break;
         case "labels":
         case "l":
           if (d) setLabelsFor(d.id);

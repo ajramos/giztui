@@ -123,6 +123,12 @@ var commandRegistry = []commandSpec{
 	{name: "read", aliases: []string{"toggle-read", "t"}, help: &cmdHelp{
 		summary: "Toggle the read/unread state of the current message (or selection).",
 	}},
+	{name: "star", aliases: []string{"st"}, help: &cmdHelp{
+		summary: "Star the current message (or selection). ':star toggle' flips it. Key: *",
+	}},
+	{name: "unstar", aliases: []string{"unst"}, help: &cmdHelp{
+		summary: "Remove the star from the current message (or the selected messages).",
+	}},
 	{name: "new"},
 	{name: "reply", aliases: []string{"r"}, help: &cmdHelp{
 		summary: "Reply to the sender of the current message.",

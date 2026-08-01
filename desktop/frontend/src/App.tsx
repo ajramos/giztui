@@ -362,6 +362,7 @@ export default function App() {
     insertMessage,
     applyLabelChange,
     doAction,
+    toggleStar,
     toggleSelect,
     exitBulk,
     clearReaderIfRemoved,
@@ -438,7 +439,7 @@ export default function App() {
     setQuery, setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
     setShowHelp, setStatsOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
     showHelp, showToast, slackOn, statsOpen, suggestFor, summarize, summarizeThread,
-    themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleSelect, toggleThread,
+    themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleSelect, toggleStar, toggleThread,
     toggleToolbar, touchUp, touchUpText, viewAnalyzerPrompt, vimRange,
   });
 

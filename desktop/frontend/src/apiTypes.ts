@@ -17,6 +17,7 @@ export interface MessageSummary {
   snippet: string;
   date: string;
   unread: boolean;
+  starred: boolean;
   labels: string[];
 }
 
@@ -29,6 +30,7 @@ export interface MessageDetail {
   cc: string;
   date: string;
   unread: boolean;
+  starred: boolean;
   labels: string[];
   plainText: string;
   html: string;
@@ -311,6 +313,8 @@ export interface Backend {
   Trash(id: string): Promise<void>;
   MarkRead(id: string): Promise<void>;
   MarkUnread(id: string): Promise<void>;
+  Star(id: string): Promise<void>;
+  Unstar(id: string): Promise<void>;
   Unarchive(id: string): Promise<void>;
   Untrash(id: string): Promise<void>;
   BulkUnarchive(ids: string[]): Promise<void>;

@@ -14,7 +14,7 @@ import type { ComposeInit } from "./Compose";
 export interface CommandCtx {
   detail: MessageDetail | null;
   load: (q: string) => Promise<void>;
-  doAction: (action: "archive" | "trash" | "read" | "unread", id: string) => Promise<void>;
+  doAction: (action: "archive" | "trash" | "read" | "unread" | "star" | "unstar", id: string) => Promise<void>;
   activeQuery: string;
   openDrafts: () => void;
   saveMessage: (id: string) => void;
