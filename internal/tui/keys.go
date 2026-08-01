@@ -793,8 +793,13 @@ func (a *App) bindKeys() {
 
 		// Check configurable shortcuts after VIM sequences
 		if a.handleConfigurableKey(event) {
-			// Telemetry: record the key pressed (no-op when disabled).
-			a.recordTelemetry("shortcut", string(event.Rune()), true)
+			// Telemetry: record the key pressed (no-op when disabled). Skip the
+			// command-bar trigger (default ":") — it only opens the command bar,
+			// and the command typed after it is captured separately, so recording
+			// the key too would double-count and adds no signal.
+			if key := string(event.Rune()); key != a.Keys.CommandMode {
+				a.recordTelemetry("shortcut", key, true)
+			}
 			return nil
 		}
 

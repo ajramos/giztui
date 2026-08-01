@@ -75,7 +75,7 @@ Every event currently emitted. **This table is the source of truth.**
 | `kind` | `name` values | `ok` | Emitted where | Notes |
 |--------|---------------|------|---------------|-------|
 | `command` | the command word only (`archive`, `search`, `star`, `labels`, `chat`, …) | always `1` | `executeCommand` (`internal/tui/commands.go`) | Recorded **before** dispatch — measures invocation, not success. **Args are never captured.** |
-| `shortcut` | the key rune pressed (`a`, `d`, `y`, `t`, `*`, …) | always `1` | `handleConfigurableKey` call site (`internal/tui/keys.go`) | Single-rune keys only; `ctrl+…` combos aren't captured yet. |
+| `shortcut` | the key rune pressed (`a`, `d`, `y`, `t`, `*`, …) | always `1` | `handleConfigurableKey` call site (`internal/tui/keys.go`) | Single-rune keys only; `ctrl+…` combos aren't captured yet. The command-bar trigger (`command_mode`, default `:`) is **excluded** — the command it opens is captured on its own, so recording the key too would double-count. |
 | `error` | `ui` | `0` | `ErrorHandler.ShowMessage` at `LogLevelError` (`internal/tui/error_handler.go`) | Counts error-level user messages. No message text stored. |
 | `action` | the action word only (`archive`, `trash`, `summarize`) | outcome: `1` success, `0` failure | at each action's call site via `a.recordAction(name, start, err)` (`internal/tui/app.go`) | Also records `duration_ms` (wall-clock). Measures **outcome + timing** of high-value actions, unlike `command`/`shortcut` which only measure invocation. |
 
