@@ -277,13 +277,15 @@ button.danger {
   gap: 8px;
   margin-bottom: 2px;
 }
-.star-flag {
+.star-slot {
+  flex: 0 0 auto;
+  width: 15px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   color: #e6b800;
-  flex: 0 0 auto;
 }
-.star-flag svg {
+.star-slot svg {
   width: 13px;
   height: 13px;
 }

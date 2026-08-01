@@ -226,12 +226,13 @@ export default function MessageList({
                         </span>
                       )}
                       <span className="from">{displayName(m.from)}</span>
-                      {m.starred && (
-                        <span className="star-flag" title="Starred">
-                          {Icon.star}
-                        </span>
-                      )}
                       <span className="date">{formatDate(m.date)}</span>
+                      <span
+                        className="star-slot"
+                        title={m.starred ? "Starred" : undefined}
+                      >
+                        {m.starred ? Icon.star : null}
+                      </span>
                     </div>
                     <div className="subject">{m.subject || "(no subject)"}</div>
                     <div className="snippet">{m.snippet}</div>
