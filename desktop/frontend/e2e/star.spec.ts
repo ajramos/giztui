@@ -10,11 +10,11 @@ test.describe("star", () => {
     await openApp(page);
     await openMessageAt(page, 0);
     const row0 = rows(page).nth(0);
-    await expect(row0.locator(".star-flag")).toHaveCount(0);
+    await expect(row0.locator(".star-slot svg")).toHaveCount(0);
     await page.keyboard.press("*");
-    await expect(row0.locator(".star-flag")).toBeVisible();
+    await expect(row0.locator(".star-slot svg")).toBeVisible();
     await page.keyboard.press("*");
-    await expect(row0.locator(".star-flag")).toHaveCount(0);
+    await expect(row0.locator(".star-slot svg")).toHaveCount(0);
   });
 
   test("':star' and ':unstar' flip the open message", async ({ page }) => {
@@ -22,9 +22,9 @@ test.describe("star", () => {
     await openMessageAt(page, 0);
     const row0 = rows(page).nth(0);
     await runCommand(page, "star");
-    await expect(row0.locator(".star-flag")).toBeVisible();
+    await expect(row0.locator(".star-slot svg")).toBeVisible();
     await runCommand(page, "unstar");
-    await expect(row0.locator(".star-flag")).toHaveCount(0);
+    await expect(row0.locator(".star-slot svg")).toHaveCount(0);
   });
 
   test("':star' stars the whole selection in bulk mode", async ({ page }) => {
@@ -34,6 +34,6 @@ test.describe("star", () => {
     await runCommand(page, "select all");
     await runCommand(page, "star");
     const total = await rows(page).count();
-    await expect(rows(page).locator(".star-flag")).toHaveCount(total);
+    await expect(rows(page).locator(".star-slot svg")).toHaveCount(total);
   });
 });

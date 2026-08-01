@@ -150,8 +150,12 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 	}
 	config = append(config, flagsColumn)
 
-	// Calculate remaining width after fixed columns (numbers + flags)
-	usedWidth := numbersWidth + flagsFixedWidth + 2 // +2 for separators
+	// A dedicated star column (⭐) is appended at the far right (after Date) at the
+	// end of this function — matching the desktop list — so reserve its width here.
+	starFixedWidth := 2
+
+	// Calculate remaining width after fixed columns (numbers + flags + star)
+	usedWidth := numbersWidth + flagsFixedWidth + starFixedWidth + 3 // +3 for separators
 	remainingWidth := availableWidth - usedWidth
 
 	// Responsive column inclusion based on breakpoint and available space
@@ -295,6 +299,17 @@ func (a *App) getResponsiveFlatConfig(breakpoint ResponsiveBreakpoint, available
 			})
 		}
 	}
+
+	// Dedicated star column (⭐) at the far right, after Date — mirrors the desktop
+	// list. Always present so the column stays put whether or not the row is
+	// starred, and so a starred message is unmistakable.
+	config = append(config, render.ColumnConfig{
+		Header:    "",
+		Alignment: tview.AlignCenter,
+		Expansion: 0,
+		MaxWidth:  starFixedWidth,
+		MinWidth:  starFixedWidth,
+	})
 
 	return config
 }
@@ -514,6 +529,7 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		SRC_ATTACHMENT = 4 // Updated index
 		SRC_CALENDAR   = 5 // Updated index
 		SRC_DATE       = 6 // Updated index
+		SRC_STAR       = 7 // Dedicated star column (appended)
 	)
 
 	// Determine if numbers column is present in config (always first if present)
@@ -535,7 +551,10 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		configIndex++
 	}
 
-	// Track which empty-header columns we've seen (flags, then attachment, then calendar)
+	// Track which empty-header center columns we've seen. The dedicated star column
+	// is always appended LAST (identified by position below, so it's unambiguous
+	// even on narrow layouts that drop the attachment/calendar columns); the rest
+	// appear in order: flags, then attachment, then calendar.
 	flagsColumnSeen := false
 	attachmentColumnSeen := false
 
@@ -546,20 +565,25 @@ func (a *App) mapEmailDataToResponsiveColumns(emailData render.EmailColumnData, 
 		switch configHeader {
 		case "": // Either flags, attachment, or calendar column
 			if config[configIndex].Alignment == tview.AlignCenter {
-				if !flagsColumnSeen {
-					// This is the first empty-header column - it's the flags column
+				if configIndex == len(config)-1 {
+					// The dedicated star column is always the last column (after Date).
+					if len(emailData.Columns) > SRC_STAR {
+						mappedColumns[configIndex] = emailData.Columns[SRC_STAR]
+					}
+				} else if !flagsColumnSeen {
+					// First empty-header column - the flags column
 					if len(emailData.Columns) > SRC_FLAGS {
 						mappedColumns[configIndex] = emailData.Columns[SRC_FLAGS]
 					}
 					flagsColumnSeen = true
 				} else if !attachmentColumnSeen {
-					// This is the second empty-header column - it's the attachment column
+					// Next empty-header column - the attachment column
 					if len(emailData.Columns) > SRC_ATTACHMENT {
 						mappedColumns[configIndex] = emailData.Columns[SRC_ATTACHMENT]
 					}
 					attachmentColumnSeen = true
 				} else {
-					// This is the third empty-header column - it's the calendar column
+					// Next empty-header column - the calendar column
 					if len(emailData.Columns) > SRC_CALENDAR {
 						mappedColumns[configIndex] = emailData.Columns[SRC_CALENDAR]
 					}

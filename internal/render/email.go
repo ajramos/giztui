@@ -301,9 +301,10 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 	// Extract separate labels (no longer embedded in subject)
 	labels := er.FormatLabelsForColumn(message, 16) // Default width, will be adjusted by responsive system
 
-	// Extract separate attachment and calendar icons
+	// Extract separate attachment, calendar and star icons
 	attachmentIcon := er.ExtractAttachmentIcon(message)
 	calendarIcon := er.ExtractCalendarIcon(message)
+	starIcon := er.ExtractStarIcon(message)
 
 	// Format date
 	date := er.formatRelativeTime(er.getDate(message))
@@ -321,6 +322,7 @@ func (er *EmailRenderer) FormatFlatMessageColumns(message *googleGmail.Message) 
 			{attachmentIcon, tview.AlignCenter, 2, 0},
 			{calendarIcon, tview.AlignCenter, 2, 0},
 			{date, tview.AlignRight, 16, 0},
+			{starIcon, tview.AlignCenter, 2, 0}, // SRC index 7 (dedicated star column)
 		},
 		Color: color,
 	}
@@ -342,15 +344,23 @@ func (er *EmailRenderer) extractMessageFlags(message *googleGmail.Message) strin
 		flags.WriteString("!")
 	}
 
-	// Starred indicator
-	for _, l := range message.LabelIds {
-		if l == "STARRED" {
-			flags.WriteString("★")
-			break
-		}
-	}
+	// Note: the starred indicator lives in its own dedicated column (ExtractStarIcon),
+	// rendered as ⭐ so it's clearly visible, like the attachment/calendar icons.
 
 	return flags.String()
+}
+
+// ExtractStarIcon returns the star icon (⭐) padded to 2 characters when the
+// message is starred, mirroring ExtractAttachmentIcon/ExtractCalendarIcon.
+func (er *EmailRenderer) ExtractStarIcon(message *googleGmail.Message) string {
+	if message != nil {
+		for _, l := range message.LabelIds {
+			if l == "STARRED" {
+				return "⭐" // emoji occupies 2 cells
+			}
+		}
+	}
+	return "  " // 2 spaces
 }
 
 // getMessageColor returns the appropriate color for a message based on its state
