@@ -383,6 +383,8 @@ export interface Backend {
   SwitchAccount(id: string): Promise<void>;
   KeyMap(): Promise<KeyMap>;
   ThreadingEnabled(): Promise<boolean>;
+  // Initial state of the list's message-number column (config-seeded); :numbers toggles it.
+  ShowMessageNumbers(): Promise<boolean>;
   GetThread(threadID: string): Promise<MessageDetail[]>;
   ThreadSummaryStream(threadID: string): Promise<string>;
   SavedQueriesEnabled(): Promise<boolean>;

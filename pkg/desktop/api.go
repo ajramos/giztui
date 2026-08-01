@@ -69,7 +69,10 @@ type Deps struct {
 	AnalyzerBatchSize    int
 	AnalyzerMaxBatches   int
 	AnalyzerStrictLabels bool
-	Logger               *log.Logger
+	// ShowMessageNumbers mirrors config.Display.ShowMessageNumbers: the initial
+	// state of the message-number column the frontend can toggle with :numbers.
+	ShowMessageNumbers bool
+	Logger             *log.Logger
 }
 
 // API is the front-end-agnostic entry point. Every method returns
@@ -105,6 +108,7 @@ type API struct {
 	analyzerBatchSize    int
 	analyzerMaxBatches   int
 	analyzerStrictLabels bool
+	showMessageNumbers   bool
 
 	logger *log.Logger
 
@@ -145,6 +149,7 @@ func NewAPI(d Deps) *API {
 		analyzerBatchSize:    d.AnalyzerBatchSize,
 		analyzerMaxBatches:   d.AnalyzerMaxBatches,
 		analyzerStrictLabels: d.AnalyzerStrictLabels,
+		showMessageNumbers:   d.ShowMessageNumbers,
 
 		logger: d.Logger,
 	}
@@ -155,6 +160,11 @@ func (a *API) logf(format string, args ...interface{}) {
 		a.logger.Printf(format, args...)
 	}
 }
+
+// ShowMessageNumbers reports the initial state of the message-number column,
+// mirrored from config.Display.ShowMessageNumbers. The frontend seeds its
+// toggle from this at startup (TUI parity with :numbers).
+func (a *API) ShowMessageNumbers() bool { return a.showMessageNumbers }
 
 // ListInbox returns a page of inbox message summaries. Pass an empty pageToken
 // for the first page; use the returned NextPageToken to paginate.

@@ -53,6 +53,7 @@ export interface CommandCtx {
   query: string;
   runUndo: () => Promise<void>;
   toggleAutoRefresh: () => void;
+  toggleNumbers: () => void;
   saveRawMessage: (id: string) => void;
   invite: Invite | null;
   respondInvite: (id: string, status: "accepted" | "tentative" | "declined") => Promise<void>;

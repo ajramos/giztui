@@ -25,6 +25,7 @@ export function useBootstrap(deps: {
   setKeymap: (v: KeyMap) => void;
   setAppVersion: (v: string) => void;
   setThreadingOn: (v: boolean) => void;
+  setShowNumbers: (v: boolean) => void;
   setSavedQueriesOn: (v: boolean) => void;
   setActionPlanOn: (v: boolean) => void;
   setRulesEnabled: (v: boolean) => void;
@@ -46,7 +47,7 @@ export function useBootstrap(deps: {
   const {
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
     setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
-    setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
+    setAccounts, setKeymap, setAppVersion, setThreadingOn, setShowNumbers, setSavedQueriesOn, setActionPlanOn,
     setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
     setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,
     setBulkMode, setSelected, setQuery,
@@ -133,6 +134,7 @@ export function useBootstrap(deps: {
       try {
         await refreshIntegrations();
         setThreadingOn(await backend.ThreadingEnabled());
+        setShowNumbers(await backend.ShowMessageNumbers());
         setSavedQueriesOn(await backend.SavedQueriesEnabled());
         setActionPlanOn(await backend.ActionPlanEnabled());
         setRulesEnabled(await backend.AnalyzerRulesEnabled());

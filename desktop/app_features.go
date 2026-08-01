@@ -13,6 +13,13 @@ func (a *App) ThreadingEnabled() bool {
 	return a.enabled((*desktop.API).ThreadingEnabled)
 }
 
+// ShowMessageNumbers reports the initial state of the list's message-number
+// column (config.display.show_message_numbers). The frontend seeds its :numbers
+// toggle from this at startup; false until a session is loaded.
+func (a *App) ShowMessageNumbers() bool {
+	return a.enabled((*desktop.API).ShowMessageNumbers)
+}
+
 // GetThread returns all messages in a thread for the conversation view.
 func (a *App) GetThread(threadID string) ([]desktop.MessageDetail, error) {
 	api, err := a.api()

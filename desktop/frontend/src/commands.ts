@@ -101,6 +101,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["label", "lbl"], desc: "Add label by name", arg: "<name>" },
   { names: ["select", "sel"], desc: "Bulk-select rows", arg: "all|none|<n|a-b>" },
   { names: ["goto", "g"], desc: "Go to row", arg: "[n]" },
+  { names: ["numbers", "n"], desc: "Toggle message number column (:5 jumps to row 5)" },
   { names: ["bottom", "end", "$"], desc: "Go to last row" },
   { names: ["queries"], desc: "Saved searches" },
   { names: ["savequery", "save-query", "sq"], desc: "Save current search" },

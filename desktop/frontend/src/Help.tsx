@@ -56,6 +56,8 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
       { icon: "↵", keys: "Enter", desc: "Open message (marks read)" },
       { icon: "⬆️", keys: fmtKey(k.gotoTop), desc: "Go to top" },
       { icon: "⬇️", keys: fmtKey(k.gotoBottom), desc: "Go to bottom" },
+      { icon: "🔢", keys: ":numbers", desc: "Toggle message number column" },
+      { icon: "🎯", keys: ":5", desc: "Jump to message number 5" },
       { icon: "🔄", keys: fmtKey(k.refresh), desc: "Refresh inbox" },
       { icon: "⏬", keys: fmtKey(k.loadMore), desc: "Load more" },
       { icon: "🔍", keys: fmtKey(k.search), desc: "Search mail (Gmail)" },

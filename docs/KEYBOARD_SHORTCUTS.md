@@ -78,6 +78,7 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `G` | Go to last | Jump to last message |
 | `:5` + Enter | Jump to line | Jump to message number 5 |
 | `:$` + Enter | Jump to end | Jump to last message |
+| `:numbers` / `:n` | Toggle numbers | Toggle the 1-based message-number column (TUI & desktop) |
 
 ### Content Navigation (Within Message)
 | Key | Action | Description |

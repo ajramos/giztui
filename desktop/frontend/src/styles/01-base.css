@@ -277,6 +277,15 @@ button.danger {
   gap: 8px;
   margin-bottom: 2px;
 }
+.row-num {
+  flex: 0 0 auto;
+  text-align: right;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  padding-right: 2px;
+  user-select: none;
+}
 .star-slot {
   flex: 0 0 auto;
   width: 15px;

@@ -80,6 +80,10 @@ export default function App() {
   const [switching, setSwitching] = useState(false);
   const [viewHtml, setViewHtml] = useState(false);
   const [loadRemote, setLoadRemote] = useState(false);
+  // Message-number column (TUI :numbers parity). Seeded from config at bootstrap;
+  // :numbers / :n toggles it in-memory (numbers make :N jumps like :14 aimable).
+  const [showNumbers, setShowNumbers] = useState(false);
+  const toggleNumbers = useCallback(() => setShowNumbers((v) => !v), []);
   // "Always load remote images": persisted global default (off = ask per message).
   const [alwaysImages, setAlwaysImages] = useState<boolean>(
     () => localStorage.getItem("giztui.alwaysImages") === "on",
@@ -336,7 +340,7 @@ export default function App() {
   const { importCreds, retryInit, switchAccount } = useBootstrap({
     load, initTheme, refreshIntegrations, setConnecting, setInitError, setNeedCreds,
     setAuthUrl, setCredsPath, setError, setAccount, setAiEnabled, setAiPromptsEnabled, setJobsNotify,
-    setAccounts, setKeymap, setAppVersion, setThreadingOn, setSavedQueriesOn, setActionPlanOn,
+    setAccounts, setKeymap, setAppVersion, setThreadingOn, setShowNumbers, setSavedQueriesOn, setActionPlanOn,
     setRulesEnabled, setLabels, setRsvpEnabled, setAutoRefreshSecs, setAutoRefresh, setImportErr,
     setImporting, setSwitching, setSelectedId, setDetail, setSummary, setPromptResult,
     setBulkMode, setSelected, setQuery,
@@ -442,7 +446,7 @@ export default function App() {
     setQuery, setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
     setShowHelp, setStatsOpen, setTelemetryOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
     showHelp, showToast, slackOn, statsOpen, telemetryOpen, suggestFor, summarize, summarizeThread,
-    themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleSelect, toggleStar, toggleThread,
+    themePickerOpen, themesOn, threadMsgs, threadingOn, toggleAutoRefresh, toggleNumbers, toggleSelect, toggleStar, toggleThread,
     toggleToolbar, touchUp, touchUpText, viewAnalyzerPrompt, vimRange,
   });
 
@@ -512,7 +516,7 @@ export default function App() {
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
-    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat,
+    loadRemote, setLoadRemote, imageOptIn, setAlwaysImagesOn, chat, showNumbers,
   };
 
   return (

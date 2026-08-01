@@ -268,6 +268,6 @@ Playwright net (**61 unit / 39 e2e**), re-verified with `tsc` + `build` + e2e ea
 - [ ] macOS **notarization** + Windows signing (phase 2 in `DESKTOP_DISTRIBUTION.md`)
   — the biggest user-facing friction (Gatekeeper/SmartScreen on unsigned builds).
 - [ ] Product decision: keep or remove **`:touch-up`** (user finds it unclear).
-- [ ] Minor TUI↔desktop command-parity gaps (`:numbers`, `:preload`, bookmarks).
+- [ ] Minor TUI↔desktop command-parity gaps (`:preload`, bookmarks). `:numbers` done.
 - [ ] Coverage baseline (2026-07-25): Go `internal/services` 32%, `pkg/desktop` 24%,
   `internal/tui` 9.7%; **frontend bootstrapped 0 → 38 unit tests**.

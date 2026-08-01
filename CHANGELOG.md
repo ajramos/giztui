@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opt-in usage-analytics dashboard (totals, top commands/shortcuts, and the
   Actions section) reusing the same per-account store; `:stats reset` and
   `:stats <days>` work there too. `:prompt stats` stays the AI prompt-usage view.
+- **Desktop parity for message numbers (`:numbers`).** The desktop client can now
+  show a 1-based message-number column in the list, toggled with `:numbers` (alias
+  `:n`), so jumping with `:N` (e.g. `:14`) is easy to aim. The initial state is
+  seeded from `display.show_message_numbers` in config, mirroring the TUI.
 
 ## [1.23.0] - 2026-07-31
 
