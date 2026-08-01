@@ -89,6 +89,42 @@ func TestTelemetry_PruneAndClear(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
+func TestTelemetry_ActionStats(t *testing.T) {
+	ts, done := newTelemetryStore(t)
+	defer done()
+	ctx := context.Background()
+	now := time.Now().Unix()
+
+	require.NoError(t, ts.InsertEvents(ctx, []TelemetryEvent{
+		{TS: now, Kind: "action", Name: "archive", OK: true, DurationMs: 100},
+		{TS: now, Kind: "action", Name: "archive", OK: false, DurationMs: 300},
+		{TS: now, Kind: "action", Name: "summarize", OK: true, DurationMs: 1400},
+		// Non-action events must be excluded from ActionStats.
+		{TS: now, Kind: "command", Name: "archive", OK: true},
+	}))
+
+	stats, err := ts.ActionStats(ctx, "", now-3600, 10)
+	require.NoError(t, err)
+	require.Len(t, stats, 2)
+
+	// archive: 2 runs (ordered first by count), 1 failure, avg (100+300)/2 = 200ms.
+	assert.Equal(t, "archive", stats[0].Name)
+	assert.Equal(t, 2, stats[0].Count)
+	assert.Equal(t, 1, stats[0].Failures)
+	assert.Equal(t, 200, stats[0].AvgDurationMs)
+
+	// summarize: 1 run, 0 failures, avg 1400ms.
+	assert.Equal(t, "summarize", stats[1].Name)
+	assert.Equal(t, 1, stats[1].Count)
+	assert.Equal(t, 0, stats[1].Failures)
+	assert.Equal(t, 1400, stats[1].AvgDurationMs)
+
+	// Account scoping still applies.
+	empty, err := ts.ActionStats(ctx, "other@x", now-3600, 10)
+	require.NoError(t, err)
+	assert.Len(t, empty, 0)
+}
+
 func TestTelemetry_InsertEmpty(t *testing.T) {
 	ts, done := newTelemetryStore(t)
 	defer done()

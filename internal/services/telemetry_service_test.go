@@ -64,3 +64,30 @@ func TestTelemetryService_EnabledCapturesAndAggregates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, sum.TotalActions)
 }
+
+func TestTelemetryService_RecordActionOutcomes(t *testing.T) {
+	cfg := &config.Config{Telemetry: config.TelemetryConfig{Enabled: true, RetentionDays: 90}}
+	svc := NewTelemetryService(newTelemetryTestStore(t), cfg, "a@x")
+
+	require.True(t, svc.IsEnabled())
+	svc.RecordAction("archive", true, 100)
+	svc.RecordAction("archive", false, 300)
+	svc.RecordAction("summarize", true, 1400)
+
+	// Close flushes the buffered writer deterministically.
+	svc.Close()
+
+	sum, err := svc.Summary(context.Background(), 30)
+	require.NoError(t, err)
+	require.NotEmpty(t, sum.TopActions)
+
+	// archive ordered first (2 runs), 1 failure, avg 200ms.
+	assert.Equal(t, "archive", sum.TopActions[0].Name)
+	assert.Equal(t, 2, sum.TopActions[0].Count)
+	assert.Equal(t, 1, sum.TopActions[0].Failures)
+	assert.Equal(t, 200, sum.TopActions[0].AvgDurationMs)
+
+	// summarize captured with its timing.
+	assert.Equal(t, "summarize", sum.TopActions[1].Name)
+	assert.Equal(t, 1400, sum.TopActions[1].AvgDurationMs)
+}

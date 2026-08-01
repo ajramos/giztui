@@ -475,6 +475,28 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry_events(ts);`)
 		ver = 11
 	}
 
+	// v12: add duration_ms to telemetry_events (for "action" outcome timing)
+	if ver == 11 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `ALTER TABLE telemetry_events ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0;`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=12;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v12: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 12
+	}
+
 	_ = ver
 	return nil
 }

@@ -1511,6 +1511,14 @@ func (a *App) recordTelemetry(kind, name string, ok bool) {
 	}
 }
 
+// recordAction records the outcome of a named action: whether it succeeded
+// (err == nil) and how long it took since `start`. No-op when telemetry is off.
+func (a *App) recordAction(name string, start time.Time, err error) {
+	if ts := a.telemetryService; ts != nil {
+		ts.RecordAction(name, err == nil, time.Since(start).Milliseconds())
+	}
+}
+
 // GetInboxAnalyzerService returns the inbox analyzer service or nil if not initialized.
 func (a *App) GetInboxAnalyzerService() services.InboxAnalyzerService {
 	return a.inboxAnalyzerService

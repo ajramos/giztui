@@ -16,15 +16,25 @@ type TelemetryStore struct {
 type TelemetryEvent struct {
 	TS           int64  // unix seconds
 	AccountEmail string // may be empty
-	Kind         string // e.g. "command", "shortcut", "error"
+	Kind         string // e.g. "command", "shortcut", "error", "action"
 	Name         string // e.g. "archive", "a", "summarize"
 	OK           bool
+	DurationMs   int64 // wall-clock duration for "action" events (0 otherwise)
 }
 
 // NameCount is an aggregate row (a name and how many times it occurred).
 type NameCount struct {
 	Name  string
 	Count int
+}
+
+// ActionStat aggregates the outcome of a named action: how many times it ran,
+// how many failed, and its average duration.
+type ActionStat struct {
+	Name          string
+	Count         int
+	Failures      int
+	AvgDurationMs int
 }
 
 // NewTelemetryStore creates a telemetry store from a base store.
@@ -47,7 +57,7 @@ func (ts *TelemetryStore) InsertEvents(ctx context.Context, events []TelemetryEv
 	if err != nil {
 		return err
 	}
-	stmt, err := tx.PrepareContext(ctx, `INSERT INTO telemetry_events(ts, account_email, kind, name, ok) VALUES(?,?,?,?,?)`)
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO telemetry_events(ts, account_email, kind, name, ok, duration_ms) VALUES(?,?,?,?,?,?)`)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -58,12 +68,50 @@ func (ts *TelemetryStore) InsertEvents(ctx context.Context, events []TelemetryEv
 		if !e.OK {
 			okVal = 0
 		}
-		if _, err := stmt.ExecContext(ctx, e.TS, e.AccountEmail, e.Kind, e.Name, okVal); err != nil {
+		if _, err := stmt.ExecContext(ctx, e.TS, e.AccountEmail, e.Kind, e.Name, okVal, e.DurationMs); err != nil {
 			_ = tx.Rollback()
 			return err
 		}
 	}
 	return tx.Commit()
+}
+
+// ActionStats aggregates "action" events since `since` (unix seconds) for an
+// account (empty = all accounts): per action name, the count, failure count, and
+// average duration, ordered by count descending, limited to `limit` rows.
+func (ts *TelemetryStore) ActionStats(ctx context.Context, accountEmail string, since int64, limit int) ([]ActionStat, error) {
+	if ts == nil || ts.db == nil {
+		return nil, fmt.Errorf("telemetry store not initialized")
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	query := `SELECT name, COUNT(*), COALESCE(SUM(CASE WHEN ok=0 THEN 1 ELSE 0 END),0), COALESCE(AVG(duration_ms),0)
+FROM telemetry_events WHERE kind='action' AND ts>=?`
+	args := []any{since}
+	if strings.TrimSpace(accountEmail) != "" {
+		query += ` AND account_email=?`
+		args = append(args, accountEmail)
+	}
+	query += ` GROUP BY name ORDER BY COUNT(*) DESC, name ASC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := ts.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]ActionStat, 0, limit)
+	for rows.Next() {
+		var s ActionStat
+		var avg float64
+		if err := rows.Scan(&s.Name, &s.Count, &s.Failures, &avg); err != nil {
+			return nil, err
+		}
+		s.AvgDurationMs = int(avg + 0.5)
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }
 
 // TopByKind returns the most frequent event names of a kind since `since`

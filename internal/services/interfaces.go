@@ -118,6 +118,9 @@ type TelemetryService interface {
 	// RecordEvent records a usage event. It is non-blocking and best-effort:
 	// safe to call from the UI/event goroutine, and a no-op when disabled.
 	RecordEvent(kind, name string, ok bool)
+	// RecordAction records the outcome of a named action (kind "action") with its
+	// success flag and wall-clock duration. Non-blocking; no-op when disabled.
+	RecordAction(name string, ok bool, durationMs int64)
 	// Summary aggregates usage over the last windowDays for the dashboard.
 	Summary(ctx context.Context, windowDays int) (*TelemetrySummary, error)
 	// Reset deletes all captured telemetry for the active account.
@@ -132,6 +135,14 @@ type TelemetryNameCount struct {
 	Count int
 }
 
+// TelemetryActionStat is an action's outcome: runs, failures, and average time.
+type TelemetryActionStat struct {
+	Name          string
+	Count         int
+	Failures      int
+	AvgDurationMs int
+}
+
 // TelemetrySummary is the aggregated view shown in the usage dashboard.
 type TelemetrySummary struct {
 	WindowDays   int
@@ -139,6 +150,7 @@ type TelemetrySummary struct {
 	TotalErrors  int
 	TopCommands  []TelemetryNameCount
 	TopShortcuts []TelemetryNameCount
+	TopActions   []TelemetryActionStat
 }
 
 // CacheService handles caching operations

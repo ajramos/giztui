@@ -53,6 +53,48 @@ func telemetrySection(title string, rows []services.TelemetryNameCount) string {
 	return b.String()
 }
 
+// telemetryFormatDuration renders a millisecond duration compactly (e.g. "120ms",
+// "1.4s"). Values under a second stay in ms; larger ones switch to seconds.
+func telemetryFormatDuration(ms int) string {
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.1fs", float64(ms)/1000.0)
+}
+
+// telemetryActionsSection formats instrumented action outcomes: for each action
+// its run count, failure count, and average wall-clock duration.
+func telemetryActionsSection(rows []services.TelemetryActionStat) string {
+	var b strings.Builder
+	b.WriteString("[::b]Actions (outcome · timing)[::-]\n")
+	if len(rows) == 0 {
+		b.WriteString("  (none yet)\n")
+		return b.String()
+	}
+	max := 0
+	nameW := 0
+	for _, r := range rows {
+		if r.Count > max {
+			max = r.Count
+		}
+		if len(r.Name) > nameW {
+			nameW = len(r.Name)
+		}
+	}
+	if nameW > 18 {
+		nameW = 18
+	}
+	for _, r := range rows {
+		name := r.Name
+		if len(name) > nameW {
+			name = name[:nameW]
+		}
+		detail := fmt.Sprintf("%d runs · %d failed · %s avg", r.Count, r.Failures, telemetryFormatDuration(r.AvgDurationMs))
+		b.WriteString(fmt.Sprintf("  %-*s  %s  %s\n", nameW, name, telemetryBar(r.Count, max, 12), detail))
+	}
+	return b.String()
+}
+
 // generateTelemetryContent builds the usage-analytics dashboard text.
 func (a *App) generateTelemetryContent(s *services.TelemetrySummary) string {
 	var b strings.Builder
@@ -69,6 +111,10 @@ func (a *App) generateTelemetryContent(s *services.TelemetrySummary) string {
 		b.WriteString("\n")
 		b.WriteString(telemetrySection("Top shortcuts (keys)", s.TopShortcuts))
 		b.WriteString("\n")
+		if len(s.TopActions) > 0 {
+			b.WriteString(telemetryActionsSection(s.TopActions))
+			b.WriteString("\n")
+		}
 	}
 
 	b.WriteString("[::d]All data stays on this machine and is never uploaded.\n")

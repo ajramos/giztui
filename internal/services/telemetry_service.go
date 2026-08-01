@@ -57,16 +57,22 @@ func (s *TelemetryServiceImpl) IsEnabled() bool {
 // RecordEvent enqueues an event without blocking. Dropped silently if the buffer
 // is full (telemetry is best-effort and must never slow the UI) or disabled.
 func (s *TelemetryServiceImpl) RecordEvent(kind, name string, ok bool) {
+	s.enqueue(db.TelemetryEvent{Kind: kind, Name: name, OK: ok})
+}
+
+// RecordAction records the outcome (ok + wall-clock duration) of a named action.
+func (s *TelemetryServiceImpl) RecordAction(name string, ok bool, durationMs int64) {
+	s.enqueue(db.TelemetryEvent{Kind: "action", Name: name, OK: ok, DurationMs: durationMs})
+}
+
+// enqueue stamps the event with time/account and hands it to the writer without
+// blocking. No-op when disabled or when the buffer is full (best-effort).
+func (s *TelemetryServiceImpl) enqueue(ev db.TelemetryEvent) {
 	if s == nil || s.events == nil || !s.IsEnabled() {
 		return
 	}
-	ev := db.TelemetryEvent{
-		TS:           time.Now().Unix(),
-		AccountEmail: s.accountEmail,
-		Kind:         kind,
-		Name:         name,
-		OK:           ok,
-	}
+	ev.TS = time.Now().Unix()
+	ev.AccountEmail = s.accountEmail
 	select {
 	case s.events <- ev:
 	default:
@@ -146,12 +152,17 @@ func (s *TelemetryServiceImpl) Summary(ctx context.Context, windowDays int) (*Te
 	if err != nil {
 		return nil, err
 	}
+	actions, err := s.store.ActionStats(ctx, "", since, 10)
+	if err != nil {
+		return nil, err
+	}
 	return &TelemetrySummary{
 		WindowDays:   windowDays,
 		TotalActions: total,
 		TotalErrors:  errs,
 		TopCommands:  toNameCounts(cmds),
 		TopShortcuts: toNameCounts(keys),
+		TopActions:   toActionStats(actions),
 	}, nil
 }
 
@@ -177,6 +188,19 @@ func toNameCounts(in []db.NameCount) []TelemetryNameCount {
 	out := make([]TelemetryNameCount, 0, len(in))
 	for _, nc := range in {
 		out = append(out, TelemetryNameCount{Name: nc.Name, Count: nc.Count})
+	}
+	return out
+}
+
+func toActionStats(in []db.ActionStat) []TelemetryActionStat {
+	out := make([]TelemetryActionStat, 0, len(in))
+	for _, s := range in {
+		out = append(out, TelemetryActionStat{
+			Name:          s.Name,
+			Count:         s.Count,
+			Failures:      s.Failures,
+			AvgDurationMs: s.AvgDurationMs,
+		})
 	}
 	return out
 }
