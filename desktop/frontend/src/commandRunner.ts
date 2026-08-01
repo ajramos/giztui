@@ -136,10 +136,17 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "prompt":
         case "pr":
-        case "p":
-          if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0)))
+        case "p": {
+          // ":prompt stats" (TUI parity) opens the AI prompt-usage dashboard;
+          // bare ":prompt" applies a prompt.
+          const sub = arg.trim().toLowerCase();
+          if (sub === "stats" || sub === "s") {
+            void openStats();
+          } else if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0))) {
             setPromptsOpen(true);
+          }
           break;
+        }
         case "suggest":
           if (d && aiEnabled) void openSuggest(d.id);
           break;
@@ -372,10 +379,6 @@ export function runCommand(input: string, ctx: CommandCtx) {
         case "advanced":
         case "adv":
           setAdvOpen(true);
-          break;
-        case "stats":
-        case "usage":
-          void openStats();
           break;
         case "config":
         case "cfg":
