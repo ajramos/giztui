@@ -136,10 +136,17 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "prompt":
         case "pr":
-        case "p":
-          if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0)))
+        case "p": {
+          // ":prompt stats" (TUI parity) opens the AI prompt-usage dashboard;
+          // bare ":prompt" applies a prompt.
+          const sub = arg.trim().toLowerCase();
+          if (sub === "stats" || sub === "s") {
+            void openStats();
+          } else if (aiPromptsEnabled && (d || (bulkMode && selected.size > 0))) {
             setPromptsOpen(true);
+          }
           break;
+        }
         case "suggest":
           if (d && aiEnabled) void openSuggest(d.id);
           break;
@@ -375,7 +382,10 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "stats":
         case "usage":
-          void openStats();
+          // :stats is the TUI's (opt-in) telemetry dashboard, which the desktop
+          // doesn't have yet. Prompt-usage moved to :prompt stats — redirect
+          // rather than falling through to a bare "Unknown command".
+          showToast("Usage analytics is TUI-only for now · AI prompt usage: :prompt stats");
           break;
         case "config":
         case "cfg":

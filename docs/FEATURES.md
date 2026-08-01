@@ -286,6 +286,13 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **Runtime control** - `:preload` commands for live configuration changes
 - ✅ **Smart eviction** - LRU-based cache eviction maintains optimal memory usage
 
+### Usage Analytics (privacy-first)
+- ✅ **Local-only & opt-in** - Off by default; enable with `telemetry.enabled` and restart. Data never leaves your machine
+- ✅ **Usage dashboard** - `:stats` shows totals, top commands, and top shortcuts over a configurable window (`:stats <days>`)
+- ✅ **Action outcomes + timing** - Per-action success/failure counts and average duration for high-value actions (archive, trash, summarize)
+- ✅ **No content captured** - Only bounded identifiers (command word, key, action name) — never arguments, queries, or message content
+- ✅ **Reversible & bounded** - `:stats reset` wipes it; old events auto-prune by `telemetry.retention_days`
+
 ## 🚀 Development & Quality
 
 ### Testing Framework

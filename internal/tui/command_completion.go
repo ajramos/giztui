@@ -111,7 +111,7 @@ var commandRegistry = []commandSpec{
 		summary: "Preload messages into the cache for faster browsing.",
 	}},
 	{name: "stats", aliases: []string{"usage"}, help: &cmdHelp{
-		summary: "Show LLM/token usage statistics.",
+		summary: "Local usage analytics dashboard. ':stats reset' clears it, ':stats <days>' sets the window. (Prompt usage: ':prompt stats'.)",
 	}},
 	{name: "g"},
 	{name: "archive", aliases: []string{"a"}, help: &cmdHelp{

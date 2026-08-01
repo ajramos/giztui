@@ -444,6 +444,59 @@ CREATE TABLE IF NOT EXISTS deterministic_rules (
 		ver = 10
 	}
 
+	// v11: telemetry_events table (privacy-first local usage analytics)
+	if ver == 10 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS telemetry_events (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts            INTEGER NOT NULL,
+  account_email TEXT NOT NULL DEFAULT '',
+  kind          TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  ok            INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry_events(ts);`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=11;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v11: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 11
+	}
+
+	// v12: add duration_ms to telemetry_events (for "action" outcome timing)
+	if ver == 11 {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `ALTER TABLE telemetry_events ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0;`)
+
+		if err == nil {
+			_, err = tx.ExecContext(ctx, "PRAGMA user_version=12;")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migrate v12: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ver = 12
+	}
+
 	_ = ver
 	return nil
 }

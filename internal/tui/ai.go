@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/derailed/tcell/v2"
@@ -309,6 +310,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 
 		// Use streaming summary generation if enabled
 		var finalResult string
+		sumStart := time.Now()
 		if options.StreamEnabled {
 			// Set up streaming with UI updates
 			var streamBuilder strings.Builder
@@ -341,6 +343,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 				finalResult = result.Summary
 			}
 		}
+		a.recordAction("summarize", sumStart, err)
 
 		if err != nil {
 			if a.debug {

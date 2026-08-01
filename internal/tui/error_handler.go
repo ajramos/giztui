@@ -82,6 +82,11 @@ func (eh *ErrorHandler) ShowMessage(ctx context.Context, msg string, level LogLe
 		eh.logger.Printf("%s: %s", levelStr, msg)
 	}
 
+	// Telemetry: count error-level messages (no message text captured).
+	if level == LogLevelError && eh.appRef != nil {
+		eh.appRef.recordTelemetry("error", "ui", false)
+	}
+
 	// Update UI in the main thread
 	if eh.app != nil {
 		eh.app.QueueUpdateDraw(func() {

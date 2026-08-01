@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 )
 
 // archiveSelected archives the selected message
@@ -41,8 +42,11 @@ func (a *App) archiveSelected() {
 
 	// Archive message using EmailService for undo support
 	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
-	if err := emailService.ArchiveMessage(a.ctx, messageID); err != nil {
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving message: %v", err))
+	archiveStart := time.Now()
+	archiveErr := emailService.ArchiveMessage(a.ctx, messageID)
+	a.recordAction("archive", archiveStart, archiveErr)
+	if archiveErr != nil {
+		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Error archiving message: %v", archiveErr))
 		return
 	}
 	go func() {
@@ -81,7 +85,9 @@ func (a *App) trashSelectedByID(messageID string) {
 
 	// Move message to trash using EmailService for undo support
 	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	trashStart := time.Now()
 	err = emailService.TrashMessage(a.ctx, messageID)
+	a.recordAction("trash", trashStart, err)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
 		return
@@ -131,7 +137,9 @@ func (a *App) trashSelected() {
 
 	// Move message to trash using EmailService for undo support
 	emailService, _, _, _, _, _, _, _, _, _, _, _ := a.GetServices()
+	trashStart := time.Now()
 	err = emailService.TrashMessage(a.ctx, messageID)
+	a.recordAction("trash", trashStart, err)
 	if err != nil {
 		a.showError(fmt.Sprintf("❌ Error moving to trash: %v", err))
 		return

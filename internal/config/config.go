@@ -154,6 +154,24 @@ type Config struct {
 
 	// AI background jobs (bulk prompts run asynchronously; desktop :jobs picker)
 	Jobs JobsConfig `json:"jobs"`
+
+	// Telemetry is privacy-first, local-only usage analytics (opt-in, never uploaded)
+	Telemetry TelemetryConfig `json:"telemetry"`
+}
+
+// TelemetryConfig configures privacy-first local usage analytics. All data stays
+// on the machine and is never uploaded. Disabled by default (opt-in).
+type TelemetryConfig struct {
+	// Enabled turns on local capture of usage events (default false).
+	Enabled bool `json:"enabled"`
+	// RetentionDays bounds how long events are kept; older ones are pruned
+	// (default 90). A value <= 0 disables pruning.
+	RetentionDays int `json:"retention_days"`
+}
+
+// DefaultTelemetryConfig returns the default (opt-out) telemetry configuration.
+func DefaultTelemetryConfig() TelemetryConfig {
+	return TelemetryConfig{Enabled: false, RetentionDays: 90}
 }
 
 // JobsConfig configures the AI background-jobs subsystem. Bulk prompts run
@@ -565,6 +583,7 @@ func DefaultConfig() *Config {
 		Performance:   DefaultPerformanceConfig(),
 		Display:       DefaultDisplayConfig(),
 		Jobs:          DefaultJobsConfig(),
+		Telemetry:     DefaultTelemetryConfig(),
 		LogFile:       "",
 	}
 }

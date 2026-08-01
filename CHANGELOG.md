@@ -5,6 +5,23 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🚀 Features
+
+- **Local usage analytics (`:stats`) — privacy-first, opt-in.** A local-only
+  usage dashboard that never leaves your machine. Off by default; enable with
+  `telemetry.enabled: true` and restart. `:stats` shows totals, top commands, and
+  top shortcuts over a window (`:stats <days>`, default 30); `:stats reset` wipes
+  it; old events auto-prune by `telemetry.retention_days`. Only bounded
+  identifiers are captured (the command word, the key, an action name) — never
+  arguments, search queries, or any message content.
+- **Action outcomes + timing.** The dashboard's **Actions** section reports
+  per-action run counts, failures, and average wall-clock duration for
+  high-value actions (archive, trash, summarize), so you can see success/failure
+  rates and how long they take — complementing the command/shortcut counts which
+  only measure invocation.
+
 ## [1.23.0] - 2026-07-31
 
 AI features **and desktop↔TUI integration parity**. Two new AI features — bulk
