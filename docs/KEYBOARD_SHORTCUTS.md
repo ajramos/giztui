@@ -20,6 +20,7 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `r` | Toggle read/unread | Mark message as read or unread |
 | `a` | Archive | Move message to archive |
 | `d` | Trash | Move message to trash |
+| `*` | Star / unstar | Toggle Gmail's STARRED flag on the message (⭐ column); bulk-aware via `:star` / `:unstar` |
 | `u` | Show unread | Filter to show only unread messages |
 | `s` | Search | Open search interface |
 | `U` | Undo | Reverse last action (archive, trash, read/unread, labels) |
@@ -361,6 +362,8 @@ When you customize shortcuts, the priority order is:
 | `:unread` | `u` | Show unread messages |
 | `:archive` or `:a` | `a` | Archive message(s) |
 | `:trash` or `:d` | `d` | Move to trash |
+| `:star` or `:st` | `*` | Star message(s) — bulk-aware |
+| `:unstar` or `:unst` | `*` | Unstar message(s) — bulk-aware |
 | `:labels` or `:l` | `l` | Manage labels |
 | `:compose` | `c` | Compose new message |
 | `:reply` or `:r` | `R` | Reply to message |
