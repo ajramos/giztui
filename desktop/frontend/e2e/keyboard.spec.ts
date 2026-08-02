@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openApp, rows } from "./helpers";
+import { openApp, openMessageAt, rows } from "./helpers";
 
 // Global keyboard handler (handleKeyDown/handleKeyMain). Guards the 3-file split
 // of the ~700-line onKey handler: single-key actions, j/k navigation, and the
@@ -29,6 +29,20 @@ test.describe("keyboard", () => {
     const afterK = await rows(page).nth(0).getAttribute("class");
     expect(afterK).toContain("selected");
     void firstId;
+  });
+
+  test("Tab toggles focus between the list and the reader", async ({ page }) => {
+    await openApp(page);
+    await openMessageAt(page, 0);
+    const reader = page.locator(".reader");
+    // Opening a message focuses the reader (TUI parity).
+    await expect(reader).toHaveClass(/reader-focused/);
+    // Tab hands focus back to the list...
+    await page.keyboard.press("Tab");
+    await expect(reader).not.toHaveClass(/reader-focused/);
+    // ...and Tab again returns focus to the reader.
+    await page.keyboard.press("Tab");
+    await expect(reader).toHaveClass(/reader-focused/);
   });
 
   test("'?' opens the shortcuts help; Escape closes it", async ({ page }) => {
