@@ -112,6 +112,17 @@ func (a *App) buildChatPanel(messageID string) {
 			go a.sendChatMessage(text)
 		}
 	})
+	// Tab / Shift+Tab cycle focus out of the chat panel back to the message list.
+	// The chat input is a focused InputField, so the app-level capture early-returns
+	// and never reaches the ring toggle in keys.go — without this the chat traps
+	// focus while a conversation is open. Everything else falls through so typing,
+	// Enter (send) and Esc (close, via SetDoneFunc) behave normally.
+	input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		if a.pickerTabCycle(e) {
+			return nil
+		}
+		return e
+	})
 
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
 	container.SetBackgroundColor(bg)
