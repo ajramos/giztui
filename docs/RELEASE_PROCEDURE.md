@@ -48,13 +48,7 @@ Before starting any release, ensure all these conditions are met:
   1. `docs/KEYBOARD_SHORTCUTS.md` (the reference table — this is the one that silently drifts)
   2. the in-app `?` help (built in `internal/tui/app.go`)
   3. the command completion registry (`internal/tui/command_completion.go`)
-  - Quick audit of registered commands vs the reference doc:
-    ```bash
-    for n in $(grep -oE '\{name: "[a-z:-]+"' internal/tui/command_completion.go | sed -E 's/.*"([a-z:-]+)".*/\1/' | sort -u); do
-      grep -qE ":$n\b|\`$n\`" docs/KEYBOARD_SHORTCUTS.md || echo "check docs for :$n"
-    done
-    ```
-    (Aliases whose canonical form is documented are fine; use this to catch genuinely-missing entries.)
+  - **Enforced automatically** by `go test ./internal/tui/ -run TestCommandsDocumentedInReference` (part of `make test` / CI): it fails the build if any command in the registry is absent from `docs/KEYBOARD_SHORTCUTS.md` (by name or alias). The in-app `?` help and the completion registry are the other two sources — keep all three in step.
 - [ ] Version consistency is enforced by `go test ./internal/version/` — `VERSION`, `internal/version/version.go`, `CHANGELOG.md`, and `packaging/homebrew/giztui-desktop.rb` must all agree (the test fails the build if any drifts)
 
 ### **Git Repository Status**

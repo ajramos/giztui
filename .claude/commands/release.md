@@ -76,7 +76,7 @@ claude release validate
 - [ ] **Architecture Compliance**: Service-first patterns, error handling
 - [ ] **Feature Completeness**: Command parity, bulk support, theming
 - [ ] **Documentation**: Features documented, shortcuts updated
-- [ ] **Shortcut/command doc-sync**: every new key/command shipped this cycle is in ALL THREE — `docs/KEYBOARD_SHORTCUTS.md`, the in-app `?` help (`internal/tui/app.go`), and `internal/tui/command_completion.go` (see the audit snippet in `docs/RELEASE_PROCEDURE.md` → Documentation Requirements)
+- [ ] **Shortcut/command doc-sync**: every new key/command shipped this cycle is in ALL THREE — `docs/KEYBOARD_SHORTCUTS.md`, the in-app `?` help (`internal/tui/app.go`), and `internal/tui/command_completion.go`. The doc↔registry half is CI-enforced by `TestCommandsDocumentedInReference` (`go test ./internal/tui/`); still eyeball the `?` help by hand
 - [ ] **Version consistency**: `go test ./internal/version/` passes — it pins `VERSION`, `internal/version/version.go`, `CHANGELOG.md`, and the Homebrew cask template (`packaging/homebrew/giztui-desktop.rb`) to the same version
 - [ ] **Git Status**: Clean working directory, synchronized with origin
 - [ ] **Dependencies**: Security scan, version compatibility
