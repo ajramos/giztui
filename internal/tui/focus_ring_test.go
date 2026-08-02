@@ -118,6 +118,40 @@ func TestFocusCycle_IncludesReader(t *testing.T) {
 	}
 }
 
+// Regression for the "Tab does not switch to the list while a prompt is in play" bug: when the
+// prompt picker is the active surface (focus "prompts"), the ring must name that slot "prompts" and
+// stepping forward from it must leave the picker (reach the list, possibly via the summary pane) —
+// the picker's own input capture routes Tab into cycleFocus so focus is never trapped in the filter.
+func TestFocusCycle_PromptsPickerEscapesToList(t *testing.T) {
+	a := &App{
+		views: map[string]tview.Primitive{
+			"list": tview.NewTable(),
+			"text": tview.NewTextView(),
+		},
+		currentActivePicker: PickerPrompts,
+		labelsView:          tview.NewFlex(),
+	}
+	a.focus.set("prompts")
+
+	got := ringNames(a.buildFocusRing())
+	want := []string{"list", "text", "prompts"}
+	if len(got) != len(want) {
+		t.Fatalf("ring = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ring[%d] = %q, want %q (full: %v)", i, got[i], want[i], got)
+		}
+	}
+
+	// Forward from the picker must land on a different, non-picker pane (the list, wrapping around).
+	ring := a.buildFocusRing()
+	next := ring[stepFocusIndex(len(ring), focusRingIndex(ring, "prompts"), true)].name
+	if next != "list" {
+		t.Fatalf("Tab from prompts picker = %q, want list (focus must escape the picker)", next)
+	}
+}
+
 func TestStepFocusIndex_EmptyRing(t *testing.T) {
 	if got := stepFocusIndex(0, -1, true); got != 0 {
 		t.Fatalf("empty ring step = %d, want 0", got)
