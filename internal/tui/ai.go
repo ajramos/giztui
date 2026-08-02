@@ -597,6 +597,9 @@ func (a *App) showLabelSuggestions(messageID string, suggestions []string) {
 			// Remove explicit Back item; ESC hint will be shown in footer and ESC returns to quick view
 
 			body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyEscape {
 					// Go back to quick view within the side panel
 					a.labelsExpanded = false

@@ -187,6 +187,9 @@ func (a *App) openAttachmentPicker() {
 
 			// Allow navigation from input to list
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
 					return e
@@ -265,6 +268,9 @@ func (a *App) openAttachmentPicker() {
 
 			// Handle navigation between input and list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
 					a.SetFocus(input)
 					return nil

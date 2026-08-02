@@ -177,17 +177,7 @@ func (a *App) openPromptPicker() {
 					triggerPreview()
 					return nil
 				}
-				// Tab / Shift+Tab cycle focus across visible panes (list, reader, picker,
-				// summary); the picker stays open as one ring stop. The global input capture
-				// early-returns for a focused InputField, so Tab never reaches the ring toggle
-				// in keys.go — without handling it here focus stays trapped in the picker and
-				// you cannot get back to the message list while a prompt is in play.
-				if e.Key() == tcell.KeyTab {
-					a.cycleFocus(true)
-					return nil
-				}
-				if e.Key() == tcell.KeyBacktab {
-					a.cycleFocus(false)
+				if a.pickerTabCycle(e) {
 					return nil
 				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
@@ -275,13 +265,7 @@ func (a *App) openPromptPicker() {
 					triggerPreview()
 					return nil
 				}
-				// Tab / Shift+Tab cycle focus out of the picker (see input capture above).
-				if e.Key() == tcell.KeyTab {
-					a.cycleFocus(true)
-					return nil
-				}
-				if e.Key() == tcell.KeyBacktab {
-					a.cycleFocus(false)
+				if a.pickerTabCycle(e) {
 					return nil
 				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
@@ -734,17 +718,12 @@ func (a *App) openPromptPickerForManagement() {
 
 			// Handle input events
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(event) {
+					return nil
+				}
 				switch event.Key() {
 				case tcell.KeyEscape:
 					a.closePromptManager()
-					return nil
-				// Tab / Shift+Tab cycle focus across visible panes (the picker stays open);
-				// the global capture early-returns for a focused InputField, so handle it here.
-				case tcell.KeyTab:
-					a.cycleFocus(true)
-					return nil
-				case tcell.KeyBacktab:
-					a.cycleFocus(false)
 					return nil
 				case tcell.KeyDown, tcell.KeyUp, tcell.KeyPgDn, tcell.KeyPgUp:
 					a.SetFocus(list)
@@ -755,13 +734,7 @@ func (a *App) openPromptPickerForManagement() {
 
 			// Enhanced list input capture with management keys
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-				// Tab / Shift+Tab cycle focus out of the picker (see input capture above).
-				if e.Key() == tcell.KeyTab {
-					a.cycleFocus(true)
-					return nil
-				}
-				if e.Key() == tcell.KeyBacktab {
-					a.cycleFocus(false)
+				if a.pickerTabCycle(e) {
 					return nil
 				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
