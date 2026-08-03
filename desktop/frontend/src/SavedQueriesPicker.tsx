@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useListNav } from "./useListNav";
 import { Icon } from "./Icons";
 import { groupedSavedQueries } from "./savedQueriesModel";
@@ -32,6 +32,28 @@ export default function SavedQueriesPicker({
     onEscape: onClose,
     windowKeys: true,
   });
+
+  // Keyboard delete of the highlighted row. A bare "d" now types into the filter,
+  // so require Shift (Shift+Delete / Shift+Backspace) to avoid clobbering typing;
+  // the per-row trash button remains for the mouse. Refs keep the handler stable
+  // while reading fresh list/selection state.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const activeRef = useRef(nav.active);
+  activeRef.current = nav.active;
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === "Backspace" || e.key === "Delete")) {
+        const q = visibleRef.current[activeRef.current];
+        if (q) {
+          e.preventDefault();
+          onDelete(q.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onDelete]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -88,7 +110,7 @@ export default function SavedQueriesPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            type to filter · @cat by category · ↑↓ move · Enter run · Esc close
+            type to filter · @cat by category · ↑↓ move · Enter run · ⇧⌫ delete · Esc close
           </span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>
