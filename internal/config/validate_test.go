@@ -1,10 +1,34 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/obsidian"
 )
+
+// A quoted number in config.json (a common hand-editing mistake) must not fail
+// the whole load — lenientInt coerces "12" → 12.
+func TestLenientInt_AcceptsQuotedNumber(t *testing.T) {
+	var c LLMConfig
+	if err := json.Unmarshal([]byte(`{"chat_max_turns":"12","chat_max_body_chars":"24000"}`), &c); err != nil {
+		t.Fatalf("quoted numeric fields should parse, got: %v", err)
+	}
+	if got := c.GetChatMaxTurns(); got != 12 {
+		t.Errorf("GetChatMaxTurns() = %d, want 12", got)
+	}
+	if got := c.GetChatMaxBodyChars(); got != 24000 {
+		t.Errorf("GetChatMaxBodyChars() = %d, want 24000", got)
+	}
+	// A bare (unquoted) number must still parse too.
+	var c2 LLMConfig
+	if err := json.Unmarshal([]byte(`{"chat_max_turns":7}`), &c2); err != nil {
+		t.Fatalf("unquoted number should parse, got: %v", err)
+	}
+	if got := c2.GetChatMaxTurns(); got != 7 {
+		t.Errorf("GetChatMaxTurns() = %d, want 7", got)
+	}
+}
 
 func asVErr(t *testing.T, err error) *ConfigValidationError {
 	t.Helper()

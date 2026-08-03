@@ -2,15 +2,49 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ajramos/giztui/internal/obsidian"
 )
+
+// lenientInt is an int that also unmarshals from a JSON string ("12"), so a
+// number accidentally quoted in config.json (a common hand-editing mistake)
+// doesn't fail the whole load and discard every other setting. It marshals back
+// as a plain number.
+type lenientInt int
+
+func (n *lenientInt) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] != '"' {
+		var i int
+		if err := json.Unmarshal(b, &i); err != nil {
+			return err
+		}
+		*n = lenientInt(i)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		*n = 0
+		return nil
+	}
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return fmt.Errorf("invalid integer %q", s)
+	}
+	*n = lenientInt(i)
+	return nil
+}
 
 // LLMConfig holds all LLM-related configuration
 type LLMConfig struct {
@@ -50,11 +84,11 @@ type LLMConfig struct {
 	// email" feature. Long newsletters exceed the old fixed 8000-char limit, so
 	// questions about content past that point were answered "not mentioned". Raise
 	// it for big-context models; lower it for small ones. 0 → the built-in default.
-	ChatMaxBodyChars int `json:"chat_max_body_chars"`
+	ChatMaxBodyChars lenientInt `json:"chat_max_body_chars"`
 	// ChatMaxTurns bounds how many prior chat turns are re-sent as transcript each
 	// turn (the LLM API is single-shot, so the whole conversation is resent). Higher
 	// keeps more memory but grows every prompt. 0 → the built-in default.
-	ChatMaxTurns int `json:"chat_max_turns"`
+	ChatMaxTurns lenientInt `json:"chat_max_turns"`
 }
 
 // Built-in defaults for the "chat with this email" feature, used when config
@@ -69,7 +103,7 @@ const (
 // built-in default when unset/invalid.
 func (c *LLMConfig) GetChatMaxBodyChars() int {
 	if c != nil && c.ChatMaxBodyChars > 0 {
-		return c.ChatMaxBodyChars
+		return int(c.ChatMaxBodyChars)
 	}
 	return DefaultChatMaxBodyChars
 }
@@ -78,7 +112,7 @@ func (c *LLMConfig) GetChatMaxBodyChars() int {
 // default when unset/invalid.
 func (c *LLMConfig) GetChatMaxTurns() int {
 	if c != nil && c.ChatMaxTurns > 0 {
-		return c.ChatMaxTurns
+		return int(c.ChatMaxTurns)
 	}
 	return DefaultChatMaxTurns
 }
@@ -853,6 +887,13 @@ func LoadConfig(configPath string) (*Config, error) {
 		}
 		if data, err := os.ReadFile(cleanPath); err == nil {
 			if err := json.Unmarshal(data, cfg); err != nil {
+				// Turn Go's cryptic type error into an actionable message naming
+				// the offending field (numeric knobs are already lenient about
+				// quoted values via lenientInt; this covers the rest).
+				var te *json.UnmarshalTypeError
+				if errors.As(err, &te) && te.Field != "" {
+					return nil, fmt.Errorf("config.json: field %q must be %s, but the value is a %s — fix it in %s", te.Field, te.Type, te.Value, cleanPath)
+				}
 				return nil, err
 			}
 		}
