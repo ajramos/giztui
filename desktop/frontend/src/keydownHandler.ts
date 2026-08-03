@@ -13,12 +13,12 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
     csQuery, detRulesOpen, detail, draftsView, fullMessagesRef, keymap,
     labelsFor, linksFor, load, localFilter, moveFor, openRules,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview,
-    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, resetZoom, rsvpPickerOpen,
+    promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, resetZoom, rsvpPickerOpen,
     rulesEnabled, rulesOpen, saveQueryOpen, searchRef, setAccountsOpen, setAdvOpen,
     setAttachmentsOpen, setBulkLabels, setBulkMove, setBulkPromptText, setCmdOpen, setCompose,
     setConfigOpen, setCsIndex, setDraftsView, setExpandedCats, setLabelsFor, setLinksFor,
     setLocalFilter, setMessages, setMoveFor, setPlanExcluded, setPlanMove, setPlanOpen,
-    setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
+    setPlanPreview, setPromptPreview, setPromptsOpen, setQueriesOpen, setQuery,
     setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setShowHelp, setStatsOpen, setSuggestFor,
     setThemePickerOpen, showHelp, statsOpen, telemetryOpen, setTelemetryOpen, suggestFor, themePickerOpen, viewAnalyzerPrompt,
     attachmentsOpen, activeQuery, jobsPickerOpen, setJobsPickerOpen,
@@ -81,7 +81,6 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
         labelsFor ||
         bulkLabels ||
         promptsOpen ||
-        promptManagerOpen ||
         linksFor ||
         suggestFor ||
         cmdOpen ||
@@ -141,7 +140,6 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
           else if (bulkLabels) setBulkLabels(false);
           else if (labelsFor) setLabelsFor(null);
           else if (promptsOpen) setPromptsOpen(false);
-          else if (promptManagerOpen) setPromptManagerOpen(false);
           else if (cmdOpen) setCmdOpen(false);
           else if (compose) setCompose(null);
           return;

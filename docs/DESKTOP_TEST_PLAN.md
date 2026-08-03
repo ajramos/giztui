@@ -170,15 +170,17 @@ message subject/account and what you saw.
 | 9.5 | `⋯` → Draft reply (AI) / `:draft` | The LLM drafts a reply; compose opens **prefilled** to edit before sending |
 | 9.6 | `⋯` → Touch-up (AI) / `:touch-up` | The body is reformatted; a "Reformatted by AI" bar shows with "show original" to revert |
 
-### 9a. Prompt manager
+### 9a. Prompts — inline CRUD (same model as saved searches)
 
 | # | Action | Exp |
 |---|--------|-----|
-| 9a.1 | Prompts picker → ⚙ Manage (or `:prompts`) | Prompt manager lists your prompts |
-| 9a.2 | ＋ New prompt | Editor with Name/Description/Category/Text (`{{body}}`) |
-| 9a.3 | "✦ Refine with AI" | The LLM improves the prompt text in place |
-| 9a.4 | Save | The new/edited prompt appears and is applyable |
-| 9a.5 | 🗑 on a prompt | It's deleted |
+| 9a.1 | `:prompt` (or `:prompts`) | Prompts picker lists your prompts; Enter applies the highlighted one |
+| 9a.2 | ✎ / `Shift+E` on a prompt | Edit dialog with Name/Description/Category/Text (`{{body}}`) opens over the picker |
+| 9a.3 | "✦ Refine with AI" in the edit dialog | The LLM improves the prompt text in place |
+| 9a.4 | Save | The picker reflects the new/edited prompt in place; it's applyable |
+| 9a.5 | 🗑 / `Shift+Del` on a prompt | It's deleted from the list |
+| 9a.6 | ＋ New prompt (footer) | Same edit dialog with empty fields; Save adds a row |
+| 9a.7 | `Escape` in the edit dialog | Closes only the dialog; the picker stays open |
 
 ---
 

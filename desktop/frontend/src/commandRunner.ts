@@ -22,7 +22,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
     setLabelsFor, setLinksFor, setMoveFor, setTouchUpText, setCsQuery, setCsIndex,
     setCsOpen, setCollapsedMsgs, setLocalFilter, setBulkMode, setViewHtml, setHeadersHidden,
     setLoadRemote, setAlwaysImagesOn, setAccountsOpen, setAdvOpen, setAttachmentsOpen, setBulkMove,
-    setDetRulesOpen, setPromptManagerOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
+    setDetRulesOpen, setPromptsOpen, setRsvpPickerOpen, setSaveQueryOpen, setShowHelp,
     setJobsPickerOpen,
     setThemePickerOpen, alwaysImagesRef, imageOptIn, fullMessagesRef,
   } = ctx;
@@ -468,7 +468,9 @@ export function runCommand(input: string, ctx: CommandCtx) {
           break;
         case "prompts":
         case "prompt-new":
-          if (aiPromptsEnabled) setPromptManagerOpen(true);
+          // Prompts are managed inline in the picker now (edit/delete/new), so
+          // these aliases open the same single surface as ":prompt".
+          if (aiPromptsEnabled) setPromptsOpen(true);
           break;
         case "rules":
         case "ru":

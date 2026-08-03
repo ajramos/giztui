@@ -100,7 +100,6 @@ export interface CommandCtx {
   setAttachmentsOpen: Dispatch<SetStateAction<boolean>>;
   setBulkMove: Dispatch<SetStateAction<boolean>>;
   setDetRulesOpen: Dispatch<SetStateAction<boolean>>;
-  setPromptManagerOpen: Dispatch<SetStateAction<boolean>>;
   setPromptsOpen: Dispatch<SetStateAction<boolean>>;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
   setJobsPickerOpen: Dispatch<SetStateAction<boolean>>;

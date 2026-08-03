@@ -74,7 +74,6 @@ export default function App() {
   const [bulkLabels, setBulkLabels] = useState(false);
   const [aiPromptsEnabled, setAiPromptsEnabled] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
-  const [promptManagerOpen, setPromptManagerOpen] = useState(false);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -454,7 +453,7 @@ export default function App() {
     load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
     openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openTelemetry, resetTelemetry, openSuggest,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
-    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, query, quickSearch, readerBodyRef,
+    promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
     jobsPickerOpen, setJobsPickerOpen, openChat: chat.openChat,
     runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
@@ -464,7 +463,7 @@ export default function App() {
     setBulkPromptText, setCmdOpen, setCollapsedMsgs, setCompose, setConfigOpen, setCsIndex, setCsOpen,
     setCsQuery, setDetRulesOpen, setDetail, setDraftsView, setError, setExpandedCats, setHeadersHidden,
     setLabelsFor, setLinksFor, setLoadRemote, setLocalFilter, setMessages, setMoveFor, setPlanExcluded,
-    setPlanMove, setPlanOpen, setPlanPreview, setPromptManagerOpen, setPromptPreview, setPromptsOpen, setQueriesOpen,
+    setPlanMove, setPlanOpen, setPlanPreview, setPromptPreview, setPromptsOpen, setQueriesOpen,
     setQuery, setReaderFocused, setRsvpPickerOpen, setRulesOpen, setSaveQueryOpen, setSelected, setSelectedId,
     setShowHelp, setStatsOpen, setTelemetryOpen, setSuggestFor, setThemePickerOpen, setTouchUpText, setViewHtml, setZoom,
     showHelp, showToast, slackOn, statsOpen, telemetryOpen, suggestFor, summarize, summarizeThread,
@@ -493,7 +492,7 @@ export default function App() {
   const modalProps = {
     compose, setCompose, showToast, draftsView, loadDrafts, labelsFor, setLabelsFor,
     applyLabelChange, bulkLabels, setBulkLabels, selected, promptsOpen, setPromptsOpen,
-    runPrompt, aiPromptsEnabled, setPromptManagerOpen, promptManagerOpen, aiEnabled, aiCache,
+    runPrompt, aiPromptsEnabled, aiEnabled, aiCache,
     setPromptResult, linksFor, setLinksFor, suggestFor, setSuggestFor, suggestions, loadingSuggest,
     applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, updateQuery, editingQuery, setEditingQuery, setSaveQueryOpen,

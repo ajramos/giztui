@@ -11,7 +11,6 @@ import { formatICSDate } from "./format";
 import Compose from "./Compose";
 import LabelsPicker from "./LabelsPicker";
 import PromptsPicker from "./PromptsPicker";
-import PromptManager from "./PromptManager";
 import LinksPicker from "./LinksPicker";
 import SuggestPicker from "./SuggestPicker";
 import AttachmentsPicker from "./AttachmentsPicker";
@@ -53,9 +52,6 @@ export default function ModalsPrimary(p: {
   promptsOpen: boolean;
   setPromptsOpen: Dispatch<SetStateAction<boolean>>;
   runPrompt: (prompt: Prompt, force?: boolean) => Promise<void>;
-  aiPromptsEnabled: boolean;
-  setPromptManagerOpen: Dispatch<SetStateAction<boolean>>;
-  promptManagerOpen: boolean;
   aiEnabled: boolean;
   aiCache: AiCache;
   setPromptResult: Dispatch<SetStateAction<string | null>>;
@@ -108,8 +104,7 @@ export default function ModalsPrimary(p: {
   const {
     compose, setCompose, showToast, draftsView, loadDrafts,
     labelsFor, setLabelsFor, applyLabelChange, bulkLabels, setBulkLabels, selected,
-    promptsOpen, setPromptsOpen, runPrompt, aiPromptsEnabled, setPromptManagerOpen,
-    promptManagerOpen, aiEnabled, aiCache, setPromptResult,
+    promptsOpen, setPromptsOpen, runPrompt, aiEnabled, aiCache, setPromptResult,
     linksFor, setLinksFor,
     suggestFor, setSuggestFor, suggestions, loadingSuggest, applySuggestion,
     attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
@@ -148,22 +143,9 @@ export default function ModalsPrimary(p: {
       )}
       {promptsOpen && (
         <PromptsPicker
+          aiEnabled={aiEnabled}
           onClose={() => setPromptsOpen(false)}
           onPick={(prompt) => void runPrompt(prompt)}
-          onManage={
-            aiPromptsEnabled
-              ? () => {
-                  setPromptsOpen(false);
-                  setPromptManagerOpen(true);
-                }
-              : undefined
-          }
-        />
-      )}
-      {promptManagerOpen && (
-        <PromptManager
-          aiEnabled={aiEnabled}
-          onClose={() => setPromptManagerOpen(false)}
           onChanged={() => {
             // A prompt was created/edited/deleted. Drop cached prompt results so a
             // re-run regenerates with the new text (the backend already cleared

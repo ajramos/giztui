@@ -81,7 +81,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["summarize", "sum", "summary"], desc: "AI summary" },
   { names: ["chat"], desc: "Chat with this email (AI)" },
   { names: ["prompt", "pr", "p"], desc: "Apply a prompt (:prompt stats for usage)" },
-  { names: ["prompts", "prompt-new"], desc: "Manage prompts" },
+  { names: ["prompts", "prompt-new"], desc: "Prompts picker (edit/delete/new inline)" },
   { names: ["suggest"], desc: "Suggest labels (AI)" },
   { names: ["obsidian", "obs"], desc: "Send to Obsidian" },
   { names: ["slack", "sl"], desc: "Forward to Slack" },

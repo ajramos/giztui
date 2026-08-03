@@ -72,7 +72,6 @@ export interface KeydownCtx {
   planOpen: boolean;
   planPreview: MessageDetail | null;
   previewMessage: (m: MessageSummary) => void;
-  promptManagerOpen: boolean;
   promptPreview: string | null;
   promptsOpen: boolean;
   queriesOpen: boolean;
@@ -128,7 +127,6 @@ export interface KeydownCtx {
   setPlanMove: Dispatch<SetStateAction<{ kind: "email" | "category"; catIdx: number; id?: string } | null>>;
   setPlanOpen: Dispatch<SetStateAction<boolean>>;
   setPlanPreview: Dispatch<SetStateAction<MessageDetail | null>>;
-  setPromptManagerOpen: Dispatch<SetStateAction<boolean>>;
   setPromptPreview: Dispatch<SetStateAction<string | null>>;
   setPromptsOpen: Dispatch<SetStateAction<boolean>>;
   setQueriesOpen: Dispatch<SetStateAction<boolean>>;

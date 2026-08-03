@@ -140,7 +140,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
         { icon: "✨", keys: ":touch-up", desc: "Reformat message (AI)" },
         { icon: "🔖", keys: fmtKey(k.suggestLabel), desc: "Suggest labels (AI)" },
         ...(f.prompts
-          ? [{ icon: "⚙️", keys: ":prompts · ⌘E", desc: "Manage prompts (⌘E in picker)" }]
+          ? [{ icon: "⚙️", keys: ":prompt", desc: "Prompts — apply, or edit/delete/new inline (⇧E · ⇧⌫)" }]
           : []),
         ...(f.prompts
           ? [{ icon: "🧰", keys: `${fmtKey(k.aiJobs)} · :jobs`, desc: "AI background jobs (bulk prompts run async)" }]
