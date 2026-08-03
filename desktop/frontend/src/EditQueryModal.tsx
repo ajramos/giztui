@@ -28,8 +28,16 @@ export default function EditQueryModal({
         className="modal narrow"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-          else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
+          // Stop the event before it reaches the window-level listeners that the
+          // picker underneath (useListNav) and the global handler register — a
+          // bare Escape here must close only this modal, not the picker too.
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onClose();
+          } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.stopPropagation();
+            submit();
+          }
         }}
       >
         <div className="modal-head">

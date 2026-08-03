@@ -59,4 +59,32 @@ test.describe("saved queries picker", () => {
       picker.locator(".query-row").filter({ hasText: "Unpaid invoices" }),
     ).toHaveCount(1);
   });
+
+  test("Escape in the edit dialog closes only the modal, not the picker", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await runCommand(page, "queries");
+    const picker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Saved searches" }) });
+    await expect(picker).toBeVisible();
+
+    // Open the edit dialog for "Invoices" via its pencil button.
+    await picker
+      .locator(".query-row")
+      .filter({ hasText: "Invoices" })
+      .getByTitle("Edit")
+      .click();
+    const edit = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Edit saved search" }) });
+    await expect(edit).toBeVisible();
+
+    // Escape must dismiss only the edit modal — the picker underneath must stay
+    // open (regression: a single Escape used to close both).
+    await page.keyboard.press("Escape");
+    await expect(edit).toBeHidden();
+    await expect(picker).toBeVisible();
+  });
 });
