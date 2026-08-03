@@ -58,8 +58,9 @@ export const md = {
   { id: 4, name: "Translate to Spanish", description: "Translate the email", category: "language", text: "Translate this email to Spanish:\n\n{{body}}" },
 ] as PromptDetail[],
   queries: [
-  { id: 1, name: "Unread from team", query: "is:unread from:team", description: "", category: "" },
-  { id: 2, name: "Has attachments", query: "has:attachment newer_than:7d", description: "", category: "" },
+  { id: 1, name: "Unread from team", query: "is:unread from:team", description: "", category: "Work" },
+  { id: 2, name: "Invoices", query: "from:billing has:attachment", description: "", category: "Finance" },
+  { id: 3, name: "Has attachments", query: "has:attachment newer_than:7d", description: "", category: "" },
 ] as SavedQuery[],
   drafts: [
   { id: "d1", to: "ada@compute.org", subject: "Re: Project roadmap Q3", snippet: "Thanks Ada, I think we should…" },

@@ -105,6 +105,7 @@ export default function App() {
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
+  const [saveQueryCategory, setSaveQueryCategory] = useState("");
   // Whether AI jobs toast on completion (config jobs.notify_on_complete; set at bootstrap).
   const [jobsNotify, setJobsNotify] = useState(true);
   const [actionPlanOn, setActionPlanOn] = useState(false);
@@ -415,11 +416,11 @@ export default function App() {
   const {
     openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
   } = useMiscActions({
-    messages, selected, activeQuery, suggestFor, saveQueryName, showToast,
+    messages, selected, activeQuery, suggestFor, saveQueryName, saveQueryCategory, showToast,
     setError, load, removeFromList, insertMessage, advanceAfterBulk, pushUndo,
     setBulkMove, setBulkProgress, setBusy, setConfigInfo, setConfigOpen, setLoadingSuggest,
     setMessages, setMoveFor, setQueriesOpen, setQuery, setSavedQueries, setSelected,
-    setStats, setStatsOpen, setTelemetry, setTelemetryOpen, setSuggestFor, setSuggestions, setSaveQueryOpen, setSaveQueryName,
+    setStats, setStatsOpen, setTelemetry, setTelemetryOpen, setSuggestFor, setSuggestions, setSaveQueryOpen, setSaveQueryName, setSaveQueryCategory,
   });
 
   const {
@@ -498,7 +499,7 @@ export default function App() {
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
     obsidianOpen, setObsidianOpen, sendObsidian,
-    saveQueryName, setSaveQueryName, doSaveQuery,
+    saveQueryName, setSaveQueryName, saveQueryCategory, setSaveQueryCategory, doSaveQuery,
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished, planOpen, analyzing,
     analyzeCount, analyzeProgress, analyzeElapsed, plan, planNodes, planActiveNode, planNav,

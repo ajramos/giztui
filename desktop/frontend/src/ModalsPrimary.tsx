@@ -86,6 +86,8 @@ export default function ModalsPrimary(p: {
   saveQueryOpen: boolean;
   saveQueryName: string;
   setSaveQueryName: Dispatch<SetStateAction<string>>;
+  saveQueryCategory: string;
+  setSaveQueryCategory: Dispatch<SetStateAction<string>>;
   doSaveQuery: () => void;
   slackForwardOpen: boolean;
   setSlackForwardOpen: Dispatch<SetStateAction<boolean>>;
@@ -109,7 +111,7 @@ export default function ModalsPrimary(p: {
     attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite,
-    saveQueryOpen, saveQueryName, setSaveQueryName, doSaveQuery,
+    saveQueryOpen, saveQueryName, setSaveQueryName, saveQueryCategory, setSaveQueryCategory, doSaveQuery,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
     obsidianOpen, setObsidianOpen, sendObsidian,
   } = p;
@@ -232,6 +234,8 @@ export default function ModalsPrimary(p: {
         <SaveQueryModal
           name={saveQueryName}
           onNameChange={setSaveQueryName}
+          category={saveQueryCategory}
+          onCategoryChange={setSaveQueryCategory}
           query={activeQuery}
           onSave={doSaveQuery}
           onClose={() => setSaveQueryOpen(false)}

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
 import { Icon } from "./Icons";
+import { groupedSavedQueries } from "./savedQueriesModel";
 import type { SavedQuery } from "./api";
 
 export default function SavedQueriesPicker({
@@ -18,31 +19,19 @@ export default function SavedQueriesPicker({
   onSaveCurrent: () => void;
   onClose: () => void;
 }) {
-  const nav = useListNav(queries, {
+  const [filter, setFilter] = useState("");
+
+  // Filtered + grouped rows; each carries whether it opens a new category group
+  // so we can render one header per group. useListNav only sees the real query
+  // rows (headers are inert decorations), so arrow/Enter indices stay correct.
+  const rows = useMemo(() => groupedSavedQueries(queries, filter), [queries, filter]);
+  const visible = useMemo(() => rows.map((r) => r.query), [rows]);
+
+  const nav = useListNav(visible, {
     onEnter: onRun,
     onEscape: onClose,
     windowKeys: true,
   });
-
-  // d / Delete removes the highlighted saved search (no text input here, so the
-  // bare key is safe), matching the prompts / analyzer-rules pickers.
-  const queriesRef = useRef(queries);
-  queriesRef.current = queries;
-  const activeRef = useRef(nav.active);
-  activeRef.current = nav.active;
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
-        const q = queriesRef.current[activeRef.current];
-        if (q) {
-          e.preventDefault();
-          onDelete(q.id);
-        }
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onDelete]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -55,34 +44,52 @@ export default function SavedQueriesPicker({
           </button>
         </div>
         <div className="modal-body">
+          <input
+            className="label-filter"
+            placeholder="Filter by name, or @category"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              nav.setActive(0);
+            }}
+            autoFocus
+          />
           <div className="label-list" ref={nav.listRef}>
             {queries.length === 0 ? (
               <div className="placeholder">No saved searches</div>
+            ) : visible.length === 0 ? (
+              <div className="placeholder">No matches</div>
             ) : (
-              queries.map((q, i) => (
-                <div
-                  key={q.id}
-                  className={"query-row" + (i === nav.active ? " nav-active" : "")}
-                  onMouseEnter={() => nav.setActiveHover(i)}
-                >
-                  <button className="query-main" onClick={() => onRun(q)}>
-                    <span className="prompt-name">{q.name}</span>
-                    <span className="prompt-desc">{q.query}</span>
-                  </button>
-                  <button
-                    className="ghost tiny danger"
-                    title="Delete"
-                    onClick={() => onDelete(q.id)}
+              rows.map((r, i) => (
+                <div key={r.query.id}>
+                  {r.groupStart && (
+                    <div className="query-group-head">{r.category}</div>
+                  )}
+                  <div
+                    className={"query-row" + (i === nav.active ? " nav-active" : "")}
+                    onMouseEnter={() => nav.setActiveHover(i)}
                   >
-                    {Icon.trash}
-                  </button>
+                    <button className="query-main" onClick={() => onRun(r.query)}>
+                      <span className="prompt-name">{r.query.name}</span>
+                      <span className="prompt-desc">{r.query.query}</span>
+                    </button>
+                    <button
+                      className="ghost tiny danger"
+                      title="Delete"
+                      onClick={() => onDelete(r.query.id)}
+                    >
+                      {Icon.trash}
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
         <div className="modal-foot">
-          <span className="foot-hint">↑↓ move · Enter run · d delete · Esc close</span>
+          <span className="foot-hint">
+            type to filter · @cat by category · ↑↓ move · Enter run · Esc close
+          </span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>
               Save current search

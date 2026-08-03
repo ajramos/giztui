@@ -289,9 +289,9 @@ export const mockA: Partial<Backend> = {
   async ListSavedQueries() {
     return md.queries;
   },
-  async SaveQuery(name: string, query: string) {
+  async SaveQuery(name: string, query: string, category: string) {
     md.queries = [
-      { id: md.queries.length + 1, name, query, description: "", category: "" },
+      { id: md.queries.length + 1, name, query, description: "", category: category || "" },
       ...md.queries,
     ];
   },

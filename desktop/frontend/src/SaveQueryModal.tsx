@@ -4,12 +4,16 @@
 export default function SaveQueryModal({
   name,
   onNameChange,
+  category,
+  onCategoryChange,
   query,
   onSave,
   onClose,
 }: {
   name: string;
   onNameChange: (value: string) => void;
+  category: string;
+  onCategoryChange: (value: string) => void;
   query: string;
   onSave: () => void;
   onClose: () => void;
@@ -38,6 +42,14 @@ export default function SaveQueryModal({
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="e.g. Unread from team"
               autoFocus
+            />
+          </div>
+          <div className="field">
+            <label>Category (optional)</label>
+            <input
+              value={category}
+              onChange={(e) => onCategoryChange(e.target.value)}
+              placeholder="e.g. Work — groups it in the picker"
             />
           </div>
           <div className="field readonly">

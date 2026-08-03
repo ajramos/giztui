@@ -175,13 +175,13 @@ func (a *App) ListSavedQueries() ([]desktop.SavedQuery, error) {
 	return api.ListSavedQueries(a.ctx)
 }
 
-// SaveQuery persists a named Gmail search.
-func (a *App) SaveQuery(name, query string) error {
+// SaveQuery persists a named Gmail search under an optional category.
+func (a *App) SaveQuery(name, query, category string) error {
 	api, err := a.api()
 	if err != nil {
 		return err
 	}
-	return api.SaveQuery(a.ctx, name, query)
+	return api.SaveQuery(a.ctx, name, query, category)
 }
 
 // DeleteSavedQuery removes a saved search.

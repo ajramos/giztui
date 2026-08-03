@@ -31,15 +31,16 @@ func (a *API) ListSavedQueries(ctx context.Context) ([]SavedQuery, error) {
 	return out, nil
 }
 
-// SaveQuery persists a named Gmail search.
-func (a *API) SaveQuery(ctx context.Context, name, query string) error {
+// SaveQuery persists a named Gmail search under an optional free-form category
+// (empty → the picker's "Default" group).
+func (a *API) SaveQuery(ctx context.Context, name, query, category string) error {
 	if a.query == nil {
 		return fmt.Errorf("saved queries are not available")
 	}
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
 		return fmt.Errorf("a name and query are required")
 	}
-	_, err := a.query.SaveQuery(ctx, name, query, "", "")
+	_, err := a.query.SaveQuery(ctx, name, query, "", strings.TrimSpace(category))
 	return err
 }
 

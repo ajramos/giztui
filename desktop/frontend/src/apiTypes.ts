@@ -389,7 +389,7 @@ export interface Backend {
   ThreadSummaryStream(threadID: string): Promise<string>;
   SavedQueriesEnabled(): Promise<boolean>;
   ListSavedQueries(): Promise<SavedQuery[]>;
-  SaveQuery(name: string, query: string): Promise<void>;
+  SaveQuery(name: string, query: string, category: string): Promise<void>;
   DeleteSavedQuery(id: number): Promise<void>;
   RecordQueryUse(id: number): Promise<void>;
   ActionPlanEnabled(): Promise<boolean>;

@@ -13,6 +13,7 @@ export function useMiscActions(deps: {
   activeQuery: string;
   suggestFor: string | null;
   saveQueryName: string;
+  saveQueryCategory: string;
   showToast: (m: string) => void;
   setError: (e: string) => void;
   load: (q: string) => Promise<void>;
@@ -40,14 +41,15 @@ export function useMiscActions(deps: {
   setSuggestions: Dispatch<SetStateAction<string[]>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   setSaveQueryName: Dispatch<SetStateAction<string>>;
+  setSaveQueryCategory: Dispatch<SetStateAction<string>>;
 }) {
   const {
-    messages, selected, activeQuery, suggestFor, saveQueryName,
+    messages, selected, activeQuery, suggestFor, saveQueryName, saveQueryCategory,
     showToast, setError, load, removeFromList, insertMessage, advanceAfterBulk,
     pushUndo, setBulkMove, setBulkProgress, setBusy, setConfigInfo, setConfigOpen,
     setLoadingSuggest, setMessages, setMoveFor, setQueriesOpen, setQuery, setSavedQueries,
     setSelected, setStats, setStatsOpen, setTelemetry, setTelemetryOpen, setSuggestFor, setSuggestions,
-    setSaveQueryOpen, setSaveQueryName,
+    setSaveQueryOpen, setSaveQueryName, setSaveQueryCategory,
   } = deps;
   const openStats = useCallback(async () => {
     setStatsOpen(true);
@@ -259,12 +261,13 @@ export function useMiscActions(deps: {
     const name = saveQueryName.trim();
     if (!name || !activeQuery) return;
     void backend
-      .SaveQuery(name, activeQuery)
+      .SaveQuery(name, activeQuery, saveQueryCategory.trim())
       .then(() => showToast(`Saved query "${name}"`))
       .catch((e) => setError(String(e)));
     setSaveQueryOpen(false);
     setSaveQueryName("");
-  }, [saveQueryName, activeQuery, showToast]);
+    setSaveQueryCategory("");
+  }, [saveQueryName, saveQueryCategory, activeQuery, showToast]);
 
   return {
     openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
