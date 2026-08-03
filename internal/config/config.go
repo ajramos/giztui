@@ -858,13 +858,26 @@ func LoadConfig(configPath string) (*Config, error) {
 		}
 	}
 
-	// Validate configuration and show warnings for potential conflicts
-	if warnings := ValidateKeyboardConfig(cfg.Keys); len(warnings) > 0 {
-		fmt.Fprintf(os.Stderr, "⚠️  Configuration warnings:\n")
-		for _, warning := range warnings {
-			fmt.Fprintf(os.Stderr, "   • %s\n", warning)
+	// One validation pass surfaces EVERY problem at once (keyboard conflicts are
+	// folded in). Fatal issues and warnings are printed to stderr so the user can
+	// fix them together; load stays non-fatal so a usable-but-imperfect config
+	// still starts. Callers wanting strict behavior can call cfg.Validate().
+	if verr := cfg.Validate(); verr != nil {
+		if vce, ok := verr.(*ConfigValidationError); ok {
+			if fatal := vce.Fatal(); len(fatal) > 0 {
+				fmt.Fprintf(os.Stderr, "⚠️  Configuration errors:\n")
+				for _, is := range fatal {
+					fmt.Fprintf(os.Stderr, "   ✗ %s: %s\n", is.Field, is.Message)
+				}
+			}
+			if warns := vce.Warnings(); len(warns) > 0 {
+				fmt.Fprintf(os.Stderr, "⚠️  Configuration warnings:\n")
+				for _, is := range warns {
+					fmt.Fprintf(os.Stderr, "   • %s: %s\n", is.Field, is.Message)
+				}
+			}
+			fmt.Fprintf(os.Stderr, "\n")
 		}
-		fmt.Fprintf(os.Stderr, "\n")
 	}
 
 	return cfg, nil
