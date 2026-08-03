@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
+import { usePickerCrud } from "./usePickerCrud";
 import { Icon } from "./Icons";
 import { groupedSavedQueries } from "./savedQueriesModel";
 import type { SavedQuery } from "./api";
@@ -35,30 +36,14 @@ export default function SavedQueriesPicker({
     windowKeys: true,
   });
 
-  // Keyboard delete of the highlighted row. A bare "d" now types into the filter,
-  // so require Shift (Shift+Delete / Shift+Backspace) to avoid clobbering typing;
-  // the per-row trash button remains for the mouse. Refs keep the handler stable
-  // while reading fresh list/selection state.
-  const visibleRef = useRef(visible);
-  visibleRef.current = visible;
-  const activeRef = useRef(nav.active);
-  activeRef.current = nav.active;
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      const q = visibleRef.current[activeRef.current];
-      if (!q) return;
-      if (e.shiftKey && (e.key === "Backspace" || e.key === "Delete")) {
-        e.preventDefault();
-        onDelete(q.id);
-      } else if (e.shiftKey && (e.key === "E" || e.key === "e")) {
-        // Shift+E edits the highlighted row (a bare "e" types into the filter).
-        e.preventDefault();
-        onEdit(q);
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onDelete, onEdit]);
+  // Keyboard edit/delete of the highlighted row via the shared convention. The
+  // filter input is always focused here, so in practice these fire as Shift+E /
+  // Shift+Delete / Shift+Backspace (a bare key types into the filter); the per-row
+  // pencil/trash buttons remain for the mouse.
+  usePickerCrud(visible, nav.active, {
+    onEdit,
+    onDelete: (q) => onDelete(q.id),
+  });
 
   return (
     <div className="modal-overlay" onClick={onClose}>

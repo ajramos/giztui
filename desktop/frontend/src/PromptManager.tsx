@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useListNav } from "./useListNav";
+import { usePickerCrud } from "./usePickerCrud";
 import { Icon } from "./Icons";
 import { backend, type Prompt, type PromptDetail } from "./api";
 
@@ -122,6 +123,15 @@ export default function PromptManager({
     onEnter: (p) => void edit(p.id),
     onEscape: onClose,
   });
+
+  // Shared edit/delete keys (e / Shift+E, d / Delete / Backspace / Shift+Del),
+  // matching every other CRUD picker. Disabled while the edit form is open (pass
+  // no items) so the keys belong to the form, not the list underneath.
+  usePickerCrud(editing ? [] : prompts, nav.active, {
+    onEdit: (p) => void edit(p.id),
+    onDelete: (p) => void remove(p.id),
+  });
+
   const promptsRef = useRef(prompts);
   promptsRef.current = prompts;
   const activeRef = useRef(nav.active);
@@ -155,12 +165,7 @@ export default function PromptManager({
         void edit(p.id);
         return;
       }
-      if ((e.key === "d" || e.key === "Delete" || e.key === "Backspace") && p) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        void remove(p.id);
-        return;
-      }
+      // e/Shift+E edit and d/Delete/Backspace delete are handled by usePickerCrud.
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.stopImmediatePropagation();
         navKeyRef.current(e as unknown as ReactKeyboardEvent);
@@ -218,7 +223,7 @@ export default function PromptManager({
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                ↑↓ move · Enter edit · d delete · n new · Esc close
+                ↑↓ move · Enter/e edit · d delete · n new · Esc close
               </span>
               <button onClick={() => setEditing({ ...EMPTY })}>
                 {Icon.plus} New prompt

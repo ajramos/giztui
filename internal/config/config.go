@@ -510,6 +510,7 @@ type KeyBindings struct {
 	ConfirmPlan    string `json:"confirm_plan"`       // Action plan: confirm & apply the whole plan (two-press)
 	RuleAdd        string `json:"rule_add"`           // Analyzer rules panel: add a rule
 	RuleDelete     string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
+	RuleEdit       string `json:"rule_edit"`          // Rules manager: edit the selected rule
 	RuleFromQuery  string `json:"rule_from_search"`   // New rule pre-filled with the active search query
 	SavedQueryDel  string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
 	SavedQueryEdit string `json:"saved_query_edit"`   // Saved-queries picker: edit the selected query
@@ -773,6 +774,7 @@ func DefaultKeyBindings() KeyBindings {
 		ConfirmPlan:    "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
 		RuleAdd:        "a",
 		RuleDelete:     "d",
+		RuleEdit:       "e", // rules manager: edit selected rule (parity with saved_query_edit)
 		RuleFromQuery:  "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel:  "d",
 		SavedQueryEdit: "e",
@@ -1024,6 +1026,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"a":      {"archive": true, "rule_add": true},
 		"c":      {"compose": true, "confirm_plan": true},
 		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true},
+		"e":      {"rule_edit": true, "saved_query_edit": true},
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},
 		"ctrl+r": {"prompt_regenerate": true, "remember_rule": true},

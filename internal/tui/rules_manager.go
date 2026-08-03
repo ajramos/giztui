@@ -9,7 +9,7 @@ import (
 	"github.com/derailed/tview"
 )
 
-const rulesManagerFooter = " a to add  |  Enter to edit  |  d to delete  |  Esc to close "
+const rulesManagerFooter = " a to add  |  Enter/e to edit  |  d to delete  |  Esc to close "
 const rulesManagerTitle = " ⚡ Deterministic rules "
 
 // ruleSyncOp decides what Gmail-filter operation a save requires.
@@ -433,6 +433,21 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 		case a.matchesConfiguredKey(ev, a.Keys.RuleAdd):
 			clearDeletePending()
 			showRuleForm(nil)
+			return nil
+		case a.matchesConfiguredKey(ev, a.Keys.RuleEdit):
+			// Edit the highlighted rule — parity with Enter, and with the GUI's
+			// e/Shift+E convention (KEYBOARD_SHORTCUTS.md picker CRUD table).
+			clearDeletePending()
+			idx := list.GetCurrentItem()
+			if gmailOnlyRow(idx) {
+				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
+				return nil
+			}
+			if idx < 0 || idx >= len(rules) {
+				return nil
+			}
+			r := rules[idx]
+			showRuleForm(&r)
 			return nil
 		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
 			idx := list.GetCurrentItem()

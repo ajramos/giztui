@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { backend, type DeterministicRule, type Prompt } from "./api";
 import { useListNav } from "./useListNav";
+import { usePickerCrud } from "./usePickerCrud";
 import { Icon } from "./Icons";
 
 const ACTIONS = ["archive", "mark_read", "trash", "label", "prompt"] as const;
@@ -61,6 +62,15 @@ export default function RulesManager({
   }, []);
 
   const nav = useListNav(rules, { onEscape: onClose });
+
+  // Shared edit/delete keys (e / Shift+E, d / Delete / Backspace / Shift+Del),
+  // matching every other CRUD picker. Disabled while the add/edit form is open
+  // (pass no items) so those keys belong to the form, not the list underneath.
+  usePickerCrud(form ? [] : rules, nav.active, {
+    onEdit: (r) =>
+      setForm({ id: r.id, query: r.query, action: r.action, label: r.label, promptId: r.promptId }),
+    onDelete: (r) => void del(r.id),
+  });
 
   const del = async (id: number) => {
     setBusy(true);
@@ -140,7 +150,8 @@ export default function RulesManager({
   // cancels back to the list; in the list it closes the modal. stopImmediate-
   // Propagation keeps the App's global Escape from ALSO closing the modal (which
   // made Escape in the form close everything). Refs keep it bound once with fresh
-  // state. List-mode keys: a add · Enter edit · d delete · s sync · i import.
+  // state. List-mode keys: a add · Enter edit · s sync · i import · r run (e/d
+  // edit+delete come from usePickerCrud).
   const formRef = useRef(form);
   formRef.current = form;
   const rulesRef = useRef(rules);
@@ -183,11 +194,7 @@ export default function RulesManager({
         setForm({ id: r.id, query: r.query, action: r.action, label: r.label, promptId: r.promptId });
         return;
       }
-      if (e.key === "d" && r) {
-        e.preventDefault();
-        void del(r.id);
-        return;
-      }
+      // e/Shift+E edit and d/Delete/Backspace delete are handled by usePickerCrud.
       if (e.key === "s" && r) {
         e.preventDefault();
         void toggleSync(r);
@@ -345,7 +352,7 @@ export default function RulesManager({
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                {onRun ? "r run · " : ""}a add · Enter edit · d delete · s sync ·
+                {onRun ? "r run · " : ""}a add · Enter/e edit · d delete · s sync ·
                 i import · Esc close
               </span>
             </div>

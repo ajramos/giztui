@@ -60,6 +60,24 @@ test.describe("saved queries picker", () => {
     ).toHaveCount(1);
   });
 
+  test("Shift+E opens the edit dialog for the highlighted query", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "queries");
+    const picker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Saved searches" }) });
+    await expect(picker).toBeVisible();
+
+    // The filter input is focused, so a bare "e" would type — Shift+E edits the
+    // highlighted row via the shared usePickerCrud handler.
+    await page.keyboard.press("Shift+E");
+    await expect(
+      page
+        .locator(".modal-overlay")
+        .filter({ has: page.locator("h3", { hasText: "Edit saved search" }) }),
+    ).toBeVisible();
+  });
+
   test("Escape in the edit dialog closes only the modal, not the picker", async ({
     page,
   }) => {

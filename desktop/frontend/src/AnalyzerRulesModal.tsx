@@ -1,13 +1,14 @@
-import { useEffect } from "react";
 import { useListNav } from "./useListNav";
+import { usePickerCrud } from "./usePickerCrud";
 import { Icon } from "./Icons";
 import type { AnalyzerRule } from "./api";
 
 // The analyzer preference rules (opened by :action-plan rules). Keyboard-first
 // per the picker premises: useListNav drives ↑↓ from the window (WKWebView won't
-// focus the modal), and d/Delete removes the highlighted rule — but not while
-// typing in the add-rule input. The `rules` / `newRule` state stays in App (this
-// is a behavior-preserving move); only the nav + delete-key wiring live here.
+// focus the modal), and usePickerCrud removes the highlighted rule with the
+// shared convention (d/Delete/Backspace, or Shift+Delete while typing in the
+// add-rule input). The `rules` / `newRule` state stays in App (this is a
+// behavior-preserving move); only the nav + delete-key wiring live here.
 export default function AnalyzerRulesModal({
   rules,
   newRule,
@@ -25,21 +26,7 @@ export default function AnalyzerRulesModal({
 }) {
   const nav = useListNav(rules, { onEscape: onClose, windowKeys: true });
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      const ae = document.activeElement;
-      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
-      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
-        const r = rules[nav.active];
-        if (r) {
-          e.preventDefault();
-          onDeleteRule(r.id);
-        }
-      }
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [rules, nav.active, onDeleteRule]);
+  usePickerCrud(rules, nav.active, { onDelete: (r) => onDeleteRule(r.id) });
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -96,7 +83,7 @@ export default function AnalyzerRulesModal({
           </div>
         </div>
         <div className="modal-foot">
-          <span className="foot-hint">↑↓ move · d delete · Esc close</span>
+          <span className="foot-hint">↑↓ move · d / ⇧⌫ delete · Esc close</span>
           <button onClick={onAddRule} disabled={!newRule.trim()}>
             Add rule
           </button>

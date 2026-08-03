@@ -473,18 +473,25 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 
 ### Picker CRUD convention (edit / delete)
 
-Pickers that hold editable entries (saved queries, …) share the same edit/delete
-convention. The exact keys differ between clients because the desktop picker keeps
-a text-filter focused (so a bare letter types instead of acting):
+Every picker/manager that holds editable entries — **saved queries, prompts,
+analyzer rules, deterministic rules** — shares one edit/delete convention across
+both clients:
 
 | Action | TUI (terminal) | Desktop (GUI) |
 | ------ | -------------- | ------------- |
-| Edit the highlighted entry | `e` | `Shift+E` (or the ✎ button) |
-| Delete the highlighted entry | `d` | `Shift+Delete` / `Shift+Backspace` (or the 🗑 button) |
+| Edit the highlighted entry | `e` (or `Enter`) | `e` — or `Shift+E` when a filter/form is focused (or the ✎ button) |
+| Delete the highlighted entry | `d` | `d` / `Delete` / `Backspace` — or `Shift+Delete` / `Shift+Backspace` when a filter/form is focused (or the 🗑 button) |
 | Run / apply | `Enter` | `Enter` |
 | Filter by category | type `@work` | type `@work` |
 
-The TUI keys are remappable (`saved_query_edit`, `saved_query_delete` under `keys`).
+On the desktop the bare `e`/`d` keys act when the **list** holds focus; when a
+text filter or an edit form is focused (so a bare letter must type), hold **Shift**
+to disambiguate. One shared hook (`usePickerCrud`) enforces this everywhere, so all
+CRUD pickers behave identically. Delete-only panels (analyzer rules) omit edit.
+
+The TUI keys are remappable under `keys`: `saved_query_edit` / `saved_query_delete`
+(saved searches) and `rule_edit` / `rule_delete` (rules manager). New keys are
+backfilled into existing `config.json` files automatically on upgrade.
 | `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 
 ## 🎨 Theme & UI

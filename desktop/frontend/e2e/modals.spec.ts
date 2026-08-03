@@ -61,8 +61,14 @@ test.describe("display modals", () => {
     await runCommand(page, "action-plan rules");
     const modal = page.locator(".modal-overlay").filter({ hasText: "Analyzer rules" });
     await expect(modal).toBeVisible();
-    await expect(modal.locator(".prompt-manage-row").first()).toBeVisible();
+    await expect(modal.locator(".prompt-manage-row")).toHaveCount(2);
     await page.keyboard.press("ArrowDown"); // window-level list nav still works
+
+    // Bare "d" deletes the highlighted rule via the shared usePickerCrud handler
+    // (the list holds focus, so no Shift is needed here).
+    await page.keyboard.press("d");
+    await expect(modal.locator(".prompt-manage-row")).toHaveCount(1);
+
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
   });
