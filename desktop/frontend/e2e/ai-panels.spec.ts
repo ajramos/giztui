@@ -172,4 +172,29 @@ test.describe("AI bulk prompt (background job)", () => {
       "mock bulk prompt result",
     );
   });
+
+  test("a single-message reader prompt is also recorded in ':jobs'", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await openMessageAt(page, 0);
+    // Run the highlighted prompt on the OPEN message (inline, not bulk mode).
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(promptPanel(page)).toBeVisible();
+    await waitForPanelDone(promptPanel(page));
+
+    // Even though it streamed inline in the reader, it now has a done row in :jobs.
+    await page.keyboard.press("J");
+    const jobsPicker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "AI jobs" }) });
+    await expect(jobsPicker).toBeVisible();
+    const row = jobsPicker
+      .locator(".prompt-row")
+      .filter({ hasText: "Summarize concisely" });
+    await expect(row).toBeVisible();
+    await expect(row.locator('.job-status[data-status="done"]')).toBeVisible();
+  });
 });

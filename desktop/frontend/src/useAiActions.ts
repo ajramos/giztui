@@ -32,11 +32,14 @@ export function useAiActions(deps: {
   // Bulk prompts now run as background jobs; the reader's single-message prompt
   // stream is serialized through runExclusive (shared "prompt:token" event).
   enqueueJob: (spec: EnqueueSpec) => void;
+  // recordInlineJob logs a completed single-message prompt into the :jobs list
+  // (it already streamed inline in the reader — this only adds the row).
+  recordInlineJob: (spec: EnqueueSpec & { text: string; error?: string }) => void;
   runExclusive: <T>(fn: () => Promise<T>) => Promise<T>;
 }) {
   const {
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, enqueueJob, runExclusive,
+    setPromptsOpen, setCompose, enqueueJob, recordInlineJob, runExclusive,
   } = deps;
 
   // Refs to the AI result panels so we can scroll them into view when they
@@ -125,7 +128,12 @@ export function useAiActions(deps: {
     // Only for a single-message prompt on the message that's actually open (a
     // bulk run streams into its own modal; promptForId is null for it).
     if (promptRunning && promptForId && promptForId === detail?.id) {
-      promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      // rAF so the scroll runs after the panel has actually mounted/laid out —
+      // otherwise, on a short body (e.g. remote images still blocked) the panel
+      // isn't measured yet and the tiny "Generating…" row can land off-screen.
+      requestAnimationFrame(() =>
+        promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
+      );
       showToast(promptLabel ? `Applying ${promptLabel}…` : "Applying prompt…");
     }
   }, [promptRunning, promptForId, detail?.id, promptLabel, showToast]);
@@ -232,6 +240,12 @@ export function useAiActions(deps: {
         setPromptLabel(cached.label);
         setPromptResult(cached.text);
         showToast(`${cached.label} (cached)`);
+        recordInlineJob({
+          label: cached.label,
+          messageIds: [launchId],
+          promptId: prompt.id,
+          text: cached.text,
+        });
         requestAnimationFrame(() =>
           promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
         );
@@ -270,15 +284,28 @@ export function useAiActions(deps: {
           setPromptResult(final);
           setPromptLabel(prompt.name);
         }
+        recordInlineJob({
+          label: prompt.name,
+          messageIds: [launchId],
+          promptId: prompt.id,
+          text: final,
+        });
       } catch (e) {
         setError(String(e));
         if (openIdRef.current === launchId) setPromptResult(null);
+        recordInlineJob({
+          label: prompt.name,
+          messageIds: [launchId],
+          promptId: prompt.id,
+          text: "",
+          error: String(e),
+        });
       } finally {
         setPromptRunning(false);
         delete runningLabelRef.current[launchId];
       }
     },
-    [detail, bulkMode, selected, showToast, updateAiCache, enqueueJob, runExclusive],
+    [detail, bulkMode, selected, showToast, updateAiCache, enqueueJob, recordInlineJob, runExclusive],
   );
 
   // Per-panel dismiss: hide the panel and forget just enough of its cache entry

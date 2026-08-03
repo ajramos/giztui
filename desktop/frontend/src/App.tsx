@@ -213,7 +213,7 @@ export default function App() {
   // runExclusive serializes the shared "prompt:token" stream.
   const {
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
-    enqueueJob, runExclusive,
+    enqueueJob, recordInlineJob, runExclusive,
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
   } = useAiJobs({ showToast, setError, notifyOnComplete: jobsNotify });
 
@@ -331,7 +331,7 @@ export default function App() {
     dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
   } = useAiActions({
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, enqueueJob, runExclusive,
+    setPromptsOpen, setCompose, enqueueJob, recordInlineJob, runExclusive,
   });
 
   // "Chat with this email" panel (multi-turn), scoped to the open message.

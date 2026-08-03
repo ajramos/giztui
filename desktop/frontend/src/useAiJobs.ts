@@ -6,7 +6,10 @@ import { applyBulkPromptStream } from "./api";
 // several messages; the shape is deliberately extensible (chat, notebooklm…).
 export interface AiJob {
   id: string;
-  kind: "bulk_prompt";
+  // "bulk_prompt" streams in the background here; "prompt" is a single-message
+  // reader prompt that already ran inline and is recorded as a done job so it
+  // shows up in the :jobs list too (same surface, no re-run).
+  kind: "bulk_prompt" | "prompt";
   label: string;
   status: "queued" | "running" | "done" | "error";
   text: string; // accumulated stream / final result
@@ -75,6 +78,31 @@ export function useAiJobs(deps: {
   const patchJob = useCallback((id: string, patch: Partial<AiJob>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
+
+  // recordInlineJob logs a single-message reader prompt into the same jobs list
+  // as a job that's already done — the prompt streamed inline in the reader, so
+  // there's nothing to run here; this just gives it a row in :jobs (parity with
+  // the user's expectation that every prompt run is visible there). Errors are
+  // recorded too so a failed inline prompt is still traceable.
+  const recordInlineJob = useCallback(
+    (spec: EnqueueSpec & { text: string; error?: string }) => {
+      const now = Date.now();
+      const job: AiJob = {
+        id: `job-${++seqRef.current}-${now}`,
+        kind: "prompt",
+        label: spec.label,
+        status: spec.error ? "error" : "done",
+        text: spec.text,
+        error: spec.error,
+        createdAt: now,
+        finishedAt: now,
+        messageIds: spec.messageIds,
+        promptId: spec.promptId,
+      };
+      setJobs((prev) => [...prev, job]);
+    },
+    [],
+  );
 
   const enqueueJob = useCallback(
     (spec: EnqueueSpec) => {
@@ -162,6 +190,7 @@ export function useAiJobs(deps: {
     anyJobRunning,
     // actions
     enqueueJob,
+    recordInlineJob,
     runExclusive,
     openJob,
     removeJob,
