@@ -5,6 +5,36 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-08-03
+
+Keyboard **focus parity between the TUI and the desktop client**: `Tab` now moves
+focus predictably in both, and no side-panel picker can trap it any more. Plus
+release-hygiene guardrails that keep the version number and docs from drifting.
+
+### 🚀 Features
+
+- **Desktop: `Tab` toggles focus between the message list and the reader.** The
+  GUI equivalent of the TUI's focus ring — `Tab` / `Shift+Tab` hand focus back and
+  forth between the inbox list and the reading pane (lighting the reader's focused
+  border and routing arrow/`j`-`k` scrolling), matching the terminal client.
+
+### 🐛 Bug Fixes
+
+- **TUI: `Tab` no longer gets trapped in side-panel pickers or the chat panel.**
+  Every picker (labels, links, attachments, saved-queries, themes, accounts, AI
+  suggestions, prompts, bulk-prompts) and the chat panel now let `Tab` /
+  `Shift+Tab` cycle focus back to the message list, as the in-app help already
+  promised. Pickers that assign their own meaning to `Tab` (Obsidian form, prompt
+  configurator, rules manager) are unaffected.
+
+### 🔧 Technical Improvements
+
+- **CI guardrails against post-release drift.** The command palette and `?` help
+  are now checked against the reference docs, and `VERSION`,
+  `internal/version/version.go`, `CHANGELOG.md` and the Homebrew cask template are
+  pinned to the same version by `go test ./internal/version/` — so a release can't
+  ship with a mismatched version number or an undocumented command.
+
 ## [1.24.0] - 2026-08-01
 
 A privacy-first, opt-in **local usage-analytics dashboard (`:stats`)** — brought
