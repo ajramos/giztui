@@ -32,14 +32,19 @@ export function useAiActions(deps: {
   // Bulk prompts now run as background jobs; the reader's single-message prompt
   // stream is serialized through runExclusive (shared "prompt:token" event).
   enqueueJob: (spec: EnqueueSpec) => void;
-  // recordInlineJob logs a completed single-message prompt into the :jobs list
-  // (it already streamed inline in the reader — this only adds the row).
-  recordInlineJob: (spec: EnqueueSpec & { text: string; error?: string }) => void;
+  // A single-message prompt streams inline in the reader but is also tracked as a
+  // job: startInlineJob registers it (running) as soon as it launches so it shows
+  // in :jobs immediately; updateInlineJob streams text into that row; settleInlineJob
+  // marks it done/error.
+  startInlineJob: (spec: EnqueueSpec) => string;
+  updateInlineJob: (id: string, text: string) => void;
+  settleInlineJob: (id: string, r: { text: string; error?: string }) => void;
   runExclusive: <T>(fn: () => Promise<T>) => Promise<T>;
 }) {
   const {
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, enqueueJob, recordInlineJob, runExclusive,
+    setPromptsOpen, setCompose, enqueueJob,
+    startInlineJob, updateInlineJob, settleInlineJob, runExclusive,
   } = deps;
 
   // Refs to the AI result panels so we can scroll them into view when they
@@ -240,12 +245,14 @@ export function useAiActions(deps: {
         setPromptLabel(cached.label);
         setPromptResult(cached.text);
         showToast(`${cached.label} (cached)`);
-        recordInlineJob({
-          label: cached.label,
-          messageIds: [launchId],
-          promptId: prompt.id,
-          text: cached.text,
-        });
+        settleInlineJob(
+          startInlineJob({
+            label: cached.label,
+            messageIds: [launchId],
+            promptId: prompt.id,
+          }),
+          { text: cached.text },
+        );
         requestAnimationFrame(() =>
           promptPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
         );
@@ -257,6 +264,15 @@ export function useAiActions(deps: {
       setPromptLabel(prompt.name);
       setPromptResult("");
       runningLabelRef.current[launchId] = prompt.name;
+      // Register the job up front (running) so it shows in :jobs immediately and
+      // — because jobs are keyed per message — the reader can tell which of two
+      // concurrently-launched prompts is still generating on whichever message
+      // is open.
+      const jobId = startInlineJob({
+        label: prompt.name,
+        messageIds: [launchId],
+        promptId: prompt.id,
+      });
       try {
         let acc = "";
         // Serialized against any running bulk job (shared "prompt:token" event):
@@ -267,6 +283,7 @@ export function useAiActions(deps: {
             prompt.id,
             (tok) => {
               acc += tok;
+              updateInlineJob(jobId, acc);
               // Only paint into the visible panel while this message is still open.
               if (openIdRef.current === launchId) setPromptResult(acc);
             },
@@ -284,28 +301,17 @@ export function useAiActions(deps: {
           setPromptResult(final);
           setPromptLabel(prompt.name);
         }
-        recordInlineJob({
-          label: prompt.name,
-          messageIds: [launchId],
-          promptId: prompt.id,
-          text: final,
-        });
+        settleInlineJob(jobId, { text: final });
       } catch (e) {
         setError(String(e));
         if (openIdRef.current === launchId) setPromptResult(null);
-        recordInlineJob({
-          label: prompt.name,
-          messageIds: [launchId],
-          promptId: prompt.id,
-          text: "",
-          error: String(e),
-        });
+        settleInlineJob(jobId, { text: "", error: String(e) });
       } finally {
         setPromptRunning(false);
         delete runningLabelRef.current[launchId];
       }
     },
-    [detail, bulkMode, selected, showToast, updateAiCache, enqueueJob, recordInlineJob, runExclusive],
+    [detail, bulkMode, selected, showToast, updateAiCache, enqueueJob, startInlineJob, updateInlineJob, settleInlineJob, runExclusive],
   );
 
   // Per-panel dismiss: hide the panel and forget just enough of its cache entry

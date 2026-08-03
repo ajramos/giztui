@@ -79,29 +79,41 @@ export function useAiJobs(deps: {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  // recordInlineJob logs a single-message reader prompt into the same jobs list
-  // as a job that's already done — the prompt streamed inline in the reader, so
-  // there's nothing to run here; this just gives it a row in :jobs (parity with
-  // the user's expectation that every prompt run is visible there). Errors are
-  // recorded too so a failed inline prompt is still traceable.
-  const recordInlineJob = useCallback(
-    (spec: EnqueueSpec & { text: string; error?: string }) => {
-      const now = Date.now();
-      const job: AiJob = {
-        id: `job-${++seqRef.current}-${now}`,
-        kind: "prompt",
-        label: spec.label,
-        status: spec.error ? "error" : "done",
-        text: spec.text,
-        error: spec.error,
-        createdAt: now,
-        finishedAt: now,
-        messageIds: spec.messageIds,
-        promptId: spec.promptId,
-      };
-      setJobs((prev) => [...prev, job]);
-    },
-    [],
+  // Single-message reader prompts stream inline in the reader but are ALSO
+  // tracked as jobs so (a) they show up in :jobs the moment they start — not just
+  // when they finish — and (b) two prompts on two different messages each have
+  // their own row (the reader's single-slot promptRunning can only reflect one).
+  // startInlineJob registers a running row and returns its id; updateInlineJob
+  // streams the accumulated text into it; settleInlineJob marks it done/error.
+  const startInlineJob = useCallback((spec: EnqueueSpec): string => {
+    const now = Date.now();
+    const id = `job-${++seqRef.current}-${now}`;
+    const job: AiJob = {
+      id,
+      kind: "prompt",
+      label: spec.label,
+      status: "running",
+      text: "",
+      createdAt: now,
+      messageIds: spec.messageIds,
+      promptId: spec.promptId,
+    };
+    setJobs((prev) => [...prev, job]);
+    return id;
+  }, []);
+  const updateInlineJob = useCallback(
+    (id: string, text: string) => patchJob(id, { text }),
+    [patchJob],
+  );
+  const settleInlineJob = useCallback(
+    (id: string, r: { text: string; error?: string }) =>
+      patchJob(id, {
+        status: r.error ? "error" : "done",
+        text: r.text,
+        error: r.error,
+        finishedAt: Date.now(),
+      }),
+    [patchJob],
   );
 
   const enqueueJob = useCallback(
@@ -190,7 +202,9 @@ export function useAiJobs(deps: {
     anyJobRunning,
     // actions
     enqueueJob,
-    recordInlineJob,
+    startInlineJob,
+    updateInlineJob,
+    settleInlineJob,
     runExclusive,
     openJob,
     removeJob,

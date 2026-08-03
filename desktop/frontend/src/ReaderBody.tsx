@@ -29,8 +29,7 @@ export default function ReaderBody({
   promptPanelRef,
   promptLabel,
   promptResult,
-  promptRunning,
-  promptForId,
+  promptGenerating,
   onRegeneratePrompt,
   onDismissPrompt,
   csOpen,
@@ -70,8 +69,7 @@ export default function ReaderBody({
   promptPanelRef: RefObject<HTMLDivElement>;
   promptLabel: string;
   promptResult: string | null;
-  promptRunning: boolean;
-  promptForId: string | null;
+  promptGenerating: boolean;
   onRegeneratePrompt: () => void;
   onDismissPrompt: () => void;
   csOpen: boolean;
@@ -157,7 +155,7 @@ export default function ReaderBody({
         text={promptResult}
         // "Generating…" only for a prompt launched on THIS message; a run started
         // elsewhere must not paint over the open email.
-        generating={promptRunning && promptForId === detail.id}
+        generating={promptGenerating}
         regenerateTitle="Regenerate (ignore the saved result and call the LLM again)"
         dismissTitle="Hide (kept for this email — re-run the prompt to show it again without regenerating)"
         onRegenerate={onRegeneratePrompt}
