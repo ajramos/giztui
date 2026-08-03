@@ -154,6 +154,20 @@ export function formatFull(iso: string): string {
   return d.toLocaleString();
 }
 
+// resolveEmailLinkHref normalizes a clicked email anchor's raw href attribute
+// into a URL safe to hand to the OS opener, or null if it must be ignored.
+// - Protocol-relative "//host/path" → https (same rule the remote-image hook
+//   applies); these are common in newsletters and previously opened nothing.
+// - http/https open in the browser; mailto/tel open the mail client / dialer so
+//   "email us" / "call" links aren't dead.
+// - Everything else (javascript:, data:, in-page "#anchor", empty) → null.
+export function resolveEmailLinkHref(raw: string | null | undefined): string | null {
+  let href = (raw ?? "").trim();
+  if (!href) return null;
+  if (href.startsWith("//")) href = "https:" + href;
+  return /^(?:https?|mailto|tel):/i.test(href) ? href : null;
+}
+
 export function formatSize(bytes: number): string {
   if (bytes <= 0) return "";
   const units = ["B", "KB", "MB", "GB"];

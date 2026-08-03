@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import DOMPurify from "dompurify";
 import { backend, type Attachment } from "./api";
+import { resolveEmailLinkHref } from "./format";
 
 // HtmlBody renders an email's HTML directly in the page inside a Shadow DOM.
 //
@@ -233,8 +234,8 @@ export default function HtmlBody({
       const a = path.find(
         (el) => el && el.nodeType === 1 && el.tagName === "A",
       ) as HTMLAnchorElement | undefined;
-      const href = a?.getAttribute("href");
-      if (href && /^https?:/i.test(href)) {
+      const href = resolveEmailLinkHref(a?.getAttribute("href"));
+      if (href) {
         e.preventDefault();
         void backend.OpenURL(href).catch(() => undefined);
       }
