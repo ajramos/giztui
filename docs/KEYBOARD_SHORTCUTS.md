@@ -469,7 +469,7 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 | Command | Description |
 |---------|-------------|
 | `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark) |
-| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search |
+| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; type `@work` to filter by category) |
 | `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 
 ## 🎨 Theme & UI

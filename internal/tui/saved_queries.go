@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -17,6 +18,51 @@ type queryItem struct {
 	category    string
 	query       string
 	useCount    int
+}
+
+// savedQueryCategoryLabel is the display name of a query's category: the free-form
+// category string, or "Default" for uncategorised entries. Grouping and the
+// "@category" filter share this so they always agree.
+func savedQueryCategoryLabel(c string) string {
+	if strings.TrimSpace(c) == "" {
+		return "Default"
+	}
+	return strings.TrimSpace(c)
+}
+
+// matchesSavedQueryFilter reports whether a query matches the picker filter. A
+// filter beginning with "@" narrows by category (case-insensitive substring,
+// e.g. "@work"); any other non-empty filter narrows by name. Empty matches all.
+func matchesSavedQueryFilter(item queryItem, filter string) bool {
+	f := strings.ToLower(strings.TrimSpace(filter))
+	if f == "" {
+		return true
+	}
+	if strings.HasPrefix(f, "@") {
+		cat := strings.TrimSpace(f[1:])
+		if cat == "" {
+			return true
+		}
+		return strings.Contains(strings.ToLower(savedQueryCategoryLabel(item.category)), cat)
+	}
+	return strings.Contains(strings.ToLower(item.name), f)
+}
+
+// sortSavedQueriesByCategory orders queries by category — named groups
+// alphabetically, the uncategorised "Default" group last — then by name, so the
+// picker can render contiguous, headed groups.
+func sortSavedQueriesByCategory(items []queryItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		ci, cj := savedQueryCategoryLabel(items[i].category), savedQueryCategoryLabel(items[j].category)
+		di, dj := ci == "Default", cj == "Default"
+		if di != dj {
+			return !di // named categories before the Default group
+		}
+		if !strings.EqualFold(ci, cj) {
+			return strings.ToLower(ci) < strings.ToLower(cj)
+		}
+		return strings.ToLower(items[i].name) < strings.ToLower(items[j].name)
+	})
 }
 
 // showSavedQueriesPicker displays the saved queries picker interface using prompts-style picker
@@ -55,15 +101,33 @@ func (a *App) showSavedQueriesPicker() {
 
 	var all []queryItem
 	var visible []queryItem
+	// rowItems maps each list row to its index in `visible`, or -1 for a
+	// non-selectable category header row, so number/delete keys and the current
+	// selection map back to a real query even with headers interleaved.
+	var rowItems []int
 
-	// Reload function for filtering
+	// Reload rebuilds the list from `all`, grouped by category with a header per
+	// group. A bare filter narrows by name; a "@cat" filter narrows by category.
 	reload := func(filter string) {
 		list.Clear()
 		visible = visible[:0]
+		rowItems = rowItems[:0]
+		lastCat := ""
+		haveHeader := false
 		for _, item := range all {
-			if filter != "" && !strings.Contains(strings.ToLower(item.name), strings.ToLower(filter)) {
+			if !matchesSavedQueryFilter(item, filter) {
 				continue
 			}
+
+			// Emit a header row whenever the category group changes.
+			cl := savedQueryCategoryLabel(item.category)
+			if !haveHeader || cl != lastCat {
+				list.AddItem(fmt.Sprintf("─ %s ─", cl), "", 0, nil)
+				rowItems = append(rowItems, -1)
+				lastCat = cl
+				haveHeader = true
+			}
+			rowItems = append(rowItems, len(visible))
 			visible = append(visible, item)
 
 			// Category icon
@@ -79,7 +143,7 @@ func (a *App) showSavedQueriesPicker() {
 				icon = "📚"
 			}
 
-			display := fmt.Sprintf("%s %s", icon, item.name)
+			display := fmt.Sprintf("  %s %s", icon, item.name)
 			if item.useCount > 0 {
 				display += fmt.Sprintf(" (used %d times)", item.useCount)
 			}
@@ -142,6 +206,7 @@ func (a *App) showSavedQueriesPicker() {
 				useCount:    q.UseCount,
 			})
 		}
+		sortSavedQueriesByCategory(all)
 
 		a.QueueUpdateDraw(func() {
 			// Set up input field
@@ -165,12 +230,9 @@ func (a *App) showSavedQueriesPicker() {
 					a.closeSavedQueriesPicker()
 					return
 				}
-				if key == tcell.KeyEnter && list.GetItemCount() > 0 {
-					// Execute first match
-					filtered := a.filterQueriesByName(all, input.GetText())
-					if len(filtered) > 0 {
-						a.executeQueryItem(filtered[0], queryService)
-					}
+				if key == tcell.KeyEnter && len(visible) > 0 {
+					// Execute the first visible (filtered) query.
+					a.executeQueryItem(visible[0], queryService)
 				}
 			})
 
@@ -188,23 +250,21 @@ func (a *App) showSavedQueriesPicker() {
 					a.SetFocus(input)
 					return nil
 				}
-				// Handle number keys for quick access (1-9)
+				// Handle number keys for quick access (1-9): Nth visible query,
+				// counting only real rows (headers are skipped).
 				if e.Rune() >= '1' && e.Rune() <= '9' {
 					num := int(e.Rune() - '0')
-					filtered := a.filterQueriesByName(all, input.GetText())
-					if num > 0 && num <= len(filtered) {
-						item := filtered[num-1]
-						a.executeQueryItem(item, queryService)
+					if num >= 1 && num <= len(visible) {
+						a.executeQueryItem(visible[num-1], queryService)
 						return nil
 					}
 				}
-				// Delete the selected query (configurable; default "d")
+				// Delete the selected query (configurable; default "d"). Map the
+				// current row back to a real query; ignore the keypress on headers.
 				if a.matchesConfiguredKey(e, a.Keys.SavedQueryDel) {
-					filtered := a.filterQueriesByName(all, input.GetText())
-					currentItem := list.GetCurrentItem()
-					if currentItem >= 0 && currentItem < len(filtered) {
-						item := filtered[currentItem]
-						a.deleteSavedQueryItem(item, queryService)
+					cur := list.GetCurrentItem()
+					if cur >= 0 && cur < len(rowItems) && rowItems[cur] >= 0 {
+						a.deleteSavedQueryItem(visible[rowItems[cur]], queryService)
 						return nil
 					}
 				}
@@ -230,7 +290,7 @@ func (a *App) showSavedQueriesPicker() {
 
 			// Footer with instructions (standardized footer color)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 to execute | d/D to delete | Esc to cancel ")
+			footer.SetText(" Enter/1-9 execute · type @cat to filter by category · d/D delete · Esc cancel ")
 			footer.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color like other pickers
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
@@ -257,28 +317,6 @@ func (a *App) showSavedQueriesPicker() {
 			a.SetFocus(input)
 		})
 	}()
-}
-
-// filterQueriesByName filters queries by name for input field
-func (a *App) filterQueriesByName(queries []queryItem, filterText string) []queryItem {
-	if strings.TrimSpace(filterText) == "" {
-		return queries
-	}
-
-	filterLower := strings.ToLower(strings.TrimSpace(filterText))
-	var filtered []queryItem
-
-	for _, query := range queries {
-		// Search in name, description, query, and category
-		searchableText := strings.ToLower(fmt.Sprintf("%s %s %s %s",
-			query.name, query.description, query.query, query.category))
-
-		if strings.Contains(searchableText, filterLower) {
-			filtered = append(filtered, query)
-		}
-	}
-
-	return filtered
 }
 
 // executeQueryItem executes a selected query item

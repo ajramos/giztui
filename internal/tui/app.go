@@ -2380,7 +2380,7 @@ func (a *App) generateHelpText() string {
 	// Additional Features
 	help.WriteString("🔧 ADDITIONAL FEATURES\n\n")
 	fmt.Fprintf(&help, "    %-8s  💾  Save current search as bookmark\n", a.Keys.SaveQuery)
-	fmt.Fprintf(&help, "    %-8s  📚  Browse saved query bookmarks\n", a.Keys.QueryBookmarks)
+	fmt.Fprintf(&help, "    %-8s  📚  Browse saved query bookmarks (grouped by category; type @cat to filter)\n", a.Keys.QueryBookmarks)
 	fmt.Fprintf(&help, "    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail)
 	fmt.Fprintf(&help, "    %-8s  💾  Save message content\n", a.Keys.SaveMessage)
 	fmt.Fprintf(&help, "    %-8s  📄  Save raw message\n", a.Keys.SaveRaw)
