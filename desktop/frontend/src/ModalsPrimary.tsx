@@ -20,6 +20,7 @@ import RSVPPicker from "./RSVPPicker";
 import SlackPicker from "./SlackPicker";
 import ObsidianDialog from "./ObsidianDialog";
 import SaveQueryModal from "./SaveQueryModal";
+import EditQueryModal from "./EditQueryModal";
 
 // The compose window + the picker-style modals (labels, prompts, links, suggest,
 // attachments, saved queries, RSVP, save-query). A behavior-preserving lift of
@@ -76,6 +77,9 @@ export default function ModalsPrimary(p: {
   activeQuery: string;
   runQuery: (q: SavedQuery) => void;
   deleteQuery: (id: number) => Promise<void>;
+  updateQuery: (id: number, name: string, query: string, category: string) => Promise<void>;
+  editingQuery: SavedQuery | null;
+  setEditingQuery: Dispatch<SetStateAction<SavedQuery | null>>;
   setSaveQueryOpen: Dispatch<SetStateAction<boolean>>;
   rsvpPickerOpen: boolean;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
@@ -109,7 +113,7 @@ export default function ModalsPrimary(p: {
     linksFor, setLinksFor,
     suggestFor, setSuggestFor, suggestions, loadingSuggest, applySuggestion,
     attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
-    queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
+    queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, updateQuery, editingQuery, setEditingQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite,
     saveQueryOpen, saveQueryName, setSaveQueryName, saveQueryCategory, setSaveQueryCategory, doSaveQuery,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
@@ -196,12 +200,23 @@ export default function ModalsPrimary(p: {
           queries={savedQueries}
           canSaveCurrent={!!activeQuery}
           onRun={runQuery}
+          onEdit={(q) => setEditingQuery(q)}
           onDelete={(id) => void deleteQuery(id)}
           onSaveCurrent={() => {
             setQueriesOpen(false);
             setSaveQueryOpen(true);
           }}
           onClose={() => setQueriesOpen(false)}
+        />
+      )}
+      {editingQuery && (
+        <EditQueryModal
+          query={editingQuery}
+          onSave={(name, queryText, category) => {
+            void updateQuery(editingQuery.id, name, queryText, category);
+            setEditingQuery(null);
+          }}
+          onClose={() => setEditingQuery(null)}
         />
       )}
       {rsvpPickerOpen && detail && invite?.isInvite && (

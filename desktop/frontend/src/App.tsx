@@ -106,6 +106,7 @@ export default function App() {
   const [saveQueryOpen, setSaveQueryOpen] = useState(false);
   const [saveQueryName, setSaveQueryName] = useState("");
   const [saveQueryCategory, setSaveQueryCategory] = useState("");
+  const [editingQuery, setEditingQuery] = useState<SavedQuery | null>(null);
   // Whether AI jobs toast on completion (config jobs.notify_on_complete; set at bootstrap).
   const [jobsNotify, setJobsNotify] = useState(true);
   const [actionPlanOn, setActionPlanOn] = useState(false);
@@ -414,7 +415,7 @@ export default function App() {
   });
 
   const {
-    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
+    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, updateQuery, doSaveQuery,
   } = useMiscActions({
     messages, selected, activeQuery, suggestFor, saveQueryName, saveQueryCategory, showToast,
     setError, load, removeFromList, insertMessage, advanceAfterBulk, pushUndo,
@@ -453,7 +454,7 @@ export default function App() {
     load, loadMore, localFilter, messages, moveFor, obsidianOn, openConfig,
     openDrafts, openInGmail, openMessage, openQueries, openRules, openStats, openTelemetry, resetTelemetry, openSuggest,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview, previewMessage,
-    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, query, quickSearch, readerBodyRef,
+    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, query, quickSearch, readerBodyRef,
     readerFocused, regenerateActive, resetZoom, respondInvite, rsvpPickerOpen, rulesEnabled, rulesOpen,
     jobsPickerOpen, setJobsPickerOpen, openChat: chat.openChat,
     runActionPlan, runDeterministicRules, runUndo, runVimRange, runVimSingle, saveMessage, saveQueryOpen,
@@ -495,7 +496,7 @@ export default function App() {
     runPrompt, aiPromptsEnabled, setPromptManagerOpen, promptManagerOpen, aiEnabled, aiCache,
     setPromptResult, linksFor, setLinksFor, suggestFor, setSuggestFor, suggestions, loadingSuggest,
     applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
-    queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, setSaveQueryOpen,
+    queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, updateQuery, editingQuery, setEditingQuery, setSaveQueryOpen,
     rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
     obsidianOpen, setObsidianOpen, sendObsidian,

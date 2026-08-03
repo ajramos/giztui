@@ -31,4 +31,32 @@ test.describe("saved queries picker", () => {
     await expect(picker.locator(".query-row")).toHaveCount(0);
     await expect(picker.locator(".placeholder")).toHaveText("No matches");
   });
+
+  test("editing a saved query renames it in place", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "queries");
+    const picker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Saved searches" }) });
+    await expect(picker).toBeVisible();
+
+    // Open the edit dialog for "Invoices" via its pencil button.
+    await picker
+      .locator(".query-row")
+      .filter({ hasText: "Invoices" })
+      .getByTitle("Edit")
+      .click();
+    const edit = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Edit saved search" }) });
+    await expect(edit).toBeVisible();
+
+    // Rename and save; the picker reflects the new name.
+    await edit.locator("input").first().fill("Unpaid invoices");
+    await edit.getByRole("button", { name: "Save" }).click();
+    await expect(edit).toBeHidden();
+    await expect(
+      picker.locator(".query-row").filter({ hasText: "Unpaid invoices" }),
+    ).toHaveCount(1);
+  });
 });

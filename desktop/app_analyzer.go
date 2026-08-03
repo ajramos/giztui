@@ -184,6 +184,15 @@ func (a *App) SaveQuery(name, query, category string) error {
 	return api.SaveQuery(a.ctx, name, query, category)
 }
 
+// UpdateSavedQuery edits an existing saved search by id.
+func (a *App) UpdateSavedQuery(id int64, name, query, category string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.UpdateSavedQuery(a.ctx, id, name, query, category)
+}
+
 // DeleteSavedQuery removes a saved search.
 func (a *App) DeleteSavedQuery(id int64) error {
 	api, err := a.api()

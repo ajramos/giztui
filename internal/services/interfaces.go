@@ -564,6 +564,7 @@ type QueryService interface {
 	// Query organization
 	GetCategories(ctx context.Context) ([]string, error)
 	UpdateQueryCategory(ctx context.Context, id int64, category string) error
+	UpdateQuery(ctx context.Context, id int64, name, query, description, category string) error
 }
 
 // SavedQueryInfo represents information about a saved query

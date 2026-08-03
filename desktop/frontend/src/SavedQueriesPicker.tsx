@@ -8,6 +8,7 @@ export default function SavedQueriesPicker({
   queries,
   canSaveCurrent,
   onRun,
+  onEdit,
   onDelete,
   onSaveCurrent,
   onClose,
@@ -15,6 +16,7 @@ export default function SavedQueriesPicker({
   queries: SavedQuery[];
   canSaveCurrent: boolean;
   onRun: (q: SavedQuery) => void;
+  onEdit: (q: SavedQuery) => void;
   onDelete: (id: number) => void;
   onSaveCurrent: () => void;
   onClose: () => void;
@@ -43,17 +45,20 @@ export default function SavedQueriesPicker({
   activeRef.current = nav.active;
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      const q = visibleRef.current[activeRef.current];
+      if (!q) return;
       if (e.shiftKey && (e.key === "Backspace" || e.key === "Delete")) {
-        const q = visibleRef.current[activeRef.current];
-        if (q) {
-          e.preventDefault();
-          onDelete(q.id);
-        }
+        e.preventDefault();
+        onDelete(q.id);
+      } else if (e.shiftKey && (e.key === "E" || e.key === "e")) {
+        // Shift+E edits the highlighted row (a bare "e" types into the filter).
+        e.preventDefault();
+        onEdit(q);
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [onDelete]);
+  }, [onDelete, onEdit]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -96,6 +101,13 @@ export default function SavedQueriesPicker({
                       <span className="prompt-desc">{r.query.query}</span>
                     </button>
                     <button
+                      className="ghost tiny"
+                      title="Edit"
+                      onClick={() => onEdit(r.query)}
+                    >
+                      {Icon.edit}
+                    </button>
+                    <button
                       className="ghost tiny danger"
                       title="Delete"
                       onClick={() => onDelete(r.query.id)}
@@ -110,7 +122,7 @@ export default function SavedQueriesPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            type to filter · @cat by category · ↑↓ move · Enter run · ⇧⌫ delete · Esc close
+            type to filter · @cat by category · ↑↓ move · Enter run · ⇧E edit · ⇧⌫ delete · Esc close
           </span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>

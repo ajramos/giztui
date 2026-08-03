@@ -295,6 +295,11 @@ export const mockA: Partial<Backend> = {
       ...md.queries,
     ];
   },
+  async UpdateSavedQuery(id: number, name: string, query: string, category: string) {
+    md.queries = md.queries.map((q) =>
+      q.id === id ? { ...q, name, query, category: category || "" } : q,
+    );
+  },
   async DeleteSavedQuery(id: number) {
     md.queries = md.queries.filter((q) => q.id !== id);
   },

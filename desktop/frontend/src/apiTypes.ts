@@ -390,6 +390,7 @@ export interface Backend {
   SavedQueriesEnabled(): Promise<boolean>;
   ListSavedQueries(): Promise<SavedQuery[]>;
   SaveQuery(name: string, query: string, category: string): Promise<void>;
+  UpdateSavedQuery(id: number, name: string, query: string, category: string): Promise<void>;
   DeleteSavedQuery(id: number): Promise<void>;
   RecordQueryUse(id: number): Promise<void>;
   ActionPlanEnabled(): Promise<boolean>;

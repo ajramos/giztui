@@ -257,6 +257,33 @@ func TestMigration_V6_SavedQueriesTable(t *testing.T) {
 	assert.Equal(t, 12, version)
 }
 
+func TestQueryStore_UpdateQuery(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "q_update.db"))
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	qs := NewQueryStore(store)
+	const acc = "u@example.com"
+	saved, err := qs.SaveQuery(ctx, acc, "Old name", "is:unread", "", "Work")
+	assert.NoError(t, err)
+
+	// Rename + change query + category by id (SaveQuery couldn't rename).
+	err = qs.UpdateQuery(ctx, acc, saved.ID, "New name", "has:attachment", "", "Finance")
+	assert.NoError(t, err)
+
+	got, err := qs.GetQueryByID(ctx, acc, saved.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "New name", got.Name)
+	assert.Equal(t, "has:attachment", got.Query)
+	assert.Equal(t, "Finance", got.Category)
+
+	// A non-existent id is an error, not a silent no-op.
+	assert.Error(t, qs.UpdateQuery(ctx, acc, 999999, "x", "y", "", ""))
+	// Empty name/query rejected.
+	assert.Error(t, qs.UpdateQuery(ctx, acc, saved.ID, "", "y", "", ""))
+}
+
 func TestPragmas_Configuration(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()

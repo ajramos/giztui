@@ -77,6 +77,28 @@ func (s *QueryStore) SaveQuery(ctx context.Context, accountEmail, name, query, d
 	return savedQuery, nil
 }
 
+// UpdateQuery edits an existing saved query by id — name, query, description and
+// category — so a query can be renamed. SaveQuery upserts by (account, name) and
+// so can't rename; this UPDATE targets the id instead.
+func (s *QueryStore) UpdateQuery(ctx context.Context, accountEmail string, id int64, name, query, description, category string) error {
+	if strings.TrimSpace(accountEmail) == "" || strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return fmt.Errorf("account_email, name, and query cannot be empty")
+	}
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE saved_queries
+		SET name = ?, query = ?, description = ?, category = ?
+		WHERE id = ? AND account_email = ?`,
+		name, query, description, category, id, accountEmail)
+	if err != nil {
+		return fmt.Errorf("failed to update query: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("saved query %d not found", id)
+	}
+	return nil
+}
+
 // GetQueryByName retrieves a saved query by name
 func (s *QueryStore) GetQueryByName(ctx context.Context, accountEmail, name string) (*SavedQuery, error) {
 	if strings.TrimSpace(accountEmail) == "" || strings.TrimSpace(name) == "" {

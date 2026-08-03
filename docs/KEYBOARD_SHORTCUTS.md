@@ -469,7 +469,22 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 | Command | Description |
 |---------|-------------|
 | `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark). Add `@category` to file it under a group, e.g. `:save-query Unpaid invoices @finance` |
-| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; type `@work` to filter by category) |
+| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; type `@work` to filter by category). In the picker: `e` edit · `d` delete the highlighted query |
+
+### Picker CRUD convention (edit / delete)
+
+Pickers that hold editable entries (saved queries, …) share the same edit/delete
+convention. The exact keys differ between clients because the desktop picker keeps
+a text-filter focused (so a bare letter types instead of acting):
+
+| Action | TUI (terminal) | Desktop (GUI) |
+| ------ | -------------- | ------------- |
+| Edit the highlighted entry | `e` | `Shift+E` (or the ✎ button) |
+| Delete the highlighted entry | `d` | `Shift+Delete` / `Shift+Backspace` (or the 🗑 button) |
+| Run / apply | `Enter` | `Enter` |
+| Filter by category | type `@work` | type `@work` |
+
+The TUI keys are remappable (`saved_query_edit`, `saved_query_delete` under `keys`).
 | `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 
 ## 🎨 Theme & UI

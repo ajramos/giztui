@@ -13,7 +13,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
     csQuery, detRulesOpen, detail, draftsView, fullMessagesRef, keymap,
     labelsFor, linksFor, load, localFilter, moveFor, openRules,
     plan, planActiveRef, planMove, planNodesRef, planOpen, planPreview,
-    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, resetZoom, rsvpPickerOpen,
+    promptManagerOpen, promptPreview, promptsOpen, queriesOpen, editingQuery, setEditingQuery, resetZoom, rsvpPickerOpen,
     rulesEnabled, rulesOpen, saveQueryOpen, searchRef, setAccountsOpen, setAdvOpen,
     setAttachmentsOpen, setBulkLabels, setBulkMove, setBulkPromptText, setCmdOpen, setCompose,
     setConfigOpen, setCsIndex, setDraftsView, setExpandedCats, setLabelsFor, setLinksFor,
@@ -86,6 +86,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
         suggestFor ||
         cmdOpen ||
         queriesOpen ||
+        editingQuery !== null ||
         saveQueryOpen ||
         planOpen ||
         themePickerOpen ||
@@ -130,6 +131,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: KeydownCtx) {
           else if (planMove) setPlanMove(null);
           else if (planOpen) setPlanOpen(false);
           else if (themePickerOpen) setThemePickerOpen(false);
+          else if (editingQuery) setEditingQuery(null);
           else if (queriesOpen) setQueriesOpen(false);
           else if (rsvpPickerOpen) setRsvpPickerOpen(false);
           else if (jobsPickerOpen) setJobsPickerOpen(false);

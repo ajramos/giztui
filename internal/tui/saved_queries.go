@@ -288,6 +288,15 @@ func (a *App) showSavedQueriesPicker() {
 						return nil
 					}
 				}
+				// Edit the selected query (configurable; default "e") — CRUD parity
+				// with the prompts picker.
+				if a.matchesConfiguredKey(e, a.Keys.SavedQueryEdit) {
+					cur := list.GetCurrentItem()
+					if cur >= 0 && cur < len(rowItems) && rowItems[cur] >= 0 {
+						a.editSavedQueryItem(visible[rowItems[cur]], queryService)
+						return nil
+					}
+				}
 				return e
 			})
 
@@ -310,7 +319,7 @@ func (a *App) showSavedQueriesPicker() {
 
 			// Footer with instructions (standardized footer color)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 execute · type @cat to filter by category · d/D delete · Esc cancel ")
+			footer.SetText(" Enter/1-9 execute · @cat filter · e edit · d delete · Esc cancel ")
 			footer.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color like other pickers
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
@@ -638,6 +647,80 @@ func (a *App) deleteSavedQueryItem(item queryItem, queryService services.QuerySe
 			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted query: %s", item.name))
 		}
 	}()
+}
+
+// editSavedQueryItem opens an inline form to edit a saved query's name, query and
+// category, then persists it via QueryService.UpdateQuery. Reopens the picker
+// (refreshed) on save or cancel.
+func (a *App) editSavedQueryItem(item queryItem, queryService services.QueryService) {
+	colors := a.GetComponentColors("saved_queries")
+
+	form := tview.NewForm()
+	form.SetBackgroundColor(colors.Background.Color())
+	form.SetFieldBackgroundColor(colors.Background.Color())
+	form.SetFieldTextColor(colors.Text.Color())
+	form.SetLabelColor(colors.Title.Color())
+	form.SetButtonBackgroundColor(colors.Background.Color())
+	form.SetButtonTextColor(colors.Text.Color())
+	form.AddInputField("Name", item.name, 44, nil, nil)
+	form.AddInputField("Query", item.query, 44, nil, nil)
+	form.AddInputField("Category", item.category, 44, nil, nil)
+
+	field := func(label string) string {
+		if fi, ok := form.GetFormItemByLabel(label).(*tview.InputField); ok {
+			return strings.TrimSpace(fi.GetText())
+		}
+		return ""
+	}
+	reopen := func() {
+		a.closeSavedQueriesPicker()
+		a.showSavedQueriesPicker()
+	}
+	save := func() {
+		name, q, cat := field("Name"), field("Query"), field("Category")
+		if name == "" || q == "" {
+			go a.GetErrorHandler().ShowWarning(a.ctx, "Name and query are required")
+			return
+		}
+		go func() {
+			if err := queryService.UpdateQuery(a.ctx, item.id, name, q, "", cat); err != nil {
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to update query: %v", err))
+			} else {
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated query: %s", name))
+			}
+		}()
+		reopen()
+	}
+	form.AddButton("Save", save)
+	form.AddButton("Cancel", reopen)
+	form.SetCancelFunc(reopen) // Esc
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(colors.Background.Color())
+	container.SetBorder(true)
+	container.SetBorderColor(colors.Border.Color())
+	container.SetTitle(" ✏️  Edit Saved Query ")
+	container.SetTitleColor(colors.Title.Color())
+	container.AddItem(form, 0, 1, true)
+
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Tab move · Enter on Save · Esc cancel ")
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetBackgroundColor(colors.Background.Color())
+	container.AddItem(footer, 1, 0, false)
+
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.SetBackgroundColor(colors.Background.Color())
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.markFocus("labels")
+	a.setActivePicker(PickerSavedQueries)
+	a.SetFocus(form)
 }
 
 // Helper function to show query by name (for command usage)

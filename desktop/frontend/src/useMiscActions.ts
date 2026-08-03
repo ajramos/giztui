@@ -257,6 +257,19 @@ export function useMiscActions(deps: {
     }
   }, []);
 
+  const updateQuery = useCallback(
+    async (id: number, name: string, query: string, category: string) => {
+      try {
+        await backend.UpdateSavedQuery(id, name, query, category);
+        setSavedQueries(await backend.ListSavedQueries());
+        showToast(`Updated query "${name}"`);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [showToast],
+  );
+
   const doSaveQuery = useCallback(() => {
     const name = saveQueryName.trim();
     if (!name || !activeQuery) return;
@@ -270,6 +283,6 @@ export function useMiscActions(deps: {
   }, [saveQueryName, saveQueryCategory, activeQuery, showToast]);
 
   return {
-    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, doSaveQuery,
+    openStats, openTelemetry, resetTelemetry, openConfig, clearCaches, doMove, doBulkMove, quickSearch, openInGmail, saveMessage, saveRawMessage, openSuggest, applySuggestion, openQueries, runQuery, deleteQuery, updateQuery, doSaveQuery,
   };
 }

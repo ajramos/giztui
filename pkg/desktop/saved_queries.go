@@ -44,6 +44,17 @@ func (a *API) SaveQuery(ctx context.Context, name, query, category string) error
 	return err
 }
 
+// UpdateSavedQuery edits an existing saved search (name, query, category) by id.
+func (a *API) UpdateSavedQuery(ctx context.Context, id int64, name, query, category string) error {
+	if a.query == nil {
+		return fmt.Errorf("saved queries are not available")
+	}
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return fmt.Errorf("a name and query are required")
+	}
+	return a.query.UpdateQuery(ctx, id, strings.TrimSpace(name), strings.TrimSpace(query), "", strings.TrimSpace(category))
+}
+
 // DeleteSavedQuery removes a saved search.
 func (a *API) DeleteSavedQuery(ctx context.Context, id int64) error {
 	if a.query == nil {

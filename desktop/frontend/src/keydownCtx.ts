@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import type {
   KeyMap, AccountInfo, MessageSummary, MessageDetail, ActionPlanResult,
-  PlanCategory, Invite, Attachment,
+  PlanCategory, Invite, Attachment, SavedQuery,
 } from "./apiTypes";
 import type { ComposeInit } from "./Compose";
 import type { PlanNode } from "./planNodes";
@@ -76,6 +76,8 @@ export interface KeydownCtx {
   promptPreview: string | null;
   promptsOpen: boolean;
   queriesOpen: boolean;
+  editingQuery: SavedQuery | null;
+  setEditingQuery: Dispatch<SetStateAction<SavedQuery | null>>;
   quickSearch: (kind: "from" | "to" | "subject", d: MessageDetail) => void;
   readerBodyRef: RefObject<HTMLDivElement>;
   readerFocused: boolean;

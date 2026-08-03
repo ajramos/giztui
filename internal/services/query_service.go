@@ -302,6 +302,24 @@ func (s *QueryServiceImpl) UpdateQueryCategory(ctx context.Context, id int64, ca
 	return nil
 }
 
+// UpdateQuery edits an existing saved query (name, query, description, category)
+// by id, so it can be renamed — SaveQuery upserts by name and can't.
+func (s *QueryServiceImpl) UpdateQuery(ctx context.Context, id int64, name, query, description, category string) error {
+	if s.store == nil {
+		return fmt.Errorf("query store not available")
+	}
+	if strings.TrimSpace(s.accountEmail) == "" {
+		return fmt.Errorf("account email not set")
+	}
+	if id <= 0 {
+		return fmt.Errorf("invalid query ID")
+	}
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return fmt.Errorf("name and query are required")
+	}
+	return s.store.UpdateQuery(ctx, s.accountEmail, id, strings.TrimSpace(name), strings.TrimSpace(query), description, strings.TrimSpace(category))
+}
+
 // convertToSavedQueryInfo converts a db.SavedQuery to SavedQueryInfo
 func (s *QueryServiceImpl) convertToSavedQueryInfo(sq *db.SavedQuery) *SavedQueryInfo {
 	return &SavedQueryInfo{
