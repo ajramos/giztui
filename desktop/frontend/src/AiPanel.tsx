@@ -37,7 +37,10 @@ const AiPanel = forwardRef<
   return (
     <div className={"summary-panel" + (className ? " " + className : "")} ref={ref}>
       <div className="summary-head">
-        <span>✦ {title}</span>
+        {/* Fall back to a generic label so a restored result with a missing
+            title (e.g. a DB-cached prompt whose name wasn't persisted) never
+            renders as a bare "✦" with no heading. */}
+        <span>✦ {title || "Prompt result"}</span>
         <span className="summary-head-actions">
           {showActions && (
             <button

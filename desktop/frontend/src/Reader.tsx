@@ -32,6 +32,7 @@ export default function Reader(props: {
   summarizing: boolean;
   chat: ChatBundle;
   promptRunning: boolean;
+  promptGenerating: boolean;
   generatingReply: boolean;
   touchingUp: boolean;
   touchUpShown: boolean;
@@ -211,8 +212,7 @@ export default function Reader(props: {
             promptPanelRef={props.promptPanelRef}
             promptLabel={props.promptLabel}
             promptResult={props.promptResult}
-            promptRunning={props.promptRunning}
-            promptForId={props.promptForId}
+            promptGenerating={props.promptGenerating}
             onRegeneratePrompt={props.onRegeneratePrompt}
             onDismissPrompt={props.onDismissPrompt}
             csOpen={props.csOpen}

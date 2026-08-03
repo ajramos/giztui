@@ -11,7 +11,34 @@ import {
   formatDate,
   formatFull,
   formatSize,
+  resolveEmailLinkHref,
 } from "./format";
+
+describe("resolveEmailLinkHref", () => {
+  it("passes through http/https", () => {
+    expect(resolveEmailLinkHref("https://example.com/x")).toBe("https://example.com/x");
+    expect(resolveEmailLinkHref("http://example.com")).toBe("http://example.com");
+  });
+  it("upgrades protocol-relative //host to https (the reported dead links)", () => {
+    expect(resolveEmailLinkHref("//cdn.example.com/track?id=1")).toBe(
+      "https://cdn.example.com/track?id=1",
+    );
+  });
+  it("allows mailto and tel so those links aren't dead", () => {
+    expect(resolveEmailLinkHref("mailto:a@b.com")).toBe("mailto:a@b.com");
+    expect(resolveEmailLinkHref("tel:+34123")).toBe("tel:+34123");
+  });
+  it("trims surrounding whitespace before testing the scheme", () => {
+    expect(resolveEmailLinkHref("  https://example.com  ")).toBe("https://example.com");
+  });
+  it("ignores unsafe or non-navigable hrefs", () => {
+    expect(resolveEmailLinkHref("javascript:alert(1)")).toBeNull();
+    expect(resolveEmailLinkHref("data:text/html,<h1>x</h1>")).toBeNull();
+    expect(resolveEmailLinkHref("#section")).toBeNull();
+    expect(resolveEmailLinkHref("")).toBeNull();
+    expect(resolveEmailLinkHref(null)).toBeNull();
+  });
+});
 
 describe("displayName", () => {
   it("prefers the quoted/display part before <addr>", () => {

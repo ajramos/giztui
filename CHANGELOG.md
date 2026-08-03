@@ -5,6 +5,26 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.1] - 2026-08-03
+
+Bug-fix release for the desktop client: dead email links now open, and the
+single-message AI prompt panel behaves correctly.
+
+### 🐛 Bug Fixes
+
+- **Desktop: some email links did nothing on click.** The reader only opened
+  hrefs starting with `http(s):`, so protocol-relative links (`//host/…`, common
+  in newsletters) and `mailto:` / `tel:` links were silently ignored. They now
+  open in the browser / mail client; `javascript:` and `data:` stay blocked.
+- **Desktop: single-message prompts now appear in `:jobs`.** A prompt run on one
+  message is registered as a job the moment it starts (not only when it finishes),
+  so it shows up live in the jobs list alongside bulk prompts.
+- **Desktop: the prompt panel no longer loses its `Generating…` state or title.**
+  Running prompts on two different messages and switching between them kept its
+  own per-message state (previously a single global slot blanked the older one),
+  and a restored result with a missing name falls back to a generic heading
+  instead of an empty title.
+
 ## [1.25.0] - 2026-08-03
 
 Keyboard **focus parity between the TUI and the desktop client**: `Tab` now moves

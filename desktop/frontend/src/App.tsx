@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_KEYMAP,
   type AccountInfo,
@@ -213,9 +213,28 @@ export default function App() {
   // runExclusive serializes the shared "prompt:token" stream.
   const {
     bulkPromptText, setBulkPromptText, bulkPromptLabel, bulkJobRunning,
-    enqueueJob, runExclusive,
+    enqueueJob, startInlineJob, updateInlineJob, settleInlineJob, runExclusive,
     jobs, jobsPickerOpen, setJobsPickerOpen, openJob, removeJob, clearFinished,
   } = useAiJobs({ showToast, setError, notifyOnComplete: jobsNotify });
+
+  // Messages that currently have a single-message prompt job in flight. Derived
+  // from the jobs list so the reader panel can show "Generating…" for whichever
+  // message is open — the single-slot promptRunning only tracks the most recent
+  // launch, so alternating between two running prompts would otherwise blank the
+  // widget on the one that isn't the latest.
+  const runningPromptIds = useMemo(
+    () =>
+      new Set(
+        jobs
+          .filter(
+            (j) =>
+              j.kind === "prompt" &&
+              (j.status === "running" || j.status === "queued"),
+          )
+          .map((j) => j.messageIds[0]),
+      ),
+    [jobs],
+  );
 
   const {
     obsidianOn,
@@ -331,7 +350,8 @@ export default function App() {
     dismissPrompt, dismissTouchUp, dismissAI, regenerateActive, summarizeThread,
   } = useAiActions({
     detail, bulkMode, selected, aiEnabled, showToast, setError,
-    setPromptsOpen, setCompose, enqueueJob, runExclusive,
+    setPromptsOpen, setCompose, enqueueJob,
+    startInlineJob, updateInlineJob, settleInlineJob, runExclusive,
   });
 
   // "Chat with this email" panel (multi-turn), scoped to the open message.
@@ -495,6 +515,15 @@ export default function App() {
     actionPlanOn, rsvpEnabled, themesOn, appVersion, setShowHelp,
   };
 
+  // Whether the OPEN message has a prompt generating right now: the single-slot
+  // promptRunning tracks only the latest launch, so OR in the per-message job set
+  // (runningPromptIds) — otherwise switching back to a still-running prompt on
+  // another message shows no "Generating…".
+  const promptGenerating =
+    !!detail &&
+    ((promptRunning && promptForId === detail.id) ||
+      runningPromptIds.has(detail.id));
+
   // Props for the inbox surface (top bar + banners + list/reader). All were
   // verbatim pass-throughs or inline handlers now living in AppInbox.
   const inboxProps = {
@@ -508,7 +537,7 @@ export default function App() {
     selected, busy, bulkProgress, bulkAction, setBulkLabels, setBulkMove, setSelected, toggleSelect,
     openMessage, loadingMore, loadMore, detail, readerFocused, headersHidden, headersExpanded,
     attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
-    threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
+    threadMsgs, viewHtml, summarizing, promptRunning, promptGenerating, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
     setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
     openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,

@@ -45,7 +45,7 @@ export function useReader(deps: {
     setPromptResult, setPromptLabel, setTouchUpText, setViewHtml, setAttachments, setAttachmentsOpen,
     setThreadMsgs, setCollapsedMsgs, setInvite, setCsOpen, setLoadRemote, setReaderFocused,
     openIdRef, aiCache, alwaysImagesRef, imageOptIn, rootRef, rsvpEnabledRef,
-    runningLabelRef, promptLabelRef, promptForIdRef, promptRunningRef, summarizingRef, summaryForIdRef,
+    runningLabelRef, promptLabelRef, summarizingRef, summaryForIdRef,
   } = deps;
   const loadMessage = useCallback(
     async (m: MessageSummary, markRead: boolean) => {
@@ -62,8 +62,11 @@ export function useReader(deps: {
       // token; the title would otherwise blank out, so restore it explicitly.
       const summaryStreamingHere =
         summarizingRef.current && summaryForIdRef.current === m.id;
-      const promptStreamingHere =
-        promptRunningRef.current && promptForIdRef.current === m.id;
+      // Per-message, not the single-slot promptForIdRef: runningLabelRef holds an
+      // entry for every message with a prompt still in flight, so returning to a
+      // message whose prompt is running (while a newer prompt streams elsewhere)
+      // still restores its live "Generating…" panel instead of blanking it.
+      const promptStreamingHere = !!runningLabelRef.current[m.id];
       if (!summaryStreamingHere) setSummary(ai?.summary ?? null);
       const lastPrompt =
         ai?.lastPromptId != null ? ai.promptResults?.[ai.lastPromptId] : undefined;

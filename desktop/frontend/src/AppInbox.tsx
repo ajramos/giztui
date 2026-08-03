@@ -104,6 +104,7 @@ export interface AppInboxProps {
   viewHtml: boolean;
   summarizing: boolean;
   promptRunning: boolean;
+  promptGenerating: boolean;
   generatingReply: boolean;
   touchingUp: boolean;
   touchUpText: string | null;
@@ -174,7 +175,7 @@ export default function AppInbox(p: AppInboxProps) {
     selected, busy, bulkProgress, bulkAction, setBulkLabels, setBulkMove, setSelected, toggleSelect,
     openMessage, loadingMore, loadMore, detail, readerFocused, headersHidden, headersExpanded,
     attachments, downloadAttachment, aiEnabled, aiPromptsEnabled, obsidianOn, slackOn, threadingOn,
-    threadMsgs, viewHtml, summarizing, promptRunning, generatingReply, touchingUp, touchUpText,
+    threadMsgs, viewHtml, summarizing, promptRunning, promptGenerating, generatingReply, touchingUp, touchUpText,
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
     setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
     openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
@@ -315,6 +316,7 @@ export default function AppInbox(p: AppInboxProps) {
           summarizing={summarizing}
           chat={chat}
           promptRunning={promptRunning}
+          promptGenerating={promptGenerating}
           generatingReply={generatingReply}
           touchingUp={touchingUp}
           touchUpShown={touchUpText !== null}

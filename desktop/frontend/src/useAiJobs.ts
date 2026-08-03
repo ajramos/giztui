@@ -6,7 +6,10 @@ import { applyBulkPromptStream } from "./api";
 // several messages; the shape is deliberately extensible (chat, notebooklm…).
 export interface AiJob {
   id: string;
-  kind: "bulk_prompt";
+  // "bulk_prompt" streams in the background here; "prompt" is a single-message
+  // reader prompt that already ran inline and is recorded as a done job so it
+  // shows up in the :jobs list too (same surface, no re-run).
+  kind: "bulk_prompt" | "prompt";
   label: string;
   status: "queued" | "running" | "done" | "error";
   text: string; // accumulated stream / final result
@@ -75,6 +78,43 @@ export function useAiJobs(deps: {
   const patchJob = useCallback((id: string, patch: Partial<AiJob>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
+
+  // Single-message reader prompts stream inline in the reader but are ALSO
+  // tracked as jobs so (a) they show up in :jobs the moment they start — not just
+  // when they finish — and (b) two prompts on two different messages each have
+  // their own row (the reader's single-slot promptRunning can only reflect one).
+  // startInlineJob registers a running row and returns its id; updateInlineJob
+  // streams the accumulated text into it; settleInlineJob marks it done/error.
+  const startInlineJob = useCallback((spec: EnqueueSpec): string => {
+    const now = Date.now();
+    const id = `job-${++seqRef.current}-${now}`;
+    const job: AiJob = {
+      id,
+      kind: "prompt",
+      label: spec.label,
+      status: "running",
+      text: "",
+      createdAt: now,
+      messageIds: spec.messageIds,
+      promptId: spec.promptId,
+    };
+    setJobs((prev) => [...prev, job]);
+    return id;
+  }, []);
+  const updateInlineJob = useCallback(
+    (id: string, text: string) => patchJob(id, { text }),
+    [patchJob],
+  );
+  const settleInlineJob = useCallback(
+    (id: string, r: { text: string; error?: string }) =>
+      patchJob(id, {
+        status: r.error ? "error" : "done",
+        text: r.text,
+        error: r.error,
+        finishedAt: Date.now(),
+      }),
+    [patchJob],
+  );
 
   const enqueueJob = useCallback(
     (spec: EnqueueSpec) => {
@@ -162,6 +202,9 @@ export function useAiJobs(deps: {
     anyJobRunning,
     // actions
     enqueueJob,
+    startInlineJob,
+    updateInlineJob,
+    settleInlineJob,
     runExclusive,
     openJob,
     removeJob,
