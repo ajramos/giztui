@@ -2421,7 +2421,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s 📝  Same as :drafts (view drafts)\n", ":dr")
 	fmt.Fprintf(&help, "    %-18s ✏️   Same as :compose (compose new message)\n", ":new")
 	fmt.Fprintf(&help, "    %-18s 🔍  Search for 'term'\n", ":search term")
-	fmt.Fprintf(&help, "    %-18s 💾  Save current search as bookmark\n", ":save-query")
+	fmt.Fprintf(&help, "    %-18s 💾  Save current search as bookmark (append @category to group it)\n", ":save-query")
 	fmt.Fprintf(&help, "    %-18s 📚  Browse saved query bookmarks\n", ":bookmarks")
 	fmt.Fprintf(&help, "    %-18s 🔍  Execute saved query by name\n", ":bookmark name")
 	if a.Config.IsObsidianEnabled() {

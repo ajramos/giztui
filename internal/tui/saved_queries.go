@@ -20,6 +20,24 @@ type queryItem struct {
 	useCount    int
 }
 
+// parseSavedQuerySaveArgs splits ":save-query" arguments into a name and an
+// optional category. A token starting with "@" sets the category (case as typed,
+// minus the "@"); everything else joins into the name. E.g.
+// ["Unpaid", "invoices", "@finance"] → ("Unpaid invoices", "finance"). With no
+// "@" token the category is empty, landing the query in the picker's "Default"
+// group. Mirrors the "@category" filter so save and browse share one convention.
+func parseSavedQuerySaveArgs(args []string) (name, category string) {
+	nameParts := make([]string, 0, len(args))
+	for _, a := range args {
+		if strings.HasPrefix(a, "@") && len(a) > 1 {
+			category = strings.TrimSpace(strings.TrimPrefix(a, "@"))
+			continue
+		}
+		nameParts = append(nameParts, a)
+	}
+	return strings.TrimSpace(strings.Join(nameParts, " ")), category
+}
+
 // savedQueryCategoryLabel is the display name of a query's category: the free-form
 // category string, or "Default" for uncategorised entries. Grouping and the
 // "@category" filter share this so they always agree.

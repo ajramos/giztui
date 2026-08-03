@@ -468,7 +468,7 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 ### Saved Search Commands
 | Command | Description |
 |---------|-------------|
-| `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark) |
+| `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark). Add `@category` to file it under a group, e.g. `:save-query Unpaid invoices @finance` |
 | `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; type `@work` to filter by category) |
 | `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 

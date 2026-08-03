@@ -2047,10 +2047,13 @@ func (a *App) executeThemePreview(themeName string) {
 
 // executeSaveQueryCommand handles :save-query commands
 func (a *App) executeSaveQueryCommand(args []string) {
-	// Optional: accept name as argument
+	// Optional: accept name (and "@category") as arguments.
 	if len(args) > 0 {
-		// Save with provided name
-		name := strings.Join(args, " ")
+		name, category := parseSavedQuerySaveArgs(args)
+		if name == "" {
+			a.showError("Provide a name, e.g. :save-query Unpaid invoices @finance")
+			return
+		}
 		currentQuery := a.getCurrentSearchQuery()
 		if strings.TrimSpace(currentQuery) == "" {
 			a.showError("No current search to save. Perform a search first.")
@@ -2072,7 +2075,7 @@ func (a *App) executeSaveQueryCommand(args []string) {
 		}
 
 		go func() {
-			_, err := queryService.SaveQuery(a.ctx, name, currentQuery, "", "general")
+			_, err := queryService.SaveQuery(a.ctx, name, currentQuery, "", category)
 			if err != nil {
 				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save query: %v", err))
 			} else {

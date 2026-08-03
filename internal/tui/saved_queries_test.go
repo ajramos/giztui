@@ -47,6 +47,28 @@ func TestMatchesSavedQueryFilter(t *testing.T) {
 	}
 }
 
+func TestParseSavedQuerySaveArgs(t *testing.T) {
+	tests := []struct {
+		args     []string
+		wantName string
+		wantCat  string
+	}{
+		{[]string{"invoices"}, "invoices", ""},
+		{[]string{"Unpaid", "invoices"}, "Unpaid invoices", ""},
+		{[]string{"invoices", "@finance"}, "invoices", "finance"},
+		{[]string{"@finance", "invoices"}, "invoices", "finance"},
+		{[]string{"Unpaid", "@finance", "invoices"}, "Unpaid invoices", "finance"},
+		{[]string{"@finance"}, "", "finance"}, // category only → no name
+		{[]string{"@"}, "@", ""},              // bare @ is not a category token
+	}
+	for _, tc := range tests {
+		name, cat := parseSavedQuerySaveArgs(tc.args)
+		if name != tc.wantName || cat != tc.wantCat {
+			t.Errorf("parseSavedQuerySaveArgs(%v) = (%q, %q), want (%q, %q)", tc.args, name, cat, tc.wantName, tc.wantCat)
+		}
+	}
+}
+
 func TestSortSavedQueriesByCategory(t *testing.T) {
 	items := []queryItem{
 		{name: "b", category: ""}, // Default
