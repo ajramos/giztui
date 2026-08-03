@@ -177,6 +177,9 @@ func (a *App) openPromptPicker() {
 					triggerPreview()
 					return nil
 				}
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
 					return e
@@ -260,6 +263,9 @@ func (a *App) openPromptPicker() {
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.matchesConfiguredKey(e, a.Keys.PromptPreview) {
 					triggerPreview()
+					return nil
+				}
+				if a.pickerTabCycle(e) {
 					return nil
 				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
@@ -712,6 +718,9 @@ func (a *App) openPromptPickerForManagement() {
 
 			// Handle input events
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(event) {
+					return nil
+				}
 				switch event.Key() {
 				case tcell.KeyEscape:
 					a.closePromptManager()
@@ -725,6 +734,9 @@ func (a *App) openPromptPickerForManagement() {
 
 			// Enhanced list input capture with management keys
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
 					a.SetFocus(input)
 					return nil

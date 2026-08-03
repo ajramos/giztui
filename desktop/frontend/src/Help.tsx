@@ -54,6 +54,7 @@ function buildSections(k: KeyMap, f: HelpFlags): Section[] {
     rows: [
       { icon: "↕️", keys: "j / k", desc: "Move cursor (preview, no read)" },
       { icon: "↵", keys: "Enter", desc: "Open message (marks read)" },
+      { icon: "⇄", keys: "Tab", desc: "Toggle focus: list ⇄ reader" },
       { icon: "⬆️", keys: fmtKey(k.gotoTop), desc: "Go to top" },
       { icon: "⬇️", keys: fmtKey(k.gotoBottom), desc: "Go to bottom" },
       { icon: "🔢", keys: ":numbers", desc: "Toggle message number column" },

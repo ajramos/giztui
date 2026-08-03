@@ -454,6 +454,9 @@ func (a *App) populateLabelsQuickView(messageID string) {
 
 		// Capture ESC in quick view to close panel (hint shown in footer of subpanels)
 		body.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			if a.pickerTabCycle(e) {
+				return nil
+			}
 			if e.Key() == tcell.KeyEscape {
 				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
 					split.ResizeItem(a.labelsView, 0, 0)
@@ -1052,6 +1055,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			})
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyUp || e.Key() == tcell.KeyDown {
 					// Redirect arrow keys to the list when in the search field
 					a.SetFocus(list)
@@ -1106,6 +1112,9 @@ func (a *App) expandLabelsBrowseWithMode(messageID string, moveMode bool) {
 			}
 			// ESC handling and Up on first item: back to search
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if a.logger != nil {
 					a.logger.Printf("🎹 LIST INPUT CAPTURE: key=%d, rune=%c, currentFocus=%s", int(e.Key()), e.Rune(), a.focus.cur())
 				}
@@ -1250,6 +1259,9 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
 			// Permitir volver al listado con flechas desde el buscador
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
 					a.SetFocus(list)
 					a.markFocus("labels")
@@ -1296,6 +1308,9 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 			}
 			// Capturar flechas en la lista: si estamos en la primera y pulsamos Arriba, volver al buscador
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyUp {
 					idx := list.GetCurrentItem()
 					if idx <= 0 {

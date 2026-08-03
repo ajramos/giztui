@@ -1721,6 +1721,27 @@ func (a *App) toggleFocus() {
 	a.cycleFocus(true)
 }
 
+// pickerTabCycle lets a side-panel picker's own input capture cycle the focus ring
+// on Tab / Shift+Tab. The application-level input capture early-returns for a focused
+// InputField/List (so the picker filter can type freely), which means Tab never
+// reaches the ring toggle in the global handler — without this a picker traps focus
+// and you can't Tab back to the message list. Pickers call it at the top of their
+// input/list SetInputCapture: `if a.pickerTabCycle(e) { return nil }`. The picker
+// stays open as one stop in the ring (buildFocusRing). Returns true if it consumed
+// the event. Pickers that assign their own meaning to Tab (Obsidian form, prompt
+// configurator, rules manager) do NOT call this.
+func (a *App) pickerTabCycle(e *tcell.EventKey) bool {
+	switch e.Key() {
+	case tcell.KeyTab:
+		a.cycleFocus(true)
+		return true
+	case tcell.KeyBacktab:
+		a.cycleFocus(false)
+		return true
+	}
+	return false
+}
+
 // restoreFocusAfterModal restores focus to the appropriate view after closing a modal
 func (a *App) restoreFocusAfterModal() {
 	// Check for special focus overrides (e.g., content search)

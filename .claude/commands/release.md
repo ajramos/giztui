@@ -76,6 +76,8 @@ claude release validate
 - [ ] **Architecture Compliance**: Service-first patterns, error handling
 - [ ] **Feature Completeness**: Command parity, bulk support, theming
 - [ ] **Documentation**: Features documented, shortcuts updated
+- [ ] **Shortcut/command doc-sync**: every new key/command shipped this cycle is in ALL THREE — `docs/KEYBOARD_SHORTCUTS.md`, the in-app `?` help (`internal/tui/app.go`), and `internal/tui/command_completion.go`. The doc↔registry half is CI-enforced by `TestCommandsDocumentedInReference` (`go test ./internal/tui/`); still eyeball the `?` help by hand
+- [ ] **Version consistency**: `go test ./internal/version/` passes — it pins `VERSION`, `internal/version/version.go`, `CHANGELOG.md`, and the Homebrew cask template (`packaging/homebrew/giztui-desktop.rb`) to the same version
 - [ ] **Git Status**: Clean working directory, synchronized with origin
 - [ ] **Dependencies**: Security scan, version compatibility
 - [ ] **Build Test**: Multi-platform compilation verification
@@ -92,7 +94,8 @@ claude release publish 1.2.0
 3. **Workflow Monitoring**: Track GitHub Actions progress
 4. **Asset Verification**: Confirm successful builds and uploads
 5. **Installation Testing**: Verify go install and binary downloads
-6. **Documentation Updates**: README, installation guides
+6. **Homebrew tap check**: confirm `ajramos/homebrew-giztui` cask bumped to the new version + universal-DMG sha256 — the `homebrew` CI job silently skips (still green) if `HOMEBREW_TAP_TOKEN` is unset, so verify it actually moved (see `docs/RELEASE_PROCEDURE.md` → Post-Release step 13)
+7. **Documentation Updates**: README, installation guides
 
 ### **Hotfix Release**: `hotfix [version] [issue]`
 ```bash

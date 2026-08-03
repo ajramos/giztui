@@ -44,7 +44,12 @@ Before starting any release, ensure all these conditions are met:
 - [ ] All new features documented in appropriate docs
 - [ ] Breaking changes clearly identified
 - [ ] Configuration changes documented
-- [ ] Keyboard shortcuts updated if needed
+- [ ] **Shortcut/command doc-sync (three sources must agree)** — for every new key or command shipped this cycle, confirm it lives in **all three**:
+  1. `docs/KEYBOARD_SHORTCUTS.md` (the reference table — this is the one that silently drifts)
+  2. the in-app `?` help (built in `internal/tui/app.go`)
+  3. the command completion registry (`internal/tui/command_completion.go`)
+  - **Enforced automatically** by `go test ./internal/tui/ -run TestCommandsDocumentedInReference` (part of `make test` / CI): it fails the build if any command in the registry is absent from `docs/KEYBOARD_SHORTCUTS.md` (by name or alias). The in-app `?` help and the completion registry are the other two sources — keep all three in step.
+- [ ] Version consistency is enforced by `go test ./internal/version/` — `VERSION`, `internal/version/version.go`, `CHANGELOG.md`, and `packaging/homebrew/giztui-desktop.rb` must all agree (the test fails the build if any drifts)
 
 ### **Git Repository Status**
 - [ ] Working directory is clean: `git status`
@@ -245,7 +250,18 @@ Increment for **bug fixes and improvements** (backward compatible):
     gh release download vX.Y.Z
     ```
 
-13. **Update Documentation** (if needed)
+13. **Verify the Homebrew tap cask bumped** (desktop)
+    ```bash
+    # The release-desktop.yml `homebrew` job pushes the new version + universal-DMG
+    # sha256 to ajramos/homebrew-giztui. It SILENTLY SKIPS if HOMEBREW_TAP_TOKEN is
+    # unset — its job still shows green, so verify the tap actually moved:
+    curl -fsSL https://raw.githubusercontent.com/ajramos/homebrew-giztui/main/Casks/giztui-desktop.rb | grep -E 'version|sha256'
+    # version must equal this release; sha256 must equal the universal .dmg entry in
+    # the release's desktop-checksums.txt. If it did NOT bump, either set the
+    # HOMEBREW_TAP_TOKEN secret and re-run the workflow, or bump the tap cask manually.
+    ```
+
+14. **Update Documentation** (if needed)
     ```bash
     # Update installation instructions in README.md
     # Update any version-specific documentation

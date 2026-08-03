@@ -20,6 +20,7 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `r` | Toggle read/unread | Mark message as read or unread |
 | `a` | Archive | Move message to archive |
 | `d` | Trash | Move message to trash |
+| `*` | Star / unstar | Toggle Gmail's STARRED flag on the message (⭐ column); bulk-aware via `:star` / `:unstar` |
 | `u` | Show unread | Filter to show only unread messages |
 | `s` | Search | Open search interface |
 | `U` | Undo | Reverse last action (archive, trash, read/unread, labels) |
@@ -59,7 +60,7 @@ Complete keyboard shortcut reference for GizTUI - the AI-powered Gmail terminal 
 | `F` | Quick search: From | Search emails from current sender |
 | `T` | Quick search: To | Search emails to current sender |
 | `S` | Quick search: Subject | Search by current subject |
-| `B` | Quick search: Archived | Search archived messages |
+| `B` | Quick search: Archived | Search archived messages (command: `:archived` / `:arch-search`) |
 | `Ctrl+T` | Toggle search mode | In the search box, switch between Gmail (remote) and local filter (`keys.search_toggle_mode`) |
 | `Ctrl+F` | Advanced search | In the search box, open the advanced search form (`keys.search_advanced`) |
 
@@ -247,7 +248,7 @@ The action keys (archive / trash / label / toggle-read) reuse your configured bi
 | `:action-plan rules` | — | Open the preference rules manager (add / delete saved learning rules) |
 | `:action-plan apply` | `:plan apply`, `:ap apply` | Apply the whole plan — same two-step confirmation as `c` in the panel (requires the panel to be open with analysis finished) |
 | `:rules` | `:ru` | Deterministic rules manager (⚡ rules run without AI; ☁ = also mirrored as a Gmail filter) |
-| `:rules plan` | `:ru plan` | Preview what your rules match as an Action Plan — no AI involved |
+| `:rules plan` | `:ru plan`, `:rp` | Preview what your rules match as an Action Plan — no AI involved (`:rp` is a direct shortcut) |
 | `:rules sync <n>` / `:rules unsync <n>` | — | Mirror rule *n* to Gmail / remove the mirror (*n* = position in `:rules`) |
 
 ### Configuration
@@ -361,11 +362,16 @@ When you customize shortcuts, the priority order is:
 | `:unread` | `u` | Show unread messages |
 | `:archive` or `:a` | `a` | Archive message(s) |
 | `:trash` or `:d` | `d` | Move to trash |
+| `:star` or `:st` | `*` | Star message(s) — bulk-aware |
+| `:unstar` or `:unst` | `*` | Unstar message(s) — bulk-aware |
+| `:read` or `:t` | `r` | Toggle read/unread on the message (or selection) |
 | `:labels` or `:l` | `l` | Manage labels |
-| `:compose` | `c` | Compose new message |
-| `:reply` or `:r` | `R` | Reply to message |
+| `:compose` or `:new` | `c` | Compose new message |
+| `:reply` or `:r` | `R` | Reply to sender |
+| `:reply-all` or `:ra` | `E` | Reply to sender and all recipients |
 | `:forward` or `:f` | `w` | Forward message |
 | `:drafts` | `D` | View drafts |
+| `:inbox` or `:i` | - | Return to the inbox and reload the list |
 | `:accounts` | - | Open account picker |
 
 ### Thread Commands
@@ -394,6 +400,9 @@ When you customize shortcuts, the priority order is:
 | `:themes` | List available themes |
 | `:theme set <name>` | Switch to theme |
 | `:refresh` | Refresh current view |
+| `:load` / `:more` / `:next` | Load the next batch of older messages |
+| `:headers` / `:toggle-headers` | Toggle full email header visibility in the reader |
+| `:cache` | Show or manage the local message cache |
 | `:autorefresh` / `:arr` | Toggle background inbox auto-refresh on/off |
 | `:autorefresh <duration>` / `:arr 2m` | Enable auto-refresh and set the poll interval at runtime (min 1m) |
 | `:undo` | Undo last action |
@@ -433,6 +442,35 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 | `:prompt update` or `:prompt u` | - | Update existing prompt |
 | `:prompt delete` or `:prompt d` | - | Delete prompt |
 | `:prompt export` or `:prompt e` | - | Export prompts |
+
+### AI Commands
+| Command | Shortcut Equivalent | Description |
+|---------|-------------------|-------------|
+| `:summary` | — | Generate an AI summary of the current message |
+| `:chat` | — | Multi-turn AI chat grounded on the open email |
+| `:jobs` or `:aijobs` | — | Browse AI background jobs (bulk prompts): re-open a result, remove, or clear finished |
+| `:touch-up` | — | Apply an AI touch-up pass to clean up the rendered message |
+
+> Thread-level AI lives under **Thread Commands** (`:thread-summary`); the prompt library is under **Prompt Management Commands**.
+
+### Selection & Range Commands
+| Command | Shortcut Equivalent | Description |
+|---------|-------------------|-------------|
+| `:select all` / `:select none` (`:sel`) | `Ctrl+A` (all) | Bulk-select messages |
+| `:move <count>` or `:mv <count>` | `m` | Move the next N messages to a folder/label (VIM-style range, e.g. `:move 5`) |
+| `:label <count>` or `:lbl <count>` | — | Open the label picker for the next N messages (VIM-style range) |
+
+### Calendar (RSVP) Commands
+| Command | Shortcut Equivalent | Description |
+|---------|-------------------|-------------|
+| `:rsvp` | `V` | Respond to a calendar invitation (Yes / No / Maybe) in the current message |
+
+### Saved Search Commands
+| Command | Description |
+|---------|-------------|
+| `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark) |
+| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search |
+| `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 
 ## 🎨 Theme & UI
 

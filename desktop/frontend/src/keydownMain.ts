@@ -42,6 +42,18 @@ export function handleKeyMain(e: KeyboardEvent, ctx: KeydownCtx) {
         return;
       }
 
+      // Tab / Shift+Tab toggle focus between the message list and the reader —
+      // the GUI equivalent of the TUI's Tab focus ring (list ⇄ reader). Only two
+      // panes, so both directions just flip readerFocused, which routes the
+      // arrow/j-k scrolling below and lights the reader's "reader-focused" border.
+      // preventDefault always, so WKWebView can't move DOM focus onto a toolbar
+      // button and start swallowing subsequent keys.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        if (detail && !bulkMode) setReaderFocused((v) => !v);
+        return;
+      }
+
       // --- reader-focused scrolling (TUI parity) ---
       // After Enter/click-open (or a click in the reader), arrows & j/k scroll
       // the message body instead of moving the inbox cursor; Space/PageDown page

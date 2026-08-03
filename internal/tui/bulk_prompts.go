@@ -184,6 +184,9 @@ func (a *App) openBulkPromptPicker() {
 
 			// Handle key events for input field
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(event) {
+					return nil
+				}
 				if a.matchesConfiguredKey(event, a.Keys.PromptPreview) {
 					triggerPreview()
 					return nil
@@ -201,6 +204,9 @@ func (a *App) openBulkPromptPicker() {
 
 			// Handle navigation for list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if a.matchesConfiguredKey(e, a.Keys.PromptPreview) {
 					triggerPreview()
 					return nil

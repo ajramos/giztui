@@ -156,6 +156,9 @@ func (a *App) openThemePicker() {
 
 			// Handle input events
 			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(event) {
+					return nil
+				}
 				switch event.Key() {
 				case tcell.KeyEscape:
 					a.closeThemePicker()
@@ -201,6 +204,9 @@ func (a *App) openThemePicker() {
 
 			// Handle navigation between input and list
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
 				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
 					a.SetFocus(input)
 					return nil
