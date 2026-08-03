@@ -137,10 +137,12 @@ func (a *App) showSavedQueriesPicker() {
 				continue
 			}
 
-			// Emit a header row whenever the category group changes.
+			// Emit a header row whenever the category group changes. Colour it with
+			// the component Title colour (bold) via a tview tag so it stands apart
+			// from the query rows (List honours color tags in the main text).
 			cl := savedQueryCategoryLabel(item.category)
 			if !haveHeader || cl != lastCat {
-				list.AddItem(fmt.Sprintf("─ %s ─", cl), "", 0, nil)
+				list.AddItem(fmt.Sprintf("[%s::b]─ %s ─[-:-:-]", queryColors.Title.String(), cl), "", 0, nil)
 				rowItems = append(rowItems, -1)
 				lastCat = cl
 				haveHeader = true
