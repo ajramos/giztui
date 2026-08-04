@@ -1,5 +1,6 @@
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
+import { useConfirm } from "./useConfirm";
 import { Icon } from "./Icons";
 import type { AnalyzerRule } from "./api";
 
@@ -25,10 +26,15 @@ export default function AnalyzerRulesModal({
   onClose: () => void;
 }) {
   const nav = useListNav(rules, { onEscape: onClose, windowKeys: true });
+  const confirm = useConfirm();
 
-  usePickerCrud(rules, nav.active, { onDelete: (r) => onDeleteRule(r.id) });
+  const askDelete = (r: AnalyzerRule) =>
+    confirm.ask(`Delete this rule?\n\n“${r.text}”`, () => onDeleteRule(r.id));
+
+  usePickerCrud(confirm.open ? [] : rules, nav.active, { onDelete: askDelete });
 
   return (
+    <>
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal narrow"
@@ -63,7 +69,7 @@ export default function AnalyzerRulesModal({
                   <button
                     className="ghost tiny danger"
                     title="Delete"
-                    onClick={() => onDeleteRule(r.id)}
+                    onClick={() => askDelete(r)}
                   >
                     {Icon.trash}
                   </button>
@@ -90,5 +96,7 @@ export default function AnalyzerRulesModal({
         </div>
       </div>
     </div>
+    {confirm.node}
+    </>
   );
 }

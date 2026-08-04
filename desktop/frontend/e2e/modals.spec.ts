@@ -64,9 +64,11 @@ test.describe("display modals", () => {
     await expect(modal.locator(".prompt-manage-row")).toHaveCount(2);
     await page.keyboard.press("ArrowDown"); // window-level list nav still works
 
-    // Bare "d" deletes the highlighted rule via the shared usePickerCrud handler
-    // (the list holds focus, so no Shift is needed here).
+    // Bare "d" arms delete for the highlighted rule (list holds focus, no Shift
+    // needed); confirm it.
     await page.keyboard.press("d");
+    await expect(page.locator(".modal.confirm")).toBeVisible();
+    await page.keyboard.press("Enter");
     await expect(modal.locator(".prompt-manage-row")).toHaveCount(1);
 
     await page.keyboard.press("Escape");

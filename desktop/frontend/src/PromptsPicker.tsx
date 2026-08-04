@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
+import { useConfirm } from "./useConfirm";
+import { groupByCategory } from "./entityGroups";
 import PromptEditModal from "./PromptEditModal";
 import { Icon } from "./Icons";
 import { backend, type Prompt, type PromptDetail } from "./api";
@@ -13,10 +15,10 @@ const EMPTY: PromptDetail = {
   text: "",
 };
 
-// PromptsPicker is the single surface for prompts: pick one to apply, and manage
-// them inline — edit (pencil / e / Shift+E), delete (trash / d / Shift+Del) and
-// create (New prompt) — exactly like SavedQueriesPicker. Editing/creating opens a
-// stacked PromptEditModal; mutations reflect in the local list so nothing refetches.
+// PromptsPicker is the single surface for prompts, built to be visually identical
+// to SavedQueriesPicker: a filter (name or @category), category-grouped rows with
+// inline edit (pencil / e / Shift+E) and delete (trash / d / Shift+Del, with a
+// confirm step), plus New (Shift+N / footer). Editing opens a stacked modal.
 export default function PromptsPicker({
   aiEnabled,
   onClose,
@@ -26,7 +28,6 @@ export default function PromptsPicker({
   aiEnabled: boolean;
   onClose: () => void;
   onPick: (prompt: Prompt) => void;
-  // Fired after a create/edit/delete so the parent can drop cached prompt results.
   onChanged?: () => void;
 }) {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -34,6 +35,7 @@ export default function PromptsPicker({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<PromptDetail | null>(null);
+  const confirm = useConfirm();
 
   useEffect(() => {
     void (async () => {
@@ -47,19 +49,14 @@ export default function PromptsPicker({
     })();
   }, []);
 
-  const visible = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return prompts;
-    return prompts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q),
-    );
-  }, [prompts, filter]);
+  // Filtered + category-grouped rows via the shared model (same as saved
+  // searches), so the two pickers look and filter identically.
+  const rows = useMemo(
+    () => groupByCategory(prompts, filter, (p) => p.name, (p) => p.category),
+    [prompts, filter],
+  );
+  const visible = useMemo(() => rows.map((r) => r.item), [rows]);
 
-  // Keyboard-first, focus-independent: drive arrows/Enter/Escape at the window
-  // (WKWebView won't deliver them reliably from the focused input to our handler).
   const nav = useListNav(visible, {
     onEnter: (p) => onPick(p),
     onEscape: onClose,
@@ -74,16 +71,18 @@ export default function PromptsPicker({
       setError(String(e));
     }
   };
-  const remove = async (id: number) => {
+  const remove = async (p: Prompt) => {
     setError("");
     try {
-      await backend.DeletePrompt(id);
-      setPrompts((ps) => ps.filter((p) => p.id !== id));
+      await backend.DeletePrompt(p.id);
+      setPrompts((ps) => ps.filter((x) => x.id !== p.id));
       onChanged?.();
     } catch (e) {
       setError(String(e));
     }
   };
+  const askRemove = (p: Prompt) =>
+    confirm.ask(`Delete prompt “${p.name}”? This can’t be undone.`, () => void remove(p));
   const saveEdit = async (d: PromptDetail) => {
     if (d.id > 0) {
       await backend.UpdatePrompt(d.id, d.name, d.description, d.text, d.category);
@@ -95,13 +94,26 @@ export default function PromptsPicker({
     onChanged?.();
   };
 
-  // Shared edit/delete keys (e / Shift+E, d / Delete / Backspace / Shift+Del). The
-  // filter input is focused, so these fire as the Shift variants; disabled while
-  // the edit modal is open (pass no items) so keys belong to the form.
-  usePickerCrud(editing ? [] : visible, nav.active, {
+  const busy = editing !== null || confirm.open;
+  usePickerCrud(busy ? [] : visible, nav.active, {
     onEdit: (p) => void openEdit(p.id),
-    onDelete: (p) => void remove(p.id),
+    onDelete: (p) => askRemove(p),
   });
+
+  // Shift+N creates a prompt. The filter input is focused so a bare "n" types;
+  // Shift+N is intercepted (like Shift+E / Shift+Del) and opens the empty editor.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (busy) return;
+      if (e.shiftKey && (e.key === "N" || e.key === "n")) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setEditing({ ...EMPTY });
+      }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [busy]);
 
   return (
     <>
@@ -118,7 +130,7 @@ export default function PromptsPicker({
           <div className="modal-body">
             <input
               className="label-filter"
-              placeholder="Filter prompts…"
+              placeholder="Filter by name, or @category"
               value={filter}
               onChange={(e) => {
                 setFilter(e.target.value);
@@ -134,32 +146,36 @@ export default function PromptsPicker({
               ) : visible.length === 0 ? (
                 <div className="placeholder">No matches</div>
               ) : (
-                visible.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className={"query-row" + (i === nav.active ? " nav-active" : "")}
-                    onMouseEnter={() => nav.setActiveHover(i)}
-                  >
-                    <button className="query-main" onClick={() => onPick(p)}>
-                      <span className="prompt-name">{p.name}</span>
-                      {p.description && (
-                        <span className="prompt-desc">{p.description}</span>
-                      )}
-                    </button>
-                    <button
-                      className="ghost tiny"
-                      title="Edit"
-                      onClick={() => void openEdit(p.id)}
+                rows.map((r, i) => (
+                  <div key={r.item.id}>
+                    {r.groupStart && (
+                      <div className="query-group-head">{r.category}</div>
+                    )}
+                    <div
+                      className={"query-row" + (i === nav.active ? " nav-active" : "")}
+                      onMouseEnter={() => nav.setActiveHover(i)}
                     >
-                      {Icon.edit}
-                    </button>
-                    <button
-                      className="ghost tiny danger"
-                      title="Delete"
-                      onClick={() => void remove(p.id)}
-                    >
-                      {Icon.trash}
-                    </button>
+                      <button className="query-main" onClick={() => onPick(r.item)}>
+                        <span className="prompt-name">{r.item.name}</span>
+                        {r.item.description && (
+                          <span className="prompt-desc">{r.item.description}</span>
+                        )}
+                      </button>
+                      <button
+                        className="ghost tiny"
+                        title="Edit"
+                        onClick={() => void openEdit(r.item.id)}
+                      >
+                        {Icon.edit}
+                      </button>
+                      <button
+                        className="ghost tiny danger"
+                        title="Delete"
+                        onClick={() => askRemove(r.item)}
+                      >
+                        {Icon.trash}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -167,9 +183,13 @@ export default function PromptsPicker({
           </div>
           <div className="modal-foot">
             <span className="foot-hint">
-              type to filter · ↑↓ move · Enter apply · ⇧E edit · ⇧⌫ delete · Esc close
+              ↑↓ move · Enter apply · ⇧E edit · ⇧⌫ delete
             </span>
-            <button className="ghost" onClick={() => setEditing({ ...EMPTY })}>
+            <button
+              className="ghost"
+              title="New prompt (⇧N)"
+              onClick={() => setEditing({ ...EMPTY })}
+            >
               {Icon.plus} New prompt
             </button>
           </div>
@@ -183,6 +203,7 @@ export default function PromptsPicker({
           onClose={() => setEditing(null)}
         />
       )}
+      {confirm.node}
     </>
   );
 }

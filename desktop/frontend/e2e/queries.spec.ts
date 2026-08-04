@@ -25,9 +25,12 @@ test.describe("saved queries picker", () => {
     await expect(picker.locator(".query-row")).toHaveCount(1);
     await expect(picker.locator(".query-row")).toContainText("Unread from team");
 
-    // Shift+Backspace deletes the highlighted row (a bare key would type into the
-    // filter). The only Work query goes, leaving no matches for "@work".
+    // Shift+Backspace arms delete for the highlighted row (a bare key would type
+    // into the filter); confirm it. The only Work query goes, leaving no matches.
     await page.keyboard.press("Shift+Backspace");
+    const confirm = page.locator(".modal.confirm");
+    await expect(confirm).toBeVisible();
+    await page.keyboard.press("Enter"); // confirm via keyboard
     await expect(picker.locator(".query-row")).toHaveCount(0);
     await expect(picker.locator(".placeholder")).toHaveText("No matches");
   });

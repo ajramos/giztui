@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { backend, type DeterministicRule, type Prompt } from "./api";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
+import { useConfirm } from "./useConfirm";
 import { Icon } from "./Icons";
 
 const ACTIONS = ["archive", "mark_read", "trash", "label", "prompt"] as const;
@@ -62,14 +63,17 @@ export default function RulesManager({
   }, []);
 
   const nav = useListNav(rules, { onEscape: onClose });
+  const confirm = useConfirm();
+  const askDelete = (r: DeterministicRule) =>
+    confirm.ask(`Delete this rule?\n\n${r.query}`, () => void del(r.id));
 
   // Shared edit/delete keys (e / Shift+E, d / Delete / Backspace / Shift+Del),
-  // matching every other CRUD picker. Disabled while the add/edit form is open
-  // (pass no items) so those keys belong to the form, not the list underneath.
-  usePickerCrud(form ? [] : rules, nav.active, {
+  // matching every other CRUD picker. Disabled while the add/edit form or a
+  // confirm is open (pass no items) so those keys belong to the form/dialog.
+  usePickerCrud(form || confirm.open ? [] : rules, nav.active, {
     onEdit: (r) =>
       setForm({ id: r.id, query: r.query, action: r.action, label: r.label, promptId: r.promptId }),
-    onDelete: (r) => void del(r.id),
+    onDelete: askDelete,
   });
 
   const del = async (id: number) => {
@@ -211,6 +215,7 @@ export default function RulesManager({
     prompts.find((p) => p.id === id)?.name ?? `#${id}`;
 
   return (
+    <>
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -340,7 +345,7 @@ export default function RulesManager({
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void del(r.id);
+                          askDelete(r);
                         }}
                       >
                         {Icon.trash}
@@ -360,5 +365,7 @@ export default function RulesManager({
         )}
       </div>
     </div>
+    {confirm.node}
+    </>
   );
 }

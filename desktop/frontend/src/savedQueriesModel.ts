@@ -1,60 +1,31 @@
 import type { SavedQuery } from "./api";
+import { categoryLabel, filterByNameOrCategory, groupByCategory } from "./entityGroups";
 
-// savedQueryCategoryLabel is the display name of a query's category: the free-form
-// string, or "Default" for uncategorised entries. Grouping, the "@category"
-// filter, and the headers all share this so they agree. Mirrors the TUI helper.
+// Saved-search grouping: thin adapters over the shared entityGroups helpers so
+// saved searches and prompts (and any future entity picker) filter/sort/group
+// through one code path and stay visually identical.
+const qName = (q: SavedQuery) => q.name;
+const qCat = (q: SavedQuery) => q.category;
+
 export function savedQueryCategoryLabel(category: string): string {
-  const t = (category || "").trim();
-  return t === "" ? "Default" : t;
+  return categoryLabel(category);
 }
 
-// filterSavedQueries narrows by the picker filter: a value starting with "@"
-// filters by category (case-insensitive substring, e.g. "@work"); any other
-// non-empty value filters by name. Empty returns everything.
-export function filterSavedQueries(
-  queries: SavedQuery[],
-  filter: string,
-): SavedQuery[] {
-  const f = filter.trim().toLowerCase();
-  if (f === "") return queries.slice();
-  if (f.startsWith("@")) {
-    const cat = f.slice(1).trim();
-    if (cat === "") return queries.slice();
-    return queries.filter((q) =>
-      savedQueryCategoryLabel(q.category).toLowerCase().includes(cat),
-    );
-  }
-  return queries.filter((q) => q.name.toLowerCase().includes(f));
+export function filterSavedQueries(queries: SavedQuery[], filter: string): SavedQuery[] {
+  return filterByNameOrCategory(queries, filter, qName, qCat);
 }
 
-// sortSavedQueriesByCategory orders queries by category — named groups
-// alphabetically, the uncategorised "Default" group last — then by name, so the
-// picker can render contiguous, headed groups.
 export function sortSavedQueriesByCategory(queries: SavedQuery[]): SavedQuery[] {
-  return queries.slice().sort((a, b) => {
-    const ca = savedQueryCategoryLabel(a.category);
-    const cb = savedQueryCategoryLabel(b.category);
-    const da = ca === "Default";
-    const db = cb === "Default";
-    if (da !== db) return da ? 1 : -1; // Default group sinks to the bottom
-    const byCat = ca.toLowerCase().localeCompare(cb.toLowerCase());
-    if (byCat !== 0) return byCat;
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-  });
+  return groupByCategory(queries, "", qName, qCat).map((r) => r.item);
 }
 
-// groupedSavedQueries filters + sorts, and annotates each row with whether it
-// starts a new category group (so the picker renders one header per group).
 export function groupedSavedQueries(
   queries: SavedQuery[],
   filter: string,
 ): { query: SavedQuery; category: string; groupStart: boolean }[] {
-  const rows = sortSavedQueriesByCategory(filterSavedQueries(queries, filter));
-  let last = "";
-  return rows.map((q, i) => {
-    const category = savedQueryCategoryLabel(q.category);
-    const groupStart = i === 0 || category !== last;
-    last = category;
-    return { query: q, category, groupStart };
-  });
+  return groupByCategory(queries, filter, qName, qCat).map((r) => ({
+    query: r.item,
+    category: r.category,
+    groupStart: r.groupStart,
+  }));
 }

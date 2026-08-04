@@ -190,9 +190,11 @@ test.describe("AI bulk prompt (background job)", () => {
     await expect(jobsPicker).toBeVisible();
     await expect(jobsPicker.locator(".prompt-row")).toHaveCount(1);
 
-    // Bare 'd' removes the highlighted job (no filter input, so no Shift needed) —
-    // usePickerCrud, the same handler every other deletable list uses.
+    // Bare 'd' arms delete for the highlighted job (no filter input, so no Shift
+    // needed); confirm it. usePickerCrud + the shared confirm dialog.
     await page.keyboard.press("d");
+    await expect(page.locator(".modal.confirm")).toBeVisible();
+    await page.keyboard.press("Enter");
     await expect(jobsPicker.locator(".placeholder")).toHaveText("No AI jobs yet");
   });
 
@@ -201,9 +203,14 @@ test.describe("AI bulk prompt (background job)", () => {
   }) => {
     await openApp(page);
     await openMessageAt(page, 0);
-    // Run the highlighted prompt on the OPEN message (inline, not bulk mode).
+    // Run a specific prompt on the OPEN message (inline, not bulk mode). Filter to
+    // "Summarize" first — prompts are category-grouped, so it isn't row 0.
     await runCommand(page, "prompt");
-    await expect(page.locator(".modal-overlay")).toBeVisible();
+    const picker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Prompts" }) });
+    await expect(picker).toBeVisible();
+    await picker.locator(".label-filter").fill("Summarize");
     await page.keyboard.press("Enter");
     await expect(promptPanel(page)).toBeVisible();
     await waitForPanelDone(promptPanel(page));

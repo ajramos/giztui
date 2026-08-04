@@ -201,11 +201,21 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0; /* let the name/desc truncate instead of overflowing */
 }
 .prompt-row:hover,
 .prompt-row.active {
   background: var(--bg-selected);
   filter: none;
+}
+/* Name + description truncate to a single line so long text never overflows a
+   row or pushes the per-row edit/delete buttons off the edge. */
+.prompt-name,
+.prompt-desc {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .prompt-name {
   font-size: 13.5px;

@@ -1,8 +1,33 @@
-/* Saved queries */
+/* Saved queries / prompts — one row layout shared by both pickers. */
 .query-row {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* The main clickable column grows and, crucially, min-width:0 lets its text
+   children truncate instead of pushing the edit/delete buttons off the edge. */
+.query-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.query-row > .ghost.tiny {
+  flex: 0 0 auto; /* action buttons keep their size and stay on-row */
+}
+/* Confirm-before-delete dialog (ConfirmDialog). */
+.confirm-msg {
+  margin: 6px 2px;
+  line-height: 1.5;
+  white-space: pre-line; /* honour the blank line before a quoted rule/query */
 }
 /* Category group header in the saved-searches picker (distinct accent colour). */
 .query-group-head {

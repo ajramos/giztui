@@ -43,6 +43,10 @@ test.describe("prompts picker inline CRUD", () => {
       .filter({ hasText: "Summarize concisely" })
       .getByTitle("Delete")
       .click();
+    // Deleting now asks to confirm first.
+    const confirm = page.locator(".modal.confirm");
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("button", { name: "Delete" }).click();
     await expect(picker(page).locator(".query-row")).toHaveCount(3);
     await expect(
       picker(page).locator(".query-row").filter({ hasText: "Summarize concisely" }),

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
+import { useConfirm } from "./useConfirm";
 import type { AiJob } from "./useAiJobs";
 
 // Human-readable, one-glyph-free status label. Kept as text (not an emoji) per
@@ -48,9 +49,13 @@ export default function AiJobsPicker({
     windowKeys: true,
   });
 
+  const confirm = useConfirm();
+  const askRemove = (j: AiJob) =>
+    confirm.ask(`Remove job “${j.label}” from the list?`, () => onRemove(j.id), "Remove");
+
   // Remove the highlighted job via the shared CRUD convention (d / Delete /
   // Backspace / Shift+Del), same as every other list that deletes an entity.
-  usePickerCrud(ordered, nav.active, { onDelete: (j) => onRemove(j.id) });
+  usePickerCrud(confirm.open ? [] : ordered, nav.active, { onDelete: askRemove });
 
   // 'c' clears all finished jobs — a bulk action distinct from the per-row delete.
   useEffect(() => {
@@ -66,6 +71,7 @@ export default function AiJobsPicker({
   }, [onClear]);
 
   return (
+    <>
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -112,5 +118,7 @@ export default function AiJobsPicker({
         </div>
       </div>
     </div>
+    {confirm.node}
+    </>
   );
 }
