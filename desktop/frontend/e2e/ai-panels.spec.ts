@@ -173,6 +173,29 @@ test.describe("AI bulk prompt (background job)", () => {
     );
   });
 
+  test("':jobs' removes the highlighted job with 'd' (shared CRUD convention)", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await runCommand(page, "select all");
+    await runCommand(page, "prompt");
+    await expect(page.locator(".modal-overlay")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Escape"); // close the ✦ result dialog
+
+    await page.keyboard.press("J");
+    const jobsPicker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "AI jobs" }) });
+    await expect(jobsPicker).toBeVisible();
+    await expect(jobsPicker.locator(".prompt-row")).toHaveCount(1);
+
+    // Bare 'd' removes the highlighted job (no filter input, so no Shift needed) —
+    // usePickerCrud, the same handler every other deletable list uses.
+    await page.keyboard.press("d");
+    await expect(jobsPicker.locator(".placeholder")).toHaveText("No AI jobs yet");
+  });
+
   test("a single-message reader prompt is also recorded in ':jobs'", async ({
     page,
   }) => {

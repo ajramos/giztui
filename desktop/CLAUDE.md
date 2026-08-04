@@ -41,6 +41,17 @@ action-plan, …) MUST follow these so they behave consistently:
    refetching, so the list updates instantly and nothing gets marked read.
 8. When you add a picker, wire it into the App's **`anyModal` guard** and the
    **Escape chain**, and register any command in `COMMANDS` + `executeCommand`.
+9. **Editable entities → `usePickerCrud`.** If a picker's rows are entities the
+   user can edit or delete (saved searches, prompts, rules, jobs, …), drive
+   edit/delete through the shared **`usePickerCrud(items, active, {onEdit, onDelete})`**
+   hook — never hand-roll a `keydown` listener for it. It gives one convention
+   everywhere: `e`/`d` (and `Delete`/`Backspace`) when the list holds focus, and
+   `Shift+E`/`Shift+Delete`/`Shift+Backspace` when a filter or edit form is focused.
+   Keep a ✎/🗑 button per row for the mouse, and open edits in a small modal that
+   stacks over the picker (`stopPropagation` on its Escape so only the modal
+   closes — see `EditQueryModal`/`PromptEditModal`). Pure action/selection pickers
+   (move, links, RSVP, theme, attachments, suggest, Slack, labels-on-a-message)
+   have no entity to edit — they don't use the hook.
 
 ## 🍏 WKWebView gotchas (hard-won)
 

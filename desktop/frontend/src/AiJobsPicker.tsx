@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useListNav } from "./useListNav";
+import { usePickerCrud } from "./usePickerCrud";
 import type { AiJob } from "./useAiJobs";
 
 // Human-readable, one-glyph-free status label. Kept as text (not an emoji) per
@@ -47,18 +48,14 @@ export default function AiJobsPicker({
     windowKeys: true,
   });
 
-  // 'd' / Delete removes the active job; 'c' clears all finished jobs. The global
-  // handler swallows these while a modal is open, so wiring them here is safe.
+  // Remove the highlighted job via the shared CRUD convention (d / Delete /
+  // Backspace / Shift+Del), same as every other list that deletes an entity.
+  usePickerCrud(ordered, nav.active, { onDelete: (j) => onRemove(j.id) });
+
+  // 'c' clears all finished jobs — a bulk action distinct from the per-row delete.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "d" || e.key === "Delete" || e.key === "Backspace") {
-        const j = ordered[nav.active];
-        if (j) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          onRemove(j.id);
-        }
-      } else if (e.key === "c" || e.key === "C") {
+      if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         e.stopImmediatePropagation();
         onClear();
@@ -66,7 +63,7 @@ export default function AiJobsPicker({
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [ordered, nav.active, onRemove, onClear]);
+  }, [onClear]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
