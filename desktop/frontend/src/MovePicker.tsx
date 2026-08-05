@@ -81,6 +81,7 @@ export default function MovePicker({
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{count ? `Move ${count} to folder` : "Move to folder"}</h3>
+          <span className="help-hint muted">↑↓ · Enter · Esc</span>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>
@@ -88,7 +89,7 @@ export default function MovePicker({
         <div className="modal-body">
           <input
             className="label-filter"
-            placeholder="Filter folders… (↑↓ · Enter move · Esc close)"
+            placeholder="Filter folders…"
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);

@@ -41,7 +41,7 @@ export default function EditQueryModal({
         }}
       >
         <div className="modal-head">
-          <h3>Edit saved search</h3>
+          <h3>{query.id ? "Edit saved search" : "New saved search"}</h3>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>

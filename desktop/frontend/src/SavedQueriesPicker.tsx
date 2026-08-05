@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
 import { useConfirm } from "./useConfirm";
@@ -9,16 +9,21 @@ import type { SavedQuery } from "./api";
 export default function SavedQueriesPicker({
   queries,
   canSaveCurrent,
+  editing,
   onRun,
   onEdit,
+  onNew,
   onDelete,
   onSaveCurrent,
   onClose,
 }: {
   queries: SavedQuery[];
   canSaveCurrent: boolean;
+  // True while the stacked edit/new dialog is open, so Shift+N doesn't re-trigger.
+  editing: boolean;
   onRun: (q: SavedQuery) => void;
   onEdit: (q: SavedQuery) => void;
+  onNew: () => void;
   onDelete: (id: number) => void;
   onSaveCurrent: () => void;
   onClose: () => void;
@@ -51,6 +56,23 @@ export default function SavedQueriesPicker({
     onEdit,
     onDelete: askDelete,
   });
+
+  // Shift+N creates a saved search from scratch. The filter input is focused so a
+  // bare "n" types; Shift+N is intercepted (like Shift+E / Shift+Del). Disabled
+  // while the edit/new dialog or a confirm is already open.
+  const busy = editing || confirm.open;
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (busy) return;
+      if (e.shiftKey && (e.key === "N" || e.key === "n")) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onNew();
+      }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [busy, onNew]);
 
   return (
     <>
@@ -122,6 +144,9 @@ export default function SavedQueriesPicker({
               Save current search
             </button>
           )}
+          <button className="ghost" title="New saved search (⇧N)" onClick={onNew}>
+            {Icon.plus} New
+          </button>
         </div>
       </div>
     </div>

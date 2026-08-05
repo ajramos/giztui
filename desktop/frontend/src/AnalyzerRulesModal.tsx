@@ -45,6 +45,7 @@ export default function AnalyzerRulesModal({
       >
         <div className="modal-head">
           <h3>Analyzer rules</h3>
+          <span className="help-hint muted">↑↓ · Enter · Esc</span>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>

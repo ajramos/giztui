@@ -260,9 +260,12 @@ export function useMiscActions(deps: {
   const updateQuery = useCallback(
     async (id: number, name: string, query: string, category: string) => {
       try {
-        await backend.UpdateSavedQuery(id, name, query, category);
+        // id 0 = a brand-new saved search (the "New saved search" flow); a real
+        // id edits the existing one. Both land back in the picker list.
+        if (id > 0) await backend.UpdateSavedQuery(id, name, query, category);
+        else await backend.SaveQuery(name, query, category);
         setSavedQueries(await backend.ListSavedQueries());
-        showToast(`Updated query "${name}"`);
+        showToast(id > 0 ? `Updated query "${name}"` : `Saved query "${name}"`);
       } catch (e) {
         setError(String(e));
       }

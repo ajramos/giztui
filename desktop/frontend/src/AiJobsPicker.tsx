@@ -76,6 +76,7 @@ export default function AiJobsPicker({
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>AI jobs</h3>
+          <span className="help-hint muted">↑↓ · Enter · Esc</span>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>

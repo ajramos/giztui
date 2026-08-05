@@ -108,6 +108,7 @@ export default function LabelsPicker({
       <div className="modal narrow" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
+          <span className="help-hint muted">↑↓ · Enter · Esc</span>
           <button className="ghost" onClick={onClose}>
             ✕
           </button>
@@ -116,7 +117,7 @@ export default function LabelsPicker({
         <div className="modal-body">
           <input
             className="label-filter"
-            placeholder="Filter labels… (↑↓ move · Enter toggle · Esc close)"
+            placeholder="Filter labels…"
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);

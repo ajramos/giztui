@@ -35,6 +35,28 @@ test.describe("saved queries picker", () => {
     await expect(picker.locator(".placeholder")).toHaveText("No matches");
   });
 
+  test("New creates a saved search from scratch", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "queries");
+    const picker = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "Saved searches" }) });
+    await expect(picker).toBeVisible();
+
+    await picker.locator(".modal-foot").getByRole("button", { name: "New" }).click();
+    const dialog = page
+      .locator(".modal-overlay")
+      .filter({ has: page.locator("h3", { hasText: "New saved search" }) });
+    await expect(dialog).toBeVisible();
+    await dialog.locator("input").nth(0).fill("Starred");
+    await dialog.locator("input").nth(1).fill("is:starred");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      picker.locator(".query-row").filter({ hasText: "Starred" }),
+    ).toHaveCount(1);
+  });
+
   test("editing a saved query renames it in place", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "queries");

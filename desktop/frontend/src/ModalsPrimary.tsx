@@ -181,8 +181,18 @@ export default function ModalsPrimary(p: {
         <SavedQueriesPicker
           queries={savedQueries}
           canSaveCurrent={!!activeQuery}
+          editing={editingQuery !== null}
           onRun={runQuery}
           onEdit={(q) => setEditingQuery(q)}
+          onNew={() =>
+            setEditingQuery({
+              id: 0,
+              name: "",
+              query: activeQuery || "",
+              category: "",
+              description: "",
+            })
+          }
           onDelete={(id) => void deleteQuery(id)}
           onSaveCurrent={() => {
             setQueriesOpen(false);
