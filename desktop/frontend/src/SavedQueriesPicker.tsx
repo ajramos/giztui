@@ -144,8 +144,8 @@ export default function SavedQueriesPicker({
               Save current search
             </button>
           )}
-          <button className="ghost" title="New saved search (⇧N)" onClick={onNew}>
-            {Icon.plus} New
+          <button className="ghost" title="New saved search" onClick={onNew}>
+            {Icon.plus} New <kbd className="btn-kbd">⇧N</kbd>
           </button>
         </div>
       </div>

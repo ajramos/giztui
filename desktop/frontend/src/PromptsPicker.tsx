@@ -187,10 +187,10 @@ export default function PromptsPicker({
             </span>
             <button
               className="ghost"
-              title="New prompt (⇧N)"
+              title="New prompt"
               onClick={() => setEditing({ ...EMPTY })}
             >
-              {Icon.plus} New prompt
+              {Icon.plus} New <kbd className="btn-kbd">⇧N</kbd>
             </button>
           </div>
         </div>

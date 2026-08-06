@@ -56,7 +56,7 @@ test.describe("prompts picker inline CRUD", () => {
   test("New prompt creates a row", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "prompt");
-    await picker(page).getByRole("button", { name: "New prompt" }).click();
+    await picker(page).locator(".modal-foot").getByRole("button", { name: "New" }).click();
     const create = editModal(page, "New prompt");
     await expect(create).toBeVisible();
     await create.locator("input").first().fill("Translate to English");
@@ -66,6 +66,14 @@ test.describe("prompts picker inline CRUD", () => {
     await expect(
       picker(page).locator(".query-row").filter({ hasText: "Translate to English" }),
     ).toHaveCount(1);
+  });
+
+  test("Shift+N opens the New prompt dialog from the keyboard", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "prompt");
+    await expect(picker(page)).toBeVisible();
+    await page.keyboard.press("Shift+N");
+    await expect(editModal(page, "New prompt")).toBeVisible();
   });
 
   test("Escape in the edit modal closes only the modal, not the picker", async ({

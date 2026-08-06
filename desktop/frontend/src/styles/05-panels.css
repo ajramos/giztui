@@ -342,6 +342,23 @@ button.ghost.tiny.danger:hover {
   padding: 14px 18px;
   border-top: 1px solid var(--border);
 }
+/* Footer buttons align their icon + label (and the optional keyboard hint) on
+   one baseline instead of the SVG sitting low next to the text. */
+.modal-foot button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Inline keyboard hint shown on a button (e.g. the New button's ⇧N), so the
+   shortcut is discoverable without hunting for it in the footer text. */
+.btn-kbd {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
 .foot-spacer {
   flex: 1;
 }
