@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
 import { useConfirm } from "./useConfirm";
+import { useFilterMode } from "./useFilterMode";
 import { Icon } from "./Icons";
 import { groupedSavedQueries } from "./savedQueriesModel";
 import type { SavedQuery } from "./api";
@@ -52,27 +53,13 @@ export default function SavedQueriesPicker({
   // filter input is always focused here, so in practice these fire as Shift+E /
   // Shift+Delete / Shift+Backspace (a bare key types into the filter); the per-row
   // pencil/trash buttons remain for the mouse. Disabled while a confirm is up.
-  usePickerCrud(confirm.open ? [] : visible, nav.active, {
+  const busy = editing || confirm.open;
+  usePickerCrud(busy ? [] : visible, nav.active, {
     onEdit,
     onDelete: askDelete,
   });
-
-  // Shift+N creates a saved search from scratch. The filter input is focused so a
-  // bare "n" types; Shift+N is intercepted (like Shift+E / Shift+Del). Disabled
-  // while the edit/new dialog or a confirm is already open.
-  const busy = editing || confirm.open;
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (busy) return;
-      if (e.shiftKey && (e.key === "N" || e.key === "n")) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onNew();
-      }
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [busy, onNew]);
+  // List mode by default (e/d/n act as CRUD); "/" focuses the filter to type.
+  const fm = useFilterMode(!busy, onNew);
 
   return (
     <>
@@ -87,14 +74,14 @@ export default function SavedQueriesPicker({
         </div>
         <div className="modal-body">
           <input
-            className="label-filter"
-            placeholder="Filter by name, or @category"
+            className={"label-filter" + (fm.filtering ? "" : " dim")}
+            placeholder="Press / to filter by name or @category"
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
               nav.setActive(0);
             }}
-            autoFocus
+            {...fm.inputProps}
           />
           <div className="label-list" ref={nav.listRef}>
             {queries.length === 0 ? (
@@ -137,7 +124,7 @@ export default function SavedQueriesPicker({
         </div>
         <div className="modal-foot">
           <span className="foot-hint">
-            ↑↓ move · Enter run · ⇧E edit · ⇧⌫ delete
+            ↑↓ move · Enter run · / filter · e edit · d delete
           </span>
           {canSaveCurrent && (
             <button className="ghost" onClick={onSaveCurrent}>
@@ -145,7 +132,7 @@ export default function SavedQueriesPicker({
             </button>
           )}
           <button className="ghost" title="New saved search" onClick={onNew}>
-            {Icon.plus} New <kbd className="btn-kbd">⇧N</kbd>
+            {Icon.plus} New <kbd className="btn-kbd">n</kbd>
           </button>
         </div>
       </div>

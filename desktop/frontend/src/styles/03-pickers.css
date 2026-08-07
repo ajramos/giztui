@@ -151,6 +151,11 @@
 .label-filter:focus {
   border-color: var(--accent);
 }
+/* List mode: the filter is blurred and waiting for "/", so dim it to read as
+   inactive (the rows have keyboard focus instead). */
+.label-filter.dim {
+  opacity: 0.55;
+}
 .label-list {
   display: flex;
   flex-direction: column;

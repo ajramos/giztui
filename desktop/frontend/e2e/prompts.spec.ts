@@ -68,11 +68,29 @@ test.describe("prompts picker inline CRUD", () => {
     ).toHaveCount(1);
   });
 
-  test("Shift+N opens the New prompt dialog from the keyboard", async ({ page }) => {
+  test("typing uppercase in the filter does NOT trigger edit/new/delete", async ({
+    page,
+  }) => {
     await openApp(page);
     await runCommand(page, "prompt");
     await expect(picker(page)).toBeVisible();
-    await page.keyboard.press("Shift+N");
+    // Enter filter mode and type a name with capitals (the old Shift+E/Shift+N
+    // hack used to fire edit/new here).
+    await page.keyboard.press("/");
+    await page.keyboard.type("Extract New");
+    await expect(picker(page).locator(".label-filter")).toHaveValue("Extract New");
+    // No edit or new dialog opened — the keys were just text.
+    await expect(
+      page.locator(".modal-overlay").filter({ has: page.locator("h3", { hasText: "prompt" }) }),
+    ).toHaveCount(1); // only the picker itself ("Prompts")
+  });
+
+  test("bare 'n' opens the New prompt dialog (list mode)", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "prompt");
+    await expect(picker(page)).toBeVisible();
+    // List mode on open: bare "n" creates; "/" would type into the filter instead.
+    await page.keyboard.press("n");
     await expect(editModal(page, "New prompt")).toBeVisible();
   });
 

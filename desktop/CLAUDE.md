@@ -41,17 +41,21 @@ action-plan, …) MUST follow these so they behave consistently:
    refetching, so the list updates instantly and nothing gets marked read.
 8. When you add a picker, wire it into the App's **`anyModal` guard** and the
    **Escape chain**, and register any command in `COMMANDS` + `executeCommand`.
-9. **Editable entities → `usePickerCrud`.** If a picker's rows are entities the
-   user can edit or delete (saved searches, prompts, rules, jobs, …), drive
-   edit/delete through the shared **`usePickerCrud(items, active, {onEdit, onDelete})`**
-   hook — never hand-roll a `keydown` listener for it. It gives one convention
-   everywhere: `e`/`d` (and `Delete`/`Backspace`) when the list holds focus, and
-   `Shift+E`/`Shift+Delete`/`Shift+Backspace` when a filter or edit form is focused.
-   Keep a ✎/🗑 button per row for the mouse, and open edits in a small modal that
-   stacks over the picker (`stopPropagation` on its Escape so only the modal
-   closes — see `EditQueryModal`/`PromptEditModal`). Pure action/selection pickers
-   (move, links, RSVP, theme, attachments, suggest, Slack, labels-on-a-message)
-   have no entity to edit — they don't use the hook.
+9. **Editable entities → list mode + `usePickerCrud`.** If a picker's rows are
+   entities the user can edit/delete/create (saved searches, prompts, rules, jobs,
+   …), it runs in **list mode**: the filter is **blurred on open** so bare letters
+   are commands, never typing. Drive edit/delete through
+   **`usePickerCrud(items, active, {onEdit, onDelete})`** (`e` edits, `d`/`Delete`/
+   `Backspace` deletes — only while no input is focused) and, if the picker has a
+   filter, add **`useFilterMode(active, onNew)`**: `/` focuses the filter for
+   free-text entry (uppercase and all), `Esc` returns to list mode, and `n` creates.
+   NEVER use Shift+letter shortcuts while a text input is focused — a capital letter
+   IS typing, so it would fire the command instead (this was a real bug). Keep ✎/🗑/
+   New buttons for the mouse; open edits in a small modal that stacks over the picker
+   (`stopPropagation` on its Escape — see `EditQueryModal`/`PromptEditModal`), and
+   route deletes through `useConfirm`. Pure action/selection pickers (move, links,
+   RSVP, theme, attachments, suggest, Slack, labels-on-a-message) have no entity to
+   edit — they keep an auto-focused filter and don't use these hooks.
 
 ## 🍏 WKWebView gotchas (hard-won)
 

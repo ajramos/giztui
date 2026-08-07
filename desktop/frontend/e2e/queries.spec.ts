@@ -19,15 +19,17 @@ test.describe("saved queries picker", () => {
       "Default",
     ]);
 
-    // "@work" narrows to just that category group.
+    // "/" focuses the filter; "@work" narrows to just that category group.
+    await page.keyboard.press("/");
     await picker.locator(".label-filter").fill("@work");
     await expect(picker.locator(".query-group-head")).toHaveText(["Work"]);
     await expect(picker.locator(".query-row")).toHaveCount(1);
     await expect(picker.locator(".query-row")).toContainText("Unread from team");
 
-    // Shift+Backspace arms delete for the highlighted row (a bare key would type
-    // into the filter); confirm it. The only Work query goes, leaving no matches.
-    await page.keyboard.press("Shift+Backspace");
+    // Escape leaves filter mode (back to list) without closing the picker; then a
+    // bare "d" arms delete for the highlighted row. The only Work query goes.
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("d");
     const confirm = page.locator(".modal.confirm");
     await expect(confirm).toBeVisible();
     await page.keyboard.press("Enter"); // confirm via keyboard
@@ -85,7 +87,9 @@ test.describe("saved queries picker", () => {
     ).toHaveCount(1);
   });
 
-  test("Shift+E opens the edit dialog for the highlighted query", async ({ page }) => {
+  test("bare 'e' opens the edit dialog for the highlighted query (list mode)", async ({
+    page,
+  }) => {
     await openApp(page);
     await runCommand(page, "queries");
     const picker = page
@@ -93,9 +97,9 @@ test.describe("saved queries picker", () => {
       .filter({ has: page.locator("h3", { hasText: "Saved searches" }) });
     await expect(picker).toBeVisible();
 
-    // The filter input is focused, so a bare "e" would type — Shift+E edits the
-    // highlighted row via the shared usePickerCrud handler.
-    await page.keyboard.press("Shift+E");
+    // The picker opens in list mode (filter blurred), so a bare "e" edits the
+    // highlighted row; "/" would be needed to type into the filter instead.
+    await page.keyboard.press("e");
     await expect(
       page
         .locator(".modal-overlay")

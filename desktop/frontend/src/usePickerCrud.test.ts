@@ -2,34 +2,26 @@ import { describe, it, expect } from "vitest";
 import { pickerCrudAction } from "./usePickerCrud";
 
 describe("pickerCrudAction", () => {
-  it("maps bare keys to actions when not typing", () => {
-    expect(pickerCrudAction("e", false, false)).toBe("edit");
-    expect(pickerCrudAction("d", false, false)).toBe("delete");
-    expect(pickerCrudAction("Delete", false, false)).toBe("delete");
-    expect(pickerCrudAction("Backspace", false, false)).toBe("delete");
+  it("maps bare keys to actions in list mode (not typing)", () => {
+    expect(pickerCrudAction("e", false)).toBe("edit");
+    expect(pickerCrudAction("E", false)).toBe("edit");
+    expect(pickerCrudAction("d", false)).toBe("delete");
+    expect(pickerCrudAction("Delete", false)).toBe("delete");
+    expect(pickerCrudAction("Backspace", false)).toBe("delete");
   });
 
-  it("ignores bare keys while typing in a text field", () => {
-    expect(pickerCrudAction("e", false, true)).toBeNull();
-    expect(pickerCrudAction("d", false, true)).toBeNull();
-    expect(pickerCrudAction("Backspace", false, true)).toBeNull();
-  });
-
-  it("honours Shift variants even while typing", () => {
-    expect(pickerCrudAction("E", true, true)).toBe("edit");
-    expect(pickerCrudAction("Delete", true, true)).toBe("delete");
-    expect(pickerCrudAction("Backspace", true, true)).toBe("delete");
-  });
-
-  it("Shift variants also act when not typing", () => {
-    expect(pickerCrudAction("E", true, false)).toBe("edit");
-    expect(pickerCrudAction("Delete", true, false)).toBe("delete");
+  it("does nothing while a text field is focused (every key is typing)", () => {
+    expect(pickerCrudAction("e", true)).toBeNull();
+    expect(pickerCrudAction("E", true)).toBeNull();
+    expect(pickerCrudAction("d", true)).toBeNull();
+    expect(pickerCrudAction("Delete", true)).toBeNull();
+    expect(pickerCrudAction("Backspace", true)).toBeNull();
   });
 
   it("returns null for unrelated keys", () => {
-    expect(pickerCrudAction("ArrowDown", false, false)).toBeNull();
-    expect(pickerCrudAction("Enter", false, false)).toBeNull();
-    expect(pickerCrudAction("x", false, false)).toBeNull();
-    expect(pickerCrudAction("n", false, false)).toBeNull();
+    expect(pickerCrudAction("ArrowDown", false)).toBeNull();
+    expect(pickerCrudAction("Enter", false)).toBeNull();
+    expect(pickerCrudAction("x", false)).toBeNull();
+    expect(pickerCrudAction("n", false)).toBeNull();
   });
 });

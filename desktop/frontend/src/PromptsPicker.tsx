@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
 import { useConfirm } from "./useConfirm";
+import { useFilterMode } from "./useFilterMode";
 import { groupByCategory } from "./entityGroups";
 import PromptEditModal from "./PromptEditModal";
 import { Icon } from "./Icons";
@@ -99,21 +100,8 @@ export default function PromptsPicker({
     onEdit: (p) => void openEdit(p.id),
     onDelete: (p) => askRemove(p),
   });
-
-  // Shift+N creates a prompt. The filter input is focused so a bare "n" types;
-  // Shift+N is intercepted (like Shift+E / Shift+Del) and opens the empty editor.
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (busy) return;
-      if (e.shiftKey && (e.key === "N" || e.key === "n")) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        setEditing({ ...EMPTY });
-      }
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [busy]);
+  // List mode by default (e/d/n act as CRUD); "/" focuses the filter to type.
+  const fm = useFilterMode(!busy, () => setEditing({ ...EMPTY }));
 
   return (
     <>
@@ -129,14 +117,14 @@ export default function PromptsPicker({
           {error && <div className="error-banner">{error}</div>}
           <div className="modal-body">
             <input
-              className="label-filter"
-              placeholder="Filter by name, or @category"
+              className={"label-filter" + (fm.filtering ? "" : " dim")}
+              placeholder="Press / to filter by name or @category"
               value={filter}
               onChange={(e) => {
                 setFilter(e.target.value);
                 nav.setActive(0);
               }}
-              autoFocus
+              {...fm.inputProps}
             />
             <div className="label-list" ref={nav.listRef}>
               {loading ? (
@@ -183,14 +171,14 @@ export default function PromptsPicker({
           </div>
           <div className="modal-foot">
             <span className="foot-hint">
-              ↑↓ move · Enter apply · ⇧E edit · ⇧⌫ delete
+              ↑↓ move · Enter apply · / filter · e edit · d delete
             </span>
             <button
               className="ghost"
               title="New prompt"
               onClick={() => setEditing({ ...EMPTY })}
             >
-              {Icon.plus} New <kbd className="btn-kbd">⇧N</kbd>
+              {Icon.plus} New <kbd className="btn-kbd">n</kbd>
             </button>
           </div>
         </div>

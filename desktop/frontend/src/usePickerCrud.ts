@@ -1,16 +1,19 @@
 import { useEffect, useRef } from "react";
 
-// pickerCrudAction is the pure decision behind usePickerCrud: given a key, the
-// Shift state, and whether a text field is focused, it returns which CRUD action
-// (if any) the keypress maps to. Kept separate so it can be unit-tested without a
-// DOM. The bare keys act only when not typing; the Shift variants act always.
+// pickerCrudAction is the pure decision behind usePickerCrud: given a key and
+// whether a text field is focused, it returns which CRUD action (if any) the
+// keypress maps to. Kept separate so it can be unit-tested without a DOM.
+//
+// While a text field is focused NOTHING fires — every key is the user typing
+// (a capital "E"/"D" is just an uppercase letter, not a command). CRUD keys work
+// only in "list mode", where no input is focused: bare e edits, d/Delete/
+// Backspace deletes. Pickers with a filter open in list mode and enter a focused
+// filter with "/", so the two never collide.
 export function pickerCrudAction(
   key: string,
-  shiftKey: boolean,
   typing: boolean,
 ): "edit" | "delete" | null {
-  // While typing, only the Shift variants are allowed to act.
-  if (typing && !shiftKey) return null;
+  if (typing) return null;
   if (key === "e" || key === "E") return "edit";
   if (key === "d" || key === "D" || key === "Delete" || key === "Backspace")
     return "delete";
@@ -30,18 +33,15 @@ function typingInTextField(): boolean {
 
 // usePickerCrud standardizes keyboard edit/delete across every picker whose rows
 // are editable/deletable entities (saved searches, prompts, analyzer rules,
-// deterministic rules), so they all behave the same and mirror the TUI's e/d:
+// deterministic rules, jobs), so they all behave the same and mirror the TUI:
 //
-//   • e                              → edit the highlighted row
-//   • d / Delete / Backspace         → delete the highlighted row
-//   • Shift+E                        → edit    (always — the escape hatch)
-//   • Shift+Delete / Shift+Backspace → delete  (always)
+//   • e                      → edit the highlighted row
+//   • d / Delete / Backspace → delete the highlighted row
 //
-// The bare keys act only when no text field is focused; when a filter or edit
-// form holds focus (so bare keys are needed for typing) the Shift variants take
-// over. Pickers with an always-focused filter (saved searches) therefore use the
-// Shift variants exclusively, while pickers where the list itself holds focus can
-// use the bare keys — one rule, a superset of both old behaviours.
+// These fire only in "list mode" — when no text input is focused. A picker with a
+// filter opens in list mode and focuses its filter only when the user presses "/";
+// while the filter is focused every key is typing (so a capital "E" is a letter,
+// not a command) and CRUD is unavailable until "/"-mode is exited with Escape.
 //
 // Either handler may be omitted (e.g. delete-only modals). The listener runs in
 // the capture phase and stops propagation only for the keys it consumes, so it
@@ -62,7 +62,7 @@ export function usePickerCrud<T>(
       const item = items[active];
       if (item === undefined) return;
 
-      const action = pickerCrudAction(e.key, e.shiftKey, typingInTextField());
+      const action = pickerCrudAction(e.key, typingInTextField());
       const handler =
         action === "edit" ? opts.onEdit : action === "delete" ? opts.onDelete : undefined;
       if (!handler) return;

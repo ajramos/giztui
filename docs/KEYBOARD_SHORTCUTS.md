@@ -477,17 +477,25 @@ Every picker/manager that holds editable entries — **saved queries, prompts,
 analyzer rules, deterministic rules** — shares one edit/delete convention across
 both clients:
 
+Both clients use the same **list-mode** model: the row list holds keyboard focus,
+so bare letters are commands; you enter a text filter explicitly (TUI `/`, desktop
+`/`) and leave it with `Esc`.
+
 | Action | TUI (terminal) | Desktop (GUI) |
 | ------ | -------------- | ------------- |
-| Edit the highlighted entry | `e` (or `Enter`) | `e` — or `Shift+E` when a filter/form is focused (or the ✎ button) |
-| Delete the highlighted entry | `d` | `d` / `Delete` / `Backspace` — or `Shift+Delete` / `Shift+Backspace` when a filter/form is focused (or the 🗑 button) |
+| Edit the highlighted entry | `e` (or `Enter`) | `e` (or the ✎ button) |
+| Delete the highlighted entry | `d` | `d` / `Delete` / `Backspace` (or the 🗑 button) |
+| New entry | — | `n` (or the New button) |
 | Run / apply | `Enter` | `Enter` |
-| Filter by category | type `@work` | type `@work` |
+| Filter | `/` then type | `/` then type |
+| Filter by category | `@work` | `@work` |
 
-On the desktop the bare `e`/`d` keys act when the **list** holds focus; when a
-text filter or an edit form is focused (so a bare letter must type), hold **Shift**
-to disambiguate. One shared hook (`usePickerCrud`) enforces this everywhere, so all
-CRUD pickers behave identically. Delete-only panels (analyzer rules) omit edit.
+On the desktop the filter is **blurred on open** (list mode) so `e`/`d`/`n` never
+collide with typing — a name with a capital "E" or "N" is just text. Press `/` to
+focus the filter (any text, uppercase included); `Esc` returns to list mode, and a
+second `Esc` closes the picker. The shared hooks `usePickerCrud` (edit/delete) and
+`useFilterMode` (`/` + `n`) enforce this everywhere. Delete-only panels (analyzer
+rules, jobs) omit edit; deletes ask to confirm first.
 
 The TUI keys are remappable under `keys`: `saved_query_edit` / `saved_query_delete`
 (saved searches) and `rule_edit` / `rule_delete` (rules manager). New keys are
