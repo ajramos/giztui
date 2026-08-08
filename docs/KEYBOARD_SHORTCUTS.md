@@ -469,7 +469,7 @@ Privacy-first, **local-only**, and **opt-in** (set `telemetry.enabled: true` and
 | Command | Description |
 |---------|-------------|
 | `:save-query` / `:save` / `:sq` | Save the current search as a named query (bookmark). Add `@category` to file it under a group, e.g. `:save-query Unpaid invoices @finance` |
-| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; type `@work` to filter by category). In the picker: `e` edit · `d` delete the highlighted query |
+| `:bookmarks` / `:bm` / `:queries` | Open the saved-queries picker to run a bookmarked search (entries are grouped by category, uncategorised under "Default"; press `/` then type `@work` to filter by category). The picker is list-first: `n` new · `e` edit · `d` delete (press `d` again to confirm) the highlighted query · `/` filter |
 
 ### Picker CRUD convention (edit / delete)
 
@@ -483,12 +483,18 @@ so bare letters are commands; you enter a text filter explicitly (TUI `/`, deskt
 
 | Action | TUI (terminal) | Desktop (GUI) |
 | ------ | -------------- | ------------- |
-| Edit the highlighted entry | `e` (or `Enter`) | `e` (or the ✎ button) |
-| Delete the highlighted entry | `d` | `d` / `Delete` / `Backspace` (or the 🗑 button) |
-| New entry | — | `n` (or the New button) |
-| Run / apply | `Enter` | `Enter` |
+| Edit the highlighted entry | `e` | `e` (or the ✎ button) |
+| Delete the highlighted entry | `d` (press again to confirm) | `d` / `Delete` / `Backspace` (or the 🗑 button) |
+| New entry | `n` | `n` (or the New button) |
+| Run / apply / view | `Enter` | `Enter` |
 | Filter | `/` then type | `/` then type |
 | Filter by category | `@work` | `@work` |
+
+In the TUI, `e`/`d`/`n` act on the highlighted row (the picker opens in list mode);
+press `/` to focus the filter and `Esc` to leave it. Delete asks for a second press
+of `d` (a status-bar prompt) before it removes the entry; `Esc` cancels the arming.
+The **Prompt Library Manager** (`:prompts`) additionally exposes `x` to export the
+highlighted prompt to a file, and `Enter` opens a read-only view of it.
 
 On the desktop the filter is **blurred on open** (list mode) so `e`/`d`/`n` never
 collide with typing — a name with a capital "E" or "N" is just text. Press `/` to
@@ -497,9 +503,11 @@ second `Esc` closes the picker. The shared hooks `usePickerCrud` (edit/delete) a
 `useFilterMode` (`/` + `n`) enforce this everywhere. Delete-only panels (analyzer
 rules, jobs) omit edit; deletes ask to confirm first.
 
-The TUI keys are remappable under `keys`: `saved_query_edit` / `saved_query_delete`
-(saved searches) and `rule_edit` / `rule_delete` (rules manager). New keys are
-backfilled into existing `config.json` files automatically on upgrade.
+The TUI keys are remappable under `keys`: `saved_query_new` / `saved_query_edit` /
+`saved_query_delete` (saved searches), `prompt_new` / `prompt_edit` /
+`prompt_delete` / `prompt_export` (Prompt Library Manager) and `rule_edit` /
+`rule_delete` (rules manager). New keys are backfilled into existing `config.json`
+files automatically on upgrade.
 | `:bookmark <name>` / `:query <name>` | Run a saved search query by name |
 
 ## 🎨 Theme & UI

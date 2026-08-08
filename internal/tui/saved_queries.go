@@ -102,11 +102,13 @@ func (a *App) showSavedQueriesPicker() {
 
 	// Create picker UI similar to prompts
 	input := tview.NewInputField().
-		SetLabel("🔍 Search: ").
+		SetLabel("🔍 Filter: ").
 		SetFieldWidth(30).
 		SetLabelColor(a.GetComponentColors("saved_queries").Title.Color()).
 		SetFieldBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()).
 		SetFieldTextColor(a.GetComponentColors("saved_queries").Text.Color())
+	input.SetPlaceholder("press / to filter · @cat by category")
+	input.SetPlaceholderTextColor(a.getHintColor())
 	list := tview.NewList().ShowSecondaryText(false)
 	list.SetBorder(false)
 	list.SetBackgroundColor(a.GetComponentColors("saved_queries").Background.Color()) // Component background
@@ -123,6 +125,36 @@ func (a *App) showSavedQueriesPicker() {
 	// non-selectable category header row, so number/delete keys and the current
 	// selection map back to a real query even with headers interleaved.
 	var rowItems []int
+	// currentFilter mirrors the active filter text so an in-place refresh (after a
+	// delete) can rebuild the same view without re-reading the DB.
+	currentFilter := ""
+	// deletePendingID arms the two-press delete confirmation (rules-manager shape):
+	// first 'd' arms + shows a status prompt, a second 'd' on the same row deletes.
+	deletePendingID := int64(0)
+	clearDeletePending := func() {
+		if deletePendingID != 0 {
+			deletePendingID = 0
+			go a.GetErrorHandler().ClearPersistentMessage()
+		}
+	}
+	// firstRealRow returns the first non-header row so the cursor never starts on a
+	// category header (headers are non-selectable, rowItems == -1).
+	firstRealRow := func() int {
+		for i, ri := range rowItems {
+			if ri >= 0 {
+				return i
+			}
+		}
+		return 0
+	}
+	// selectedRealItem returns the query under the cursor, or false on a header row.
+	selectedRealItem := func() (queryItem, bool) {
+		cur := list.GetCurrentItem()
+		if cur >= 0 && cur < len(rowItems) && rowItems[cur] >= 0 {
+			return visible[rowItems[cur]], true
+		}
+		return queryItem{}, false
+	}
 
 	// Reload rebuilds the list from `all`, grouped by category with a header per
 	// group. A bare filter narrows by name; a "@cat" filter narrows by category.
@@ -229,49 +261,58 @@ func (a *App) showSavedQueriesPicker() {
 		sortSavedQueriesByCategory(all)
 
 		a.QueueUpdateDraw(func() {
-			// Set up input field
-			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
+			// Set up filter field (list-first: '/' focuses this, typing filters live).
+			input.SetChangedFunc(func(text string) {
+				currentFilter = strings.TrimSpace(text)
+				reload(currentFilter)
+			})
 
-			// Allow navigation from input to list
+			// Filter input: Down/PgDn return to the list; Esc clears the filter and
+			// returns to the list (a second Esc on the list closes the picker).
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.pickerTabCycle(e) {
 					return nil
 				}
-				if e.Key() == tcell.KeyDown || e.Key() == tcell.KeyUp || e.Key() == tcell.KeyPgDn || e.Key() == tcell.KeyPgUp {
+				switch e.Key() {
+				case tcell.KeyDown, tcell.KeyPgDn:
 					a.SetFocus(list)
-					return e
+					return nil
+				case tcell.KeyEscape:
+					input.SetText("")
+					reload("")
+					a.SetFocus(list)
+					return nil
 				}
 				return e
 			})
 
-			// Handle enter in input field (select first match)
+			// Enter in the filter executes the first visible match.
 			input.SetDoneFunc(func(key tcell.Key) {
-				if key == tcell.KeyEscape {
-					a.closeSavedQueriesPicker()
-					return
-				}
 				if key == tcell.KeyEnter && len(visible) > 0 {
-					// Execute the first visible (filtered) query.
 					a.executeQueryItem(visible[0], queryService)
 				}
 			})
 
-			// Handle list input capture
+			// Handle list input capture (list-first CRUD; parity with the rules manager).
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.pickerTabCycle(e) {
 					return nil
 				}
 				if e.Key() == tcell.KeyEscape {
+					if deletePendingID != 0 {
+						clearDeletePending() // cancel the armed delete only; panel stays open
+						return nil
+					}
 					a.closeSavedQueriesPicker()
 					return nil
 				}
-				// Allow up arrow from first item to go back to input
-				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
+				// '/' enters filter mode (k9s-style; the picker is list-first).
+				if e.Rune() == '/' {
+					clearDeletePending()
 					a.SetFocus(input)
 					return nil
 				}
-				// Handle number keys for quick access (1-9): Nth visible query,
-				// counting only real rows (headers are skipped).
+				// Number keys for quick access (1-9): Nth visible query.
 				if e.Rune() >= '1' && e.Rune() <= '9' {
 					num := int(e.Rune() - '0')
 					if num >= 1 && num <= len(visible) {
@@ -279,23 +320,49 @@ func (a *App) showSavedQueriesPicker() {
 						return nil
 					}
 				}
-				// Delete the selected query (configurable; default "d"). Map the
-				// current row back to a real query; ignore the keypress on headers.
-				if a.matchesConfiguredKey(e, a.Keys.SavedQueryDel) {
-					cur := list.GetCurrentItem()
-					if cur >= 0 && cur < len(rowItems) && rowItems[cur] >= 0 {
-						a.deleteSavedQueryItem(visible[rowItems[cur]], queryService)
-						return nil
-					}
+				// New query (configurable; default "n").
+				if a.matchesConfiguredKey(e, a.Keys.SavedQueryNew) {
+					clearDeletePending()
+					a.showSavedQueryForm(nil, queryService)
+					return nil
 				}
-				// Edit the selected query (configurable; default "e") — CRUD parity
-				// with the prompts picker.
+				// Edit the selected query (configurable; default "e").
 				if a.matchesConfiguredKey(e, a.Keys.SavedQueryEdit) {
-					cur := list.GetCurrentItem()
-					if cur >= 0 && cur < len(rowItems) && rowItems[cur] >= 0 {
-						a.editSavedQueryItem(visible[rowItems[cur]], queryService)
+					clearDeletePending()
+					if item, ok := selectedRealItem(); ok {
+						a.showSavedQueryForm(&item, queryService)
+					}
+					return nil
+				}
+				// Delete the selected query (configurable; default "d") — two-press
+				// status-bar confirmation, the shape used across the app.
+				if a.matchesConfiguredKey(e, a.Keys.SavedQueryDel) {
+					item, ok := selectedRealItem()
+					if !ok {
 						return nil
 					}
+					if deletePendingID == item.id { // second press on the armed row → delete
+						deletePendingID = 0
+						a.performSavedQueryDelete(item, queryService, func() {
+							// Drop the row locally and rebuild the same filtered view.
+							for i := range all {
+								if all[i].id == item.id {
+									all = append(all[:i], all[i+1:]...)
+									break
+								}
+							}
+							a.QueueUpdateDraw(func() {
+								reload(currentFilter)
+								list.SetCurrentItem(firstRealRow())
+							})
+						})
+						return nil
+					}
+					deletePendingID = item.id
+					go a.GetErrorHandler().ShowPersistentMessage(a.ctx,
+						fmt.Sprintf("Delete query '%s'? Press '%s' again to confirm, Esc cancels", item.name, a.Keys.SavedQueryDel),
+						LogLevelInfo)
+					return nil
 				}
 				return e
 			})
@@ -313,19 +380,21 @@ func (a *App) showSavedQueriesPicker() {
 			input.SetBackgroundColor(bgColor)
 			list.SetBackgroundColor(bgColor)
 
-			// Add spacing like attachments picker (3 lines for input)
-			container.AddItem(input, 3, 0, true)
-			container.AddItem(list, 0, 1, false)
+			// Add spacing like attachments picker (3 lines for input). List-first:
+			// the list holds initial focus, the filter is reached with '/'.
+			container.AddItem(input, 3, 0, false)
+			container.AddItem(list, 0, 1, true)
 
 			// Footer with instructions (standardized footer color)
 			footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-			footer.SetText(" Enter/1-9 execute · @cat filter · e edit · d delete · Esc cancel ")
+			footer.SetText(" Enter/1-9 run · / filter (@cat) · n new · e edit · d delete · Esc close ")
 			footer.SetTextColor(a.GetComponentColors("general").Text.Color()) // Standardized footer color like other pickers
 			footer.SetBackgroundColor(bgColor)
 			container.AddItem(footer, 1, 0, false)
 
-			// Initial population
+			// Initial population; start the cursor on the first real (non-header) row.
 			reload("")
+			list.SetCurrentItem(firstRealRow())
 
 			// Add to content split (like labels/prompts)
 			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
@@ -342,8 +411,8 @@ func (a *App) showSavedQueriesPicker() {
 			a.markFocus("labels")
 			a.setActivePicker(PickerSavedQueries)
 
-			// Set focus to input
-			a.SetFocus(input)
+			// List-first: focus the list so n/e/d and 1-9 act immediately ('/' filters).
+			a.SetFocus(list)
 		})
 	}()
 }
@@ -634,26 +703,33 @@ func (a *App) getCurrentSearchQuery() string {
 
 // OBLITERATED: unused deleteSavedQuery function eliminated! 💥
 
-// deleteSavedQueryItem deletes a query item from the picker
-func (a *App) deleteSavedQueryItem(item queryItem, queryService services.QueryService) {
-	// Hide picker first
-	a.closeSavedQueriesPicker()
-
-	// Show confirmation and delete
+// performSavedQueryDelete deletes a query via QueryService and runs onDone (an
+// in-place list refresh) on success. The persistent confirmation prompt is cleared
+// first; the picker stays open so the refreshed list is shown.
+func (a *App) performSavedQueryDelete(item queryItem, queryService services.QueryService, onDone func()) {
 	go func() {
+		a.GetErrorHandler().ClearPersistentMessage()
 		if err := queryService.DeleteQuery(a.ctx, item.id); err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete query: %v", err))
-		} else {
-			a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted query: %s", item.name))
+			return
+		}
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted query: %s", item.name))
+		if onDone != nil {
+			onDone()
 		}
 	}()
 }
 
-// editSavedQueryItem opens an inline form to edit a saved query's name, query and
-// category, then persists it via QueryService.UpdateQuery. Reopens the picker
-// (refreshed) on save or cancel.
-func (a *App) editSavedQueryItem(item queryItem, queryService services.QueryService) {
+// showSavedQueryForm opens an inline form to create (existing == nil) or edit a
+// saved query's name, query and category, persisting via QueryService.SaveQuery /
+// UpdateQuery. Reopens the picker (refreshed) on save or cancel.
+func (a *App) showSavedQueryForm(existing *queryItem, queryService services.QueryService) {
 	colors := a.GetComponentColors("saved_queries")
+
+	name, query, category := "", "", ""
+	if existing != nil {
+		name, query, category = existing.name, existing.query, existing.category
+	}
 
 	form := tview.NewForm()
 	form.SetBackgroundColor(colors.Background.Color())
@@ -662,9 +738,9 @@ func (a *App) editSavedQueryItem(item queryItem, queryService services.QueryServ
 	form.SetLabelColor(colors.Title.Color())
 	form.SetButtonBackgroundColor(colors.Background.Color())
 	form.SetButtonTextColor(colors.Text.Color())
-	form.AddInputField("Name", item.name, 44, nil, nil)
-	form.AddInputField("Query", item.query, 44, nil, nil)
-	form.AddInputField("Category", item.category, 44, nil, nil)
+	form.AddInputField("Name", name, 44, nil, nil)
+	form.AddInputField("Query", query, 44, nil, nil)
+	form.AddInputField("Category", category, 44, nil, nil)
 
 	field := func(label string) string {
 		if fi, ok := form.GetFormItemByLabel(label).(*tview.InputField); ok {
@@ -677,16 +753,25 @@ func (a *App) editSavedQueryItem(item queryItem, queryService services.QueryServ
 		a.showSavedQueriesPicker()
 	}
 	save := func() {
-		name, q, cat := field("Name"), field("Query"), field("Category")
-		if name == "" || q == "" {
+		n, q, cat := field("Name"), field("Query"), field("Category")
+		if n == "" || q == "" {
 			go a.GetErrorHandler().ShowWarning(a.ctx, "Name and query are required")
 			return
 		}
 		go func() {
-			if err := queryService.UpdateQuery(a.ctx, item.id, name, q, "", cat); err != nil {
-				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to update query: %v", err))
+			var err error
+			if existing == nil {
+				_, err = queryService.SaveQuery(a.ctx, n, q, "", cat)
 			} else {
-				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated query: %s", name))
+				err = queryService.UpdateQuery(a.ctx, existing.id, n, q, "", cat)
+			}
+			switch {
+			case err != nil:
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save query: %v", err))
+			case existing == nil:
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Created query: %s", n))
+			default:
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated query: %s", n))
 			}
 		}()
 		reopen()
@@ -699,7 +784,11 @@ func (a *App) editSavedQueryItem(item queryItem, queryService services.QueryServ
 	container.SetBackgroundColor(colors.Background.Color())
 	container.SetBorder(true)
 	container.SetBorderColor(colors.Border.Color())
-	container.SetTitle(" ✏️  Edit Saved Query ")
+	title := " ✏️  Edit Saved Query "
+	if existing == nil {
+		title = " ➕ New Saved Query "
+	}
+	container.SetTitle(title)
 	container.SetTitleColor(colors.Title.Color())
 	container.AddItem(form, 0, 1, true)
 

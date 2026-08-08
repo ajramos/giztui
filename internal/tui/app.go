@@ -2380,7 +2380,7 @@ func (a *App) generateHelpText() string {
 	// Additional Features
 	help.WriteString("🔧 ADDITIONAL FEATURES\n\n")
 	fmt.Fprintf(&help, "    %-8s  💾  Save current search as bookmark\n", a.Keys.SaveQuery)
-	fmt.Fprintf(&help, "    %-8s  📚  Browse saved query bookmarks (grouped by category; @cat filter; e edit, d delete)\n", a.Keys.QueryBookmarks)
+	fmt.Fprintf(&help, "    %-8s  📚  Browse saved query bookmarks (list-first: n new, e edit, d delete; / filter, @cat)\n", a.Keys.QueryBookmarks)
 	fmt.Fprintf(&help, "    %-8s  🌐  Open message in Gmail web\n", a.Keys.OpenGmail)
 	fmt.Fprintf(&help, "    %-8s  💾  Save message content\n", a.Keys.SaveMessage)
 	fmt.Fprintf(&help, "    %-8s  📄  Save raw message\n", a.Keys.SaveRaw)
@@ -2472,7 +2472,7 @@ func (a *App) generateHelpText() string {
 
 	// Prompt management commands
 	fmt.Fprintf(&help, "    %-18s 📊  Show prompt usage statistics\n", ":prompt stats")
-	fmt.Fprintf(&help, "    %-18s 📋  Manage prompts\n", ":prompt list")
+	fmt.Fprintf(&help, "    %-18s 📋  Manage prompts (list-first: n new, e edit, d delete, x export; Enter view, / filter)\n", ":prompt list")
 	fmt.Fprintf(&help, "    %-18s ➕  Create new prompt\n", ":prompt create")
 	fmt.Fprintf(&help, "    %-18s ✏️   Update existing prompt\n", ":prompt update")
 	fmt.Fprintf(&help, "    %-18s 🗑️   Delete prompt\n", ":prompt delete")
