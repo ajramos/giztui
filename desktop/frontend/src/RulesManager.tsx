@@ -198,7 +198,7 @@ export default function RulesManager({
         setForm({ id: r.id, query: r.query, action: r.action, label: r.label, promptId: r.promptId });
         return;
       }
-      // e/Shift+E edit and d/Delete/Backspace delete are handled by usePickerCrud.
+      // e edits and d/Delete/Backspace deletes (list mode) via usePickerCrud.
       if (e.key === "s" && r) {
         e.preventDefault();
         void toggleSync(r);
