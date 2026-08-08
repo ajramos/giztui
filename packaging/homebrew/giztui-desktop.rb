@@ -14,7 +14,7 @@
 # notarization lands the build is unsigned; Homebrew strips the quarantine
 # attribute on cask installs, so it still opens without the right-click → Open dance.
 cask "giztui-desktop" do
-  version "1.26.0"
+  version "1.27.0"
   sha256 :no_check # the tap copy is pinned to the DMG's sha256 by CI
 
   url "https://github.com/ajramos/giztui/releases/download/v#{version}/GizTUI-Desktop-#{version}-universal.dmg"
