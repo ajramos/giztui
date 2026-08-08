@@ -774,7 +774,7 @@ func DefaultKeyBindings() KeyBindings {
 		ConfirmPlan:    "c", // confirm & apply the whole plan (panel-only; context-separated from compose "c")
 		RuleAdd:        "a",
 		RuleDelete:     "d",
-		RuleEdit:       "e", // rules manager: edit selected rule (parity with saved_query_edit)
+		RuleEdit:       "e",      // rules manager: edit selected rule (parity with saved_query_edit)
 		RuleFromQuery:  "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel:  "d",
 		SavedQueryEdit: "e",

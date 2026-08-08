@@ -5,6 +5,52 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-08-08
+
+A **consistent, keyboard-first CRUD model for every editable picker** across both
+the TUI and the desktop client, plus **saved-search editing and categories**. Once
+you learn `e` / `d` / `n` in one picker, every other picker works the same way.
+
+### 🚀 Features
+
+- **Saved searches: categories.** Group the saved-search picker by category, filter
+  to one group by typing `@category`, and assign a category when saving with
+  `:save-query <name> @work`. Category headers are tinted with the component's
+  title colour so groups are easy to scan. (#18)
+- **Saved searches: edit in place.** Rename or change a saved search from the picker
+  without deleting and re-creating it, via `e` (or the ✎ button). (#19, #11)
+- **Prompts: inline CRUD in the picker.** Create, edit and delete prompts directly
+  from the prompts picker; the separate prompt-manager screen is retired, so there
+  is one place to manage prompts. New prompts are created with `n`.
+- **One CRUD convention everywhere.** Every picker whose rows are editable entities
+  — saved searches, prompts, analyzer rules, deterministic rules, jobs — now shares
+  the same keys across the TUI and the desktop: `e` edits, `d` / `Delete` deletes,
+  `n` creates, `Enter` runs. Deletes ask to confirm first. (#11)
+- **Desktop pickers use a list-mode filter (TUI parity).** Pickers with both a
+  filter and letter shortcuts open in *list mode* so bare `e` / `d` / `n` act as
+  commands; press `/` to focus the filter and type freely, `Esc` to go back.
+
+### 🐛 Bug Fixes
+
+- **Desktop: typing a capital letter in a picker filter no longer fires a command.**
+  With the filter focused, `Shift+E` / `Shift+N` are just how you type an uppercase
+  `E` / `N`, so a name like "Newsletter" used to trigger new/edit/delete. The new
+  list-mode model removes the collision entirely.
+- **Desktop: `Esc` while editing a saved search closes only the edit dialog**, not
+  the whole picker underneath it.
+- **Desktop: keyboard delete restored in the saved-searches picker.**
+- **Config: quoted numbers are tolerated and JSON type errors are clearer.** A
+  numeric option written as `"5"` in `config.json` no longer fails to load, and a
+  genuine type mismatch now reports which key and what was expected. (#40)
+
+### 🔧 Technical Improvements
+
+- **Config: an explicit `Config.Validate()` pass at load** surfaces bad values
+  early with actionable messages instead of failing deep in a feature. (#40)
+- **Shared UI hooks `usePickerCrud` and `useFilterMode`** centralise the desktop
+  edit/delete/new + list-mode-filter behaviour, so all CRUD pickers stay identical
+  and future pickers get the convention for free.
+
 ## [1.25.1] - 2026-08-03
 
 Bug-fix release for the desktop client: dead email links now open, and the
