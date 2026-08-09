@@ -22,6 +22,20 @@ Interpretación: mientras un cambio no genere una función con CCN > 265, ni un
 fichero con NLOC > 3337, ni una función de más de 908 líneas, no se cruza la
 marca actual. Cruzarla es un empeoramiento medible del peor caso del repo.
 
+## Trinquete por fichero
+
+`quality-baseline-per-file.csv` es el trinquete de grano fino: una fila por
+fichero fuente con `max_nloc,max_ccn,max_func_len,funcs_over_ccn10`, ordenada
+por ruta para diffs estables. Es más útil que el máximo global porque un
+fichero que empeora no queda enmascarado por otro que ya ostenta el récord.
+Regla: ninguna celda puede **subir** respecto a la fila registrada; puede
+bajar libremente. Se regenera con el mismo comando lizard de abajo.
+
+Nota: `internal/tui/keys.go` queda registrado con `max_ccn=228` y
+`max_func_len=908`, ambos de `bindKeys` (el `SetInputCapture` monolítico de
+enrutado contextual), que es un problema aparte no abordado aquí. Congelarlo
+no impide refactorizarlo: un trinquete de máximos solo prohíbe empeorar.
+
 ## Cómo reproducir
 
 ```sh
@@ -38,6 +52,6 @@ Exclusiones aplicadas: dependencias (`node_modules`), artefactos construidos
 
 ## Contexto de la medición (no forma parte del trinquete)
 
-- Funciones analizadas: **4070** en **265** ficheros fuente.
+- Funciones analizadas: **4118** en **265** ficheros fuente.
 - Funciones con CCN > 10: **220**.
-- CCN medio global: **3.6**.
+- CCN medio global: **3.5**.
