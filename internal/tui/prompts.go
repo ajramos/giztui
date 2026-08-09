@@ -621,7 +621,11 @@ func (a *App) extractHeader(message *gmail.Message, headerName string) string {
 	return ""
 }
 
-// openPromptPickerForManagement opens an enhanced prompt picker for management operations
+// openPromptPickerForManagement opens the Prompt Library Manager: a list-first CRUD
+// picker (parity with the rules manager and saved-queries picker, and with the
+// desktop PromptsPicker). Enter views the prompt, '/' filters by name, n creates a
+// new prompt, e edits the selected one, d deletes it (two-press confirmation) and
+// x exports it to a file.
 func (a *App) openPromptPickerForManagement() {
 	// Get prompt service
 	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
@@ -630,15 +634,21 @@ func (a *App) openPromptPickerForManagement() {
 		return
 	}
 
-	// Create picker UI similar to regular prompt picker
+	promptColors := a.GetComponentColors("prompts")
 	input := tview.NewInputField().
-		SetLabel("🔍 Search: ").
+		SetLabel("🔍 Filter: ").
 		SetFieldWidth(30).
-		SetLabelColor(a.GetComponentColors("prompts").Title.Color()).
-		SetFieldBackgroundColor(a.GetComponentColors("prompts").Background.Color()).
-		SetFieldTextColor(a.GetComponentColors("prompts").Text.Color())
-	list := tview.NewList().ShowSecondaryText(false)
+		SetLabelColor(promptColors.Title.Color()).
+		SetFieldBackgroundColor(promptColors.Background.Color()).
+		SetFieldTextColor(promptColors.Text.Color())
+	input.SetPlaceholder("press / to filter")
+	input.SetPlaceholderTextColor(a.getHintColor())
+	list := tview.NewList().ShowSecondaryText(true)
 	list.SetBorder(false)
+	list.SetMainTextColor(promptColors.Text.Color())
+	list.SetSecondaryTextColor(a.getHintColor())
+	list.SetSelectedTextColor(promptColors.Background.Color())
+	list.SetSelectedBackgroundColor(promptColors.Accent.Color())
 
 	type promptItem struct {
 		id          int
@@ -650,9 +660,19 @@ func (a *App) openPromptPickerForManagement() {
 
 	var all []promptItem
 	var visible []promptItem
+	currentFilter := ""
+	// deletePendingID arms the two-press delete confirmation (-1 = none).
+	deletePendingID := -1
+	clearDeletePending := func() {
+		if deletePendingID != -1 {
+			deletePendingID = -1
+			go a.GetErrorHandler().ClearPersistentMessage()
+		}
+	}
 
 	// Reload function for filtering
 	reload := func(filter string) {
+		currentFilter = filter
 		list.Clear()
 		visible = visible[:0]
 		for _, item := range all {
@@ -690,6 +710,14 @@ func (a *App) openPromptPickerForManagement() {
 		}
 	}
 
+	selected := func() (promptItem, bool) {
+		cur := list.GetCurrentItem()
+		if cur >= 0 && cur < len(visible) {
+			return visible[cur], true
+		}
+		return promptItem{}, false
+	}
+
 	// Load prompts in background
 	go func() {
 		prompts, err := promptService.ListPrompts(a.ctx, "")
@@ -713,103 +741,132 @@ func (a *App) openPromptPickerForManagement() {
 
 			reload("")
 
-			// Set up input field
-			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
-
-			// Handle input events
-			input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				if a.pickerTabCycle(event) {
-					return nil
-				}
-				switch event.Key() {
-				case tcell.KeyEscape:
-					a.closePromptManager()
-					return nil
-				case tcell.KeyDown, tcell.KeyUp, tcell.KeyPgDn, tcell.KeyPgUp:
-					a.SetFocus(list)
-					return event
-				}
-				return event
+			// Filter field (list-first: '/' focuses this, typing filters live).
+			input.SetChangedFunc(func(text string) {
+				currentFilter = strings.TrimSpace(text)
+				reload(currentFilter)
 			})
 
-			// Enhanced list input capture with management keys
-			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.pickerTabCycle(e) {
 					return nil
 				}
-				if e.Key() == tcell.KeyUp && list.GetCurrentItem() == 0 {
-					a.SetFocus(input)
+				switch e.Key() {
+				case tcell.KeyDown, tcell.KeyPgDn:
+					a.SetFocus(list)
 					return nil
-				}
-				if e.Key() == tcell.KeyEscape {
-					a.closePromptManager()
-					return nil
-				}
-
-				// Management key bindings
-				switch e.Rune() {
-				case 'e':
-					// Export prompt - ask for file path
-					if len(visible) > 0 {
-						currentIndex := list.GetCurrentItem()
-						if currentIndex >= 0 && currentIndex < len(visible) {
-							item := visible[currentIndex]
-							go a.promptForExportPath(item.id, item.name)
-						}
-					}
-					return nil
-				case 'd':
-					// Delete prompt with confirmation
-					if len(visible) > 0 {
-						currentIndex := list.GetCurrentItem()
-						if currentIndex >= 0 && currentIndex < len(visible) {
-							item := visible[currentIndex]
-							go a.confirmDeletePrompt(item.id, item.name)
-						}
-					}
+				case tcell.KeyEscape:
+					input.SetText("")
+					reload("")
+					a.SetFocus(list)
 					return nil
 				}
 				return e
 			})
 
-			// Handle enter in input field (select first match)
+			// Enter in the filter views the first visible match.
 			input.SetDoneFunc(func(key tcell.Key) {
-				if key == tcell.KeyEscape {
-					a.closePromptManager()
-					return
+				if key == tcell.KeyEnter && len(visible) > 0 {
+					v := visible[0]
+					a.showPromptDetails(v.id, v.name)
 				}
-				if key == tcell.KeyEnter {
-					if len(visible) > 0 {
-						v := visible[0]
-						a.showPromptDetails(v.id, v.name)
+			})
+
+			// List-first CRUD input capture.
+			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if a.pickerTabCycle(e) {
+					return nil
+				}
+				if e.Key() == tcell.KeyEscape {
+					if deletePendingID != -1 {
+						clearDeletePending() // cancel the armed delete only; panel stays open
+						return nil
 					}
+					a.closePromptManager()
+					return nil
 				}
+				// '/' enters filter mode (k9s-style; the picker is list-first).
+				if e.Rune() == '/' {
+					clearDeletePending()
+					a.SetFocus(input)
+					return nil
+				}
+				// New prompt (configurable; default "n").
+				if a.matchesConfiguredKey(e, a.Keys.PromptNew) {
+					clearDeletePending()
+					a.showPromptForm(0, "", "", "", "")
+					return nil
+				}
+				// Edit the selected prompt (configurable; default "e").
+				if a.matchesConfiguredKey(e, a.Keys.PromptEdit) {
+					clearDeletePending()
+					if it, ok := selected(); ok {
+						a.editPromptByID(it.id)
+					}
+					return nil
+				}
+				// Export the selected prompt (configurable; default "x").
+				if a.matchesConfiguredKey(e, a.Keys.PromptExport) {
+					clearDeletePending()
+					if it, ok := selected(); ok {
+						go a.promptForExportPath(it.id, it.name)
+					}
+					return nil
+				}
+				// Delete the selected prompt (configurable; default "d") — two-press
+				// status-bar confirmation, the shape used across the app.
+				if a.matchesConfiguredKey(e, a.Keys.PromptDelete) {
+					it, ok := selected()
+					if !ok {
+						return nil
+					}
+					if deletePendingID == it.id { // second press on the armed row → delete
+						deletePendingID = -1
+						a.performPromptDelete(it.id, it.name, func() {
+							for i := range all {
+								if all[i].id == it.id {
+									all = append(all[:i], all[i+1:]...)
+									break
+								}
+							}
+							a.QueueUpdateDraw(func() { reload(currentFilter) })
+						})
+						return nil
+					}
+					deletePendingID = it.id
+					go a.GetErrorHandler().ShowPersistentMessage(a.ctx,
+						fmt.Sprintf("Delete prompt '%s'? Press '%s' again to confirm, Esc cancels", it.name, a.Keys.PromptDelete),
+						LogLevelInfo)
+					return nil
+				}
+				return e
 			})
 		})
 	}()
 
 	// Create container
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	promptColors := a.GetComponentColors("prompts")
 
 	// Force background rendering for modal containers
 	bgColor := promptColors.Background.Color()
 	container.SetBackgroundColor(bgColor)
 	container.SetBorder(true)
+	container.SetBorderColor(promptColors.Border.Color())
 
 	// Set background on child components as well
 	input.SetBackgroundColor(bgColor)
 	list.SetBackgroundColor(bgColor)
 
 	container.SetTitle(" 📚 Prompt Library Manager ")
-	container.SetTitleColor(a.GetComponentColors("prompts").Title.Color())
-	container.AddItem(input, 3, 0, true)
+	container.SetTitleColor(promptColors.Title.Color())
+	// List-first: the filter is 3 rows tall but the list holds focus ('/' filters).
+	container.AddItem(input, 3, 0, false)
 	container.AddItem(list, 0, 1, true)
 
 	// Enhanced footer with management instructions
 	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
-	footer.SetText(" Enter: view | e: export | d: delete | Esc: close ")
-	footer.SetTextColor(a.GetComponentColors("prompts").Text.Color())
+	footer.SetText(" Enter view · / filter · n new · e edit · d delete · x export · Esc close ")
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
 	footer.SetBackgroundColor(bgColor)
 	container.AddItem(footer, 1, 0, false)
 
@@ -822,9 +879,122 @@ func (a *App) openPromptPickerForManagement() {
 		split.AddItem(a.labelsView, 0, 1, true)
 		split.ResizeItem(a.labelsView, 0, 1)
 	}
-	a.SetFocus(input)
+	a.SetFocus(list) // list-first
 	a.markFocus("prompts")
 	a.setActivePicker(PickerPrompts)
+}
+
+// editPromptByID loads a prompt's full template and opens the edit form.
+func (a *App) editPromptByID(id int) {
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+	go func() {
+		p, err := promptService.GetPrompt(a.ctx, id)
+		if err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to load prompt: %v", err))
+			return
+		}
+		a.QueueUpdateDraw(func() {
+			a.showPromptForm(p.ID, p.Name, p.Description, p.PromptText, p.Category)
+		})
+	}()
+}
+
+// showPromptForm opens an inline form to create (id == 0) or edit a prompt,
+// persisting via PromptService.CreatePrompt / UpdatePrompt. Reopens the manager
+// (refreshed) on save or cancel. The Template field is single-line (tview has no
+// multi-line editor); rich templates are better authored via ':prompt create <file>'.
+func (a *App) showPromptForm(id int, name, description, promptText, category string) {
+	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
+	if promptService == nil {
+		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
+		return
+	}
+	colors := a.GetComponentColors("prompts")
+
+	form := tview.NewForm()
+	form.SetBackgroundColor(colors.Background.Color())
+	form.SetFieldBackgroundColor(colors.Background.Color())
+	form.SetFieldTextColor(colors.Text.Color())
+	form.SetLabelColor(colors.Title.Color())
+	form.SetButtonBackgroundColor(colors.Background.Color())
+	form.SetButtonTextColor(colors.Text.Color())
+	form.AddInputField("Name", name, 44, nil, nil)
+	form.AddInputField("Category", category, 44, nil, nil)
+	form.AddInputField("Description", description, 44, nil, nil)
+	form.AddInputField("Template", promptText, 0, nil, nil)
+
+	field := func(label string) string {
+		if fi, ok := form.GetFormItemByLabel(label).(*tview.InputField); ok {
+			return strings.TrimSpace(fi.GetText())
+		}
+		return ""
+	}
+	reopen := func() {
+		a.closePromptManager()
+		a.openPromptPickerForManagement()
+	}
+	save := func() {
+		n, cat, desc, tpl := field("Name"), field("Category"), field("Description"), field("Template")
+		if n == "" || tpl == "" {
+			go a.GetErrorHandler().ShowWarning(a.ctx, "Name and template are required")
+			return
+		}
+		go func() {
+			var err error
+			if id == 0 {
+				_, err = promptService.CreatePrompt(a.ctx, n, desc, tpl, cat)
+			} else {
+				err = promptService.UpdatePrompt(a.ctx, id, n, desc, tpl, cat)
+			}
+			switch {
+			case err != nil:
+				a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to save prompt: %v", err))
+			case id == 0:
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Created prompt: %s", n))
+			default:
+				a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Updated prompt: %s", n))
+			}
+		}()
+		reopen()
+	}
+	form.AddButton("Save", save)
+	form.AddButton("Cancel", reopen)
+	form.SetCancelFunc(reopen) // Esc
+
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(colors.Background.Color())
+	container.SetBorder(true)
+	container.SetBorderColor(colors.Border.Color())
+	title := " ✏️  Edit Prompt "
+	if id == 0 {
+		title = " ➕ New Prompt "
+	}
+	container.SetTitle(title)
+	container.SetTitleColor(colors.Title.Color())
+	container.AddItem(form, 0, 1, true)
+
+	footer := tview.NewTextView().SetTextAlign(tview.AlignRight)
+	footer.SetText(" Tab move · Enter on Save · Esc cancel ")
+	footer.SetTextColor(a.GetComponentColors("general").Text.Color())
+	footer.SetBackgroundColor(colors.Background.Color())
+	container.AddItem(footer, 1, 0, false)
+
+	if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+		if a.labelsView != nil {
+			split.RemoveItem(a.labelsView)
+		}
+		a.labelsView = container
+		split.SetBackgroundColor(colors.Background.Color())
+		split.AddItem(a.labelsView, 0, 1, true)
+		split.ResizeItem(a.labelsView, 0, 1)
+	}
+	a.markFocus("prompts")
+	a.setActivePicker(PickerPrompts)
+	a.SetFocus(form)
 }
 
 // closePromptManager closes the prompt manager and restores the original view
@@ -951,24 +1121,24 @@ func (a *App) promptForExportPath(promptID int, promptName string) {
 	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Exported '%s' to %s", promptName, defaultPath))
 }
 
-// confirmDeletePrompt asks for confirmation before deleting a prompt
-func (a *App) confirmDeletePrompt(promptID int, promptName string) {
-	// For now, delete directly - in a real implementation you might want a confirmation dialog
+// performPromptDelete deletes a prompt via PromptService and runs onDone (an
+// in-place list refresh) on success. The two-press confirmation prompt is cleared
+// first; the manager stays open so the refreshed list is shown.
+func (a *App) performPromptDelete(promptID int, promptName string, onDone func()) {
 	_, _, _, _, _, _, promptService, _, _, _, _, _ := a.GetServices()
 	if promptService == nil {
 		a.GetErrorHandler().ShowError(a.ctx, "Prompt service not available")
 		return
 	}
-
-	// Delete the prompt
-	err := promptService.DeletePrompt(a.ctx, promptID)
-	if err != nil {
-		a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete prompt: %v", err))
-		return
-	}
-
-	a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
-
-	// Refresh the prompt manager
-	go a.openPromptPickerForManagement()
+	go func() {
+		a.GetErrorHandler().ClearPersistentMessage()
+		if err := promptService.DeletePrompt(a.ctx, promptID); err != nil {
+			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Failed to delete prompt: %v", err))
+			return
+		}
+		a.GetErrorHandler().ShowSuccess(a.ctx, fmt.Sprintf("Deleted prompt: %s", promptName))
+		if onDone != nil {
+			onDone()
+		}
+	}()
 }

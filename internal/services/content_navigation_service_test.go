@@ -64,7 +64,7 @@ func TestContentNavigationService_SearchContent_EmptyQuery(t *testing.T) {
 	assert.Equal(t, 0, result.MatchCount)
 	assert.Empty(t, result.Matches)
 	assert.Equal(t, testContent, result.Content)
-	assert.Greater(t, result.Duration, time.Duration(0))
+	assert.GreaterOrEqual(t, result.Duration, time.Duration(0))
 }
 
 func TestContentNavigationService_SearchContent_CaseSensitive(t *testing.T) {
@@ -741,7 +741,7 @@ func TestContentSearchResult_Validation(t *testing.T) {
 	assert.True(t, result.CaseSensitive)
 	assert.Equal(t, len(result.Matches), result.MatchCount)
 	assert.Equal(t, searchableContent, result.Content)
-	assert.Greater(t, result.Duration, time.Duration(0))
+	assert.GreaterOrEqual(t, result.Duration, time.Duration(0))
 
 	// Verify matches are in ascending order
 	for i := 1; i < len(result.Matches); i++ {

@@ -514,6 +514,11 @@ type KeyBindings struct {
 	RuleFromQuery  string `json:"rule_from_search"`   // New rule pre-filled with the active search query
 	SavedQueryDel  string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
 	SavedQueryEdit string `json:"saved_query_edit"`   // Saved-queries picker: edit the selected query
+	SavedQueryNew  string `json:"saved_query_new"`    // Saved-queries picker: create a new query
+	PromptEdit     string `json:"prompt_edit"`        // Prompt manager: edit the selected prompt
+	PromptNew      string `json:"prompt_new"`         // Prompt manager: create a new prompt
+	PromptDelete   string `json:"prompt_delete"`      // Prompt manager: delete the selected prompt
+	PromptExport   string `json:"prompt_export"`      // Prompt manager: export the selected prompt to a file
 
 	// Picker / panel actions
 	AttachmentSave string `json:"attachment_save"` // Attachments picker: save the selected attachment
@@ -778,6 +783,11 @@ func DefaultKeyBindings() KeyBindings {
 		RuleFromQuery:  "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel:  "d",
 		SavedQueryEdit: "e",
+		SavedQueryNew:  "n",
+		PromptEdit:     "e",
+		PromptNew:      "n",
+		PromptDelete:   "d",
+		PromptExport:   "x",
 
 		// Picker / panel actions
 		AttachmentSave: "ctrl+s",
@@ -1025,8 +1035,9 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 	contextSeparated := map[string]map[string]bool{
 		"a":      {"archive": true, "rule_add": true},
 		"c":      {"compose": true, "confirm_plan": true},
-		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true},
-		"e":      {"rule_edit": true, "saved_query_edit": true},
+		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true, "prompt_delete": true},
+		"e":      {"rule_edit": true, "saved_query_edit": true, "prompt_edit": true},
+		"n":      {"search_next": true, "saved_query_new": true, "prompt_new": true},
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},
 		"ctrl+r": {"prompt_regenerate": true, "remember_rule": true},

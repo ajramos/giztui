@@ -5,6 +5,41 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2026-08-08
+
+The **TUI half of the keyboard-first CRUD model** shipped for the desktop in 1.26.0.
+The terminal saved-searches picker and Prompt Library Manager now open in *list
+mode* and share the same `n` / `e` / `d` keys as every other picker, so muscle
+memory carries across clients.
+
+### 🚀 Features
+
+- **Saved searches: create from the picker.** Press `n` in the saved-searches picker
+  (`Q` / `:bookmarks`) to add a new bookmark inline, alongside the existing `e`
+  (edit) — no more dropping to `:save-query` just to create one.
+- **Prompts: edit and create in place (TUI).** The Prompt Library Manager
+  (`:prompts` / `:prompt list`) now edits the highlighted prompt with `e` and
+  creates one with `n` via an inline form, matching the desktop. `Enter` still opens
+  the read-only prompt view.
+- **List-mode filter in the TUI (desktop parity).** Both pickers open with the row
+  list focused, so bare `n` / `e` / `d` are commands; press `/` to focus the filter
+  (`@category` still narrows saved searches) and `Esc` to leave it.
+
+### 🐛 Bug Fixes
+
+- **Saved searches: deletes now confirm.** Deleting a bookmark (`d`) asks for a
+  second press in the status bar before removing it — `Esc` cancels — instead of
+  deleting immediately with no undo.
+
+### 🔧 Changed
+
+- **Prompt Library Manager: export moves to `x`.** `e` now edits the selected prompt
+  (was: export); export the highlighted prompt to a file with `x`. Delete (`d`) gains
+  the same two-press confirmation as the other pickers.
+- New remappable keys under `keys`: `saved_query_new`, `prompt_new`, `prompt_edit`,
+  `prompt_delete`, `prompt_export` (defaults `n` / `n` / `e` / `d` / `x`). Existing
+  `config.json` files pick up the defaults automatically on upgrade.
+
 ## [1.26.0] - 2026-08-08
 
 A **consistent, keyboard-first CRUD model for every editable picker** across both
