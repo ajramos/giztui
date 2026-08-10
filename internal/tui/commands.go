@@ -306,153 +306,111 @@ func (a *App) executeCommand(cmd string) {
 	// queries and other message content are never captured. No-op when disabled.
 	a.recordTelemetry("command", command, true)
 
-	switch command {
-	case "labels", "l":
-		a.executeLabelsCommand(args)
-	case "links", "link":
-		a.executeLinksCommand(args)
-	case "attachments", "attach":
-		a.executeAttachmentsCommand(args)
-	case "gmail", "web", "open-web", "o":
-		a.executeGmailWebCommand(args)
-	case "/":
-		a.executeContentSearch(args)
-	case "search":
-		a.executeSearchCommand(args)
-	case "slack", "sl":
-		a.executeSlackCommand(args)
-	case "s":
-		// Handle ambiguous "s" - prioritize search if has args, slack if no args
+	if h, ok := a.commandTable()[command]; ok {
+		h(args)
+		return
+	}
+	// No table entry: numeric shortcuts (:1, :$) and unknown-command feedback.
+	if matched := a.executeNumericShortcut(command); !matched {
+		if suggestion, ok := closestCommand(command); ok {
+			a.showError(fmt.Sprintf("Unknown command: '%s'. Did you mean ':%s'?", command, suggestion))
+		} else {
+			a.showError(fmt.Sprintf("Unknown command: %s", command))
+		}
+	}
+}
+
+// commandTable is the single source of truth mapping every command token (name
+// and alias) to its handler. Adding a command is one row here instead of a new
+// switch case — the command-side twin of configurableBindings for shortcuts.
+// Dispatch is exact-match, so map semantics are equivalent to the switch it
+// replaced; command_table_test.go pins the token set and alias grouping.
+func (a *App) commandTable() map[string]func(args []string) {
+	// Closures reused across aliases so every alias shares one handler.
+	sCmd := func(args []string) {
+		// Ambiguous "s": search when it has args, slack when bare.
 		if len(args) > 0 {
 			a.executeSearchCommand(args)
 		} else {
 			a.executeSlackCommand(args)
 		}
-	case "summary":
-		a.executeSummaryCommand(args)
-	case "rsvp":
-		a.executeRSVPCommand(args)
-	case "jobs", "aijobs":
-		go a.openAIJobsPicker()
-	case "chat":
-		go a.openChatPanel()
-	case "inbox", "i":
-		a.executeInboxCommand(args)
-	case "compose", "c":
-		a.executeComposeCommand(args)
-	case "headers", "toggle-headers":
-		a.executeToggleHeadersCommand(args)
-
-	// Threading commands
-	case "threads", "thr":
-		a.executeThreadsCommand(args)
-	case "flatten", "flat":
-		a.executeFlattenCommand(args)
-	case "thread-summary", "th-sum":
-		a.executeThreadSummaryCommand(args)
-	case "expand-all", "expand":
-		a.executeExpandAllCommand(args)
-	case "collapse-all", "collapse":
-		a.executeCollapseAllCommand(args)
-
-	case "help", "h", "?":
-		a.executeHelpCommand(args)
-	case "numbers", "n":
-		a.executeNumbersCommand(args)
-	case "quit", "q":
-		a.executeQuitCommand(args)
-	case "cache":
-		a.executeCacheCommand(args)
-	case "preload", "pl":
-		a.executePreloadCommand(args)
-	case "stats", "usage":
-		a.executeStatsCommand(args)
-	case "g", "G":
-		a.executeGoToCommand(args)
-	case "archive", "a":
-		a.executeArchiveCommand(args)
-	case "trash", "d":
-		a.executeTrashCommand(args)
-	case "read", "toggle-read", "t":
-		a.executeToggleReadCommand(args)
-	case "star", "st":
-		a.executeStarCommand(args)
-	case "unstar", "unst":
-		a.executeUnstarCommand(args)
-	case "new":
-		a.executeComposeCommand(args) // "new" as alias for compose
-	case "reply", "r":
-		a.executeReplyCommand(args)
-	case "reply-all", "ra":
-		a.executeReplyAllCommand(args)
-	case "forward", "f":
-		a.executeForwardCommand(args)
-	case "drafts", "dr":
-		a.executeDraftsCommand(args)
-	case "refresh":
-		a.executeRefreshCommand(args)
-	case "autorefresh", "arr":
-		a.executeAutoRefreshCommand(args)
-	case "config", "cfg":
-		a.executeConfigCommand(args)
-	case "load", "more", "next":
-		a.executeLoadMoreCommand(args)
-	case "unread", "u":
-		a.executeUnreadCommand(args)
-	case "undo", "U":
-		a.executeUndoCommand(args)
-	case "archived", "arch-search", "b":
-		a.executeArchivedCommand(args)
-	case "select", "sel":
-		a.executeSelectCommand(args)
-	case "move", "mv":
-		a.executeMoveCommand(args)
-	case "label", "lbl":
-		a.executeLabelCommand(args)
-	case "obsidian", "obs":
-		a.executeObsidianCommand(args)
-	case "accounts", "acc":
-		a.executeAccountsCommand(args)
-	case "prompt", "pr", "p":
-		a.executePromptCommand(args)
-	case "prompt-new", "pn":
-		a.executePromptNewCommand(args)
-	case "prompt-refine", "prf":
-		a.executePromptRefineCommand(args)
-	case "prompt-save", "ps":
-		a.executePromptSaveCommand(args)
-	case "action-plan", "plan", "ap":
-		a.executeActionPlanCommand(args)
-	case "rules", "ru":
-		a.executeRulesCommand(args)
-	case "rp": // shortcut for :rules plan
-		a.executeRulesCommand(append([]string{"plan"}, args...))
-	case "markdown", "md":
-		a.toggleMarkdown()
-	case "touch-up", "touchup":
-		a.toggleLLMTouchUp()
-	case "theme", "th":
+	}
+	jobs := func(args []string) { go a.openAIJobsPicker() }
+	chat := func(args []string) { go a.openChatPanel() }
+	markdown := func(args []string) { a.toggleMarkdown() }
+	touchUp := func(args []string) { a.toggleLLMTouchUp() }
+	theme := func(args []string) {
 		if len(args) == 0 {
-			// Open theme picker UI if no subcommands
 			go a.openThemePicker()
 		} else {
 			a.executeThemeCommand(args)
 		}
-	case "save-query", "save", "sq":
-		a.executeSaveQueryCommand(args)
-	case "bookmarks", "queries", "bm", "qb":
-		a.executeBookmarksCommand(args)
-	case "bookmark", "query":
-		a.executeBookmarkCommand(args)
-	default:
-		// Check for numeric shortcuts like :1, :$
-		if matched := a.executeNumericShortcut(command); !matched {
-			if suggestion, ok := closestCommand(command); ok {
-				a.showError(fmt.Sprintf("Unknown command: '%s'. Did you mean ':%s'?", command, suggestion))
-			} else {
-				a.showError(fmt.Sprintf("Unknown command: %s", command))
-			}
-		}
+	}
+	rp := func(args []string) { a.executeRulesCommand(append([]string{"plan"}, args...)) }
+
+	return map[string]func(args []string){
+		"labels": a.executeLabelsCommand, "l": a.executeLabelsCommand,
+		"links": a.executeLinksCommand, "link": a.executeLinksCommand,
+		"attachments": a.executeAttachmentsCommand, "attach": a.executeAttachmentsCommand,
+		"gmail": a.executeGmailWebCommand, "web": a.executeGmailWebCommand, "open-web": a.executeGmailWebCommand, "o": a.executeGmailWebCommand,
+		"/":      a.executeContentSearch,
+		"search": a.executeSearchCommand,
+		"slack":  a.executeSlackCommand, "sl": a.executeSlackCommand,
+		"s":       sCmd,
+		"summary": a.executeSummaryCommand,
+		"rsvp":    a.executeRSVPCommand,
+		"jobs":    jobs, "aijobs": jobs,
+		"chat":  chat,
+		"inbox": a.executeInboxCommand, "i": a.executeInboxCommand,
+		"compose": a.executeComposeCommand, "c": a.executeComposeCommand,
+		"headers": a.executeToggleHeadersCommand, "toggle-headers": a.executeToggleHeadersCommand,
+		"threads": a.executeThreadsCommand, "thr": a.executeThreadsCommand,
+		"flatten": a.executeFlattenCommand, "flat": a.executeFlattenCommand,
+		"thread-summary": a.executeThreadSummaryCommand, "th-sum": a.executeThreadSummaryCommand,
+		"expand-all": a.executeExpandAllCommand, "expand": a.executeExpandAllCommand,
+		"collapse-all": a.executeCollapseAllCommand, "collapse": a.executeCollapseAllCommand,
+		"help": a.executeHelpCommand, "h": a.executeHelpCommand, "?": a.executeHelpCommand,
+		"numbers": a.executeNumbersCommand, "n": a.executeNumbersCommand,
+		"quit": a.executeQuitCommand, "q": a.executeQuitCommand,
+		"cache":   a.executeCacheCommand,
+		"preload": a.executePreloadCommand, "pl": a.executePreloadCommand,
+		"stats": a.executeStatsCommand, "usage": a.executeStatsCommand,
+		"g": a.executeGoToCommand, "G": a.executeGoToCommand,
+		"archive": a.executeArchiveCommand, "a": a.executeArchiveCommand,
+		"trash": a.executeTrashCommand, "d": a.executeTrashCommand,
+		"read": a.executeToggleReadCommand, "toggle-read": a.executeToggleReadCommand, "t": a.executeToggleReadCommand,
+		"star": a.executeStarCommand, "st": a.executeStarCommand,
+		"unstar": a.executeUnstarCommand, "unst": a.executeUnstarCommand,
+		"new":   a.executeComposeCommand,
+		"reply": a.executeReplyCommand, "r": a.executeReplyCommand,
+		"reply-all": a.executeReplyAllCommand, "ra": a.executeReplyAllCommand,
+		"forward": a.executeForwardCommand, "f": a.executeForwardCommand,
+		"drafts": a.executeDraftsCommand, "dr": a.executeDraftsCommand,
+		"refresh":     a.executeRefreshCommand,
+		"autorefresh": a.executeAutoRefreshCommand, "arr": a.executeAutoRefreshCommand,
+		"config": a.executeConfigCommand, "cfg": a.executeConfigCommand,
+		"load": a.executeLoadMoreCommand, "more": a.executeLoadMoreCommand, "next": a.executeLoadMoreCommand,
+		"unread": a.executeUnreadCommand, "u": a.executeUnreadCommand,
+		"undo": a.executeUndoCommand, "U": a.executeUndoCommand,
+		"archived": a.executeArchivedCommand, "arch-search": a.executeArchivedCommand, "b": a.executeArchivedCommand,
+		"select": a.executeSelectCommand, "sel": a.executeSelectCommand,
+		"move": a.executeMoveCommand, "mv": a.executeMoveCommand,
+		"label": a.executeLabelCommand, "lbl": a.executeLabelCommand,
+		"obsidian": a.executeObsidianCommand, "obs": a.executeObsidianCommand,
+		"accounts": a.executeAccountsCommand, "acc": a.executeAccountsCommand,
+		"prompt": a.executePromptCommand, "pr": a.executePromptCommand, "p": a.executePromptCommand,
+		"prompt-new": a.executePromptNewCommand, "pn": a.executePromptNewCommand,
+		"prompt-refine": a.executePromptRefineCommand, "prf": a.executePromptRefineCommand,
+		"prompt-save": a.executePromptSaveCommand, "ps": a.executePromptSaveCommand,
+		"action-plan": a.executeActionPlanCommand, "plan": a.executeActionPlanCommand, "ap": a.executeActionPlanCommand,
+		"rules": a.executeRulesCommand, "ru": a.executeRulesCommand,
+		"rp":       rp,
+		"markdown": markdown, "md": markdown,
+		"touch-up": touchUp, "touchup": touchUp,
+		"theme": theme, "th": theme,
+		"save-query": a.executeSaveQueryCommand, "save": a.executeSaveQueryCommand, "sq": a.executeSaveQueryCommand,
+		"bookmarks": a.executeBookmarksCommand, "queries": a.executeBookmarksCommand, "bm": a.executeBookmarksCommand, "qb": a.executeBookmarksCommand,
+		"bookmark": a.executeBookmarkCommand, "query": a.executeBookmarkCommand,
 	}
 }
 
