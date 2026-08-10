@@ -193,7 +193,7 @@ internal/tui/columns.go,909,24,202,4
 internal/tui/command_completion.go,487,11,41,1
 internal/tui/command_help.go,40,5,31,0
 internal/tui/command_state.go,69,5,12,0
-internal/tui/commands.go,1873,70,174,7
+internal/tui/commands.go,1827,19,136,6
 internal/tui/composition.go,811,26,116,1
 internal/tui/draft_state.go,16,1,5,0
 internal/tui/editable_text_view.go,519,19,81,3
