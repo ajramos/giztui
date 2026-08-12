@@ -4,40 +4,32 @@ baseline.py — deterministic, re-runnable SDLC baseline for this git repo.
 
 Read-only: reads git history and extracts historical snapshots into a temp dir
 (never touches the working tree). No network, no LLM, no randomness. Same commit
-range => same baseline.json (the optional --github block is the only exception
-and is off by default).
+range => same baseline.json.
 
-Outputs baseline.json (raw + aggregate + per-file) and renders BASELINE.md.
-
-See BASELINE.md "Methodology" and "Not reliably computable" for the decisions
-and their limits. Key ones, encoded below:
-  * Line-level metrics run over NON-MERGE commits only (corr #2).
-  * Each line is segmented by the author of the commit that INTRODUCED it
-    (blame), not the one that deleted it (corr #2).
-  * Death ages are reported in three buckets, never summed: <1d intrasession
-    iteration, 1-7d real rework, 7-30d debt (corr #3).
-  * Birth-author x death-author 2x2 matrix; the headline cell is
-    born-AI / died-by-human within 7d (corr #4).
-  * AI-vs-human segment comparison is only defensible WITHIN July and only at
-    @7/@14; @30 is descriptive of June (human) code and never a comparator
-    (corr #1).
+See BASELINE.md "Methodology" and "Not reliably computable" for decisions/limits.
+Encoded here:
+  * Line-level metrics over NON-MERGE commits only.
+  * Each line segmented by the author of the commit that INTRODUCED it (blame),
+    not the one that deleted it.
+  * Death ages in three buckets, never summed: <1d intrasession iteration,
+    1-7d real rework, 7-30d debt.
+  * Birth-author x death-author 2x2 matrix; headline cell = born-AI/died-human.
+  * AI-vs-human comparison only WITHIN July at @7/@14; @30 descriptive of June.
+  * Complexity trajectory reports a FIXED COHORT (files present at first
+    snapshot) to separate real accumulation from dilution by new files.
 """
 import argparse
 import json
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from collections import defaultdict, Counter
 
-# ---- config -----------------------------------------------------------------
 AI_EMAILS = {"noreply@anthropic.com"}
-WINDOW_DAYS = 183  # "last 6 months"; entire repo history is younger than this
+WINDOW_DAYS = 183
 DAY = 86400
 
-# Exclusions for line-level rework and for the lizard snapshots. Declared
-# verbatim into baseline.json meta.
 EXCL_SUBSTR = ["/node_modules/", "/dist/", "/wailsjs/", "/mocks/",
                "/e2e/", "/test-results/", "/build/", "/graphify-out/"]
 EXCL_SUFFIX = ["_test.go", ".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx",
@@ -61,7 +53,6 @@ def sh_bytes(args):
 
 
 def is_excluded(path):
-    """True if path is generated/vendored/lockfile/binary — dropped entirely."""
     p = "/" + path
     if any(s in p for s in EXCL_SUBSTR):
         return True
@@ -70,9 +61,7 @@ def is_excluded(path):
     if os.path.basename(path) in EXCL_BASENAME:
         return True
     _, ext = os.path.splitext(path)
-    if ext.lower() in BINARY_EXT:
-        return True
-    return False
+    return ext.lower() in BINARY_EXT
 
 
 def is_code(path):
@@ -84,28 +73,23 @@ def seg(email):
     return "ai" if email in AI_EMAILS else "human"
 
 
-# ---- commit enumeration -----------------------------------------------------
+def month_utc(epoch):
+    import time
+    return time.strftime("%Y-%m", time.gmtime(epoch))
+
+
+def _date(epoch):
+    import time
+    return time.strftime("%Y-%m-%d", time.gmtime(epoch))
+
+
 def head_epoch():
     return int(sh(["git", "log", "-1", "--format=%at"]).strip())
 
 
 def commits_in_window(head_at):
-    """Non-merge commits with author-time within the window, oldest first."""
     since = head_at - WINDOW_DAYS * DAY
-    out = sh(["git", "log", "--no-merges", "--reverse",
-              "--format=%H|%at|%ae|%s"])
-    rows = []
-    for line in out.splitlines():
-        h, at, ae, subj = line.split("|", 3)
-        at = int(at)
-        if at >= since:
-            rows.append({"sha": h, "at": at, "email": ae, "subj": subj})
-    return rows
-
-
-def merges_in_window(head_at):
-    since = head_at - WINDOW_DAYS * DAY
-    out = sh(["git", "log", "--merges", "--format=%H|%at|%ae|%s"])
+    out = sh(["git", "log", "--no-merges", "--reverse", "--format=%H|%at|%ae|%s"])
     rows = []
     for line in out.splitlines():
         h, at, ae, subj = line.split("|", 3)
@@ -114,13 +98,22 @@ def merges_in_window(head_at):
     return rows
 
 
+def merges_in_window(head_at):
+    since = head_at - WINDOW_DAYS * DAY
+    out = sh(["git", "log", "--merges", "--format=%H|%at|%ae|%s"])
+    return [dict(zip(("sha", "at", "email", "subj"),
+                     (p[0], int(p[1]), p[2], p[3])))
+            for p in (l.split("|", 3) for l in out.splitlines())
+            if int(p[1]) >= since]
+
+
 # ---- blame cache ------------------------------------------------------------
-_BLAME_CACHE = {}          # (parent_sha, path) -> {lineno: (sha, email, at)}
+_BLAME_CACHE = {}
 _CACHE_FILE = None
 
 
 def load_cache(path):
-    global _BLAME_CACHE, _CACHE_FILE
+    global _CACHE_FILE
     _CACHE_FILE = path
     if os.path.exists(path):
         with open(path) as f:
@@ -141,14 +134,12 @@ def save_cache():
 
 
 def blame_map(parent, path):
-    """Line number (in `parent`) -> (introducing_sha, author_email, author_at).
-    Deterministic: no -C copy detection. Cached per (parent, path)."""
+    """Line number in `parent` -> (sha, author_email, author_at). No -C."""
     key = parent + ":" + path
     if key in _BLAME_CACHE:
         return _BLAME_CACHE[key]
-    out = sh(["git", "blame", "-p", "--", path] if False else
-             ["git", "blame", "-p", parent, "--", path])
-    meta = {}          # sha -> (email, at)
+    out = sh(["git", "blame", "-p", parent, "--", path])
+    meta = {}
     result = {}
     cur = None
     cur_final = None
@@ -163,30 +154,33 @@ def blame_map(parent, path):
         parts = line.split(" ")
         if len(parts[0]) == 40 and all(c in "0123456789abcdef" for c in parts[0]):
             cur = parts[0]
-            # header: <sha> <orig> <final> [num]
             try:
                 cur_final = int(parts[2])
             except (IndexError, ValueError):
                 cur_final = None
         elif line.startswith("author-mail "):
             mail = line[len("author-mail "):].strip().lstrip("<").rstrip(">")
-            meta.setdefault(cur, ["", 0])
             m = list(meta.get(cur, ["", 0]))
             m[0] = mail
             meta[cur] = tuple(m)
         elif line.startswith("author-time "):
-            t = int(line[len("author-time "):].strip())
             m = list(meta.get(cur, ["", 0]))
-            m[1] = t
+            m[1] = int(line[len("author-time "):].strip())
             meta[cur] = tuple(m)
     _BLAME_CACHE[key] = result
     return result
 
 
+def deleted_line_text(parent, path, lineno):
+    out = sh(["git", "blame", "-p", "-L", f"{lineno},{lineno}", parent, "--", path])
+    for line in out.split("\n"):
+        if line.startswith("\t"):
+            return line[1:]
+    return ""
+
+
 # ---- diff parsing -----------------------------------------------------------
 def parse_commit_diff(parent, sha):
-    """Return per-file {old_path, new_path, added:int, deleted_lines:[oldno]}.
-    unified=0, rename detection (-M), no copy detection."""
     out = sh(["git", "diff", "--unified=0", "-M", "--no-color", parent, sha])
     files = []
     cur = None
@@ -195,27 +189,18 @@ def parse_commit_diff(parent, sha):
         if line.startswith("diff --git "):
             if cur:
                 files.append(cur)
-            cur = {"old_path": None, "new_path": None, "added": 0,
-                   "deleted_lines": []}
+            cur = {"old_path": None, "new_path": None, "added": 0, "deleted_lines": []}
             old_no = None
         elif line.startswith("--- "):
             p = line[4:]
-            cur["old_path"] = None if p == "/dev/null" else p[2:] if p[:2] in ("a/", "b/") else p
+            cur["old_path"] = None if p == "/dev/null" else (p[2:] if p[:2] in ("a/", "b/") else p)
         elif line.startswith("+++ "):
             p = line[4:]
-            cur["new_path"] = None if p == "/dev/null" else p[2:] if p[:2] in ("a/", "b/") else p
+            cur["new_path"] = None if p == "/dev/null" else (p[2:] if p[:2] in ("a/", "b/") else p)
         elif line.startswith("@@"):
-            # @@ -a,b +c,d @@
-            seg_ = line.split("@@")[1].strip()
-            oldpart = seg_.split(" ")[0]  # -a,b
+            oldpart = line.split("@@")[1].strip().split(" ")[0]  # -a,b
             a = oldpart[1:]
-            if "," in a:
-                start, cnt = a.split(",")
-                old_no = int(start)
-                cur["_cnt"] = int(cnt)
-            else:
-                old_no = int(a)
-                cur["_cnt"] = 1
+            old_no = int(a.split(",")[0]) if "," in a else int(a)
         elif line.startswith("-") and not line.startswith("---"):
             if old_no is not None:
                 cur["deleted_lines"].append(old_no)
@@ -227,22 +212,21 @@ def parse_commit_diff(parent, sha):
     return files
 
 
-# ---- rework analysis --------------------------------------------------------
+# ---- rework -----------------------------------------------------------------
 def analyze_rework(commits, head_at, sample_events=8):
-    births = []          # (at, seg) for every added CODE line in window
-    events = []          # death events for CODE lines
+    births = []
+    events = []
     per_file = defaultdict(lambda: {"births": 0, "deaths": 0,
-                                     "d_lt1": 0, "d_1_7": 0, "d_7_30": 0})
+                                    "d_lt1": 0, "d_1_7": 0, "d_7_30": 0})
     verification = []
+    verify_ai_human = []
     for c in commits:
         parent = c["sha"] + "^"
-        death_email = c["email"]
-        death_seg = seg(death_email)
+        death_seg = seg(c["email"])
         for fd in parse_commit_diff(parent, c["sha"]):
             path = fd["new_path"] or fd["old_path"]
             if not path or is_excluded(path) or not is_code(path):
                 continue
-            # births: added lines are introduced by THIS commit
             births.extend([(c["at"], death_seg)] * fd["added"])
             per_file[path]["births"] += fd["added"]
             if not fd["deleted_lines"]:
@@ -254,101 +238,30 @@ def analyze_rework(commits, head_at, sample_events=8):
                 if not info:
                     continue
                 b_sha, b_email, b_at = info
-                b_seg = seg(b_email)                 # AUTHOR AT BIRTH (corr #2)
-                age = (c["at"] - b_at) / DAY
-                if age < 0:
-                    age = 0.0
-                ev = {"file": path, "birth_sha": b_sha[:12],
-                      "birth_seg": b_seg, "birth_at": b_at,
+                b_seg = seg(b_email)
+                age = max(0.0, (c["at"] - b_at) / DAY)
+                ev = {"file": path, "birth_sha": b_sha[:12], "birth_seg": b_seg,
+                      "birth_email": b_email, "birth_at": b_at,
                       "death_sha": c["sha"][:12], "death_seg": death_seg,
-                      "death_at": c["at"], "age_days": round(age, 3)}
+                      "death_email": c["email"], "death_at": c["at"],
+                      "age_days": round(age, 3)}
                 events.append(ev)
-                per_file[path]["deaths"] += 1
+                pf = per_file[path]
+                pf["deaths"] += 1
                 if age < 1:
-                    per_file[path]["d_lt1"] += 1
+                    pf["d_lt1"] += 1
                 elif age < 7:
-                    per_file[path]["d_1_7"] += 1
+                    pf["d_1_7"] += 1
                 elif age < 30:
-                    per_file[path]["d_7_30"] += 1
+                    pf["d_7_30"] += 1
                 if len(verification) < sample_events:
-                    vv = dict(ev)
-                    vv["birth_line_text"] = deleted_line_text(parent, blame_path, ln)
-                    verification.append(vv)
-    return births, events, per_file, verification
-
-
-def deleted_line_text(parent, path, lineno):
-    out = sh(["git", "blame", "-p", "-L", f"{lineno},{lineno}", parent,
-              "--", path])
-    for line in out.split("\n"):
-        if line.startswith("\t"):
-            return line[1:]
-    return ""
-
-
-def month_utc(epoch):
-    import time
-    return time.strftime("%Y-%m", time.gmtime(epoch))
-
-
-def summarize_rework(births, events, head_at):
-    # buckets (corr #3) — never summed
-    buckets = {"lt1_intrasession": 0, "d1_7_rework": 0, "d7_30_debt": 0,
-               "gt30": 0}
-    for e in events:
-        a = e["age_days"]
-        if a < 1:
-            buckets["lt1_intrasession"] += 1
-        elif a < 7:
-            buckets["d1_7_rework"] += 1
-        elif a < 30:
-            buckets["d7_30_debt"] += 1
-        else:
-            buckets["gt30"] += 1
-
-    # birth x death 2x2 matrix, split by bucket (corr #4)
-    def blank():
-        return {"ai_ai": 0, "ai_human": 0, "human_ai": 0, "human_human": 0}
-    matrix = {"lt1": blank(), "d1_7": blank(), "d7_30": blank(), "all": blank()}
-    for e in events:
-        cell = f"{e['birth_seg']}_{e['death_seg']}"
-        matrix["all"][cell] += 1
-        a = e["age_days"]
-        if a < 1:
-            matrix["lt1"][cell] += 1
-        elif a < 7:
-            matrix["d1_7"][cell] += 1
-        elif a < 30:
-            matrix["d7_30"][cell] += 1
-
-    # censored + naive rates, by birth segment and by birth month
-    def rate_block(birth_filter):
-        b = [x for x in births if birth_filter(x)]
-        total = len(b)
-        ev = [e for e in events if birth_filter((e["birth_at"], e["birth_seg"]))]
-        out = {"births": total, "naive": {}, "censored": {}}
-        for N in (7, 14, 30):
-            num_naive = sum(1 for e in ev if e["age_days"] <= N)
-            out["naive"][str(N)] = pct(num_naive, total)
-            # censored: only births with >=N days of follow-up
-            denom = sum(1 for (at, _s) in b if (head_at - at) >= N * DAY)
-            num = sum(1 for e in ev
-                      if e["age_days"] <= N and (head_at - e["birth_at"]) >= N * DAY)
-            out["censored"][str(N)] = pct(num, denom)
-        return out
-
-    rates = {
-        "all": rate_block(lambda x: True),
-        "birth_ai": rate_block(lambda x: x[1] == "ai"),
-        "birth_human": rate_block(lambda x: x[1] == "human"),
-        # corr #1: the ONLY defensible AI-vs-human comparison — within July, @7/@14
-        "july_ai": rate_block(lambda x: x[1] == "ai" and month_utc(x[0]) == "2026-07"),
-        "july_human": rate_block(lambda x: x[1] == "human" and month_utc(x[0]) == "2026-07"),
-        # descriptive only (corr #1): June is ~100% human; @30 belongs here
-        "june_all": rate_block(lambda x: month_utc(x[0]) == "2026-06"),
-    }
-    return {"buckets": buckets, "matrix": matrix, "rates": rates,
-            "total_births": len(births), "total_deaths": len(events)}
+                    v = dict(ev); v["line_text"] = deleted_line_text(parent, blame_path, ln)
+                    verification.append(v)
+                if b_seg == "ai" and death_seg == "human" and len(verify_ai_human) < sample_events:
+                    v = dict(ev); v["line_text"] = deleted_line_text(parent, blame_path, ln)
+                    v["death_line_number"] = ln
+                    verify_ai_human.append(v)
+    return births, events, per_file, verification, verify_ai_human
 
 
 def pct(num, denom):
@@ -356,49 +269,91 @@ def pct(num, denom):
             "pct": round(100.0 * num / denom, 2) if denom else None}
 
 
-# ---- reverts & corrective commits ------------------------------------------
-def analyze_reverts(commits):
-    reverts = [c for c in commits
-               if c["subj"].startswith("Revert") or "git revert" in c["subj"].lower()]
-    # corrective: touches a file modified in prior 7 days AND keyword in subject
-    file_last_touch = {}       # path -> last author-time seen (walking oldest->newest)
-    corrective = []
-    kw_hits = []
-    for c in commits:
-        subj_l = c["subj"].lower()
-        has_kw = any(k in subj_l for k in CORRECTIVE_KW)
-        touched = files_of(c["sha"])
-        recent = False
-        for p in touched:
-            lt = file_last_touch.get(p)
-            if lt is not None and (c["at"] - lt) <= 7 * DAY:
-                recent = True
-                break
-        if has_kw:
-            kw_hits.append(c["sha"])
-        if has_kw and recent:
-            corrective.append({"sha": c["sha"][:12], "subj": c["subj"]})
-        for p in touched:
-            file_last_touch[p] = c["at"]
-    return {"explicit_reverts": [{"sha": c["sha"][:12], "subj": c["subj"]} for c in reverts],
-            "explicit_revert_count": len(reverts),
-            "corrective_keyword_commits": len(kw_hits),
-            "corrective_kw_and_recent": len(corrective),
-            "corrective_sample": corrective[:25]}
+def summarize_rework(births, events, head_at):
+    buckets = {"lt1_intrasession": 0, "d1_7_rework": 0, "d7_30_debt": 0, "gt30": 0}
+    for e in events:
+        a = e["age_days"]
+        buckets["lt1_intrasession" if a < 1 else "d1_7_rework" if a < 7
+                else "d7_30_debt" if a < 30 else "gt30"] += 1
+
+    def blank():
+        return {"ai_ai": 0, "ai_human": 0, "human_ai": 0, "human_human": 0}
+    matrix = {"lt1": blank(), "d1_7": blank(), "d7_30": blank(), "all": blank()}
+    for e in events:
+        cell = f"{e['birth_seg']}_{e['death_seg']}"
+        matrix["all"][cell] += 1
+        a = e["age_days"]
+        b = "lt1" if a < 1 else "d1_7" if a < 7 else "d7_30" if a < 30 else None
+        if b:
+            matrix[b][cell] += 1
+
+    def rate_block(bfilter):
+        b = [x for x in births if bfilter(x)]
+        ev = [e for e in events if bfilter((e["birth_at"], e["birth_seg"]))]
+        out = {"births": len(b), "naive": {}, "censored": {}}
+        for N in (7, 14, 30):
+            out["naive"][str(N)] = pct(sum(1 for e in ev if e["age_days"] <= N), len(b))
+            denom = sum(1 for (at, _s) in b if (head_at - at) >= N * DAY)
+            num = sum(1 for e in ev if e["age_days"] <= N and (head_at - e["birth_at"]) >= N * DAY)
+            out["censored"][str(N)] = pct(num, denom)
+        return out
+
+    rates = {
+        "all": rate_block(lambda x: True),
+        "birth_ai": rate_block(lambda x: x[1] == "ai"),
+        "birth_human": rate_block(lambda x: x[1] == "human"),
+        "july_ai": rate_block(lambda x: x[1] == "ai" and month_utc(x[0]) == "2026-07"),
+        "july_human": rate_block(lambda x: x[1] == "human" and month_utc(x[0]) == "2026-07"),
+        "june_all": rate_block(lambda x: month_utc(x[0]) == "2026-06"),
+    }
+    return {"buckets": buckets, "matrix": matrix, "rates": rates,
+            "total_births": len(births), "total_deaths": len(events)}
 
 
+# ---- reverts & corrective ---------------------------------------------------
 def files_of(sha):
     out = sh(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", sha])
     return [p for p in out.splitlines() if p and not is_excluded(p)]
 
 
-# ---- weekly snapshots: file size (A) + complexity (B) ----------------------
+def analyze_reverts(commits):
+    reverts = [c for c in commits
+               if c["subj"].startswith("Revert") or "git revert" in c["subj"].lower()]
+    last_touch = {}
+    corrective = []
+    kw = 0
+    for c in commits:
+        sl = c["subj"].lower()
+        has_kw = any(k in sl for k in CORRECTIVE_KW)
+        touched = files_of(c["sha"])
+        recent = any((c["at"] - last_touch.get(p, -1e18)) <= 7 * DAY and p in last_touch
+                     for p in touched)
+        if has_kw:
+            kw += 1
+        if has_kw and recent:
+            corrective.append({"sha": c["sha"][:12], "subj": c["subj"]})
+        for p in touched:
+            last_touch[p] = c["at"]
+    return {"explicit_reverts": [{"sha": c["sha"][:12], "subj": c["subj"]} for c in reverts],
+            "explicit_revert_count": len(reverts),
+            "corrective_keyword_commits": kw,
+            "corrective_kw_and_recent": len(corrective),
+            "corrective_sample": corrective[:30]}
+
+
+# ---- weekly snapshots -------------------------------------------------------
+def pctile(sv, p):
+    if not sv:
+        return 0
+    k = (len(sv) - 1) * p / 100.0
+    lo = int(k); hi = min(lo + 1, len(sv) - 1); frac = k - lo
+    return round(sv[lo] * (1 - frac) + sv[hi] * frac, 1)
+
+
 def weekly_anchors(head_at, weeks):
-    """Last first-parent commit at or before each weekly boundary, newest set."""
     out = sh(["git", "log", "--first-parent", "--format=%H|%at"])
     hist = [(h, int(at)) for h, at in (l.split("|") for l in out.splitlines())]
-    anchors = []
-    seen = set()
+    anchors, seen = [], set()
     for w in range(weeks):
         boundary = head_at - w * 7 * DAY
         pick = next((h for h, at in hist if at <= boundary), None)
@@ -408,20 +363,16 @@ def weekly_anchors(head_at, weeks):
     return list(reversed(anchors))
 
 
-def snapshot_metrics(sha, tmproot):
+def snapshot_files(sha, tmproot):
+    """rel_path -> {nloc, ccn, funcs, over10} for code files at `sha`."""
     import lizard
     d = os.path.join(tmproot, sha[:12])
     os.makedirs(d, exist_ok=True)
-    tar = sh_bytes(["git", "archive", "--format=tar", sha])
     p = subprocess.Popen(["tar", "-x", "-C", d], stdin=subprocess.PIPE)
-    p.communicate(tar)
-    file_nloc = {}
-    total_ccn = 0
-    fn_count = 0
-    over10 = 0
-    ccn_list = []
+    p.communicate(sh_bytes(["git", "archive", "--format=tar", sha]))
+    per_file = {}
     for root, _dirs, fnames in os.walk(d):
-        for fn in fnames:
+        for fn in sorted(fnames):
             full = os.path.join(root, fn)
             rel = os.path.relpath(full, d)
             if is_excluded(rel) or not is_code(rel):
@@ -430,68 +381,90 @@ def snapshot_metrics(sha, tmproot):
                 info = lizard.analyze_file(full)
             except Exception:
                 continue
-            file_nloc[rel] = info.nloc
-            for f in info.function_list:
-                fn_count += 1
-                total_ccn += f.cyclomatic_complexity
-                ccn_list.append(f.cyclomatic_complexity)
-                if f.cyclomatic_complexity > 10:
-                    over10 += 1
+            per_file[rel] = {
+                "nloc": info.nloc,
+                "ccn": sum(f.cyclomatic_complexity for f in info.function_list),
+                "funcs": len(info.function_list),
+                "over10": sum(1 for f in info.function_list if f.cyclomatic_complexity > 10),
+            }
     shutil.rmtree(d, ignore_errors=True)
-    nlocs = sorted(file_nloc.values())
-    return {
-        "file_count": len(file_nloc),
-        "loc_p50": pctile(nlocs, 50),
-        "loc_p90": pctile(nlocs, 90),
-        "loc_max": max(nlocs) if nlocs else 0,
-        "loc_max_file": max(file_nloc, key=file_nloc.get) if file_nloc else None,
-        "total_ccn": total_ccn,
-        "mean_ccn": round(total_ccn / fn_count, 3) if fn_count else 0,
-        "func_count": fn_count,
-        "funcs_over_ccn10": over10,
-        "_file_nloc": file_nloc,
-    }
+    return per_file
 
 
-def pctile(sorted_vals, p):
-    if not sorted_vals:
-        return 0
-    k = (len(sorted_vals) - 1) * p / 100.0
-    lo = int(k)
-    hi = min(lo + 1, len(sorted_vals) - 1)
-    frac = k - lo
-    return round(sorted_vals[lo] * (1 - frac) + sorted_vals[hi] * frac, 1)
+def agg_files(per_file, cohort=None):
+    items = [(k, v) for k, v in per_file.items() if cohort is None or k in cohort]
+    nlocs = sorted(v["nloc"] for _, v in items)
+    tccn = sum(v["ccn"] for _, v in items)
+    funcs = sum(v["funcs"] for _, v in items)
+    over10 = sum(v["over10"] for _, v in items)
+    return {"file_count": len(items),
+            "loc_p50": pctile(nlocs, 50), "loc_p90": pctile(nlocs, 90),
+            "loc_max": max(nlocs) if nlocs else 0,
+            "total_ccn": tccn, "mean_ccn": round(tccn / funcs, 3) if funcs else 0,
+            "func_count": funcs, "funcs_over_ccn10": over10,
+            "over10_ratio": round(over10 / funcs, 4) if funcs else 0}
+
+
+def trace_peak_file(path, snaps):
+    """LOC trajectory of `path` across snapshots + git delete/split/rename events."""
+    traj = []
+    for boundary, sha, pf in snaps:
+        traj.append({"date": _date(boundary),
+                     "nloc": pf.get(path, {}).get("nloc"),
+                     "present": path in pf})
+    out = sh(["git", "log", "--follow", "-M", "--numstat",
+              "--format=@@|%H|%at|%ae|%s", "--", path])
+    events = []
+    cur = None
+    for line in out.splitlines():
+        if line.startswith("@@|"):
+            _, h, at, ae, subj = line.split("|", 4)
+            cur = {"sha": h[:12], "date": _date(int(at)), "seg": seg(ae),
+                   "subj": subj, "added": 0, "deleted": 0, "renamed": False}
+            events.append(cur)
+        elif cur is not None and "\t" in line:
+            parts = line.split("\t")
+            if len(parts) >= 3:
+                a, dl = parts[0], parts[1]
+                if "=>" in parts[2] or " => " in line:
+                    cur["renamed"] = True
+                cur["added"] += int(a) if a.isdigit() else 0
+                cur["deleted"] += int(dl) if dl.isdigit() else 0
+    # keep only structurally interesting events: big deletion, rename, or delete
+    notable = [e for e in events if e["deleted"] >= 100 or e["renamed"]]
+    return {"trajectory": traj, "events": notable[:15]}
 
 
 def weekly_analysis(head_at, weeks, tmproot):
     anchors = weekly_anchors(head_at, weeks)
-    series = []
-    first_nloc = None
-    last_nloc = None
-    for boundary, sha in anchors:
-        m = snapshot_metrics(sha, tmproot)
-        fn = m.pop("_file_nloc")
-        if first_nloc is None:
-            first_nloc = fn
-        last_nloc = fn
-        m["week_ending"] = month_utc(boundary)
-        m["boundary_date"] = _date(boundary)
-        m["sha"] = sha[:12]
-        series.append(m)
-    # top-10 absolute growth files (first vs last snapshot)
-    growth = []
-    if first_nloc is not None and last_nloc is not None:
-        for f in set(list(first_nloc) + list(last_nloc)):
-            g = last_nloc.get(f, 0) - first_nloc.get(f, 0)
-            growth.append({"file": f, "start": first_nloc.get(f, 0),
-                           "end": last_nloc.get(f, 0), "growth": g})
-        growth.sort(key=lambda x: x["growth"], reverse=True)
-    return {"series": series, "top_growth": growth[:10]}
-
-
-def _date(epoch):
-    import time
-    return time.strftime("%Y-%m-%d", time.gmtime(epoch))
+    snaps = [(b, s, snapshot_files(s, tmproot)) for b, s in anchors]
+    if not snaps:
+        return None
+    cohort = set(snaps[0][2].keys())
+    global_series, fixed_series = [], []
+    for b, s, pf in snaps:
+        g = agg_files(pf)
+        g.update(boundary_date=_date(b), sha=s[:12])
+        if pf:
+            g["loc_max_file"] = max(pf, key=lambda k: (pf[k]["nloc"], k))
+        global_series.append(g)
+        fc = agg_files(pf, cohort)
+        fc.update(boundary_date=_date(b), sha=s[:12])
+        fixed_series.append(fc)
+    first_pf, last_pf = snaps[0][2], snaps[-1][2]
+    grew = sorted(({"file": f, "start": first_pf[f]["nloc"], "end": last_pf[f]["nloc"],
+                    "growth": last_pf[f]["nloc"] - first_pf[f]["nloc"]}
+                   for f in set(first_pf) & set(last_pf)),
+                  key=lambda x: x["growth"], reverse=True)
+    new = sorted(({"file": f, "end": last_pf[f]["nloc"]} for f in set(last_pf) - set(first_pf)),
+                 key=lambda x: x["end"], reverse=True)
+    peak = max(global_series, key=lambda s: s["loc_max"])
+    trace = trace_peak_file(peak["loc_max_file"], snaps)
+    return {"global_series": global_series, "fixed_cohort_series": fixed_series,
+            "fixed_cohort_size": len(cohort),
+            "top_grew_existing_files": grew[:10], "top_new_files": new[:10],
+            "peak_loc_file": peak["loc_max_file"], "peak_loc_value": peak["loc_max"],
+            "peak_loc_snapshot": peak["boundary_date"], "peak_file_trace": trace}
 
 
 # ---- main -------------------------------------------------------------------
@@ -499,8 +472,7 @@ def main():
     global REPO
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=".")
-    ap.add_argument("--sample", type=int, default=0,
-                    help="limit rework to N most-recent non-merge commits (0=all)")
+    ap.add_argument("--sample", type=int, default=0)
     ap.add_argument("--weeks", type=int, default=8)
     ap.add_argument("--out", default="baseline.json")
     ap.add_argument("--cache", default=".baseline_blamecache.json")
@@ -512,33 +484,29 @@ def main():
     head_at = head_epoch()
     all_commits = commits_in_window(head_at)
     merges = merges_in_window(head_at)
+    rework_commits = all_commits[-args.sample:] if args.sample else all_commits
 
-    rework_commits = all_commits
-    if args.sample:
-        rework_commits = all_commits[-args.sample:]
-
-    births, events, per_file, verification = analyze_rework(rework_commits, head_at)
+    births, events, per_file, verification, verify_ai_human = analyze_rework(
+        rework_commits, head_at)
     save_cache()
     rework = summarize_rework(births, events, head_at)
 
-    # per-file table (code files), sorted by real-rework (1-7d) deaths desc
     pf = []
     for path, d in per_file.items():
-        row = {"file": path, **d,
-               "rework_rate_1_7": round(100.0 * d["d_1_7"] / d["births"], 2) if d["births"] else None}
-        pf.append(row)
+        pf.append({"file": path, **d,
+                   "rework_rate_1_7": round(100.0 * d["d_1_7"] / d["births"], 2) if d["births"] else None})
     pf.sort(key=lambda r: (r["d_1_7"], r["deaths"]), reverse=True)
 
     reverts = analyze_reverts(all_commits)
 
-    # time-to-green: DOWNGRADED to descriptive count only (corr #6)
+    email_counts = Counter(c["email"] for c in all_commits)
+    human_emails = {e: n for e, n in email_counts.items() if e not in AI_EMAILS}
+
     timing = {
         "note": "Solo-dev merging own branches in a personal repo. Branch "
                 "cycle-time measures time-to-click-merge, not CI latency. "
-                "Reported as a plain count; not a quality signal here.",
-        "merge_commits": len(merges),
-        "non_merge_commits": len(all_commits),
-    }
+                "Descriptive count only; not a quality signal here.",
+        "merge_commits": len(merges), "non_merge_commits": len(all_commits)}
 
     weekly = None
     if not args.no_weekly:
@@ -548,7 +516,6 @@ def main():
         finally:
             shutil.rmtree(tmproot, ignore_errors=True)
 
-    # monthly volume + segment split
     monthly = defaultdict(lambda: {"ai": 0, "human": 0})
     for c in all_commits:
         monthly[month_utc(c["at"])][seg(c["email"])] += 1
@@ -561,31 +528,37 @@ def main():
             "window_note": "Repo history (~8 weeks) is entirely inside the 6-month "
                            "window; June/August are partial months.",
             "ai_emails": sorted(AI_EMAILS),
+            "human_emails_note": "'human' = every non-AI author. Spans a local "
+                                 "email and a GitHub-web/squash-merge email for the "
+                                 "same person. See human_email_breakdown.",
+            "human_email_breakdown": human_emails,
+            "contamination_note": "Author = who committed, not who wrote. Human "
+                                  "commits in Jul-Aug likely contain AI-generated "
+                                  "code committed by the human; June is the only "
+                                  "clean human baseline. Not corrected.",
             "sample_rework_commits": args.sample or len(all_commits),
             "total_non_merge_commits": len(all_commits),
             "total_merge_commits": len(merges),
             "exclusions": {"substrings": EXCL_SUBSTR, "suffixes": EXCL_SUFFIX,
                            "basenames": sorted(EXCL_BASENAME),
-                           "binary_ext": sorted(BINARY_EXT),
-                           "code_ext": sorted(CODE_EXT)},
-            "merge_handling": "Line metrics over non-merge commits only; merges "
-                              "counted separately.",
-            "rename_handling": "diff -M detects renames; pure renames add no "
-                               "births/deaths. No -C copy detection (determinism).",
-            "segmentation": "By author email of the INTRODUCING commit (blame).",
+                           "binary_ext": sorted(BINARY_EXT), "code_ext": sorted(CODE_EXT)},
+            "merge_handling": "Line metrics over non-merge commits only.",
+            "rename_handling": "diff -M; pure renames add no births/deaths. No -C.",
+            "segmentation": "By author email of the introducing commit (blame).",
         },
         "monthly_commit_volume": dict(monthly),
         "rework": rework,
         "rework_per_file": pf,
         "verification_samples": verification,
+        "verification_ai_born_human_death": verify_ai_human,
         "reverts_and_corrections": reverts,
         "time_to_green": timing,
         "file_size_and_complexity_weekly": weekly,
     }
     with open(os.path.join(REPO, args.out), "w") as f:
-        json.dump(out, f, indent=2, sort_keys=False)
+        json.dump(out, f, indent=2)
     print(f"wrote {args.out}: births={len(births)} deaths={len(events)} "
-          f"commits_analyzed={len(rework_commits)}")
+          f"commits={len(rework_commits)} ai_human_samples={len(verify_ai_human)}")
 
 
 if __name__ == "__main__":
