@@ -370,10 +370,14 @@
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
-  /* Keep the (rounded-clipped) email card on its own layer so it repaints while
-     the reader body is scrolled programmatically — without this, WKWebView shows
-     gray bands over the content on arrow-key scroll. */
-  transform: translateZ(0);
+  /* Do NOT promote this card to its own compositing layer. The .reader-body
+     scroller above is already promoted (viewport-sized backing that repaints on
+     scroll — that's what fixed the arrow-key gray bands). Promoting this card too
+     used to look harmless, but for a tall image-heavy email (thousands of px)
+     WKWebView tiles the promoted layer and paints tiles lazily near the viewport:
+     fast/programmatic scroll outruns tile creation, leaving a gray band that
+     "fills in" only when you keep scrolling. Letting the card rasterize into the
+     promoted scroller instead keeps the whole message repainting as one. */
 }
 
 /* Account switcher */
