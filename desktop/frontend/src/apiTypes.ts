@@ -135,7 +135,21 @@ export interface ImportResult {
   imported: number;
   adopted: number;
   removed: number;
-  unsupported: { description: string; reason: string }[];
+  unsupported: GmailOnlyFilter[];
+}
+
+export interface GmailOnlyFilter {
+  id: string;
+  description: string;
+  reason: string;
+}
+
+export interface RulePreview {
+  ruleId: number;
+  query: string;
+  matchCount: number;
+  capped: boolean; // matchCount hit the cap; real total may be higher
+  sample: string[];
 }
 
 export interface AutoRefreshSettings {
@@ -419,6 +433,8 @@ export interface Backend {
   SyncDeterministicRule(id: number): Promise<void>;
   UnsyncDeterministicRule(id: number): Promise<void>;
   ImportGmailFilters(): Promise<ImportResult>;
+  DeleteGmailFilter(filterID: string): Promise<void>;
+  PreviewDeterministicRule(id: number): Promise<RulePreview>;
   ViewAnalyzerPrompt(): Promise<string>;
   ListLinks(messageID: string): Promise<Link[]>;
   OpenURL(url: string): Promise<void>;

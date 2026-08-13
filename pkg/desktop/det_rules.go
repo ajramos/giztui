@@ -18,10 +18,21 @@ type DeterministicRule struct {
 }
 
 // GmailOnly is a Gmail filter that couldn't be translated to a local rule; shown
-// read-only after an import.
+// read-only after an import. ID is the server-side filter ID, so the frontend can
+// delete it directly.
 type GmailOnly struct {
+	ID          string `json:"id"`
 	Description string `json:"description"`
 	Reason      string `json:"reason"`
+}
+
+// RulePreview is a dry-run of a rule against the inbox (match count + subjects).
+type RulePreview struct {
+	RuleID     int64    `json:"ruleId"`
+	Query      string   `json:"query"`
+	MatchCount int      `json:"matchCount"`
+	Capped     bool     `json:"capped"`
+	Sample     []string `json:"sample"`
 }
 
 // ImportResult summarises a Gmail-filter import.
@@ -111,7 +122,31 @@ func (a *API) ImportGmailFilters(ctx context.Context) (*ImportResult, error) {
 	}
 	out := &ImportResult{Imported: res.Imported, Adopted: res.Adopted, Removed: res.Removed}
 	for _, u := range res.Unsupported {
-		out.Unsupported = append(out.Unsupported, GmailOnly{Description: u.Description, Reason: u.Reason})
+		out.Unsupported = append(out.Unsupported, GmailOnly{ID: u.ID, Description: u.Description, Reason: u.Reason})
 	}
 	return out, nil
+}
+
+// DeleteGmailFilter removes a raw server-side Gmail filter by ID (a Gmail-only
+// filter the rule model can't represent). Touches no local rule.
+func (a *API) DeleteGmailFilter(ctx context.Context, filterID string) error {
+	if a.detRules == nil {
+		return fmt.Errorf("deterministic rules unavailable")
+	}
+	return a.detRules.DeleteGmailFilter(ctx, filterID)
+}
+
+// PreviewDeterministicRule dry-runs a rule's query against the inbox.
+func (a *API) PreviewDeterministicRule(ctx context.Context, id int64) (*RulePreview, error) {
+	if a.detRules == nil {
+		return nil, fmt.Errorf("deterministic rules unavailable")
+	}
+	pv, err := a.detRules.PreviewRule(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &RulePreview{
+		RuleID: pv.RuleID, Query: pv.Query, MatchCount: pv.MatchCount,
+		Capped: pv.Capped, Sample: pv.Sample,
+	}, nil
 }

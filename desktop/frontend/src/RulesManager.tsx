@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { backend, type DeterministicRule, type Prompt } from "./api";
+import { backend, type DeterministicRule, type Prompt, type GmailOnlyFilter } from "./api";
 import { useListNav } from "./useListNav";
 import { usePickerCrud } from "./usePickerCrud";
 import { useConfirm } from "./useConfirm";
@@ -44,6 +44,9 @@ export default function RulesManager({
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
   const [status, setStatus] = useState("");
+  // Gmail filters the rule model can't represent — shown read-only after an
+  // import so the picture of what acts on the inbox is complete; deletable.
+  const [gmailOnly, setGmailOnly] = useState<GmailOnlyFilter[]>([]);
 
   const reload = async () => {
     try {
@@ -107,9 +110,10 @@ export default function RulesManager({
     setStatus("Importing Gmail filters…");
     try {
       const r = await backend.ImportGmailFilters();
+      setGmailOnly(r.unsupported);
       setStatus(
         `Imported ${r.imported}, adopted ${r.adopted}, removed ${r.removed}` +
-          (r.unsupported.length ? `, ${r.unsupported.length} unsupported` : ""),
+          (r.unsupported.length ? `, ${r.unsupported.length} Gmail-only` : ""),
       );
       await reload();
     } catch (e) {
@@ -119,6 +123,44 @@ export default function RulesManager({
       setBusy(false);
     }
   };
+  // preview dry-runs the rule against the inbox and shows the count + a sample.
+  const preview = async (r: DeterministicRule) => {
+    setBusy(true);
+    setError("");
+    setStatus("Testing rule against inbox…");
+    try {
+      const pv = await backend.PreviewDeterministicRule(r.id);
+      const count = pv.capped ? `≥${pv.matchCount}` : `${pv.matchCount}`;
+      setStatus(
+        `Rule matches ${count} inbox message(s)` +
+          (pv.sample.length ? ": " + pv.sample.join(" · ") : ""),
+      );
+    } catch (e) {
+      setError(String(e));
+      setStatus("");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const doDeleteFilter = async (id: string) => {
+    setBusy(true);
+    setError("");
+    try {
+      await backend.DeleteGmailFilter(id);
+      const r = await backend.ImportGmailFilters(); // refresh the read-only rows
+      setGmailOnly(r.unsupported);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const askDeleteFilter = (f: GmailOnlyFilter) =>
+    confirm.ask(
+      `Delete this Gmail filter?\n\n${f.description}\n\nIt's a server-side Gmail filter, not a local rule.`,
+      () => void doDeleteFilter(f.id),
+    );
+
   const save = async () => {
     if (!form || !form.query.trim()) return;
     setBusy(true);
@@ -199,6 +241,11 @@ export default function RulesManager({
         return;
       }
       // e edits and d/Delete/Backspace deletes (list mode) via usePickerCrud.
+      if (e.key === "t" && r) {
+        e.preventDefault();
+        void preview(r);
+        return;
+      }
       if (e.key === "s" && r) {
         e.preventDefault();
         void toggleSync(r);
@@ -331,6 +378,16 @@ export default function RulesManager({
                       </span>
                       <span className="rule-query">{r.query}</span>
                       <button
+                        className="ghost tiny row-icon"
+                        title="Test — count inbox messages this rule matches"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void preview(r);
+                        }}
+                      >
+                        {Icon.search}
+                      </button>
+                      <button
                         className={"ghost tiny rule-sync" + (r.synced ? " on" : "")}
                         title={r.synced ? "Synced to Gmail — click to unsync" : "Sync as a Gmail filter"}
                         onClick={(e) => {
@@ -353,12 +410,38 @@ export default function RulesManager({
                     </div>
                   ))
                 )}
+                {gmailOnly.length > 0 && (
+                  <>
+                    <div className="rule-group-head muted">
+                      Gmail-only filters — managed in Gmail, can’t be rules
+                    </div>
+                    {gmailOnly.map((f) => (
+                      <div key={f.id} className="rule-row gmail-only" title={f.reason}>
+                        <span className="rule-action">
+                          <span className="rule-ico">{Icon.cloud}</span>
+                          Gmail filter
+                        </span>
+                        <span className="rule-query">{f.description}</span>
+                        <button
+                          className="ghost tiny danger"
+                          title="Delete this Gmail filter"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            askDeleteFilter(f);
+                          }}
+                        >
+                          {Icon.trash}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
             <div className="modal-foot">
               <span className="foot-hint">
-                {onRun ? "r run · " : ""}a add · Enter/e edit · d delete · s sync ·
-                i import · Esc close
+                {onRun ? "r run · " : ""}a add · Enter/e edit · t test · d delete ·
+                s sync · i import · Esc close
               </span>
             </div>
           </>

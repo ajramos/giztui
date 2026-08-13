@@ -1,8 +1,15 @@
 // Mock backend — part B (accounts, threading, saved queries, analyzer/
 // deterministic rules, links, drafts, config, themes). Merged in apiMock.ts.
 import { mockEmit } from "./apiEvents";
-import type { AnalyzerInput, ThemeColors, Backend } from "./apiTypes";
+import type { AnalyzerInput, ThemeColors, Backend, GmailOnlyFilter } from "./apiTypes";
 import { md } from "./apiMockData";
+
+// Gmail-only filters (not representable as rules) for the browser mock, so the
+// read-only rows + delete can be exercised without a real account.
+let mockGmailOnly: GmailOnlyFilter[] = [
+  { id: "gf1", description: "from:newsletter@example.com → forward to me@work.com", reason: "forwarding can't be a rule" },
+  { id: "gf2", description: "has:attachment larger:5M → delete", reason: "size criteria + delete can't be a rule" },
+];
 
 export const mockB: Partial<Backend> = {
   async ActionPlanEnabled() {
@@ -99,7 +106,20 @@ export const mockB: Partial<Backend> = {
     );
   },
   async ImportGmailFilters() {
-    return { imported: 2, adopted: 1, removed: 0, unsupported: [] };
+    return { imported: 2, adopted: 1, removed: 0, unsupported: mockGmailOnly };
+  },
+  async DeleteGmailFilter(filterID: string) {
+    mockGmailOnly = mockGmailOnly.filter((f) => f.id !== filterID);
+  },
+  async PreviewDeterministicRule(id: number) {
+    const r = md.detRules.find((x) => x.id === id);
+    return {
+      ruleId: id,
+      query: r?.query ?? "",
+      matchCount: 7,
+      capped: false,
+      sample: ["Weekly newsletter", "Your invoice is ready", "Re: standup notes"],
+    };
   },
   async ViewAnalyzerPrompt() {
     const rulesBlock = md.rules.length

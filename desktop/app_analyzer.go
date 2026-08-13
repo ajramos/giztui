@@ -152,6 +152,24 @@ func (a *App) ImportGmailFilters() (*desktop.ImportResult, error) {
 	return api.ImportGmailFilters(a.ctx)
 }
 
+// DeleteGmailFilter removes a raw server-side Gmail-only filter by ID.
+func (a *App) DeleteGmailFilter(filterID string) error {
+	api, err := a.api()
+	if err != nil {
+		return err
+	}
+	return api.DeleteGmailFilter(a.ctx, filterID)
+}
+
+// PreviewDeterministicRule dry-runs a rule's query against the inbox.
+func (a *App) PreviewDeterministicRule(id int64) (*desktop.RulePreview, error) {
+	api, err := a.api()
+	if err != nil {
+		return nil, err
+	}
+	return api.PreviewDeterministicRule(a.ctx, id)
+}
+
 // ViewAnalyzerPrompt returns the effective analyzer prompt for inspection.
 func (a *App) ViewAnalyzerPrompt() (string, error) {
 	api, err := a.api()
