@@ -84,3 +84,5 @@ baseline.sample.json
 .baseline_blamecache.json*
 baseline_snap_*/
 baseline_relocation.json
+__pycache__/
+*.pyc
