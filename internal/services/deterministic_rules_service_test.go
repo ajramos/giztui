@@ -21,6 +21,8 @@ type stubMessageRepo struct {
 	// searchFn is called for each SearchMessages invocation in order.
 	calls []func(query string, opts QueryOptions) (*MessagePage, error)
 	idx   int
+	// getFn, when set, backs GetMessage (used by PreviewRule tests).
+	getFn func(id string) (*internalgmail.Message, error)
 }
 
 func (r *stubMessageRepo) SearchMessages(_ context.Context, query string, opts QueryOptions) (*MessagePage, error) {
@@ -35,7 +37,10 @@ func (r *stubMessageRepo) SearchMessages(_ context.Context, query string, opts Q
 func (r *stubMessageRepo) GetMessages(_ context.Context, _ QueryOptions) (*MessagePage, error) {
 	panic("GetMessages not expected in rules service tests")
 }
-func (r *stubMessageRepo) GetMessage(_ context.Context, _ string) (*internalgmail.Message, error) {
+func (r *stubMessageRepo) GetMessage(_ context.Context, id string) (*internalgmail.Message, error) {
+	if r.getFn != nil {
+		return r.getFn(id)
+	}
 	panic("GetMessage not expected in rules service tests")
 }
 func (r *stubMessageRepo) UpdateMessage(_ context.Context, _ string, _ MessageUpdates) error {
@@ -575,5 +580,104 @@ func TestRulesServiceSyncToleratesMissingRemoteFilter(t *testing.T) {
 	filters2.nextID = "F4"
 	if err := svc2.SyncRule(ctx, id2); err == nil {
 		t.Fatal("re-sync with non-404 delete error must fail")
+	}
+}
+
+// recordingFilter implements GmailFilterAPI; DeleteFilter records ids and
+// returns a configurable error.
+type recordingFilter struct {
+	deleted []string
+	err     error
+}
+
+func (f *recordingFilter) CreateFilter(string, *gmailapi.FilterAction) (string, error) {
+	return "fid", nil
+}
+func (f *recordingFilter) ListFilters() ([]*gmailapi.Filter, error) { return nil, nil }
+func (f *recordingFilter) DeleteFilter(id string) error {
+	f.deleted = append(f.deleted, id)
+	return f.err
+}
+
+func TestDeleteGmailFilter(t *testing.T) {
+	ctx := context.Background()
+
+	// filters unavailable -> error
+	if err := NewDeterministicRulesService(nil, &stubMessageRepo{}, nil, nil).
+		DeleteGmailFilter(ctx, "f1"); err == nil {
+		t.Fatal("expected error when filters unavailable")
+	}
+
+	// empty id -> error, no delete attempted
+	rf := &recordingFilter{}
+	svc := NewDeterministicRulesService(nil, &stubMessageRepo{}, nil, rf)
+	if err := svc.DeleteGmailFilter(ctx, "   "); err == nil {
+		t.Fatal("expected error for empty id")
+	}
+	if len(rf.deleted) != 0 {
+		t.Fatalf("no delete should be attempted for empty id: %v", rf.deleted)
+	}
+
+	// success records the id
+	if err := svc.DeleteGmailFilter(ctx, "f1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rf.deleted) != 1 || rf.deleted[0] != "f1" {
+		t.Fatalf("filter not deleted as expected: %v", rf.deleted)
+	}
+
+	// 404 is treated as success (already gone)
+	svc404 := NewDeterministicRulesService(nil, &stubMessageRepo{}, nil,
+		&recordingFilter{err: &googleapi.Error{Code: 404}})
+	if err := svc404.DeleteGmailFilter(ctx, "gone"); err != nil {
+		t.Fatalf("404 must be treated as success, got %v", err)
+	}
+
+	// other errors propagate
+	svcErr := NewDeterministicRulesService(nil, &stubMessageRepo{}, nil,
+		&recordingFilter{err: fmt.Errorf("boom")})
+	if err := svcErr.DeleteGmailFilter(ctx, "x"); err == nil {
+		t.Fatal("expected non-404 error to propagate")
+	}
+}
+
+func TestPreviewRule(t *testing.T) {
+	ctx := context.Background()
+	repo := &stubMessageRepo{
+		calls: []func(query string, opts QueryOptions) (*MessagePage, error){
+			// SaveRule -> validateQuery (MaxResults 1)
+			func(_ string, _ QueryOptions) (*MessagePage, error) { return page(""), nil },
+			// PreviewRule search: scoped to inbox, 3 matches
+			func(q string, _ QueryOptions) (*MessagePage, error) {
+				if !strings.Contains(q, "in:inbox") {
+					t.Errorf("preview query not scoped to inbox: %q", q)
+				}
+				return &MessagePage{
+					Messages:   []*gmailapi.Message{{Id: "m1"}, {Id: "m2"}, {Id: "m3"}},
+					TotalCount: 3,
+				}, nil
+			},
+		},
+		getFn: func(id string) (*internalgmail.Message, error) {
+			return &internalgmail.Message{Subject: "subj-" + id}, nil
+		},
+	}
+	svc := newTestRulesService(t, repo)
+	info, err := svc.SaveRule(ctx, "from:boss@example.com", "archive", "", 0)
+	if err != nil {
+		t.Fatalf("save rule: %v", err)
+	}
+	pv, err := svc.PreviewRule(ctx, info.ID)
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if pv.MatchCount != 3 {
+		t.Errorf("MatchCount = %d, want 3", pv.MatchCount)
+	}
+	if pv.Capped {
+		t.Error("should not be capped for 3 matches")
+	}
+	if len(pv.Sample) != 3 || pv.Sample[0] != "subj-m1" {
+		t.Errorf("sample = %v, want [subj-m1 subj-m2 subj-m3]", pv.Sample)
 	}
 }
