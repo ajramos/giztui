@@ -2441,6 +2441,8 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s ⚡  Gmail filters sync in automatically on open (added/removed to match Gmail)\n", "")
 	fmt.Fprintf(&help, "    %-18s ⚡  New rule — pre-fills the active search (or '%s' from the list)\n", ":rules new", a.Keys.RuleFromQuery)
 	fmt.Fprintf(&help, "    %-18s ⚡  In the rule form: Preview shows the query's matches in the list\n", "")
+	fmt.Fprintf(&help, "    %-18s ⚡  In the manager: '%s' add · '%s' edit · '%s' test (count matches) · '%s' delete\n", "", a.Keys.RuleAdd, a.Keys.RuleEdit, a.Keys.RulePreview, a.Keys.RuleDelete)
+	fmt.Fprintf(&help, "    %-18s ⚡  '%s' also deletes Gmail-only filters (forward/delete/…) shown read-only\n", "", a.Keys.RuleDelete)
 	fmt.Fprintf(&help, "    %-18s ⚡  Preview what your rules match — no AI involved (alias :rp)\n", ":rules plan")
 	fmt.Fprintf(&help, "    %-18s ⚡  Mirror rule <n> to Gmail / remove the mirror\n", ":rules sync <n>")
 	fmt.Fprintf(&help, "    %-18s ⚡  Rules pre-filter the AI :plan (config: inbox_analyzer.deterministic_prefilter)\n", "")

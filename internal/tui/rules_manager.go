@@ -9,7 +9,7 @@ import (
 	"github.com/derailed/tview"
 )
 
-const rulesManagerFooter = " a to add  |  Enter/e to edit  |  d to delete  |  Esc to close "
+const rulesManagerFooter = " a add  |  Enter/e edit  |  t test  |  d delete  |  Esc close "
 const rulesManagerTitle = " ⚡ Deterministic rules "
 
 // ruleSyncOp decides what Gmail-filter operation a save requires.
@@ -172,9 +172,11 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	// panel stays open — a later Esc closes it). The clear is go-wrapped because
 	// ClearPersistentMessage runs through QueueUpdateDraw.
 	deletePendingID := int64(0)
+	deletePendingGmailID := "" // armed delete for a read-only Gmail-only filter row
 	clearDeletePending := func() {
-		if deletePendingID != 0 {
+		if deletePendingID != 0 || deletePendingGmailID != "" {
 			deletePendingID = 0
+			deletePendingGmailID = ""
 			go a.GetErrorHandler().ClearPersistentMessage()
 		}
 	}
@@ -424,7 +426,7 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 	list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch {
 		case ev.Key() == tcell.KeyEscape:
-			if deletePendingID != 0 {
+			if deletePendingID != 0 || deletePendingGmailID != "" {
 				clearDeletePending() // cancel the pending delete only; panel stays open
 				return nil
 			}
@@ -449,10 +451,66 @@ func (a *App) openRulesManagerOpts(openForm bool, prefillQuery string) {
 			r := rules[idx]
 			showRuleForm(&r)
 			return nil
+		case a.matchesConfiguredKey(ev, a.Keys.RulePreview):
+			clearDeletePending()
+			idx := list.GetCurrentItem()
+			if gmailOnlyRow(idx) {
+				go a.GetErrorHandler().ShowInfo(a.ctx, "Test applies to rules — this row is a server-side Gmail filter")
+				return nil
+			}
+			if idx < 0 || idx >= len(rules) {
+				return nil
+			}
+			id := rules[idx].ID
+			go func() {
+				a.GetErrorHandler().ShowProgress(a.ctx, "Testing rule against inbox…")
+				pv, err := svc.PreviewRule(a.ctx, id)
+				if err != nil {
+					a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Preview failed: %v", err))
+					return
+				}
+				count := fmt.Sprintf("%d", pv.MatchCount)
+				if pv.Capped {
+					count = fmt.Sprintf("≥%d", pv.MatchCount)
+				}
+				msg := fmt.Sprintf("Rule matches %s inbox message(s)", count)
+				if len(pv.Sample) > 0 {
+					msg += ": " + strings.Join(pv.Sample, " · ")
+				}
+				a.GetErrorHandler().ShowInfo(a.ctx, msg)
+			}()
+			return nil
 		case a.matchesConfiguredKey(ev, a.Keys.RuleDelete):
 			idx := list.GetCurrentItem()
 			if gmailOnlyRow(idx) {
-				go a.GetErrorHandler().ShowInfo(a.ctx, "This filter lives only in Gmail — manage it at gmail.com → Settings → Filters")
+				f := gmailOnly[idx-len(rules)]
+				if deletePendingGmailID == f.ID { // second press → delete the raw Gmail filter
+					deletePendingGmailID = ""
+					go func() {
+						a.GetErrorHandler().ClearPersistentMessage()
+						if err := svc.DeleteGmailFilter(a.ctx, f.ID); err != nil {
+							a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("Delete filter failed: %v", err))
+							return
+						}
+						// Re-import so the deleted filter drops from the read-only rows.
+						res, ierr := svc.ImportGmailFilters(a.ctx)
+						a.QueueUpdateDraw(func() {
+							if !a.isRulesPickerActive() {
+								return
+							}
+							if ierr == nil {
+								gmailOnly = res.Unsupported
+							}
+							reload()
+						})
+						a.GetErrorHandler().ShowSuccess(a.ctx, "✓ Gmail filter deleted")
+					}()
+					return nil
+				}
+				// First press → arm. These are server-side filters, not local rules.
+				deletePendingID = 0
+				deletePendingGmailID = f.ID
+				go a.GetErrorHandler().ShowPersistentMessage(a.ctx, fmt.Sprintf("Delete this Gmail filter? It's server-side, not a local rule — press '%s' again to confirm, Esc cancels", a.Keys.RuleDelete), LogLevelInfo)
 				return nil
 			}
 			if idx < 0 || idx >= len(rules) {

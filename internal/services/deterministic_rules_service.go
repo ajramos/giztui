@@ -250,7 +250,7 @@ const (
 // represent. A filter that is already gone is treated as success.
 func (s *DeterministicRulesServiceImpl) DeleteGmailFilter(ctx context.Context, filterID string) error {
 	if s.filters == nil {
-		return fmt.Errorf("Gmail filters unavailable — no account/client")
+		return fmt.Errorf("no Gmail account/client — filters unavailable")
 	}
 	if strings.TrimSpace(filterID) == "" {
 		return fmt.Errorf("empty filter id")

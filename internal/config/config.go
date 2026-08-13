@@ -511,6 +511,7 @@ type KeyBindings struct {
 	RuleAdd        string `json:"rule_add"`           // Analyzer rules panel: add a rule
 	RuleDelete     string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
 	RuleEdit       string `json:"rule_edit"`          // Rules manager: edit the selected rule
+	RulePreview    string `json:"rule_preview"`       // Rules manager: dry-run the selected rule against the inbox
 	RuleFromQuery  string `json:"rule_from_search"`   // New rule pre-filled with the active search query
 	SavedQueryDel  string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
 	SavedQueryEdit string `json:"saved_query_edit"`   // Saved-queries picker: edit the selected query
@@ -780,6 +781,7 @@ func DefaultKeyBindings() KeyBindings {
 		RuleAdd:        "a",
 		RuleDelete:     "d",
 		RuleEdit:       "e",      // rules manager: edit selected rule (parity with saved_query_edit)
+		RulePreview:    "t",      // rules manager: dry-run (test) selected rule against the inbox
 		RuleFromQuery:  "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel:  "d",
 		SavedQueryEdit: "e",
@@ -1037,6 +1039,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"c":      {"compose": true, "confirm_plan": true},
 		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true, "prompt_delete": true},
 		"e":      {"rule_edit": true, "saved_query_edit": true, "prompt_edit": true},
+		"t":      {"toggle_read": true, "rule_preview": true},
 		"n":      {"search_next": true, "saved_query_new": true, "prompt_new": true},
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},
