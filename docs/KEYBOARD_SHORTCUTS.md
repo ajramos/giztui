@@ -251,6 +251,8 @@ The action keys (archive / trash / label / toggle-read) reuse your configured bi
 | `:rules plan` | `:ru plan`, `:rp` | Preview what your rules match as an Action Plan — no AI involved (`:rp` is a direct shortcut) |
 | `:rules sync <n>` / `:rules unsync <n>` | — | Mirror rule *n* to Gmail / remove the mirror (*n* = position in `:rules`) |
 
+In the rules manager: `a` add · `e`/Enter edit · `t` test the selected rule against the inbox (match count + sample) · `d` delete · `s` sync/unsync · `i` import Gmail filters · `Esc` close. Keys are configurable via `keys.rule_add` / `keys.rule_edit` / `keys.rule_preview` / `keys.rule_delete`. Your existing Gmail filters are imported on open; ones the rule model can't represent (forwarding, delete, size criteria…) appear as read-only rows and can be deleted with `d`. Note: server-side Gmail filters are **not retroactive** (they act on new mail only), and a forwarding filter needs a **pre-verified** destination address in Gmail Settings.
+
 ### Configuration
 Settings live under `inbox_analyzer` in `~/.config/giztui/config.json`:
 
