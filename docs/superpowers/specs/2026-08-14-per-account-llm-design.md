@@ -109,11 +109,10 @@ type AuthProvider interface {
 ```
 
 - **Token store** — new `internal/llm/authstore` (or `pkg/auth` sibling): persists tokens to
-  `~/.config/giztui/llm-auth.json`, file mode `0600`, keyed by provider (+ account?). ❓ Are
-  subscription tokens **per-account** or **per-machine/global**? A user typically has ONE
-  ChatGPT subscription reused across accounts → *Recommendation:* store tokens **per
-  provider, machine-global** (not per Gmail account); the per-account config only selects
-  *which* engine, while the credential is shared. Confirm.
+  `~/.config/giztui/llm-auth.json`, file mode `0600`, **keyed by provider, machine-global**
+  (DECIDED 2026-08-14). One ChatGPT subscription is reused across every Gmail account that
+  selects `chatgpt`: the per-account config only selects *which* engine, the credential is
+  shared machine-wide, so there is a single `:llm login chatgpt` per machine.
 - **Factory** (`factory.go`): add `case "openai"`, `case "chatgpt"`, `case "vertex"`, and
   **change the `default` from silent Ollama fallback to an error** so a per-account typo
   disables AI with a clear log rather than silently running the wrong engine. Both callers
@@ -210,12 +209,13 @@ New `:llm` command family (TUI) + desktop equivalent:
 - ❓ Token scope: per-provider machine-global (recommended) vs per-account.
 - ❓ One flat `LLMConfig` for all engines vs per-provider sub-structs (recommend flat).
 
-## Phased plan
+## Phased plan (order DECIDED 2026-08-14)
 1. **Plumbing** — `AccountConfig.LLM`, `EffectiveLLM`, `GetLLM/SetLLM`, switch/startup/desktop
    wiring, factory error-on-unknown, `:config`/ConfigModal display. Ships with existing
    engines (ollama+bedrock) already per-account-selectable. Fully testable alone.
-2. **OpenAI API-key** provider — smallest new engine; validates the palette end-to-end.
-3. **ChatGPT subscription** — auth store + OAuth + Codex client + `:llm login`. Research-gated.
+2. **ChatGPT subscription** (the real goal, first) — auth store + OAuth + Codex client +
+   `:llm login`. Research-gated: pin the OAuth flow from the reference impl before coding.
+3. **OpenAI API-key** provider — standard chat/completions + SSE.
 4. **Vertex/Gemini** — Google auth + client.
 
 ## Verification
