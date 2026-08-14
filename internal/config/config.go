@@ -130,6 +130,97 @@ type AccountConfig struct {
 	Credentials string `json:"credentials"`  // path to credentials.json for this account
 	Token       string `json:"token"`        // path to token.json for this account
 	Active      bool   `json:"active"`       // whether this is the currently active account
+	// LLM optionally overrides the global LLM for this account (per-account engine).
+	// nil → inherit the global config.LLM. See Config.EffectiveLLM.
+	LLM *LLMConfig `json:"llm,omitempty"`
+}
+
+// EffectiveLLM returns the LLM configuration in force for accountID: the account's
+// override overlaid on the global LLM (only the override's set/non-zero fields win;
+// boolean toggles — enabled/stream/cache — always inherit the global values, a
+// documented v1 limitation of the value-typed override). An empty or unknown
+// accountID, or an account without an override, yields the global LLM unchanged.
+func (c *Config) EffectiveLLM(accountID string) LLMConfig {
+	eff := c.LLM
+	if accountID == "" {
+		return eff
+	}
+	var ov *LLMConfig
+	for i := range c.Accounts {
+		if c.Accounts[i].ID == accountID {
+			ov = c.Accounts[i].LLM
+			break
+		}
+	}
+	if ov == nil {
+		return eff
+	}
+	if ov.Provider != "" {
+		eff.Provider = ov.Provider
+	}
+	if ov.Model != "" {
+		eff.Model = ov.Model
+	}
+	if ov.Region != "" {
+		eff.Region = ov.Region
+	}
+	if ov.APIKey != "" {
+		eff.APIKey = ov.APIKey
+	}
+	// Endpoint: honor an explicit override; when switching provider without a new
+	// endpoint, drop the old provider's endpoint so the provider client picks its
+	// own default (e.g. an openai override must not inherit the ollama URL).
+	if ov.Endpoint != "" {
+		eff.Endpoint = ov.Endpoint
+	} else if ov.Provider != "" && ov.Provider != c.LLM.Provider {
+		eff.Endpoint = ""
+	}
+	if ov.Timeout != "" {
+		eff.Timeout = ov.Timeout
+	}
+	if ov.StreamChunkMs != 0 {
+		eff.StreamChunkMs = ov.StreamChunkMs
+	}
+	if ov.CachePath != "" {
+		eff.CachePath = ov.CachePath
+	}
+	if ov.SummarizeTemplate != "" {
+		eff.SummarizeTemplate = ov.SummarizeTemplate
+	}
+	if ov.ReplyTemplate != "" {
+		eff.ReplyTemplate = ov.ReplyTemplate
+	}
+	if ov.LabelTemplate != "" {
+		eff.LabelTemplate = ov.LabelTemplate
+	}
+	if ov.TouchUpTemplate != "" {
+		eff.TouchUpTemplate = ov.TouchUpTemplate
+	}
+	if ov.ChatTemplate != "" {
+		eff.ChatTemplate = ov.ChatTemplate
+	}
+	if ov.SummarizePrompt != "" {
+		eff.SummarizePrompt = ov.SummarizePrompt
+	}
+	if ov.ReplyPrompt != "" {
+		eff.ReplyPrompt = ov.ReplyPrompt
+	}
+	if ov.LabelPrompt != "" {
+		eff.LabelPrompt = ov.LabelPrompt
+	}
+	if ov.TouchUpPrompt != "" {
+		eff.TouchUpPrompt = ov.TouchUpPrompt
+	}
+	if ov.ChatPrompt != "" {
+		eff.ChatPrompt = ov.ChatPrompt
+	}
+	if ov.ChatMaxBodyChars != 0 {
+		eff.ChatMaxBodyChars = ov.ChatMaxBodyChars
+	}
+	if ov.ChatMaxTurns != 0 {
+		eff.ChatMaxTurns = ov.ChatMaxTurns
+	}
+	return eff
 }
 
 // Config holds all configuration for the GizTUI application
