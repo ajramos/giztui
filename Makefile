@@ -17,9 +17,11 @@ GO_BIN ?= $(shell go env GOPATH)/bin
 GOLANGCI_LINT_VERSION ?= v2.6.2
 GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
+MOCKERY_VERSION ?= v2.53.5
 GOLANGCI_LINT_BIN ?= $(GO_BIN)/golangci-lint
 GOVULNCHECK_BIN ?= $(GO_BIN)/govulncheck
 ACTIONLINT_BIN ?= $(GO_BIN)/actionlint
+MOCKERY_BIN ?= $(GO_BIN)/mockery
 CI_VENV ?= .venv-ci
 CI_PYTHON ?= $(CI_VENV)/bin/python
 PLAYWRIGHT_INSTALL_ARGS ?= chromium
@@ -319,38 +321,24 @@ ci: ## Run the same fail-closed product gate used by CI
 pre-commit-check: ci ## Run the canonical CI gate locally
 
 # Testing commands
-.PHONY: test test-unit test-integration test-tui test-coverage test-mocks test-snapshots test-all
+.PHONY: test test-unit test-integration test-tui test-coverage test-mocks test-snapshots-update test-all
 
 # Generate mocks for testing
 test-mocks: ## Generate mocks using mockery
 	@echo "$(GREEN)Generating mocks for testing...$(NC)"
+	@test -x "$(MOCKERY_BIN)" || { echo "$(RED)Missing mockery $(MOCKERY_VERSION); install with 'go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)'$(NC)"; exit 1; }
 	@echo "$(YELLOW)Cleaning existing mocks...$(NC)"
 	@rm -rf internal/services/mocks
 	@mkdir -p internal/services/mocks
-	@MOCKERY_CMD=""; \
-	if command -v mockery >/dev/null 2>&1; then \
-		MOCKERY_CMD="mockery"; \
-	elif [ -f $$HOME/go/bin/mockery ]; then \
-		MOCKERY_CMD="$$HOME/go/bin/mockery"; \
-	elif [ -f $$(go env GOPATH)/bin/mockery ]; then \
-		MOCKERY_CMD="$$(go env GOPATH)/bin/mockery"; \
-	fi; \
-	if [ -n "$$MOCKERY_CMD" ]; then \
-		$$MOCKERY_CMD --dir=internal/services --name=EmailService --output=internal/services/mocks --outpkg=mocks --filename=email_service.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=AIService --output=internal/services/mocks --outpkg=mocks --filename=ai_service.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=LabelService --output=internal/services/mocks --outpkg=mocks --filename=label_service.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=CacheService --output=internal/services/mocks --outpkg=mocks --filename=cache_service.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=PromptGeneratorService --output=internal/services/mocks --outpkg=mocks --filename=PromptGeneratorService.go; \
-		$$MOCKERY_CMD --dir=internal/services --name=DeterministicRulesService --output=internal/services/mocks --outpkg=mocks --filename=deterministic_rules_service.go; \
-		echo "$(GREEN)Mocks generated successfully$(NC)"; \
-	else \
-		echo "$(YELLOW)mockery is not installed. Install it with:$(NC)"; \
-		echo "go install github.com/vektra/mockery/v2@latest"; \
-		echo "$(YELLOW)Note: You may need to add your Go bin directory to PATH:$(NC)"; \
-		echo "export PATH=\$$PATH:\$$(go env GOPATH)/bin"; \
-	fi
+	@$(MOCKERY_BIN) --dir=internal/services --name=EmailService --output=internal/services/mocks --outpkg=mocks --filename=email_service.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=AIService --output=internal/services/mocks --outpkg=mocks --filename=ai_service.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=LabelService --output=internal/services/mocks --outpkg=mocks --filename=label_service.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=CacheService --output=internal/services/mocks --outpkg=mocks --filename=cache_service.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=MessageRepository --output=internal/services/mocks --outpkg=mocks --filename=message_repository.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=SearchService --output=internal/services/mocks --outpkg=mocks --filename=search_service.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=PromptGeneratorService --output=internal/services/mocks --outpkg=mocks --filename=PromptGeneratorService.go
+	@$(MOCKERY_BIN) --dir=internal/services --name=DeterministicRulesService --output=internal/services/mocks --outpkg=mocks --filename=deterministic_rules_service.go
+	@echo "$(GREEN)Mocks generated successfully$(NC)"
 
 # Run unit tests
 test-unit: ## Run unit tests
@@ -377,7 +365,7 @@ test-coverage: ## Run tests with coverage
 # Update snapshots (use with caution)
 test-snapshots-update: ## Update test snapshots
 	@echo "$(GREEN)Updating test snapshots...$(NC)"
-	go test -v ./test/helpers/... -update
+	UPDATE_SNAPSHOTS=true go test -v ./test/helpers/...
 
 # Run all tests
 test-all: test-mocks test-unit test-tui test-integration test-coverage ## Run all tests
@@ -385,15 +373,15 @@ test-all: test-mocks test-unit test-tui test-integration test-coverage ## Run al
 # Test specific component
 test-messages: ## Test message handling
 	@echo "$(GREEN)Testing message handling...$(NC)"
-	go test -v ./internal/tui/messages* -race
+	go test -v ./internal/tui -run 'Message' -race
 
 test-labels: ## Test label management
 	@echo "$(GREEN)Testing label management...$(NC)"
-	go test -v ./internal/tui/labels* -race
+	go test -v ./internal/tui -run 'Label' -race
 
 test-ai: ## Test AI features
 	@echo "$(GREEN)Testing AI features...$(NC)"
-	go test -v ./internal/tui/ai* -race
+	go test -v ./internal/tui -run 'AI|Summary|Prompt' -race
 
 # Performance testing
 test-performance: ## Run performance tests
@@ -403,7 +391,7 @@ test-performance: ## Run performance tests
 # Load testing
 test-load: ## Run load tests
 	@echo "$(GREEN)Running load tests...$(NC)"
-	go test -v -bench=BenchmarkBulkOperations -benchtime=30s ./test/helpers/...
+	go test -run='^$$' -bench=. -benchmem -benchtime=30s ./test/helpers/...
 
 # Legacy mock generation commands (requires mockgen)
 mocks: ## Generate mocks (legacy)

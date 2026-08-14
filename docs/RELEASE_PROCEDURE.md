@@ -8,6 +8,10 @@ CycloneDX SBOMs, attests the artifacts, and publishes once through the protected
 
 Do not create releases or upload release assets manually.
 
+> Deployment status: this hardened workflow is proposed in PR #89. Until that PR
+> is merged and the required `-rc.N` rehearsal passes, stable releases remain
+> paused and the latest published release may not contain the asset set below.
+
 ## Release Contract
 
 A release tag must satisfy all of these conditions:
@@ -25,6 +29,8 @@ A release tag must satisfy all of these conditions:
   candidates and stable packages remain distinguishable.
 - Every numeric version component is at most `65535`, the Windows package
   metadata limit.
+- The protected-main commit count used as the native build number is also at
+  most `65535`.
 
 The release workflow has no manual-dispatch path. This keeps GitHub provenance
 bound to the tag event. Rerun the original workflow run after correcting an
@@ -46,12 +52,16 @@ desktop/wails.json info.productVersion       numeric version core
 ```
 
 3. Add substantive release notes under the new changelog heading.
-4. Run the same fail-closed gate used by CI:
+4. Install pinned tools and run the canonical local product gate:
 
 ```bash
+make ci-tools
 make ci
 git diff --check
 ```
+
+Hosted CI additionally runs the OS matrix, Trivy SARIF, dependency review, and
+the protected `required` aggregator.
 
 5. Commit the release preparation, push the branch, merge it through a pull
    request, and wait for `CI / required` on the resulting `main` commit.
@@ -73,14 +83,18 @@ required check is successful:
 
 ```bash
 VERSION=$(tr -d '\n' < VERSION)
-git tag "v${VERSION}"
-git push origin "v${VERSION}"
+TAG="v${VERSION}"
+git tag "$TAG"
+./scripts/validate-release.sh "$TAG"
+# Preview the tag and commit, then obtain confirmation before pushing:
+git show --no-patch --decorate "$TAG"
+git push origin "$TAG"
 ```
 
 The protected tag starts the `Release` workflow. Monitor it with:
 
 ```bash
-gh run list --workflow release.yml --limit 1
+gh run list --workflow release.yml --branch "$TAG" --limit 1
 gh run watch RUN_ID
 ```
 
@@ -130,10 +144,17 @@ For the candidate:
 
 ```bash
 TAG=vX.Y.Z-rc.1
-mkdir -p /tmp/giztui-release-check
-gh release download "$TAG" --dir /tmp/giztui-release-check
-(cd /tmp/giztui-release-check && sha256sum --check SHA256SUMS)
-gh attestation verify /tmp/giztui-release-check/* --repo ajramos/giztui
+SOURCE_SHA=$(git rev-list -n 1 "$TAG")
+CHECK_DIR=$(mktemp -d)
+gh release download "$TAG" --dir "$CHECK_DIR"
+(cd "$CHECK_DIR" && sha256sum --check SHA256SUMS)
+for artifact in "$CHECK_DIR"/*; do
+  gh attestation verify "$artifact" \
+    --repo ajramos/giztui \
+    --signer-workflow ajramos/giztui/.github/workflows/release.yml \
+    --source-ref "refs/tags/$TAG" \
+    --source-digest "$SOURCE_SHA"
+done
 ```
 
 Also verify:
@@ -143,7 +164,8 @@ Also verify:
 - Each SBOM parses as valid CycloneDX JSON.
 - The macOS bundle identifier is `com.ajramos.giztui.desktop`, the short version
   is the numeric version core, and the minimum OS is macOS 12.
-- The Windows installer reports the numeric product-version core.
+- The Windows installer and portable executable report the full SemVer as
+  `ProductVersion` and `MAJOR.MINOR.PATCH.build-count` as `FileVersion`.
 - The Linux desktop file and AppImage launch correctly.
 - CLI `--version` reports the full version and tagged source commit.
 - The attached Homebrew cask has the candidate version and DMG checksum but the
@@ -156,16 +178,36 @@ stable releases.
 
 ```bash
 TAG=vX.Y.Z
+SOURCE_SHA=$(git rev-list -n 1 "$TAG")
+CHECK_DIR=$(mktemp -d)
 gh release view "$TAG" --json isDraft,isPrerelease,assets
-gh run list --workflow release.yml --limit 1 --json status,conclusion,url
-gh release download "$TAG" --dir /tmp/giztui-release-check
-(cd /tmp/giztui-release-check && sha256sum --check SHA256SUMS)
-gh attestation verify /tmp/giztui-release-check/* --repo ajramos/giztui
+gh run list --workflow release.yml --branch "$TAG" --limit 1 --json status,conclusion,url
+gh release download "$TAG" --dir "$CHECK_DIR"
+(cd "$CHECK_DIR" && sha256sum --check SHA256SUMS)
+for artifact in "$CHECK_DIR"/*; do
+  gh attestation verify "$artifact" \
+    --repo ajramos/giztui \
+    --signer-workflow ajramos/giztui/.github/workflows/release.yml \
+    --source-ref "refs/tags/$TAG" \
+    --source-digest "$SOURCE_SHA"
+done
 curl -fsSL https://raw.githubusercontent.com/ajramos/homebrew-giztui/main/Casks/giztui-desktop.rb
 ```
 
-Test at least one applicable installation path and confirm `giztui --version`.
-For Homebrew, confirm the tap version and DMG checksum match the release asset.
+Test at least one CLI installation path and confirm `giztui --version`. Test a
+desktop package separately by launching it. For Homebrew, confirm the tap version
+and DMG checksum match the release asset.
+
+## Repository Bootstrap Requirements
+
+The production repository must keep these controls configured:
+
+- `main` requires pull requests and the strict `required` status context.
+- `refs/tags/v*` is protected; only the designated release maintainer can create
+  tags through the audited bypass.
+- The `release` environment permits only `v*` tags.
+- Artifact attestations are enabled, and Actions require full commit SHA pins.
+- `HOMEBREW_TAP_TOKEN` can update the seeded `ajramos/homebrew-giztui` tap.
 
 ## Failure Recovery
 

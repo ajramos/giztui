@@ -49,12 +49,12 @@ A powerful **terminal Gmail client** built in **Go** that brings **AI intelligen
 **Download pre-built binaries** (recommended):
 ```bash
 # Linux
-curl -L https://github.com/ajramos/giztui/releases/latest/download/giztui-linux-amd64.tar.gz | tar -xz
-sudo mv giztui /usr/local/bin/
+curl -fL https://github.com/ajramos/giztui/releases/latest/download/giztui-linux-amd64.tar.gz | tar -xz
+sudo install -m 0755 giztui-linux-amd64 /usr/local/bin/giztui
 
 # macOS
-curl -L https://github.com/ajramos/giztui/releases/latest/download/giztui-darwin-amd64.tar.gz | tar -xz
-mv giztui /usr/local/bin/
+curl -fL https://github.com/ajramos/giztui/releases/latest/download/giztui-darwin-amd64.tar.gz | tar -xz
+sudo install -m 0755 giztui-darwin-amd64 /usr/local/bin/giztui
 
 # Windows: Download giztui-windows-amd64.zip from releases page
 ```
@@ -84,12 +84,13 @@ brew install --cask giztui-desktop
 
 **All platforms — direct download** (from the [latest release](https://github.com/ajramos/giztui/releases/latest)):
 - macOS: `GizTUI-Desktop-<ver>-universal.dmg`
-- Windows: `GizTUI-Desktop-<ver>-windows-amd64-setup.exe` (installer) or `…-windows-amd64.zip` (portable)
-- Linux: `GizTUI-Desktop-<ver>-x86_64.AppImage` or `…-linux-amd64.tar.gz`
+- Windows: `GizTUI-Desktop-<ver>-windows-amd64-installer.exe` or `...-windows-amd64-portable.zip`
+- Linux: `GizTUI-Desktop-<ver>-linux-amd64.AppImage` or `...-linux-amd64.tar.gz`
 
 > The desktop builds are currently **unsigned**. macOS Gatekeeper / Windows
-> SmartScreen will warn on first launch — on macOS open via right-click → Open
-> (Homebrew installs already strip the quarantine attribute). See
+> SmartScreen will warn on first launch. On macOS 12 or newer, use right-click
+> then Open and confirm the prompt; Homebrew installation does not remove the
+> unsigned-app Gatekeeper warning. See
 > [docs/DESKTOP_DISTRIBUTION.md](docs/DESKTOP_DISTRIBUTION.md) for details and the
 > signing/notarization plan. The desktop app reuses the same
 > `~/.config/giztui/` credentials and token as the TUI.
@@ -232,8 +233,9 @@ sign-in in your system browser.
 
 ```sh
 # from the repo root
-cd desktop && wails dev      # live-reload dev
-cd desktop && wails build    # native app → desktop/build/bin/
+make -C desktop deps         # install the pinned Wails CLI
+make -C desktop dev          # live-reload dev
+make -C desktop build        # native app -> desktop/build/bin/
 ```
 
 See the **[Desktop README](desktop/README.md)** for features and build details
@@ -241,9 +243,8 @@ and the **[Desktop Architecture Guide](docs/DESKTOP.md)** for how it's wired.
 
 ## 📦 Platform Support
 
-- **Linux**: AMD64, ARM64
-- **macOS**: Intel (AMD64), Apple Silicon (ARM64)  
-- **Windows**: AMD64, ARM64
+- **CLI**: Linux amd64/arm64, macOS amd64/arm64, Windows amd64/arm64
+- **Desktop**: macOS universal, Windows amd64, Linux amd64
 
 All platforms include:
 - Native file handling and browser integration
@@ -278,7 +279,7 @@ All platforms include:
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Fixes for common problems (auth, rendering, loading)
 - **[Known Issues](docs/KNOWN_ISSUES.md)** - Common problems and solutions
 - **[GitHub Issues](https://github.com/ajramos/giztui/issues)** - Bug reports and feature requests
-- **[GitHub Discussions](https://github.com/ajramos/giztui/discussions)** - Community support
+- **[Security Policy](SECURITY.md)** - Report vulnerabilities privately
 
 ## 📄 License
 

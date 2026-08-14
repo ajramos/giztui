@@ -1,431 +1,140 @@
 # Testing Guide
 
-## Overview
+This guide documents the tests and gates that exist in the current repository.
+The Makefile is the executable source of truth.
 
-GizTUI uses a comprehensive testing framework designed specifically for TUI applications. The framework follows service-oriented architecture principles and provides robust testing capabilities for Go applications built with tview.
+## Canonical Local Gate
 
-## Quick Start
-
-```bash
-# Generate mocks first
-make test-mocks
-
-# Run all tests
-make test-all
-
-# Run specific test types
-make test-unit      # Service layer tests
-make test-tui       # TUI component tests
-make test-integration # Integration tests
-make test-coverage  # Tests with coverage report
-```
-
-## Testing Architecture
-
-### Testing Layers
-
-1. **Component Testing** - Tests individual TUI components using `tcell.SimulationScreen`
-2. **Service Testing** - Tests business logic with mocked dependencies
-3. **Integration Testing** - Tests with real services using VCR recording
-4. **Visual Regression Testing** - Tests UI consistency using snapshots
-5. **Performance Testing** - Benchmarks and load testing
-
-### Key Principles
-
-- **No Running Application Testing** - Avoid `app.Run()` in tests
-- **Service-Oriented Testing** - Test business logic separately from UI
-- **Component-Level Testing** - Test individual components in isolation
-- **Mock-First Approach** - Use mocks for external dependencies
-- **Visual Consistency** - Prevent UI regressions with snapshots
-
-## Framework Components
-
-### Test Harness
-
-The central testing utility (`test/helpers/test_harness.go`) provides:
-
-- `SimulationScreen` for TUI component testing
-- Mocked service instances
-- Keyboard event simulation
-- Screen content capture
-- State validation utilities
-
-```go
-harness := helpers.NewTestHarness(t)
-defer harness.Cleanup()
-
-// Test component
-harness.DrawComponent(component)
-harness.SimulateKeyEvent(tcell.KeyCtrlA, 0, tcell.ModCtrl)
-harness.AssertScreenContains(t, "Expected Text")
-```
-
-### Specialized Test Helpers
-
-#### Bulk Operations Testing
-- Range selection testing
-- Pattern-based selection
-- Bulk archive/trash operations
-- Edge case handling
-- Performance validation
-
-#### Keyboard Shortcuts Testing
-- Navigation shortcuts
-- Message operation shortcuts
-- Bulk operation shortcuts
-- Search and filter shortcuts
-- AI feature shortcuts
-
-#### Async Operations Testing
-- Message loading
-- AI summary generation
-- Bulk label application
-- Search operations
-- Cancellation and timeout handling
-- Goroutine leak detection
-
-#### Visual Regression Testing
-- Component rendering tests
-- State change visualization
-- Responsive layout testing
-- Focus indicator testing
-- Color scheme testing
-
-## Writing Tests
-
-### Basic Component Test
-
-```go
-func TestMessageList(t *testing.T) {
-    harness := helpers.NewTestHarness(t)
-    defer harness.Cleanup()
-    
-    // Setup mocks
-    harness.MockRepo.On("GetMessages", mock.Anything, mock.Anything).
-        Return(&services.MessagePage{
-            Messages: harness.GenerateTestMessages(10),
-        }, nil)
-    
-    // Test component
-    component := harness.App.GetMessageListComponent()
-    harness.DrawComponent(component)
-    
-    // Validate
-    harness.AssertScreenContains(t, "Test Subject")
-}
-```
-
-### Keyboard Shortcut Test
-
-```go
-func TestSelectAllShortcut(t *testing.T) {
-    harness := helpers.NewTestHarness(t)
-    defer harness.Cleanup()
-    
-    // Setup
-    harness.App.SetSelectedMessages([]string{})
-    
-    // Execute shortcut
-    harness.SimulateKeyEvent(tcell.KeyCtrlA, 0, tcell.ModCtrl)
-    
-    // Validate
-    assert.Equal(t, 10, harness.App.GetSelectedCount())
-}
-```
-
-### Visual Regression Test
-
-```go
-func TestMessageListRendering(t *testing.T) {
-    harness := helpers.NewTestHarness(t)
-    defer harness.Cleanup()
-    
-    // Setup and render
-    component := harness.App.GetMessageListComponent()
-    harness.DrawComponent(component)
-    
-    // Capture and compare snapshot
-    snapshot := harness.GetScreenContent()
-    snaps.MatchSnapshot(t, snapshot, "message_list_rendering")
-}
-```
-
-## Test Organization
-
-```
-test/
-├── helpers/           # Testing utilities and frameworks
-├── integration/       # Integration tests
-├── fixtures/          # Test data and VCR cassettes
-└── main_test.go      # Main test suite runner
-```
-
-## Mocking Strategy
-
-### Service Mocks
-
-All services are mocked using `testify/mock` and generated with `mockery`:
+Install the pinned tools once, then run the complete local product gate:
 
 ```bash
-# Generate mocks
-mockery --config .mockery.yaml
+make ci-tools
+make ci
 ```
 
-### Mock Expectations
+`make pre-commit-check` is an alias for `make ci`. The local gate runs:
 
-```go
-// Setup expectations
-harness.MockEmail.On("ArchiveMessage", mock.Anything, "msg_1").Return(nil)
+- Go formatting, vet, golangci-lint, actionlint, and release-script fixtures.
+- Root module verification, build, tests, aggregate coverage, and targeted race
+  tests for services, TUI, and the desktop adapter.
+- Root and desktop `govulncheck`, plus npm audit.
+- Architecture, per-file complexity, and coverage ratchets.
+- Locked frontend install, 81 Vitest tests, TypeScript/Vite production build,
+  nested desktop Go verification/test/build/vet, and 67 Playwright scenarios.
 
-// Execute operation
-harness.App.ArchiveMessage("msg_1")
+GitHub CI adds the Linux/macOS root matrix, Trivy SARIF scanning, dependency
+review, Codecov upload, and the protected `required` aggregator. Local `make ci`
+is the canonical product gate, not a byte-for-byte reproduction of hosted CI.
 
-// Verify expectations
-harness.MockEmail.AssertExpectations(t)
-```
-
-## CI/CD Integration
-
-The framework includes a comprehensive CI/CD pipeline:
-
-- **Matrix Testing** - Multiple Go versions and OS combinations
-- **Automated Testing** - Unit, TUI, integration, and performance tests
-- **Visual Regression** - Automated UI consistency checking
-- **Security Scanning** - Vulnerability detection with Trivy
-- **Coverage Reporting** - Code coverage tracking
-
-### Pre-commit Hooks
-
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: local
-    hooks:
-      - id: test-mocks
-        name: Generate Mocks
-        entry: make test-mocks
-        language: system
-        types: [go]
-        
-      - id: test-unit
-        name: Run Unit Tests
-        entry: make test-unit
-        language: system
-        types: [go]
-```
-
-## Best Practices
-
-### Test Structure
-
-1. **Arrange** - Setup test harness and mocks
-2. **Act** - Execute the operation being tested
-3. **Assert** - Validate the expected outcome
-4. **Cleanup** - Ensure proper resource cleanup
-
-### Naming Conventions
-
-- Test functions: `Test<Component><Operation>`
-- Test cases: Descriptive names using underscores
-- Snapshot keys: Descriptive and hierarchical
-
-### Performance Considerations
-
-- Use `t.Parallel()` for independent tests
-- Minimize test data size
-- Use appropriate timeouts for async operations
-- Monitor goroutine leaks with `goleak`
-
-### Error Handling
-
-- Test both success and failure scenarios
-- Validate error messages and types
-- Test edge cases and boundary conditions
-- Ensure proper cleanup on errors
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Mock Expectations Not Met**
-   - Check mock setup order
-   - Verify method signatures match
-   - Ensure mocks are properly reset between tests
-
-2. **Snapshot Mismatches**
-   - Review snapshot differences
-   - Update snapshots if changes are intentional
-   - Check for flaky test data
-
-3. **Goroutine Leaks**
-   - Use `goleak.VerifyNone(t)` in async tests
-   - Ensure proper context cancellation
-   - Check for unbuffered channels
-
-4. **Test Timeouts**
-   - Increase timeout values for slow operations
-   - Use `harness.WaitForCondition()` for async validation
-   - Check for blocking operations
-
-### Debugging Tips
-
-- Use `harness.GetScreenContent()` to inspect UI state
-- Enable verbose logging with `-v` flag
-- Use `t.Log()` for additional test information
-- Check mock call history with `ExpectedCalls`
-
-## Contributing
-
-### Adding New Tests
-
-1. Follow the established patterns in existing test files
-2. Use the test harness for consistent setup
-3. Add appropriate mock expectations
-4. Include both positive and negative test cases
-5. Update documentation for new test types
-
-### Test Maintenance
-
-1. Keep tests focused and atomic
-2. Regular snapshot review and cleanup
-3. Monitor test execution time
-4. Update mocks when interfaces change
-5. Maintain test data consistency
-
-## Multi-Account Testing
-
-### Multi-Account Test Coverage
-
-The test suite provides comprehensive coverage for multi-account functionality across multiple test layers:
-
-#### 1. **Unit Tests** - Business Logic Core
-**Location**: `internal/services/account_service_test.go`
-
-- **Service Creation & Initialization**: Tests `NewAccountService` with various configuration scenarios
-- **Account Management Operations**: CRUD operations for accounts
-- **Account Switching Logic**: Proper activation/deactivation state management
-- **Configuration Loading**: Multi-account vs legacy single-account configuration handling
-- **Data Isolation**: Ensures returned account objects are copies, preventing data races
-- **Thread Safety**: Concurrent access to account data with proper mutex protection
-- **Error Scenarios**: Invalid configurations, missing accounts, duplicate IDs
-- **Validation Logic**: Account field validation and constraint enforcement
+## Focused Commands
 
 ```bash
-# Run multi-account unit tests
-make test-unit
-go test ./internal/services -v -run "TestAccount"
+make test                    # Root scoped test suite
+make test-unit               # internal/services with race detector
+make test-tui                # TUI and test helpers with race detector
+make test-integration        # Tests under test/
+make test-coverage           # Root coverage HTML report
+make test-race               # Full root race run
+make ci-desktop              # Frontend, desktop Go, and Playwright gate
+make ci-security             # Reachable Go vulnerabilities and npm audit
+make ci-architecture         # Architecture and complexity ratchets
 ```
 
-#### 2. **Component Tests** - UI Behavior
-**Location**: `internal/tui/accounts_test.go`
-
-- **Account Picker UI**: Opening, closing, and navigation behavior
-- **Account Display Logic**: Status icons, active indicators, filtering
-- **User Interactions**: Keyboard navigation, account selection, management operations
-- **State Management**: Picker state transitions and focus handling
-- **Error Handling**: Service failures, UI error display, graceful degradation
-- **Mock Integration**: Proper mocking of services for isolated UI testing
+Run a package or named test directly while developing:
 
 ```bash
-# Run multi-account component tests
-go test ./internal/tui -v -run "TestApp.*Account"
+go test ./internal/services
+go test ./internal/tui -run TestName
+go test ./pkg/desktop -run TestName
+cd desktop && go test ./...
+cd desktop/frontend && npm test
+cd desktop/frontend && npx playwright test e2e/inbox.spec.ts
 ```
 
-#### 3. **Integration Tests** - End-to-End Workflows
-**Location**: `test/integration/accounts_integration_test.go`
+## Test Locations
 
-- **Keyboard Shortcuts**: Account picker shortcuts and configurable shortcuts
-- **Command System**: `:accounts`, `:accounts switch`, etc.
-- **Command Aliases**: Short forms like `:accounts sw`
-- **Workflow Integration**: Complete user workflows from keyboard to service
-- **UI-Service Integration**: Proper communication between UI components and services
-- **Concurrent Operations**: Multiple simultaneous keyboard and command operations
-- **State Consistency**: System state remains consistent across operations
+- `internal/**/*_test.go`: package-level Go tests.
+- `pkg/desktop/**/*_test.go`: front-end-independent desktop adapter tests.
+- `test/helpers`: TUI harnesses, snapshots, and shared test utilities.
+- `test`: integration-style tests using local mocks and fixtures.
+- `desktop/**/*_test.go`: nested desktop module tests.
+- `desktop/frontend/src/*.test.ts`: Vitest tests for pure frontend logic.
+- `desktop/frontend/e2e/*.spec.ts`: Playwright browser tests against the mock
+  backend.
+
+No test suite contacts live Gmail, LLM, Slack, or Obsidian services in canonical
+CI. External dependencies must be mocked or represented by deterministic
+fixtures.
+
+## Visual Snapshots
+
+Snapshot mismatches and missing baselines fail by default. Review the rendered
+change before accepting it, then run:
 
 ```bash
-# Run multi-account integration tests
-make test-integration
-go test ./test/integration -v -run "TestAccounts"
+UPDATE_SNAPSHOTS=true go test ./test/helpers/...
+# or
+make test-snapshots-update
 ```
 
-#### 4. **Configuration Tests** - Config Loading & Validation
-**Location**: `internal/config/accounts_config_test.go`
+Commit the reviewed snapshot files with the code change. Never enable snapshot
+updates in CI.
 
-- **Multi-Account Configuration**: Loading and parsing of account arrays
-- **Legacy Compatibility**: Single-account configuration backward compatibility
-- **Validation Rules**: Account ID uniqueness, required fields, active account limits
-- **File Operations**: Config file reading, JSON parsing, error handling
-- **Migration Logic**: Legacy to multi-account configuration migration
-- **Default Values**: Proper application of default settings
-- **Serialization**: Round-trip config save/load integrity
+## Coverage Ratchet
+
+`make ci-go` writes `coverage.out` for:
+
+```text
+./internal/... ./test/helpers ./test ./pkg/...
+```
+
+The current aggregate statement floor is stored in `coverage-baseline.txt`
+(18.5%). The nested desktop module and frontend use their own behavioral gates;
+they are not included in this root aggregate. Codecov is reporting only and is
+not the blocking coverage policy.
+
+Raise the baseline after reviewed coverage improvements. Never lower it merely
+to make CI green.
+
+## Architecture And Complexity
+
+`scripts/check-architecture.sh` blocks new direct Gmail-client debt and new
+service-interface exceptions relative to `architecture-baseline.csv`. Existing
+legacy exceptions are frozen rather than claimed as resolved. Direct `App` field
+access is not yet machine-enforced.
+
+`scripts/check-quality-ratchet.py` compares each production Go/TS/JS source file
+with `quality-baseline-per-file.csv`. It tracks NLOC, maximum CCN, maximum
+function length, and functions above CCN 10. Lizard values are tool-defined
+approximations, especially for large Go functions containing closures.
+
+After an intentional reviewed increase, refresh and inspect the baseline:
 
 ```bash
-# Run multi-account config tests
-go test ./internal/config -v -run "TestAccount"
+make quality-baseline-update
+git diff -- quality-baseline-per-file.csv
 ```
 
-#### 5. **Concurrency Tests** - Thread Safety & Performance
-**Location**: `test/concurrency/accounts_concurrency_test.go`
+## Mocks
 
-- **Concurrent Reads**: Multiple simultaneous account listing and retrieval operations
-- **Concurrent Writes**: Account switching, addition, removal under high load
-- **Mixed Operations**: Combined read/write operations with race condition detection
-- **UI Concurrency**: Concurrent UI operations mixed with service calls
-- **Memory Consistency**: Data integrity under concurrent access
-- **Deadlock Prevention**: Timeout handling and proper lock ordering
-- **Performance Testing**: Throughput and latency under concurrent load
-- **Race Detection**: Built-in race detector compatibility
+Generated mocks are checked in under `internal/services/mocks`. Do not regenerate
+them unless a covered interface changed. `make test-mocks` requires mockery and
+must fail before deleting existing mocks when the pinned generator is absent.
+Always review generated diffs and rerun `make ci`.
 
-```bash
-# Run multi-account concurrency tests (with race detector)
-go test -race ./test/concurrency -v -run "TestAccount"
-```
+## Pre-commit Hooks
 
-### Running Multi-Account Tests
+The optional `.pre-commit-config.yaml` provides fast formatting, vet, lint, and
+focused checks. It is intentionally smaller than the canonical gate. Passing a
+hook does not replace `make ci` before a pull request or completion claim.
 
-#### Complete Multi-Account Test Suite
-```bash
-# Run all multi-account tests
-make test-all
-go test -v ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
+## Adding Tests
 
-# Run with race detector (recommended)
-go test -race -v ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
-
-# Run with coverage
-make test-coverage
-go test -coverprofile=coverage.out ./internal/services ./internal/tui ./internal/config ./test/integration ./test/concurrency -run ".*Account.*"
-```
-
-#### Performance & Load Testing
-```bash
-# Run performance tests
-go test -v ./test/concurrency -run "TestAccountService_PerformanceUnderLoad"
-
-# Run with detailed timing
-go test -v -timeout 30s ./test/concurrency -run "Performance"
-```
-
-### Multi-Account Test Quality Gates
-
-#### Coverage Targets
-- **Unit Test Coverage**: >90% for AccountService business logic
-- **Integration Coverage**: >80% for end-to-end workflows  
-- **Error Path Coverage**: >95% for error handling scenarios
-- **Concurrency Coverage**: >85% for thread-safe operations
-
-#### Quality Assertions
-- **Zero Race Conditions**: All tests must pass with `-race` flag
-- **No Memory Leaks**: Verified through long-running concurrency tests
-- **Consistent State**: System state verification after all operations
-- **Error Recovery**: Proper cleanup and recovery from all error scenarios
-
-#### Performance Benchmarks
-- **Response Time**: <100ms for typical account operations
-- **Throughput**: >100 operations/second under concurrent load
-- **Memory Usage**: Stable memory usage under sustained load
-- **Error Rate**: <1% under normal operating conditions
-
----
-
-This testing framework provides a robust foundation for ensuring the quality and reliability of GizTUI. The emphasis on component-level testing, comprehensive mocking, and visual regression detection makes it particularly well-suited for TUI applications where traditional testing approaches fall short.
+- Put business-logic tests beside the service implementation.
+- Prefer pure frontend unit tests for transformations and state-independent
+  behavior.
+- Add Playwright coverage for user-visible desktop workflows and coupled modal
+  behavior.
+- Add TUI snapshots only when a stable textual layout is part of the contract.
+- Keep tests deterministic, isolated from user configuration, and safe under
+  `go test -race` where the canonical gate enables it.

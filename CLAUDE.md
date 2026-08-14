@@ -59,20 +59,27 @@ When committing changes, **DO NOT** include Claude signatures or co-authored by 
 - **NEVER** use shared boolean flags like `labelsVisible`
 - **ALWAYS** use `setActivePicker()` and `isLabelsPickerActive()` methods
 
-**Available picker constants:**
+**Available picker constants** (source of truth: `internal/tui/app.go`):
 - `PickerNone` - No picker active
-- `PickerLabels` - Labels picker  
+- `PickerLabels` - Labels picker
 - `PickerDrafts` - Drafts picker
 - `PickerObsidian` - Obsidian integration
 - `PickerAttachments` - Attachments picker
 - `PickerLinks` - Links picker
 - `PickerPrompts` - Prompts picker
 - `PickerBulkPrompts` - Bulk prompts picker
+- `PickerPromptConfigurator` - Prompt configurator
+- `PickerActionPlan` - Action plan
+- `PickerAnalyzerRules` - Analyzer rules
 - `PickerSavedQueries` - Saved queries picker
 - `PickerThemes` - Theme picker
 - `PickerAI` - AI labels picker
 - `PickerContentSearch` - Content search picker
 - `PickerRSVP` - RSVP picker
+- `PickerAccounts` - Accounts picker
+- `PickerRules` - Rules picker
+- `PickerAIJobs` - AI jobs picker
+- `PickerChat` - Chat picker
 
 ```go
 // ✅ CORRECT - Use specific picker enum
@@ -123,7 +130,8 @@ container.SetBorderColor(componentColors.Border.Color())
 - `ShowWarning(ctx, message)` - Yellow warning messages
 - `ShowInfo(ctx, message)` - Blue info messages
 - `ShowProgress(ctx, message)` - Progress indicators
-- `SetPersistentStatus(ctx, message)` - Long-term status
+- `ShowPersistentMessage(ctx, message, level)` - Long-term status
+- `ClearPersistentMessage()` - Clears the persistent status
 
 ```go
 // ✅ CORRECT - From key handlers, use goroutine

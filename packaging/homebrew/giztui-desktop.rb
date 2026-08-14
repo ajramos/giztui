@@ -5,14 +5,15 @@
 # Then users install with:
 #
 #   brew tap ajramos/giztui
+#   brew trust ajramos/giztui
 #   brew install --cask giztui-desktop
 #
 # This is the source-of-truth template. On a tagged release the
 # release.yml `homebrew` job promotes a generated cask with the new
 # `version` and the real `sha256` of the universal .dmg (needs the
 # HOMEBREW_TAP_TOKEN secret — see packaging/homebrew/README.md). Until macOS
-# notarization lands the build is unsigned; Homebrew strips the quarantine
-# attribute on cask installs, so it can still be opened without commercial signing.
+# notarization lands the build is unsigned and macOS may require right-click,
+# Open, and explicit confirmation on first launch.
 cask "giztui-desktop" do
   version "1.27.0"
   sha256 :no_check # the tap copy is pinned to the DMG's sha256 by CI
@@ -21,6 +22,8 @@ cask "giztui-desktop" do
   name "GizTUI Desktop"
   desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
   homepage "https://github.com/ajramos/giztui"
+
+  depends_on macos: ">= :monterey"
 
   app "GizTUI Desktop.app"
 

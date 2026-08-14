@@ -3,6 +3,7 @@ package helpers
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -229,13 +230,10 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 	if snapshotData, err := os.ReadFile(filepath.Clean(snapshotPath)); err == nil {
 		snapshotMD5 = calculateMD5(string(snapshotData))
 		matches = snapshotMD5 == currentMD5
+	} else if errors.Is(err, os.ErrNotExist) {
+		t.Logf("No existing snapshot for %s", testName)
 	} else {
-		// No existing snapshot, create one
-		t.Logf("No existing snapshot for %s, creating baseline", testName)
-		err := os.WriteFile(snapshotPath, []byte(content), 0600)
-		assert.NoError(t, err, "Failed to create baseline snapshot")
-		snapshotMD5 = currentMD5
-		matches = true
+		t.Errorf("failed to read snapshot %s: %v", testName, err)
 	}
 
 	return SnapshotResult{

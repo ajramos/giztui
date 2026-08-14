@@ -35,22 +35,22 @@ once you approve, the app continues automatically.
 
 ## Prerequisites
 
-- Go 1.25+
-- Node.js 18+ / npm
-- The Wails v2 CLI:
+- Go 1.25.13+
+- Node.js 20.19+ or 22.12+ / npm
+- The pinned Wails v2 CLI:
   ```sh
-  go install github.com/wailsapp/wails/v2/cmd/wails@latest
+  make -C desktop deps
   ```
-- Platform toolchain (macOS: Xcode command-line tools; Linux: `libwebkit2gtk`,
-  `libgtk-3`). Run `wails doctor` to verify your machine.
+- Platform toolchain (macOS: Xcode command-line tools; Linux:
+  `build-essential`, `libwebkit2gtk-4.0-dev`, and `libgtk-3-dev`). Run
+  `wails doctor` to verify your machine.
 
 ## Develop
 
 Live-reload (Go + Vite HMR):
 
 ```sh
-cd desktop
-wails dev
+make -C desktop dev
 ```
 
 The frontend also runs standalone in a browser against a built-in **mock
@@ -58,16 +58,15 @@ backend** (no Gmail needed) for pure UI work:
 
 ```sh
 cd desktop/frontend
-npm install
+npm ci
 npm run dev
 ```
 
 ## Build a native app
 
 ```sh
-cd desktop
-wails build          # → desktop/build/bin/GizTUI Desktop.app (on macOS)
-open "build/bin/GizTUI Desktop.app"
+make -C desktop build
+open "desktop/build/bin/GizTUI Desktop.app" # macOS
 ```
 
 > **Architecture:** see [docs/DESKTOP.md](../docs/DESKTOP.md).

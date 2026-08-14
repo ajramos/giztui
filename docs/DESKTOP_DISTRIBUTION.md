@@ -39,11 +39,12 @@ with one job per OS.
 | Linux | `ubuntu-22.04` | `-platform linux/amd64` -> binary | verified `linuxdeploy` AppImage + normalized tarball | `...-linux-amd64.AppImage`, `...-linux-amd64.tar.gz` |
 
 Notes:
-- **macOS universal**: `macos-latest` builds both arches; one `.app` for everyone.
+- **macOS universal**: `macos-15` builds both arches; one `.app` for everyone.
 - **Windows NSIS**: Wails generates the installer from `desktop/build/windows/`
   templates; the runner needs `makensis` on PATH (`choco install nsis`).
-- **Linux deps**: `libgtk-3-dev`, `libwebkit2gtk-4.0-dev` (or `4.1`), plus
-  `linuxdeploy` + `linuxdeploy-plugin-appimage` to make the AppImage.
+- **Linux deps**: `build-essential`, `desktop-file-utils`, `libgtk-3-dev`,
+  `libwebkit2gtk-4.0-dev`, `librsvg2-bin`, ImageMagick, and the pinned,
+  checksum-verified `linuxdeploy` plus GTK plugin used by the workflow.
 - The desktop is a **nested Go module** (`desktop/`), so jobs `cd desktop` and
   install the Wails CLI (`go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.2`).
 
@@ -69,7 +70,9 @@ uploads to a draft, and publishes only after all mandatory work succeeds.
 
 ## 🏷️ Versioning
 
-- Single source of truth stays the repo **`VERSION`** file + git tag.
+- Release validation requires all version-bearing files listed in
+  `RELEASE_PROCEDURE.md` to agree with the tag; they are not generated from a
+  single file.
 - The full version is injected into application code via linker flags. Native
   product versions use the numeric SemVer core, while file/build versions use
   the protected `main` commit count as a monotonic build number.
@@ -92,8 +95,8 @@ cask "giztui-desktop" do
   desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
   homepage "https://github.com/ajramos/giztui"
   app "GizTUI Desktop.app"
-  # Unsigned build: needed until notarization lands, else Gatekeeper blocks it.
-  # (Homebrew removes the quarantine attr on cask installs by default.)
+  depends_on macos: ">= :monterey"
+  # Unsigned until Developer ID signing and notarization are configured.
 end
 ```
 
@@ -118,21 +121,17 @@ invest:
   Azure Trusted Signing.
 
 Everything else in the pipeline stays; signing is inserted between build and
-package. Homebrew cask then drops the quarantine workaround.
+package and removes the first-launch Gatekeeper friction.
 
 ## 🚦 Rollout phases
 
-1. **Phase 1 (this design):** matrix workflow → unsigned `.dmg` + NSIS `.exe` +
-   AppImage/tarball attached to each release. Homebrew tap + cask for macOS,
-   bumped manually the first time.
-2. **Phase 2:** macOS notarization + Windows signing (secrets). Auto-bump the
-   cask.
+1. **Current:** matrix workflow -> unsigned `.dmg`, NSIS `.exe`, AppImage, and
+   tar/zip assets; stable releases promote the checksummed Homebrew cask.
+2. **Signing:** macOS notarization and Windows signing when identities exist.
 3. **Phase 3 (optional):** winget/Scoop manifests, `.deb`/`.rpm`, AUR.
 
 ## ⚠️ What I can and can't verify from here
 
-The workflow/scripts/manifests can be written and committed from any environment,
-but the **macOS and Windows builds cannot be run or tested on the Linux dev
-container** — they are validated on the first CI run (or on your Mac for the
-local DMG script). Expect one or two iterations to shake out per-runner details
-(webkit dev-package name, NSIS path, notarization entitlements).
+Native macOS and Windows packages must be validated on their hosted target
+runners. Phase 3 remains incomplete until the documented release-candidate
+rehearsal exercises those jobs and verifies the resulting packages.
