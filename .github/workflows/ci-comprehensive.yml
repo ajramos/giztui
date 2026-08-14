@@ -167,6 +167,24 @@ jobs:
       - name: Run architecture and complexity ratchets
         run: make ci-architecture
 
+  baseline-determinism:
+    name: baseline-determinism
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned analysis venv
+        run: |
+          python -m venv .venv-ci
+          .venv-ci/bin/python -m pip install -r requirements-ci.txt
+      - name: Verify baseline determinism over the same ref
+        run: bash scripts/verify-baseline-determinism.sh HEAD
+
   dependency-review:
     name: dependency-review
     if: github.event_name == 'pull_request'
@@ -189,6 +207,7 @@ jobs:
       - test-desktop
       - security
       - architecture
+      - baseline-determinism
       - dependency-review
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -200,6 +219,7 @@ jobs:
           DESKTOP: ${{ needs.test-desktop.result }}
           SECURITY: ${{ needs.security.result }}
           ARCHITECTURE: ${{ needs.architecture.result }}
+          BASELINE: ${{ needs.baseline-determinism.result }}
           DEPENDENCIES: ${{ needs.dependency-review.result }}
         run: |
           test "$QUALITY" = success
@@ -207,6 +227,7 @@ jobs:
           test "$DESKTOP" = success
           test "$SECURITY" = success
           test "$ARCHITECTURE" = success
+          test "$BASELINE" = success
           test "$DEPENDENCIES" = success -o "$DEPENDENCIES" = skipped
 
   build:

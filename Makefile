@@ -310,6 +310,10 @@ ci-docs: ci-tools-check ## Validate JSON, YAML, and markdown internal links
 	@echo "$(GREEN)Running documentation gate...$(NC)"
 	$(CI_PYTHON) scripts/check-docs.py
 
+check-baseline-determinism: ## Prove baseline.py output is deterministic over the same ref
+	@echo "$(GREEN)Verifying baseline determinism...$(NC)"
+	bash scripts/verify-baseline-determinism.sh HEAD
+
 quality-baseline-update: ci-tools-check ## Deliberately accept the reviewed current source metrics
 	$(CI_PYTHON) scripts/check-quality-ratchet.py --write
 	$(CI_PYTHON) scripts/check-quality-ratchet.py
