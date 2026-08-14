@@ -314,6 +314,10 @@ check-baseline-determinism: ## Prove baseline.py output is deterministic over th
 	@echo "$(GREEN)Verifying baseline determinism...$(NC)"
 	bash scripts/verify-baseline-determinism.sh HEAD
 
+gen-command-ref: ## Regenerate docs/COMMANDS.md from the command table and DefaultConfig
+	UPDATE_COMMAND_REF=true go test ./internal/tui -run TestCommandReferenceGeneration
+	@echo "$(GREEN)docs/COMMANDS.md regenerated$(NC)"
+
 quality-baseline-update: ci-tools-check ## Deliberately accept the reviewed current source metrics
 	$(CI_PYTHON) scripts/check-quality-ratchet.py --write
 	$(CI_PYTHON) scripts/check-quality-ratchet.py
