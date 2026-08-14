@@ -5,13 +5,25 @@ future quality harness. Every number here comes from `baseline.json`, produced
 by `baseline.py` (deterministic, read-only, no network). Reproduce with:
 
 ```sh
-python3 baseline.py            # full run -> baseline.json
+python3 baseline.py --ref HEAD     # full run -> baseline.json
 ```
 
-- **Generated from HEAD:** `191d958` · HEAD author date **2026-08-12 (UTC)**
-- **Window:** last 183 days — but the repo's entire history is **2026-06-13 →
-  2026-08-10 (~8 weeks)**, so the window captures *everything*. June and August
-  are partial months. This is a young repo; read every rate as short-horizon.
+The command requires a complete (non-shallow) clone and an explicit ref. It
+fails closed on shallow clones, unresolvable refs, git/archive/extract errors,
+and lizard errors. Determinism over the same ref is enforced in CI by
+`scripts/verify-baseline-determinism.sh`.
+
+- **Generated from ref:** `HEAD` = `3acefef` · HEAD author date **2026-08-14 (UTC)**
+- **History:** first commit **2025-08-07** · repo age **~372 days** · complete
+  (not shallow). The 183-day window samples the most recent history; the first
+  month inside the window is partial.
+
+> ⚠️ **AI-vs-human attribution is RETIRED** (shock-plan Phase 5). Sections 1 and
+> 2 below are historical and describe the old methodology; `baseline.py` no
+> longer segments lines or commits by AI/human and no longer reports a
+> born-AI/died-human matrix or per-month AI/human volume. Author email is
+> recorded observationally only. Complexity, rework ages, and LOC/CCN metrics
+> below remain valid.
 
 ---
 
