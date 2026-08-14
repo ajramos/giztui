@@ -48,7 +48,7 @@ issue #87; the index below is maintained manually and is not generated.
 | 2026-06-29-per-command-help | Implemented | Per-command help. |
 | 2026-07-04-action-plan-confirm-all | Implemented | Action-plan confirm-all. |
 | 2026-07-04-deterministic-rules | Implemented | Deterministic rules service. |
-| 2026-08-14-sdlc-shock-plan | In progress | Tracking issue #87; Phases 0-3 complete, Phase 4 active. |
+| 2026-08-14-sdlc-shock-plan | Implemented | All phases and exit gates met; tracking issue #87 closed. |
 
 ## Specs
 
