@@ -3,7 +3,7 @@
 A powerful **terminal Gmail client** built in **Go** that brings **AI intelligence** to your email workflow. Features local AI integration, advanced productivity tools, and seamless integrations with Slack, Obsidian, and more.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)
+![Go Version](https://img.shields.io/badge/go-1.25.13+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
 ![Release](https://img.shields.io/github/v/release/ajramos/giztui)
 
@@ -292,4 +292,4 @@ Read README.md, CLAUDE.md, docs/*, and run git ls-files to understand this codeb
 
 **Ready to transform your Gmail workflow?** 🚀
 
-[**Download GizTUI v1.0.0**](https://github.com/ajramos/giztui/releases/latest) | [**Get Started**](docs/GETTING_STARTED.md) | [**View Features**](docs/FEATURES.md)
+[**Download the latest GizTUI release**](https://github.com/ajramos/giztui/releases/latest) | [**Get Started**](docs/GETTING_STARTED.md) | [**View Features**](docs/FEATURES.md)

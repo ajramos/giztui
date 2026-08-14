@@ -1,7 +1,7 @@
 file,max_nloc,max_ccn,max_func_len,funcs_over_ccn10
 cmd/giztui/main.go,520,74,405,1
 desktop/app.go,196,4,24,0
-desktop/app_analyzer.go,155,2,11,0
+desktop/app_analyzer.go,169,2,11,0
 desktop/app_features.go,190,5,12,0
 desktop/app_mail.go,418,6,26,0
 desktop/frontend/playwright.config.ts,23,0,0,0
@@ -43,7 +43,7 @@ desktop/frontend/src/RSVPPicker.tsx,76,3,15,0
 desktop/frontend/src/Reader.tsx,238,2,11,0
 desktop/frontend/src/ReaderBody.tsx,332,14,111,1
 desktop/frontend/src/ReaderToolbar.tsx,225,1,58,0
-desktop/frontend/src/RulesManager.tsx,337,12,44,1
+desktop/frontend/src/RulesManager.tsx,413,14,49,1
 desktop/frontend/src/SaveQueryModal.tsx,63,3,11,0
 desktop/frontend/src/SavedQueriesPicker.tsx,119,3,26,0
 desktop/frontend/src/SlackPicker.tsx,181,9,33,0
@@ -59,9 +59,9 @@ desktop/frontend/src/api.ts,96,3,5,0
 desktop/frontend/src/apiEvents.ts,27,2,6,0
 desktop/frontend/src/apiMock.ts,4,0,0,0
 desktop/frontend/src/apiMockA.ts,299,5,26,0
-desktop/frontend/src/apiMockB.ts,313,3,25,0
+desktop/frontend/src/apiMockB.ts,330,3,25,0
 desktop/frontend/src/apiMockData.ts,63,3,26,0
-desktop/frontend/src/apiTypes.ts,421,0,0,0
+desktop/frontend/src/apiTypes.ts,435,0,0,0
 desktop/frontend/src/commandCtx.ts,110,0,0,0
 desktop/frontend/src/commandRunner.ts,474,265,504,1
 desktop/frontend/src/commands.ts,110,3,112,0
@@ -106,7 +106,7 @@ desktop/images.go,79,11,53,1
 desktop/main.go,39,2,30,0
 internal/calendar/client.go,73,16,47,1
 internal/config/colors.go,650,25,225,3
-internal/config/config.go,922,27,191,2
+internal/config/config.go,925,27,192,2
 internal/config/migrate.go,144,9,31,0
 internal/config/theme.go,144,7,39,0
 internal/config/validate.go,107,25,81,1
@@ -140,13 +140,13 @@ internal/services/composition_service.go,635,23,98,7
 internal/services/content_navigation_service.go,189,13,45,1
 internal/services/database_manager.go,137,20,80,1
 internal/services/deterministic_rules_import.go,212,28,103,4
-internal/services/deterministic_rules_service.go,362,15,49,2
+internal/services/deterministic_rules_service.go,411,15,49,2
 internal/services/display_service.go,47,1,7,0
 internal/services/email_service.go,531,27,127,6
 internal/services/errors.go,25,0,0,0
 internal/services/gmail_web_service.go,48,12,24,1
 internal/services/inbox_analyzer_service.go,461,13,108,2
-internal/services/interfaces.go,832,0,0,0
+internal/services/interfaces.go,841,0,0,0
 internal/services/label_service.go,186,8,40,0
 internal/services/link_service.go,167,10,35,0
 internal/services/obsidian_service.go,609,15,107,3
@@ -181,7 +181,7 @@ internal/tui/action_plan_summarize.go,104,4,77,0
 internal/tui/ai.go,590,36,169,6
 internal/tui/ai_jobs.go,243,8,73,0
 internal/tui/ai_panel_state.go,37,2,10,0
-internal/tui/app.go,2447,110,443,18
+internal/tui/app.go,2449,110,443,18
 internal/tui/attachments.go,413,16,349,2
 internal/tui/auto_refresh.go,225,9,38,0
 internal/tui/bulk_progress.go,10,1,5,0
@@ -218,7 +218,7 @@ internal/tui/prompt_configurator.go,639,12,167,2
 internal/tui/prompt_picker_selection.go,11,3,10,0
 internal/tui/prompt_preview.go,60,4,45,0
 internal/tui/prompts.go,879,27,285,2
-internal/tui/rules_manager.go,449,14,454,2
+internal/tui/rules_manager.go,505,20,512,2
 internal/tui/rules_plan.go,102,11,68,1
 internal/tui/saved_queries.go,641,15,332,2
 internal/tui/search_state.go,99,5,19,0
@@ -234,7 +234,6 @@ internal/tui/ui_lifecycle.go,6,0,0,0
 internal/tui/vim_navigator.go,96,3,14,0
 internal/tui/welcome.go,113,6,66,0
 internal/version/version.go,166,9,42,0
-packaging/homebrew/giztui-desktop.rb,13,0,0,0
 pkg/auth/oauth.go,259,10,86,0
 pkg/desktop/actionplan.go,348,19,118,3
 pkg/desktop/ai.go,124,5,26,0
@@ -242,7 +241,7 @@ pkg/desktop/api.go,315,7,40,0
 pkg/desktop/attachments.go,63,5,23,0
 pkg/desktop/bulk.go,47,3,9,0
 pkg/desktop/compose.go,33,4,12,0
-pkg/desktop/det_rules.go,92,4,22,0
+pkg/desktop/det_rules.go,119,4,22,0
 pkg/desktop/drafts.go,87,7,25,0
 pkg/desktop/dto.go,188,0,0,0
 pkg/desktop/invite.go,210,22,64,3
@@ -263,4 +262,3 @@ pkg/desktop/thread.go,45,7,24,0
 pkg/desktop/undo.go,33,4,11,0
 pkg/desktop/version.go,3,1,1,0
 pkg/desktop/web.go,7,2,6,0
-scripts/create_bulk_prompts.sql,207,0,0,0

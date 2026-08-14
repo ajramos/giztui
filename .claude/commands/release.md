@@ -72,7 +72,7 @@ claude release validate
 ```
 
 **Validation Checklist:**
-- [ ] **Code Quality**: Tests passing, linting clean, formatting correct
+- [ ] **Code Quality**: `make ci` passes in full
 - [ ] **Architecture Compliance**: Service-first patterns, error handling
 - [ ] **Feature Completeness**: Command parity, bulk support, theming
 - [ ] **Documentation**: Features documented, shortcuts updated
@@ -94,7 +94,7 @@ claude release publish 1.2.0
 3. **Workflow Monitoring**: Track GitHub Actions progress
 4. **Asset Verification**: Confirm successful builds and uploads
 5. **Installation Testing**: Verify go install and binary downloads
-6. **Homebrew tap check**: confirm `ajramos/homebrew-giztui` cask bumped to the new version + universal-DMG sha256 — the `homebrew` CI job silently skips (still green) if `HOMEBREW_TAP_TOKEN` is unset, so verify it actually moved (see `docs/RELEASE_PROCEDURE.md` → Post-Release step 13)
+6. **Supply-chain verification**: validate `SHA256SUMS`, CycloneDX SBOMs, and GitHub attestations; stable workflows fail if the Homebrew cask cannot be promoted
 7. **Documentation Updates**: README, installation guides
 
 ### **Hotfix Release**: `hotfix [version] [issue]`

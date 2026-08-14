@@ -1,0 +1,16 @@
+kind,name,count
+direct_client,internal/tui/ai.go,6
+direct_client,internal/tui/app.go,8
+direct_client,internal/tui/auto_refresh.go,1
+direct_client,internal/tui/chat.go,1
+direct_client,internal/tui/columns.go,1
+direct_client,internal/tui/commands.go,1
+direct_client,internal/tui/labels.go,16
+direct_client,internal/tui/markdown.go,1
+direct_client,internal/tui/messages_actions.go,3
+direct_client,internal/tui/messages.go,32
+direct_client,internal/tui/obsidian.go,3
+direct_client,internal/tui/prompts.go,1
+direct_client,internal/tui/slack.go,2
+direct_client,internal/tui/threads.go,5
+missing_interface,BulkPromptService,1

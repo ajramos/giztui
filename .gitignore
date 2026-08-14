@@ -86,3 +86,4 @@ baseline_snap_*/
 baseline_relocation.json
 __pycache__/
 *.pyc
+.venv-ci/

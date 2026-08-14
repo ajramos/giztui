@@ -1,4 +1,4 @@
-name: Comprehensive CI/CD Pipeline
+name: CI
 
 on:
   push:
@@ -6,358 +6,230 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    # Run tests daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
+
+env:
+  GO_VERSION: "1.25.13"
+  NODE_VERSION: "20.19.0"
+  PYTHON_VERSION: "3.13"
 
 jobs:
-  # Quality checks: formatting, linting, security
-  quality:
-    name: Code Quality
+  quality-go:
+    name: quality-go
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install pinned CI tools
+        run: make ci-tools
+      - name: Run quality gate
+        run: make ci-quality
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.25.12'
-
-    - name: Cache dependencies
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/go.mod') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
-          ${{ runner.os }}-go-
-
-    - name: Clean Go cache on cache restore failure
-      if: failure()
-      run: |
-        echo "Cleaning Go module cache due to restore failure..."
-        go clean -modcache
-
-    - name: Install dependencies
-      run: |
-        go mod download
-        go mod verify
-
-    - name: Run format check
-      run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "Code is not formatted. Please run 'go fmt ./...'"
-          echo "Files that need formatting:"
-          gofmt -s -l .
-          exit 1
-        fi
-
-    - name: Run go vet
-      run: go vet -composites=false ./...
-
-    - name: Install additional linters
-      run: |
-        go install honnef.co/go/tools/cmd/staticcheck@latest
-
-    - name: Run static analysis
-      run: staticcheck ./...
-
-
-    - name: Check error handling
-      run: |
-        go install github.com/kisielk/errcheck@latest
-        errcheck ./...
-
-    - name: Check inefficient assignments
-      run: |
-        go install github.com/gordonklaus/ineffassign@latest
-        ineffassign ./...
-
-    - name: Run vulnerability scan
-      run: |
-        go install golang.org/x/vuln/cmd/govulncheck@latest
-        govulncheck ./...
-
-  # Comprehensive testing across platforms
-  test:
-    name: Test Suite
+  test-go:
+    name: test-go (${{ matrix.os }})
+    needs: quality-go
     runs-on: ${{ matrix.os }}
-    needs: quality
-
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.25.12']
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Run root Go gate
+        run: make ci-go
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6
+        with:
+          files: coverage.out
+          flags: unittests
+          name: root-go
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: ${{ matrix.go-version }}
-
-    - name: Cache dependencies
-      uses: actions/cache@v5
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ matrix.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ matrix.os }}-go-
-
-    - name: Install dependencies
-      run: |
-        go mod download
-        go install github.com/vektra/mockery/v2@latest
-
-    - name: Generate mocks
-      run: make test-mocks
-
-    - name: Run core tests
-      run: go test -timeout 3m ./internal/config ./internal/db ./internal/services ./pkg/...
-
-    - name: Run tests with race detector
-      run: go test -race -timeout 2m ./internal/services
-
-    - name: Run unit tests
-      run: make test-unit
-
-    - name: Run TUI tests
-      run: make test-tui
-
-    - name: Run tests with coverage
-      run: make test-coverage
-
-    - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest'
-      uses: codecov/codecov-action@v6
-      with:
-        files: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
-
-    - name: Check for goroutine leaks
-      run: |
-        # Skip if test doesn't exist
-        if [ -d "./test/helpers" ]; then
-          go test -v ./test/helpers/... -run TestAsyncOperations || echo "Goroutine leak tests not found, skipping"
-        else
-          echo "test/helpers directory not found, skipping goroutine leak tests"
-        fi
-
-  # Visual regression testing
-  visual-regression:
-    name: Visual Regression Tests
-    runs-on: ubuntu-latest
-    needs: test
-
+  test-desktop:
+    name: test-desktop
+    needs: quality-go
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - name: Run desktop gate
+        run: make ci-desktop PLAYWRIGHT_INSTALL_ARGS="--with-deps chromium"
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-failure-${{ github.run_id }}
+          path: desktop/frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.25.12'
-
-    - name: Install dependencies
-      run: |
-        go mod download
-        go install github.com/vektra/mockery/v2@latest
-
-    - name: Generate mocks
-      run: make test-mocks
-
-    - name: Run visual regression tests
-      run: make test-tui
-      env:
-        UPDATE_SNAPSHOTS: false
-
-    - name: Upload test artifacts
-      uses: actions/upload-artifact@v7
-      if: failure()
-      with:
-        name: test-snapshots-${{ matrix.os }}-${{ github.run_id }}
-        path: testdata/snapshots/
-
-  # Advanced security scanning
   security:
-    name: Security Analysis
+    name: security
     runs-on: ubuntu-latest
-    needs: quality
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned CI tools
+        run: make ci-tools
+      - name: Run dependency vulnerability gates
+        run: make ci-security
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+      - name: Upload Trivy results
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        with:
+          sarif_file: trivy-results.sarif
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@v0.36.0
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+  architecture:
+    name: architecture
+    needs: quality-go
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned CI tools
+        run: make ci-tools
+      - name: Run architecture and complexity ratchets
+        run: make ci-architecture
 
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v4
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-
-  # Dependency review for PRs
   dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
+    name: dependency-review
     if: github.event_name == 'pull_request'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Dependency Review
-      uses: actions/dependency-review-action@v5
-      with:
-        fail-on-severity: moderate
-
-  # Build artifacts on successful tests
-  build:
-    name: Build Artifacts
     runs-on: ubuntu-latest
-    needs: [test, visual-regression, security]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.25.12'
-
-    - name: Cache dependencies
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/go.mod') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
-          ${{ runner.os }}-go-
-
-    - name: Clean Go cache on cache restore failure
-      if: failure()
-      run: |
-        echo "Cleaning Go module cache due to restore failure..."
-        go clean -modcache
-
-    - name: Install dependencies
-      run: |
-        go mod download
-        go mod verify
-
-    - name: Build for development
-      if: github.ref == 'refs/heads/develop'
-      run: make build
-
-    - name: Build for multiple platforms
-      if: github.ref == 'refs/heads/main'
-      run: |
-        mkdir -p build
-        GOOS=linux GOARCH=amd64 go build -o build/giztui-linux-amd64 ./cmd/giztui
-        GOOS=darwin GOARCH=amd64 go build -o build/giztui-darwin-amd64 ./cmd/giztui
-        GOOS=darwin GOARCH=arm64 go build -o build/giztui-darwin-arm64 ./cmd/giztui
-        GOOS=windows GOARCH=amd64 go build -o build/giztui-windows-amd64.exe ./cmd/giztui
-
-    - name: Upload artifacts
-      if: github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v7
-      with:
-        name: giztui-binaries-${{ github.sha }}
-        path: build/
-
-  # Notification and reporting
-  notify:
-    name: Notify Results
-    runs-on: ubuntu-latest
-    needs: [quality, test, visual-regression, security, build]
-    if: always()
+    timeout-minutes: 10
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
-
     steps:
-    - name: Comment on PR
-      uses: actions/github-script@v9
-      if: github.event_name == 'pull_request' && always()
-      with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-          });
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
 
-          const botComment = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes('CI/CD Results'));
+  required:
+    name: required
+    if: always()
+    needs:
+      - quality-go
+      - test-go
+      - test-desktop
+      - security
+      - architecture
+      - dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify every mandatory job
+        env:
+          QUALITY: ${{ needs.quality-go.result }}
+          GO_TESTS: ${{ needs.test-go.result }}
+          DESKTOP: ${{ needs.test-desktop.result }}
+          SECURITY: ${{ needs.security.result }}
+          ARCHITECTURE: ${{ needs.architecture.result }}
+          DEPENDENCIES: ${{ needs.dependency-review.result }}
+        run: |
+          test "$QUALITY" = success
+          test "$GO_TESTS" = success
+          test "$DESKTOP" = success
+          test "$SECURITY" = success
+          test "$ARCHITECTURE" = success
+          test "$DEPENDENCIES" = success -o "$DEPENDENCIES" = skipped
 
-          const results = {
-            quality: '${{ needs.quality.result }}',
-            test: '${{ needs.test.result }}',
-            visual: '${{ needs.visual-regression.result }}',
-            security: '${{ needs.security.result }}',
-            build: '${{ needs.build.result }}'
-          };
-
-          const getEmoji = (result) => {
-            switch(result) {
-              case 'success': return '✅';
-              case 'failure': return '❌';
-              case 'cancelled': return '⚠️';
-              case 'skipped': return '⏭️';
-              default: return '🔄';
-            }
-          };
-
-          const commentBody = `## 🚀 CI/CD Results Summary
-
-          ${getEmoji(results.quality)} **Code Quality**: ${results.quality}
-          ${getEmoji(results.test)} **Test Suite**: ${results.test}
-          ${getEmoji(results.visual)} **Visual Regression**: ${results.visual}
-          ${getEmoji(results.security)} **Security Analysis**: ${results.security}
-          ${getEmoji(results.build)} **Build Artifacts**: ${results.build}
-
-          [📊 View full results](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-
-          ---
-          *This comment is automatically updated on each push*
-          `;
-
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              comment_id: botComment.id,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody,
-            });
-          } else {
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody,
-            });
-          }
+  build:
+    name: build
+    needs: required
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Build development artifacts
+        run: |
+          mkdir -p build
+          GOOS=linux GOARCH=amd64 go build -o build/giztui-linux-amd64 ./cmd/giztui
+          GOOS=linux GOARCH=arm64 go build -o build/giztui-linux-arm64 ./cmd/giztui
+          GOOS=darwin GOARCH=amd64 go build -o build/giztui-darwin-amd64 ./cmd/giztui
+          GOOS=darwin GOARCH=arm64 go build -o build/giztui-darwin-arm64 ./cmd/giztui
+          GOOS=windows GOARCH=amd64 go build -o build/giztui-windows-amd64.exe ./cmd/giztui
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: giztui-binaries-${{ github.sha }}
+          path: build/
+          if-no-files-found: error
+          retention-days: 14

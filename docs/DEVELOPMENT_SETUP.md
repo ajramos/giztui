@@ -18,14 +18,14 @@ The setup script will handle everything automatically. Skip to [Next Steps](#nex
 
 Ensure you have the following installed:
 
-- **Go 1.23+** - [Download from golang.org](https://golang.org/dl/)
+- **Go 1.25.13+** - [Download from go.dev](https://go.dev/dl/)
 - **Git** - [Download from git-scm.com](https://git-scm.com/)
 - **Python 3.7+** (for pre-commit hooks) - Usually pre-installed on macOS/Linux
 
-### Optional Tools
-- **golangci-lint** - Will be installed automatically
-- **mockery** - Will be installed automatically
-- **pre-commit** - Will be installed automatically via pip
+### Development Tools
+- **Node.js 20.19+** - Required for desktop frontend work
+- **pre-commit** - Optional local hook runner
+- **Pinned CI tools** - Installed into isolated/local tool locations by `make ci-tools`
 
 ## 🔧 Manual Setup Steps
 
@@ -42,14 +42,8 @@ go mod download
 ### 2. Install Development Tools
 
 ```bash
-# Install golangci-lint for linting
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
-
-# Install mockery for generating test mocks
-go install github.com/vektra/mockery/v2@latest
-
-# Install vulnerability checker
-go install golang.org/x/vuln/cmd/govulncheck@latest
+# Install the exact linter, scanner, workflow checker, and lizard versions used by CI
+make ci-tools
 ```
 
 ### 3. Setup Pre-commit Hooks
@@ -67,8 +61,8 @@ make setup-hooks
 ### 4. Verify Setup
 
 ```bash
-# Run comprehensive checks
-make pre-commit-check
+# Run the complete product gate used by CI
+make ci
 
 # Generate test mocks
 make test-mocks
@@ -96,21 +90,21 @@ Pre-commit hooks will automatically run before each commit to ensure code qualit
 You can run the same checks manually:
 
 ```bash
-# Run all pre-commit checks
-make check-hooks
+# Run the complete local CI gate
+make ci
 
 # Run individual checks
 make fmt                    # Format code
 make lint                   # Run linting
 make vet                    # Run go vet
-make pre-commit-check       # All CI checks locally
+make pre-commit-check       # Alias for the complete canonical CI gate
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-make test-all
+# Run the canonical product gate, including desktop unit and E2E tests
+make ci
 
 # Run specific test types
 make test-unit              # Unit tests only
@@ -209,7 +203,7 @@ go test -v ./internal/services/... -run TestMyFeature
 Our comprehensive pipeline runs:
 
 1. **Code Quality**: Format check, linting, security scan
-2. **Testing**: Unit, TUI, integration, and visual regression tests  
+2. **Testing**: Root Go, race, desktop Go, Vitest, and Playwright tests
 3. **Cross-platform Testing**: Ubuntu and macOS
 4. **Security Analysis**: Vulnerability scanning and dependency review
 5. **Build Artifacts**: Multi-platform binaries on successful tests
@@ -231,7 +225,7 @@ make dev                    # Build and run in development mode
 make clean                  # Clean build artifacts
 
 # Quality & Testing  
-make pre-commit-check       # Run same checks as CI locally
+make ci                     # Run the same fail-closed gate as CI
 make test-all              # Run complete test suite
 make lint                  # Run linting only
 make coverage              # Generate test coverage report

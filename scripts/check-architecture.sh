@@ -1,70 +1,64 @@
 #!/bin/bash
 
-# Architecture compliance checker for Gmail TUI
-set -e
+set -euo pipefail
 
-echo "🏗️ Checking architecture compliance..."
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASELINE="$ROOT/architecture-baseline.csv"
 violations=0
 
-# Check 1: No direct Gmail API calls in TUI components
-echo "Checking for direct API calls in UI components..."
-if grep -r "\.Client\." internal/tui/ --include="*.go" | grep -v "a\.Client" | grep -v "app\.Client" > /dev/null 2>&1; then
-    echo -e "${RED}❌ Found direct API calls in TUI components:${NC}"
-    grep -r "\.Client\." internal/tui/ --include="*.go" | grep -v "a\.Client" | grep -v "app\.Client"
-    echo -e "${YELLOW}💡 Move API calls to services in internal/services/${NC}"
-    violations=$((violations + 1))
+if [ ! -f "$BASELINE" ]; then
+    echo "ERROR: missing architecture baseline: $BASELINE"
+    exit 1
 fi
 
-# Check 2: No fmt.Printf or log.Printf in TUI components (should use ErrorHandler)
-echo "Checking for direct output in UI components..."
-# Exclude test files and allow commented lines
-if grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go" --exclude="*_test.go" | grep -v "^\s*//" > /dev/null 2>&1; then
-    echo -e "${RED}❌ Found direct output in TUI components:${NC}"
-    grep -r -E "(fmt\.Printf|fmt\.Print|log\.Printf)" internal/tui/ --include="*.go" --exclude="*_test.go" | grep -v "^\s*//" | head -3
-    echo -e "${YELLOW}💡 Use app.GetErrorHandler().ShowError/ShowSuccess instead${NC}"
-    violations=$((violations + 1))
-else
-    echo "  ✅ No direct output found in TUI components"
-fi
+echo "Checking architecture ratchets..."
 
-# Check 3: No direct field access outside accessor methods
-echo "Checking for direct field access..."
-# Look for direct field access but allow it within accessor method implementations
-violations_found=false
+# The TUI still has legacy direct Gmail client access. Freeze the count per file
+# so service-layer migration can happen incrementally without allowing new debt.
+for file in "$ROOT"/internal/tui/*.go; do
+    case "$file" in
+        *_test.go) continue ;;
+    esac
 
-# Check for direct field access in non-accessor contexts
-# This is a simplified check - in practice, all current violations are in accessor methods
-# which is architecturally correct, so we'll skip this check for now
-# Future enhancement: use AST parsing to properly identify context
+    rel="${file#"$ROOT"/}"
+    count="$(grep -Eo '\b(a|app)\.Client\.' "$file" 2>/dev/null | wc -l | tr -d ' ')" || count=0
+    allowed="$(awk -F, -v name="$rel" '$1 == "direct_client" && $2 == name { print $3 }' "$BASELINE")"
+    allowed="${allowed:-0}"
 
-echo "  ✅ Direct field access properly contained within accessor methods"
-
-# Check 4: Services should implement interfaces
-echo "Checking service interfaces..."
-for service_file in internal/services/*_service.go; do
-    if [ -f "$service_file" ]; then
-        service_name=$(basename "$service_file" .go)
-        interface_name=$(echo "$service_name" | sed 's/_service$/Service/' | sed 's/^./\U&/')
-
-        if ! grep -q "type $interface_name interface" internal/services/interfaces.go; then
-            echo -e "${YELLOW}⚠️ Service $service_name may be missing interface definition${NC}"
-        fi
+    if [ "$count" -gt "$allowed" ]; then
+        echo "ERROR: $rel has $count direct client accesses; baseline allows $allowed"
+        violations=$((violations + 1))
     fi
 done
 
-# Summary
-if [ $violations -eq 0 ]; then
-    echo -e "${GREEN}✅ All architecture checks passed!${NC}"
-    exit 0
-else
-    echo -e "${RED}❌ Found $violations architecture violations${NC}"
-    echo -e "${YELLOW}📖 See docs/ARCHITECTURE.md for guidance${NC}"
+if grep -r -E '(fmt\.Printf|fmt\.Print|log\.Printf)' "$ROOT/internal/tui" \
+    --include='*.go' --exclude='*_test.go' | grep -v '^[[:space:]]*//' >/dev/null 2>&1; then
+    echo "ERROR: direct user-facing output found in internal/tui; use ErrorHandler"
+    violations=$((violations + 1))
+fi
+
+# Derive the expected interface from each concrete FooServiceImpl. Existing
+# exceptions are explicit in the baseline; any new exception fails the gate.
+while IFS= read -r service; do
+    [ -n "$service" ] || continue
+    if ! grep -q "^type $service interface" "$ROOT/internal/services/interfaces.go"; then
+        allowed="$(awk -F, -v name="$service" '$1 == "missing_interface" && $2 == name { print $3 }' "$BASELINE")"
+        if [ "${allowed:-0}" -lt 1 ]; then
+            echo "ERROR: $service implementation has no canonical interface"
+            violations=$((violations + 1))
+        fi
+    fi
+done < <(
+    grep -hE '^type [A-Za-z0-9]+ServiceImpl struct' "$ROOT"/internal/services/*_service.go \
+        | sed -E 's/^type ([A-Za-z0-9]+Service)Impl struct.*$/\1/' \
+        | sort -u
+)
+
+echo "INFO: direct App field access is not yet machine-enforced; no false pass is claimed."
+
+if [ "$violations" -ne 0 ]; then
+    echo "Architecture gate failed with $violations violation(s)."
     exit 1
 fi
+
+echo "Architecture ratchets passed."

@@ -3,12 +3,10 @@
 Design for building and distributing the **Wails desktop client** across macOS,
 Windows and Linux, and publishing it through package managers (Homebrew first).
 
-> Status: **Phase 1 implemented** (pending first-CI validation on macOS/Windows
-> runners). See `.github/workflows/release-desktop.yml` (the build matrix),
-> `desktop/scripts/build-dmg.sh` + `desktop/Makefile` (local macOS DMG), and
-> `packaging/homebrew/` (the cask + tap instructions). The macOS/Windows jobs
-> cannot be tested from the Linux dev container; expect one or two iterations to
-> shake out per-runner details. The CLI release (`release.yml`) is unchanged.
+> Status: native builders are reusable jobs in
+> `.github/workflows/release-desktop.yml`; `.github/workflows/release.yml` is the
+> only tag trigger and publisher. A release candidate rehearsal on hosted
+> macOS, Windows, and Linux runners is required before stable releases resume.
 
 ## 🎯 Goals
 
@@ -16,7 +14,7 @@ Windows and Linux, and publishing it through package managers (Homebrew first).
   three OSes, attached to the GitHub Release.
 - Keyboard-first parity aside, users can install with a one-liner where possible
   (`brew install --cask …`), or download a native installer.
-- The TUI CLI release keeps working exactly as today (untouched).
+- A desktop failure blocks publication of the combined CLI and desktop release.
 
 ## 🚫 Non-goals (deferred to phase 2)
 
@@ -36,9 +34,9 @@ with one job per OS.
 
 | OS | Runner | `wails build` | Package | Release asset |
 |----|--------|---------------|---------|----------------|
-| macOS | `macos-latest` | `-platform darwin/universal` → `GizTUI Desktop.app` (Intel+ARM) | `.dmg` via `create-dmg` (fallback `hdiutil`) | `GizTUI-Desktop-<ver>-universal.dmg` |
-| Windows | `windows-latest` | `-platform windows/amd64 -nsis` → installer + `.exe` | NSIS (built into Wails) | `GizTUI-Desktop-<ver>-setup.exe`, `…-windows-amd64.zip` (portable) |
-| Linux | `ubuntu-22.04` | `-platform linux/amd64` → binary | AppImage (`linuxdeploy`) + tarball | `GizTUI-Desktop-<ver>-x86_64.AppImage`, `…-linux-amd64.tar.gz` |
+| macOS | `macos-15` | `-platform darwin/universal` -> `GizTUI Desktop.app` (Intel+ARM) | `.dmg` via `hdiutil` + zip | `GizTUI-Desktop-<ver>-universal.dmg`, `...-macOS-universal.zip` |
+| Windows | `windows-2025` | `-platform windows/amd64 -nsis` -> installer + `.exe` | pinned NSIS | `...-windows-amd64-installer.exe`, `...-windows-amd64-portable.zip` |
+| Linux | `ubuntu-22.04` | `-platform linux/amd64` -> binary | verified `linuxdeploy` AppImage + normalized tarball | `...-linux-amd64.AppImage`, `...-linux-amd64.tar.gz` |
 
 Notes:
 - **macOS universal**: `macos-latest` builds both arches; one `.app` for everyone.
@@ -51,34 +49,32 @@ Notes:
 
 ## 🔁 Workflow shape
 
-New workflow **`.github/workflows/release-desktop.yml`**, triggered on the same
-`v*` tags as the CLI release (and `workflow_dispatch` for manual runs). Kept
-separate from `release.yml` so a desktop-packaging failure never blocks the CLI
-release, and vice-versa.
+`.github/workflows/release-desktop.yml` is callable only. The tag-triggered
+`.github/workflows/release.yml` validates and exports an immutable source SHA,
+then passes that SHA to all native builders. Build jobs have read-only
+permissions and no persisted checkout credentials.
 
 ```
-on:
-  push: { tags: ['v*'] }
-  workflow_dispatch: { inputs: { version: {...} } }
-
 jobs:
-  macos:   { runs-on: macos-latest,   steps: [setup, wails build universal, create-dmg, upload] }
-  windows: { runs-on: windows-latest, steps: [setup, choco nsis, wails build -nsis, zip portable, upload] }
+  validate: { steps: [tag, version, ancestry, required-check validation] }
+  macos:   { runs-on: macos-15,       steps: [setup, wails build universal, hdiutil, upload] }
+  windows: { runs-on: windows-2025,   steps: [setup, pinned nsis, wails build -nsis, zip portable, upload] }
   linux:   { runs-on: ubuntu-22.04,   steps: [apt webkit deps, wails build, appimage, tar, upload] }
-  release: { needs: [macos, windows, linux], steps: [download artifacts, gh release upload] }
+  publish: { needs: [cli, sbom, desktop], steps: [checksums, attest, draft, upload, publish] }
 ```
 
-Each build job uploads its files as **workflow artifacts**; a final `release`
-job attaches them to the GitHub Release created by the tag (using
-`softprops/action-gh-release` or `gh release upload`, matching how `release.yml`
-already publishes).
+Each build job uploads mandatory workflow artifacts. One environment-gated
+publisher validates the complete set, generates checksums and SBOM provenance,
+uploads to a draft, and publishes only after all mandatory work succeeds.
 
 ## 🏷️ Versioning
 
 - Single source of truth stays the repo **`VERSION`** file + git tag.
-- The desktop version is injected into the `.app`/installer via
-  `wails build -ldflags "-X main.version=<ver>"` and the macOS `Info.plist`
-  `CFBundleShortVersionString` (Wails reads `desktop/build/darwin/Info.plist`).
+- The full version is injected into application code via linker flags. Native
+  product versions use the numeric SemVer core, while file/build versions use
+  the protected `main` commit count as a monotonic build number.
+- The macOS bundle identifier is `com.ajramos.giztui.desktop` and the deployment
+  target is macOS 12.
 - Asset filenames embed `<ver>` from the tag (strip the leading `v`).
 
 ## 🍺 Homebrew (phase 1 distribution channel)
@@ -105,10 +101,9 @@ Install: `brew tap ajramos/giztui && brew trust ajramos/giztui && brew install -
 (`brew trust` is required once — recent Homebrew refuses casks from untrusted
 third-party taps. Audit **by name** after trusting: `brew audit --cask giztui-desktop`.)
 
-**Auto-bump**: after a successful release, a step opens a PR (or pushes) to the
-tap updating `version` + `sha256` from the new DMG. Options: a small script with
-a `GH_TAP_TOKEN` secret, or `dawidd6/action-homebrew-bump-cask`. Manual bump is
-fine for the first releases.
+**Auto-bump**: after a successful stable release, the blocking `homebrew` job
+promotes the release's generated and attested cask to the tap using
+`HOMEBREW_TAP_TOKEN`. Prereleases leave the stable tap unchanged.
 
 ## ✍️ Signing plan (phase 2)
 
@@ -133,21 +128,6 @@ package. Homebrew cask then drops the quarantine workaround.
 2. **Phase 2:** macOS notarization + Windows signing (secrets). Auto-bump the
    cask.
 3. **Phase 3 (optional):** winget/Scoop manifests, `.deb`/`.rpm`, AUR.
-
-## ❓ Open decisions (defaults chosen; override any)
-
-1. **Platforms in phase 1** — default **all three**. If you only care about
-   macOS right now, we ship Mac only and add Windows/Linux later (less CI to
-   babysit).
-2. **Same tag as the CLI release** — default **yes** (`v1.21.0` builds both CLI
-   and desktop). Alternative: a `desktop-v*` tag to release the desktop on its
-   own cadence.
-3. **Homebrew tap name** — default `ajramos/homebrew-giztui` (⇒
-   `brew tap ajramos/giztui`). The tap repo must be created by the maintainer;
-   the cask file and bump step live here.
-4. **Linux format** — default **AppImage + tarball**. `.deb`/`.rpm` deferred.
-5. **Unsigned in phase 1** — default **yes**. If you have an Apple Developer
-   account we can wire notarization from the start instead.
 
 ## ⚠️ What I can and can't verify from here
 
