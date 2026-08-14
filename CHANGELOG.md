@@ -5,6 +5,44 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0-rc.1] - 2026-08-14
+
+Release candidate for the hardened SDLC pipeline. This is the first release built
+end-to-end by the fail-closed release workflow: exact-tag validation, SBOMs,
+checksums, and GitHub provenance attestations. Stable releases stay paused until
+this candidate passes the Phase 3 rehearsal.
+
+### 🚀 Features
+
+- **Per-account LLM configuration (Phase 1).** Each Gmail account can now set its
+  own model and provider. An `EffectiveLLM` resolver picks the account-scoped
+  model over the global default, falling back cleanly when an account has no
+  override.
+- **Gmail-only filter deletion.** The rules manager (TUI and desktop) can now
+  delete a filter that affects only Gmail labels, with a per-rule preview and a
+  confirmation step.
+
+### 🐛 Bug Fixes
+
+- **Desktop: repaint band when scrolling image-heavy HTML email.** Scrolling
+  image-heavy HTML messages no longer shows a gray repaint band.
+
+### 🛠️ Refactors
+
+- **Command dispatch is table-driven** in the TUI, and **configurable key
+  shortcuts are table-driven** too. Bindings and command definitions now live in
+  data structures instead of switch statements.
+
+### 🔒 CI and Release Supply Chain
+
+- One fail-closed local gate, `make ci`, reproduces required CI locally.
+- Architecture, per-file complexity, and coverage ratchets are enforced in CI.
+- Desktop CI (Vitest, Playwright, TypeScript, desktop Go) is complete.
+- Releases flow through a single orchestrator: exact-tag checkout, strict version
+  agreement across all sources, central checksums, CycloneDX SBOMs, artifact
+  attestations, and one draft-first publisher in the protected `release`
+  environment.
+
 ## [1.27.0] - 2026-08-08
 
 The **TUI half of the keyboard-first CRUD model** shipped for the desktop in 1.26.0.
