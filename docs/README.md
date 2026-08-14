@@ -103,6 +103,16 @@ Design decisions and plan statuses:
 - Implemented / in-progress / superseded / archived
 - Links to design specs and implementation plans
 
+### **[🔀 Data Flows](DATA_FLOWS.md)**
+Where GizTUI moves data:
+- Gmail, Ollama, Bedrock, Slack, Obsidian, remote images, telemetry
+- Privacy summary (local-first, opt-in telemetry)
+
+### **[⌨️ Command Reference](COMMANDS.md)**
+Generated from code:
+- Every `:command` name and alias, grouped by handler
+- Canonical default configuration JSON
+
 ## 📋 Live Backlog
 
 GitHub Issues is the canonical live backlog for GizTUI. Feature requests,
