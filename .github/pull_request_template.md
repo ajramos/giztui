@@ -32,10 +32,16 @@ Brief description of the changes and why they were made.
 - [ ] UI tests for new components
 
 ## 🧪 **Testing**
-- [ ] `make build` passes
-- [ ] `make test` passes
+- [ ] `make ci` passes (canonical local gate: lint, vet, tests, race, security, architecture, coverage, desktop)
+- [ ] `make pre-commit-check` alias used where appropriate
 - [ ] Manual testing completed
 - [ ] No regressions in existing functionality
 
 ## 📝 **Related Issues**
 Closes #issue_number
+
+## ✅ **Definition of Done**
+- [ ] Command parity honored (every new shortcut has a `:command` with an alias)
+- [ ] In-app `:help` updated if keys/commands changed
+- [ ] Config options added to `DefaultConfig()` and the self-migration path
+- [ ] Documentation updated if behavior or config changed

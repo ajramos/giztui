@@ -1,0 +1,6 @@
+# Code owners. All paths default to the maintainer.
+* @ajramos
+
+# Release, CI, and packaging controls are also the maintainer's responsibility,
+# so they inherit the default owner above. Add specialist owners here when a
+# domain gains a dedicated reviewer.

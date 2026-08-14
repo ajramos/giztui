@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible problem with GizTUI
+title: "[bug]: "
+labels: ["bug", "status:needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Do **not** include credentials, OAuth tokens,
+        email content, or other sensitive data. For security issues use the
+        private route in `SECURITY.md` instead.
+  - type: input
+    id: version
+    attributes:
+      label: GizTUI version
+      description: Output of `giztui --version` (and the desktop app version if relevant)
+      placeholder: e.g. 1.28.0-rc.1
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux amd64
+        - Linux arm64
+        - Windows amd64
+        - Windows arm64
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      description: Does it reproduce in the TUI, the desktop app, or both?
+      options:
+        - Both
+        - TUI only
+        - Desktop only
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, including the exact key or `:command` used.
+      placeholder: |
+        1. Open the inbox
+        2. Press ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error text or a log excerpt if available.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Relevant config keys (redacted), terminal, window size, etc.

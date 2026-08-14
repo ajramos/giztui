@@ -44,6 +44,8 @@ jobs:
         run: make ci-tools
       - name: Run quality gate
         run: make ci-quality
+      - name: Run documentation gate
+        run: make ci-docs
 
   test-go:
     name: test-go (${{ matrix.os }})

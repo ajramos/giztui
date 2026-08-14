@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a new capability or behavior change
+title: "[feat]: "
+labels: ["enhancement", "status:needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        GizTUI follows **command parity**: every feature that adds a keyboard
+        shortcut must add an equivalent `:command` with a short alias. Please
+        propose both when relevant.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is the user-visible gap this addresses?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: How should it work? Keep it keyboard-first.
+    validations:
+      required: true
+  - type: textarea
+    id: keys
+    attributes:
+      label: Suggested keys and commands
+      description: e.g. `x` to archive / `:archive` / `:arch`. See docs/KEYBOARD_SHORTCUTS.md.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: TUI
+        - label: Desktop app
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
