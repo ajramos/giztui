@@ -130,6 +130,97 @@ type AccountConfig struct {
 	Credentials string `json:"credentials"`  // path to credentials.json for this account
 	Token       string `json:"token"`        // path to token.json for this account
 	Active      bool   `json:"active"`       // whether this is the currently active account
+	// LLM optionally overrides the global LLM for this account (per-account engine).
+	// nil → inherit the global config.LLM. See Config.EffectiveLLM.
+	LLM *LLMConfig `json:"llm,omitempty"`
+}
+
+// EffectiveLLM returns the LLM configuration in force for accountID: the account's
+// override overlaid on the global LLM (only the override's set/non-zero fields win;
+// boolean toggles — enabled/stream/cache — always inherit the global values, a
+// documented v1 limitation of the value-typed override). An empty or unknown
+// accountID, or an account without an override, yields the global LLM unchanged.
+func (c *Config) EffectiveLLM(accountID string) LLMConfig {
+	eff := c.LLM
+	if accountID == "" {
+		return eff
+	}
+	var ov *LLMConfig
+	for i := range c.Accounts {
+		if c.Accounts[i].ID == accountID {
+			ov = c.Accounts[i].LLM
+			break
+		}
+	}
+	if ov == nil {
+		return eff
+	}
+	if ov.Provider != "" {
+		eff.Provider = ov.Provider
+	}
+	if ov.Model != "" {
+		eff.Model = ov.Model
+	}
+	if ov.Region != "" {
+		eff.Region = ov.Region
+	}
+	if ov.APIKey != "" {
+		eff.APIKey = ov.APIKey
+	}
+	// Endpoint: honor an explicit override; when switching provider without a new
+	// endpoint, drop the old provider's endpoint so the provider client picks its
+	// own default (e.g. an openai override must not inherit the ollama URL).
+	if ov.Endpoint != "" {
+		eff.Endpoint = ov.Endpoint
+	} else if ov.Provider != "" && ov.Provider != c.LLM.Provider {
+		eff.Endpoint = ""
+	}
+	if ov.Timeout != "" {
+		eff.Timeout = ov.Timeout
+	}
+	if ov.StreamChunkMs != 0 {
+		eff.StreamChunkMs = ov.StreamChunkMs
+	}
+	if ov.CachePath != "" {
+		eff.CachePath = ov.CachePath
+	}
+	if ov.SummarizeTemplate != "" {
+		eff.SummarizeTemplate = ov.SummarizeTemplate
+	}
+	if ov.ReplyTemplate != "" {
+		eff.ReplyTemplate = ov.ReplyTemplate
+	}
+	if ov.LabelTemplate != "" {
+		eff.LabelTemplate = ov.LabelTemplate
+	}
+	if ov.TouchUpTemplate != "" {
+		eff.TouchUpTemplate = ov.TouchUpTemplate
+	}
+	if ov.ChatTemplate != "" {
+		eff.ChatTemplate = ov.ChatTemplate
+	}
+	if ov.SummarizePrompt != "" {
+		eff.SummarizePrompt = ov.SummarizePrompt
+	}
+	if ov.ReplyPrompt != "" {
+		eff.ReplyPrompt = ov.ReplyPrompt
+	}
+	if ov.LabelPrompt != "" {
+		eff.LabelPrompt = ov.LabelPrompt
+	}
+	if ov.TouchUpPrompt != "" {
+		eff.TouchUpPrompt = ov.TouchUpPrompt
+	}
+	if ov.ChatPrompt != "" {
+		eff.ChatPrompt = ov.ChatPrompt
+	}
+	if ov.ChatMaxBodyChars != 0 {
+		eff.ChatMaxBodyChars = ov.ChatMaxBodyChars
+	}
+	if ov.ChatMaxTurns != 0 {
+		eff.ChatMaxTurns = ov.ChatMaxTurns
+	}
+	return eff
 }
 
 // Config holds all configuration for the GizTUI application
@@ -511,6 +602,7 @@ type KeyBindings struct {
 	RuleAdd        string `json:"rule_add"`           // Analyzer rules panel: add a rule
 	RuleDelete     string `json:"rule_delete"`        // Analyzer rules panel: delete the selected rule
 	RuleEdit       string `json:"rule_edit"`          // Rules manager: edit the selected rule
+	RulePreview    string `json:"rule_preview"`       // Rules manager: dry-run the selected rule against the inbox
 	RuleFromQuery  string `json:"rule_from_search"`   // New rule pre-filled with the active search query
 	SavedQueryDel  string `json:"saved_query_delete"` // Saved-queries picker: delete the selected query
 	SavedQueryEdit string `json:"saved_query_edit"`   // Saved-queries picker: edit the selected query
@@ -780,6 +872,7 @@ func DefaultKeyBindings() KeyBindings {
 		RuleAdd:        "a",
 		RuleDelete:     "d",
 		RuleEdit:       "e",      // rules manager: edit selected rule (parity with saved_query_edit)
+		RulePreview:    "t",      // rules manager: dry-run (test) selected rule against the inbox
 		RuleFromQuery:  "ctrl+s", // list-with-active-search only (context-separated from save_prompt/attachment_save)
 		SavedQueryDel:  "d",
 		SavedQueryEdit: "e",
@@ -1037,6 +1130,7 @@ func ValidateKeyboardConfig(keys KeyBindings) []string {
 		"c":      {"compose": true, "confirm_plan": true},
 		"d":      {"trash": true, "rule_delete": true, "saved_query_delete": true, "prompt_delete": true},
 		"e":      {"rule_edit": true, "saved_query_edit": true, "prompt_edit": true},
+		"t":      {"toggle_read": true, "rule_preview": true},
 		"n":      {"search_next": true, "saved_query_new": true, "prompt_new": true},
 		"N":      {"load_more": true, "search_prev": true},
 		"O":      {"obsidian": true, "open_gmail": true},

@@ -76,7 +76,11 @@ func (a *App) updateBulkSelectionStyling(table *tview.Table) {
 	}
 }
 
-// handleConfigurableKey checks if a key event matches a configurable shortcut and executes the corresponding action
+// handleConfigurableKey checks if a key event matches a configurable shortcut
+// and executes the corresponding action. It is table-driven: see
+// configurableBindings for the ordered list of key→action mappings. Matching
+// is first-match-wins over that ordered slice, skipping empty (unset)
+// bindings — identical to the switch statement it replaced.
 func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	// Only handle single character keys for configurable shortcuts
 	if event.Rune() == 0 {
@@ -84,322 +88,171 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 	}
 
 	key := string(event.Rune())
+	bindings := a.configurableBindings()
 
-	// Check each configurable shortcut
-	switch key {
-	// Core email operations
-	case a.Keys.Summarize:
+	// The summarize binding is evaluated BEFORE the auto-generated
+	// uppercase→force-regenerate rule; every other binding after it. This
+	// ordering is preserved from the original switch and matters when the
+	// summarize key's uppercase variant is (or isn't) separately configured.
+	if b := bindings[0]; *b.key != "" && key == *b.key {
 		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> summarize", key)
+			a.logger.Printf("Configurable shortcut: '%s' -> %s", key, b.name)
 		}
-		a.toggleAISummary()
-		return true
+		return b.handler()
 	}
 
-	// Check for uppercase version of summarize key (force regenerate)
-	// Only create uppercase mapping if the uppercase key is NOT explicitly configured for something else
+	// Auto-generated shortcut: the uppercase of the summarize key forces a
+	// summary regenerate, unless that uppercase key is explicitly configured
+	// for something else (in which case the configured binding wins below).
 	if a.Keys.Summarize != "" && len(a.Keys.Summarize) == 1 {
 		upperKey := strings.ToUpper(a.Keys.Summarize)
-
-		// Check if this key is explicitly configured for any other function
-		// If so, the configured function takes precedence over the automatic uppercase mapping
 		if len(upperKey) == 1 && !a.isKeyConfigured(rune(upperKey[0])) && key == upperKey {
-			// Only handle uppercase force regenerate if the key is not configured for anything else
 			if a.logger != nil {
 				a.logger.Printf("Auto-generated shortcut: '%s' -> force_regenerate_summary (uppercase of '%s')", key, a.Keys.Summarize)
 			}
 			go a.forceRegenerateSummary()
 			return true
 		}
-		// If the uppercase key IS configured, let the configurable shortcuts system handle it
-		// (it will be handled in the switch statement below)
 	}
 
-	switch key {
-	case a.Keys.ForceRegenerateSummary:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> force_regenerate_summary", key)
-		}
-		go a.forceRegenerateSummary()
-		return true
-	case a.Keys.GenerateReply:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> generate_reply", key)
-		}
-		go a.generateReply()
-		return true
-	case a.Keys.SuggestLabel:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> suggest_label", key)
-		}
-		go a.suggestLabel()
-		return true
-	case a.Keys.Reply:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> reply", key)
-		}
-		go a.replySelected()
-		return true
-	case a.Keys.ReplyAll:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> reply_all", key)
-		}
-		go a.replyAllSelected()
-		return true
-	case a.Keys.Forward:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> forward", key)
-		}
-		go a.forwardSelected()
-		return true
-	case a.Keys.Compose:
-		// CRITICAL: Check if this is 'n' and we're in content search context
-		if key == "n" && a.focus.is("text") && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
+	for _, b := range bindings[1:] {
+		if *b.key != "" && key == *b.key {
 			if a.logger != nil {
-				a.logger.Printf("Configurable shortcut: '%s' -> content search next (overriding compose)", key)
+				a.logger.Printf("Configurable shortcut: '%s' -> %s", key, b.name)
 			}
-			go func() {
-			}()
-			a.enhancedTextView.searchNext()
+			return b.handler()
+		}
+	}
+	return false
+}
+
+// configurableBinding maps one user-configurable key (a pointer into a.Keys so
+// it always reflects the live config) to the action it triggers. handler
+// returns the value handleConfigurableKey should return (true = handled).
+type configurableBinding struct {
+	name    string
+	key     *string
+	handler func() bool
+}
+
+// configurableBindings is the single source of truth for configurable
+// single-key shortcuts. Adding a shortcut is now one row here (plus the field
+// in config.KeyBindings) instead of extending a switch statement. ORDER
+// MATTERS: matching is first-match-wins, so a binding listed earlier shadows a
+// later one bound to the same rune. The order below is the exact order of the
+// switch this replaced; configurable_keys_test.go pins it as a ratchet.
+func (a *App) configurableBindings() []configurableBinding {
+	k := &a.Keys
+	return []configurableBinding{
+		{"summarize", &k.Summarize, func() bool { a.toggleAISummary(); return true }},
+		{"force_regenerate_summary", &k.ForceRegenerateSummary, func() bool { go a.forceRegenerateSummary(); return true }},
+		{"generate_reply", &k.GenerateReply, func() bool { go a.generateReply(); return true }},
+		{"suggest_label", &k.SuggestLabel, func() bool { go a.suggestLabel(); return true }},
+		{"reply", &k.Reply, func() bool { go a.replySelected(); return true }},
+		{"reply_all", &k.ReplyAll, func() bool { go a.replyAllSelected(); return true }},
+		{"forward", &k.Forward, func() bool { go a.forwardSelected(); return true }},
+		{"compose", &k.Compose, func() bool {
+			// 'n' in content-search context steps to the next match instead of composing.
+			if k.Compose == "n" && a.focus.is("text") && a.enhancedTextView != nil && a.enhancedTextView.HasActiveSearch() {
+				a.enhancedTextView.searchNext()
+				return true
+			}
+			go a.composeMessage(false)
 			return true
-		}
-
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> compose", key)
-		}
-		go a.composeMessage(false)
-		return true
-	case a.Keys.Refresh:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> refresh", key)
-		}
-		go a.reloadMessages()
-		return true
-	case a.Keys.AutoRefresh:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> autorefresh", key)
-		}
-		a.toggleAutoRefresh()
-		return true
-	case a.Keys.Speak:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> speak", key)
-		}
-		a.toggleSpeak()
-		return true
-	case a.Keys.Search:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> search", key)
-		}
-		// Only handle for email list search when focus is NOT on message content
-		// When focus is on "text", let EnhancedTextView handle content search if using same key
-		if !a.focus.is("text") {
-			a.openSearchOverlay("remote")
-		}
-		return true
-	case a.Keys.Unread:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> unread", key)
-		}
-		go a.listUnreadMessages()
-		return true
-	case a.Keys.Archived:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> archived", key)
-		}
-		go a.listArchivedMessages()
-		return true
-	case a.Keys.SearchFrom:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> search_from", key)
-		}
-		go a.searchByFromCurrent()
-		return true
-	case a.Keys.SearchTo:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> search_to", key)
-		}
-		go a.searchByToCurrent()
-		return true
-	case a.Keys.SearchSubject:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> search_subject", key)
-		}
-		go a.searchBySubjectCurrent()
-		return true
-	case a.Keys.ToggleRead:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> toggle_read", key)
-		}
-		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			if a.logger != nil {
-				a.logger.Printf("Bulk mode active with %d selected messages, calling toggleMarkReadUnreadBulk()", a.bulk.count())
+		}},
+		{"refresh", &k.Refresh, func() bool { go a.reloadMessages(); return true }},
+		{"autorefresh", &k.AutoRefresh, func() bool { a.toggleAutoRefresh(); return true }},
+		{"speak", &k.Speak, func() bool { a.toggleSpeak(); return true }},
+		{"search", &k.Search, func() bool {
+			// Only handle email-list search when focus is not on message content;
+			// EnhancedTextView owns content search when focus is "text".
+			if !a.focus.is("text") {
+				a.openSearchOverlay("remote")
 			}
-			go a.toggleMarkReadUnreadBulk()
-		} else {
-			go a.toggleMarkReadUnread()
-		}
-		return true
-	case a.Keys.Trash:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> trash (bulkMode: %t, selected: %d)", key, a.bulk.isMode(), a.bulk.count())
-		}
-		go func() {
-		}()
-
-		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			// OBLITERATED: empty logger branch eliminated! 💥
-			go a.trashSelectedBulk()
-		} else {
-			// OBLITERATED: empty logger branch eliminated! 💥
-			go a.trashSelected()
-		}
-		return true
-	case a.Keys.Archive:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> archive", key)
-		}
-		// CRITICAL: Check for bulk mode to ensure bulk operations work
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			if a.logger != nil {
-				a.logger.Printf("Bulk mode active with %d selected messages, calling archiveSelectedBulk()", a.bulk.count())
+			return true
+		}},
+		{"unread", &k.Unread, func() bool { go a.listUnreadMessages(); return true }},
+		{"archived", &k.Archived, func() bool { go a.listArchivedMessages(); return true }},
+		{"search_from", &k.SearchFrom, func() bool { go a.searchByFromCurrent(); return true }},
+		{"search_to", &k.SearchTo, func() bool { go a.searchByToCurrent(); return true }},
+		{"search_subject", &k.SearchSubject, func() bool { go a.searchBySubjectCurrent(); return true }},
+		{"toggle_read", &k.ToggleRead, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				go a.toggleMarkReadUnreadBulk()
+			} else {
+				go a.toggleMarkReadUnread()
 			}
-			go a.archiveSelectedBulk()
-		} else {
-			go a.archiveSelected()
-		}
-		return true
-	case a.Keys.Drafts:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> drafts", key)
-		}
-		go a.loadDrafts()
-		return true
-	case a.Keys.Attachments:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> attachments", key)
-		}
-		go a.showAttachments()
-		return true
-	case a.Keys.Move:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> move", key)
-		}
-		// In bulk mode, prioritize bulk operations
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			a.openMovePanelBulk()
-		} else {
-			a.openMovePanel()
-		}
-		return true
-	case a.Keys.ManageLabels:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> manage_labels (bulkMode: %t, selected: %d)", key, a.bulk.isMode(), a.bulk.count())
-		}
-		// CRITICAL: Check for bulk mode to ensure bulk label operations work
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			// OBLITERATED: empty logger branch eliminated! 💥
-			a.manageLabelsBulk()
-		} else {
-			a.manageLabels()
-		}
-		return true
-	case a.Keys.Quit:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> quit", key)
-		}
-		a.cancel()
-		a.Stop()
-		return true
-
-	// Additional configurable shortcuts
-	case a.Keys.Obsidian:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> obsidian", key)
-		}
-		go a.sendEmailToObsidian()
-		return true
-	case a.Keys.Slack:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> slack", key)
-		}
-		if a.bulk.isMode() && a.bulk.count() > 0 {
-			go a.showSlackBulkForwardDialog()
-		} else {
-			go a.showSlackForwardDialog()
-		}
-		return true
-	case a.Keys.Markdown:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> markdown", key)
-		}
-		a.toggleMarkdown()
-		return true
-	case a.Keys.SaveMessage:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> save_message", key)
-		}
-		go a.saveCurrentMessageToFile()
-		return true
-	case a.Keys.SaveRaw:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> save_raw", key)
-		}
-		go a.saveCurrentMessageRawEML()
-		return true
-	case a.Keys.RSVP:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> rsvp", key)
-		}
-		if a.currentActivePicker == PickerRSVP {
-			if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
-				split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
+			return true
+		}},
+		{"trash", &k.Trash, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				go a.trashSelectedBulk()
+			} else {
+				go a.trashSelected()
 			}
-			a.setActivePicker(PickerNone)
-			a.restoreFocusAfterModal()
-		} else {
-			go a.openRSVPModal()
-		}
-		return true
-	case a.Keys.AiJobs:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> ai jobs", key)
-		}
-		// Toggle the AI background-jobs picker (openAIJobsPicker self-toggles).
-		go a.openAIJobsPicker()
-		return true
-	case a.Keys.Chat:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> chat", key)
-		}
-		// Toggle the chat-with-this-email panel (openChatPanel self-toggles).
-		go a.openChatPanel()
-		return true
-	case a.Keys.LinkPicker:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> link_picker", key)
-		}
-		go a.openLinkPicker()
-		return true
-	case a.Keys.ThemePicker:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> theme_picker", key)
-		}
-		go a.openThemePicker()
-		return true
-	case a.Keys.OpenGmail:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> open_gmail", key)
-		}
-		go a.openEmailInGmail()
-		return true
-	case a.Keys.BulkMode:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> bulk_mode", key)
-		}
-		if list, ok := a.views["list"].(*tview.Table); ok {
+			return true
+		}},
+		{"archive", &k.Archive, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				go a.archiveSelectedBulk()
+			} else {
+				go a.archiveSelected()
+			}
+			return true
+		}},
+		{"drafts", &k.Drafts, func() bool { go a.loadDrafts(); return true }},
+		{"attachments", &k.Attachments, func() bool { go a.showAttachments(); return true }},
+		{"move", &k.Move, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				a.openMovePanelBulk()
+			} else {
+				a.openMovePanel()
+			}
+			return true
+		}},
+		{"manage_labels", &k.ManageLabels, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				a.manageLabelsBulk()
+			} else {
+				a.manageLabels()
+			}
+			return true
+		}},
+		{"quit", &k.Quit, func() bool { a.cancel(); a.Stop(); return true }},
+		{"obsidian", &k.Obsidian, func() bool { go a.sendEmailToObsidian(); return true }},
+		{"slack", &k.Slack, func() bool {
+			if a.bulk.isMode() && a.bulk.count() > 0 {
+				go a.showSlackBulkForwardDialog()
+			} else {
+				go a.showSlackForwardDialog()
+			}
+			return true
+		}},
+		{"markdown", &k.Markdown, func() bool { a.toggleMarkdown(); return true }},
+		{"save_message", &k.SaveMessage, func() bool { go a.saveCurrentMessageToFile(); return true }},
+		{"save_raw", &k.SaveRaw, func() bool { go a.saveCurrentMessageRawEML(); return true }},
+		{"rsvp", &k.RSVP, func() bool {
+			if a.currentActivePicker == PickerRSVP {
+				if split, ok := a.views["contentSplit"].(*tview.Flex); ok {
+					split.ResizeItem(a.labelsView, 0, 0) // Hide RSVP panel
+				}
+				a.setActivePicker(PickerNone)
+				a.restoreFocusAfterModal()
+			} else {
+				go a.openRSVPModal()
+			}
+			return true
+		}},
+		{"ai_jobs", &k.AiJobs, func() bool { go a.openAIJobsPicker(); return true }},
+		{"chat", &k.Chat, func() bool { go a.openChatPanel(); return true }},
+		{"link_picker", &k.LinkPicker, func() bool { go a.openLinkPicker(); return true }},
+		{"theme_picker", &k.ThemePicker, func() bool { go a.openThemePicker(); return true }},
+		{"open_gmail", &k.OpenGmail, func() bool { go a.openEmailInGmail(); return true }},
+		{"bulk_mode", &k.BulkMode, func() bool {
+			list, ok := a.views["list"].(*tview.Table)
+			if !ok {
+				return true
+			}
 			if !a.bulk.isMode() {
 				a.bulk.setMode(true)
 				messageIndex := a.getCurrentSelectedMessageIndex()
@@ -420,90 +273,26 @@ func (a *App) handleConfigurableKey(event *tcell.EventKey) bool {
 					a.GetErrorHandler().ClearProgress()
 				}()
 			}
-		}
-		return true
-	case a.Keys.CommandMode:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> command_mode", key)
-		}
-		a.showCommandBar()
-		return true
-	case a.Keys.Help:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> help", key)
-		}
-		a.toggleHelp()
-		return true
-	case a.Keys.LoadMore:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> load_more", key)
-		}
-		// Only handle when focus is on list
-		if a.focus.is("list") {
-			go a.loadMoreMessages()
-		}
-		return true
-	case a.Keys.ToggleHeaders:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> toggle_headers", key)
-		}
-		go a.toggleHeaderVisibility()
-		return true
-
-	// Threading shortcuts
-	case a.Keys.ToggleThreading:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> toggle_threading", key)
-		}
-		go func() { _ = a.ToggleThreadingMode() }()
-		return true
-	case a.Keys.ExpandAllThreads:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> expand_all_threads", key)
-		}
-		go func() { _ = a.ExpandAllThreads() }()
-		return true
-	case a.Keys.CollapseAllThreads:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> collapse_all_threads", key)
-		}
-		go func() { _ = a.CollapseAllThreads() }()
-		return true
-	case a.Keys.BulkSelect:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> bulk_select", key)
-		}
-		return a.handleBulkSelect()
-
-	case a.Keys.ActionPlan:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> action_plan", key)
-		}
-		go a.openActionPlanPanel()
-		return true
-
-	// Saved queries
-	case a.Keys.SaveQuery:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> save_query", key)
-		}
-		a.showSaveCurrentQueryDialog()
-		return true
-	case a.Keys.QueryBookmarks:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> query_bookmarks", key)
-		}
-		a.showSavedQueriesPicker()
-		return true
-	case a.Keys.Undo:
-		if a.logger != nil {
-			a.logger.Printf("Configurable shortcut: '%s' -> undo", key)
-		}
-		a.performUndoFromShortcut()
-		return true
+			return true
+		}},
+		{"command_mode", &k.CommandMode, func() bool { a.showCommandBar(); return true }},
+		{"help", &k.Help, func() bool { a.toggleHelp(); return true }},
+		{"load_more", &k.LoadMore, func() bool {
+			if a.focus.is("list") {
+				go a.loadMoreMessages()
+			}
+			return true
+		}},
+		{"toggle_headers", &k.ToggleHeaders, func() bool { go a.toggleHeaderVisibility(); return true }},
+		{"toggle_threading", &k.ToggleThreading, func() bool { go func() { _ = a.ToggleThreadingMode() }(); return true }},
+		{"expand_all_threads", &k.ExpandAllThreads, func() bool { go func() { _ = a.ExpandAllThreads() }(); return true }},
+		{"collapse_all_threads", &k.CollapseAllThreads, func() bool { go func() { _ = a.CollapseAllThreads() }(); return true }},
+		{"bulk_select", &k.BulkSelect, func() bool { return a.handleBulkSelect() }},
+		{"action_plan", &k.ActionPlan, func() bool { go a.openActionPlanPanel(); return true }},
+		{"save_query", &k.SaveQuery, func() bool { a.showSaveCurrentQueryDialog(); return true }},
+		{"query_bookmarks", &k.QueryBookmarks, func() bool { a.showSavedQueriesPicker(); return true }},
+		{"undo", &k.Undo, func() bool { a.performUndoFromShortcut(); return true }},
 	}
-
-	return false
 }
 
 // isKeyConfigured checks if a key is already configured in the configurable shortcuts

@@ -1174,6 +1174,18 @@ type GmailImportResult struct {
 	Unsupported []GmailOnlyFilter
 }
 
+// RulePreview is a dry-run of a single rule's query against the inbox: how many
+// messages currently match and a small sample of their subjects. MatchCount is
+// exact up to a cap; Capped is true when the real total may be higher. No
+// message is modified.
+type RulePreview struct {
+	RuleID     int64
+	Query      string
+	MatchCount int      // matches for "in:inbox <query>", exact up to the cap
+	Capped     bool     // true when MatchCount hit the cap (real total may be higher)
+	Sample     []string // up to a few matching subjects
+}
+
 // DeterministicRulesService manages deterministic rules: CRUD (with Gmail-side query
 // validation at save time), first-match-wins partitioning of a message set, and optional
 // mirroring of rules as real Gmail filters.
@@ -1202,4 +1214,11 @@ type DeterministicRulesService interface {
 	// longer exists in Gmail follow Gmail and are removed (local-only rules, with no
 	// filter ID, are never touched). Idempotent per filter ID.
 	ImportGmailFilters(ctx context.Context) (*GmailImportResult, error)
+	// DeleteGmailFilter removes a raw server-side Gmail filter by ID. Used for
+	// filters the rule model can't represent (GmailOnlyFilter); it touches no
+	// local rule. A filter already gone is treated as success.
+	DeleteGmailFilter(ctx context.Context, filterID string) error
+	// PreviewRule dry-runs a single rule's query scoped to the inbox and returns
+	// the match count plus a small subject sample. Read-only.
+	PreviewRule(ctx context.Context, id int64) (*RulePreview, error)
 }

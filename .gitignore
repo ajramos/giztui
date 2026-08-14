@@ -78,3 +78,12 @@ reference/
 
 # graphify knowledge graph (regenerated via /graphify or `graphify update`)
 graphify-out/
+
+# baseline.py transient/regenerable artifacts
+baseline.sample.json
+.baseline_blamecache.json*
+baseline_snap_*/
+baseline_relocation.json
+__pycache__/
+*.pyc
+.venv-ci/

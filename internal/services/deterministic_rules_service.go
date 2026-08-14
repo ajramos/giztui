@@ -238,6 +238,66 @@ const (
 	partitionMaxPerRule = 500
 )
 
+// preview caps: exact match count up to previewCountCap, up to previewSampleSize
+// subjects shown. Keeps a "test this rule" action to one search + a few gets.
+const (
+	previewCountCap   = 200
+	previewSampleSize = 5
+)
+
+// DeleteGmailFilter removes a raw server-side Gmail filter by ID. It does not
+// touch any local rule — it is for Gmail-only filters the rule model can't
+// represent. A filter that is already gone is treated as success.
+func (s *DeterministicRulesServiceImpl) DeleteGmailFilter(ctx context.Context, filterID string) error {
+	if s.filters == nil {
+		return fmt.Errorf("no Gmail account/client — filters unavailable")
+	}
+	if strings.TrimSpace(filterID) == "" {
+		return fmt.Errorf("empty filter id")
+	}
+	if err := s.filters.DeleteFilter(filterID); err != nil && !isNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// PreviewRule dry-runs a rule's query scoped to the inbox: it returns how many
+// messages currently match (exact up to previewCountCap) and a small sample of
+// subjects. No message is modified.
+func (s *DeterministicRulesServiceImpl) PreviewRule(ctx context.Context, id int64) (*RulePreview, error) {
+	if s.repo == nil {
+		return nil, fmt.Errorf("message repository unavailable")
+	}
+	rule, err := s.findRule(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	query := strings.TrimSpace("in:inbox " + rule.Query)
+	page, err := s.repo.SearchMessages(ctx, query, QueryOptions{MaxResults: previewCountCap})
+	if err != nil {
+		return nil, fmt.Errorf("preview query failed: %w", err)
+	}
+	pv := &RulePreview{
+		RuleID:     id,
+		Query:      rule.Query,
+		MatchCount: page.TotalCount,
+		Capped:     page.TotalCount >= previewCountCap,
+	}
+	for _, m := range page.Messages {
+		if len(pv.Sample) >= previewSampleSize {
+			break
+		}
+		subj := "(no subject)"
+		if full, gerr := s.repo.GetMessage(ctx, m.Id); gerr == nil && full != nil {
+			if t := strings.TrimSpace(full.Subject); t != "" {
+				subj = t
+			}
+		}
+		pv.Sample = append(pv.Sample, subj)
+	}
+	return pv, nil
+}
+
 // Partition runs every rule's query (creation order, first-match-wins) against
 // the combined scopeQuery, assigns each message to the first matching rule, and
 // returns the slice of per-rule matches plus any candidate IDs left unmatched.

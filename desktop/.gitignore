@@ -5,6 +5,9 @@
 /build/*/
 !/build/appicon.png
 !/build/appicon.svg
+!/build/darwin/
+/build/darwin/*
+!/build/darwin/Info.plist
 
 # Wails build output binary
 giztui-desktop

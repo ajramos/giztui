@@ -113,6 +113,25 @@ Complete feature documentation for GizTUI - the AI-powered Gmail terminal client
 - ✅ **YAML front matter** - Standard Markdown format with metadata headers
 - ✅ **Management interface** - Browse all prompts including bulk analysis templates
 
+### Deterministic Rules & Gmail Filters
+Deterministic rules (`:rules` / `:ru`, ⚡ = no AI) route inbox messages by a Gmail
+query — archive, mark read, trash, label, or apply a prompt — and double as a
+manager for your server-side Gmail filters.
+- ✅ **Rule CRUD** - Add / edit / delete rules from the manager (`a` / `e` / `d`)
+- ✅ **Test a rule (dry-run)** - Press `t` (or the search icon) to see how many
+  inbox messages a rule matches right now, with a subject sample — before you rely on it
+- ✅ **Preview a rule as a plan** - `:rules plan` (`:rp`) runs all rules over the inbox
+- ✅ **Mirror a rule to Gmail** - `:rules sync <n>` creates the equivalent server-side
+  Gmail filter (☁); `:rules unsync <n>` removes the mirror
+- ✅ **Import & reconcile Gmail filters** - Opening the manager folds your existing
+  Gmail filters in: translatable ones become rules, the rest show as read-only rows
+- ✅ **Delete Gmail-only filters** - Filters the rule model can't represent
+  (forwarding, delete, size criteria…) are shown read-only and can be deleted with `d`
+- ⚠️ **Not retroactive** - Server-side Gmail filters only act on *new* incoming mail,
+  never on messages already in the mailbox
+- ⚠️ **Forwarding needs a verified address** - Gmail only accepts a forward filter
+  when the destination is pre-verified in Gmail Settings
+
 ## 🔥 Bulk Operations
 
 ### Multi-Message Processing

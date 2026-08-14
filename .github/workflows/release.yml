@@ -3,217 +3,389 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., v1.0.0)'
-        required: true
-        type: string
+      - "v*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: 1.25.13
+  NODE_VERSION: 22.22.1
+  RELEASE_TAG: ${{ github.ref_name }}
+  GOFLAGS: -mod=readonly
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-
+  validate:
+    name: Validate release source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      version_core: ${{ steps.metadata.outputs.version_core }}
+      sha: ${{ steps.metadata.outputs.sha }}
+      source_date_epoch: ${{ steps.metadata.outputs.source_date_epoch }}
+      build_date: ${{ steps.metadata.outputs.build_date }}
+      build_number: ${{ steps.metadata.outputs.build_number }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.25.12'
+      - name: Set up Node.js for metadata validation
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-    - name: Get version info
-      id: version
-      run: |
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-        else
-          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-        fi
+      - name: Validate tag, versions, changelog, and main ancestry
+        run: ./scripts/validate-release.sh "$RELEASE_TAG"
 
-        # Get git commit info
-        echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-        echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD || echo 'HEAD')" >> $GITHUB_OUTPUT
-        echo "BUILD_DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
-        echo "BUILD_USER=github-actions" >> $GITHUB_OUTPUT
+      - name: Require the protected CI check for the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          conclusion=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "required")] | sort_by(.completed_at) | last | .conclusion')
+          if [[ $conclusion != "success" ]]; then
+            echo "required CI check for ${sha} is ${conclusion:-missing}" >&2
+            exit 1
+          fi
 
-    - name: Cache dependencies
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/go.mod') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
-          ${{ runner.os }}-go-
+      - name: Export immutable release metadata
+        id: metadata
+        run: |
+          version=${RELEASE_TAG#v}
+          version_core=${version%%[-+]*}
+          sha=$(git rev-parse HEAD)
+          source_date_epoch=$(git show -s --format=%ct HEAD)
+          build_date=$(git show -s --format=%cI HEAD)
+          build_number=$(git rev-list --count HEAD)
+          test "$sha" = "$GITHUB_SHA"
+          test "$build_number" -le 65535
+          prerelease=false
+          precedence=${version%%+*}
+          if [[ $precedence == *-* ]]; then
+            prerelease=true
+          fi
+          {
+            echo "tag=${RELEASE_TAG}"
+            echo "version=${version}"
+            echo "version_core=${version_core}"
+            echo "sha=${sha}"
+            echo "source_date_epoch=${source_date_epoch}"
+            echo "build_date=${build_date}"
+            echo "build_number=${build_number}"
+            echo "prerelease=${prerelease}"
+          } >> "$GITHUB_OUTPUT"
 
-    - name: Clean Go cache on cache restore failure
-      if: failure()
-      run: |
-        echo "Cleaning Go module cache due to restore failure..."
-        go clean -modcache
+  cli:
+    name: Build CLI artifacts
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-    - name: Install dependencies
-      run: |
-        go mod download
-        go mod verify
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
 
-    - name: Run tests
-      run: |
-        go test -v -race ./internal/services ./internal/config ./internal/db ./pkg/...
-        go vet -composites=false ./...
+      - name: Cross-build CLI binaries
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+          RELEASE_BUILD_DATE: ${{ needs.validate.outputs.build_date }}
+        run: |
+          mkdir -p build dist
+          ldflags="-s -w -X github.com/ajramos/giztui/internal/version.Version=${RELEASE_VERSION} -X github.com/ajramos/giztui/internal/version.GitCommit=${RELEASE_SHA} -X github.com/ajramos/giztui/internal/version.GitBranch=${RELEASE_TAG} -X github.com/ajramos/giztui/internal/version.BuildDate=${RELEASE_BUILD_DATE} -X github.com/ajramos/giztui/internal/version.BuildUser=github-actions"
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*}
+            arch=${target#*/}
+            suffix=""
+            if [[ $os == windows ]]; then suffix=".exe"; fi
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -buildvcs=true -ldflags="$ldflags" -o "build/giztui-${os}-${arch}${suffix}" ./cmd/giztui
+          done
+          version_output=$(./build/giztui-linux-amd64 --version)
+          grep -Fqx "GizTUI ${RELEASE_VERSION}" <<< "$version_output"
+          grep -Fqx "Git commit: ${RELEASE_SHA}" <<< "$version_output"
 
-    - name: Create build directory
-      run: mkdir -p build
+      - name: Create normalized CLI archives
+        env:
+          SOURCE_DATE_EPOCH: ${{ needs.validate.outputs.source_date_epoch }}
+        run: |
+          touch --date="@${SOURCE_DATE_EPOCH}" build/giztui-*
+          for target in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            tar --sort=name --mtime="@${SOURCE_DATE_EPOCH}" --owner=0 --group=0 --numeric-owner -C build -czf "dist/giztui-${target}.tar.gz" "giztui-${target}"
+          done
+          for target in windows-amd64 windows-arm64; do
+            (cd build && zip -X "../dist/giztui-${target}.zip" "giztui-${target}.exe")
+          done
+          test "$(find dist -type f | wc -l)" -eq 6
 
-    - name: Build binaries with version injection
-      env:
-        VERSION: ${{ steps.version.outputs.VERSION }}
-        GIT_COMMIT: ${{ steps.version.outputs.GIT_COMMIT }}
-        GIT_BRANCH: ${{ steps.version.outputs.GIT_BRANCH }}
-        BUILD_DATE: ${{ steps.version.outputs.BUILD_DATE }}
-        BUILD_USER: ${{ steps.version.outputs.BUILD_USER }}
-      run: |
-        # Define ldflags for version injection
-        LDFLAGS="-w -s \
-          -X 'github.com/ajramos/giztui/internal/version.Version=${VERSION#v}' \
-          -X 'github.com/ajramos/giztui/internal/version.GitCommit=${GIT_COMMIT}' \
-          -X 'github.com/ajramos/giztui/internal/version.GitBranch=${GIT_BRANCH}' \
-          -X 'github.com/ajramos/giztui/internal/version.BuildDate=${BUILD_DATE}' \
-          -X 'github.com/ajramos/giztui/internal/version.BuildUser=${BUILD_USER}'"
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-cli
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
 
-        # Build for multiple platforms
-        echo "Building Linux AMD64..."
-        GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-linux-amd64 ./cmd/giztui
+  sbom:
+    name: Generate SBOMs
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
-        echo "Building Linux ARM64..."
-        GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-linux-arm64 ./cmd/giztui
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
 
-        echo "Building macOS AMD64..."
-        GOOS=darwin GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-darwin-amd64 ./cmd/giztui
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
 
-        echo "Building macOS ARM64..."
-        GOOS=darwin GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-darwin-arm64 ./cmd/giztui
+      - name: Install locked frontend dependency tree
+        working-directory: desktop/frontend
+        run: npm ci
 
-        echo "Building Windows AMD64..."
-        GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/giztui-windows-amd64.exe ./cmd/giztui
+      - name: Generate reproducible CycloneDX documents
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          mkdir -p dist
+          go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -json -noserial -notimestamp -output "dist/giztui-cli-${RELEASE_VERSION}.cdx.json" .
+          go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -json -noserial -notimestamp -output "dist/giztui-desktop-go-${RELEASE_VERSION}.cdx.json" ./desktop
+          (cd desktop/frontend && ./node_modules/.bin/cyclonedx-npm --package-lock-only --output-reproducible --validate --output-file "../../dist/giztui-desktop-frontend-${RELEASE_VERSION}.cdx.json")
+          jq --exit-status --arg version "v${RELEASE_VERSION}" '.metadata.component.version == $version' "dist/giztui-cli-${RELEASE_VERSION}.cdx.json"
+          jq --exit-status --arg version "v${RELEASE_VERSION}" '.metadata.component.version == $version' "dist/giztui-desktop-go-${RELEASE_VERSION}.cdx.json"
+          jq --exit-status --arg version "${RELEASE_VERSION}" '.metadata.component.version == $version' "dist/giztui-desktop-frontend-${RELEASE_VERSION}.cdx.json"
+          test "$(find dist -type f | wc -l)" -eq 3
 
-        echo "Building Windows ARM64..."
-        GOOS=windows GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/giztui-windows-arm64.exe ./cmd/giztui
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-sbom
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
 
-    - name: Generate checksums
-      run: |
-        cd build
-        sha256sum * > checksums.txt
-        echo "Generated checksums:"
-        cat checksums.txt
+  desktop:
+    name: Build desktop artifacts
+    needs: validate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      tag: ${{ needs.validate.outputs.tag }}
+      version: ${{ needs.validate.outputs.version }}
+      version_core: ${{ needs.validate.outputs.version_core }}
+      source_date_epoch: ${{ needs.validate.outputs.source_date_epoch }}
+      build_date: ${{ needs.validate.outputs.build_date }}
+      build_number: ${{ needs.validate.outputs.build_number }}
+      sha: ${{ needs.validate.outputs.sha }}
 
-    - name: Create release archives
-      run: |
-        cd build
+  publish:
+    name: Publish complete release
+    needs: [validate, cli, sbom, desktop]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out exact release tag without credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-        # Create tar.gz archives for Unix systems
-        tar -czf giztui-linux-amd64.tar.gz giztui-linux-amd64
-        tar -czf giztui-linux-arm64.tar.gz giztui-linux-arm64
-        tar -czf giztui-darwin-amd64.tar.gz giztui-darwin-amd64
-        tar -czf giztui-darwin-arm64.tar.gz giztui-darwin-arm64
+      - name: Download every mandatory build artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
 
-        # Create zip archives for Windows
-        zip giztui-windows-amd64.zip giztui-windows-amd64.exe
-        zip giztui-windows-arm64.zip giztui-windows-arm64.exe
+      - name: Validate the complete artifact set and generate Homebrew cask
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          expected=(
+            giztui-linux-amd64.tar.gz
+            giztui-linux-arm64.tar.gz
+            giztui-darwin-amd64.tar.gz
+            giztui-darwin-arm64.tar.gz
+            giztui-windows-amd64.zip
+            giztui-windows-arm64.zip
+            "GizTUI-Desktop-${RELEASE_VERSION}-universal.dmg"
+            "GizTUI-Desktop-${RELEASE_VERSION}-macOS-universal.zip"
+            "GizTUI-Desktop-${RELEASE_VERSION}-windows-amd64-installer.exe"
+            "GizTUI-Desktop-${RELEASE_VERSION}-windows-amd64-portable.zip"
+            "GizTUI-Desktop-${RELEASE_VERSION}-linux-amd64.AppImage"
+            "GizTUI-Desktop-${RELEASE_VERSION}-linux-amd64.tar.gz"
+            "giztui-cli-${RELEASE_VERSION}.cdx.json"
+            "giztui-desktop-go-${RELEASE_VERSION}.cdx.json"
+            "giztui-desktop-frontend-${RELEASE_VERSION}.cdx.json"
+          )
+          for artifact in "${expected[@]}"; do
+            test -s "release/${artifact}" || { echo "missing release artifact: ${artifact}" >&2; exit 1; }
+          done
+          test "$(find release -maxdepth 1 -type f | wc -l)" -eq "${#expected[@]}"
+          dmg_sha=$(sha256sum "release/GizTUI-Desktop-${RELEASE_VERSION}-universal.dmg" | cut -d ' ' -f 1)
+          sed -e "s/version \"[^\"]*\"/version \"${RELEASE_VERSION}\"/" \
+            -e "s/sha256 .*/sha256 \"${dmg_sha}\"/" \
+            packaging/homebrew/giztui-desktop.rb > release/giztui-desktop.rb
+          ruby -c release/giztui-desktop.rb
+          (cd release && sha256sum -- ./* > SHA256SUMS)
 
-        # Generate checksums for archives
-        sha256sum *.tar.gz *.zip > archive-checksums.txt
+      - name: Generate release notes
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: ./scripts/extract-release-notes.sh "$RELEASE_VERSION" "$RUNNER_TEMP/release-notes.md"
 
-    - name: Generate release notes from changelog
-      id: release_notes
-      run: |
-        VERSION="${{ steps.version.outputs.VERSION }}"
-        VER="${VERSION#v}"  # CHANGELOG headings are unprefixed (## [1.23.0])
+      - name: Reconfirm the tag and inspect any existing release
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          remote_sha=$(git ls-remote origin "refs/tags/${RELEASE_TAG}^{}" | cut -f 1)
+          if [[ -z $remote_sha ]]; then
+            remote_sha=$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | cut -f 1)
+          fi
+          test "$remote_sha" = "$RELEASE_SHA" || { echo "$RELEASE_TAG moved from validated commit $RELEASE_SHA to ${remote_sha:-missing}" >&2; exit 1; }
+          echo "already_published=false" >> "$GITHUB_OUTPUT"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+            if [[ $is_draft == false ]]; then
+              mkdir -p "$RUNNER_TEMP/existing-release"
+              gh release download "$RELEASE_TAG" --dir "$RUNNER_TEMP/existing-release"
+              test "$(find "$RUNNER_TEMP/existing-release" -maxdepth 1 -type f | wc -l)" -eq "$(find release -maxdepth 1 -type f | wc -l)"
+              (cd "$RUNNER_TEMP/existing-release" && sha256sum --check SHA256SUMS)
+              cmp release/SHA256SUMS "$RUNNER_TEMP/existing-release/SHA256SUMS"
+              for artifact in "$RUNNER_TEMP"/existing-release/*; do
+                gh attestation verify "$artifact" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+                  --source-ref "refs/tags/$RELEASE_TAG" \
+                  --source-digest "$RELEASE_SHA"
+              done
+              echo "already_published=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
-        # Extract THIS version's section from CHANGELOG.md: everything between
-        # "## [VER]" and the next "## [" heading (the heading line itself dropped).
-        awk -v ver="$VER" '
-          $0 ~ ("^## \\[" ver "\\]") { found=1; next }
-          found && /^## \[/ { exit }
-          found { print }
-        ' CHANGELOG.md > changelog-section.md
+      - name: Attest all downloadable artifacts
+        if: steps.release_state.outputs.already_published == 'false'
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: release/*
 
-        # Fall back to a link if the tag has no matching CHANGELOG entry.
-        if [ ! -s changelog-section.md ]; then
-          echo "_See [CHANGELOG.md](https://github.com/ajramos/giztui/blob/main/CHANGELOG.md) for release notes._" > changelog-section.md
-        fi
+      - name: Create or resume the draft release and upload all assets
+        if: steps.release_state.outputs.already_published == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            args=(--verify-tag --draft --title "GizTUI ${RELEASE_VERSION}" --notes-file "$RUNNER_TEMP/release-notes.md")
+            if [[ $PRERELEASE == true ]]; then args+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" "${args[@]}"
+          fi
+          while IFS= read -r asset; do
+            gh release delete-asset "$RELEASE_TAG" "$asset" --yes
+          done < <(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          gh release upload "$RELEASE_TAG" release/* --clobber
+          test "$(gh release view "$RELEASE_TAG" --json assets --jq '.assets | length')" -eq "$(find release -maxdepth 1 -type f | wc -l)"
 
-        # Assemble the release body: the version's changelog section on top, then
-        # the standing install/requirements boilerplate.
-        {
-          echo "# GizTUI ${VERSION}"
-          echo
-          cat changelog-section.md
-          echo
-          echo "## Installation"
-          echo
-          echo "### Download Binary"
-          echo "1. Download the appropriate binary for your platform from the assets below"
-          echo "2. Extract the archive: \`tar -xzf giztui-*.tar.gz\` (Linux/macOS) or unzip \`giztui-*.zip\` (Windows)"
-          echo "3. Move to your PATH: \`mv giztui /usr/local/bin/\` (Linux/macOS)"
-          echo "4. Run: \`giztui --setup\` for first-time configuration"
-          echo
-          echo "### Go Install"
-          echo '```bash'
-          echo "go install github.com/ajramos/giztui/cmd/giztui@${VERSION}"
-          echo '```'
-          echo
-          echo "## Platform Support"
-          echo "- ✅ Linux (AMD64, ARM64)"
-          echo "- ✅ macOS (Intel, Apple Silicon)"
-          echo "- ✅ Windows (AMD64, ARM64)"
-          echo
-          echo "---"
-          echo
-          echo "**Full Changelog**: https://github.com/ajramos/giztui/blob/main/CHANGELOG.md"
-        } > release-notes.md
+      - name: Publish the verified draft once
+        if: steps.release_state.outputs.already_published == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$PRERELEASE"
 
-        # Set output for GitHub release
-        {
-          echo 'RELEASE_NOTES<<EOF'
-          cat release-notes.md
-          echo 'EOF'
-        } >> $GITHUB_OUTPUT
+      - name: Verify published release state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = false
+          test "$(gh release view "$RELEASE_TAG" --json isPrerelease --jq .isPrerelease)" = "$PRERELEASE"
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v3
-      with:
-        tag_name: ${{ steps.version.outputs.TAG_NAME }}
-        name: GizTUI ${{ steps.version.outputs.VERSION }}
-        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
-        draft: false
-        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
-        files: |
-          build/giztui-linux-amd64.tar.gz
-          build/giztui-linux-arm64.tar.gz
-          build/giztui-darwin-amd64.tar.gz
-          build/giztui-darwin-arm64.tar.gz
-          build/giztui-windows-amd64.zip
-          build/giztui-windows-arm64.zip
-          build/checksums.txt
-          build/archive-checksums.txt
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: giztui-${{ steps.version.outputs.VERSION }}-binaries
-        path: build/
-        retention-days: 90
+  homebrew:
+    name: Update stable Homebrew cask
+    needs: [validate, publish]
+    if: needs.validate.outputs.prerelease == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - name: Promote the verified cask to the tap
+        env:
+          SOURCE_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          test -n "$TAP_TOKEN" || { echo "HOMEBREW_TAP_TOKEN is required for stable releases" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/cask"
+          GH_TOKEN=$SOURCE_TOKEN gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern giztui-desktop.rb --dir "$RUNNER_TEMP/cask"
+          ruby -c "$RUNNER_TEMP/cask/giztui-desktop.rb"
+          GH_TOKEN=$TAP_TOKEN gh api repos/ajramos/homebrew-giztui/contents/Casks/giztui-desktop.rb --jq .content | base64 --decode > "$RUNNER_TEMP/cask/current.rb"
+          if cmp -s "$RUNNER_TEMP/cask/giztui-desktop.rb" "$RUNNER_TEMP/cask/current.rb"; then
+            echo "Homebrew cask already matches ${RELEASE_VERSION}"
+            exit 0
+          fi
+          current_version=$(awk '/^[[:space:]]*version[[:space:]]+"/ { line = $0; sub(/^[^"]*"/, "", line); sub(/".*/, "", line); print line; exit }' "$RUNNER_TEMP/cask/current.rb")
+          dpkg --compare-versions "$RELEASE_VERSION" gt "$current_version" || { echo "refusing to replace Homebrew ${current_version} with ${RELEASE_VERSION}" >&2; exit 1; }
+          current_sha=$(GH_TOKEN=$TAP_TOKEN gh api repos/ajramos/homebrew-giztui/contents/Casks/giztui-desktop.rb --jq .sha)
+          content=$(base64 --wrap=0 "$RUNNER_TEMP/cask/giztui-desktop.rb")
+          GH_TOKEN=$TAP_TOKEN gh api --method PUT repos/ajramos/homebrew-giztui/contents/Casks/giztui-desktop.rb \
+            -f message="chore: update giztui-desktop to ${RELEASE_VERSION}" \
+            -f content="$content" \
+            -f sha="$current_sha" >/dev/null

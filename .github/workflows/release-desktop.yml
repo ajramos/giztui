@@ -1,269 +1,345 @@
-name: Release Desktop
-
-# Builds the Wails desktop client per-OS (no cross-compile) and attaches the
-# installers to the GitHub Release for the tag. Kept separate from release.yml
-# (the TUI CLI) so a desktop-packaging failure never blocks the CLI release.
-#
-# Phase 1 ships UNSIGNED artifacts (Gatekeeper/SmartScreen will warn). See
-# docs/DESKTOP_DISTRIBUTION.md for the design and the signing/notarization plan.
+name: Release Desktop Builds
 
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      tag:
+        required: true
+        type: string
       version:
-        description: 'Version to build (e.g. v1.21.0)'
+        required: true
+        type: string
+      version_core:
+        required: true
+        type: string
+      source_date_epoch:
+        required: true
+        type: string
+      build_date:
+        required: true
+        type: string
+      build_number:
+        required: true
+        type: string
+      sha:
         required: true
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 env:
+  GO_VERSION: 1.25.13
+  NODE_VERSION: 22.22.1
   WAILS_VERSION: v2.10.2
-  GO_VERSION: '1.25.12'
-  NODE_VERSION: '20'
+  GOFLAGS: -mod=readonly
 
 jobs:
-  # ---------------------------------------------------------------- macOS .dmg
   macos:
-    runs-on: macos-latest
+    name: macOS universal
+    runs-on: macos-15
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v6
-      - id: ver
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
-          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v6
-        with: { go-version: '${{ env.GO_VERSION }}' }
-      - uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}' }
-      - name: Install Wails + create-dmg
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          brew install create-dmg
-      - name: Build universal .app + .dmg
-        working-directory: desktop
-        run: |
-          VER="${{ steps.ver.outputs.VER }}"
-          # Build the frontend first: wails generates Go bindings (which compile
-          # main.go's //go:embed all:frontend/dist) before it builds the frontend,
-          # so on a clean checkout dist must already exist.
-          ( cd frontend && (npm ci || npm install) && npm run build )
-          wails build -clean -platform darwin/universal \
-            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
-          DMG="build/bin/GizTUI-Desktop-${VER}-universal.dmg"
-          create-dmg --volname "GizTUI Desktop" --app-drop-link 480 170 \
-            --icon "GizTUI Desktop.app" 160 170 --window-size 640 360 \
-            "$DMG" "build/bin/GizTUI Desktop.app" \
-            || hdiutil create -volname "GizTUI Desktop" \
-                 -srcfolder "build/bin/GizTUI Desktop.app" -ov -format UDZO "$DMG"
-      - uses: actions/upload-artifact@v7
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          name: desktop-macos
-          path: desktop/build/bin/*.dmg
-          if-no-files-found: error
+          ref: ${{ inputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-  # ------------------------------------------------------------ Windows (NSIS)
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      - name: Install locked build dependencies
+        working-directory: desktop/frontend
+        run: npm ci
+
+      - name: Install pinned Wails CLI
+        run: go install "github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}"
+
+      - name: Build universal application
+        working-directory: desktop
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_BUILD_DATE: ${{ inputs.build_date }}
+        run: |
+          commit=$(git rev-parse HEAD)
+          ldflags="-s -w -X github.com/ajramos/giztui/internal/version.Version=${RELEASE_VERSION} -X github.com/ajramos/giztui/internal/version.GitCommit=${commit} -X github.com/ajramos/giztui/internal/version.GitBranch=${RELEASE_TAG} -X github.com/ajramos/giztui/internal/version.BuildDate=${RELEASE_BUILD_DATE} -X github.com/ajramos/giztui/internal/version.BuildUser=github-actions"
+          wails build -clean -platform darwin/universal -ldflags "$ldflags"
+
+      - name: Assert macOS package metadata
+        working-directory: desktop
+        env:
+          VERSION_CORE: ${{ inputs.version_core }}
+        run: |
+          plist="build/bin/GizTUI Desktop.app/Contents/Info.plist"
+          test -f "$plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ inputs.build_number }}" "$plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "com.ajramos.giztui.desktop"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$VERSION_CORE"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = "${{ inputs.build_number }}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")" = "12.0"
+
+      - name: Package macOS artifacts
+        working-directory: desktop
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SOURCE_DATE_EPOCH: ${{ inputs.source_date_epoch }}
+        run: |
+          mkdir -p dist dmg-root
+          touch -t "$(date -u -r "$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S)" "build/bin/GizTUI Desktop.app"
+          ditto "build/bin/GizTUI Desktop.app" "dmg-root/GizTUI Desktop.app"
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "GizTUI Desktop" -srcfolder dmg-root -ov -format UDZO "dist/GizTUI-Desktop-${RELEASE_VERSION}-universal.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "build/bin/GizTUI Desktop.app" "dist/GizTUI-Desktop-${RELEASE_VERSION}-macOS-universal.zip"
+          test -s "dist/GizTUI-Desktop-${RELEASE_VERSION}-universal.dmg"
+          test -s "dist/GizTUI-Desktop-${RELEASE_VERSION}-macOS-universal.zip"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-desktop-macos
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
   windows:
-    runs-on: windows-latest
-    defaults: { run: { shell: bash } }
+    name: Windows amd64
+    runs-on: windows-2025
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v6
-      - id: ver
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
-          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v6
-        with: { go-version: '${{ env.GO_VERSION }}' }
-      - uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}' }
-      - name: Install Wails + NSIS
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          choco install nsis -y --no-progress
-          # choco deploys makensis to "C:\Program Files (x86)\NSIS" but does not
-          # add it to PATH; `wails build -nsis` shells out to makensis, so put it
-          # on PATH explicitly (both common locations) or no installer is made.
-          echo "C:\Program Files (x86)\NSIS" >> "$GITHUB_PATH"
-          echo "C:\Program Files\NSIS" >> "$GITHUB_PATH"
-      - name: Build .exe + NSIS installer
-        working-directory: desktop
-        run: |
-          VER="${{ steps.ver.outputs.VER }}"
-          ( cd frontend && (npm ci || npm install) && npm run build )
-          wails build -clean -platform windows/amd64 -nsis \
-            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
-          cd build/bin
-          # Portable exe -> zip; NSIS installer -> renamed setup.exe
-          powershell -Command "Compress-Archive -Path 'GizTUI Desktop.exe' -DestinationPath 'GizTUI-Desktop-${{ steps.ver.outputs.VER }}-windows-amd64.zip' -Force"
-          mv *installer.exe "GizTUI-Desktop-${VER}-windows-amd64-setup.exe" 2>/dev/null || true
-      - uses: actions/upload-artifact@v7
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          name: desktop-windows
-          path: |
-            desktop/build/bin/*-setup.exe
-            desktop/build/bin/*windows-amd64.zip
-          if-no-files-found: error
+          ref: ${{ inputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-  # -------------------------------------------------- Linux (AppImage + tar.gz)
-  linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v6
-      - id: ver
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      - name: Install locked build dependencies
+        working-directory: desktop/frontend
+        run: npm ci
+
+      - name: Install pinned packaging tools
+        shell: pwsh
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
-          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v6
-        with: { go-version: '${{ env.GO_VERSION }}' }
-      - uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}' }
-      - name: Install webkit deps + Wails
+          choco install nsis --version=3.12.0 --yes --no-progress
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\Program Files\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          go install github.com/wailsapp/wails/v2/cmd/wails@${env:WAILS_VERSION}
+
+      - name: Build application and installer
+        shell: pwsh
+        working-directory: desktop
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_BUILD_DATE: ${{ inputs.build_date }}
+          RELEASE_BUILD_NUMBER: ${{ inputs.build_number }}
+          VERSION_CORE: ${{ inputs.version_core }}
+        run: |
+          $commit = git rev-parse HEAD
+          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
+          $versionInfo = @{
+            fixed = @{ file_version = "$env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER" }
+            info = @{ "0000" = @{
+              ProductVersion = $env:RELEASE_VERSION
+              FileVersion = "$env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER"
+              CompanyName = "GizTUI"
+              FileDescription = "GizTUI Desktop"
+              LegalCopyright = "Copyright 2026 GizTUI contributors"
+              ProductName = "GizTUI Desktop"
+              Comments = "A visual Gmail client reusing the GizTUI service layer."
+            }}
+          }
+          $versionInfo | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 build/windows/info.json
+          New-Item -ItemType Directory -Force -Path build/windows/installer | Out-Null
+          $installerTemplate = Get-Content ../packaging/windows/project.nsi -Raw
+          $installerTemplate = $installerTemplate.Replace("@DISPLAY_VERSION@", $env:RELEASE_VERSION).Replace("@NUMERIC_VERSION@", "$env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER")
+          Set-Content -Encoding utf8 build/windows/installer/project.nsi $installerTemplate
+          $ldflags = "-s -w -X github.com/ajramos/giztui/internal/version.Version=$env:RELEASE_VERSION -X github.com/ajramos/giztui/internal/version.GitCommit=$commit -X github.com/ajramos/giztui/internal/version.GitBranch=$env:RELEASE_TAG -X github.com/ajramos/giztui/internal/version.BuildDate=$env:RELEASE_BUILD_DATE -X github.com/ajramos/giztui/internal/version.BuildUser=github-actions"
+          wails build -clean -platform windows/amd64 -nsis -ldflags $ldflags
+
+      - name: Assert Windows package metadata and package artifacts
+        shell: pwsh
+        working-directory: desktop
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          VERSION_CORE: ${{ inputs.version_core }}
+          RELEASE_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          $portable = Get-Item "build/bin/GizTUI Desktop.exe"
+          if ($portable.VersionInfo.ProductVersion -ne $env:RELEASE_VERSION) {
+            throw "ProductVersion $($portable.VersionInfo.ProductVersion) does not equal $env:RELEASE_VERSION"
+          }
+          if (-not $portable.VersionInfo.FileVersion.StartsWith("$env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER")) {
+            throw "FileVersion $($portable.VersionInfo.FileVersion) does not start with $env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER"
+          }
+          $installers = @(Get-ChildItem "build/bin" -Filter "*installer.exe")
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)"
+          }
+          if ($installers[0].VersionInfo.ProductVersion -ne $env:RELEASE_VERSION) {
+            throw "Installer ProductVersion $($installers[0].VersionInfo.ProductVersion) does not equal $env:RELEASE_VERSION"
+          }
+          if (-not $installers[0].VersionInfo.FileVersion.StartsWith("$env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER")) {
+            throw "Installer FileVersion $($installers[0].VersionInfo.FileVersion) does not start with $env:VERSION_CORE.$env:RELEASE_BUILD_NUMBER"
+          }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item $installers[0].FullName "dist/GizTUI-Desktop-$env:RELEASE_VERSION-windows-amd64-installer.exe"
+          Compress-Archive -Path $portable.FullName -DestinationPath "dist/GizTUI-Desktop-$env:RELEASE_VERSION-windows-amd64-portable.zip"
+          if ((Get-Item "dist/GizTUI-Desktop-$env:RELEASE_VERSION-windows-amd64-installer.exe").Length -eq 0) { throw "empty installer" }
+          if ((Get-Item "dist/GizTUI-Desktop-$env:RELEASE_VERSION-windows-amd64-portable.zip").Length -eq 0) { throw "empty portable archive" }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-desktop-windows
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  linux:
+    name: Linux amd64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      - name: Install native build dependencies
         run: |
           sudo apt-get update
-          # imagemagick: linuxdeploy rejects the 1024x1024 appicon.png (max 512),
-          # so we downscale it to 512x512 before building the AppImage.
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev imagemagick
-          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - name: Build binary + tarball
+          sudo apt-get install --yes --no-install-recommends build-essential desktop-file-utils libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-bin
+
+      - name: Install locked build dependencies
+        working-directory: desktop/frontend
+        run: npm ci
+
+      - name: Install pinned Wails CLI
+        run: go install "github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}"
+
+      - name: Build Linux application
         working-directory: desktop
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_BUILD_DATE: ${{ inputs.build_date }}
         run: |
-          VER="${{ steps.ver.outputs.VER }}"
-          ( cd frontend && (npm ci || npm install) && npm run build )
-          wails build -clean -platform linux/amd64 \
-            -ldflags "-X 'github.com/ajramos/giztui/internal/version.Version=${VER}'"
-          cd build/bin
-          # Wails names the binary from outputfilename ("GizTUI Desktop").
-          BIN="GizTUI Desktop"
-          cp "$BIN" giztui-desktop
-          tar -czf "GizTUI-Desktop-${VER}-linux-amd64.tar.gz" giztui-desktop
-      - name: Package AppImage (best-effort)
+          commit=$(git rev-parse HEAD)
+          ldflags="-s -w -X github.com/ajramos/giztui/internal/version.Version=${RELEASE_VERSION} -X github.com/ajramos/giztui/internal/version.GitCommit=${commit} -X github.com/ajramos/giztui/internal/version.GitBranch=${RELEASE_TAG} -X github.com/ajramos/giztui/internal/version.BuildDate=${RELEASE_BUILD_DATE} -X github.com/ajramos/giztui/internal/version.BuildUser=github-actions"
+          wails build -clean -platform linux/amd64 -ldflags "$ldflags"
+
+      - name: Package Linux tarball
         working-directory: desktop
-        continue-on-error: true
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SOURCE_DATE_EPOCH: ${{ inputs.source_date_epoch }}
         run: |
-          VER="${{ steps.ver.outputs.VER }}"
-          # linuxdeploy + appimagetool are themselves AppImages; extract-and-run
-          # avoids needing FUSE on the runner.
-          export APPIMAGE_EXTRACT_AND_RUN=1
-          curl -sSL -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          curl -sSL -o linuxdeploy-plugin-gtk https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
-          chmod +x linuxdeploy linuxdeploy-plugin-gtk
-          mkdir -p AppDir/usr/bin
-          cp "build/bin/GizTUI Desktop" AppDir/usr/bin/giztui-desktop
-          # linuxdeploy only accepts icon resolutions up to 512x512; appicon.png
-          # is 1024x1024, so resize it (fall back to a plain copy if convert fails).
-          convert build/appicon.png -resize 512x512 AppDir/giztui-desktop.png \
-            || cp build/appicon.png AppDir/giztui-desktop.png || true
-          cat > AppDir/giztui-desktop.desktop <<EOF
+          mkdir -p dist tar-root
+          install -m 0755 "build/bin/GizTUI Desktop" "tar-root/giztui-desktop"
+          tar --sort=name --mtime="@${SOURCE_DATE_EPOCH}" --owner=0 --group=0 --numeric-owner -C tar-root -czf "dist/GizTUI-Desktop-${RELEASE_VERSION}-linux-amd64.tar.gz" giztui-desktop
+          test -s "dist/GizTUI-Desktop-${RELEASE_VERSION}-linux-amd64.tar.gz"
+
+      - name: Download and verify pinned AppImage tooling
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --show-error --location \
+            --header "Accept: application/octet-stream" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --output linuxdeploy \
+            https://api.github.com/repos/linuxdeploy/linuxdeploy/releases/assets/497463883
+          echo "421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e  linuxdeploy" | sha256sum --check
+          curl --fail --show-error --location \
+            --output linuxdeploy-plugin-gtk.sh \
+            https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/7a3fbc31a9e5075073ff8790f26effbac5f84453/linuxdeploy-plugin-gtk.sh
+          echo "b0f4cbc684a0103a9651f0955b635eaea0096b3a66c0f5a2c2aa337960375171  linuxdeploy-plugin-gtk.sh" | sha256sum --check
+          chmod +x linuxdeploy linuxdeploy-plugin-gtk.sh
+
+      - name: Build AppImage
+        working-directory: desktop
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          VERSION: ${{ inputs.version }}
+          OUTPUT: GizTUI-Desktop.AppImage
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          install -m 0755 "build/bin/GizTUI Desktop" AppDir/usr/bin/giztui-desktop
+          cat > AppDir/usr/share/applications/giztui-desktop.desktop <<'DESKTOP'
           [Desktop Entry]
           Type=Application
           Name=GizTUI Desktop
+          Comment=Visual Gmail client
           Exec=giztui-desktop
-          Icon=giztui-desktop
+          Icon=giztui
           Categories=Network;Email;
-          EOF
-          ./linuxdeploy --appdir AppDir --plugin gtk \
-            -d AppDir/giztui-desktop.desktop -i AppDir/giztui-desktop.png \
-            --output appimage
-          mv GizTUI_Desktop*.AppImage "build/bin/GizTUI-Desktop-${VER}-x86_64.AppImage" 2>/dev/null \
-            || mv *.AppImage "build/bin/GizTUI-Desktop-${VER}-x86_64.AppImage" 2>/dev/null || true
-      - uses: actions/upload-artifact@v7
+          Terminal=false
+          DESKTOP
+          desktop-file-validate AppDir/usr/share/applications/giztui-desktop.desktop
+          convert build/appicon.png -resize 256x256 AppDir/usr/share/icons/hicolor/256x256/apps/giztui.png
+          ./linuxdeploy --appdir AppDir \
+            --desktop-file AppDir/usr/share/applications/giztui-desktop.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/giztui.png \
+            --plugin gtk --output appimage
+          test -s GizTUI-Desktop.AppImage
+          mv GizTUI-Desktop.AppImage "dist/GizTUI-Desktop-${RELEASE_VERSION}-linux-amd64.AppImage"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: desktop-linux
-          path: |
-            desktop/build/bin/*.tar.gz
-            desktop/build/bin/*.AppImage
+          name: release-desktop-linux
+          path: desktop/dist/*
           if-no-files-found: error
-
-  # ------------------------------------------ attach everything to the Release
-  publish:
-    needs: [macos, windows, linux]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - id: ver
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
-      - uses: actions/download-artifact@v6
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Checksums
-        run: (cd dist && sha256sum * > desktop-checksums.txt) || true
-      - name: Attach to release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.ver.outputs.TAG }}
-          files: dist/*
-          fail_on_unmatched_files: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ------------------------------------------------------ Homebrew cask auto-bump
-  # Bumps version + sha256 in the tap (ajramos/homebrew-giztui, Casks/
-  # giztui-desktop.rb) to match the new universal .dmg, so `brew upgrade` picks up
-  # the release with no manual step. Requires a HOMEBREW_TAP_TOKEN secret (a PAT
-  # with contents:write on the tap repo); if it is absent the job no-ops so the
-  # release itself never fails.
-  homebrew:
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - id: ver
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then TAG="${{ github.event.inputs.version }}"; else TAG="${GITHUB_REF#refs/tags/}"; fi
-          echo "VER=${TAG#v}" >> "$GITHUB_OUTPUT"
-      - name: Download macOS .dmg
-        uses: actions/download-artifact@v6
-        with:
-          name: desktop-macos
-          path: dist
-      - name: Update the tap cask
-        env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          VER: ${{ steps.ver.outputs.VER }}
-        run: |
-          if [ -z "$TAP_TOKEN" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN not set — skipping cask auto-bump. Add the secret (a PAT with contents:write on ajramos/homebrew-giztui) to enable it."
-            exit 0
-          fi
-          DMG="dist/GizTUI-Desktop-${VER}-universal.dmg"
-          if [ ! -f "$DMG" ]; then echo "::warning::$DMG not found — skipping cask bump."; exit 0; fi
-          SHA="$(sha256sum "$DMG" | cut -d' ' -f1)"
-          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/ajramos/homebrew-giztui.git" tap
-          mkdir -p tap/Casks
-          cat > tap/Casks/giztui-desktop.rb <<EOF
-          cask "giztui-desktop" do
-            version "${VER}"
-            sha256 "${SHA}"
-
-            url "https://github.com/ajramos/giztui/releases/download/v#{version}/GizTUI-Desktop-#{version}-universal.dmg"
-            name "GizTUI Desktop"
-            desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
-            homepage "https://github.com/ajramos/giztui"
-
-            app "GizTUI Desktop.app"
-
-            zap trash: [
-              "~/Library/Application Support/giztui",
-              "~/Library/Logs/giztui",
-            ]
-          end
-          EOF
-          cd tap
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/giztui-desktop.rb
-          git commit -m "giztui-desktop ${VER}" || { echo "cask already up to date"; exit 0; }
-          git push
-          echo "Bumped tap cask to ${VER} (sha256 ${SHA})"
+          retention-days: 7
+          overwrite: true

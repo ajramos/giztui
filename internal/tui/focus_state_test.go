@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 )
@@ -22,7 +23,6 @@ func TestFocusState_Basics(t *testing.T) {
 
 func TestFocusState_Race(t *testing.T) {
 	var f focusState
-	names := []string{"list", "text", "labels", "summary"}
 	var wg sync.WaitGroup
 	for n := 0; n < 8; n++ {
 		wg.Add(1)
@@ -35,7 +35,7 @@ func TestFocusState_Race(t *testing.T) {
 				f.setView("flat")
 				_ = f.viewName()
 			}
-		}(names[n%len(names)])
+		}(fmt.Sprintf("focus-%d", n))
 	}
 	wg.Wait()
 }
