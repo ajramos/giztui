@@ -53,13 +53,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sha=$(git rev-parse HEAD)
-          conclusion=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs?per_page=100" \
-            --jq '[.check_runs[] | select(.name == "required")] | sort_by(.completed_at) | last | .conclusion')
-          if [[ $conclusion != "success" ]]; then
-            echo "required CI check for ${sha} is ${conclusion:-missing}" >&2
-            exit 1
+
+          check_conclusion() {
+            local target="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${target}/check-runs?per_page=100" \
+              --jq '[.check_runs[] | select(.name == "required")] | sort_by(.completed_at) | last | .conclusion'
+          }
+
+          conclusion=$(check_conclusion "$sha")
+          if [[ $conclusion == "success" ]]; then
+            echo "required CI check is green on ${sha}"
+            exit 0
           fi
+
+          # A merge commit from a normal PR merge carries no check runs of its
+          # own: GitHub records them against the PR head commit. Resolve the PR
+          # that introduced this commit and verify the same check on its head.
+          pr_head=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/pulls" \
+            --jq '.[] | select(.merged_at != null) | .head.sha' | head -n1)
+          if [[ -n $pr_head ]]; then
+            echo "release commit is a PR merge; resolving required check on PR head ${pr_head}"
+            conclusion=$(check_conclusion "$pr_head")
+            if [[ $conclusion == "success" ]]; then
+              echo "required CI check is green on PR head ${pr_head}"
+              exit 0
+            fi
+          fi
+
+          echo "required CI check for ${sha} is ${conclusion:-missing}" >&2
+          exit 1
 
       - name: Export immutable release metadata
         id: metadata
