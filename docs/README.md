@@ -98,6 +98,17 @@ UI focus patterns and navigation:
 - Focus cycling and management
 - Keyboard navigation patterns
 
+### **[🧭 Decision Index](decisions/index.md)**
+Design decisions and plan statuses:
+- Implemented / in-progress / superseded / archived
+- Links to design specs and implementation plans
+
+## 📋 Live Backlog
+
+GitHub Issues is the canonical live backlog for GizTUI. Feature requests,
+bugs, and design work are tracked there, not in this repository's prose. See
+[CONTRIBUTING.md](../CONTRIBUTING.md) and [SUPPORT.md](../SUPPORT.md) for how
+to report or propose work.
 
 ## 🏃 Quick Navigation
 
@@ -161,7 +172,7 @@ Help improve GizTUI documentation:
 ### **Community**
 - [GitHub Repository](https://github.com/ajramos/giztui) - Source code and issues
 - [Releases](https://github.com/ajramos/giztui/releases) - Download binaries
-- [Discussions](https://github.com/ajramos/giztui/discussions) - Community support
+- [Issues](https://github.com/ajramos/giztui/issues) - The canonical backlog and support channel
 
 ## 📝 Documentation Guidelines
 

@@ -635,7 +635,7 @@ All shortcuts can be customized in `~/.config/giztui/config.json`. You can overr
 - [Getting Started Guide](GETTING_STARTED.md) - Setup and first steps
 - [Features Documentation](FEATURES.md) - Complete feature list
 - [Configuration Guide](CONFIGURATION.md) - Customization options
-- [User Guide](USER_GUIDE.md) - Detailed usage instructions
+- [Documentation Hub](README.md) - All guides and references
 
 ---
 

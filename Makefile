@@ -306,6 +306,10 @@ ci-architecture: ci-tools-check ## Run architecture and complexity ratchets
 	scripts/check-architecture.sh
 	$(CI_PYTHON) scripts/check-quality-ratchet.py
 
+ci-docs: ci-tools-check ## Validate JSON, YAML, and markdown internal links
+	@echo "$(GREEN)Running documentation gate...$(NC)"
+	$(CI_PYTHON) scripts/check-docs.py
+
 quality-baseline-update: ci-tools-check ## Deliberately accept the reviewed current source metrics
 	$(CI_PYTHON) scripts/check-quality-ratchet.py --write
 	$(CI_PYTHON) scripts/check-quality-ratchet.py
@@ -315,6 +319,7 @@ ci: ## Run the same fail-closed product gate used by CI
 	@$(MAKE) ci-go
 	@$(MAKE) ci-security
 	@$(MAKE) ci-architecture
+	@$(MAKE) ci-docs
 	@$(MAKE) ci-desktop
 	@echo "$(GREEN)Canonical CI gate passed.$(NC)"
 

@@ -216,7 +216,9 @@ GizTUI includes several built-in themes and supports custom themes:
 
 - **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - Development patterns and conventions
 - **[🎨 Theming Guide](docs/THEMING.md)** - Theme system and customization
-- **[GitHub Repository](https://github.com/ajramos/giztui)** - Source code, issues, discussions
+- **[Contributing Guide](CONTRIBUTING.md)** - How changes reach `main`, AI-assisted policy, governance
+- **[GitHub Issues](https://github.com/ajramos/giztui/issues)** - Canonical backlog and support channel
+- **[GitHub Repository](https://github.com/ajramos/giztui)** - Source code
 
 ## 🖥️ Desktop Client (beta)
 
