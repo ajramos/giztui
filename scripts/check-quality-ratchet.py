@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_BASELINE = ROOT / "quality-baseline-per-file.csv"
 SOURCE_SUFFIXES = {".go", ".js", ".jsx", ".ts", ".tsx"}
 EXCLUDED_PARTS = {
+    ".venv-ci",
     "build",
     "dist",
     "e2e",
