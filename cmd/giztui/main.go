@@ -12,7 +12,6 @@ import (
 	"github.com/ajramos/giztui/internal/calendar"
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/gmail"
-	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/ajramos/giztui/internal/tui"
 	"github.com/ajramos/giztui/internal/version"
@@ -385,35 +384,17 @@ func main() {
 
 	// All LLM configuration is now handled via config file only
 
-	// Initialize LLM provider
-	var llmProvider llm.Provider
-	if cfg.LLM.Enabled {
-		model := cfg.LLM.Model
-		timeout := cfg.GetLLMTimeout()
-
-		if model != "" {
-			providerName := cfg.LLM.Provider
-			if providerName == "" {
-				providerName = "ollama"
-			}
-
-			arg := cfg.LLM.Endpoint
-
-			if providerName == "bedrock" {
-				region := cfg.LLM.Region
-				if region == "" {
-					if env := os.Getenv("AWS_REGION"); env != "" {
-						region = env
-					}
-				}
-				arg = region
-			}
-			var err error
-			llmProvider, err = llm.NewProviderFromConfig(providerName, arg, model, timeout, cfg.LLM.APIKey)
-			if err != nil {
-				log.Printf("Warning: could not initialize LLM provider (%s): %v", providerName, err)
-			}
-		}
+	// Initialize the LLM provider for the active account's effective engine.
+	// EffectiveLLM("") falls back to the global config, so legacy single-account
+	// setups are unaffected. On error we log and leave the provider nil (AI off).
+	var activeAccountID string
+	if acct, err := accountService.GetActiveAccount(ctx); err == nil && acct != nil {
+		activeAccountID = acct.ID
+	}
+	llmProvider, err := cfg.BuildEffectiveProvider(activeAccountID)
+	if err != nil {
+		log.Printf("Warning: could not initialize LLM provider for account %q: %v", activeAccountID, err)
+		llmProvider = nil
 	}
 
 	// Create and run TUI (database management is now handled internally)

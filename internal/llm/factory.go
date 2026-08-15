@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -22,7 +23,9 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 		}
 		return br, nil
 	default:
-		// Fallback to Ollama for unknown providers
-		return NewClient(endpoint, model, timeout), nil
+		// Unknown providers are a configuration error (typically a per-account
+		// typo). Return an error instead of silently running Ollama so callers
+		// disable AI with a clear log rather than using the wrong engine.
+		return nil, fmt.Errorf("unknown LLM provider %q (supported: ollama, bedrock)", provider)
 	}
 }
