@@ -976,7 +976,7 @@ func (a *App) openSearchOverlay(mode string) {
 				return
 			}
 			// If there was an LLM suggestion running, inform user it was cancelled
-			if a.LLM != nil {
+			if a.GetLLM() != nil {
 				if a.caches.aiInFlightCancelFirst() {
 					a.showStatusMessage("🔕 Suggestion cancelled when opening search")
 				}

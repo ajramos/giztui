@@ -156,7 +156,8 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 
 	// Optional LLM touch-up function
 	var touch render.TouchUpFunc
-	if useLLM && a.LLM != nil {
+	prov := a.GetLLM()
+	if useLLM && prov != nil {
 		touch = func(ctx context.Context, input string, wrapWidth int) (string, error) {
 			// Build from configurable template
 			tmpl := strings.TrimSpace(a.Config.LLM.GetTouchUpPrompt())
@@ -173,7 +174,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 			type paramProv interface {
 				GenerateWithParams(string, map[string]interface{}) (string, error)
 			}
-			if pp, ok := a.LLM.(paramProv); ok {
+			if pp, ok := prov.(paramProv); ok {
 				out, err := pp.GenerateWithParams(prompt, map[string]interface{}{"temperature": 0.0})
 				if err != nil {
 					return "", err
@@ -183,7 +184,7 @@ func (a *App) renderMessageContent(m *gmail.Message) (string, bool) {
 				}
 				return input, nil
 			}
-			out, err := a.LLM.Generate(prompt)
+			out, err := prov.Generate(prompt)
 			if err != nil {
 				return "", err
 			}
