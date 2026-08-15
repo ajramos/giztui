@@ -239,6 +239,28 @@ optionally `endpoint` to point at an OpenAI-compatible gateway):
 
 The `api_key` is read from `config.json`; keep that file readable only by you.
 
+### Google Gemini / Vertex AI — `provider: "vertex"`
+
+Two backends, chosen by what you configure:
+
+- **Gemini API key** (`generativelanguage.googleapis.com`) — simplest, no Google
+  Cloud project. Set `api_key`:
+
+  ```json
+  { "llm": { "enabled": true, "provider": "vertex", "model": "gemini-1.5-flash", "api_key": "AIza..." } }
+  ```
+
+- **Vertex AI** (`{region}-aiplatform.googleapis.com`) — set `project` and
+  `region`, no `api_key`. Auth uses Application Default Credentials, so run
+  `gcloud auth application-default login` first (or point
+  `GOOGLE_APPLICATION_CREDENTIALS` at a service-account key):
+
+  ```json
+  { "llm": { "enabled": true, "provider": "vertex", "model": "gemini-1.5-pro", "project": "my-gcp-project", "region": "us-central1" } }
+  ```
+
+`gemini` is accepted as an alias for `vertex`.
+
 ### ChatGPT Subscription (OAuth) — `provider: "chatgpt"`
 
 > ⚠️ **Experimental / unofficial.** This reuses a **ChatGPT Plus/Pro

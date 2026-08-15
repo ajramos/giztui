@@ -53,7 +53,8 @@ type LLMConfig struct {
 	Provider string `json:"provider"` // ollama, openai, anthropic, bedrock, custom
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint"`
-	Region   string `json:"region"` // For AWS Bedrock
+	Region   string `json:"region"`  // AWS Bedrock region; Vertex AI location
+	Project  string `json:"project"` // Google Cloud project ID (Vertex AI)
 	APIKey   string `json:"api_key"`
 	Timeout  string `json:"timeout"`
 
@@ -163,6 +164,9 @@ func (c *Config) EffectiveLLM(accountID string) LLMConfig {
 	}
 	if ov.Region != "" {
 		eff.Region = ov.Region
+	}
+	if ov.Project != "" {
+		eff.Project = ov.Project
 	}
 	if ov.APIKey != "" {
 		eff.APIKey = ov.APIKey

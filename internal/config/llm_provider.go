@@ -26,6 +26,12 @@ func (c *Config) BuildEffectiveProvider(accountID string) (llm.Provider, error) 
 		providerName = "ollama"
 	}
 
+	// Vertex/Gemini needs project + region (or an api_key) that the flat factory
+	// signature can't carry, so construct it directly here.
+	if providerName == "vertex" || providerName == "gemini" {
+		return llm.NewGemini(eff.Project, eff.Region, eff.Model, eff.APIKey, eff.Endpoint, c.GetLLMTimeout()), nil
+	}
+
 	// For Bedrock the "endpoint" arg is treated as the AWS region, with an
 	// AWS_REGION environment fallback (mirrors the historical wiring).
 	arg := eff.Endpoint

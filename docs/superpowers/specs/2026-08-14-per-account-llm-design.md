@@ -222,7 +222,14 @@ New `:llm` command family (TUI) + desktop equivalent:
 3. ✅ **OpenAI API-key (DONE)** — metered `api.openai.com` Chat Completions +
    SSE (`internal/llm/openai.go`, provider `"openai"`, `api_key` from config,
    overridable `BaseURL`); httptest-backed tests for Generate/stream/401/no-key.
-4. **Vertex/Gemini** — Google auth + client.
+4. ✅ **Vertex/Gemini (DONE)** — `internal/llm/gemini.go` (provider `"vertex"`,
+   alias `"gemini"`), dual backend: Gemini API-key (Generative Language API) or
+   Vertex AI with project+region and ADC (`golang.org/x/oauth2/google`
+   FindDefaultCredentials). Adds `LLMConfig.Project`; constructed in
+   `BuildEffectiveProvider` (the flat factory signature can't carry project/region).
+   httptest-backed tests cover API-key generate/stream, the Vertex URL shape, the
+   missing-credentials guard, and 403 handling. (ADC path needs live GCP creds to
+   verify end-to-end.)
 
 ## Verification
 - **Unit:** `EffectiveLLM` (override/inherit/unknown/no-dilution); each provider client against
