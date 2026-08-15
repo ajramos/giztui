@@ -22,6 +22,10 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 			return nil, err
 		}
 		return br, nil
+	case "chatgpt":
+		// ChatGPT Plus/Pro subscription via OAuth (no api key). Credentials live
+		// in the machine-wide authstore; run `:llm login chatgpt` once.
+		return NewChatGPT(model, timeout), nil
 	default:
 		// Unknown providers are a configuration error (typically a per-account
 		// typo). Return an error instead of silently running Ollama so callers
