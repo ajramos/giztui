@@ -14,7 +14,6 @@ import (
 	"github.com/ajramos/giztui/internal/config"
 	"github.com/ajramos/giztui/internal/db"
 	"github.com/ajramos/giztui/internal/gmail"
-	"github.com/ajramos/giztui/internal/llm"
 	"github.com/ajramos/giztui/internal/render"
 	"github.com/ajramos/giztui/internal/services"
 	"github.com/ajramos/giztui/pkg/auth"
@@ -146,20 +145,25 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 		logger.Printf("desktop: calendar RSVP disabled: %v", err)
 	}
 
-	api := buildAPI(ctx, cfg, client, dbManager, cal, logger)
+	// Resolve the active account ID first so the LLM is built from its effective
+	// engine (EffectiveLLM), not the global config.
+	var activeAccountID string
+	if active, err := accountService.GetActiveAccount(ctx); err == nil && active != nil {
+		activeAccountID = active.ID
+	}
+
+	api := buildAPI(ctx, cfg, activeAccountID, client, dbManager, cal, logger)
 
 	sess := &Session{
-		API:            api,
-		Config:         cfg,
-		client:         client,
-		dbManager:      dbManager,
-		accountService: accountService,
-		cal:            cal,
-		configPath:     configPath,
-		logger:         logger,
-	}
-	if active, err := accountService.GetActiveAccount(ctx); err == nil && active != nil {
-		sess.currentAccountID = active.ID
+		API:              api,
+		Config:           cfg,
+		client:           client,
+		dbManager:        dbManager,
+		accountService:   accountService,
+		cal:              cal,
+		configPath:       configPath,
+		logger:           logger,
+		currentAccountID: activeAccountID,
 	}
 	return sess, nil
 }
@@ -167,7 +171,7 @@ func NewSession(ctx context.Context, opts Options) (*Session, error) {
 // buildAPI constructs the full service stack for a given Gmail client and wraps
 // it in an API. It opens the per-account local database (best-effort; powers
 // summary caching and prompts) and is reused verbatim when switching accounts.
-func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbManager services.DatabaseManager, cal calClient, logger *log.Logger) *API {
+func buildAPI(ctx context.Context, cfg *config.Config, accountID string, client *gmail.Client, dbManager services.DatabaseManager, cal calClient, logger *log.Logger) *API {
 	repo := services.NewMessageRepository(client)
 	labelService := services.NewLabelService(client)
 	renderer := render.NewEmailRenderer(cfg)
@@ -197,7 +201,7 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 	}
 
 	// AIService is optional: only wired when an LLM provider is configured.
-	aiService := buildAIService(cfg, cacheService, logger)
+	aiService := buildAIService(cfg, accountID, cacheService, logger)
 
 	// Chat service (multi-turn "chat with this email"); nil without an LLM.
 	var chatService services.ChatService
@@ -337,6 +341,11 @@ func buildAPI(ctx context.Context, cfg *config.Config, client *gmail.Client, dbM
 // ConfigPath returns the path of the config file this session loaded.
 func (s *Session) ConfigPath() string { return s.configPath }
 
+// CurrentAccountID returns the ID of the account this session is operating on.
+// Empty for a legacy single-account config; EffectiveLLM then falls back to the
+// global LLM settings.
+func (s *Session) CurrentAccountID() string { return s.currentAccountID }
+
 // SetAutoRefreshEnabled persists the auto-refresh on/off choice to this session's config file (and
 // updates the in-memory copy). This mirrors the TUI and, crucially, lets turning auto-refresh off in
 // the desktop write enabled:false so no TUI launched later silently re-arms the Slack new-mail digest.
@@ -407,35 +416,26 @@ func (s *Session) SwitchAccount(ctx context.Context, accountID string) error {
 		return err
 	}
 	s.client = client
-	s.API = buildAPI(ctx, s.Config, client, s.dbManager, s.cal, s.logger)
+	// Set the current account before rebuilding so buildAPI resolves this
+	// account's effective LLM engine.
 	s.currentAccountID = accountID
+	s.API = buildAPI(ctx, s.Config, accountID, client, s.dbManager, s.cal, s.logger)
 	return nil
 }
 
 // buildAIService constructs an AIService from config, mirroring the TUI's LLM
 // wiring. Returns nil (not an error) when AI is disabled or misconfigured, so
 // the rest of the app still works without AI.
-func buildAIService(cfg *config.Config, cacheService services.CacheService, logger *log.Logger) services.AIService {
-	if !cfg.LLM.Enabled || cfg.LLM.Model == "" {
-		return nil
-	}
-	providerName := cfg.LLM.Provider
-	if providerName == "" {
-		providerName = "ollama"
-	}
-	arg := cfg.LLM.Endpoint
-	if providerName == "bedrock" {
-		region := cfg.LLM.Region
-		if region == "" {
-			region = os.Getenv("AWS_REGION")
-		}
-		arg = region
-	}
-	provider, err := llm.NewProviderFromConfig(providerName, arg, cfg.LLM.Model, cfg.GetLLMTimeout(), cfg.LLM.APIKey)
+func buildAIService(cfg *config.Config, accountID string, cacheService services.CacheService, logger *log.Logger) services.AIService {
+	provider, err := cfg.BuildEffectiveProvider(accountID)
 	if err != nil {
 		if logger != nil {
-			logger.Printf("desktop: LLM provider (%s) init failed: %v", providerName, err)
+			logger.Printf("desktop: LLM provider init failed for account %q: %v", accountID, err)
 		}
+		return nil
+	}
+	if provider == nil {
+		// AI disabled or no model configured for this account.
 		return nil
 	}
 	return services.NewAIService(provider, cacheService, cfg)

@@ -165,6 +165,61 @@ Becomes equivalent to:
 }
 ```
 
+### Per-Account LLM Engine
+
+Each account can select its own LLM engine. Add an `llm` block to an account to
+override the global `llm` for that account only; omit it to inherit the global
+`llm` settings. This lets, for example, a work account run a local Ollama model
+while a personal account uses a different provider.
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434",
+    "model": "llama3.2"
+  },
+  "accounts": [
+    {
+      "id": "work",
+      "display_name": "Work Account",
+      "credentials": "~/.config/giztui/credentials-work.json",
+      "token": "~/.config/giztui/token-work.json",
+      "active": true
+    },
+    {
+      "id": "personal",
+      "display_name": "Personal Gmail",
+      "credentials": "~/.config/giztui/credentials-personal.json",
+      "token": "~/.config/giztui/token-personal.json",
+      "active": false,
+      "llm": {
+        "enabled": true,
+        "provider": "bedrock",
+        "region": "us-east-1",
+        "model": "anthropic.claude-3-5-sonnet-20240620-v1:0"
+      }
+    }
+  ]
+}
+```
+
+Resolution rules:
+
+- **No `llm` block on the account** → inherit the global `llm` verbatim.
+- **`llm` block present** → its core fields (`enabled`, `provider`, `model`,
+  `endpoint`, `region`, `api_key`) are used as-is; cosmetic fields (prompt
+  templates, timeout, streaming, caching) fall back to defaults when omitted.
+- An **unknown provider** disables AI for that account (logged), rather than
+  silently falling back to another engine.
+
+Switching accounts (`Ctrl+A` / `:accounts switch <id>`) re-resolves and rebuilds
+the AI stack immediately. Run **`:config`** (no subcommand) to see the active
+account's effective engine: `AI: <provider> · <model> (account: <id>)`, or
+`AI: disabled`. Existing single-account configs are unaffected — with no
+per-account `llm` block, `:config` reports the global engine.
+
 ## 🔄 Credential Resolution & Fallback System
 
 GizTUI implements a graceful 3-level credential fallback system that ensures reliable authentication even when some credential sources are invalid or missing. This design prevents application crashes due to configuration issues while providing clear feedback about the credential resolution process.

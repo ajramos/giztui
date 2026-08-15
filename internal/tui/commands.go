@@ -2323,7 +2323,8 @@ func (a *App) executeRulesCommand(args []string) {
 	}
 }
 
-// executeConfigCommand handles :config [migrate]. Without a subcommand it prints usage.
+// executeConfigCommand handles :config [migrate]. Without a subcommand it shows
+// the active account's effective AI engine (provider · model) plus a migrate hint.
 func (a *App) executeConfigCommand(args []string) {
 	if len(args) > 0 && strings.ToLower(args[0]) == "migrate" {
 		go func() {
@@ -2341,5 +2342,29 @@ func (a *App) executeConfigCommand(args []string) {
 		}()
 		return
 	}
-	go a.GetErrorHandler().ShowInfo(a.ctx, "Usage: :config migrate")
+	// No subcommand: show the active account's effective AI engine.
+	go func() {
+		var accountID string
+		if as := a.GetAccountService(); as != nil {
+			if acct, err := as.GetActiveAccount(a.ctx); err == nil && acct != nil {
+				accountID = acct.ID
+			}
+		}
+		eff := a.Config.EffectiveLLM(accountID)
+		var msg string
+		if !eff.Enabled || eff.Model == "" {
+			msg = "AI: disabled"
+		} else {
+			provider := eff.Provider
+			if provider == "" {
+				provider = "ollama"
+			}
+			if accountID != "" {
+				msg = fmt.Sprintf("AI: %s · %s (account: %s)", provider, eff.Model, accountID)
+			} else {
+				msg = fmt.Sprintf("AI: %s · %s", provider, eff.Model)
+			}
+		}
+		a.GetErrorHandler().ShowInfo(a.ctx, msg+"  ·  :config migrate to update config")
+	}()
 }

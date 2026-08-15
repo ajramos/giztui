@@ -245,11 +245,13 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 		return desktop.ConfigInfo{}
 	}
 	cfg := s.Config
+	// Show the active account's effective engine, not the global config.
+	eff := cfg.EffectiveLLM(s.CurrentAccountID())
 	info := desktop.ConfigInfo{
 		ConfigPath:  s.ConfigPath(),
 		LogPath:     desktop.DefaultLogPath(),
-		LLMProvider: cfg.LLM.Provider,
-		LLMModel:    cfg.LLM.Model,
+		LLMProvider: eff.Provider,
+		LLMModel:    eff.Model,
 		Theme:       cfg.Theme.Current,
 		SlackOn:     cfg.Slack.Enabled,
 		AutoRefresh: cfg.AutoRefresh.Enabled,
