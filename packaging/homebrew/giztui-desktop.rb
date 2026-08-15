@@ -15,7 +15,7 @@
 # notarization lands the build is unsigned and macOS may require right-click,
 # Open, and explicit confirmation on first launch.
 cask "giztui-desktop" do
-  version "1.28.0-rc.1"
+  version "1.28.0"
   sha256 :no_check # the tap copy is pinned to the DMG's sha256 by CI
 
   url "https://github.com/ajramos/giztui/releases/download/v#{version}/GizTUI-Desktop-#{version}-universal.dmg"
