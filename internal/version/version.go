@@ -10,7 +10,7 @@ import (
 
 var (
 	// Version is the semantic version number
-	Version = "1.28.0-rc.1"
+	Version = "1.28.0"
 
 	// GitCommit is the git commit hash (injected at build time)
 	GitCommit = "unknown"

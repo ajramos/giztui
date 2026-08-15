@@ -5,12 +5,12 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.28.0-rc.1] - 2026-08-14
+## [1.28.0] - 2026-08-15
 
-Release candidate for the hardened SDLC pipeline. This is the first release built
-end-to-end by the fail-closed release workflow: exact-tag validation, SBOMs,
-checksums, and GitHub provenance attestations. Stable releases stay paused until
-this candidate passes the Phase 3 rehearsal.
+The first stable release built end-to-end by the hardened SDLC pipeline
+(exact-tag validation, SBOMs, checksums, and GitHub provenance attestations).
+The `1.28.0-rc.1` candidate passed the Phase 3 rehearsal; this stable release
+ships the same source plus the rehearsal fixes.
 
 ### 🚀 Features
 
