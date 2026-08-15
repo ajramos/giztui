@@ -259,6 +259,12 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 	if cfg.Obsidian != nil {
 		info.ObsidianOn = cfg.Obsidian.Enabled
 	}
+	// Subscription providers (chatgpt) need an interactive login; surface the
+	// state so the ConfigModal can offer Login/Logout.
+	if eff.Enabled && eff.Provider == "chatgpt" {
+		info.LLMNeedsLogin = true
+		info.LLMLoggedIn = desktop.ChatGPTLoggedIn()
+	}
 	if email, err := s.AccountEmail(a.ctx); err == nil {
 		info.Account = email
 	}
@@ -285,6 +291,25 @@ func (a *App) MigrateConfig() (string, error) {
 		return "Config is already up to date", nil
 	}
 	return fmt.Sprintf("Config updated: +%d added, -%d removed (backup: %s). Restart to apply.", len(added), len(removed), backup), nil
+}
+
+// LLMLogin runs the ChatGPT subscription OAuth (PKCE) flow, mirroring the TUI's
+// ":llm login chatgpt". It opens the system browser and blocks until the login
+// callback completes (or errors), persisting the machine-global token. The
+// binding call returns only when the flow finishes, so the frontend can await it
+// and refresh ConfigInfo afterward. Credentials are shared by every account that
+// selects the "chatgpt" provider — one login per machine.
+func (a *App) LLMLogin() error {
+	model := ""
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		model = s.Config.EffectiveLLM(s.CurrentAccountID()).Model
+	}
+	return desktop.ChatGPTLogin(a.ctx, model)
+}
+
+// LLMLogout removes the stored ChatGPT subscription tokens (":llm logout chatgpt").
+func (a *App) LLMLogout() error {
+	return desktop.ChatGPTLogout()
 }
 
 // InviteInfo returns calendar-invite details for a message (IsInvite=false when

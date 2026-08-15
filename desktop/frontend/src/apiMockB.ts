@@ -248,11 +248,19 @@ export const mockB: Partial<Backend> = {
       slackOn: true,
       autoRefresh: false,
       downloadPath: "~/Downloads/gmail-attachments",
+      llmNeedsLogin: false,
+      llmLoggedIn: false,
     };
   },
   async MigrateConfig() {
     await new Promise((r) => setTimeout(r, 150));
     return "Config is already up to date";
+  },
+  async LLMLogin() {
+    await new Promise((r) => setTimeout(r, 150));
+  },
+  async LLMLogout() {
+    await new Promise((r) => setTimeout(r, 50));
   },
   async SetAutoRefreshEnabled(_enabled: boolean) {
     await new Promise((r) => setTimeout(r, 50));

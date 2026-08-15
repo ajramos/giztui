@@ -210,6 +210,12 @@ type ConfigInfo struct {
 	SlackOn      bool   `json:"slackOn"`
 	AutoRefresh  bool   `json:"autoRefresh"`
 	DownloadPath string `json:"downloadPath"`
+	// LLMNeedsLogin is true when the active engine is a subscription provider
+	// (e.g. chatgpt) that requires an interactive OAuth login. LLMLoggedIn then
+	// reports whether stored credentials are present. Both are false for
+	// stateless providers (ollama, bedrock).
+	LLMNeedsLogin bool `json:"llmNeedsLogin"`
+	LLMLoggedIn   bool `json:"llmLoggedIn"`
 }
 
 // Invite describes a calendar invitation detected in a message, so the reader
