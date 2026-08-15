@@ -23,7 +23,7 @@ cask "giztui-desktop" do
   desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
   homepage "https://github.com/ajramos/giztui"
 
-  depends_on macos: ">= :monterey"
+  depends_on macos: :monterey
 
   app "GizTUI Desktop.app"
 
