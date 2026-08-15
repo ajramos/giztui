@@ -389,6 +389,7 @@ func (a *App) commandTable() map[string]func(args []string) {
 		"refresh":     a.executeRefreshCommand,
 		"autorefresh": a.executeAutoRefreshCommand, "arr": a.executeAutoRefreshCommand,
 		"config": a.executeConfigCommand, "cfg": a.executeConfigCommand,
+		"llm": a.executeLLMCommand,
 		"load": a.executeLoadMoreCommand, "more": a.executeLoadMoreCommand, "next": a.executeLoadMoreCommand,
 		"unread": a.executeUnreadCommand, "u": a.executeUnreadCommand,
 		"undo": a.executeUndoCommand, "U": a.executeUndoCommand,

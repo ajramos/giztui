@@ -23,7 +23,7 @@ var goldenCommandTokens = []string{
 	"chat", "collapse", "collapse-all", "compose", "config", "d", "dr",
 	"drafts", "expand", "expand-all", "f", "flat", "flatten", "forward", "g",
 	"gmail", "h", "headers", "help", "i", "inbox", "jobs", "l", "label",
-	"labels", "lbl", "link", "links", "load", "markdown", "md", "more", "move",
+	"labels", "lbl", "link", "links", "llm", "load", "markdown", "md", "more", "move",
 	"mv", "n", "new", "next", "numbers", "o", "obs", "obsidian", "open-web",
 	"p", "pl", "plan", "pn", "pr", "preload", "prf", "prompt", "prompt-new",
 	"prompt-refine", "prompt-save", "ps", "q", "qb", "queries", "query", "quit",

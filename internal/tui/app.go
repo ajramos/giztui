@@ -2469,6 +2469,7 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s ⟳   Toggle inbox auto-refresh (alias :arr; :arr 2m sets interval; Slack notify+AI summary via config)\n", ":autorefresh")
 	fmt.Fprintf(&help, "    %-18s ⚙️   Show the active account's AI engine (provider · model)\n", ":config")
 	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
+	fmt.Fprintf(&help, "    %-18s 🔑  ChatGPT subscription: status / OAuth login / logout (per-account engine via config)\n", ":llm login chatgpt")
 	if a.Keys.Speak != "" {
 		fmt.Fprintf(&help, "    %-18s 🔊  Read the focused panel aloud (TTS; stop = press again)\n", a.Keys.Speak)
 	}

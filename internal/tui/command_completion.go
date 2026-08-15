@@ -151,6 +151,9 @@ var commandRegistry = []commandSpec{
 	{name: "config", aliases: []string{"cfg"}, help: &cmdHelp{
 		summary: "Show the active configuration.",
 	}},
+	{name: "llm", help: &cmdHelp{
+		summary: "Manage subscription LLM login (:llm status|login chatgpt|logout chatgpt).",
+	}},
 	{name: "load", aliases: []string{"more", "next"}, help: &cmdHelp{
 		summary: "Load the next batch of older messages.",
 	}},
