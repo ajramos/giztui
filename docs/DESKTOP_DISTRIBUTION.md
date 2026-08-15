@@ -95,7 +95,7 @@ cask "giztui-desktop" do
   desc "Visual Gmail client (Wails) sharing the GizTUI service layer"
   homepage "https://github.com/ajramos/giztui"
   app "GizTUI Desktop.app"
-  depends_on macos: ">= :monterey"
+  depends_on macos: :monterey
   # Unsigned until Developer ID signing and notarization are configured.
 end
 ```
