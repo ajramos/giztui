@@ -220,6 +220,41 @@ account's effective engine: `AI: <provider> · <model> (account: <id>)`, or
 `AI: disabled`. Existing single-account configs are unaffected — with no
 per-account `llm` block, `:config` reports the global engine.
 
+### ChatGPT Subscription (OAuth) — `provider: "chatgpt"`
+
+> ⚠️ **Experimental / unofficial.** This reuses a **ChatGPT Plus/Pro
+> subscription** via the same OAuth method OpenAI's Codex CLI uses — it is **not**
+> the metered `api.openai.com` API and needs no API key. The backend endpoint and
+> headers mirror the Codex CLI and can change or break at any time. Personal use
+> only; opt-in.
+
+Select it per account (or globally) with:
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "chatgpt",
+    "model": "gpt-5"
+  }
+}
+```
+
+No `api_key` or `endpoint` is required — credentials come from an interactive
+login, not the config file. Log in **once per machine**:
+
+```
+:llm login chatgpt     # opens your browser for the OAuth flow
+:llm status            # shows the active engine + whether you're logged in
+:llm logout chatgpt    # removes the stored tokens
+```
+
+The tokens are stored, machine-wide, in `~/.config/giztui/llm-auth.json` (file
+mode `0600`, never in `config.json` and never logged) and are **shared by every
+account** that selects the `chatgpt` provider — you only log in once, not per
+Gmail account. Tokens refresh automatically near expiry; if a refresh fails,
+re-run `:llm login chatgpt`.
+
 ## 🔄 Credential Resolution & Fallback System
 
 GizTUI implements a graceful 3-level credential fallback system that ensures reliable authentication even when some credential sources are invalid or missing. This design prevents application crashes due to configuration issues while providing clear feedback about the credential resolution process.

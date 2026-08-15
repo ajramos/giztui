@@ -210,11 +210,15 @@ New `:llm` command family (TUI) + desktop equivalent:
 - ❓ One flat `LLMConfig` for all engines vs per-provider sub-structs (recommend flat).
 
 ## Phased plan (order DECIDED 2026-08-14)
-1. **Plumbing** — `AccountConfig.LLM`, `EffectiveLLM`, `GetLLM/SetLLM`, switch/startup/desktop
-   wiring, factory error-on-unknown, `:config`/ConfigModal display. Ships with existing
+1. ✅ **Plumbing (DONE)** — `AccountConfig.LLM`, `EffectiveLLM`, `GetLLM/SetLLM`, switch/startup/
+   desktop wiring, factory error-on-unknown, `:config`/ConfigModal display. Ships with existing
    engines (ollama+bedrock) already per-account-selectable. Fully testable alone.
-2. **ChatGPT subscription** (the real goal, first) — auth store + OAuth + Codex client +
-   `:llm login`. Research-gated: pin the OAuth flow from the reference impl before coding.
+2. ✅ **ChatGPT subscription (DONE)** (the real goal, first) — auth store (`internal/llm/authstore`,
+   0600, machine-global) + OAuth 2.0 PKCE login + Codex Responses-API SSE client
+   (`internal/llm/chatgpt.go`) + factory `case "chatgpt"` + `:llm login|logout|status` (TUI).
+   Endpoints/client-id mirror the Codex CLI (public values), adjustable via overridable fields;
+   httptest-backed unit tests cover PKCE, token exchange/refresh, `validToken`, and SSE parse.
+   ⚠️ Live path is unverifiable without a real subscription — best-effort, opt-in.
 3. **OpenAI API-key** provider — standard chat/completions + SSE.
 4. **Vertex/Gemini** — Google auth + client.
 
