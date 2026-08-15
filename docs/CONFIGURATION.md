@@ -220,6 +220,25 @@ account's effective engine: `AI: <provider> · <model> (account: <id>)`, or
 `AI: disabled`. Existing single-account configs are unaffected — with no
 per-account `llm` block, `:config` reports the global engine.
 
+### OpenAI API key (metered) — `provider: "openai"`
+
+The standard, **metered** OpenAI API (`api.openai.com`), billed per token with an
+API key — distinct from the ChatGPT subscription below. Set `api_key` (and
+optionally `endpoint` to point at an OpenAI-compatible gateway):
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": "sk-..."
+  }
+}
+```
+
+The `api_key` is read from `config.json`; keep that file readable only by you.
+
 ### ChatGPT Subscription (OAuth) — `provider: "chatgpt"`
 
 > ⚠️ **Experimental / unofficial.** This reuses a **ChatGPT Plus/Pro

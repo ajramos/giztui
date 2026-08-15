@@ -219,7 +219,9 @@ New `:llm` command family (TUI) + desktop equivalent:
    Endpoints/client-id mirror the Codex CLI (public values), adjustable via overridable fields;
    httptest-backed unit tests cover PKCE, token exchange/refresh, `validToken`, and SSE parse.
    ⚠️ Live path is unverifiable without a real subscription — best-effort, opt-in.
-3. **OpenAI API-key** provider — standard chat/completions + SSE.
+3. ✅ **OpenAI API-key (DONE)** — metered `api.openai.com` Chat Completions +
+   SSE (`internal/llm/openai.go`, provider `"openai"`, `api_key` from config,
+   overridable `BaseURL`); httptest-backed tests for Generate/stream/401/no-key.
 4. **Vertex/Gemini** — Google auth + client.
 
 ## Verification

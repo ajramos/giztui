@@ -22,6 +22,10 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 			return nil, err
 		}
 		return br, nil
+	case "openai":
+		// Metered OpenAI API (api.openai.com) with an API key. endpoint may point
+		// at a compatible gateway; empty → the public API.
+		return NewOpenAI(apiKey, endpoint, model, timeout), nil
 	case "chatgpt":
 		// ChatGPT Plus/Pro subscription via OAuth (no api key). Credentials live
 		// in the machine-wide authstore; run `:llm login chatgpt` once.
@@ -30,6 +34,6 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 		// Unknown providers are a configuration error (typically a per-account
 		// typo). Return an error instead of silently running Ollama so callers
 		// disable AI with a clear log rather than using the wrong engine.
-		return nil, fmt.Errorf("unknown LLM provider %q (supported: ollama, bedrock)", provider)
+		return nil, fmt.Errorf("unknown LLM provider %q (supported: ollama, bedrock, openai, chatgpt)", provider)
 	}
 }
