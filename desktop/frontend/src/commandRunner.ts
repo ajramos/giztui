@@ -417,6 +417,34 @@ export function runCommand(input: string, ctx: CommandCtx) {
             void openConfig();
           }
           break;
+        case "llm": {
+          // ChatGPT subscription login parity with the TUI's :llm command.
+          const sub = arg.trim().toLowerCase().split(/\s+/)[0] ?? "";
+          if (sub === "logout") {
+            void backend
+              .LLMLogout()
+              .then(() => showToast("✓ ChatGPT tokens removed"))
+              .catch((e) => setError(`ChatGPT logout failed: ${String(e)}`));
+          } else if (sub === "login") {
+            showToast("Opening browser for ChatGPT login…");
+            void backend
+              .LLMLogin()
+              .then(() => showToast("✓ ChatGPT login complete"))
+              .catch((e) => setError(`ChatGPT login failed: ${String(e)}`));
+          } else {
+            // ":llm" / ":llm status" → report the active engine + login state.
+            void backend.ConfigInfo().then((info) => {
+              if (!info.llmModel) return showToast("AI: disabled");
+              const base = `AI: ${info.llmProvider} · ${info.llmModel}`;
+              if (info.llmNeedsLogin) {
+                showToast(base + (info.llmLoggedIn ? " · logged in" : " · not logged in (:llm login chatgpt)"));
+              } else {
+                showToast(base);
+              }
+            });
+          }
+          break;
+        }
         case "cache":
           void clearCaches();
           break;

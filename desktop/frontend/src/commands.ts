@@ -53,6 +53,7 @@ export const COMMANDS: CommandDef[] = [
   { names: ["local"], desc: "Toggle local filter / Gmail search" },
   { names: ["stats", "usage"], desc: "Local usage analytics (:stats reset · :stats <days>)" },
   { names: ["config", "cfg"], desc: "Show configuration (:config migrate to update)" },
+  { names: ["llm"], desc: "ChatGPT subscription login (:llm login|logout|status chatgpt)", arg: "login chatgpt" },
   { names: ["cache"], desc: "Clear AI caches" },
   { names: ["archive", "a"], desc: "Archive message" },
   { names: ["trash", "d"], desc: "Trash message" },

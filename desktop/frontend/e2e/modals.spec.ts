@@ -57,6 +57,12 @@ test.describe("display modals", () => {
     await expect(modal).toContainText("logged in");
   });
 
+  test("':llm login chatgpt' runs the login and toasts (command parity)", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "llm login chatgpt");
+    await expect(page.locator(".toast")).toContainText("ChatGPT login");
+  });
+
   test("':config migrate' runs the migration and toasts (no config modal)", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "config migrate");
