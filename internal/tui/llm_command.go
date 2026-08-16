@@ -85,10 +85,12 @@ func (a *App) llmLogin(provider string) {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("ChatGPT login failed to start: %v", err))
 			return
 		}
-		// Copy the URL to the clipboard so the user can paste it into whatever
-		// browser they want (we deliberately do not auto-open the default one).
+		// Open the default browser AND copy the URL to the clipboard, so the user
+		// can either use the browser that popped up or paste it into a different
+		// one/profile.
+		_ = llm.OpenBrowser(authURL)
 		a.copyToClipboard(authURL)
-		a.GetErrorHandler().ShowInfo(a.ctx, "🔗 ChatGPT login URL copied to clipboard — paste it in your browser to sign in")
+		a.GetErrorHandler().ShowInfo(a.ctx, "🔗 Opening browser for ChatGPT login (URL also copied to clipboard — paste it in another browser if you prefer)")
 		if a.logger != nil {
 			a.logger.Printf("LLM: ChatGPT login URL: %s", authURL)
 		}

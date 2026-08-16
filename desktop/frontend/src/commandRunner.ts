@@ -426,7 +426,7 @@ export function runCommand(input: string, ctx: CommandCtx) {
               .then(() => showToast("✓ ChatGPT tokens removed"))
               .catch((e) => setError(`ChatGPT logout failed: ${String(e)}`));
           } else if (sub === "login") {
-            showToast("🔗 ChatGPT login URL copied to clipboard — paste it in your browser");
+            showToast("🔗 Opening browser for ChatGPT login (URL also copied to clipboard)");
             void backend
               .LLMLogin()
               .then(() => showToast("✓ ChatGPT login complete"))

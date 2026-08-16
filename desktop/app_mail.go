@@ -310,10 +310,10 @@ func (a *App) LLMLogin() error {
 	if err != nil {
 		return err
 	}
-	if cerr := wailsruntime.ClipboardSetText(a.ctx, authURL); cerr != nil {
-		// Clipboard failed — fall back to opening the browser so login still works.
-		_ = desktop.OpenLoginBrowser(authURL)
-	}
+	// Do both: open the default browser AND copy the URL to the clipboard, so the
+	// user can use the browser that opened or paste it into a different one.
+	_ = desktop.OpenLoginBrowser(authURL)
+	_ = wailsruntime.ClipboardSetText(a.ctx, authURL)
 	return wait()
 }
 
