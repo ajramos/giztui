@@ -51,6 +51,9 @@ const (
 	openaiCallbackPath = "/auth/callback"
 	// originator identifies the client to the Codex backend and the authorize flow.
 	openaiOriginator = "codex_cli_rs"
+	// openaiUserAgent mimics the Codex CLI's user agent so the backend treats us
+	// as a known client (Go's default Go-http-client UA is rejected).
+	openaiUserAgent = "codex_cli_rs/0.21.0"
 
 	codexResponsesURL = "https://chatgpt.com/backend-api/codex/responses"
 
@@ -328,6 +331,7 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 		"tools":               []interface{}{},
 		"tool_choice":         "auto",
 		"parallel_tool_calls": false,
+		"include":             []interface{}{},
 		"reasoning":           map[string]interface{}{"effort": "low"},
 		"input": []map[string]interface{}{{
 			"type":    "message",
@@ -345,6 +349,10 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
 	req.Header.Set("originator", openaiOriginator)
+	// A recognizable Codex-style User-Agent matters: with Go's default
+	// "Go-http-client/1.1" the backend treats us as an unknown client and can
+	// reject every model with a misleading "model is not supported" 400.
+	req.Header.Set("User-Agent", openaiUserAgent)
 	if tok.AccountID != "" {
 		req.Header.Set("chatgpt-account-id", tok.AccountID)
 	}
