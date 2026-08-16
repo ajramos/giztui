@@ -59,6 +59,11 @@ const (
 	// gpt-5-codex is the Codex CLI's default.
 	defaultChatGPTModel = "gpt-5-codex"
 	tokenRefreshSkew    = 2 * time.Minute
+
+	// chatgptInstructions is the always-present `instructions` string the Codex
+	// backend expects. It is a general-assistant system prompt (GizTUI uses this
+	// engine for email summaries/replies, not coding), kept short and neutral.
+	chatgptInstructions = "You are a helpful assistant integrated into GizTUI, a Gmail terminal client. Follow the user's instructions and answer concisely."
 )
 
 // ChatGPTClient implements Provider + StreamProvider, backed by OAuth tokens in
@@ -310,11 +315,22 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 	if err != nil {
 		return err
 	}
+	// The Codex backend validates the request shape strictly — it rejects a
+	// minimal Responses payload with a misleading "model is not supported…" 400.
+	// Match what the Codex CLI sends: an always-present `instructions` string,
+	// message-typed input items, empty tools, and (for the gpt-5/codex reasoning
+	// models) a `reasoning` block.
 	body := map[string]interface{}{
-		"model":  c.Model,
-		"stream": true,
-		"store":  false,
+		"model":               c.Model,
+		"instructions":        chatgptInstructions,
+		"stream":              true,
+		"store":               false,
+		"tools":               []interface{}{},
+		"tool_choice":         "auto",
+		"parallel_tool_calls": false,
+		"reasoning":           map[string]interface{}{"effort": "low"},
 		"input": []map[string]interface{}{{
+			"type":    "message",
 			"role":    "user",
 			"content": []map[string]interface{}{{"type": "input_text", "text": prompt}},
 		}},
