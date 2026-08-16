@@ -24,7 +24,12 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 		return br, nil
 	case "openai":
 		// Metered OpenAI API (api.openai.com) with an API key. endpoint may point
-		// at a compatible gateway; empty → the public API.
+		// at a compatible gateway; empty → the public API. Require the key up
+		// front so a misconfigured account disables AI with a clear log instead
+		// of failing on every request while appearing "enabled".
+		if apiKey == "" {
+			return nil, fmt.Errorf("openai provider requires api_key")
+		}
 		return NewOpenAI(apiKey, endpoint, model, timeout), nil
 	case "chatgpt":
 		// ChatGPT Plus/Pro subscription via OAuth (no api key). Credentials live
@@ -34,6 +39,6 @@ func NewProviderFromConfig(provider, endpoint, model string, timeout time.Durati
 		// Unknown providers are a configuration error (typically a per-account
 		// typo). Return an error instead of silently running Ollama so callers
 		// disable AI with a clear log rather than using the wrong engine.
-		return nil, fmt.Errorf("unknown LLM provider %q (supported: ollama, bedrock, openai, chatgpt)", provider)
+		return nil, fmt.Errorf("unknown LLM provider %q (supported: ollama, bedrock, openai, chatgpt, vertex)", provider)
 	}
 }

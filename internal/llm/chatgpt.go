@@ -62,6 +62,9 @@ const (
 	// gpt-5-codex is the Codex CLI's default.
 	defaultChatGPTModel = "gpt-5-codex"
 	tokenRefreshSkew    = 2 * time.Minute
+	// loginTimeout bounds how long StartLogin's wait() blocks for the browser
+	// callback before giving up (server shut down, status cleared).
+	loginTimeout = 5 * time.Minute
 
 	// chatgptInstructions is the always-present `instructions` string the Codex
 	// backend expects. It is a general-assistant system prompt (GizTUI uses this
@@ -190,9 +193,15 @@ func (c *ChatGPTClient) StartLogin(ctx context.Context) (authURL string, wait fu
 			defer cancel()
 			_ = srv.Shutdown(shutCtx)
 		}()
+		// Bound the wait so a login the user never completes doesn't leave the
+		// callback server (and the "waiting…" status) hanging until the app exits.
+		timeout := time.NewTimer(loginTimeout)
+		defer timeout.Stop()
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-timeout.C:
+			return fmt.Errorf("ChatGPT login timed out after %s — run :llm login chatgpt to retry", loginTimeout)
 		case res := <-done:
 			if res.err != nil {
 				return res.err

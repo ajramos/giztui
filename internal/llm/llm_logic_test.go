@@ -50,6 +50,19 @@ func TestNewProviderFromConfig_UnknownError(t *testing.T) {
 	}
 }
 
+func TestNewProviderFromConfig_OpenAIRequiresKey(t *testing.T) {
+	// A misconfigured openai account (no api_key) must fail to build, so callers
+	// disable AI with a clear log instead of failing every request.
+	prov, err := NewProviderFromConfig("openai", "", "gpt-4o-mini", time.Second, "")
+	if err == nil || prov != nil {
+		t.Fatalf("openai without api_key should error; got prov=%v err=%v", prov, err)
+	}
+	// With a key it builds fine.
+	if prov, err := NewProviderFromConfig("openai", "", "gpt-4o-mini", time.Second, "sk-x"); err != nil || prov == nil {
+		t.Fatalf("openai with api_key should build; got prov=%v err=%v", prov, err)
+	}
+}
+
 func TestAnnotateBedrockError(t *testing.T) {
 	if annotateBedrockError(nil, "m") != nil {
 		t.Error("nil error should annotate to nil")

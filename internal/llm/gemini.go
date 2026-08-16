@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -37,8 +38,12 @@ type GeminiClient struct {
 	BaseURL string
 
 	http *http.Client
-	// tokenSource yields ADC bearer tokens for Vertex; lazily initialized.
+	// tokenSource yields ADC bearer tokens for Vertex; lazily initialized once.
+	// Generate/GenerateStream run from several AIService goroutines, so the lazy
+	// init is guarded by tokenOnce to avoid a data race.
+	tokenOnce   sync.Once
 	tokenSource oauth2.TokenSource
+	tokenErr    error
 }
 
 const (
@@ -141,12 +146,16 @@ func (c *GeminiClient) token(ctx context.Context) (string, error) {
 	if c.Project == "" || c.Region == "" {
 		return "", fmt.Errorf("vertex: project and region are required (or set api_key for the Gemini API)")
 	}
-	if c.tokenSource == nil {
+	c.tokenOnce.Do(func() {
 		creds, err := google.FindDefaultCredentials(ctx, vertexCloudPlatformScope)
 		if err != nil {
-			return "", fmt.Errorf("vertex: no Google credentials (run 'gcloud auth application-default login'): %w", err)
+			c.tokenErr = fmt.Errorf("vertex: no Google credentials (run 'gcloud auth application-default login'): %w", err)
+			return
 		}
 		c.tokenSource = creds.TokenSource
+	})
+	if c.tokenErr != nil {
+		return "", c.tokenErr
 	}
 	t, err := c.tokenSource.Token()
 	if err != nil {

@@ -65,3 +65,30 @@ func TestEffectiveLLM_ExplicitEndpointHonored(t *testing.T) {
 		t.Errorf("explicit override endpoint not honored: %q", got)
 	}
 }
+
+func TestBuildEffectiveProvider_MissingCredentials(t *testing.T) {
+	// A configured-but-uncredentialed account must NOT build a provider — AI is
+	// disabled with an error, not "enabled" and failing every request.
+	mk := func(ov *LLMConfig) *Config {
+		g := DefaultLLMConfig()
+		g.Enabled = true
+		return &Config{LLM: g, Accounts: []AccountConfig{{ID: "a", LLM: ov}}}
+	}
+
+	// openai without api_key → error.
+	if prov, err := mk(&LLMConfig{Enabled: true, Provider: "openai", Model: "gpt-4o-mini"}).BuildEffectiveProvider("a"); err == nil || prov != nil {
+		t.Errorf("openai without api_key: want error+nil, got prov=%v err=%v", prov, err)
+	}
+	// vertex without project/region and without api_key → error.
+	if prov, err := mk(&LLMConfig{Enabled: true, Provider: "vertex", Model: "gemini-1.5-flash"}).BuildEffectiveProvider("a"); err == nil || prov != nil {
+		t.Errorf("vertex without creds: want error+nil, got prov=%v err=%v", prov, err)
+	}
+	// vertex with an api_key → builds.
+	if prov, err := mk(&LLMConfig{Enabled: true, Provider: "vertex", Model: "gemini-1.5-flash", APIKey: "AIza"}).BuildEffectiveProvider("a"); err != nil || prov == nil {
+		t.Errorf("vertex with api_key: want provider, got prov=%v err=%v", prov, err)
+	}
+	// vertex with project+region → builds.
+	if prov, err := mk(&LLMConfig{Enabled: true, Provider: "vertex", Model: "gemini-1.5-pro", Project: "p", Region: "us-central1"}).BuildEffectiveProvider("a"); err != nil || prov == nil {
+		t.Errorf("vertex with project+region: want provider, got prov=%v err=%v", prov, err)
+	}
+}

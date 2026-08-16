@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/ajramos/giztui/internal/llm"
@@ -27,8 +28,13 @@ func (c *Config) BuildEffectiveProvider(accountID string) (llm.Provider, error) 
 	}
 
 	// Vertex/Gemini needs project + region (or an api_key) that the flat factory
-	// signature can't carry, so construct it directly here.
+	// signature can't carry, so construct it directly here. Validate credentials
+	// up front so a misconfigured account disables AI with a clear log instead of
+	// building a provider that fails on every request while appearing "enabled".
 	if providerName == "vertex" || providerName == "gemini" {
+		if eff.APIKey == "" && (eff.Project == "" || eff.Region == "") {
+			return nil, fmt.Errorf("vertex provider requires api_key, or project and region")
+		}
 		return llm.NewGemini(eff.Project, eff.Region, eff.Model, eff.APIKey, eff.Endpoint, c.GetLLMTimeout()), nil
 	}
 

@@ -107,7 +107,7 @@ desktop/main.go,39,2,30,0
 internal/calendar/client.go,73,16,47,1
 internal/config/colors.go,650,25,225,3
 internal/config/config.go,1009,28,192,3
-internal/config/llm_provider.go,27,8,30,0
+internal/config/llm_provider.go,31,11,35,1
 internal/config/migrate.go,144,9,31,0
 internal/config/theme.go,144,7,39,0
 internal/config/validate.go,107,25,81,1
@@ -123,11 +123,11 @@ internal/gmail/client.go,743,16,52,4
 internal/gmail/filters.go,40,4,15,0
 internal/llm/authstore/authstore.go,98,5,17,0
 internal/llm/bedrock.go,136,12,67,1
-internal/llm/chatgpt.go,416,11,91,2
-internal/llm/factory.go,23,6,26,0
-internal/llm/gemini.go,204,7,26,0
+internal/llm/chatgpt.go,421,11,97,2
+internal/llm/factory.go,26,7,31,0
+internal/llm/gemini.go,211,7,26,0
 internal/llm/ollama.go,170,12,46,1
-internal/llm/openai.go,161,8,39,0
+internal/llm/openai.go,163,8,41,0
 internal/obsidian/types.go,95,1,38,0
 internal/prompts/types.go,29,0,0,0
 internal/render/email.go,817,43,119,4
@@ -198,7 +198,7 @@ internal/tui/columns.go,909,24,202,4
 internal/tui/command_completion.go,503,11,41,1
 internal/tui/command_help.go,40,5,31,0
 internal/tui/command_state.go,69,5,12,0
-internal/tui/commands.go,1851,19,136,6
+internal/tui/commands.go,1858,19,136,6
 internal/tui/composition.go,811,26,116,1
 internal/tui/draft_state.go,16,1,5,0
 internal/tui/editable_text_view.go,519,19,81,3
@@ -212,7 +212,7 @@ internal/tui/layout.go,340,37,157,1
 internal/tui/layout_state.go,19,1,6,0
 internal/tui/links.go,346,17,360,3
 internal/tui/list_helpers.go,146,32,122,2
-internal/tui/llm_command.go,94,9,31,0
+internal/tui/llm_command.go,104,10,37,0
 internal/tui/logging.go,7,2,6,0
 internal/tui/markdown.go,253,14,87,2
 internal/tui/messages.go,3337,63,836,25

@@ -59,6 +59,12 @@ func (a *App) llmStatus() {
 			a.GetErrorHandler().ShowInfo(a.ctx, "AI: disabled")
 			return
 		}
+		// Report the real runtime state: if the provider failed to build, AI is
+		// off regardless of what the config intended.
+		if a.GetLLM() == nil {
+			a.GetErrorHandler().ShowInfo(a.ctx, fmt.Sprintf("AI: disabled (configured %s · %s failed to load — check logs)", provider, eff.Model))
+			return
+		}
 		msg := fmt.Sprintf("AI: %s · %s", provider, eff.Model)
 		if provider == "chatgpt" {
 			if llm.NewChatGPT(eff.Model, 0).LoggedIn() {
@@ -79,7 +85,13 @@ func (a *App) llmLogin(provider string) {
 		return
 	}
 	go func() {
-		client := llm.NewChatGPT(a.Config.LLM.Model, 0)
+		var accountID string
+		if as := a.GetAccountService(); as != nil {
+			if acct, err := as.GetActiveAccount(a.ctx); err == nil && acct != nil {
+				accountID = acct.ID
+			}
+		}
+		client := llm.NewChatGPT(a.Config.EffectiveLLM(accountID).Model, 0)
 		authURL, wait, err := client.StartLogin(a.ctx)
 		if err != nil {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("ChatGPT login failed to start: %v", err))

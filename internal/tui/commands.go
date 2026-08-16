@@ -2353,9 +2353,18 @@ func (a *App) executeConfigCommand(args []string) {
 		}
 		eff := a.Config.EffectiveLLM(accountID)
 		var msg string
-		if !eff.Enabled || eff.Model == "" {
+		switch {
+		case !eff.Enabled || eff.Model == "":
 			msg = "AI: disabled"
-		} else {
+		case a.GetLLM() == nil:
+			// Configured but the provider failed to build (bad creds / typo) — the
+			// runtime engine is off. Report the real state, not the intended config.
+			provider := eff.Provider
+			if provider == "" {
+				provider = "ollama"
+			}
+			msg = fmt.Sprintf("AI: disabled (configured %s · %s failed to load — check logs)", provider, eff.Model)
+		default:
 			provider := eff.Provider
 			if provider == "" {
 				provider = "ollama"
