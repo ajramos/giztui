@@ -12,20 +12,21 @@ cd giztui
 ./scripts/setup-dev.sh
 ```
 
-The setup script will handle everything automatically. Skip to [Next Steps](#next-steps) after running it.
+The setup script installs pinned quality tools and runs focused checks. Run
+`make ci` afterward to verify the complete local product gate.
 
 ## 📋 Prerequisites
 
 Ensure you have the following installed:
 
-- **Go 1.23+** - [Download from golang.org](https://golang.org/dl/)
+- **Go 1.25.13+** - [Download from go.dev](https://go.dev/dl/)
 - **Git** - [Download from git-scm.com](https://git-scm.com/)
-- **Python 3.7+** (for pre-commit hooks) - Usually pre-installed on macOS/Linux
+- **Python 3 with `venv` and pip** - Required for the pinned lizard environment
+- **Node.js 20.19+ or 22.12+ and npm** - Required by the canonical gate
 
-### Optional Tools
-- **golangci-lint** - Will be installed automatically
-- **mockery** - Will be installed automatically
-- **pre-commit** - Will be installed automatically via pip
+### Development Tools
+- **pre-commit** - Optional local hook runner
+- **Pinned CI tools** - Installed into isolated/local tool locations by `make ci-tools`
 
 ## 🔧 Manual Setup Steps
 
@@ -42,14 +43,8 @@ go mod download
 ### 2. Install Development Tools
 
 ```bash
-# Install golangci-lint for linting
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
-
-# Install mockery for generating test mocks
-go install github.com/vektra/mockery/v2@latest
-
-# Install vulnerability checker
-go install golang.org/x/vuln/cmd/govulncheck@latest
+# Install the exact linter, scanner, workflow checker, and lizard versions used by CI
+make ci-tools
 ```
 
 ### 3. Setup Pre-commit Hooks
@@ -67,11 +62,8 @@ make setup-hooks
 ### 4. Verify Setup
 
 ```bash
-# Run comprehensive checks
-make pre-commit-check
-
-# Generate test mocks
-make test-mocks
+# Run the complete local product gate
+make ci
 
 # Run tests
 make test
@@ -84,33 +76,35 @@ make build
 
 ### Pre-commit Checks (Automatic)
 
-Pre-commit hooks will automatically run before each commit to ensure code quality. They check:
+The optional pre-commit hooks provide fast feedback. They check:
 
 - **Code formatting** - Runs `gofmt` to ensure consistent formatting
 - **Linting** - Runs `golangci-lint` to catch common issues
 - **Go vet** - Checks for suspicious constructs
 - **Essential tests** - Runs core tests to catch breaking changes
 
+They are intentionally smaller than `make ci` and do not replace it.
+
 ### Manual Quality Checks
 
-You can run the same checks manually:
+Run the canonical local checks manually:
 
 ```bash
-# Run all pre-commit checks
-make check-hooks
+# Run the complete local CI gate
+make ci
 
 # Run individual checks
 make fmt                    # Format code
 make lint                   # Run linting
 make vet                    # Run go vet
-make pre-commit-check       # All CI checks locally
+make pre-commit-check       # Alias for the complete canonical CI gate
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-make test-all
+# Run the canonical product gate, including desktop unit and E2E tests
+make ci
 
 # Run specific test types
 make test-unit              # Unit tests only
@@ -120,7 +114,8 @@ make test-integration       # Integration tests
 # Run with coverage
 make test-coverage
 
-# Generate test mocks (when interfaces change)
+# Regenerate checked-in mocks only when a covered interface changes
+# (requires the pinned mockery version printed by the target)
 make test-mocks
 ```
 
@@ -133,7 +128,7 @@ make build
 # Build and run
 make dev
 
-# Run without building (during development)
+# Build and run (the run target depends on build)
 make run
 
 # Build release binaries for all platforms
@@ -164,7 +159,7 @@ giztui/
 │   └── version/        # Version information
 ├── pkg/                 # Public packages (can be imported)
 │   ├── auth/           # OAuth authentication
-│   └── utils/          # Utility functions
+│   └── desktop/        # Front-end-independent desktop API and DTOs
 ├── test/               # Test helpers and integration tests
 ├── docs/               # Documentation
 ├── scripts/            # Development and deployment scripts
@@ -194,12 +189,6 @@ Our testing approach includes:
 ### Writing Tests
 
 ```bash
-# Create a new test file
-touch internal/services/my_feature_test.go
-
-# Generate mocks for interfaces
-make test-mocks
-
 # Run tests in watch mode during development
 go test -v ./internal/services/... -run TestMyFeature
 ```
@@ -209,10 +198,10 @@ go test -v ./internal/services/... -run TestMyFeature
 Our comprehensive pipeline runs:
 
 1. **Code Quality**: Format check, linting, security scan
-2. **Testing**: Unit, TUI, integration, and visual regression tests  
+2. **Testing**: Root Go, race, desktop Go, Vitest, and Playwright tests
 3. **Cross-platform Testing**: Ubuntu and macOS
 4. **Security Analysis**: Vulnerability scanning and dependency review
-5. **Build Artifacts**: Multi-platform binaries on successful tests
+5. **Required Result**: Stable `required` aggregator over every mandatory job
 
 ### Pipeline Files
 
@@ -220,7 +209,8 @@ Our comprehensive pipeline runs:
 - `.pre-commit-config.yaml` - Pre-commit hook configuration
 - `.golangci.yml` - Linting configuration
 
-The pre-commit hooks ensure you catch issues locally before they reach CI/CD.
+The pre-commit hooks provide quick feedback; `make ci` remains the completion
+gate.
 
 ## 🛠️ Useful Make Commands
 
@@ -231,7 +221,7 @@ make dev                    # Build and run in development mode
 make clean                  # Clean build artifacts
 
 # Quality & Testing  
-make pre-commit-check       # Run same checks as CI locally
+make ci                     # Run the canonical fail-closed local product gate
 make test-all              # Run complete test suite
 make lint                  # Run linting only
 make coverage              # Generate test coverage report
@@ -251,7 +241,7 @@ make debug                 # Build with debug symbols
 
 ### Formatting and Style
 - **Go formatting**: Use `gofmt` (automated via pre-commit)
-- **Import organization**: Use `goimports` 
+- **Import organization**: Keep imports in `gofmt`-compatible groups
 - **Linting**: Follow `golangci-lint` rules in `.golangci.yml`
 - **Error handling**: Always handle errors appropriately
 
@@ -284,9 +274,7 @@ export PATH=$PATH:$(go env GOPATH)/bin
 
 **Tests failing locally:**
 ```bash
-# Clean and regenerate mocks
-rm -rf internal/services/mocks
-make test-mocks
+# Re-run without cached test results
 go clean -testcache
 make test
 ```
@@ -321,7 +309,7 @@ After setup is complete:
 
 1. **Create feature branch**: `git checkout -b feature/my-feature`
 2. **Make changes**: Follow architecture patterns
-3. **Test locally**: `make pre-commit-check && make test-all`
+3. **Test locally**: `make pre-commit-check`
 4. **Commit changes**: Pre-commit hooks run automatically
 5. **Push and create PR**: CI/CD pipeline runs comprehensive checks
 6. **Address feedback**: Iterate until approved

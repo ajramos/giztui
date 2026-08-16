@@ -1,21 +1,22 @@
 {
   "meta": {
-    "generated_from_head": "191d958e47c8e04fbb67b7476829947dc7bae7bb",
-    "head_author_date_utc": "2026-08-12",
-    "window_days": 183,
-    "window_note": "Repo history (~8 weeks) is entirely inside the 6-month window; June/August are partial months.",
-    "ai_emails": [
-      "noreply@anthropic.com"
-    ],
-    "human_emails_note": "'human' = every non-AI author. Spans a local email and a GitHub-web/squash-merge email for the same person. See human_email_breakdown.",
-    "human_email_breakdown": {
-      "tatto2k@gmail.com": 199,
-      "ajramos@users.noreply.github.com": 14
+    "ref": "HEAD",
+    "analysis_ref_sha": "3acefeff26f4bcfa1f6d964d5db73ec97cf9d99d",
+    "generated_from_head": "3acefeff26f4bcfa1f6d964d5db73ec97cf9d99d",
+    "head_author_date_utc": "2026-08-14",
+    "first_commit_date_utc": "2025-08-07",
+    "repo_age_days": 372.2,
+    "history_complete": true,
+    "shallow_repository": false,
+    "range": {
+      "head": "3acefeff26f4bcfa1f6d964d5db73ec97cf9d99d",
+      "window_days": 183,
+      "commits_sampled": 731,
+      "total_non_merge_commits": 731,
+      "total_merge_commits": 72
     },
-    "contamination_note": "Author = who committed, not who wrote. Human commits in Jul-Aug likely contain AI-generated code committed by the human; June is the only clean human baseline. Not corrected.",
-    "sample_rework_commits": 463,
-    "total_non_merge_commits": 463,
-    "total_merge_commits": 50,
+    "window_note": "History is older than the analysis window; the window samples the most recent 183 days and early months inside the window are partial.",
+    "sample_rework_commits": 731,
     "exclusions": {
       "substrings": [
         "/node_modules/",
@@ -73,281 +74,76 @@
     },
     "merge_handling": "Line metrics over non-merge commits only.",
     "rename_handling": "diff -M; pure renames add no births/deaths. No -C.",
-    "segmentation": "By author email of the introducing commit (blame)."
+    "attribution": "Retired. Author email is recorded observationally; AI-vs-human line attribution is not reported as a performance measure."
+  },
+  "analysis_model": {
+    "observations": [
+      "line births",
+      "line deaths",
+      "death ages",
+      "LOC/CCN snapshots",
+      "commit volumes"
+    ],
+    "interpretations": [
+      "rework buckets (<1d, 1-7d, 7-30d)",
+      "rework rates",
+      "corrective and semantic-revert classification"
+    ],
+    "note": "Buckets and rates interpret the recorded ages; they are never summed across buckets."
   },
   "monthly_commit_volume": {
-    "2026-06": {
-      "ai": 0,
-      "human": 132
-    },
-    "2026-07": {
-      "ai": 208,
-      "human": 74
-    },
-    "2026-08": {
-      "ai": 42,
-      "human": 7
-    }
+    "2026-06": 380,
+    "2026-07": 282,
+    "2026-08": 69
   },
   "rework": {
     "buckets": {
-      "lt1_intrasession": 3208,
-      "d1_7_rework": 3574,
-      "d7_30_debt": 8488,
-      "gt30": 742
-    },
-    "matrix": {
-      "lt1": {
-        "ai_ai": 2381,
-        "ai_human": 13,
-        "human_ai": 240,
-        "human_human": 574
-      },
-      "d1_7": {
-        "ai_ai": 2221,
-        "ai_human": 283,
-        "human_ai": 22,
-        "human_human": 1048
-      },
-      "d7_30": {
-        "ai_ai": 5507,
-        "ai_human": 1139,
-        "human_ai": 4,
-        "human_human": 1838
-      },
-      "all": {
-        "ai_ai": 10109,
-        "ai_human": 1435,
-        "human_ai": 992,
-        "human_human": 3476
-      }
+      "lt1_intrasession": 4066,
+      "d1_7_rework": 3193,
+      "d7_30_debt": 7035,
+      "gt30": 3729
     },
     "rates": {
       "all": {
-        "births": 42768,
+        "births": 1554,
         "naive": {
           "7": {
-            "num": 6782,
-            "denom": 42768,
-            "pct": 15.86
+            "num": 7259,
+            "denom": 1554,
+            "pct": 467.12
           },
           "14": {
-            "num": 14438,
-            "denom": 42768,
-            "pct": 33.76
+            "num": 13726,
+            "denom": 1554,
+            "pct": 883.27
           },
           "30": {
-            "num": 15270,
-            "denom": 42768,
-            "pct": 35.7
+            "num": 14294,
+            "denom": 1554,
+            "pct": 919.82
           }
         },
         "censored": {
           "7": {
-            "num": 6779,
-            "denom": 41400,
-            "pct": 16.37
+            "num": 7005,
+            "denom": 1519,
+            "pct": 461.16
           },
           "14": {
-            "num": 13918,
-            "denom": 35581,
-            "pct": 39.12
+            "num": 13104,
+            "denom": 1330,
+            "pct": 985.26
           },
           "30": {
-            "num": 3459,
-            "denom": 6539,
-            "pct": 52.9
-          }
-        }
-      },
-      "birth_ai": {
-        "births": 32458,
-        "naive": {
-          "7": {
-            "num": 4898,
-            "denom": 32458,
-            "pct": 15.09
-          },
-          "14": {
-            "num": 11252,
-            "denom": 32458,
-            "pct": 34.67
-          },
-          "30": {
-            "num": 11544,
-            "denom": 32458,
-            "pct": 35.57
-          }
-        },
-        "censored": {
-          "7": {
-            "num": 4895,
-            "denom": 31090,
-            "pct": 15.74
-          },
-          "14": {
-            "num": 10740,
-            "denom": 26692,
-            "pct": 40.24
-          },
-          "30": {
-            "num": 0,
-            "denom": 0,
-            "pct": null
-          }
-        }
-      },
-      "birth_human": {
-        "births": 10310,
-        "naive": {
-          "7": {
-            "num": 1884,
-            "denom": 10310,
-            "pct": 18.27
-          },
-          "14": {
-            "num": 3186,
-            "denom": 10310,
-            "pct": 30.9
-          },
-          "30": {
-            "num": 3726,
-            "denom": 10310,
-            "pct": 36.14
-          }
-        },
-        "censored": {
-          "7": {
-            "num": 1884,
-            "denom": 10310,
-            "pct": 18.27
-          },
-          "14": {
-            "num": 3178,
-            "denom": 8889,
-            "pct": 35.75
-          },
-          "30": {
-            "num": 3459,
-            "denom": 6539,
-            "pct": 52.9
-          }
-        }
-      },
-      "july_ai": {
-        "births": 28889,
-        "naive": {
-          "7": {
-            "num": 4543,
-            "denom": 28889,
-            "pct": 15.73
-          },
-          "14": {
-            "num": 10893,
-            "denom": 28889,
-            "pct": 37.71
-          },
-          "30": {
-            "num": 11185,
-            "denom": 28889,
-            "pct": 38.72
-          }
-        },
-        "censored": {
-          "7": {
-            "num": 4543,
-            "denom": 28889,
-            "pct": 15.73
-          },
-          "14": {
-            "num": 10740,
-            "denom": 26692,
-            "pct": 40.24
-          },
-          "30": {
-            "num": 0,
-            "denom": 0,
-            "pct": null
-          }
-        }
-      },
-      "july_human": {
-        "births": 5339,
-        "naive": {
-          "7": {
-            "num": 483,
-            "denom": 5339,
-            "pct": 9.05
-          },
-          "14": {
-            "num": 487,
-            "denom": 5339,
-            "pct": 9.12
-          },
-          "30": {
-            "num": 490,
-            "denom": 5339,
-            "pct": 9.18
-          }
-        },
-        "censored": {
-          "7": {
-            "num": 483,
-            "denom": 5339,
-            "pct": 9.05
-          },
-          "14": {
-            "num": 487,
-            "denom": 5339,
-            "pct": 9.12
-          },
-          "30": {
-            "num": 231,
-            "denom": 2989,
-            "pct": 7.73
-          }
-        }
-      },
-      "june_all": {
-        "births": 3550,
-        "naive": {
-          "7": {
-            "num": 1393,
-            "denom": 3550,
-            "pct": 39.24
-          },
-          "14": {
-            "num": 2691,
-            "denom": 3550,
-            "pct": 75.8
-          },
-          "30": {
-            "num": 3228,
-            "denom": 3550,
-            "pct": 90.93
-          }
-        },
-        "censored": {
-          "7": {
-            "num": 1393,
-            "denom": 3550,
-            "pct": 39.24
-          },
-          "14": {
-            "num": 2691,
-            "denom": 3550,
-            "pct": 75.8
-          },
-          "30": {
-            "num": 3228,
-            "denom": 3550,
-            "pct": 90.93
+            "num": 2220,
+            "denom": 617,
+            "pct": 359.81
           }
         }
       }
     },
-    "total_births": 42768,
-    "total_deaths": 16012
+    "total_births": 1554,
+    "total_deaths": 18023
   },
   "rework_per_file": [
     {
@@ -360,31 +156,13 @@
       "rework_rate_1_7": 21.27
     },
     {
-      "file": "internal/config/manager.go",
-      "births": 0,
-      "deaths": 337,
-      "d_lt1": 0,
-      "d_1_7": 337,
-      "d_7_30": 0,
-      "rework_rate_1_7": null
-    },
-    {
-      "file": "internal/cache/store.go",
-      "births": 0,
-      "deaths": 319,
-      "d_lt1": 0,
-      "d_1_7": 319,
-      "d_7_30": 0,
-      "rework_rate_1_7": null
-    },
-    {
-      "file": "internal/tui/keys.go",
-      "births": 603,
-      "deaths": 757,
-      "d_lt1": 95,
-      "d_1_7": 109,
-      "d_7_30": 190,
-      "rework_rate_1_7": 18.08
+      "file": "internal/tui/action_plan.go",
+      "births": 1566,
+      "deaths": 480,
+      "d_lt1": 131,
+      "d_1_7": 241,
+      "d_7_30": 108,
+      "rework_rate_1_7": 15.39
     },
     {
       "file": "desktop/frontend/src/api.ts",
@@ -394,6 +172,15 @@
       "d_1_7": 107,
       "d_7_30": 958,
       "rework_rate_1_7": 8.66
+    },
+    {
+      "file": "internal/tui/action_plan_rules.go",
+      "births": 313,
+      "deaths": 92,
+      "d_lt1": 0,
+      "d_1_7": 84,
+      "d_7_30": 8,
+      "rework_rate_1_7": 26.84
     },
     {
       "file": "desktop/frontend/src/Help.tsx",
@@ -423,6 +210,15 @@
       "rework_rate_1_7": 12.77
     },
     {
+      "file": "internal/tui/auto_refresh.go",
+      "births": 341,
+      "deaths": 57,
+      "d_lt1": 8,
+      "d_1_7": 46,
+      "d_7_30": 3,
+      "rework_rate_1_7": 13.49
+    },
+    {
       "file": "desktop/frontend/src/HtmlBody.tsx",
       "births": 519,
       "deaths": 271,
@@ -439,15 +235,6 @@
       "d_1_7": 45,
       "d_7_30": 0,
       "rework_rate_1_7": 59.21
-    },
-    {
-      "file": "internal/tui/auto_refresh.go",
-      "births": 92,
-      "deaths": 49,
-      "d_lt1": 3,
-      "d_1_7": 43,
-      "d_7_30": 3,
-      "rework_rate_1_7": 46.74
     },
     {
       "file": "internal/tui/command_completion.go",
@@ -468,12 +255,30 @@
       "rework_rate_1_7": 12.73
     },
     {
+      "file": "internal/tui/action_plan_move.go",
+      "births": 399,
+      "deaths": 86,
+      "d_lt1": 44,
+      "d_1_7": 31,
+      "d_7_30": 11,
+      "rework_rate_1_7": 7.77
+    },
+    {
+      "file": "internal/tui/keys.go",
+      "births": 726,
+      "deaths": 818,
+      "d_lt1": 27,
+      "d_1_7": 29,
+      "d_7_30": 25,
+      "rework_rate_1_7": 3.99
+    },
+    {
       "file": "internal/tui/saved_queries.go",
       "births": 344,
       "deaths": 111,
-      "d_lt1": 5,
+      "d_lt1": 3,
       "d_1_7": 28,
-      "d_7_30": 6,
+      "d_7_30": 0,
       "rework_rate_1_7": 8.14
     },
     {
@@ -486,24 +291,6 @@
       "rework_rate_1_7": 5.98
     },
     {
-      "file": "internal/render/email.go",
-      "births": 26,
-      "deaths": 36,
-      "d_lt1": 7,
-      "d_1_7": 28,
-      "d_7_30": 0,
-      "rework_rate_1_7": 107.69
-    },
-    {
-      "file": "internal/config/theme.go",
-      "births": 0,
-      "deaths": 28,
-      "d_lt1": 0,
-      "d_1_7": 28,
-      "d_7_30": 0,
-      "rework_rate_1_7": null
-    },
-    {
       "file": "desktop/frontend/src/ModalsPrimary.tsx",
       "births": 277,
       "deaths": 24,
@@ -511,15 +298,6 @@
       "d_1_7": 22,
       "d_7_30": 0,
       "rework_rate_1_7": 7.94
-    },
-    {
-      "file": "internal/tui/app.go",
-      "births": 456,
-      "deaths": 335,
-      "d_lt1": 16,
-      "d_1_7": 21,
-      "d_7_30": 294,
-      "rework_rate_1_7": 4.61
     },
     {
       "file": "pkg/desktop/actionplan.go",
@@ -540,22 +318,22 @@
       "rework_rate_1_7": 5.76
     },
     {
-      "file": "internal/services/errors.go",
-      "births": 0,
-      "deaths": 19,
-      "d_lt1": 0,
+      "file": "internal/config/config.go",
+      "births": 576,
+      "deaths": 89,
+      "d_lt1": 11,
       "d_1_7": 19,
-      "d_7_30": 0,
-      "rework_rate_1_7": null
+      "d_7_30": 19,
+      "rework_rate_1_7": 3.3
     },
     {
       "file": "internal/tui/bulk_progress.go",
-      "births": 0,
+      "births": 34,
       "deaths": 18,
       "d_lt1": 0,
       "d_1_7": 18,
       "d_7_30": 0,
-      "rework_rate_1_7": null
+      "rework_rate_1_7": 52.94
     },
     {
       "file": "desktop/frontend/src/usePickerCrud.ts",
@@ -567,13 +345,31 @@
       "rework_rate_1_7": 19.15
     },
     {
+      "file": "internal/tui/app.go",
+      "births": 867,
+      "deaths": 548,
+      "d_lt1": 48,
+      "d_1_7": 16,
+      "d_7_30": 67,
+      "rework_rate_1_7": 1.85
+    },
+    {
       "file": "internal/tui/rules_manager.go",
-      "births": 650,
-      "deaths": 111,
+      "births": 712,
+      "deaths": 115,
       "d_lt1": 94,
       "d_1_7": 16,
-      "d_7_30": 1,
-      "rework_rate_1_7": 2.46
+      "d_7_30": 2,
+      "rework_rate_1_7": 2.25
+    },
+    {
+      "file": "internal/version/version.go",
+      "births": 34,
+      "deaths": 34,
+      "d_lt1": 15,
+      "d_1_7": 16,
+      "d_7_30": 2,
+      "rework_rate_1_7": 47.06
     },
     {
       "file": "desktop/frontend/src/LabelsPicker.tsx",
@@ -585,22 +381,22 @@
       "rework_rate_1_7": 8.12
     },
     {
-      "file": "internal/config/config.go",
-      "births": 358,
-      "deaths": 79,
-      "d_lt1": 23,
-      "d_1_7": 15,
-      "d_7_30": 19,
-      "rework_rate_1_7": 4.19
+      "file": "internal/services/inbox_analyzer_service.go",
+      "births": 676,
+      "deaths": 96,
+      "d_lt1": 50,
+      "d_1_7": 14,
+      "d_7_30": 2,
+      "rework_rate_1_7": 2.07
     },
     {
       "file": "desktop/frontend/src/RulesManager.tsx",
-      "births": 417,
-      "deaths": 46,
+      "births": 504,
+      "deaths": 50,
       "d_lt1": 24,
       "d_1_7": 14,
-      "d_7_30": 8,
-      "rework_rate_1_7": 3.36
+      "d_7_30": 12,
+      "rework_rate_1_7": 2.78
     },
     {
       "file": "desktop/frontend/src/commandRunner.ts",
@@ -637,15 +433,6 @@
       "d_1_7": 11,
       "d_7_30": 0,
       "rework_rate_1_7": 8.09
-    },
-    {
-      "file": "internal/version/version.go",
-      "births": 22,
-      "deaths": 22,
-      "d_lt1": 9,
-      "d_1_7": 11,
-      "d_7_30": 2,
-      "rework_rate_1_7": 50.0
     },
     {
       "file": "desktop/frontend/src/AiJobsPicker.tsx",
@@ -703,21 +490,39 @@
     },
     {
       "file": "internal/tui/commands.go",
-      "births": 395,
-      "deaths": 697,
-      "d_lt1": 13,
+      "births": 564,
+      "deaths": 711,
+      "d_lt1": 14,
       "d_1_7": 7,
-      "d_7_30": 539,
-      "rework_rate_1_7": 1.77
+      "d_7_30": 64,
+      "rework_rate_1_7": 1.24
+    },
+    {
+      "file": "internal/tui/prompt_configurator.go",
+      "births": 910,
+      "deaths": 127,
+      "d_lt1": 98,
+      "d_1_7": 7,
+      "d_7_30": 22,
+      "rework_rate_1_7": 0.77
+    },
+    {
+      "file": "internal/services/interfaces.go",
+      "births": 333,
+      "deaths": 18,
+      "d_lt1": 1,
+      "d_1_7": 7,
+      "d_7_30": 1,
+      "rework_rate_1_7": 2.1
     },
     {
       "file": "internal/services/speech_service.go",
-      "births": 60,
+      "births": 136,
       "deaths": 18,
       "d_lt1": 11,
       "d_1_7": 7,
       "d_7_30": 0,
-      "rework_rate_1_7": 11.67
+      "rework_rate_1_7": 5.15
     },
     {
       "file": "desktop/app_features.go",
@@ -738,15 +543,6 @@
       "rework_rate_1_7": 1.19
     },
     {
-      "file": "internal/services/slack_service.go",
-      "births": 259,
-      "deaths": 6,
-      "d_lt1": 0,
-      "d_1_7": 6,
-      "d_7_30": 0,
-      "rework_rate_1_7": 2.32
-    },
-    {
       "file": "desktop/frontend/src/useMailActions.ts",
       "births": 379,
       "deaths": 6,
@@ -763,15 +559,6 @@
       "d_1_7": 6,
       "d_7_30": 0,
       "rework_rate_1_7": 3.59
-    },
-    {
-      "file": "internal/tui/action_plan.go",
-      "births": 329,
-      "deaths": 153,
-      "d_lt1": 44,
-      "d_1_7": 5,
-      "d_7_30": 104,
-      "rework_rate_1_7": 1.52
     },
     {
       "file": "desktop/frontend/src/keydownHandler.ts",
@@ -792,6 +579,15 @@
       "rework_rate_1_7": 1.4
     },
     {
+      "file": "internal/cache/store.go",
+      "births": 5,
+      "deaths": 323,
+      "d_lt1": 0,
+      "d_1_7": 4,
+      "d_7_30": 1,
+      "rework_rate_1_7": 80.0
+    },
+    {
       "file": "pkg/desktop/session.go",
       "births": 614,
       "deaths": 42,
@@ -801,22 +597,13 @@
       "rework_rate_1_7": 0.65
     },
     {
-      "file": "internal/services/interfaces.go",
-      "births": 157,
-      "deaths": 8,
-      "d_lt1": 1,
-      "d_1_7": 4,
-      "d_7_30": 3,
-      "rework_rate_1_7": 2.55
-    },
-    {
       "file": "desktop/frontend/src/apiTypes.ts",
-      "births": 475,
-      "deaths": 6,
+      "births": 492,
+      "deaths": 7,
       "d_lt1": 2,
       "d_1_7": 4,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.84
+      "d_7_30": 1,
+      "rework_rate_1_7": 0.81
     },
     {
       "file": "desktop/frontend/src/useBootstrap.ts",
@@ -835,6 +622,15 @@
       "d_1_7": 4,
       "d_7_30": 0,
       "rework_rate_1_7": 3.39
+    },
+    {
+      "file": "internal/tui/prompts.go",
+      "births": 400,
+      "deaths": 167,
+      "d_lt1": 49,
+      "d_1_7": 3,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.75
     },
     {
       "file": "pkg/desktop/keymap.go",
@@ -864,15 +660,6 @@
       "rework_rate_1_7": 2.26
     },
     {
-      "file": "internal/services/label_service.go",
-      "births": 16,
-      "deaths": 3,
-      "d_lt1": 0,
-      "d_1_7": 3,
-      "d_7_30": 0,
-      "rework_rate_1_7": 18.75
-    },
-    {
       "file": "desktop/frontend/src/Icons.tsx",
       "births": 317,
       "deaths": 3,
@@ -892,12 +679,12 @@
     },
     {
       "file": "desktop/app_analyzer.go",
-      "births": 213,
+      "births": 231,
       "deaths": 3,
       "d_lt1": 0,
       "d_1_7": 3,
       "d_7_30": 0,
-      "rework_rate_1_7": 1.41
+      "rework_rate_1_7": 1.3
     },
     {
       "file": "desktop/frontend/src/useReader.ts",
@@ -909,22 +696,31 @@
       "rework_rate_1_7": 1.67
     },
     {
+      "file": "internal/tui/bulk_prompts.go",
+      "births": 174,
+      "deaths": 102,
+      "d_lt1": 17,
+      "d_1_7": 2,
+      "d_7_30": 11,
+      "rework_rate_1_7": 1.15
+    },
+    {
+      "file": "internal/tui/prompt_preview.go",
+      "births": 136,
+      "deaths": 56,
+      "d_lt1": 52,
+      "d_1_7": 2,
+      "d_7_30": 2,
+      "rework_rate_1_7": 1.47
+    },
+    {
       "file": "internal/tui/ai.go",
       "births": 41,
       "deaths": 39,
       "d_lt1": 0,
       "d_1_7": 2,
-      "d_7_30": 37,
+      "d_7_30": 0,
       "rework_rate_1_7": 4.88
-    },
-    {
-      "file": "internal/tui/action_plan_rules.go",
-      "births": 11,
-      "deaths": 12,
-      "d_lt1": 2,
-      "d_1_7": 2,
-      "d_7_30": 8,
-      "rework_rate_1_7": 18.18
     },
     {
       "file": "pkg/desktop/prompts.go",
@@ -936,13 +732,22 @@
       "rework_rate_1_7": 0.95
     },
     {
-      "file": "internal/services/link_service.go",
-      "births": 12,
-      "deaths": 4,
+      "file": "internal/services/slack_service.go",
+      "births": 260,
+      "deaths": 7,
       "d_lt1": 0,
       "d_1_7": 2,
       "d_7_30": 0,
-      "rework_rate_1_7": 16.67
+      "rework_rate_1_7": 0.77
+    },
+    {
+      "file": "desktop/frontend/src/apiMockB.ts",
+      "births": 352,
+      "deaths": 5,
+      "d_lt1": 1,
+      "d_1_7": 2,
+      "d_7_30": 2,
+      "rework_rate_1_7": 0.57
     },
     {
       "file": "pkg/desktop/invite.go",
@@ -954,31 +759,13 @@
       "rework_rate_1_7": 0.77
     },
     {
-      "file": "desktop/frontend/src/apiMockB.ts",
-      "births": 330,
-      "deaths": 3,
-      "d_lt1": 1,
-      "d_1_7": 2,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.61
-    },
-    {
       "file": "internal/tts/types.go",
-      "births": 4,
+      "births": 17,
       "deaths": 2,
       "d_lt1": 0,
       "d_1_7": 2,
       "d_7_30": 0,
-      "rework_rate_1_7": 50.0
-    },
-    {
-      "file": "internal/services/email_service.go",
-      "births": 13,
-      "deaths": 2,
-      "d_lt1": 0,
-      "d_1_7": 2,
-      "d_7_30": 0,
-      "rework_rate_1_7": 15.38
+      "rework_rate_1_7": 11.76
     },
     {
       "file": "desktop/frontend/src/Reader.tsx",
@@ -1006,24 +793,6 @@
       "d_1_7": 2,
       "d_7_30": 0,
       "rework_rate_1_7": 2.82
-    },
-    {
-      "file": "internal/tui/prompts.go",
-      "births": 304,
-      "deaths": 131,
-      "d_lt1": 35,
-      "d_1_7": 1,
-      "d_7_30": 21,
-      "rework_rate_1_7": 0.33
-    },
-    {
-      "file": "internal/services/inbox_analyzer_service.go",
-      "births": 242,
-      "deaths": 65,
-      "d_lt1": 32,
-      "d_1_7": 1,
-      "d_7_30": 2,
-      "rework_rate_1_7": 0.41
     },
     {
       "file": "desktop/frontend/src/useAiJobs.ts",
@@ -1152,21 +921,66 @@
       "rework_rate_1_7": 1.14
     },
     {
-      "file": "internal/tui/messages.go",
-      "births": 213,
-      "deaths": 218,
-      "d_lt1": 6,
+      "file": "internal/config/manager.go",
+      "births": 0,
+      "deaths": 337,
+      "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 212,
+      "d_7_30": 0,
+      "rework_rate_1_7": null
+    },
+    {
+      "file": "baseline.py",
+      "births": 816,
+      "deaths": 251,
+      "d_lt1": 251,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "poc/htmlmd/main.go",
+      "births": 247,
+      "deaths": 247,
+      "d_lt1": 247,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/messages.go",
+      "births": 217,
+      "deaths": 222,
+      "d_lt1": 2,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "poc/htmlmd/fetch/main.go",
+      "births": 105,
+      "deaths": 105,
+      "d_lt1": 105,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/markdown.go",
+      "births": 172,
+      "deaths": 101,
+      "d_lt1": 34,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
       "file": "internal/tui/labels.go",
-      "births": 85,
-      "deaths": 97,
+      "births": 87,
+      "deaths": 98,
       "d_lt1": 3,
       "d_1_7": 0,
-      "d_7_30": 94,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1188,21 +1002,39 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/bulk_prompts.go",
-      "births": 64,
-      "deaths": 54,
-      "d_lt1": 6,
+      "file": "scripts/check-architecture.sh",
+      "births": 47,
+      "deaths": 53,
+      "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 48,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/setup-dev.sh",
+      "births": 8,
+      "deaths": 43,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/render/email.go",
+      "births": 29,
+      "deaths": 39,
+      "d_lt1": 7,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
       "file": "internal/tui/obsidian.go",
-      "births": 26,
+      "births": 30,
       "deaths": 36,
       "d_lt1": 2,
       "d_1_7": 0,
-      "d_7_30": 34,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1224,39 +1056,48 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/prompt_configurator.go",
-      "births": 28,
-      "deaths": 29,
-      "d_lt1": 7,
-      "d_1_7": 0,
-      "d_7_30": 22,
-      "rework_rate_1_7": 0.0
-    },
-    {
       "file": "internal/gmail/client.go",
-      "births": 74,
-      "deaths": 26,
+      "births": 77,
+      "deaths": 29,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 16,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/slack.go",
-      "births": 18,
-      "deaths": 25,
-      "d_lt1": 1,
-      "d_1_7": 0,
-      "d_7_30": 24,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
       "file": "internal/tui/messages_bulk.go",
-      "births": 72,
-      "deaths": 24,
+      "births": 88,
+      "deaths": 28,
       "d_lt1": 3,
       "d_1_7": 0,
-      "d_7_30": 21,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/config/theme.go",
+      "births": 0,
+      "deaths": 28,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": null
+    },
+    {
+      "file": "internal/services/thread_service.go",
+      "births": 38,
+      "deaths": 25,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/slack.go",
+      "births": 20,
+      "deaths": 25,
+      "d_lt1": 1,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1269,6 +1110,24 @@
       "rework_rate_1_7": 0.0
     },
     {
+      "file": "internal/tui/threads.go",
+      "births": 62,
+      "deaths": 22,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 2,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/account_service.go",
+      "births": 67,
+      "deaths": 22,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
       "file": "desktop/frontend/src/AnalyzerRulesModal.tsx",
       "births": 125,
       "deaths": 22,
@@ -1278,21 +1137,12 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/services/thread_service.go",
-      "births": 34,
+      "file": "internal/services/prompt_generator_service.go",
+      "births": 217,
       "deaths": 21,
-      "d_lt1": 0,
+      "d_lt1": 21,
       "d_1_7": 0,
-      "d_7_30": 21,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/threads.go",
-      "births": 60,
-      "deaths": 20,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 20,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1305,28 +1155,28 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/action_plan_move.go",
-      "births": 56,
+      "file": "internal/services/errors.go",
+      "births": 0,
       "deaths": 19,
-      "d_lt1": 8,
-      "d_1_7": 0,
-      "d_7_30": 11,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/markdown.go",
-      "births": 32,
-      "deaths": 18,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 18,
-      "rework_rate_1_7": 0.0
+      "d_7_30": 0,
+      "rework_rate_1_7": null
     },
     {
       "file": "internal/services/deterministic_rules_service.go",
-      "births": 455,
-      "deaths": 18,
-      "d_lt1": 18,
+      "births": 516,
+      "deaths": 19,
+      "d_lt1": 19,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/config/migrate.go",
+      "births": 191,
+      "deaths": 17,
+      "d_lt1": 17,
       "d_1_7": 0,
       "d_7_30": 0,
       "rework_rate_1_7": 0.0
@@ -1342,7 +1192,7 @@
     },
     {
       "file": "pkg/auth/oauth.go",
-      "births": 56,
+      "births": 57,
       "deaths": 16,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -1353,16 +1203,16 @@
       "file": "internal/tui/enhanced_text_view.go",
       "births": 16,
       "deaths": 15,
-      "d_lt1": 14,
+      "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 1,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/config/migrate.go",
-      "births": 73,
-      "deaths": 15,
-      "d_lt1": 15,
+      "file": "internal/tui/attachments.go",
+      "births": 17,
+      "deaths": 14,
+      "d_lt1": 0,
       "d_1_7": 0,
       "d_7_30": 0,
       "rework_rate_1_7": 0.0
@@ -1373,7 +1223,43 @@
       "deaths": 13,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 6,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/ai_service.go",
+      "births": 7,
+      "deaths": 11,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/bulk_prompt_service.go",
+      "births": 58,
+      "deaths": 10,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/welcome.go",
+      "births": 10,
+      "deaths": 10,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/email_service.go",
+      "births": 62,
+      "deaths": 10,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1383,15 +1269,6 @@
       "d_lt1": 10,
       "d_1_7": 0,
       "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/attachments.go",
-      "births": 12,
-      "deaths": 9,
-      "d_lt1": 2,
-      "d_1_7": 0,
-      "d_7_30": 7,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1409,7 +1286,16 @@
       "deaths": 9,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 9,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/link_service.go",
+      "births": 17,
+      "deaths": 8,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1422,21 +1308,75 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/welcome.go",
-      "births": 7,
-      "deaths": 7,
+      "file": "internal/services/obsidian_service.go",
+      "births": 5,
+      "deaths": 5,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 7,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/display_service.go",
+      "births": 30,
+      "deaths": 5,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/label_service.go",
+      "births": 19,
+      "deaths": 5,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
       "file": "internal/tui/links.go",
       "births": 10,
       "deaths": 5,
-      "d_lt1": 2,
+      "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 3,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/db/store.go",
+      "births": 141,
+      "deaths": 4,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/attachment_service.go",
+      "births": 15,
+      "deaths": 4,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/composition_service.go",
+      "births": 4,
+      "deaths": 4,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "cmd/giztui/main.go",
+      "births": 54,
+      "deaths": 4,
+      "d_lt1": 3,
+      "d_1_7": 0,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1467,8 +1407,8 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "cmd/giztui/main.go",
-      "births": 33,
+      "file": "internal/render/markdown_render.go",
+      "births": 316,
       "deaths": 3,
       "d_lt1": 3,
       "d_1_7": 0,
@@ -1476,12 +1416,21 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/prompt_preview.go",
-      "births": 3,
+      "file": "internal/tui/accounts.go",
+      "births": 12,
       "deaths": 3,
-      "d_lt1": 1,
+      "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 2,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/action_plan_summarize.go",
+      "births": 124,
+      "deaths": 3,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 3,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1494,30 +1443,12 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/tui/accounts.go",
-      "births": 8,
-      "deaths": 3,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 3,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/action_plan_summarize.go",
-      "births": 5,
-      "deaths": 3,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 3,
-      "rework_rate_1_7": 0.0
-    },
-    {
       "file": "internal/tui/messages_actions.go",
       "births": 11,
       "deaths": 3,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 1,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1530,8 +1461,44 @@
       "rework_rate_1_7": 0.0
     },
     {
+      "file": "internal/tui/error_handler.go",
+      "births": 13,
+      "deaths": 2,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/layout.go",
+      "births": 37,
+      "deaths": 2,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 2,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/editable_text_view.go",
+      "births": 17,
+      "deaths": 2,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/prompt_service.go",
+      "births": 22,
+      "deaths": 2,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
       "file": "internal/tui/action_plan_prompt.go",
-      "births": 3,
+      "births": 75,
       "deaths": 2,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -1544,16 +1511,7 @@
       "deaths": 2,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 2,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/layout.go",
-      "births": 15,
-      "deaths": 2,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 2,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1566,12 +1524,30 @@
       "rework_rate_1_7": 0.0
     },
     {
+      "file": "pkg/desktop/det_rules.go",
+      "births": 154,
+      "deaths": 2,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 2,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/status.go",
+      "births": 8,
+      "deaths": 1,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
       "file": "internal/tui/composition.go",
       "births": 1,
       "deaths": 1,
       "d_lt1": 0,
       "d_1_7": 0,
-      "d_7_30": 1,
+      "d_7_30": 0,
       "rework_rate_1_7": 0.0
     },
     {
@@ -1624,6 +1600,96 @@
       "births": 307,
       "deaths": 1,
       "d_lt1": 1,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/render/format.go",
+      "births": 19,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/prompt_picker_selection.go",
+      "births": 19,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/db/analyzer_rules_store.go",
+      "births": 93,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/analyzer_rules_service.go",
+      "births": 124,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/services/auto_refresh_service.go",
+      "births": 106,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tts/errors.go",
+      "births": 10,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tts/external_piper.go",
+      "births": 48,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tts/player.go",
+      "births": 30,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tts/synthesizer.go",
+      "births": 8,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "internal/tui/speech.go",
+      "births": 45,
+      "deaths": 0,
+      "d_lt1": 0,
       "d_1_7": 0,
       "d_7_30": 0,
       "rework_rate_1_7": 0.0
@@ -1730,24 +1796,6 @@
     {
       "file": "internal/db/deterministic_rules_store.go",
       "births": 168,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/db/store.go",
-      "births": 86,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/services/account_service.go",
-      "births": 1,
       "deaths": 0,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -1926,24 +1974,6 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "pkg/desktop/det_rules.go",
-      "births": 117,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/services/attachment_service.go",
-      "births": 9,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
       "file": "desktop/frontend/src/SuggestPicker.tsx",
       "births": 78,
       "deaths": 0,
@@ -1982,15 +2012,6 @@
     {
       "file": "internal/db/prompt_store.go",
       "births": 44,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/services/prompt_service.go",
-      "births": 18,
       "deaths": 0,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -2268,24 +2289,6 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "internal/render/format.go",
-      "births": 13,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/render/markdown_render.go",
-      "births": 21,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
       "file": "desktop/frontend/src/ObsidianDialog.tsx",
       "births": 56,
       "deaths": 0,
@@ -2306,15 +2309,6 @@
     {
       "file": "internal/services/telemetry_service.go",
       "births": 208,
-      "deaths": 0,
-      "d_lt1": 0,
-      "d_1_7": 0,
-      "d_7_30": 0,
-      "rework_rate_1_7": 0.0
-    },
-    {
-      "file": "internal/tui/error_handler.go",
-      "births": 5,
       "deaths": 0,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -2421,8 +2415,53 @@
       "rework_rate_1_7": 0.0
     },
     {
-      "file": "baseline.py",
-      "births": 592,
+      "file": "scripts/check-coverage-ratchet.sh",
+      "births": 31,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/check-quality-ratchet.py",
+      "births": 139,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/extract-release-notes.sh",
+      "births": 38,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/test-release-scripts.sh",
+      "births": 64,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/validate-release.sh",
+      "births": 81,
+      "deaths": 0,
+      "d_lt1": 0,
+      "d_1_7": 0,
+      "d_7_30": 0,
+      "rework_rate_1_7": 0.0
+    },
+    {
+      "file": "scripts/check-docs.py",
+      "births": 147,
       "deaths": 0,
       "d_lt1": 0,
       "d_1_7": 0,
@@ -2432,698 +2471,583 @@
   ],
   "verification_samples": [
     {
-      "file": "internal/config/config.go",
-      "birth_sha": "bfd7e676cd03",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781359450,
-      "death_sha": "920c994c3a33",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781365788,
-      "age_days": 0.073,
-      "line_text": "\tEnabled  bool   `json:\"enabled\"`"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t// Also update the checkbox indicator in the flags column (column 0)"
     },
     {
-      "file": "internal/config/config.go",
-      "birth_sha": "bfd7e676cd03",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781359450,
-      "death_sha": "920c994c3a33",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781365788,
-      "age_days": 0.073,
-      "line_text": "\tInterval string `json:\"interval\"` // Go duration string, e.g. \"5m\"; clamped to a 1m minimum"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\tif cell := table.GetCell(row, 0); cell != nil {"
     },
     {
-      "file": "internal/version/version.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "1c7c0dff01e1",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781365924,
-      "age_days": 0.103,
-      "line_text": "\tVersion = \"1.10.0\""
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\ttext := cell.Text"
     },
     {
-      "file": "internal/tui/enhanced_text_view.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "099ba8e295bb",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781370592,
-      "age_days": 0.157,
-      "line_text": "\t\t// Content search: /"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\t// Ensure first rune reflects selection: \u2611 when selected, \u2610 when not"
     },
     {
-      "file": "internal/tui/enhanced_text_view.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "099ba8e295bb",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781370592,
-      "age_days": 0.157,
-      "line_text": "\t\tcase char == '/' && e.app.Keys.ContentSearch == \"/\":"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\tdesired := '\u2610'"
     },
     {
-      "file": "internal/tui/enhanced_text_view.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "099ba8e295bb",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781370592,
-      "age_days": 0.157,
-      "line_text": "\t\t// Search next: n"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\tif isSelected {"
     },
     {
-      "file": "internal/tui/enhanced_text_view.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "099ba8e295bb",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781370592,
-      "age_days": 0.157,
-      "line_text": "\t\tcase char == 'n' && e.app.Keys.SearchNext == \"n\":"
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\t\tdesired = '\u2611'"
     },
     {
-      "file": "internal/tui/enhanced_text_view.go",
-      "birth_sha": "47fbde7843ef",
-      "birth_seg": "human",
-      "birth_email": "tatto2k@gmail.com",
-      "birth_at": 1781357032,
-      "death_sha": "099ba8e295bb",
-      "death_seg": "human",
+      "file": "internal/tui/keys.go",
+      "birth_sha": "2a85020497ee",
+      "birth_email": "angel@doit-intl.com",
+      "birth_at": 1758218248,
+      "death_sha": "2c17b62ea44a",
       "death_email": "tatto2k@gmail.com",
-      "death_at": 1781370592,
-      "age_days": 0.157,
-      "line_text": "\t\t// Search previous: N"
-    }
-  ],
-  "verification_ai_born_human_death": [
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "  type PlanNode =",
-      "death_line_number": 2007
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "    | { type: \"cat\"; catIdx: number }",
-      "death_line_number": 2008
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "    | { type: \"email\"; catIdx: number; id: string };",
-      "death_line_number": 2009
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "  const planNodes = useMemo<PlanNode[]>(() => {",
-      "death_line_number": 2010
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "    const nodes: PlanNode[] = [];",
-      "death_line_number": 2011
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "    (plan?.categories ?? []).forEach((c, ci) => {",
-      "death_line_number": 2012
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "      nodes.push({ type: \"cat\", catIdx: ci });",
-      "death_line_number": 2013
-    },
-    {
-      "file": "desktop/frontend/src/App.tsx",
-      "birth_sha": "71bb8098cc3b",
-      "birth_seg": "ai",
-      "birth_email": "noreply@anthropic.com",
-      "birth_at": 1784582560,
-      "death_sha": "e51fafb1e477",
-      "death_seg": "human",
-      "death_email": "ajramos@users.noreply.github.com",
-      "death_at": 1785189676,
-      "age_days": 7.027,
-      "line_text": "      if (expandedCats.has(c.name)) {",
-      "death_line_number": 2014
+      "death_at": 1780479302,
+      "age_days": 257.651,
+      "line_text": "\t\t\trunes := []rune(text)"
     }
   ],
   "reverts_and_corrections": {
     "explicit_reverts": [],
     "explicit_revert_count": 0,
-    "corrective_keyword_commits": 106,
-    "corrective_kw_and_recent": 98,
+    "corrective_keyword_commits": 169,
+    "corrective_kw_and_recent": 152,
     "corrective_sample": [
       {
-        "sha": "099ba8e295bb",
-        "subj": "fix(tui): honor configured key bindings for ctrl-combo and nav/prompt shortcuts"
+        "sha": "c4bc85428199",
+        "subj": "chore(ci): fix codecov-action input 'file' -> 'files' (#6 follow-up)"
       },
       {
-        "sha": "9b9f3ade9ca9",
-        "subj": "fix(tui): v1.13.0 batida fixes \u2014 thread-summary, footer hints, analyzer prompt order, Slack links"
+        "sha": "ef37b54a9eef",
+        "subj": "fix(tui): replace ambiguous-width status icons to stop status bar corruption"
       },
       {
-        "sha": "0365d3b043b1",
-        "subj": "fix(tui): Tab cycles all visible panes incl. the reader; add Shift+Tab reverse"
+        "sha": "bba0e9a3b222",
+        "subj": "fix(tui): restore emoji prefixes in configurator panel titles"
       },
       {
-        "sha": "d481de952455",
-        "subj": "fix(tui): include the Action Plan panel in the Tab focus cycle"
+        "sha": "0de633d08444",
+        "subj": "fix(tui): wire global ESC for configurator stream, fix close/reopen race"
       },
       {
-        "sha": "d1124a5ec564",
-        "subj": "fix(analyzer): reconcile omitted messages into Read manually"
+        "sha": "9c3db65ecea1",
+        "subj": "fix(tui): use repository service for message fetch (service-first compliance)"
       },
       {
-        "sha": "c4fbe1ffd6f3",
-        "subj": "fix(tts): a user-requested Stop is not a failure"
+        "sha": "ebe01dee6a75",
+        "subj": "fix(tui): run save dialog on UI thread, DRY restore block"
       },
       {
-        "sha": "839d63c4a4b7",
-        "subj": "fix(tts): macOS 'say' speaks directly (streaming) instead of synth-to-file"
+        "sha": "054abab2167c",
+        "subj": "fix(tui): set placeholder color so configurator hint renders dim, not raw tags"
       },
       {
-        "sha": "bcf733c6f03b",
-        "subj": "fix(cli): honor GMAIL_TUI_CREDENTIALS env var (was advertised but ignored)"
+        "sha": "a562297eab55",
+        "subj": "fix(prompt-generator): pass non-empty content to AIService, reset stale loading text on error"
       },
       {
-        "sha": "b3097bce1fbd",
-        "subj": "fix(services): guard SendNewMailDigest against nil gmail client"
+        "sha": "2eba0830a929",
+        "subj": "fix(tui): wire focus navigation in configurator (auto-focus on generate, Tab cycling)"
       },
       {
-        "sha": "bf8256a5b58b",
-        "subj": "fix(services): guard ForwardEmail against nil gmail client (consistency)"
+        "sha": "c08f4afe88da",
+        "subj": "fix(prompt-generator): rewrite meta-prompt to elicit full instruction, strip code fences"
       },
       {
-        "sha": "b598fd4fc0da",
-        "subj": "fix(tui): preserve original VIM expiry behavior (now.Sub > d) in vimState"
+        "sha": "d5c9cf383b84",
+        "subj": "fix(tui): substitute {{body}} placeholder in single ephemeral apply"
       },
       {
-        "sha": "ef4f2b912212",
-        "subj": "refactor(tui): route VIM key handling through vimState (removes 5 App fields, fixes locking)"
+        "sha": "75066186aec5",
+        "subj": "fix(tui): reset AI panel text on apply error/cancel so it doesn't hang"
       },
       {
-        "sha": "d7236b311f7f",
-        "subj": "fix(tui): use strconv.Itoa for digit append (silence gosec G115)"
+        "sha": "4eab34f22948",
+        "subj": "fix(tui): close configurator on UI thread before spawning apply goroutine"
       },
       {
-        "sha": "72e2d201932c",
-        "subj": "fix(tui): keep originalMsgID on clearSequence so gg/G mid-range-op targets the right message"
+        "sha": "de77bcc3d527",
+        "subj": "fix(prompt): route ephemeral bulk apply through BulkPromptService"
       },
       {
-        "sha": "a6d3b8d305a1",
-        "subj": "fix(slack): digest-specific summary prompt + Slack blockquote format"
+        "sha": "3cd2dfe0c213",
+        "subj": "fix(analyzer): address code review \u2014 non-mutating merge, cross-category dedup, string-aware JSON extraction"
       },
       {
-        "sha": "67f5b716fa2a",
-        "subj": "fix(tui): use thread-safe GetMessageIDs() in openActionPlanEmail"
+        "sha": "e07d9b8554e8",
+        "subj": "fix(tui): guard app-level streamingCancel clear against panel reopen race"
       },
       {
-        "sha": "460a9147cdb8",
-        "subj": "fix(tui): set currentMessageID in openActionPlanEmail so not-in-list emails load in reader"
+        "sha": "8cfd3a1e1916",
+        "subj": "fix(tui): action plan review \u2014 atomic analyzing flag, Enter action, UI-thread mutation, ESC fallback"
       },
       {
-        "sha": "d7a7a0234072",
-        "subj": "fix(tui): Enter in Action Plan moves focus to the reader (E2E feedback)"
+        "sha": "2c882871953a",
+        "subj": "fix(tui): action plan E2E fixes \u2014 repaint via QueueUpdateDraw, empty-result state, route panel keys past global handler"
       },
       {
-        "sha": "330138372842",
-        "subj": "docs: correct commandState spec \u2014 cmdMode crosses a goroutine, use atomic.Bool"
+        "sha": "f8d2d7e30f2c",
+        "subj": "fix(tui): action plan body key-hints honor configured keybindings"
       },
       {
-        "sha": "32d2ae92f3a2",
-        "subj": "refactor(tui): extract uiLifecycle, fix latent race on uiReady/welcomeAnimating (atomic.Bool)"
+        "sha": "7078bd9b6b4e",
+        "subj": "fix(tui): make llmTouchUpEnabled access atomic to remove data race"
       },
       {
-        "sha": "fc377be0eba9",
-        "subj": "refactor(tui): consolidate caches into appCaches, fix invite/aiInFlight races, drop dead caches"
+        "sha": "aca53df2aaa3",
+        "subj": "fix(render): collapse intra-line duplicate CTAs and drop orphan emoji skin-tone modifiers"
       },
       {
-        "sha": "29263a2dbe36",
-        "subj": "fix(tui): remove QueueUpdateDraw from AI summary streaming callbacks (ESC deadlock)"
+        "sha": "4f5c766c07b2",
+        "subj": "fix(tui): prompt picker Enter applies highlighted item, not visible[0]"
       },
       {
-        "sha": "36654db1c6e1",
-        "subj": "fix(config): unbind shadowed threading keys + silence context-separated key warnings"
+        "sha": "0796ca07b9dd",
+        "subj": "fix(tui): restore list focus after bulk archive/trash/mark"
       },
       {
-        "sha": "109f00369c98",
-        "subj": "refactor(tui): group AI pane state into aiPanelState, fix streamingCancel + visible races"
+        "sha": "c17e6d8f9e9a",
+        "subj": "fix(tui): update in-app help for markdown/touch-up/accounts/action-plan"
       },
       {
-        "sha": "6141e273f175",
-        "subj": "fix(threads): :expand-all/:collapse-all now affect threads with no saved state"
+        "sha": "b3603d0d99c9",
+        "subj": "fix(render): strip glamour backgrounds from rendered email markdown"
       },
       {
-        "sha": "b0b4c8e2a156",
-        "subj": "docs: fix Task 1 test in tab-completion plan (labe matches label+labels; drop unused var)"
+        "sha": "055985609406",
+        "subj": "fix(render): map glamour box-drawing to ASCII to kill ?? glyphs"
       },
       {
-        "sha": "0107aa8ba5a7",
-        "subj": "fix(tui): make arg completers grammar-aware (subcommands, not wrong names)"
+        "sha": "1620f17f6e70",
+        "subj": "fix(render): make link URLs readable (drop glamour's black foreground)"
       },
       {
-        "sha": "c42208556ba0",
-        "subj": "refactor(tui): route bulk selection through bulkState (fixes selected-map race)"
+        "sha": "306a1d1c2f65",
+        "subj": "release: prepare v1.5.0 (prompt preview + picker/focus/render fixes)"
       },
       {
-        "sha": "6c6cf550703f",
-        "subj": "style(tui): simplify bulk.ids() copy loops + fix test gosec warning"
+        "sha": "4a57602ec765",
+        "subj": "feat(tui): action plan uses TreeView (fixes post-analysis focus/nav)"
       },
       {
-        "sha": "fd0ed8a37a6e",
-        "subj": "feat(tui): closestCommand + levenshtein for command typo suggestions"
+        "sha": "8c371d6e5927",
+        "subj": "fix(tui): ESC closes rule overlay not whole panel; clean up overlays on panel close"
       }
-    ]
+    ],
+    "semantic_revert_candidates": [
+      {
+        "sha": "873c35ac5131",
+        "subj": "refactor: replace strings.Builder.WriteString(fmt.Sprintf) with fmt.Fprintf",
+        "deleted": 167
+      },
+      {
+        "sha": "6487f7eaf44d",
+        "subj": "docs(todo): migrate active backlog to GitHub Issues, preserve DONE history",
+        "deleted": 188
+      },
+      {
+        "sha": "3bcd54248633",
+        "subj": "refactor(ai): remove unused 'content' param from ApplyCustomPrompt[Stream]",
+        "deleted": 53
+      },
+      {
+        "sha": "218920e7481d",
+        "subj": "chore: remove html-to-markdown PoC; promote deps to production",
+        "deleted": 9340
+      },
+      {
+        "sha": "6b3f1987c10a",
+        "subj": "feat(tui): in-place prompt preview (Enter applies, Esc/Ctrl+P returns)",
+        "deleted": 84
+      },
+      {
+        "sha": "12d97c845f6c",
+        "subj": "feat(tui): make all hardcoded action keys configurable + drop dead prompt_test",
+        "deleted": 76
+      },
+      {
+        "sha": "5883fb9e4069",
+        "subj": "refactor: remove dead code surfaced by graphify analysis (issue #49 signal #2)",
+        "deleted": 769
+      },
+      {
+        "sha": "0143971d2f75",
+        "subj": "refactor(tui): route new-mail Slack notification through SendNewMailDigest",
+        "deleted": 78
+      },
+      {
+        "sha": "89cd908acfe7",
+        "subj": "refactor(tui): route command-bar state through commandState (removes 6 App fields)",
+        "deleted": 84
+      },
+      {
+        "sha": "47a7264d251a",
+        "subj": "refactor(tui): route search/filter state through searchState (removes 8 App fields, drops dead searchHistory)",
+        "deleted": 118
+      },
+      {
+        "sha": "f8c4d40f5862",
+        "subj": "refactor(tui): route overlay backups through overlayBackup (9 App fields -> 3)",
+        "deleted": 53
+      },
+      {
+        "sha": "ef31cee7329d",
+        "subj": "feat(tui): cycle command/arg completions on Tab; remove hardcoded suggestion map",
+        "deleted": 439
+      }
+    ],
+    "semantic_revert_candidate_count": 65
   },
   "time_to_green": {
     "note": "Solo-dev merging own branches in a personal repo. Branch cycle-time measures time-to-click-merge, not CI latency. Descriptive count only; not a quality signal here.",
-    "merge_commits": 50,
-    "non_merge_commits": 463
+    "merge_commits": 72,
+    "non_merge_commits": 731
   },
   "file_size_and_complexity_weekly": {
     "global_series": [
       {
-        "file_count": 117,
-        "loc_p50": 193.0,
-        "loc_p90": 764.4,
-        "loc_max": 3299,
-        "total_ccn": 9806,
-        "mean_ccn": 4.496,
-        "func_count": 2181,
-        "funcs_over_ccn10": 185,
-        "over10_ratio": 0.0848,
-        "boundary_date": "2026-06-24",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-06-26",
         "sha": "ee2058d89cb3",
-        "loc_max_file": "internal/tui/messages.go"
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 119,
-        "loc_p50": 189.0,
-        "loc_p90": 759.2,
-        "loc_max": 3279,
-        "total_ccn": 9825,
-        "mean_ccn": 4.462,
-        "func_count": 2202,
-        "funcs_over_ccn10": 184,
-        "over10_ratio": 0.0836,
-        "boundary_date": "2026-07-01",
-        "sha": "a0cc621fe85c",
-        "loc_max_file": "internal/tui/messages.go"
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-03",
+        "sha": "dbdc50a52591",
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 121,
-        "loc_p50": 186.0,
-        "loc_p90": 756.0,
-        "loc_max": 3273,
-        "total_ccn": 9897,
-        "mean_ccn": 4.452,
-        "func_count": 2223,
-        "funcs_over_ccn10": 187,
-        "over10_ratio": 0.0841,
-        "boundary_date": "2026-07-08",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-10",
         "sha": "be1031dc1f08",
-        "loc_max_file": "internal/tui/messages.go"
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 129,
-        "loc_p50": 170.0,
-        "loc_p90": 740.8,
-        "loc_max": 3273,
-        "total_ccn": 10195,
-        "mean_ccn": 4.456,
-        "func_count": 2288,
-        "funcs_over_ccn10": 193,
-        "over10_ratio": 0.0844,
-        "boundary_date": "2026-07-22",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-17",
         "sha": "16098d8c0532",
-        "loc_max_file": "internal/tui/messages.go"
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 247,
-        "loc_p50": 114.0,
-        "loc_p90": 519.4,
-        "loc_max": 3273,
-        "total_ccn": 13570,
-        "mean_ccn": 3.673,
-        "func_count": 3695,
-        "funcs_over_ccn10": 215,
-        "over10_ratio": 0.0582,
-        "boundary_date": "2026-07-29",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-24",
+        "sha": "d2c5446fe821",
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
+      },
+      {
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-31",
         "sha": "50e356459de7",
-        "loc_max_file": "internal/tui/messages.go"
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 268,
-        "loc_p50": 114.5,
-        "loc_p90": 518.3,
-        "loc_max": 3337,
-        "total_ccn": 14539,
-        "mean_ccn": 3.566,
-        "func_count": 4077,
-        "funcs_over_ccn10": 220,
-        "over10_ratio": 0.054,
-        "boundary_date": "2026-08-05",
-        "sha": "8c2a2a23299b",
-        "loc_max_file": "internal/tui/messages.go"
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-08-07",
+        "sha": "fc968066cf8a",
+        "loc_max_file": ".claude/hooks/slack_notify.sh"
       },
       {
-        "file_count": 270,
-        "loc_p50": 114.5,
-        "loc_p90": 518.1,
-        "loc_max": 3337,
-        "total_ccn": 14646,
-        "mean_ccn": 3.501,
-        "func_count": 4183,
-        "funcs_over_ccn10": 226,
-        "over10_ratio": 0.054,
-        "boundary_date": "2026-08-12",
-        "sha": "191d958e47c8",
-        "loc_max_file": "internal/tui/messages.go"
+        "file_count": 2,
+        "loc_p50": 277.5,
+        "loc_p90": 425.9,
+        "loc_max": 463,
+        "total_ccn": 188,
+        "mean_ccn": 6.483,
+        "func_count": 29,
+        "funcs_over_ccn10": 9,
+        "over10_ratio": 0.3103,
+        "boundary_date": "2026-08-14",
+        "sha": "3acefeff26f4",
+        "loc_max_file": "baseline.py"
       }
     ],
     "fixed_cohort_series": [
       {
-        "file_count": 117,
-        "loc_p50": 193.0,
-        "loc_p90": 764.4,
-        "loc_max": 3299,
-        "total_ccn": 9806,
-        "mean_ccn": 4.496,
-        "func_count": 2181,
-        "funcs_over_ccn10": 185,
-        "over10_ratio": 0.0848,
-        "boundary_date": "2026-06-24",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-06-26",
         "sha": "ee2058d89cb3"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 762.4,
-        "loc_max": 3279,
-        "total_ccn": 9808,
-        "mean_ccn": 4.485,
-        "func_count": 2187,
-        "funcs_over_ccn10": 184,
-        "over10_ratio": 0.0841,
-        "boundary_date": "2026-07-01",
-        "sha": "a0cc621fe85c"
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-03",
+        "sha": "dbdc50a52591"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 771.6,
-        "loc_max": 3273,
-        "total_ccn": 9841,
-        "mean_ccn": 4.481,
-        "func_count": 2196,
-        "funcs_over_ccn10": 187,
-        "over10_ratio": 0.0852,
-        "boundary_date": "2026-07-08",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-10",
         "sha": "be1031dc1f08"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 796.8,
-        "loc_max": 3273,
-        "total_ccn": 9746,
-        "mean_ccn": 4.46,
-        "func_count": 2185,
-        "funcs_over_ccn10": 185,
-        "over10_ratio": 0.0847,
-        "boundary_date": "2026-07-22",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-17",
         "sha": "16098d8c0532"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 799.2,
-        "loc_max": 3273,
-        "total_ccn": 9783,
-        "mean_ccn": 4.455,
-        "func_count": 2196,
-        "funcs_over_ccn10": 185,
-        "over10_ratio": 0.0842,
-        "boundary_date": "2026-07-29",
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-24",
+        "sha": "d2c5446fe821"
+      },
+      {
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-07-31",
         "sha": "50e356459de7"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 811.0,
-        "loc_max": 3337,
-        "total_ccn": 10015,
-        "mean_ccn": 4.459,
-        "func_count": 2246,
-        "funcs_over_ccn10": 188,
-        "over10_ratio": 0.0837,
-        "boundary_date": "2026-08-05",
-        "sha": "8c2a2a23299b"
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-08-07",
+        "sha": "fc968066cf8a"
       },
       {
-        "file_count": 117,
-        "loc_p50": 192.0,
-        "loc_p90": 813.4,
-        "loc_max": 3337,
-        "total_ccn": 9960,
-        "mean_ccn": 4.291,
-        "func_count": 2321,
-        "funcs_over_ccn10": 187,
-        "over10_ratio": 0.0806,
-        "boundary_date": "2026-08-12",
-        "sha": "191d958e47c8"
+        "file_count": 1,
+        "loc_p50": 92.0,
+        "loc_p90": 92.0,
+        "loc_max": 92,
+        "total_ccn": 0,
+        "mean_ccn": 0,
+        "func_count": 0,
+        "funcs_over_ccn10": 0,
+        "over10_ratio": 0,
+        "boundary_date": "2026-08-14",
+        "sha": "3acefeff26f4"
       }
     ],
-    "fixed_cohort_size": 117,
+    "fixed_cohort_size": 1,
     "top_grew_existing_files": [
       {
-        "file": "internal/tui/command_completion.go",
-        "start": 260,
-        "end": 487,
-        "growth": 227
-      },
-      {
-        "file": "internal/tui/saved_queries.go",
-        "start": 449,
-        "end": 641,
-        "growth": 192
-      },
-      {
-        "file": "internal/tui/prompts.go",
-        "start": 718,
-        "end": 879,
-        "growth": 161
-      },
-      {
-        "file": "internal/tui/app.go",
-        "start": 2309,
-        "end": 2447,
-        "growth": 138
-      },
-      {
-        "file": "internal/config/config.go",
-        "start": 801,
-        "end": 922,
-        "growth": 121
-      },
-      {
-        "file": "internal/tui/commands.go",
-        "start": 1726,
-        "end": 1827,
-        "growth": 101
-      },
-      {
-        "file": "internal/tui/action_plan.go",
-        "start": 777,
-        "end": 859,
-        "growth": 82
-      },
-      {
-        "file": "internal/services/interfaces.go",
-        "start": 756,
-        "end": 832,
-        "growth": 76
-      },
-      {
-        "file": "internal/db/store.go",
-        "start": 373,
-        "end": 447,
-        "growth": 74
-      },
-      {
-        "file": "internal/services/slack_service.go",
-        "start": 455,
-        "end": 513,
-        "growth": 58
+        "file": ".claude/hooks/slack_notify.sh",
+        "start": 92,
+        "end": 92,
+        "growth": 0
       }
     ],
     "top_new_files": [
       {
-        "file": "desktop/frontend/src/commandRunner.ts",
-        "end": 474
-      },
-      {
         "file": "baseline.py",
-        "end": 469
-      },
-      {
-        "file": "internal/tui/rules_manager.go",
-        "end": 449
-      },
-      {
-        "file": "desktop/frontend/src/App.tsx",
-        "end": 445
-      },
-      {
-        "file": "desktop/frontend/src/apiTypes.ts",
-        "end": 421
-      },
-      {
-        "file": "pkg/desktop/session.go",
-        "end": 419
-      },
-      {
-        "file": "desktop/app_mail.go",
-        "end": 418
-      },
-      {
-        "file": "desktop/frontend/src/keydownMain.ts",
-        "end": 406
-      },
-      {
-        "file": "desktop/frontend/src/ModalsSecondary.tsx",
-        "end": 394
-      },
-      {
-        "file": "desktop/frontend/src/AppInbox.tsx",
-        "end": 388
+        "end": 463
       }
     ],
-    "peak_loc_file": "internal/tui/messages.go",
-    "peak_loc_value": 3337,
-    "peak_loc_snapshot": "2026-08-05",
+    "peak_loc_file": "baseline.py",
+    "peak_loc_value": 463,
+    "peak_loc_snapshot": "2026-08-14",
     "peak_file_trace": {
       "trajectory": [
         {
-          "date": "2026-06-24",
-          "nloc": 3299,
-          "present": true
+          "date": "2026-06-26",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-07-01",
-          "nloc": 3279,
-          "present": true
+          "date": "2026-07-03",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-07-08",
-          "nloc": 3273,
-          "present": true
+          "date": "2026-07-10",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-07-22",
-          "nloc": 3273,
-          "present": true
+          "date": "2026-07-17",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-07-29",
-          "nloc": 3273,
-          "present": true
+          "date": "2026-07-24",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-08-05",
-          "nloc": 3337,
-          "present": true
+          "date": "2026-07-31",
+          "nloc": null,
+          "present": false
         },
         {
-          "date": "2026-08-12",
-          "nloc": 3337,
+          "date": "2026-08-07",
+          "nloc": null,
+          "present": false
+        },
+        {
+          "date": "2026-08-14",
+          "nloc": 463,
           "present": true
         }
       ],
-      "events": []
+      "events": [
+        {
+          "sha": "f4f3058e3102",
+          "date": "2026-08-12",
+          "email": "noreply@anthropic.com",
+          "subj": "analysis: SDLC baseline (rework, complexity trajectory, reverts)",
+          "added": 224,
+          "deleted": 251,
+          "renamed": false
+        }
+      ]
     }
   }
 }

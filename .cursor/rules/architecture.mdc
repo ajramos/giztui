@@ -90,7 +90,7 @@ Feature Placement Guide
 
 ## Picker State Management (CRITICAL)
 - **ALWAYS use ActivePicker enum** for side panel pickers
-- **Available picker types**: PickerNone, PickerLabels, PickerDrafts, PickerObsidian, PickerAttachments, PickerLinks, PickerPrompts, PickerBulkPrompts, PickerSavedQueries, PickerThemes, PickerAI, PickerContentSearch, PickerRSVP
+- **Available picker types** (source of truth: `internal/tui/app.go`): PickerNone, PickerLabels, PickerDrafts, PickerObsidian, PickerAttachments, PickerLinks, PickerPrompts, PickerBulkPrompts, PickerPromptConfigurator, PickerActionPlan, PickerAnalyzerRules, PickerSavedQueries, PickerThemes, PickerAI, PickerContentSearch, PickerRSVP, PickerAccounts, PickerRules, PickerAIJobs, PickerChat
 - **NEVER use shared boolean flags** like `labelsVisible` (causes race conditions)
 - Use `setActivePicker()` and specific picker check methods
 

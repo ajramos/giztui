@@ -3,9 +3,11 @@ package helpers
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ajramos/giztui/internal/services"
@@ -204,27 +206,7 @@ func RunVisualRegressionTests(t *testing.T, harness *TestHarness) {
 					fmt.Sprintf("Content validation failed for test: %s", test.Name))
 			}
 
-			// Perform snapshot comparison
-			result := CompareSnapshot(t, test.Name, content)
-
-			if !result.Matches {
-				t.Logf("Visual regression detected in test: %s", test.Name)
-				t.Logf("Expected MD5: %s", result.SnapshotMD5)
-				t.Logf("Actual MD5: %s", result.CurrentMD5)
-
-				// In CI/CD, this would fail the test. In development, this logs the difference.
-				if os.Getenv("UPDATE_SNAPSHOTS") == "true" {
-					t.Logf("Updating snapshot for: %s", test.Name)
-					err := UpdateSnapshot(test.Name, content)
-					assert.NoError(t, err, "Failed to update snapshot")
-				} else {
-					t.Logf("Visual regression detected. Run with UPDATE_SNAPSHOTS=true to update baseline.")
-					// Uncomment to fail on visual regression:
-					// t.Fail()
-				}
-			} else {
-				t.Logf("Visual test passed: %s", test.Name)
-			}
+			assertSnapshot(t, test.Name, content)
 
 			// Cleanup
 			if test.Cleanup != nil {
@@ -248,13 +230,10 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 	if snapshotData, err := os.ReadFile(filepath.Clean(snapshotPath)); err == nil {
 		snapshotMD5 = calculateMD5(string(snapshotData))
 		matches = snapshotMD5 == currentMD5
+	} else if errors.Is(err, os.ErrNotExist) {
+		t.Logf("No existing snapshot for %s", testName)
 	} else {
-		// No existing snapshot, create one
-		t.Logf("No existing snapshot for %s, creating baseline", testName)
-		err := os.WriteFile(snapshotPath, []byte(content), 0600)
-		assert.NoError(t, err, "Failed to create baseline snapshot")
-		snapshotMD5 = currentMD5
-		matches = true
+		t.Errorf("failed to read snapshot %s: %v", testName, err)
 	}
 
 	return SnapshotResult{
@@ -270,6 +249,36 @@ func CompareSnapshot(t *testing.T, testName, content string) SnapshotResult {
 func UpdateSnapshot(testName, content string) error {
 	snapshotPath := filepath.Join(SnapshotDir, testName+".snapshot")
 	return os.WriteFile(snapshotPath, []byte(content), 0600)
+}
+
+func assertSnapshot(t *testing.T, testName, content string) {
+	t.Helper()
+	content = normalizeSnapshot(content)
+	result := CompareSnapshot(t, testName, content)
+	if result.Matches {
+		return
+	}
+
+	if os.Getenv("UPDATE_SNAPSHOTS") == "true" {
+		assert.NoError(t, UpdateSnapshot(testName, content), "Failed to update snapshot")
+		t.Logf("Updated snapshot: %s", testName)
+		return
+	}
+
+	t.Errorf(
+		"visual regression in %s: expected checksum %s, got %s; run with UPDATE_SNAPSHOTS=true to accept",
+		testName,
+		result.SnapshotMD5,
+		result.CurrentMD5,
+	)
+}
+
+func normalizeSnapshot(content string) string {
+	lines := strings.Split(content, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // RunVisualStateChanges tests visual changes based on state transitions
@@ -358,11 +367,7 @@ func RunVisualStateChanges(t *testing.T, harness *TestHarness) {
 					content := harness.GetScreenContent()
 
 					testName := fmt.Sprintf("%s_%s", stateTest.name, state.Name)
-					result := CompareSnapshot(t, testName, content)
-
-					if !result.Matches && os.Getenv("UPDATE_SNAPSHOTS") != "true" {
-						t.Logf("State transition visual change detected: %s -> %s", stateTest.name, state.Name)
-					}
+					assertSnapshot(t, testName, content)
 				})
 			}
 		})
@@ -418,11 +423,7 @@ func RunResponsiveLayoutTests(t *testing.T, harness *TestHarness) {
 			content_str := harness.GetScreenContent()
 
 			testName := fmt.Sprintf("responsive_%s", size.name)
-			result := CompareSnapshot(t, testName, content_str)
-
-			if !result.Matches && os.Getenv("UPDATE_SNAPSHOTS") != "true" {
-				t.Logf("Responsive layout change detected for size: %dx%d", size.width, size.height)
-			}
+			assertSnapshot(t, testName, content_str)
 
 			// Reset to standard size
 			harness.Screen.SetSize(120, 40)

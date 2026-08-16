@@ -544,12 +544,12 @@ func formatFileSize(size int64) string {
 		return fmt.Sprintf("%d B", size)
 	}
 
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
+	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}
+	value, exp := float64(size), 0
+	for value >= unit && exp < len(suffixes)-1 {
+		value /= unit
 		exp++
 	}
 
-	suffixes := []string{"B", "KB", "MB", "GB", "TB"}
-	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), suffixes[exp+1])
+	return fmt.Sprintf("%.1f %s", value, suffixes[exp]) // #nosec G602 -- exp is bounded by the loop condition.
 }

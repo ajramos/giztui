@@ -66,7 +66,7 @@ main() {
     # Check Go installation
     print_step "Checking Go installation..."
     if ! check_command "go"; then
-        print_error "Go is not installed. Please install Go 1.23+ from https://golang.org/dl/"
+        print_error "Go is not installed. Please install Go 1.25.13+ from https://go.dev/dl/"
         exit 1
     fi
 
@@ -86,17 +86,9 @@ main() {
     go mod download
     print_success "Dependencies installed"
 
-    # Install development tools
-    print_step "Installing development tools..."
-
-    # golangci-lint
-    install_go_tool "golangci-lint" "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0"
-
-    # mockery for test mocks
-    install_go_tool "mockery" "github.com/vektra/mockery/v2@latest"
-
-    # govulncheck for security scanning
-    install_go_tool "govulncheck" "golang.org/x/vuln/cmd/govulncheck@latest"
+    # Install the exact tool versions used by CI.
+    print_step "Installing pinned development tools..."
+    make ci-tools
 
     # Setup pre-commit hooks
     print_step "Setting up pre-commit hooks..."
@@ -120,38 +112,11 @@ main() {
         fi
     fi
 
-    # Run initial checks
+    # Validate without modifying the checkout.
     print_step "Running initial quality checks..."
-
-    # Format check
-    if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-        print_warning "Code formatting issues found. Running go fmt..."
-        go fmt ./...
-        print_success "Code formatted"
-    else
-        print_success "Code is properly formatted"
-    fi
-
-    # Go vet
-    print_step "Running go vet..."
-    go vet -composites=false ./...
-    print_success "Go vet passed"
-
-    # Linting
-    if check_command "golangci-lint"; then
-        print_step "Running linting..."
-        golangci-lint run --config=.golangci.yml
-        print_success "Linting passed"
-    fi
-
-    # Generate mocks
-    print_step "Generating test mocks..."
-    if [ -f "Makefile" ]; then
-        make test-mocks
-        print_success "Test mocks generated"
-    else
-        print_warning "Makefile not found, skipping mock generation"
-    fi
+    make ci-quality
+    make ci-architecture
+    print_success "Quality checks passed"
 
     # Run essential tests
     print_step "Running essential tests..."

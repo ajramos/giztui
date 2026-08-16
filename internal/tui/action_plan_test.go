@@ -583,9 +583,7 @@ func TestApplyActionPlanMoveKeepsDisplayOrder(t *testing.T) {
 		names = append(names, c.Name)
 	}
 	want := []string{"Promos", "Mark read", "Updates"}
-	if len(names) != 3 || names[0] != want[0] || names[1] != want[1] || names[2] != want[2] {
-		t.Fatalf("plan must stay in display order after a move, got %v", names)
-	}
+	assert.Equal(t, want, names, "plan must stay in display order after a move")
 }
 
 // Same duplication in the tree: the category header renders "verb · … · name", so a

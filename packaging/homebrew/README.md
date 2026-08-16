@@ -7,7 +7,9 @@ Casks live in a **tap** — a separate repo the maintainer owns.
 
 1. Create a public repo named **`homebrew-giztui`** under `ajramos`
    (the `homebrew-` prefix is required; the tap is then `ajramos/giztui`).
-2. Add `giztui-desktop.rb` (from this folder) at `Casks/giztui-desktop.rb`.
+2. Seed `Casks/giztui-desktop.rb` with a version older than the first automated
+   release, or publish first and copy the generated checksummed cask asset. The
+   promotion job intentionally refuses same-version replacement and downgrades.
 
 Users then install with:
 
@@ -27,31 +29,34 @@ brew install --cask giztui-desktop
 > The same gate applies to `brew audit` — audit **by name** after trusting
 > (`brew audit --cask giztui-desktop`), not by file path (`brew audit [path]` is
 > disabled in current Homebrew).
+>
+> The app requires macOS 12 or newer. Builds are currently unsigned; `brew
+> trust` authorizes the third-party tap metadata but does not remove macOS
+> quarantine or bypass Gatekeeper for the downloaded application.
 
 ## Per-release bump
 
-**Automated (default).** The `homebrew` job in `.github/workflows/release-desktop.yml`
-runs on every tagged release: it downloads the freshly built
-`GizTUI-Desktop-<version>-universal.dmg`, computes its `sha256`, and pushes an
-updated `Casks/giztui-desktop.rb` (pinned `version` + `sha256`) to the tap repo
-`ajramos/homebrew-giztui`. So `brew upgrade --cask giztui-desktop` just works.
+**Automated (default).** The `homebrew` job in `.github/workflows/release.yml`
+runs after a stable GitHub release is published. The release publisher has
+already generated and attested `giztui-desktop.rb` from the universal DMG, so the
+job promotes that exact cask to `ajramos/homebrew-giztui`. Prereleases attach a
+candidate cask to the GitHub release without changing the stable tap.
 
 **One-time setup:** add a repository secret **`HOMEBREW_TAP_TOKEN`** to
 `ajramos/giztui` — a fine-grained PAT (or classic token with `repo`) that has
-**contents: write** on `ajramos/homebrew-giztui`. Without it the job logs a
-warning and skips; the release itself never fails.
+**contents: write** on `ajramos/homebrew-giztui`. Stable release workflows fail
+if this secret is unavailable; the job never silently skips distribution.
 
 **Manual fallback** (e.g. the very first tap seed, or the secret isn't set yet):
 ```bash
 VER=1.22.0
 URL="https://github.com/ajramos/giztui/releases/download/v$VER/GizTUI-Desktop-$VER-universal.dmg"
-SHA=$(curl -sSL "$URL" | shasum -a 256 | awk '{print $1}')
+SHA=$(curl -fsSL "$URL" | shasum -a 256 | awk '{print $1}')
 # edit Casks/giztui-desktop.rb: version "$VER", sha256 "$SHA"
 ```
 
 ## Signing note
 
-The build is currently **unsigned**. `sha256 :no_check` in the cask lets it
-install without a pinned checksum; switch to a real `sha256` (as above) once you
-bump per release for a verified install. macOS notarization (phase 2) removes the
-Gatekeeper warning entirely.
+The build is currently **unsigned**, but every released cask has a pinned DMG
+checksum. macOS Developer ID signing and notarization remain the next step for
+removing the Gatekeeper warning.

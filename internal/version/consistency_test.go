@@ -1,23 +1,40 @@
 package version
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 )
 
-// repoRoot returns the repository root relative to this test file
-// (internal/version/consistency_test.go → ../../).
+type wailsConfig struct {
+	Info struct {
+		ProductVersion string `json:"productVersion"`
+	} `json:"info"`
+}
+
+type packageJSON struct {
+	Version string `json:"version"`
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("repository root containing go.mod not found")
+		}
+		dir = parent
+	}
 }
 
 // TestVersionMatchesVersionFile guards against the classic release miss: bumping
@@ -29,7 +46,7 @@ func TestVersionMatchesVersionFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read VERSION: %v", err)
 	}
-	fileVer := strings.TrimSpace(string(raw))
+	fileVer := strings.TrimSuffix(string(raw), "\n")
 	if fileVer != Version {
 		t.Fatalf("VERSION file = %q but version.Version = %q — bump both together (see docs/RELEASE_PROCEDURE.md)", fileVer, Version)
 	}
@@ -44,7 +61,7 @@ func TestChangelogHasCurrentVersion(t *testing.T) {
 		t.Fatalf("read CHANGELOG.md: %v", err)
 	}
 	// Match "## [1.24.0]" allowing surrounding whitespace.
-	re := regexp.MustCompile(`(?m)^##\s*\[` + regexp.QuoteMeta(Version) + `\]`)
+	re := regexp.MustCompile(`(?m)^##[\t ]+\[` + regexp.QuoteMeta(Version) + `\]([\t ]|$)`)
 	if !re.Match(raw) {
 		t.Fatalf("CHANGELOG.md has no '## [%s]' entry — add the release notes before tagging (see docs/RELEASE_PROCEDURE.md)", Version)
 	}
@@ -68,5 +85,38 @@ func TestHomebrewCaskTemplateVersion(t *testing.T) {
 	}
 	if got := string(m[1]); got != Version {
 		t.Fatalf("cask template version = %q but version.Version = %q — bump packaging/homebrew/giztui-desktop.rb too (see docs/RELEASE_PROCEDURE.md)", got, Version)
+	}
+}
+
+func TestDesktopProductVersion(t *testing.T) {
+	root := repoRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "desktop", "wails.json")) // #nosec G304 -- fixed repo file resolved from runtime.Caller
+	if err != nil {
+		t.Fatalf("read desktop/wails.json: %v", err)
+	}
+	var config wailsConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		t.Fatalf("parse desktop/wails.json: %v", err)
+	}
+	versionCore := strings.SplitN(strings.SplitN(Version, "+", 2)[0], "-", 2)[0]
+	if config.Info.ProductVersion != versionCore {
+		t.Fatalf("desktop productVersion = %q but release version core = %q", config.Info.ProductVersion, versionCore)
+	}
+}
+
+func TestDesktopFrontendVersion(t *testing.T) {
+	root := repoRoot(t)
+	for _, name := range []string{"package.json", "package-lock.json"} {
+		raw, err := os.ReadFile(filepath.Join(root, "desktop", "frontend", name)) // #nosec G304 -- fixed repo file resolved from repository root
+		if err != nil {
+			t.Fatalf("read desktop/frontend/%s: %v", name, err)
+		}
+		var manifest packageJSON
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			t.Fatalf("parse desktop/frontend/%s: %v", name, err)
+		}
+		if manifest.Version != Version {
+			t.Fatalf("desktop/frontend/%s version = %q but version.Version = %q", name, manifest.Version, Version)
+		}
 	}
 }

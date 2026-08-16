@@ -2,7 +2,7 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "GizTUI Desktop",
   "outputfilename": "GizTUI Desktop",
-  "frontend:install": "npm install",
+  "frontend:install": "npm ci",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
@@ -11,6 +11,9 @@
   },
   "info": {
     "productName": "GizTUI Desktop",
+    "productVersion": "1.28.0",
+    "companyName": "GizTUI",
+    "copyright": "Copyright 2026 GizTUI contributors",
     "comments": "A visual Gmail client reusing the GizTUI service layer."
   }
 }

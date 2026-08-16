@@ -5,8 +5,8 @@ Marca **ACTUAL** de complejidad del repositorio. Estos valores son
 objetivos ni valores ideales — describen lo peor que ya existe hoy en el
 código, para que a partir de aquí no empeore.
 
-- **Fecha de medición:** 2026-08-09
-- **Commit:** `1a89b93` (main)
+- **Fecha de activación:** 2026-08-14
+- **Base de código:** `bf0afe5` más las correcciones SDLC del plan #87
 - **Herramienta:** lizard 1.23.0 (`lizard . -s cyclomatic_complexity`)
 - **Alcance:** código fuente Go + frontend TypeScript/React.
 
@@ -29,20 +29,25 @@ fichero fuente con `max_nloc,max_ccn,max_func_len,funcs_over_ccn10`, ordenada
 por ruta para diffs estables. Es más útil que el máximo global porque un
 fichero que empeora no queda enmascarado por otro que ya ostenta el récord.
 Regla: ninguna celda puede **subir** respecto a la fila registrada; puede
-bajar libremente. Se regenera con el mismo comando lizard de abajo.
+bajar libremente. `make ci-architecture` aplica la regla y también rechaza
+ficheros fuente nuevos que todavía no hayan sido revisados y aceptados en el
+baseline.
+
+El baseline se actualizó al activar el gate para incorporar el trabajo de reglas
+Gmail posterior a v1.27.0. A partir de este punto, `make
+quality-baseline-update` solo debe ejecutarse deliberadamente después de revisar
+el diff de métricas; no es un paso automático de CI.
 
 Nota: `internal/tui/keys.go` queda registrado con `max_ccn=228` y
 `max_func_len=908`, ambos de `bindKeys` (el `SetInputCapture` monolítico de
 enrutado contextual), que es un problema aparte no abordado aquí. Congelarlo
 no impide refactorizarlo: un trinquete de máximos solo prohíbe empeorar.
 
-## Cómo reproducir
+## Cómo verificar
 
 ```sh
-lizard . -s cyclomatic_complexity \
-  -x "*/node_modules/*" -x "*/dist/*" -x "*/wailsjs/*" -x "*/mocks/*" \
-  -x "*_test.go" -x "*.test.ts" -x "*.test.tsx" -x "*.spec.ts" -x "*.spec.tsx" \
-  -x "*.d.ts" -x "*/e2e/*" -x "*/test-results/*" -x "*/build/*" -x "./test/*"
+make ci-tools
+make ci-architecture
 ```
 
 Exclusiones aplicadas: dependencias (`node_modules`), artefactos construidos
@@ -50,8 +55,9 @@ Exclusiones aplicadas: dependencias (`node_modules`), artefactos construidos
 (`internal/services/mocks`, marcados `DO NOT EDIT`), y todo el código de test
 (Go `*_test.go`, TS `*.test/*.spec`, `e2e/`, `test/`).
 
-## Contexto de la medición (no forma parte del trinquete)
+## Contexto de la medición
 
-- Funciones analizadas: **4118** en **265** ficheros fuente.
-- Funciones con CCN > 10: **220**.
-- CCN medio global: **3.5**.
+- Ficheros fuente bajo ratchet: **263**.
+- Los máximos globales de la tabla superior no cambiaron al activar el gate.
+- El ratchet congela deuda existente; los objetivos de reducción se gestionan
+  por separado y no se obtienen regenerando el baseline al alza.
