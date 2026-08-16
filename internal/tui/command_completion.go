@@ -151,8 +151,10 @@ var commandRegistry = []commandSpec{
 	{name: "config", aliases: []string{"cfg"}, help: &cmdHelp{
 		summary: "Show the active configuration.",
 	}},
-	{name: "llm", help: &cmdHelp{
-		summary: "Manage subscription LLM login (:llm status|login chatgpt|logout chatgpt).",
+	{name: "llm", completeArg: completeLLMArg, help: &cmdHelp{
+		summary:  "Manage subscription LLM login (ChatGPT).",
+		syntax:   ":llm [status|login|logout] [chatgpt]",
+		examples: []string{":llm status", ":llm login chatgpt", ":llm logout chatgpt"},
 	}},
 	{name: "load", aliases: []string{"more", "next"}, help: &cmdHelp{
 		summary: "Load the next batch of older messages.",
@@ -428,6 +430,20 @@ func completeThemeArg(a *App, rest string) []string {
 	switch firstToken(rest) {
 	case "set", "preview":
 		return withHead(head, filterByPrefix(a.cmd.themeNames, prefix))
+	}
+	return nil
+}
+
+// completeLLMArg: ':llm [status|login|logout] [chatgpt]'. First token → the
+// subcommand; after login/logout → the provider (only chatgpt uses OAuth).
+func completeLLMArg(a *App, rest string) []string {
+	head, prefix := splitLastToken(rest)
+	if head == "" {
+		return withHead("", filterByPrefix([]string{"status", "login", "logout"}, prefix))
+	}
+	switch firstToken(rest) {
+	case "login", "logout":
+		return withHead(head, filterByPrefix([]string{"chatgpt"}, prefix))
 	}
 	return nil
 }

@@ -19,10 +19,12 @@ func ChatGPTLoggedIn() bool {
 // ChatGPTLogin runs the OAuth (PKCE) flow: it opens the system browser and
 // blocks until the callback completes (or errors), persisting the token.
 func ChatGPTLogin(ctx context.Context, model string) error {
-	_, wait, err := llm.NewChatGPT(model, 0).StartLogin(ctx)
+	authURL, wait, err := llm.NewChatGPT(model, 0).StartLogin(ctx)
 	if err != nil {
 		return err
 	}
+	// Desktop is a GUI app — open the browser for the user (best-effort).
+	_ = llm.OpenBrowser(authURL)
 	return wait()
 }
 

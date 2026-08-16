@@ -85,8 +85,14 @@ func (a *App) llmLogin(provider string) {
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("ChatGPT login failed to start: %v", err))
 			return
 		}
-		a.GetErrorHandler().ShowInfo(a.ctx, "Opening browser for ChatGPT login. If it does not open: "+authURL)
-		a.GetErrorHandler().ShowProgress(a.ctx, "ChatGPT login: complete it in your browser…")
+		// Copy the URL to the clipboard so the user can paste it into whatever
+		// browser they want (we deliberately do not auto-open the default one).
+		a.copyToClipboard(authURL)
+		a.GetErrorHandler().ShowInfo(a.ctx, "🔗 ChatGPT login URL copied to clipboard — paste it in your browser to sign in")
+		if a.logger != nil {
+			a.logger.Printf("LLM: ChatGPT login URL: %s", authURL)
+		}
+		a.GetErrorHandler().ShowProgress(a.ctx, "ChatGPT login: waiting for the browser callback…")
 		if err := wait(); err != nil {
 			a.GetErrorHandler().ClearProgress()
 			a.GetErrorHandler().ShowError(a.ctx, fmt.Sprintf("ChatGPT login failed: %v", err))

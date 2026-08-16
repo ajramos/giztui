@@ -160,7 +160,10 @@ func (c *ChatGPTClient) StartLogin(ctx context.Context) (authURL string, wait fu
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = srv.Serve(ln) }()
 
-	_ = openBrowser(authURL) // best-effort; the URL is also shown to the user
+	// NOTE: we do NOT auto-open a browser here — the caller decides (the TUI
+	// copies the URL to the clipboard so the user can paste it into whatever
+	// browser they want; the desktop opens it explicitly). This avoids forcing
+	// the system-default browser on users who log in elsewhere.
 
 	wait = func() error {
 		defer func() {
@@ -418,6 +421,11 @@ func accountIDFromIDToken(idToken string) string {
 	}
 	return claims.Auth.ChatGPTAccountID
 }
+
+// OpenBrowser opens u in the system default browser (best-effort). Exported so
+// GUI callers (the desktop) can open the login URL; the TUI copies it to the
+// clipboard instead so the user can choose their browser.
+func OpenBrowser(u string) error { return openBrowser(u) }
 
 func openBrowser(u string) error {
 	var cmd string
