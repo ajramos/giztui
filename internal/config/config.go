@@ -48,8 +48,13 @@ func (n *lenientInt) UnmarshalJSON(b []byte) error {
 
 // LLMConfig holds all LLM-related configuration
 type LLMConfig struct {
-	// Core LLM settings
-	Enabled  bool   `json:"enabled"`
+	// Core LLM settings.
+	// Enabled is a *bool so a per-account override can force AI on or off
+	// independently of the global value: nil → inherit the global; explicit
+	// true/false → that account's choice (e.g. work → Ollama, personal → AI off
+	// with `"llm": {"enabled": false}`). Read it via IsEnabled(), never deref
+	// directly. The global config is always non-nil (DefaultLLMConfig sets it).
+	Enabled  *bool  `json:"enabled,omitempty"`
 	Provider string `json:"provider"` // ollama, openai, anthropic, bedrock, custom
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint"`
@@ -91,6 +96,13 @@ type LLMConfig struct {
 	// keeps more memory but grows every prompt. 0 → the built-in default.
 	ChatMaxTurns lenientInt `json:"chat_max_turns"`
 }
+
+// boolPtr returns a pointer to b (for tri-state config fields).
+func boolPtr(b bool) *bool { return &b }
+
+// IsEnabled reports whether AI is enabled, treating a nil Enabled (unset) as
+// false. Callers must use this instead of dereferencing Enabled directly.
+func (c LLMConfig) IsEnabled() bool { return c.Enabled != nil && *c.Enabled }
 
 // Built-in defaults for the "chat with this email" feature, used when config
 // leaves the corresponding key unset (0). Exported so the ChatService shares the
@@ -181,6 +193,11 @@ func (c *Config) EffectiveLLM(accountID string) LLMConfig {
 	}
 	if ov.Timeout != "" {
 		eff.Timeout = ov.Timeout
+	}
+	// Enabled is tri-state: an explicit per-account true/false wins; nil inherits
+	// the global. This lets one account turn AI off while the global stays on.
+	if ov.Enabled != nil {
+		eff.Enabled = ov.Enabled
 	}
 	if ov.StreamChunkMs != 0 {
 		eff.StreamChunkMs = ov.StreamChunkMs
@@ -728,7 +745,7 @@ func DefaultConfig() *Config {
 // DefaultLLMConfig returns default LLM configuration
 func DefaultLLMConfig() LLMConfig {
 	return LLMConfig{
-		Enabled:           true,
+		Enabled:           boolPtr(true),
 		Provider:          "ollama",
 		Model:             "llama3.2:latest",
 		Endpoint:          "http://localhost:11434/api/generate",

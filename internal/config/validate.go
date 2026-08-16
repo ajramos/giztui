@@ -68,7 +68,7 @@ func (c *Config) Validate() error {
 	}
 
 	// --- LLM ---------------------------------------------------------------
-	if c.LLM.Enabled {
+	if c.LLM.IsEnabled() {
 		switch c.LLM.Provider {
 		case "", "ollama":
 			if strings.TrimSpace(c.LLM.Endpoint) == "" {

@@ -18,7 +18,7 @@ import (
 // Bedrock credential/region problem); callers should log it and leave AI off.
 func (c *Config) BuildEffectiveProvider(accountID string) (llm.Provider, error) {
 	eff := c.EffectiveLLM(accountID)
-	if !eff.Enabled || eff.Model == "" {
+	if !eff.IsEnabled() || eff.Model == "" {
 		return nil, nil
 	}
 

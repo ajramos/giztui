@@ -16,7 +16,7 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
 	assert.NotNil(t, cfg)
-	assert.True(t, cfg.LLM.Enabled)
+	assert.True(t, cfg.LLM.IsEnabled())
 	assert.Equal(t, "ollama", cfg.LLM.Provider)
 	assert.Equal(t, "llama3.2:latest", cfg.LLM.Model)
 	assert.False(t, cfg.Slack.Enabled)
@@ -27,7 +27,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestDefaultLLMConfig(t *testing.T) {
 	cfg := DefaultLLMConfig()
 
-	assert.True(t, cfg.Enabled)
+	assert.True(t, cfg.IsEnabled())
 	assert.Equal(t, "ollama", cfg.Provider)
 	assert.Equal(t, "llama3.2:latest", cfg.Model)
 	assert.Equal(t, "http://localhost:11434/api/generate", cfg.Endpoint)
@@ -308,7 +308,7 @@ func TestLoadConfig_ValidFile(t *testing.T) {
 		Credentials: "test-creds",
 		Token:       "test-token",
 		LLM: LLMConfig{
-			Enabled:  false,
+			Enabled:  boolPtr(false),
 			Provider: "custom",
 			Model:    "test-model",
 		},
@@ -328,7 +328,7 @@ func TestLoadConfig_ValidFile(t *testing.T) {
 	// Should have loaded values
 	assert.Equal(t, "test-creds", cfg.Credentials)
 	assert.Equal(t, "test-token", cfg.Token)
-	assert.False(t, cfg.LLM.Enabled)
+	assert.False(t, cfg.LLM.IsEnabled())
 	assert.Equal(t, "custom", cfg.LLM.Provider)
 	assert.Equal(t, "test-model", cfg.LLM.Model)
 }
@@ -493,7 +493,7 @@ func TestConfig_JSONSerialization(t *testing.T) {
 	// Compare key fields
 	assert.Equal(t, original.Credentials, loaded.Credentials)
 	assert.Equal(t, original.LLM.Provider, loaded.LLM.Provider)
-	assert.Equal(t, original.LLM.Enabled, loaded.LLM.Enabled)
+	assert.Equal(t, original.LLM.IsEnabled(), loaded.LLM.IsEnabled())
 }
 
 func TestDefaultRenderingConfig(t *testing.T) {

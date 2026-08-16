@@ -261,7 +261,7 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 	}
 	// Subscription providers (chatgpt) need an interactive login; surface the
 	// state so the ConfigModal can offer Login/Logout.
-	if eff.Enabled && eff.Provider == "chatgpt" {
+	if eff.IsEnabled() && eff.Provider == "chatgpt" {
 		info.LLMNeedsLogin = true
 		info.LLMLoggedIn = desktop.ChatGPTLoggedIn()
 	}

@@ -106,7 +106,7 @@ desktop/images.go,79,11,53,1
 desktop/main.go,39,2,30,0
 internal/calendar/client.go,73,16,47,1
 internal/config/colors.go,650,25,225,3
-internal/config/config.go,1009,28,192,3
+internal/config/config.go,1014,29,192,3
 internal/config/llm_provider.go,31,11,35,1
 internal/config/migrate.go,144,9,31,0
 internal/config/theme.go,144,7,39,0

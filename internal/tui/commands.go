@@ -2354,7 +2354,7 @@ func (a *App) executeConfigCommand(args []string) {
 		eff := a.Config.EffectiveLLM(accountID)
 		var msg string
 		switch {
-		case !eff.Enabled || eff.Model == "":
+		case !eff.IsEnabled() || eff.Model == "":
 			msg = "AI: disabled"
 		case a.GetLLM() == nil:
 			// Configured but the provider failed to build (bad creds / typo) — the

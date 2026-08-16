@@ -55,7 +55,7 @@ func (a *App) llmStatus() {
 		if provider == "" {
 			provider = "ollama"
 		}
-		if !eff.Enabled || eff.Model == "" {
+		if !eff.IsEnabled() || eff.Model == "" {
 			a.GetErrorHandler().ShowInfo(a.ctx, "AI: disabled")
 			return
 		}

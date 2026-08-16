@@ -209,8 +209,17 @@ Resolution rules:
 
 - **No `llm` block on the account** → inherit the global `llm` verbatim.
 - **`llm` block present** → its core fields (`enabled`, `provider`, `model`,
-  `endpoint`, `region`, `api_key`) are used as-is; cosmetic fields (prompt
-  templates, timeout, streaming, caching) fall back to defaults when omitted.
+  `endpoint`, `region`, `project`, `api_key`) are used as-is; cosmetic fields
+  (prompt templates, timeout, streaming, caching) fall back to defaults when
+  omitted.
+- **`enabled` is per-account overridable both ways**: set `"enabled": false` on
+  an account's `llm` block to **turn AI off for that account** even when the
+  global is on (e.g. work → Ollama, personal → no AI), or `"enabled": true` to
+  turn it on for one account when the global is off. Omitting `enabled` inherits
+  the global. (`stream_enabled` / `cache_enabled` still inherit the global — a
+  per-account override of those is a known v1 limitation.)
+- **Missing credentials disable AI for that account** (logged): `openai` without
+  `api_key`, or `vertex` without `api_key`/`project`+`region`.
 - An **unknown provider** disables AI for that account (logged), rather than
   silently falling back to another engine.
 
