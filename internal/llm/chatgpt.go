@@ -40,9 +40,16 @@ const (
 	openaiAuthorizeURL  = "https://auth.openai.com/oauth/authorize"
 	openaiTokenURL      = "https://auth.openai.com/oauth/token" //nolint:gosec // OAuth endpoint, not a credential
 	openaiOAuthClientID = "app_EMoamEEZ73f0CkXaXp7hrann"        // Codex CLI public client id
-	openaiOAuthScope    = "openid profile email offline_access"
-	openaiCallbackAddr  = "127.0.0.1:1455"
-	openaiCallbackPath  = "/auth/callback"
+	// Scope must match the Codex CLI exactly — the extra api.connectors.* scopes
+	// are part of the registered client and OpenAI rejects the request otherwise.
+	openaiOAuthScope = "openid profile email offline_access api.connectors.read api.connectors.invoke"
+	// The registered redirect_uri is on "localhost" (not 127.0.0.1); we bind the
+	// loopback listener on 127.0.0.1 and rely on localhost→127.0.0.1 resolution.
+	openaiCallbackAddr = "127.0.0.1:1455"
+	openaiCallbackHost = "localhost:1455"
+	openaiCallbackPath = "/auth/callback"
+	// originator identifies the client to the Codex backend and the authorize flow.
+	openaiOriginator = "codex_cli_rs"
 
 	codexResponsesURL = "https://chatgpt.com/backend-api/codex/responses"
 
@@ -108,7 +115,7 @@ func (c *ChatGPTClient) StartLogin(ctx context.Context) (authURL string, wait fu
 	if err != nil {
 		return "", nil, err
 	}
-	redirectURI := "http://" + openaiCallbackAddr + openaiCallbackPath
+	redirectURI := "http://" + openaiCallbackHost + openaiCallbackPath
 
 	ln, err := net.Listen("tcp", openaiCallbackAddr)
 	if err != nil {
@@ -122,8 +129,10 @@ func (c *ChatGPTClient) StartLogin(ctx context.Context) (authURL string, wait fu
 		"scope":                      {openaiOAuthScope},
 		"code_challenge":             {challenge},
 		"code_challenge_method":      {"S256"},
-		"state":                      {state},
 		"id_token_add_organizations": {"true"},
+		"codex_cli_simplified_flow":  {"true"},
+		"originator":                 {openaiOriginator},
+		"state":                      {state},
 	}
 	authURL = openaiAuthorizeURL + "?" + q.Encode()
 
@@ -305,7 +314,7 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
-	req.Header.Set("originator", "codex_cli_rs")
+	req.Header.Set("originator", openaiOriginator)
 	if tok.AccountID != "" {
 		req.Header.Set("chatgpt-account-id", tok.AccountID)
 	}
