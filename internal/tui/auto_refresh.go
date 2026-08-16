@@ -222,15 +222,44 @@ func prependIDsAndLocate(newIDs, existingIDs []string, selectedID string) ([]str
 	return merged, 0
 }
 
+// containsNilMeta reports whether any entry is nil — i.e. a metadata fetch that
+// silently failed for one message even though the batch call returned no error.
+func containsNilMeta(metas []*gmailapi.Message) bool {
+	for _, m := range metas {
+		if m == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // prependNewMessages fetches metadata for newIDs and inserts them at the top of
 // the list in place, preserving the user's cursor. No table.Clear(), no spinner.
 func (a *App) prependNewMessages(newIDs []string) {
 	// Fetch metadata for just the new arrivals (newest-first order preserved).
 	metas, err := a.Client.GetMessagesMetadataParallel(newIDs, 10)
 	if err != nil {
+		// A network blip mid-fetch must NOT corrupt the list. Keep the pending
+		// counter so the status bar still shows "N new" and the user can refresh
+		// manually; leave the existing rows untouched.
 		if a.logger != nil {
 			a.logger.Printf("AUTO_REFRESH: metadata fetch error: %v", err)
 		}
+		a.SetPendingNewCount(len(newIDs))
+		a.QueueUpdateDraw(func() { a.refreshStatusBar() })
+		return
+	}
+
+	// Guard against a partial/short result: a nil (or missing) meta would prepend
+	// a row that renders as a permanent "Loading…" placeholder — nothing ever
+	// re-fetches it. If the metadata isn't complete, fall back to a full reload,
+	// which repaints the whole list cleanly, instead of splicing a broken state.
+	if len(metas) != len(newIDs) || containsNilMeta(metas) {
+		if a.logger != nil {
+			a.logger.Printf("AUTO_REFRESH: incomplete metadata (%d/%d), falling back to full reload", len(metas), len(newIDs))
+		}
+		a.SetPendingNewCount(0)
+		go a.reloadMessages()
 		return
 	}
 

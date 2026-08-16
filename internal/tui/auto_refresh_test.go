@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	gmailapi "google.golang.org/api/gmail/v1"
 )
 
 func TestAutoRefreshLifecycleIdempotent(t *testing.T) {
@@ -84,5 +86,17 @@ func TestPrependModelMath(t *testing.T) {
 	_, idx := prependIDsAndLocate(newIDs, ids, "missing")
 	if idx != 0 {
 		t.Errorf("missing selection index = %d, want 0", idx)
+	}
+}
+
+func TestContainsNilMeta(t *testing.T) {
+	if containsNilMeta([]*gmailapi.Message{{Id: "a"}, {Id: "b"}}) {
+		t.Error("no nils, want false")
+	}
+	if !containsNilMeta([]*gmailapi.Message{{Id: "a"}, nil}) {
+		t.Error("has a nil, want true")
+	}
+	if containsNilMeta(nil) {
+		t.Error("empty, want false")
 	}
 }
