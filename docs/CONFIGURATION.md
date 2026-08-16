@@ -286,6 +286,12 @@ Select it per account (or globally) with:
 > rejected with `400 … model is not supported when using Codex with a ChatGPT
 > account`. Use `gpt-5-codex` (the default when `model` is omitted) or another
 > `codex` model.
+>
+> **Shared subscription quota.** Requests count against your ChatGPT plan's Codex
+> usage limit (shared with the Codex CLI and any other tool reusing the same
+> subscription). When it's exhausted, GizTUI shows `ChatGPT/Codex usage limit
+> reached (plan …, resets in ~Nh)` — that's your OpenAI quota, not a GizTUI error;
+> it clears when the plan resets.
 
 No `api_key` or `endpoint` is required — credentials come from an interactive
 login, not the config file. Log in **once per machine**:

@@ -375,9 +375,50 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 		if resp.StatusCode == http.StatusBadRequest && strings.Contains(detail, "model is not supported") {
 			return fmt.Errorf("model %q is not supported by the ChatGPT/Codex backend — set a Codex model in config (e.g. \"model\": \"gpt-5-codex\")", c.Model)
 		}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return fmt.Errorf("ChatGPT/Codex usage limit reached%s — this is your subscription quota, not a GizTUI error", codexResetHint(detail))
+		}
 		return fmt.Errorf("codex backend %d: %s", resp.StatusCode, detail)
 	}
 	return parseCodexSSE(resp.Body, onToken)
+}
+
+// codexResetHint extracts resets_in_seconds and plan_type from a 429 body and
+// renders a short " (plan plus, resets in ~3d 13h)" suffix. Best-effort: returns
+// "" when the fields are absent.
+func codexResetHint(body string) string {
+	var b struct {
+		Error struct {
+			PlanType       string `json:"plan_type"`
+			ResetsInSecond int64  `json:"resets_in_seconds"`
+		} `json:"error"`
+	}
+	if json.Unmarshal([]byte(body), &b) != nil {
+		return ""
+	}
+	parts := ""
+	if b.Error.PlanType != "" {
+		parts += " (plan " + b.Error.PlanType
+	}
+	if s := b.Error.ResetsInSecond; s > 0 {
+		d := time.Duration(s) * time.Second
+		h := int(d.Hours())
+		rem := ", resets in ~"
+		if h >= 24 {
+			rem += fmt.Sprintf("%dd %dh", h/24, h%24)
+		} else {
+			rem += fmt.Sprintf("%dh", h)
+		}
+		if parts == "" {
+			parts = " (" + strings.TrimPrefix(rem, ", ")
+		} else {
+			parts += rem
+		}
+	}
+	if parts != "" {
+		parts += ")"
+	}
+	return parts
 }
 
 // parseCodexSSE reads the Responses-API SSE stream and forwards text deltas.

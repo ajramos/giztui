@@ -255,6 +255,27 @@ func TestParseCodexSSEError(t *testing.T) {
 	}
 }
 
+func TestCodexResetHint(t *testing.T) {
+	// plan + multi-day reset.
+	got := codexResetHint(`{"error":{"type":"usage_limit_reached","plan_type":"plus","resets_in_seconds":309070}}`)
+	if !strings.Contains(got, "plan plus") || !strings.Contains(got, "3d") {
+		t.Errorf("hint = %q, want plan + ~3d", got)
+	}
+	// sub-day reset, no plan.
+	got = codexResetHint(`{"error":{"resets_in_seconds":7200}}`)
+	if !strings.Contains(got, "2h") {
+		t.Errorf("hint = %q, want ~2h", got)
+	}
+	// absent fields → empty.
+	if h := codexResetHint(`{"error":{"type":"x"}}`); h != "" {
+		t.Errorf("hint = %q, want empty", h)
+	}
+	// malformed → empty, no panic.
+	if h := codexResetHint("not json"); h != "" {
+		t.Errorf("hint = %q, want empty", h)
+	}
+}
+
 func TestNewChatGPTDefaults(t *testing.T) {
 	c := NewChatGPT("", 0)
 	if c.Model != defaultChatGPTModel {
