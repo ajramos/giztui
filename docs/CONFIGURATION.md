@@ -276,10 +276,16 @@ Select it per account (or globally) with:
   "llm": {
     "enabled": true,
     "provider": "chatgpt",
-    "model": "gpt-5"
+    "model": "gpt-5-codex"
   }
 }
 ```
+
+> **Model must be a Codex model.** The Codex backend only accepts the `*-codex`
+> family for ChatGPT-subscription accounts — a plain `gpt-5`/`gpt-4o` id is
+> rejected with `400 … model is not supported when using Codex with a ChatGPT
+> account`. Use `gpt-5-codex` (the default when `model` is omitted) or another
+> `codex` model.
 
 No `api_key` or `endpoint` is required — credentials come from an interactive
 login, not the config file. Log in **once per machine**:

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ajramos/giztui/internal/llm/authstore"
+	"github.com/ajramos/giztui/pkg/auth"
 )
 
 // ChatGPT subscription provider — reuses a ChatGPT Plus/Pro subscription via the
@@ -53,7 +54,10 @@ const (
 
 	codexResponsesURL = "https://chatgpt.com/backend-api/codex/responses"
 
-	defaultChatGPTModel = "gpt-5"
+	// The Codex backend with a ChatGPT subscription only accepts the "codex"
+	// model family (plain chat model ids like "gpt-5" are rejected with a 400).
+	// gpt-5-codex is the Codex CLI's default.
+	defaultChatGPTModel = "gpt-5-codex"
 	tokenRefreshSkew    = 2 * time.Minute
 )
 
@@ -142,19 +146,26 @@ func (c *ChatGPTClient) StartLogin(ctx context.Context) (authURL string, wait fu
 	}
 	done := make(chan result, 1)
 	mux := http.NewServeMux()
+	writePage := func(w http.ResponseWriter, ok bool, title, body string) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		_, _ = w.Write([]byte(auth.ResultPage(ok, title, body)))
+	}
 	mux.HandleFunc(openaiCallbackPath, func(w http.ResponseWriter, r *http.Request) {
 		if e := r.URL.Query().Get("error"); e != "" {
-			http.Error(w, "login failed: "+e, http.StatusBadRequest)
+			writePage(w, false, "Something went wrong", "ChatGPT sign-in failed. Close this tab and try :llm login chatgpt again.")
 			done <- result{err: fmt.Errorf("authorization error: %s", e)}
 			return
 		}
 		if r.URL.Query().Get("state") != state {
-			http.Error(w, "state mismatch", http.StatusBadRequest)
+			writePage(w, false, "Something went wrong", "The sign-in response could not be verified. Close this tab and try again.")
 			done <- result{err: fmt.Errorf("state mismatch (possible CSRF)")}
 			return
 		}
 		code := r.URL.Query().Get("code")
-		_, _ = w.Write([]byte("<html><body>GizTUI: ChatGPT login complete. You can close this tab.</body></html>"))
+		writePage(w, true, "You're all set", "GizTUI is now connected to your ChatGPT subscription. You can close this tab and return to the app.")
 		done <- result{code: code}
 	})
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
@@ -336,7 +347,11 @@ func (c *ChatGPTClient) GenerateStream(ctx context.Context, prompt string, onTok
 		if resp.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("ChatGPT auth rejected (401) — re-run :llm login chatgpt")
 		}
-		return fmt.Errorf("codex backend %d: %s", resp.StatusCode, strings.TrimSpace(eb.String()))
+		detail := strings.TrimSpace(eb.String())
+		if resp.StatusCode == http.StatusBadRequest && strings.Contains(detail, "model is not supported") {
+			return fmt.Errorf("model %q is not supported by the ChatGPT/Codex backend — set a Codex model in config (e.g. \"model\": \"gpt-5-codex\")", c.Model)
+		}
+		return fmt.Errorf("codex backend %d: %s", resp.StatusCode, detail)
 	}
 	return parseCodexSSE(resp.Body, onToken)
 }

@@ -17,15 +17,27 @@ import (
 	"google.golang.org/api/option"
 )
 
-// authResultPage renders the branded page the browser lands on after the OAuth
-// redirect. It's a full, self-contained document (inline CSS, light/dark aware)
-// so it looks like part of GizTUI instead of a bare "Authorization successful".
+// authResultPage renders the branded page the browser lands on after the Google
+// OAuth redirect.
 func authResultPage(ok bool) string {
-	accent, mark, title, body := "#16a34a", "✓", "You're all set",
-		"GizTUI has been authorized. You can close this tab and return to the app."
+	if ok {
+		return ResultPage(true, "You're all set",
+			"GizTUI has been authorized. You can close this tab and return to the app.")
+	}
+	return ResultPage(false, "Something went wrong",
+		"No authorization code was received. Close this tab and try signing in again from GizTUI.")
+}
+
+// ResultPage renders the branded page a browser lands on after an OAuth redirect.
+// It's a full, self-contained document (inline CSS, light/dark aware) so it looks
+// like part of GizTUI instead of a bare "Authorization successful". ok picks the
+// success (green ✓) or error (red !) accent; title/body are the shown copy.
+// Exported so other OAuth flows (e.g. the ChatGPT subscription login) share the
+// same look. title/body are plain text — the caller must not pass HTML.
+func ResultPage(ok bool, title, body string) string {
+	accent, mark := "#16a34a", "✓"
 	if !ok {
-		accent, mark, title, body = "#dc2626", "!", "Something went wrong",
-			"No authorization code was received. Close this tab and try signing in again from GizTUI."
+		accent, mark = "#dc2626", "!"
 	}
 	return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
