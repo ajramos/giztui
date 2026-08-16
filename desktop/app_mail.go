@@ -294,17 +294,27 @@ func (a *App) MigrateConfig() (string, error) {
 }
 
 // LLMLogin runs the ChatGPT subscription OAuth (PKCE) flow, mirroring the TUI's
-// ":llm login chatgpt". It opens the system browser and blocks until the login
-// callback completes (or errors), persisting the machine-global token. The
-// binding call returns only when the flow finishes, so the frontend can await it
-// and refresh ConfigInfo afterward. Credentials are shared by every account that
-// selects the "chatgpt" provider — one login per machine.
+// ":llm login chatgpt". It copies the authorization URL to the clipboard (so the
+// user can paste it into whatever browser/profile they want, instead of forcing
+// the system-default browser) and then blocks until the login callback completes
+// (or errors), persisting the machine-global token. The binding call returns only
+// when the flow finishes, so the frontend can await it and refresh ConfigInfo
+// afterward. Credentials are shared by every account that selects the "chatgpt"
+// provider — one login per machine.
 func (a *App) LLMLogin() error {
 	model := ""
 	if s := a.session.Load(); s != nil && s.Config != nil {
 		model = s.Config.EffectiveLLM(s.CurrentAccountID()).Model
 	}
-	return desktop.ChatGPTLogin(a.ctx, model)
+	authURL, wait, err := desktop.ChatGPTStartLogin(a.ctx, model)
+	if err != nil {
+		return err
+	}
+	if cerr := wailsruntime.ClipboardSetText(a.ctx, authURL); cerr != nil {
+		// Clipboard failed — fall back to opening the browser so login still works.
+		_ = desktop.OpenLoginBrowser(authURL)
+	}
+	return wait()
 }
 
 // LLMLogout removes the stored ChatGPT subscription tokens (":llm logout chatgpt").

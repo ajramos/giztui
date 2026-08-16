@@ -102,7 +102,7 @@ export default function ConfigModal({
                       onClick={() => void (isLoggedIn ? logout() : login())}
                     >
                       {busy
-                        ? "Working…"
+                        ? "Waiting… (paste the copied URL in your browser)"
                         : isLoggedIn
                           ? "Log out"
                           : "Log in with ChatGPT"}

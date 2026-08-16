@@ -302,10 +302,11 @@ login, not the config file. Log in **once per machine**:
 :llm logout chatgpt    # removes the stored tokens
 ```
 
-In the **TUI**, `:llm login chatgpt` copies the login URL to your clipboard (and
-logs it) instead of forcing the system-default browser, so you can sign in from
-whichever browser/profile you want; it then waits for the loopback callback. The
-**desktop** app opens the browser for you.
+Both the **TUI** and the **desktop** copy the login URL to your clipboard
+instead of forcing the system-default browser, so you can sign in from whichever
+browser/profile you want, then they wait for the loopback callback. In the
+desktop you can trigger it from `:llm login chatgpt` or the **Log in with
+ChatGPT** button in `:config`.
 
 The tokens are stored, machine-wide, in `~/.config/giztui/llm-auth.json` (file
 mode `0600`, never in `config.json` and never logged) and are **shared by every

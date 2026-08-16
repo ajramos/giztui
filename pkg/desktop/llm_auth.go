@@ -16,19 +16,21 @@ func ChatGPTLoggedIn() bool {
 	return llm.NewChatGPT("", 0).LoggedIn()
 }
 
-// ChatGPTLogin runs the OAuth (PKCE) flow: it opens the system browser and
-// blocks until the callback completes (or errors), persisting the token.
-func ChatGPTLogin(ctx context.Context, model string) error {
-	authURL, wait, err := llm.NewChatGPT(model, 0).StartLogin(ctx)
-	if err != nil {
-		return err
-	}
-	// Desktop is a GUI app — open the browser for the user (best-effort).
-	_ = llm.OpenBrowser(authURL)
-	return wait()
+// ChatGPTStartLogin begins the OAuth (PKCE) flow and returns the authorization
+// URL plus a wait func that blocks until the browser callback completes and the
+// token is persisted. The desktop App copies the URL to the clipboard (so the
+// user can paste it into whatever browser they want) and then calls wait().
+func ChatGPTStartLogin(ctx context.Context, model string) (authURL string, wait func() error, err error) {
+	return llm.NewChatGPT(model, 0).StartLogin(ctx)
 }
 
 // ChatGPTLogout removes the stored ChatGPT subscription token.
 func ChatGPTLogout() error {
 	return llm.NewChatGPT("", 0).Logout()
+}
+
+// OpenLoginBrowser opens the login URL in the system browser — a fallback for
+// when copying the URL to the clipboard fails.
+func OpenLoginBrowser(url string) error {
+	return llm.OpenBrowser(url)
 }
