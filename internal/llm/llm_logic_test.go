@@ -23,16 +23,43 @@ func TestDetectBedrockFamily(t *testing.T) {
 	}
 }
 
-func TestNewProviderFromConfig_OllamaFallback(t *testing.T) {
-	// ollama, empty, and unknown providers all resolve to the Ollama client (no network).
-	for _, p := range []string{"ollama", "", "somethingunknown"} {
+func TestNewProviderFromConfig_Ollama(t *testing.T) {
+	// ollama and empty both resolve to the Ollama client (no network).
+	for _, p := range []string{"ollama", ""} {
 		prov, err := NewProviderFromConfig(p, "http://localhost:11434", "m", time.Second, "")
 		if err != nil {
 			t.Fatalf("provider %q: unexpected error %v", p, err)
 		}
 		if prov == nil || prov.Name() != "ollama" {
-			t.Errorf("provider %q should fall back to ollama, got %v", p, prov)
+			t.Errorf("provider %q should resolve to ollama, got %v", p, prov)
 		}
+	}
+}
+
+func TestNewProviderFromConfig_UnknownError(t *testing.T) {
+	// Unknown providers are a configuration error, not a silent Ollama fallback.
+	prov, err := NewProviderFromConfig("somethingunknown", "http://localhost:11434", "m", time.Second, "")
+	if err == nil {
+		t.Fatal("unknown provider should return an error")
+	}
+	if prov != nil {
+		t.Errorf("unknown provider should return a nil provider, got %v", prov)
+	}
+	if !strings.Contains(err.Error(), "unknown LLM provider") {
+		t.Errorf("error should name the unknown provider, got %v", err)
+	}
+}
+
+func TestNewProviderFromConfig_OpenAIRequiresKey(t *testing.T) {
+	// A misconfigured openai account (no api_key) must fail to build, so callers
+	// disable AI with a clear log instead of failing every request.
+	prov, err := NewProviderFromConfig("openai", "", "gpt-4o-mini", time.Second, "")
+	if err == nil || prov != nil {
+		t.Fatalf("openai without api_key should error; got prov=%v err=%v", prov, err)
+	}
+	// With a key it builds fine.
+	if prov, err := NewProviderFromConfig("openai", "", "gpt-4o-mini", time.Second, "sk-x"); err != nil || prov == nil {
+		t.Fatalf("openai with api_key should build; got prov=%v err=%v", prov, err)
 	}
 }
 

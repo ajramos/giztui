@@ -35,6 +35,34 @@ test.describe("display modals", () => {
     await expect(modal).toBeHidden();
   });
 
+  test("':config' shows the ChatGPT subscription login and logs in", async ({ page }) => {
+    // Flip the mock to a subscription (chatgpt) engine that needs an OAuth login.
+    await page.addInitScript(() => {
+      (window as { __giztuiMockLLMNeedsLogin?: boolean }).__giztuiMockLLMNeedsLogin = true;
+      (window as { __giztuiMockLLMLoggedIn?: boolean }).__giztuiMockLLMLoggedIn = false;
+    });
+    await openApp(page);
+    await runCommand(page, "config");
+    const modal = page.locator(".modal-overlay").filter({ hasText: "Configuration" });
+    await expect(modal).toBeVisible();
+
+    // Subscription row shows "not logged in" plus a login button.
+    await expect(modal).toContainText("not logged in");
+    const loginBtn = modal.getByRole("button", { name: "Log in with ChatGPT" });
+    await expect(loginBtn).toBeVisible();
+
+    // Clicking runs the (mock) OAuth; the row flips to logged-in with a Log out button.
+    await loginBtn.click();
+    await expect(modal.getByRole("button", { name: "Log out" })).toBeVisible();
+    await expect(modal).toContainText("logged in");
+  });
+
+  test("':llm login chatgpt' runs the login and toasts (command parity)", async ({ page }) => {
+    await openApp(page);
+    await runCommand(page, "llm login chatgpt");
+    await expect(page.locator(".toast")).toContainText("ChatGPT login");
+  });
+
   test("':config migrate' runs the migration and toasts (no config modal)", async ({ page }) => {
     await openApp(page);
     await runCommand(page, "config migrate");

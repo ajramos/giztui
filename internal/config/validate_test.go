@@ -61,7 +61,7 @@ func TestValidate_DefaultConfigIsClean(t *testing.T) {
 
 func TestValidate_LLMEnabledNeedsModel(t *testing.T) {
 	c := DefaultConfig()
-	c.LLM.Enabled = true
+	c.LLM.Enabled = boolPtr(true)
 	c.LLM.Provider = "ollama"
 	c.LLM.Endpoint = "http://localhost:11434"
 	c.LLM.Model = ""
@@ -73,7 +73,7 @@ func TestValidate_LLMEnabledNeedsModel(t *testing.T) {
 
 func TestValidate_UnknownProviderIsWarningNotFatal(t *testing.T) {
 	c := DefaultConfig()
-	c.LLM.Enabled = true
+	c.LLM.Enabled = boolPtr(true)
 	c.LLM.Provider = "openai" // unsupported → falls back to ollama
 	c.LLM.Model = "gpt"
 	vce := asVErr(t, c.Validate())
@@ -87,7 +87,7 @@ func TestValidate_UnknownProviderIsWarningNotFatal(t *testing.T) {
 
 func TestValidate_BadTimeoutIsFatal(t *testing.T) {
 	c := DefaultConfig()
-	c.LLM.Enabled = true
+	c.LLM.Enabled = boolPtr(true)
 	c.LLM.Provider = "ollama"
 	c.LLM.Endpoint = "http://localhost:11434"
 	c.LLM.Model = "llama3"
@@ -110,7 +110,7 @@ func TestValidate_ObsidianEnabledNeedsVault(t *testing.T) {
 // One pass must surface every problem at once, split into fatal vs warning.
 func TestValidate_CollectsAllAtOnce(t *testing.T) {
 	c := DefaultConfig()
-	c.LLM.Enabled = true
+	c.LLM.Enabled = boolPtr(true)
 	c.LLM.Provider = "ollama"
 	c.LLM.Endpoint = ""                                  // warning
 	c.LLM.Model = ""                                     // fatal

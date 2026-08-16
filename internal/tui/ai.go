@@ -238,7 +238,7 @@ func (a *App) generateOrShowSummaryWithOptions(messageID string, forceRegenerate
 	}
 
 	// Check if LLM is available
-	if a.LLM == nil {
+	if a.GetLLM() == nil {
 		if a.debug {
 			a.logger.Printf("generateOrShowSummary: ERROR - LLM is nil")
 		}
@@ -392,7 +392,7 @@ func (a *App) suggestLabel() {
 	if a.logger != nil {
 		a.logger.Printf("suggestLabel: start for %s", a.getCurrentMessageID())
 	}
-	if a.LLM == nil {
+	if a.GetLLM() == nil {
 		// Fallback UX: abrir selector completo para no dejar al usuario sin salida
 		mid := a.getCurrentMessageID()
 		if mid != "" {
@@ -458,7 +458,7 @@ func (a *App) suggestLabel() {
 		if a.logger != nil {
 			a.logger.Printf("suggestLabel: prompt size=%d", len(prompt))
 		}
-		resp, err := a.LLM.Generate(prompt)
+		resp, err := a.GetLLM().Generate(prompt)
 		if err != nil {
 			// Fallback: mostrar selector completo para que el usuario pueda aplicar manualmente
 			a.showLLMError("suggest labels", err)

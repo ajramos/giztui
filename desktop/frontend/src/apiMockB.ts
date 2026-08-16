@@ -248,11 +248,25 @@ export const mockB: Partial<Backend> = {
       slackOn: true,
       autoRefresh: false,
       downloadPath: "~/Downloads/gmail-attachments",
+      // Test hook: e2e can flip these via window globals to exercise the
+      // subscription login UI (default off so browser dev is unchanged).
+      llmNeedsLogin:
+        (globalThis as { __giztuiMockLLMNeedsLogin?: boolean })
+          .__giztuiMockLLMNeedsLogin ?? false,
+      llmLoggedIn:
+        (globalThis as { __giztuiMockLLMLoggedIn?: boolean })
+          .__giztuiMockLLMLoggedIn ?? false,
     };
   },
   async MigrateConfig() {
     await new Promise((r) => setTimeout(r, 150));
     return "Config is already up to date";
+  },
+  async LLMLogin() {
+    await new Promise((r) => setTimeout(r, 150));
+  },
+  async LLMLogout() {
+    await new Promise((r) => setTimeout(r, 50));
   },
   async SetAutoRefreshEnabled(_enabled: boolean) {
     await new Promise((r) => setTimeout(r, 50));

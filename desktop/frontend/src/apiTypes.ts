@@ -217,6 +217,8 @@ export interface ConfigInfo {
   slackOn: boolean;
   autoRefresh: boolean;
   downloadPath: string;
+  llmNeedsLogin: boolean;
+  llmLoggedIn: boolean;
 }
 
 export interface AccountInfo {
@@ -459,6 +461,8 @@ export interface Backend {
   ClearCaches(): Promise<void>;
   ConfigInfo(): Promise<ConfigInfo>;
   MigrateConfig(): Promise<string>;
+  LLMLogin(): Promise<void>;
+  LLMLogout(): Promise<void>;
   SetAutoRefreshEnabled(enabled: boolean): Promise<void>;
   ObsidianEnabled(): Promise<boolean>;
   SendToObsidian(messageID: string, comment: string): Promise<string>;

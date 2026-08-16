@@ -411,6 +411,9 @@ When you customize shortcuts, the priority order is:
 | `:version` | Show version information |
 | `:config` | Show configuration |
 | `:config migrate` | Add missing default options to your config.json (backup written) |
+| `:llm` or `:llm status` | Show the active account's AI engine and, for subscription providers, login state |
+| `:llm login chatgpt` | Log in to a ChatGPT Plus/Pro subscription via OAuth (machine-global token) |
+| `:llm logout chatgpt` | Remove the stored ChatGPT subscription token |
 | `:markdown` or `:md` | Toggle Markdown ↔ raw rendering for the current message (same as `M`) |
 | `:touch-up` | Toggle LLM whitespace touch-up for the current message |
 

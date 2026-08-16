@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { ConfigInfo } from "./api";
+import { backend } from "./api";
 
-// Read-only configuration summary (opened by :config). Pure display modal; the
-// only action is "Clear AI caches", delegated to the parent.
+// Read-only configuration summary (opened by :config). Mostly a display modal;
+// besides "Clear AI caches" it offers ChatGPT subscription login/logout when the
+// active engine is a subscription provider that needs an interactive OAuth login.
 export default function ConfigModal({
   info,
   onClearCaches,
@@ -11,6 +14,39 @@ export default function ConfigModal({
   onClearCaches: () => void;
   onClose: () => void;
 }) {
+  // Local login state so the row reflects a login/logout without a full reload;
+  // seeded from the backend snapshot and updated after each action.
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>("");
+  const isLoggedIn = loggedIn ?? info?.llmLoggedIn ?? false;
+
+  async function login() {
+    setBusy(true);
+    setErr("");
+    try {
+      await backend.LLMLogin();
+      setLoggedIn(true);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    setBusy(true);
+    setErr("");
+    try {
+      await backend.LLMLogout();
+      setLoggedIn(false);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -54,6 +90,27 @@ export default function ConfigModal({
                   <span className="config-val">{v}</span>
                 </div>
               ))}
+              {info.llmNeedsLogin && (
+                <div className="config-row">
+                  <span className="config-key muted">Subscription</span>
+                  <span className="config-val">
+                    {isLoggedIn ? "logged in" : "not logged in"}
+                    {"  "}
+                    <button
+                      className="ghost"
+                      disabled={busy}
+                      onClick={() => void (isLoggedIn ? logout() : login())}
+                    >
+                      {busy
+                        ? "Waiting… (browser opened; URL also copied)"
+                        : isLoggedIn
+                          ? "Log out"
+                          : "Log in with ChatGPT"}
+                    </button>
+                  </span>
+                </div>
+              )}
+              {err && <div className="config-row error">{err}</div>}
             </div>
           )}
         </div>

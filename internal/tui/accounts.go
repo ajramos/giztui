@@ -359,6 +359,22 @@ func (a *App) switchToAccount(accountID, accountName string) {
 		}
 	}
 
+	// Re-resolve the LLM provider for the new account's effective engine BEFORE
+	// reinitializing client-dependent services (which rebuilds aiService from
+	// GetLLM()). On error, disable AI (nil provider) so a misconfigured account
+	// falls back cleanly instead of silently reusing the previous engine.
+	if prov, err := a.Config.BuildEffectiveProvider(newActiveAccount.ID); err != nil {
+		if a.logger != nil {
+			a.logger.Printf("Account switch: LLM provider init failed for account %s: %v (AI disabled)", newActiveAccount.ID, err)
+		}
+		a.SetLLM(nil)
+	} else {
+		a.SetLLM(prov)
+		if a.logger != nil {
+			a.logger.Printf("Account switch: LLM provider resolved for account %s (enabled=%v)", newActiveAccount.ID, prov != nil)
+		}
+	}
+
 	// Reinitialize services that depend on the Gmail client AND database (must be after database switch)
 	a.reinitializeClientDependentServices()
 	if a.logger != nil {

@@ -1082,8 +1082,11 @@ func (a *App) reinitializeClientDependentServices() {
 			a.logger.Printf("reinitializeClientDependentServices: AI service reinitialized with new cache: %v", a.aiService != nil)
 		}
 	} else {
+		// Disable AI for accounts whose effective engine is unavailable (nil provider)
+		// instead of leaving the previous account's stale service in place.
+		a.aiService = nil
 		if a.logger != nil {
-			a.logger.Printf("reinitializeClientDependentServices: AI service NOT reinitialized - LLM=%v cacheService=%v",
+			a.logger.Printf("reinitializeClientDependentServices: AI service disabled - LLM=%v cacheService=%v",
 				a.LLM != nil, a.cacheService != nil)
 		}
 	}
@@ -1283,6 +1286,23 @@ func (a *App) initErrorHandler() {
 }
 
 // Thread-safe state access methods
+
+// GetLLM returns the active LLM provider thread-safely. It may be reassigned on
+// account switch, so background goroutines must snapshot it via this accessor
+// rather than reading a.LLM directly.
+func (a *App) GetLLM() llm.Provider {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.LLM
+}
+
+// SetLLM replaces the active LLM provider thread-safely. Pass nil to disable AI
+// (e.g. when switching to an account whose effective engine failed to build).
+func (a *App) SetLLM(p llm.Provider) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.LLM = p
+}
 
 // GetCurrentView returns the current view name thread-safely
 func (a *App) GetCurrentView() string {
@@ -2233,7 +2253,7 @@ func (a *App) generateHelpText() string {
 	if a.Config != nil && a.Config.Theme.Current != "" {
 		fmt.Fprintf(&help, "🎨 Theme: %s\n", a.Config.Theme.Current)
 	}
-	if a.LLM != nil {
+	if a.GetLLM() != nil {
 		help.WriteString("🤖 AI: Enabled\n")
 	}
 
@@ -2315,7 +2335,7 @@ func (a *App) generateHelpText() string {
 	help.WriteString("    Esc       ❌  Exit bulk mode\n\n")
 
 	// AI Features (if enabled)
-	if a.LLM != nil {
+	if a.GetLLM() != nil {
 		help.WriteString("🤖 AI FEATURES (✅ Available)\n\n")
 		fmt.Fprintf(&help, "    %-8s  📝  Summarize message\n", a.Keys.Summarize)
 		help.WriteString("    Y         🔄  Regenerate summary (force refresh)\n")
@@ -2345,7 +2365,7 @@ func (a *App) generateHelpText() string {
 			fmt.Fprintf(&help, "    %-8s  📤  Expand all threads (use :expand-all)\n", ":expand-all")
 		}
 		fmt.Fprintf(&help, "    %-8s  📥  Collapse all threads\n", a.Keys.CollapseAllThreads)
-		if a.LLM != nil {
+		if a.GetLLM() != nil {
 			if a.Keys.ThreadSummary != "" {
 				fmt.Fprintf(&help, "    %-8s  🧵  Generate AI summary of thread\n", a.Keys.ThreadSummary)
 			} else {
@@ -2371,7 +2391,7 @@ func (a *App) generateHelpText() string {
 	if a.Config.IsObsidianEnabled() {
 		fmt.Fprintf(&help, "    %s2%s       📝  Send next 2 messages to Obsidian\n", a.Keys.Obsidian, a.Keys.Obsidian)
 	}
-	if a.LLM != nil {
+	if a.GetLLM() != nil {
 		fmt.Fprintf(&help, "    %s8%s       🤖  Apply AI prompts to next 8 messages\n", a.Keys.Prompt, a.Keys.Prompt)
 	}
 	fmt.Fprintf(&help, "    %-8s  ⬆️   Go to first message\n", a.Keys.GotoTop)
@@ -2447,7 +2467,9 @@ func (a *App) generateHelpText() string {
 	fmt.Fprintf(&help, "    %-18s ⚡  Mirror rule <n> to Gmail / remove the mirror\n", ":rules sync <n>")
 	fmt.Fprintf(&help, "    %-18s ⚡  Rules pre-filter the AI :plan (config: inbox_analyzer.deterministic_prefilter)\n", "")
 	fmt.Fprintf(&help, "    %-18s ⟳   Toggle inbox auto-refresh (alias :arr; :arr 2m sets interval; Slack notify+AI summary via config)\n", ":autorefresh")
+	fmt.Fprintf(&help, "    %-18s ⚙️   Show the active account's AI engine (provider · model)\n", ":config")
 	fmt.Fprintf(&help, "    %-18s ⚙️   Add new config options to your config.json (backup written)\n", ":config migrate")
+	fmt.Fprintf(&help, "    %-18s 🔑  ChatGPT subscription: status / OAuth login / logout (per-account engine via config)\n", ":llm login chatgpt")
 	if a.Keys.Speak != "" {
 		fmt.Fprintf(&help, "    %-18s 🔊  Read the focused panel aloud (TTS; stop = press again)\n", a.Keys.Speak)
 	}
@@ -2458,7 +2480,7 @@ func (a *App) generateHelpText() string {
 		fmt.Fprintf(&help, "    %-18s 📄  Switch to flat view\n", ":flatten")
 		fmt.Fprintf(&help, "    %-18s 📤  Expand all threads\n", ":expand-all")
 		fmt.Fprintf(&help, "    %-18s 📥  Same as %s (collapse all threads)\n", ":collapse-all", a.Keys.CollapseAllThreads)
-		if a.LLM != nil {
+		if a.GetLLM() != nil {
 			fmt.Fprintf(&help, "    %-18s 🧵  Same as %s (generate thread summary)\n", ":thread-summary", a.Keys.ThreadSummary)
 		}
 	}

@@ -131,6 +131,12 @@ Every token is a `:command` name or alias; aliases sharing a handler are grouped
 :i :inbox
 ```
 
+## executeLLMCommand
+
+```text
+:llm
+```
+
 ## executeLabelCommand
 
 ```text
@@ -383,6 +389,7 @@ The canonical default `~/.config/giztui/config.json`, as produced by `config.Def
       "model": "llama3.2:latest",
       "endpoint": "http://localhost:11434/api/generate",
       "region": "",
+      "project": "",
       "api_key": "",
       "timeout": "20s",
       "stream_enabled": true,

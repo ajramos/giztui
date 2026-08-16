@@ -165,6 +165,164 @@ Becomes equivalent to:
 }
 ```
 
+### Per-Account LLM Engine
+
+Each account can select its own LLM engine. Add an `llm` block to an account to
+override the global `llm` for that account only; omit it to inherit the global
+`llm` settings. This lets, for example, a work account run a local Ollama model
+while a personal account uses a different provider.
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434",
+    "model": "llama3.2"
+  },
+  "accounts": [
+    {
+      "id": "work",
+      "display_name": "Work Account",
+      "credentials": "~/.config/giztui/credentials-work.json",
+      "token": "~/.config/giztui/token-work.json",
+      "active": true
+    },
+    {
+      "id": "personal",
+      "display_name": "Personal Gmail",
+      "credentials": "~/.config/giztui/credentials-personal.json",
+      "token": "~/.config/giztui/token-personal.json",
+      "active": false,
+      "llm": {
+        "enabled": true,
+        "provider": "bedrock",
+        "region": "us-east-1",
+        "model": "anthropic.claude-3-5-sonnet-20240620-v1:0"
+      }
+    }
+  ]
+}
+```
+
+Resolution rules:
+
+- **No `llm` block on the account** → inherit the global `llm` verbatim.
+- **`llm` block present** → its core fields (`enabled`, `provider`, `model`,
+  `endpoint`, `region`, `project`, `api_key`) are used as-is; cosmetic fields
+  (prompt templates, timeout, streaming, caching) fall back to defaults when
+  omitted.
+- **`enabled` is per-account overridable both ways**: set `"enabled": false` on
+  an account's `llm` block to **turn AI off for that account** even when the
+  global is on (e.g. work → Ollama, personal → no AI), or `"enabled": true` to
+  turn it on for one account when the global is off. Omitting `enabled` inherits
+  the global. (`stream_enabled` / `cache_enabled` still inherit the global — a
+  per-account override of those is a known v1 limitation.)
+- **Missing credentials disable AI for that account** (logged): `openai` without
+  `api_key`, or `vertex` without `api_key`/`project`+`region`.
+- An **unknown provider** disables AI for that account (logged), rather than
+  silently falling back to another engine.
+
+Switching accounts (`Ctrl+A` / `:accounts switch <id>`) re-resolves and rebuilds
+the AI stack immediately. Run **`:config`** (no subcommand) to see the active
+account's effective engine: `AI: <provider> · <model> (account: <id>)`, or
+`AI: disabled`. Existing single-account configs are unaffected — with no
+per-account `llm` block, `:config` reports the global engine.
+
+### OpenAI API key (metered) — `provider: "openai"`
+
+The standard, **metered** OpenAI API (`api.openai.com`), billed per token with an
+API key — distinct from the ChatGPT subscription below. Set `api_key` (and
+optionally `endpoint` to point at an OpenAI-compatible gateway):
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": "sk-..."
+  }
+}
+```
+
+The `api_key` is read from `config.json`; keep that file readable only by you.
+
+### Google Gemini / Vertex AI — `provider: "vertex"`
+
+Two backends, chosen by what you configure:
+
+- **Gemini API key** (`generativelanguage.googleapis.com`) — simplest, no Google
+  Cloud project. Set `api_key`:
+
+  ```json
+  { "llm": { "enabled": true, "provider": "vertex", "model": "gemini-1.5-flash", "api_key": "AIza..." } }
+  ```
+
+- **Vertex AI** (`{region}-aiplatform.googleapis.com`) — set `project` and
+  `region`, no `api_key`. Auth uses Application Default Credentials, so run
+  `gcloud auth application-default login` first (or point
+  `GOOGLE_APPLICATION_CREDENTIALS` at a service-account key):
+
+  ```json
+  { "llm": { "enabled": true, "provider": "vertex", "model": "gemini-1.5-pro", "project": "my-gcp-project", "region": "us-central1" } }
+  ```
+
+`gemini` is accepted as an alias for `vertex`.
+
+### ChatGPT Subscription (OAuth) — `provider: "chatgpt"`
+
+> ⚠️ **Experimental / unofficial.** This reuses a **ChatGPT Plus/Pro
+> subscription** via the same OAuth method OpenAI's Codex CLI uses — it is **not**
+> the metered `api.openai.com` API and needs no API key. The backend endpoint and
+> headers mirror the Codex CLI and can change or break at any time. Personal use
+> only; opt-in.
+
+Select it per account (or globally) with:
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "chatgpt",
+    "model": "gpt-5-codex"
+  }
+}
+```
+
+> **Model must be a Codex model.** The Codex backend only accepts the `*-codex`
+> family for ChatGPT-subscription accounts — a plain `gpt-5`/`gpt-4o` id is
+> rejected with `400 … model is not supported when using Codex with a ChatGPT
+> account`. Use `gpt-5-codex` (the default when `model` is omitted) or another
+> `codex` model.
+>
+> **Shared subscription quota.** Requests count against your ChatGPT plan's Codex
+> usage limit (shared with the Codex CLI and any other tool reusing the same
+> subscription). When it's exhausted, GizTUI shows `ChatGPT/Codex usage limit
+> reached (plan …, resets in ~Nh)` — that's your OpenAI quota, not a GizTUI error;
+> it clears when the plan resets.
+
+No `api_key` or `endpoint` is required — credentials come from an interactive
+login, not the config file. Log in **once per machine**:
+
+```
+:llm login chatgpt     # copies the OAuth URL to your clipboard — paste it in any browser
+:llm status            # shows the active engine + whether you're logged in
+:llm logout chatgpt    # removes the stored tokens
+```
+
+Both the **TUI** and the **desktop** open your default browser **and** copy the
+login URL to your clipboard, so you can either use the browser that pops up or
+paste the URL into a different browser/profile; they then wait for the loopback
+callback. In the desktop you can trigger it from `:llm login chatgpt` or the
+**Log in with ChatGPT** button in `:config`.
+
+The tokens are stored, machine-wide, in `~/.config/giztui/llm-auth.json` (file
+mode `0600`, never in `config.json` and never logged) and are **shared by every
+account** that selects the `chatgpt` provider — you only log in once, not per
+Gmail account. Tokens refresh automatically near expiry; if a refresh fails,
+re-run `:llm login chatgpt`.
+
 ## 🔄 Credential Resolution & Fallback System
 
 GizTUI implements a graceful 3-level credential fallback system that ensures reliable authentication even when some credential sources are invalid or missing. This design prevents application crashes due to configuration issues while providing clear feedback about the credential resolution process.

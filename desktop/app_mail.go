@@ -245,17 +245,25 @@ func (a *App) ConfigInfo() desktop.ConfigInfo {
 		return desktop.ConfigInfo{}
 	}
 	cfg := s.Config
+	// Show the active account's effective engine, not the global config.
+	eff := cfg.EffectiveLLM(s.CurrentAccountID())
 	info := desktop.ConfigInfo{
 		ConfigPath:  s.ConfigPath(),
 		LogPath:     desktop.DefaultLogPath(),
-		LLMProvider: cfg.LLM.Provider,
-		LLMModel:    cfg.LLM.Model,
+		LLMProvider: eff.Provider,
+		LLMModel:    eff.Model,
 		Theme:       cfg.Theme.Current,
 		SlackOn:     cfg.Slack.Enabled,
 		AutoRefresh: cfg.AutoRefresh.Enabled,
 	}
 	if cfg.Obsidian != nil {
 		info.ObsidianOn = cfg.Obsidian.Enabled
+	}
+	// Subscription providers (chatgpt) need an interactive login; surface the
+	// state so the ConfigModal can offer Login/Logout.
+	if eff.IsEnabled() && eff.Provider == "chatgpt" {
+		info.LLMNeedsLogin = true
+		info.LLMLoggedIn = desktop.ChatGPTLoggedIn()
 	}
 	if email, err := s.AccountEmail(a.ctx); err == nil {
 		info.Account = email
@@ -283,6 +291,35 @@ func (a *App) MigrateConfig() (string, error) {
 		return "Config is already up to date", nil
 	}
 	return fmt.Sprintf("Config updated: +%d added, -%d removed (backup: %s). Restart to apply.", len(added), len(removed), backup), nil
+}
+
+// LLMLogin runs the ChatGPT subscription OAuth (PKCE) flow, mirroring the TUI's
+// ":llm login chatgpt". It copies the authorization URL to the clipboard (so the
+// user can paste it into whatever browser/profile they want, instead of forcing
+// the system-default browser) and then blocks until the login callback completes
+// (or errors), persisting the machine-global token. The binding call returns only
+// when the flow finishes, so the frontend can await it and refresh ConfigInfo
+// afterward. Credentials are shared by every account that selects the "chatgpt"
+// provider — one login per machine.
+func (a *App) LLMLogin() error {
+	model := ""
+	if s := a.session.Load(); s != nil && s.Config != nil {
+		model = s.Config.EffectiveLLM(s.CurrentAccountID()).Model
+	}
+	authURL, wait, err := desktop.ChatGPTStartLogin(a.ctx, model)
+	if err != nil {
+		return err
+	}
+	// Do both: open the default browser AND copy the URL to the clipboard, so the
+	// user can use the browser that opened or paste it into a different one.
+	_ = desktop.OpenLoginBrowser(authURL)
+	_ = wailsruntime.ClipboardSetText(a.ctx, authURL)
+	return wait()
+}
+
+// LLMLogout removes the stored ChatGPT subscription tokens (":llm logout chatgpt").
+func (a *App) LLMLogout() error {
+	return desktop.ChatGPTLogout()
 }
 
 // InviteInfo returns calendar-invite details for a message (IsInvite=false when

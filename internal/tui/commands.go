@@ -389,6 +389,7 @@ func (a *App) commandTable() map[string]func(args []string) {
 		"refresh":     a.executeRefreshCommand,
 		"autorefresh": a.executeAutoRefreshCommand, "arr": a.executeAutoRefreshCommand,
 		"config": a.executeConfigCommand, "cfg": a.executeConfigCommand,
+		"llm":  a.executeLLMCommand,
 		"load": a.executeLoadMoreCommand, "more": a.executeLoadMoreCommand, "next": a.executeLoadMoreCommand,
 		"unread": a.executeUnreadCommand, "u": a.executeUnreadCommand,
 		"undo": a.executeUndoCommand, "U": a.executeUndoCommand,
@@ -2323,7 +2324,8 @@ func (a *App) executeRulesCommand(args []string) {
 	}
 }
 
-// executeConfigCommand handles :config [migrate]. Without a subcommand it prints usage.
+// executeConfigCommand handles :config [migrate]. Without a subcommand it shows
+// the active account's effective AI engine (provider · model) plus a migrate hint.
 func (a *App) executeConfigCommand(args []string) {
 	if len(args) > 0 && strings.ToLower(args[0]) == "migrate" {
 		go func() {
@@ -2341,5 +2343,38 @@ func (a *App) executeConfigCommand(args []string) {
 		}()
 		return
 	}
-	go a.GetErrorHandler().ShowInfo(a.ctx, "Usage: :config migrate")
+	// No subcommand: show the active account's effective AI engine.
+	go func() {
+		var accountID string
+		if as := a.GetAccountService(); as != nil {
+			if acct, err := as.GetActiveAccount(a.ctx); err == nil && acct != nil {
+				accountID = acct.ID
+			}
+		}
+		eff := a.Config.EffectiveLLM(accountID)
+		var msg string
+		switch {
+		case !eff.IsEnabled() || eff.Model == "":
+			msg = "AI: disabled"
+		case a.GetLLM() == nil:
+			// Configured but the provider failed to build (bad creds / typo) — the
+			// runtime engine is off. Report the real state, not the intended config.
+			provider := eff.Provider
+			if provider == "" {
+				provider = "ollama"
+			}
+			msg = fmt.Sprintf("AI: disabled (configured %s · %s failed to load — check logs)", provider, eff.Model)
+		default:
+			provider := eff.Provider
+			if provider == "" {
+				provider = "ollama"
+			}
+			if accountID != "" {
+				msg = fmt.Sprintf("AI: %s · %s (account: %s)", provider, eff.Model, accountID)
+			} else {
+				msg = fmt.Sprintf("AI: %s · %s", provider, eff.Model)
+			}
+		}
+		a.GetErrorHandler().ShowInfo(a.ctx, msg+"  ·  :config migrate to update config")
+	}()
 }

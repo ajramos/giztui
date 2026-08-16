@@ -47,10 +47,11 @@ func TestEffectiveLLM_Override(t *testing.T) {
 		t.Errorf("cosmetic template should inherit global %q, got %q",
 			c.LLM.SummarizeTemplate, eff.SummarizeTemplate)
 	}
-	// Boolean toggles inherit the global values (v1 limitation).
-	if eff.Enabled != c.LLM.Enabled || eff.StreamEnabled != c.LLM.StreamEnabled {
+	// An override that doesn't set enabled inherits the global; stream/cache are
+	// still bool-inherited (v1 limitation).
+	if eff.IsEnabled() != c.LLM.IsEnabled() || eff.StreamEnabled != c.LLM.StreamEnabled {
 		t.Errorf("bool toggles should inherit global (enabled=%v stream=%v), got enabled=%v stream=%v",
-			c.LLM.Enabled, c.LLM.StreamEnabled, eff.Enabled, eff.StreamEnabled)
+			c.LLM.IsEnabled(), c.LLM.StreamEnabled, eff.IsEnabled(), eff.StreamEnabled)
 	}
 	// The global config is not mutated by resolution.
 	if c.LLM.Provider != "ollama" {
@@ -63,5 +64,55 @@ func TestEffectiveLLM_ExplicitEndpointHonored(t *testing.T) {
 	c.Accounts[1].LLM.Endpoint = "https://api.openai.com/v1"
 	if got := c.EffectiveLLM("personal").Endpoint; got != "https://api.openai.com/v1" {
 		t.Errorf("explicit override endpoint not honored: %q", got)
+	}
+}
+
+func TestBuildEffectiveProvider_MissingCredentials(t *testing.T) {
+	// A configured-but-uncredentialed account must NOT build a provider — AI is
+	// disabled with an error, not "enabled" and failing every request.
+	mk := func(ov *LLMConfig) *Config {
+		g := DefaultLLMConfig()
+		g.Enabled = boolPtr(true)
+		return &Config{LLM: g, Accounts: []AccountConfig{{ID: "a", LLM: ov}}}
+	}
+
+	// openai without api_key → error.
+	if prov, err := mk(&LLMConfig{Enabled: boolPtr(true), Provider: "openai", Model: "gpt-4o-mini"}).BuildEffectiveProvider("a"); err == nil || prov != nil {
+		t.Errorf("openai without api_key: want error+nil, got prov=%v err=%v", prov, err)
+	}
+	// vertex without project/region and without api_key → error.
+	if prov, err := mk(&LLMConfig{Enabled: boolPtr(true), Provider: "vertex", Model: "gemini-1.5-flash"}).BuildEffectiveProvider("a"); err == nil || prov != nil {
+		t.Errorf("vertex without creds: want error+nil, got prov=%v err=%v", prov, err)
+	}
+	// vertex with an api_key → builds.
+	if prov, err := mk(&LLMConfig{Enabled: boolPtr(true), Provider: "vertex", Model: "gemini-1.5-flash", APIKey: "AIza"}).BuildEffectiveProvider("a"); err != nil || prov == nil {
+		t.Errorf("vertex with api_key: want provider, got prov=%v err=%v", prov, err)
+	}
+	// vertex with project+region → builds.
+	if prov, err := mk(&LLMConfig{Enabled: boolPtr(true), Provider: "vertex", Model: "gemini-1.5-pro", Project: "p", Region: "us-central1"}).BuildEffectiveProvider("a"); err != nil || prov == nil {
+		t.Errorf("vertex with project+region: want provider, got prov=%v err=%v", prov, err)
+	}
+}
+
+func TestEffectiveLLM_EnabledOverride(t *testing.T) {
+	g := DefaultLLMConfig() // global enabled=true
+	c := &Config{LLM: g, Accounts: []AccountConfig{
+		{ID: "work"}, // inherit → enabled
+		{ID: "off", LLM: &LLMConfig{Enabled: boolPtr(false)}}, // force AI off
+		{ID: "on", LLM: &LLMConfig{Enabled: boolPtr(true), Provider: "ollama", Model: "x"}},
+	}}
+	if !c.EffectiveLLM("work").IsEnabled() {
+		t.Error("work should inherit global enabled=true")
+	}
+	if c.EffectiveLLM("off").IsEnabled() {
+		t.Error("account 'off' must force AI disabled even though global is on")
+	}
+	// Global off, account on → account re-enables.
+	c.LLM.Enabled = boolPtr(false)
+	if c.EffectiveLLM("work").IsEnabled() {
+		t.Error("work should now inherit global enabled=false")
+	}
+	if !c.EffectiveLLM("on").IsEnabled() {
+		t.Error("account 'on' must force AI enabled even though global is off")
 	}
 }
