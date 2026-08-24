@@ -205,8 +205,17 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 		return fmt.Errorf("gmail client not available to undo trash")
 	}
 	for _, messageID := range action.MessageIDs {
+		if s.logger != nil {
+			s.logger.Printf("UNDO: undoTrash calling messages.untrash for %s", messageID)
+		}
 		if err := s.gmailClient.UntrashMessage(messageID); err != nil {
+			if s.logger != nil {
+				s.logger.Printf("UNDO: untrash FAILED for %s: %v", messageID, err)
+			}
 			return fmt.Errorf("failed to undo trash for message %s: %v", messageID, err)
+		}
+		if s.logger != nil {
+			s.logger.Printf("UNDO: untrash OK for %s", messageID)
 		}
 	}
 	return nil

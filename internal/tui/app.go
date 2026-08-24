@@ -1612,6 +1612,11 @@ func (a *App) performUndo() {
 		return
 	}
 
+	if a.logger != nil && result != nil {
+		a.logger.Printf("UNDO: performUndo result — ActionType=%s Success=%t MessageIDs=%v Errors=%v",
+			result.ActionType, result.Success, result.MessageIDs, result.Errors)
+	}
+
 	// Provide user feedback and handle UI updates
 	if result.Success {
 		// Show success message with refresh guidance
