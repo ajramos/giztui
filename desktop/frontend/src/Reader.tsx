@@ -63,6 +63,7 @@ export default function Reader(props: {
   readerBodyRef: RefObject<HTMLDivElement>;
   invite: Invite | null;
   rsvpBusy: string;
+  rsvpDone: string;
   onRespond: (status: "accepted" | "tentative" | "declined") => void;
   summaryPanelRef: RefObject<HTMLDivElement>;
   summary: string | null;
@@ -202,6 +203,7 @@ export default function Reader(props: {
             readerBodyRef={props.readerBodyRef}
             invite={props.invite}
             rsvpBusy={props.rsvpBusy}
+            rsvpDone={props.rsvpDone}
             onRespond={props.onRespond}
             summaryPanelRef={props.summaryPanelRef}
             summary={props.summary}

@@ -33,4 +33,16 @@ test.describe("RSVP", () => {
     await page.locator(".rsvp-btn.accept").click();
     await expect(page.locator(".toast")).toContainText("RSVP: accepted");
   });
+
+  test("the chosen response stays marked after sending", async ({ page }) => {
+    await openApp(page);
+    await openMessageAt(page, 0);
+    await expect(page.locator(".rsvp-bar")).toBeVisible();
+
+    await page.locator(".rsvp-btn.decline").click();
+    // The picked option is marked and the actions row flags a response.
+    await expect(page.locator(".rsvp-btn.decline.selected")).toBeVisible();
+    await expect(page.locator(".rsvp-actions.responded")).toBeVisible();
+    await expect(page.locator(".rsvp-btn.accept.selected")).toHaveCount(0);
+  });
 });

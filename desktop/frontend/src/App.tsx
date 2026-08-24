@@ -301,10 +301,14 @@ export default function App() {
     invite,
     setInvite,
     rsvpBusy,
+    rsvpResponses,
     rsvpPickerOpen,
     setRsvpPickerOpen,
     respondInvite,
   } = useRsvp({ setError, showToast });
+  // The response already sent for the open message (if any), so the RSVP bar and
+  // picker can keep the chosen option marked.
+  const rsvpDone = detail ? rsvpResponses[detail.id] ?? "" : "";
   const {
     threadingOn,
     setThreadingOn,
@@ -496,7 +500,7 @@ export default function App() {
     setPromptResult, linksFor, setLinksFor, suggestFor, setSuggestFor, suggestions, loadingSuggest,
     applySuggestion, attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, updateQuery, editingQuery, setEditingQuery, setSaveQueryOpen,
-    rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite, saveQueryOpen,
+    rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, rsvpDone, respondInvite, saveQueryOpen,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
     obsidianOpen, setObsidianOpen, sendObsidian,
     saveQueryName, setSaveQueryName, saveQueryCategory, setSaveQueryCategory, doSaveQuery,
@@ -542,7 +546,7 @@ export default function App() {
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
     setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
     openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
-    readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
+    readerBodyRef, invite, rsvpBusy, rsvpDone, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,

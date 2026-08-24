@@ -82,6 +82,7 @@ export default function ModalsPrimary(p: {
   detail: MessageDetail | null;
   invite: Invite | null;
   rsvpBusy: string;
+  rsvpDone: string;
   respondInvite: (id: string, status: "accepted" | "tentative" | "declined") => Promise<void>;
   saveQueryOpen: boolean;
   saveQueryName: string;
@@ -109,7 +110,7 @@ export default function ModalsPrimary(p: {
     suggestFor, setSuggestFor, suggestions, loadingSuggest, applySuggestion,
     attachmentsOpen, setAttachmentsOpen, attachments, busy, downloadAttachment,
     queriesOpen, setQueriesOpen, savedQueries, activeQuery, runQuery, deleteQuery, updateQuery, editingQuery, setEditingQuery, setSaveQueryOpen,
-    rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, respondInvite,
+    rsvpPickerOpen, setRsvpPickerOpen, detail, invite, rsvpBusy, rsvpDone, respondInvite,
     saveQueryOpen, saveQueryName, setSaveQueryName, saveQueryCategory, setSaveQueryCategory, doSaveQuery,
     slackForwardOpen, setSlackForwardOpen, forwardSlack,
     obsidianOpen, setObsidianOpen, sendObsidian,
@@ -216,6 +217,7 @@ export default function ModalsPrimary(p: {
           summary={invite.summary || ""}
           when={invite.dtStart ? formatICSDate(invite.dtStart) : ""}
           busy={rsvpBusy}
+          done={rsvpDone}
           onRespond={(status) => {
             void respondInvite(detail.id, status);
             setRsvpPickerOpen(false);

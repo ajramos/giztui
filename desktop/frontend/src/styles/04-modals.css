@@ -374,6 +374,46 @@
   border-color: var(--danger);
 }
 
+/* Once a response is sent, keep the chosen option marked (a solid highlight
+   with a ring) and de-emphasize the others, so the reply is visibly confirmed
+   rather than the toast being the only feedback. */
+.rsvp-actions.responded .rsvp-btn:not(.selected) {
+  background: var(--surface, var(--bg-elev));
+  color: var(--text-muted);
+  border-color: var(--border);
+  opacity: 0.55;
+}
+.rsvp-btn.selected {
+  font-weight: 600;
+  opacity: 1;
+}
+.rsvp-btn.accept.selected {
+  background: var(--accent-strong);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #fff 60%, transparent) inset;
+}
+.rsvp-btn.maybe.selected {
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+.rsvp-btn.decline.selected {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #fff 60%, transparent) inset;
+}
+
+/* The already-sent response in the V picker: an accent marker + label. */
+.prompt-row.rsvp-chosen {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.prompt-row.rsvp-chosen .prompt-desc {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* AI touch-up (reformatted body) */
 .touchup {
   border: 1px solid var(--border);
