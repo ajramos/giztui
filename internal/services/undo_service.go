@@ -10,11 +10,21 @@ import (
 	"time"
 )
 
+// undoGmailClient is the subset of *gmail.Client the undo service calls
+// directly (bypassing the repository) to reverse operations. Kept as an
+// interface so the service is unit-testable without a live Gmail client;
+// *gmail.Client satisfies it.
+type undoGmailClient interface {
+	ApplyLabel(messageID, labelID string) error
+	RemoveLabel(messageID, labelID string) error
+	UntrashMessage(messageID string) error
+}
+
 // UndoServiceImpl implements UndoService
 type UndoServiceImpl struct {
 	repo         MessageRepository
 	labelService LabelService
-	gmailClient  *gmail.Client
+	gmailClient  undoGmailClient
 	lastAction   *UndoableAction
 	mu           sync.RWMutex
 	logger       *log.Logger // Optional - for debug logging
@@ -185,17 +195,17 @@ func (s *UndoServiceImpl) undoArchive(ctx context.Context, action *UndoableActio
 	return nil
 }
 func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction) error {
-	// To undo trash, restore messages to their previous labels
+	// To undo trash, restore each message from the Trash via the Gmail untrash
+	// endpoint. The TRASH system label CANNOT be removed with messages.modify
+	// (RemoveLabel), so the previous label-modify approach only appeared to work:
+	// it updated the local list but left the message trashed on the server, so it
+	// vanished again on the next sync/restart. messages.untrash reverses the trash
+	// and natively restores the message's prior labels (INBOX, UNREAD, …).
+	if s.gmailClient == nil {
+		return fmt.Errorf("gmail client not available to undo trash")
+	}
 	for _, messageID := range action.MessageIDs {
-		prevState, exists := action.PrevState[messageID]
-		if !exists {
-			continue
-		}
-		updates := MessageUpdates{
-			RemoveLabels: []string{"TRASH"},
-			AddLabels:    prevState.Labels,
-		}
-		if err := s.repo.UpdateMessage(ctx, messageID, updates); err != nil {
+		if err := s.gmailClient.UntrashMessage(messageID); err != nil {
 			return fmt.Errorf("failed to undo trash for message %s: %v", messageID, err)
 		}
 	}

@@ -5,6 +5,20 @@ All notable changes to GizTUI (formerly Gmail TUI) will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **TUI: undoing a trash now persists.** Undoing a trash (`d` then `U`) restored
+  the message in the list but left it trashed on Gmail, so it disappeared again
+  on the next sync or restart. The undo now calls Gmail's `messages.untrash`
+  endpoint (matching the desktop client) instead of a label modify that could
+  never remove the `TRASH` system label.
+- **Desktop: RSVP keeps the chosen option marked.** After replying to a calendar
+  invite, the sent response (Accept / Maybe / Decline) now stays visibly
+  selected in the RSVP bar and the `V` picker, instead of the bar reverting to
+  its default look with no confirmation.
+
 ## [1.28.0] - 2026-08-15
 
 The first stable release built end-to-end by the hardened SDLC pipeline

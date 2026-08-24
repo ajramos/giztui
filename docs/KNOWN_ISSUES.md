@@ -197,9 +197,24 @@ The undo functionality had limitations that have been resolved:
 
 **Solution Applied**: Modified undo operations to use Gmail client directly instead of service layer, bypassing circular dependency issue.
 
+#### 3. Trash Operation Undo (RESOLVED)
+**Problem**: Undoing a trash (`d` then `U`) restored the message to the inbox list, but on the next sync or app restart the message disappeared again — it was still in the Trash on the server.
+
+**Example Flow**:
+1. Trash a message with `d`
+2. Press `U` to undo
+3. ✅ Message returns to the inbox list
+4. Close and reopen the app
+5. ❌ (before fix) Message is gone again — still trashed on Gmail
+
+**Root Cause**: The trash undo reversed the operation with a label modify (`messages.modify` removing `TRASH` + re-adding the previous labels). Gmail does **not** allow removing the `TRASH` system label via `messages.modify`, so the server-side untrash never happened — only the local list was updated, masking the failure until the next reload.
+
+**Solution Applied**: Trash undo now calls the Gmail `messages.untrash` endpoint (`UntrashMessage`), which properly restores the message and its prior labels (INBOX, UNREAD, …) — matching the desktop client, which already used untrash. Covered by unit tests in `internal/services/undo_service_test.go`.
+
 ### Impact Assessment
 - **Move Undo**: ✅ **RESOLVED** - Messages restored to inbox with applied labels removed
 - **Label Undo**: ✅ **RESOLVED** - Label operations can now be undone properly
+- **Trash Undo**: ✅ **RESOLVED** - Untrash now persists server-side (via `messages.untrash`), so restored messages survive a reload/restart
 - **User Experience**: ✅ **CONSISTENT** - All undo operations now work correctly
 - **Workaround Available**: ✅ **NO WORKAROUNDS NEEDED** - All functionality works as expected
 
