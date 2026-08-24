@@ -207,9 +207,11 @@ The undo functionality had limitations that have been resolved:
 4. Close and reopen the app
 5. ❌ (before fix) Message is gone again — still trashed on Gmail
 
-**Root Cause**: The trash undo reversed the operation with a label modify (`messages.modify` removing `TRASH` + re-adding the previous labels). Gmail does **not** allow removing the `TRASH` system label via `messages.modify`, so the server-side untrash never happened — only the local list was updated, masking the failure until the next reload.
+**Root Cause**: Two compounding problems.
+1. The trash undo reversed the operation with a label modify (`messages.modify` removing `TRASH`). Gmail does **not** allow removing the `TRASH` system label via `messages.modify`, so the server-side untrash never happened — only the local list was updated, masking the failure until the next reload.
+2. Even after switching to `messages.untrash`, the message left the Trash but still did not reappear: untrash clears `TRASH` but does **not** reliably restore the `INBOX` label, and the inbox list is fetched filtered by the `INBOX` label (`Messages.List(...).LabelIds("INBOX")`).
 
-**Solution Applied**: Trash undo now calls the Gmail `messages.untrash` endpoint (`UntrashMessage`), which properly restores the message and its prior labels (INBOX, UNREAD, …) — matching the desktop client, which already used untrash. Covered by unit tests in `internal/services/undo_service_test.go`.
+**Solution Applied**: Trash undo now (a) calls the Gmail `messages.untrash` endpoint (`UntrashMessage`) to clear `TRASH`, then (b) re-applies the labels the message had before trashing (INBOX, UNREAD, …; skipping `SENT`/`DRAFT`, which cannot be added via modify). The desktop client's `Untrash`/`BulkUntrash` were given the same INBOX restore for parity. Covered by unit tests in `internal/services/undo_service_test.go`.
 
 ### Impact Assessment
 - **Move Undo**: ✅ **RESOLVED** - Messages restored to inbox with applied labels removed

@@ -44,7 +44,8 @@ func TestUndoTrash_UsesUntrashEndpoint(t *testing.T) {
 		MessageIDs: []string{"m1", "m2"},
 		PrevState: map[string]ActionState{
 			"m1": {Labels: []string{"INBOX", "UNREAD"}, IsInInbox: true},
-			"m2": {Labels: []string{"INBOX"}, IsInInbox: true},
+			// SENT must be skipped: it cannot be applied via messages.modify.
+			"m2": {Labels: []string{"INBOX", "SENT"}, IsInInbox: true},
 		},
 		Description: "Trash message",
 	}
@@ -64,12 +65,20 @@ func TestUndoTrash_UsesUntrashEndpoint(t *testing.T) {
 	if len(fake.untrashed) != 2 || fake.untrashed[0] != "m1" || fake.untrashed[1] != "m2" {
 		t.Fatalf("expected untrash of [m1 m2], got %v", fake.untrashed)
 	}
-	// ...and NOT via a label modify (the buggy path that never removes TRASH).
+	// ...and the TRASH label is never removed via a label modify (the buggy path:
+	// messages.modify cannot remove TRASH, which is why untrash is required).
 	if len(fake.removed) != 0 {
 		t.Fatalf("undo trash must not RemoveLabel, got %v", fake.removed)
 	}
-	if len(fake.applied) != 0 {
-		t.Fatalf("undo trash must not ApplyLabel, got %v", fake.applied)
+	// The pre-trash labels are re-applied so the message returns to the INBOX
+	// list (untrash clears TRASH but doesn't reliably restore INBOX).
+	assertContains(t, fake.applied, "m1:INBOX")
+	assertContains(t, fake.applied, "m1:UNREAD")
+	assertContains(t, fake.applied, "m2:INBOX")
+	for _, a := range fake.applied {
+		if a == "m2:SENT" {
+			t.Fatalf("SENT must not be re-applied via modify, got %v", fake.applied)
+		}
 	}
 
 	// Single-level undo is consumed on success.
@@ -108,4 +117,14 @@ func TestUndoTrash_PropagatesError(t *testing.T) {
 	if !svc.HasUndoableAction() {
 		t.Fatalf("expected undo history retained after failure")
 	}
+}
+
+func assertContains(t *testing.T, got []string, want string) {
+	t.Helper()
+	for _, g := range got {
+		if g == want {
+			return
+		}
+	}
+	t.Fatalf("expected %q in %v", want, got)
 }

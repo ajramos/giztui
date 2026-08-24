@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Bug Fixes
 
 - **TUI: undoing a trash now persists.** Undoing a trash (`d` then `U`) restored
-  the message in the list but left it trashed on Gmail, so it disappeared again
-  on the next sync or restart. The undo now calls Gmail's `messages.untrash`
-  endpoint (matching the desktop client) instead of a label modify that could
-  never remove the `TRASH` system label.
+  the message in the list but it disappeared again on the next sync or restart.
+  Two causes: the undo used a label modify that can never remove Gmail's `TRASH`
+  system label, and even via `messages.untrash` the message left the Trash
+  without regaining the `INBOX` label the inbox list filters on. Undo now
+  untrashes and then re-applies the pre-trash labels (INBOX, UNREAD, …). The
+  desktop client's untrash was given the same INBOX restore for parity.
 - **Desktop: RSVP keeps the chosen option marked.** After replying to a calendar
   invite, the sent response (Accept / Maybe / Decline) now stays visibly
   selected in the RSVP bar and the `V` picker, instead of the bar reverting to

@@ -205,6 +205,8 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 		return fmt.Errorf("gmail client not available to undo trash")
 	}
 	for _, messageID := range action.MessageIDs {
+		// 1) Remove the message from the Trash. Only messages.untrash reverses a
+		//    trash — the TRASH system label cannot be removed via messages.modify.
 		if s.logger != nil {
 			s.logger.Printf("UNDO: undoTrash calling messages.untrash for %s", messageID)
 		}
@@ -216,6 +218,30 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 		}
 		if s.logger != nil {
 			s.logger.Printf("UNDO: untrash OK for %s", messageID)
+		}
+
+		// 2) Restore the labels the message had before trashing. untrash removes
+		//    TRASH but does NOT reliably re-add INBOX (and others), and the inbox
+		//    list is fetched filtered by the INBOX label — so without this the
+		//    message would leave the Trash yet still vanish from the inbox on the
+		//    next reload/restart. Best-effort: the untrash above is the essential
+		//    part, so a single label re-apply hiccup must not fail the whole undo.
+		//    TRASH/SPAM are skipped (we just left them / not applicable) and
+		//    SENT/DRAFT cannot be added via modify.
+		prevState, ok := action.PrevState[messageID]
+		if !ok {
+			continue
+		}
+		for _, labelID := range prevState.Labels {
+			switch labelID {
+			case "TRASH", "SPAM", "SENT", "DRAFT":
+				continue
+			}
+			if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
+				if s.logger != nil {
+					s.logger.Printf("UNDO: re-apply label %s on %s failed: %v", labelID, messageID, err)
+				}
+			}
 		}
 	}
 	return nil
