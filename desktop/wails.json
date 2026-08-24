@@ -11,7 +11,7 @@
   },
   "info": {
     "productName": "GizTUI Desktop",
-    "productVersion": "1.28.0",
+    "productVersion": "1.28.1",
     "companyName": "GizTUI",
     "copyright": "Copyright 2026 GizTUI contributors",
     "comments": "A visual Gmail client reusing the GizTUI service layer."

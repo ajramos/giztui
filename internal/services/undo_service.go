@@ -207,17 +207,8 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 	for _, messageID := range action.MessageIDs {
 		// 1) Remove the message from the Trash. Only messages.untrash reverses a
 		//    trash — the TRASH system label cannot be removed via messages.modify.
-		if s.logger != nil {
-			s.logger.Printf("UNDO: undoTrash calling messages.untrash for %s", messageID)
-		}
 		if err := s.gmailClient.UntrashMessage(messageID); err != nil {
-			if s.logger != nil {
-				s.logger.Printf("UNDO: untrash FAILED for %s: %v", messageID, err)
-			}
 			return fmt.Errorf("failed to undo trash for message %s: %v", messageID, err)
-		}
-		if s.logger != nil {
-			s.logger.Printf("UNDO: untrash OK for %s", messageID)
 		}
 
 		// 2) Restore the labels the message had before trashing. untrash removes
@@ -237,10 +228,10 @@ func (s *UndoServiceImpl) undoTrash(ctx context.Context, action *UndoableAction)
 			case "TRASH", "SPAM", "SENT", "DRAFT":
 				continue
 			}
-			if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil {
-				if s.logger != nil {
-					s.logger.Printf("UNDO: re-apply label %s on %s failed: %v", labelID, messageID, err)
-				}
+			if err := s.gmailClient.ApplyLabel(messageID, labelID); err != nil && s.logger != nil {
+				// Best-effort: the untrash above is the essential part, so a single
+				// label re-apply hiccup must not fail the whole undo.
+				s.logger.Printf("undoTrash: re-apply label %s on %s failed: %v", labelID, messageID, err)
 			}
 		}
 	}
