@@ -11,8 +11,8 @@ desktop/frontend/src/AdvancedSearchModal.tsx,99,2,8,0
 desktop/frontend/src/AiJobsPicker.tsx,104,3,12,0
 desktop/frontend/src/AiPanel.tsx,63,10,49,0
 desktop/frontend/src/AnalyzerRulesModal.tsx,85,2,17,0
-desktop/frontend/src/App.tsx,445,5,55,0
-desktop/frontend/src/AppInbox.tsx,388,7,236,0
+desktop/frontend/src/App.tsx,447,5,55,0
+desktop/frontend/src/AppInbox.tsx,390,7,237,0
 desktop/frontend/src/AppModals.tsx,12,1,8,0
 desktop/frontend/src/AttachmentsPicker.tsx,73,4,13,0
 desktop/frontend/src/ChatPanel.tsx,102,5,15,0
@@ -29,7 +29,7 @@ desktop/frontend/src/LabelsPicker.tsx,146,8,30,0
 desktop/frontend/src/LinksPicker.tsx,83,3,15,0
 desktop/frontend/src/Markdown.tsx,98,8,98,0
 desktop/frontend/src/MessageList.tsx,254,4,35,0
-desktop/frontend/src/ModalsPrimary.tsx,244,2,10,0
+desktop/frontend/src/ModalsPrimary.tsx,246,2,10,0
 desktop/frontend/src/ModalsSecondary.tsx,394,3,18,0
 desktop/frontend/src/MoreMenu.tsx,53,4,44,0
 desktop/frontend/src/MovePicker.tsx,107,4,13,0
@@ -39,9 +39,9 @@ desktop/frontend/src/PlanMovePicker.tsx,66,4,14,0
 desktop/frontend/src/PromptEditModal.tsx,118,5,11,0
 desktop/frontend/src/PromptPreviewModal.tsx,47,11,22,1
 desktop/frontend/src/PromptsPicker.tsx,174,4,38,0
-desktop/frontend/src/RSVPPicker.tsx,76,3,15,0
-desktop/frontend/src/Reader.tsx,238,2,11,0
-desktop/frontend/src/ReaderBody.tsx,332,14,111,1
+desktop/frontend/src/RSVPPicker.tsx,86,5,23,0
+desktop/frontend/src/Reader.tsx,240,2,11,0
+desktop/frontend/src/ReaderBody.tsx,348,14,111,1
 desktop/frontend/src/ReaderToolbar.tsx,225,1,58,0
 desktop/frontend/src/RulesManager.tsx,413,14,49,1
 desktop/frontend/src/SaveQueryModal.tsx,63,3,11,0
@@ -95,7 +95,7 @@ desktop/frontend/src/useMessages.ts,157,9,21,0
 desktop/frontend/src/useMiscActions.ts,254,4,30,0
 desktop/frontend/src/usePickerCrud.ts,42,8,26,0
 desktop/frontend/src/useReader.ts,144,26,105,1
-desktop/frontend/src/useRsvp.ts,64,2,12,0
+desktop/frontend/src/useRsvp.ts,70,2,13,0
 desktop/frontend/src/useTheme.ts,73,15,77,1
 desktop/frontend/src/useThreading.ts,54,4,17,0
 desktop/frontend/src/useUndo.ts,41,4,18,0
@@ -165,7 +165,7 @@ internal/services/speech_service.go,99,8,36,0
 internal/services/telemetry_service.go,164,8,42,0
 internal/services/theme_service.go,221,13,48,1
 internal/services/thread_service.go,518,14,77,4
-internal/services/undo_service.go,372,18,83,2
+internal/services/undo_service.go,385,18,83,2
 internal/tts/engine.go,13,3,11,0
 internal/tts/errors.go,6,0,0,0
 internal/tts/external_piper.go,42,6,24,0
@@ -266,6 +266,6 @@ pkg/desktop/stats.go,36,6,21,0
 pkg/desktop/telemetry.go,64,7,35,0
 pkg/desktop/theme.go,50,5,17,0
 pkg/desktop/thread.go,45,7,24,0
-pkg/desktop/undo.go,33,4,11,0
+pkg/desktop/undo.go,39,5,14,0
 pkg/desktop/version.go,3,1,1,0
 pkg/desktop/web.go,7,2,6,0

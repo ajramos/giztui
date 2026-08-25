@@ -131,6 +131,7 @@ export interface AppInboxProps {
   readerBodyRef: RefObject<HTMLDivElement>;
   invite: Invite | null;
   rsvpBusy: string;
+  rsvpDone: string;
   respondInvite: (id: string, status: "accepted" | "tentative" | "declined") => Promise<void>;
   summaryPanelRef: RefObject<HTMLDivElement>;
   summary: string | null;
@@ -179,7 +180,7 @@ export default function AppInbox(p: AppInboxProps) {
     setLabelsFor, doAction, setViewHtml, toggleThread, summarize, setPromptsOpen, generateReply,
     setTouchUpText, touchUp, openSuggest, setMoveFor, quickSearch, setLinksFor, openObsidian,
     openSlackForward, saveMessage, saveRawMessage, setHeadersHidden, setHeadersExpanded, openInGmail,
-    readerBodyRef, invite, rsvpBusy, respondInvite, summaryPanelRef, summary, summaryForId,
+    readerBodyRef, invite, rsvpBusy, rsvpDone, respondInvite, summaryPanelRef, summary, summaryForId,
     dismissSummary, promptPanelRef, promptLabel, promptResult, promptForId, aiCache, runPrompt,
     dismissPrompt, csOpen, csQuery, csIndex, setCsQuery, setCsIndex, setCsOpen, touchUpRef,
     dismissTouchUp, loadingThread, collapsedMsgs, setCollapsedMsgs, summarizeThread, loadingDetail,
@@ -351,6 +352,7 @@ export default function AppInbox(p: AppInboxProps) {
           readerBodyRef={readerBodyRef}
           invite={invite}
           rsvpBusy={rsvpBusy}
+          rsvpDone={rsvpDone}
           onRespond={(status) => detail && void respondInvite(detail.id, status)}
           summaryPanelRef={summaryPanelRef}
           summary={summary}

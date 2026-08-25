@@ -22,6 +22,10 @@ export interface Rsvp {
   invite: Invite | null;
   setInvite: Dispatch<SetStateAction<Invite | null>>;
   rsvpBusy: string;
+  // The response the user has already sent, keyed by message id. Lets the RSVP
+  // bar/picker keep the chosen option marked so a sent reply is visibly
+  // confirmed (the toast alone left users unsure it went through).
+  rsvpResponses: Record<string, "accepted" | "tentative" | "declined">;
   rsvpPickerOpen: boolean;
   setRsvpPickerOpen: Dispatch<SetStateAction<boolean>>;
   respondInvite: (
@@ -38,6 +42,9 @@ export function useRsvp(deps: {
   const [rsvpEnabled, setRsvpEnabled] = useState(false);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [rsvpBusy, setRsvpBusy] = useState("");
+  const [rsvpResponses, setRsvpResponses] = useState<
+    Record<string, "accepted" | "tentative" | "declined">
+  >({});
   // The RSVP bar auto-shows for invites; V opens a keyboard-navigable picker.
   const [rsvpPickerOpen, setRsvpPickerOpen] = useState(false);
   const rsvpEnabledRef = useRef(false);
@@ -53,6 +60,7 @@ export function useRsvp(deps: {
       setError("");
       try {
         await backend.RespondInvite(id, status);
+        setRsvpResponses((prev) => ({ ...prev, [id]: status }));
         showToast(`RSVP: ${status}`);
       } catch (e) {
         setError(String(e));
@@ -70,6 +78,7 @@ export function useRsvp(deps: {
     invite,
     setInvite,
     rsvpBusy,
+    rsvpResponses,
     rsvpPickerOpen,
     setRsvpPickerOpen,
     respondInvite,

@@ -19,6 +19,7 @@ export default function ReaderBody({
   readerBodyRef,
   invite,
   rsvpBusy,
+  rsvpDone,
   onRespond,
   summaryPanelRef,
   summary,
@@ -59,6 +60,7 @@ export default function ReaderBody({
   readerBodyRef: RefObject<HTMLDivElement>;
   invite: Invite | null;
   rsvpBusy: string;
+  rsvpDone: string;
   onRespond: (status: "accepted" | "tentative" | "declined") => void;
   summaryPanelRef: RefObject<HTMLDivElement>;
   summary: string | null;
@@ -109,17 +111,25 @@ export default function ReaderBody({
               </span>
             )}
           </div>
-          <div className="rsvp-actions">
+          <div className={"rsvp-actions" + (rsvpDone ? " responded" : "")}>
             <button
-              className="rsvp-btn accept"
+              className={
+                "rsvp-btn accept" + (rsvpDone === "accepted" ? " selected" : "")
+              }
               disabled={!!rsvpBusy}
               onClick={() => onRespond("accepted")}
             >
               <span className="rsvp-ico">{Icon.check}</span>
-              {rsvpBusy === "accepted" ? "…" : "Accept"}
+              {rsvpBusy === "accepted"
+                ? "…"
+                : rsvpDone === "accepted"
+                  ? "Accepted"
+                  : "Accept"}
             </button>
             <button
-              className="rsvp-btn maybe"
+              className={
+                "rsvp-btn maybe" + (rsvpDone === "tentative" ? " selected" : "")
+              }
               disabled={!!rsvpBusy}
               onClick={() => onRespond("tentative")}
             >
@@ -127,12 +137,18 @@ export default function ReaderBody({
               {rsvpBusy === "tentative" ? "…" : "Maybe"}
             </button>
             <button
-              className="rsvp-btn decline"
+              className={
+                "rsvp-btn decline" + (rsvpDone === "declined" ? " selected" : "")
+              }
               disabled={!!rsvpBusy}
               onClick={() => onRespond("declined")}
             >
               <span className="rsvp-ico">{Icon.x}</span>
-              {rsvpBusy === "declined" ? "…" : "Decline"}
+              {rsvpBusy === "declined"
+                ? "…"
+                : rsvpDone === "declined"
+                  ? "Declined"
+                  : "Decline"}
             </button>
           </div>
         </div>

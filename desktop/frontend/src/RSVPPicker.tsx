@@ -16,12 +16,14 @@ export default function RSVPPicker({
   summary,
   when,
   busy,
+  done,
   onRespond,
   onClose,
 }: {
   summary: string;
   when: string;
   busy: string;
+  done: string;
   onRespond: (status: Status) => void;
   onClose: () => void;
 }) {
@@ -66,7 +68,11 @@ export default function RSVPPicker({
             {OPTS.map((o, i) => (
               <button
                 key={o.key}
-                className={"prompt-row" + (i === nav.active ? " nav-active" : "")}
+                className={
+                  "prompt-row" +
+                  (i === nav.active ? " nav-active" : "") +
+                  (done === o.key ? " rsvp-chosen" : "")
+                }
                 disabled={!!busy}
                 onMouseEnter={() => nav.setActiveHover(i)}
                 onClick={() => onRespond(o.key)}
@@ -76,7 +82,11 @@ export default function RSVPPicker({
                   <span className="rule-ico">{o.icon}</span> {o.label}
                 </span>
                 <span className="prompt-desc">
-                  {busy === o.key ? "Sending…" : o.desc}
+                  {busy === o.key
+                    ? "Sending…"
+                    : done === o.key
+                      ? "Your response"
+                      : o.desc}
                 </span>
               </button>
             ))}
