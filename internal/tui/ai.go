@@ -393,7 +393,7 @@ func (a *App) suggestLabel() {
 		a.logger.Printf("suggestLabel: start for %s", a.getCurrentMessageID())
 	}
 	if a.GetLLM() == nil {
-		// Fallback UX: abrir selector completo para no dejar al usuario sin salida
+		// Fallback UX: open full selector to not leave the user without a way out
 		mid := a.getCurrentMessageID()
 		if mid != "" {
 			a.showStatusMessage("⚠️ LLM disabled — opening all labels picker")
@@ -460,7 +460,7 @@ func (a *App) suggestLabel() {
 		}
 		resp, err := a.GetLLM().Generate(prompt)
 		if err != nil {
-			// Fallback: mostrar selector completo para que el usuario pueda aplicar manualmente
+			// Fallback: show full selector so the user can apply manually
 			a.showLLMError("suggest labels", err)
 			if a.logger != nil {
 				a.logger.Printf("suggestLabel: LLM error: %v", err)

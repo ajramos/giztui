@@ -193,7 +193,7 @@ type PromptService interface {
 	GetUsageStats(ctx context.Context) (*UsageStats, error)
 	SaveResult(ctx context.Context, accountEmail, messageID string, promptID int, resultText string) error
 
-	// NUEVO: Aplicar prompt a múltiples mensajes
+	// NEW: Apply prompt to multiple messages
 	ApplyBulkPrompt(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string) (*BulkPromptResult, error)
 	ApplyBulkPromptStream(ctx context.Context, accountEmail string, messageIDs []string, promptID int, variables map[string]string, onToken func(string)) (*BulkPromptResult, error)
 	GetCachedBulkResult(ctx context.Context, accountEmail string, messageIDs []string, promptID int) (*BulkPromptResult, error)
@@ -331,7 +331,7 @@ type PromptApplyOptions struct {
 	Variables    map[string]string
 }
 
-// NUEVO: Resultado de bulk prompt
+// NEW: Bulk prompt result
 type BulkPromptResult struct {
 	PromptID     int
 	MessageCount int

@@ -3433,7 +3433,7 @@ func (a *App) showCompositionWithDraft(composition *services.Composition) {
 // getListWidth returns current inner width of the list view or a sensible fallback
 // (moved to messages.go)
 
-// getFormatWidth devuelve el ancho disponible para el texto de las filas
+// getFormatWidth returns the available width for the row text
 // (moved to messages.go)
 
 // refreshMessageContent reloads the message and updates the text view without changing focus
@@ -3500,8 +3500,8 @@ func (a *App) SetFocus(primitive tview.Primitive) *tview.Application {
 // showAllLabelsPicker shows a list of all actionable labels to apply one to the message
 // (moved to labels.go) showAllLabelsPicker
 
-// applyLabelAndRefresh aplica una etiqueta usando el mismo mecanismo que en la vista de 'l'
-// y refresca el contenido del mensaje cuando termina
+// applyLabelAndRefresh applies a label using the same mechanism as in the 'l' view
+// and refreshes the message content when done
 // (moved to labels.go) applyLabelAndRefresh
 
 // Picker state management helper methods

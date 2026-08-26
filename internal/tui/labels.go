@@ -526,9 +526,9 @@ func (a *App) populateLabelsQuickView(messageID string) {
 				a.labelsView = container
 				split.AddItem(a.labelsView, 0, 1, false)
 			}
-			// While labels son visibles, solo tragamos flechas en la lista
+			// While labels are visible, we only capture arrow keys in the list
 			// when the current focus is in labels. If the user changes with
-			// Tab a la lista, las flechas deben funcionar normalmente.
+			// Tab to the list, arrow keys should work normally.
 			if l, ok := a.views["list"].(*tview.Table); ok {
 				l.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 					if a.isLabelsPickerActive() && a.focus.is("labels") {
@@ -1257,7 +1257,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 		}
 		a.QueueUpdateDraw(func() {
 			input.SetChangedFunc(func(text string) { reload(strings.TrimSpace(text)) })
-			// Permitir volver al listado con flechas desde el buscador
+			// Allow returning to the list with arrows from the search box
 			input.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.pickerTabCycle(e) {
 					return nil
@@ -1306,7 +1306,7 @@ func (a *App) expandLabelsBrowseGeneric(messageID, title string, onPick func(id,
 				split.AddItem(a.labelsView, 0, 1, true)
 				split.ResizeItem(a.labelsView, 0, 1)
 			}
-			// Capturar flechas en la lista: si estamos en la primera y pulsamos Arriba, volver al buscador
+			// Capture arrows in the list: if we're at the first item and press Up, return to the search box
 			list.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 				if a.pickerTabCycle(e) {
 					return nil
