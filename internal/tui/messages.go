@@ -336,7 +336,7 @@ func (a *App) reloadMessagesFlat() {
 		return
 	}
 
-	// Usar ancho disponible actual del list (simple, sin watchers)
+	// Use available list width (simple, no watchers)
 	screenWidth := a.getFormatWidth()
 
 	// Preload labels once for renderer context (avoid per-row API calls)
@@ -1418,7 +1418,7 @@ func (a *App) openAdvancedSearchForm() {
 			list.SetBorder(false) // Trigger internal redraw
 		})
 
-		// Container con borde para incluir picker + lista
+		// Container with border to include picker + list
 		box := tview.NewFlex().SetDirection(tview.FlexRow)
 		box.SetBorder(true).SetTitle(" 📂 Search options ")
 		box.SetBorderColor(searchOptionsColors.Border.Color())
@@ -2788,7 +2788,7 @@ func (a *App) adjustHeaderHeight(headerContent string) {
 	}
 }
 
-// getFormatWidth devuelve el ancho disponible para el texto de las filas
+// getFormatWidth returns the available width for the row text
 func (a *App) getFormatWidth() int {
 	if list, ok := a.views["list"].(*tview.Table); ok {
 		_, _, w, _ := list.GetInnerRect()

@@ -604,8 +604,8 @@ func TestTopLevelNodeLabelNoDuplicateVerbName(t *testing.T) {
 }
 
 // The chooser must be ONE alphabetical list — fixed actions and categories interleaved.
-// Two separately-sorted blocks glued together read as unsorted (live feedback: "dos
-// grupos distintos ordenados pero pegados uno a continuación de otro").
+// Two separately-sorted blocks glued together read as unsorted (live feedback: "two
+// separate groups ordered but glued together one after the other").
 func TestActionPlanMoveTargetsSingleSortedList(t *testing.T) {
 	plan := &services.ActionPlan{Categories: []services.ActionPlanCategory{
 		{Name: "Newsletters", Action: "archive", MessageIDs: []string{"m1"}},

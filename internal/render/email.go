@@ -259,7 +259,7 @@ func (er *EmailRenderer) FormatEmailList(message *googleGmail.Message, maxWidth 
 	// Create formatted string with fixed columns: Sender | Subject(+suffix) | Date
 	formatted := fmt.Sprintf("%s | %s%s | %s", senderText, subjectText, suffix, dateText)
 
-	// Devolvemos color neutro para simplificar (sin estilos)
+	// We return neutral color to simplify (no styles)
 	textColor := er.colorer.DefaultColor
 
 	return formatted, textColor
